@@ -1,0 +1,21 @@
+.direnv
+/build
+ecapture
+res.txt
+save.log
+test_events.log
+ssl_analyzed.json
+__pycache__/
+ssl_timeline.json
+.venv/
+agentsight
+record.log
+record.log.*
+# Log files
+*.log
+
+# Log files
+*.log
+docs/blog
+
+node_modules/
