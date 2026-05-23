@@ -194,11 +194,8 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 		if (cur)
 			label = *cur;
 
-		/* Does this executable introduce new taint? We iterate the map
-		 * by index here rather than calling taint_apply_sources(): BPF
-		 * ARRAY values must be fetched via bpf_map_lookup_elem and can't
-		 * be passed as a contiguous C array. The matching predicate
-		 * (taint_comm_eq) is the same one the unit test exercises.
+		/* Does this executable introduce new taint? Scan the rodata rule
+		 * table (taint_comm_eq is the same predicate the unit test covers).
 		 *
 		 * We iterate the full constant MAX_TAINT_RULES rather than breaking
 		 * at n_taint_rules: a dynamic (volatile-dependent) bound blocks
@@ -206,13 +203,12 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 		 * rule slots are zeroed, so the source_comm[0] check skips them. */
 		TAINT_UNROLL
 		for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
-			struct taint_rule *r;
-			r = bpf_map_lookup_elem(&taint_rules, &i);
-			if (!r)
-				continue;
-			if (r->source_comm[0] != '\0' &&
-			    taint_comm_eq(tcomm, r->source_comm))
-				label |= r->label;
+			/* copy out of volatile rodata into a local so the comm
+			 * compare operates on plain memory and unrolls cleanly */
+			struct taint_rule r = taint_rules_cfg[i];
+			if (r.source_comm[0] != '\0' &&
+			    taint_comm_eq(tcomm, r.source_comm))
+				label |= r.label;
 		}
 
 		if (label) {
@@ -221,14 +217,11 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 			/* sink check: is a tainted process running a forbidden exe? */
 			TAINT_UNROLL
 			for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
-				struct taint_rule *r;
-				r = bpf_map_lookup_elem(&taint_rules, &i);
-				if (!r)
-					continue;
-				if ((label & r->label) &&
-				    r->sink_comm[0] != '\0' &&
-				    taint_comm_eq(tcomm, r->sink_comm)) {
-					rule_id = r->rule_id;
+				struct taint_rule r = taint_rules_cfg[i];
+				if ((label & r.label) &&
+				    r.sink_comm[0] != '\0' &&
+				    taint_comm_eq(tcomm, r.sink_comm)) {
+					rule_id = r.rule_id;
 
 					struct event *v =
 						bpf_ringbuf_reserve(&rb, sizeof(*v), 0);

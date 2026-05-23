@@ -704,29 +704,22 @@ int main(int argc, char **argv)
 
 	/* Parameterize BPF code with minimum duration */
 	skel->rodata->min_duration_ns = env.min_duration_ms * 1000000ULL;
-	/* ActPlane: tell the BPF program how many taint rules are active */
+
+	/* ActPlane: install compiled taint rules into rodata before load. These
+	 * are read-only to the BPF program and scanned per-exec. */
 	skel->rodata->n_taint_rules = (unsigned int)env.taint_rule_count;
+	for (int i = 0; i < env.taint_rule_count; i++) {
+		skel->rodata->taint_rules_cfg[i] = env.taint_rules[i];
+		fprintf(stderr, "ActPlane taint rule %d: '%s' -> deny exec '%s' (label 0x%llx)\n",
+			i, env.taint_rules[i].source_comm, env.taint_rules[i].sink_comm,
+			env.taint_rules[i].label);
+	}
 
 	/* Load & verify BPF programs */
 	err = process_bpf__load(skel);
 	if (err) {
 		fprintf(stderr, "Failed to load and verify BPF skeleton\n");
 		goto cleanup;
-	}
-
-	/* ActPlane: populate the compiled taint rules into the BPF array map */
-	for (int i = 0; i < env.taint_rule_count; i++) {
-		__u32 key = (__u32)i;
-		err = bpf_map__update_elem(skel->maps.taint_rules, &key, sizeof(key),
-					   &env.taint_rules[i], sizeof(env.taint_rules[i]),
-					   BPF_ANY);
-		if (err) {
-			fprintf(stderr, "Failed to install taint rule %d\n", i);
-			goto cleanup;
-		}
-		fprintf(stderr, "ActPlane taint rule %d: '%s' -> deny exec '%s' (label 0x%llx)\n",
-			i, env.taint_rules[i].source_comm, env.taint_rules[i].sink_comm,
-			env.taint_rules[i].label);
 	}
 
 	/* Populate initial PIDs from existing processes into userspace tracker */

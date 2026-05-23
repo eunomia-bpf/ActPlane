@@ -28,7 +28,7 @@
 /* Fully unroll the bounded loops below when compiled for BPF (clang), so the
  * verifier sees straight-line code. A no-op for the gcc-built unit test. */
 #if defined(__clang__)
-#define TAINT_UNROLL _Pragma("clang loop unroll(full)")
+#define TAINT_UNROLL _Pragma("unroll")
 #else
 #define TAINT_UNROLL
 #endif

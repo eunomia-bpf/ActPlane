@@ -98,10 +98,29 @@
 
 ## 6. 关系到已有工作
 
-- **AgentSight**（于桐；同时是 eunomia-bpf maintainer）：本工作的观测基础，insight 一脉相承。
-- **AgentSpec**：工具级权限，对照说明其在工具组合下的局限。
-- **E2B / Modal / Daytona 等 sandbox**：粒度对照。
-- 相关 OS / kernel 信号：见 LPC 2025 相关 contributions、`openclaw/AGENTS.md` 等（待整理进 related work）。
+> 完整注释书目见 [`reference/papers.md`](reference/papers.md)（21 篇 PDF 在 `reference/`）；开源项目对比见 [`reference/oss-landscape.md`](reference/oss-landscape.md)。本节是综合定位。
+
+把三条线放在一起看，ActPlane 落在它们的**交集**里——没有单一工作同时占据：
+
+**1. 学术界：图 + tag 传播，但只检测/记录。**
+- **CamFlow**(SoCC'17) / **CamQuery**(CCS'18, `camquery-runtime-provenance.pdf`)：whole-system provenance + 在 LSM 实时流上跑用户分析。**最接近的 prior art**；差异：ActPlane 用 eBPF/BPF-LSM(非内核模块) + 显式 taint 传播策略 + AI-agent 威胁模型。
+- **SLEUTH**(Sec'17)/**HOLMES**(S&P'19)/**RAIN**/**UNICORN**/**NoDoze**/**StreamSpot**：在依赖图上传播 tag 做攻击检测。**SLEUTH 是最接近的 taint 机制**(传播 integrity tag)——但用于检测，不预防。
+- **DIFT**：TaintDroid/Dytan/libdft/Panorama（+ Schwartz survey）——真 taint，但在进程内(DBI/JVM/Android)，非 OS 级、无 enforcement。
+- **provenance 访问控制**：PASS / Hi-Fi / LPM —— OS 溯源捕获基建，ActPlane 借其"沿系统边传播"的模型。
+
+**2. 工业界 eBPF：内核内 enforce + 后代匹配，但只布尔 lineage、无数据流。**
+- **Tetragon**(Cilium)：`matchActions: Sigkill`/`Override(-EPERM)` 内核阻断 + `matchBinaries followChildren` 后代匹配。**重叠最高、应复用其机制**；其局限：只沿 fork/exec 带**布尔** lineage、64 段上限、不匹配已存在子进程、无文件/网络 taint、无统一图 DSL。
+- **bpfcontain/bpfbox**(Findlay, GPL-2.0)：eBPF-LSM 默认拒绝；bpfcontain 是 Rust + libbpf-rs（即 §9.2"Rust 直接加载"的现成参考）。做静态 per-process 限制，无 taint、非 agent 导向。
+- **Falco**(检测,`proc.aname` 逐事件查祖先不传播)/**Tracee**(用户态签名)/**KubeArmor**(BPF-LSM Block 但 `fromSource` 单跳)。
+- **KRSI/BPF-LSM**(LPC'19)、**eBPF-PATROL**：enforcement 底层机制参考。
+
+**3. Agent 圈：dataflow DSL + enforcement，但在用户态工具层、可绕开。**
+- **AgentSpec** / **Progent** / **GuardAgent**：agent 原生策略与 dataflow 约束，但作用在 MCP/工具调用层——agent 绕开工具 API（直接 Bash/SDK）即失效，正是本工作 §1 批判的点。
+- **AgentSight**（于桐；eunomia-bpf maintainer）：本工作的观测基础，insight 一脉相承。
+
+**ActPlane 的空位 = 三方交集**：把 **fork/exec + 文件 + 网络** 多类型 taint 传播放进一个引擎，用 **CamFlow 式 provenance 图** + **Tetragon 式 BPF-LSM enforcement** 合体，经 **sources/sinks/operation-type DSL**(§10) 表达，面向 **AI agent** 给语义反馈，但在**内核**里 enforce（agent 路由不过去）。
+
+待办：动手验证 Tetragon 的 `followChildren` 与 `Override` 语义，确认复用边界；把 CamQuery、Tetragon 作为 evaluation 的 baseline。
 
 ---
 
@@ -124,81 +143,188 @@
 
 ---
 
-## 9. 实现计划（映射到当前 codebase）
+## 9. 实现（as-built POC）
 
-### 9.1 现状盘点
+ActPlane 已从 AgentSight 的观测框架收敛成一个**专注的 taint-rule 工具**：内核做 taint 传播与检测，用户态只负责策略与上报。本节描述实际构建出来的东西。
 
-当前 AgentSight **纯观测、零 enforcement**：
+### 9.1 内核：in-kernel taint（`bpf/process.bpf.c` + `bpf/taint.h`）
 
-- **bpf/**：所有程序（`process(_new).bpf.c`、`sslsniff`、`stdiocap`、`browsertrace`）只往 ringbuf 发 JSON，**全部 `return 0`，无任何阻断**。没有 LSM hook。
-  - `process.bpf.c` 已捕获 `sched_process_exec` / `sched_process_exit` / `sys_enter_openat`/`open`（文件操作）；`process_ext/bpf_fs.h` 已 hook `unlink/rename/mkdir` 等 mutation。**已捕获 fork 信息靠 `ppid` 推断，未直接 hook `sched_process_fork`**。
-- **collector/**：`Analyzer` trait 是流式转换（`process(stream) -> stream`），**stateless，不构建任何 graph**。`Event{timestamp, source, pid, comm, data}`。
-- **frontend/**：`eventParsers.ts::buildProcessTree()` 已从 `ppid` 建进程树，但纯展示、无 enforcement UI。
-- 全局 grep：无 `rule/taint/graph/provenance/policy/enforce/deny` 相关实现（只在 design docs 里）。
+在原 `process` tracer 上**新增** taint 引擎（不删原有 exec/exit/file 功能）：
 
-**结论**：观测 backbone 完整。**本轮范围约束：eBPF 一律不动，所有新东西落在 Rust collector + 前端**。因此 ActPlane(本仓库本轮) = 在现有 observation-only 事件流之上加 **provenance graph + policy/DSL + 用户态 enforcement + 反馈通道**。
+- **传播**：`sched_process_fork` hook 让子进程继承父进程的 taint label（`taint_labels` HASH map，pid→bitmask）。这等价于"污点沿进程树流动"，O(1)，无运行时图遍历。
+- **打标 + 检测**：`sched_process_exec` 里，先取继承的 label，再扫描规则表——exec 命中某规则 `source` 则 OR 上该规则的 label；若当前 label 命中某规则的 `sink`，发一条 `EVENT_TYPE_TAINT_VIOLATION`（带 `rule_id` + `taint_label`）。
+- **退出清理**：`sched_process_exit` 删除该 pid 的 label。
+- **规则存储**：编译后的规则放在 **rodata 数组** `taint_rules_cfg[MAX_TAINT_RULES]`（不是 BPF map）——因为循环里的 map lookup 会阻止 clang 全展开、进而被 verifier 当成不可终止循环拒绝；rodata 常量索引读取可全展开成直线代码。
+- **共享匹配逻辑**：`taint.h`（无 libc/libbpf 依赖）提供 `taint_comm_eq` / `taint_apply_sources` / `taint_check_sink`，同一份代码既被 eBPF 用，也被单测 `test_taint.c` 覆盖（14 个用例）。
 
-### 9.2 约束的关键后果：用户态只能"检测后反应"
+> Enforcement 强度：本机内核（6.15）未启用 BPF LSM，故当前是"检测 + 上报"。`taint.h` 注释标明：在启用 BPF LSM 的内核上，同一套匹配逻辑可移进 `lsm/bprm_check_security` 返回 `-EPERM` 做同步阻断——这是升级路径，不改变上层接口。
 
-只动 Rust + 前端、消费 observation-only 事件流 → 等用户态看到 `openat`/`exec` 事件时操作**已经发生**(TOCTOU)，**无法同步阻止**。真正同步、无竞态的 `-EPERM` 阻断需要 eBPF LSM，这被划为 **future track，本轮不碰**。
+### 9.2 Rust↔eBPF 交互
 
-这反而契合 motivation：agent 是**非恶意遗忘/绕过、提醒后能恢复**，所以 enforcement 的本体可以是**检测 + 语义反馈(提醒)**，不必硬阻断。
+进程边界 + NDJSON（沿用仓库既有风格）：
 
-**taint 传播仍可做，只是放在 Rust 内存里算**(不是 BPF map)：进程树上的 label 继承等价于 fork 时继承，fork 边直接用现有事件里的 `ppid` 推断 —— **无需新 eBPF**。
+```
+taint.yaml ─▶ Rust policy ─(argv: -T source:sink)─▶ process loader ─(rodata)─▶ eBPF
+  Rust 解析 violation NDJSON ◀──────── stdout ────────┘ 只打印 TAINT_VIOLATION
+```
 
-### 9.3 enforcement 力度三档（用户态可达）
+- **入口（Rust→C）**：`process -T SOURCE:SINK`（可重复）。C **不解析 YAML**，只把每条边塞进 rodata。
+- **出口（C→Rust）**：每个违规一行 JSON `{"event":"TAINT_VIOLATION","comm","pid","ppid","filename","rule_id","taint_label"}`。taint 模式下**只有**这一种事件。
+- **rule_id 回指**：内核只认边的序号（`rule_id = 边索引`，`label = 1<<索引`）；规则名/reason 留在 Rust，按 `rule_id` 反查。
 
-| 档 | 机制 | 强度 | 取舍 |
-|---|---|---|---|
-| **A. Audit + 语义反馈** | 检测违规 → 把"违反规则 X + 建议"推回 agent loop | 不阻断 | 最贴 motivation，纯 Rust，无竞态顾虑 |
-| **B. 反应式进程控制** | 检测 → `SIGSTOP`/`SIGKILL` 违规 pid | 弱阻断 | 有 TOCTOU 竞态，但能演示"真的拦住" |
-| **C. Mediated execution** | ActPlane 包住工具调用 / 做 proxy 网关 | 强阻断 | 部分退回 tool-level 耦合 |
+### 9.3 用户态 loader（`bpf/process.c`）
 
-> Future track（需动 eBPF，本轮不做）：eBPF LSM `bprm_check_security`/`file_open` 返回 `-EPERM`，同步无竞态。文档保留此方向作为"真 OS enforcement"的升级路径。
+最小改动：新增 `-T SOURCE:SINK` 选项 → 填 `skel->rodata->taint_rules_cfg` + `n_taint_rules`（load 前）；新增 violation 事件的 JSON 输出；`taint_mode` 下在 `handle_event` 顶部早返回，**抑制全部 exec/exit/file 噪音**，只放行 violation。通用 tracer 路径保持不变。
 
-### 9.4 要新增/修改的模块（全部 Rust + 前端）
+### 9.4 Rust collector（`collector/src/`，3 个文件）
 
-**collector（新增 `framework/provenance/`）**
-- `graph.rs`：进程/文件/远端端点 provenance graph（建议 `petgraph`）。节点 `Process{pid,exec_path}` / `File{path}` / `Endpoint{host[,path]}`；边 `Fork`/`Exec`/`Access`/`Connect`。增量维护 + taint label 传播。
-- `ProvenanceAnalyzer`（实现现有 `Analyzer::process(stream)->stream`）：消费现有 `process`/`ssl` 事件，更新 graph，事件透传。放进 `analyzers/`。
+streaming framework（Runner/Analyzer/EventStream）整体删除——taint 工具用不上。剩下：
 
-**collector（新增 `framework/policy/`）**
-- `dsl.rs`：解析 DSL → Rule AST。
-- `engine.rs`：**用户态评估器**——拿 graph + taint 状态，对 exec/file/connect 事件判定 allow/deny，命中即 emit `source="denial"` 事件（带 rule 名 + 语义 reason）。(原"编译进 BPF map"的 `compiler.rs` 移到 future track。)
+- **`policy.rs`**：YAML 策略 → 扁平 `Edge{source,sink,rule_name,reason}` 列表；`edge_args()` 生成 `-T` 参数；按 `rule_id` 反查 reason。手写 YAML 解析（不引入 serde_yaml 依赖），7 个单测。
+- **`main.rs`**：解析 `--config <yaml>` / `--rule SOURCE:SINK` → 编译边 → 解出内嵌的 `process` 二进制 → spawn `process -T …` → 读 stdout NDJSON → 带 reason 打印违规。约 130 行，无 trait、无流水线。
+- **`binary_extractor.rs`**：解出内嵌的 `process` 二进制（保留）。
 
-**collector（enforcement，新增 `ReactiveEnforcer` + `DenialFeedbackAnalyzer`）**
-- `ReactiveEnforcer`(可选，档 B)：消费 denial 事件 → 对违规 pid 发信号。
-- `DenialFeedbackAnalyzer`(档 A)：把 denial 格式化成语义消息送回 agent。**送达方式是开放问题**(§7)：被阻断操作 stderr 带理由 / agent harness 能读的 side channel / MCP 注入。
+YAML 策略 schema：
+```yaml
+rules:
+  - name: codex-no-git
+    source: codex            # 此 exe 及其所有后代被打 taint
+    deny: [git, ssh]         # 被 taint 的进程不允许 exec 这些
+    reason: "Codex 不允许使用 git/ssh，请走 review 流程。"
+```
 
-**剪枝（Rust 层，eBPF 输出照用不动）**
-- **删**：`SSEProcessor`、HTTPParser 中 **response/对话重建** 部分 —— 我们不分析 prompt。
-- **保留**：HTTPParser 的**请求侧**(method/Host/path 解析) → 喂 `Endpoint` 节点，支撑域名/path 级网络规则。
-- `AuthHeaderRemover`：按日志脱敏需求决定去留。
-- 资源指标相关(`SystemRunner` 消费、`ResourceMetricsView`)：与 enforcement 无关，可不接入。
-- **注**：`sslsniff`/`process`/`browsertrace` 等 eBPF 程序**全部保持原样**，只是 Rust 侧选择消费/不消费其输出。
+运行：`sudo ./actplane --config taint.yaml`（或 `--rule codex:git`）。
 
-**frontend**
-- 在现有 `buildProcessTree`/process tree 上叠加 enforcement：高亮被 taint 的子树、标记 denial、显示触发规则。
-- Endpoint 节点接入图视图；Policy editor 放后期。
+### 9.5 删除清单（瘦身）
 
-### 9.5 DSL 草图（v0）
+- collector：SSE/HTTP/SSL 分析器（sse_processor/http_parser/http_filter/ssl_filter/auth_header_remover，~1900 行）、ssl/stdio/system runners、整个 `server/`、Runner/Analyzer/EventStream 框架、对应子命令与 CLI flag、web 相关依赖。
+- `frontend/` 整个删除（taint 工具是 CLI/NDJSON，无 web UI）。
+- `docs/` 仅保留本研究计划。
+
+eBPF 程序（`sslsniff`/`stdiocap`/`browsertrace`/`process_new`）按约定**保留功能**，只是 Rust 侧不再消费它们。
+
+### 9.6 验证
+
+- `bpf`：`make test` — 既有套件 + `test_taint` 共 63 项全过；`make process` 0 warning，verifier 通过加载。
+- 端到端：`sudo ./actplane --config taint.yaml`，用 `codex`（重命名的 bash）exec `git`/`ssh` → 两条 violation 命中、`ls` 不误报、reason 正确显示。
+- `collector`：`cargo test` — policy 7 项全过。
+
+### 9.7 后续
+
+- BPF LSM 同步阻断（`bprm_check_security` 返 `-EPERM`），去掉检测-上报的 TOCTOU。
+- 文件/网络 sink（exec 之外）：`lsm/file_open`、socket/SNI/HTTP-请求-header（域名/path 级网络规则）。
+- 反应式信号 / 把 reason 作为语义反馈回注 agent。
+
+---
+
+## 10. 通用 DSL 设计（文件 / 网络 / 多规则的 taint）
+
+§9 的 POC 是最小特例：节点只有进程、匹配只有 `comm` 精确相等、传播只有 fork、sink 只有 exec。本节设计把它推广成**任意类型 taint + 多条规则 + 文件/网络**。
+
+### 10.1 推广图模型：带类型的节点，标签放在所有节点上
+
+- **节点类型**：`Process`(pid；身份=comm/exe/cmdline/uid)、`File`((dev,inode)；身份=path)、`Endpoint`(host:port；身份=SNI host/ip/port)。
+- **关键推广：taint label 不再只在进程上，而在进程、文件、端点上都有**。这样才能表达"数据污点"——被污染进程写出的文件被污染、读了污染文件的进程被污染。
+
+### 10.2 标准传播（边 → 转移函数，固定，不由 DSL 定义）
+
+DSL 只声明 source/sink，传播规则是固定的一套（dataflow 闭包）：
+
+| 事件 | 边 | 转移 |
+|---|---|---|
+| fork(p→c) | proc→proc | `L[c] ∪= L[p]` |
+| exec(p, file f) | file→proc | `L[p] ∪= L[f]` + 应用命中 f 的 source |
+| open/read(p, f) | file→proc | `L[p] ∪= L[f]` |
+| write(p, f) | proc→file | `L[f] ∪= L[p]` |
+| recv(p ← e) | endpoint→proc | `L[p] ∪= L[e]` |
+| connect/send(p → e) | proc→endpoint | `L[e] ∪= L[p]`（或直接当 sink 判定） |
+
+source 在命中节点**注入**标签；sink 在某操作处**检查**标签。
+
+### 10.3 DSL 语法
+
+每条规则 = 一个 label + 若干 source(注入点) + 若干 sink(禁止的操作·目标) + reason：
 
 ```text
 rule "codex-no-git" {
-  taint source exec "**/codex"            // label 沿进程树传播到所有后代
-  deny  exec    matching "**/git", "git"  // 禁止执行 git
-  deny  write   path "**/.git/**"         // 禁止改 .git
-  deny  connect host "api.github.com"     // 禁止连 github（用请求 header/SNI 判定）
-  reason "Codex 不允许使用 git，请改用 review 流程。"
+  label  codex
+  taint  process exe ~ "**/codex"        // source：命中的进程被打 codex
+  deny   exec    path ~ "**/git"         // sink：带 codex 的进程不许 exec git
+  deny   connect host = "api.github.com"
+  deny   write   path ~ "/etc/**"
+  reason "Codex 不允许碰 git / 改 /etc / 连 github"
+}
+
+rule "secret-no-exfil" {
+  label  secret
+  taint  file path ~ "/etc/secrets/**"   // source：读这些文件的进程被染 secret
+  deny   connect host ~ "*"              // 带 secret 的进程不许联网
+  deny   write   path ~ "/tmp/**"        // 也不许写 /tmp
+  reason "密钥数据不得外泄"
 }
 ```
 
-用户态语义：`codex_L` ← source matcher `**/codex`；`engine.rs` 对每个 exec/file/connect 事件查"当前 pid 是否带 codex_L 且目标命中 deny-set"，命中即 denial + `reason`。
+通用形：
+- `taint  <node-type> <attr> <op> <pattern>` —— source。`node-type∈{process,file,endpoint}`，`attr∈{exe,comm,cmdline,path,host,ip,port,uid}`，`op∈{= 精确, ~ glob, ^ 前缀, in 集合}`。
+- `deny <operation> <attr> <op> <pattern>` —— sink。`operation∈{exec,open,read,write,connect,…}`；主体隐含为"携带本规则 label 的进程"。
+- 多条规则 → 每个 label 占一位（≤64 用 u64 位掩码，O(1)；>64 改用 interned id + 小集合）。
 
-### 9.6 分阶段路线（本轮 = Phase 0/1，纯 Rust + 前端）
+### 10.4 匹配怎么做：两层（kernel / userspace）
 
-- **Phase 0 — 用户态 audit + 语义反馈（MVP）**：`ProvenanceAnalyzer` 建图、`policy/engine.rs` 评估、emit denial、`DenialFeedbackAnalyzer` 提醒 agent。验证 graph + DSL + 规则 + 反馈闭环，零内核风险。
-- **Phase 1 — 反应式 enforce + 前端可视化**：接 `ReactiveEnforcer`(档 B)跑通 **codex-no-git** demo（能演示拦住），前端叠加 taint/denial 视图。
-- **Future track（需动 eBPF，本仓库本轮不做）**：eBPF LSM 同步阻断，去掉 TOCTOU，提供"真 OS enforcement"硬证据；可作为后续论文升级点。
+不同 pattern 代价差很多。按"能否在内核廉价且同步匹配"分两层，编译器把复杂 pattern **降级**成内核原语：
 
-Phase 0 已足以支撑核心 claim（graph 建模 + 规则可表达 + 提醒闭环），与 motivation("提醒后恢复")严丝合缝；Phase 1 给出"能拦住"的可演示效果。
+| pattern | 内核可做 | 做法 |
+|---|---|---|
+| `comm =` | ✅ | 16B 精确比较（POC 已有） |
+| `path =` / `path ^前缀` | ✅ | load 时解析成 `(dev,inode)` 集合 → 内核查 inode-set；或对 dentry path 做有界前缀比较 |
+| `path ~ **glob**` | ⚠️ | userspace 用 glob 展开成 inode 集合 + inotify/fanotify 维护，推进内核 map；新建文件无法静态解析的，回落到**用户态逐事件匹配**（失去同步阻断，退化为检测+反馈） |
+| `host =` / `host ~` | ⚠️ | 内核拿到的是 ip:port；userspace 经 DNS-snoop / TLS-SNI 维护 host→ip，把 ip-set 推进内核；或在内核对 SNI 串做有界匹配 |
+| `ip in` / `port =` | ✅ | 内核集合/比较 |
+
+**结论**：内核负责"能廉价且同步匹配"的部分（精确 comm、inode-set、ip-set、前缀）并可上 LSM 同步阻断；其余（任意 glob、域名）由 userspace 在事件流上评估，做检测+语义反馈。DSL 对用户是统一的，**由编译器决定落在哪一层**。
+
+### 10.5 内核数据结构（推广 `struct taint_rule`）
+
+把单一的 `(source_comm, sink_comm)` 拆成带类型 tag 的 **source matcher** 与 **sink check**：
+
+```c
+struct matcher {          // source：命中则注入 label
+    __u8  node_type;      // PROCESS / FILE / ENDPOINT
+    __u8  attr;           // COMM / EXE / PATH / HOST / PORT ...
+    __u8  op;             // EXACT / PREFIX / INSET
+    __u64 label;          // 命中后 OR 上的位
+    union { char str[…]; __u32 setid; struct {__u32 dev; __u64 ino;} file; } operand;
+};
+struct sink_check {       // sink：某 operation 上检查 label & 匹配 target
+    __u8  operation;      // EXEC / WRITE / CONNECT ...
+    __u8  node_type, attr, op;
+    __u64 label;          // 本 sink 守护的位
+    __u32 rule_id;        // 回指 DSL（取 reason）
+    /* operand 同上 */
+};
+```
+
+标签存储按节点类型分表：`proc_labels`(pid→u64)、`file_labels`((dev,ino)→u64)、`endpoint_labels`。hook 扩展到：fork、exec(bprm)、file_open/read、vfs_write、socket_connect/sendmsg。
+
+### 10.6 每事件的匹配算法（通用）
+
+```
+on EVENT(op, subject, target):
+    # 1. 传播（若该 op 是传播边）
+    if op ∈ {read,exec,recv}:  L[subject] |= L[target]      # object→subject
+    if op ∈ {write,send}:      L[target]  |= L[subject]     # subject→object
+    if op == fork:             L[child]   |= L[parent]
+    # 2. source 注入（对刚触及的节点）
+    for m in source_matchers if m.node_type==node.type and match(m, node):
+        L[node] |= m.label
+    # 3. sink 检查
+    for s in sink_checks if s.operation == op:
+        if (L[subject] & s.label) and match(s, target):
+            report/deny(s.rule_id)
+```
+
+`match(m, node)` 按 `(attr, op)` 分派：exact comm / prefix path / inode∈set / ip∈set …。
+
+### 10.7 与 POC 的关系（增量）
+
+当前 POC = 此设计的特例：`node_type=PROCESS, attr=COMM, op=EXACT, operation=EXEC, 传播=仅fork`。推广是**纯增量**：加 `file_labels` 表 + open/write hook；加 endpoint + connect hook；把扁平 `taint_rule` 换成带 tag 的 matcher/sink_check 数组；加 userspace 编译器那一层处理 glob/域名。`taint.h` 的匹配谓词照旧单测。

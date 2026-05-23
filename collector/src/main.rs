@@ -1,770 +1,128 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 eunomia-bpf org.
 
-use clap::{Parser, Subcommand};
-use futures::stream::StreamExt;
-use std::sync::atomic::{AtomicBool, Ordering};
-use tokio::signal;
-use tokio::sync::broadcast;
+//! ActPlane — OS-enforced agent harness.
+//!
+//! Loads taint rules (YAML or inline), runs the embedded eBPF `process` tracer
+//! with the compiled `source:sink` edges, and reports the taint-rule violations
+//! it emits (a tainted process — a descendant of `source` — running a forbidden
+//! `sink`). The kernel does the taint propagation and detection; this binary is
+//! a thin policy + reporting shim, with no streaming/analyzer framework.
 
-mod framework;
-mod server;
+use clap::Parser;
+use std::process::Stdio;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Command;
 
-use framework::{
-    binary_extractor::BinaryExtractor,
-    runners::{SslRunner, StdioRunner, ProcessRunner, AgentRunner, SystemRunner, RunnerError, Runner},
-    analyzers::{OutputAnalyzer, FileLogger, TimestampNormalizer}
-};
+mod binary_extractor;
+mod policy;
 
-use server::WebServer;
-
-static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
-
-fn convert_runner_error(e: RunnerError) -> Box<dyn std::error::Error + Send + Sync> {
-    Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
-}
-
-async fn setup_signal_handler() {
-    let mut sigint = signal::unix::signal(signal::unix::SignalKind::interrupt())
-        .expect("Failed to install SIGINT handler");
-    
-    tokio::spawn(async move {
-        sigint.recv().await;
-        println!("\n\nReceived SIGINT, shutting down...");
-
-        SHUTDOWN_REQUESTED.store(true, Ordering::Relaxed);
-        std::process::exit(0);
-    });
-}
+use binary_extractor::BinaryExtractor;
+use policy::{Edge, Policy};
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about = "ActPlane: OS-enforced agent harness (taint-rule violations)", long_about = None)]
 struct Cli {
-    #[command(subcommand)]
-    command: Commands,
+    /// Path to a YAML taint policy (see policy.rs for the schema).
+    #[arg(short, long)]
+    config: Option<String>,
+
+    /// Inline taint edge SOURCE:SINK (repeatable). Combined with --config.
+    #[arg(short = 'r', long = "rule", value_name = "SOURCE:SINK")]
+    rules: Vec<String>,
 }
 
-#[derive(Subcommand)]
-enum Commands {
-    /// Analyze SSL traffic with raw JSON output
-    Ssl {
-        /// Suppress console output
-        #[arg(short, long)]
-        quiet: bool,
-        /// Enable log rotation
-        #[arg(long)]
-        rotate_logs: bool,
-        /// Maximum log file size in MB (used with --rotate-logs)
-        #[arg(long, default_value = "10")]
-        max_log_size: u64,
-        /// Start web server on port 7395
-        #[arg(long)]
-        server: bool,
-        /// Server port (used with --server)
-        #[arg(long, default_value = "7395")]
-        server_port: u16,
-        /// Log file to serve via API (used with --server)
-        #[arg(long, default_value = "ssl.log")]
-        log_file: String,
-        /// Path to the binary executable to monitor (e.g., ~/.nvm/versions/node/v20.0.0/bin/node)
-        #[arg(long)]
-        binary_path: Option<String>,
-        /// Additional arguments to pass to the SSL binary
-        #[arg(last = true)]
-        args: Vec<String>,
-    },
-    /// Test process runner with embedded binary
-    Process {
-        /// Suppress console output
-        #[arg(short, long)]
-        quiet: bool,
-        /// Enable log rotation
-        #[arg(long)]
-        rotate_logs: bool,
-        /// Maximum log file size in MB (used with --rotate-logs)
-        #[arg(long, default_value = "10")]
-        max_log_size: u64,
-        /// Start web server on port 7395
-        #[arg(long)]
-        server: bool,
-        /// Server port (used with --server)
-        #[arg(long, default_value = "7395")]
-        server_port: u16,
-        /// Log file to serve via API (used with --server)
-        #[arg(long, default_value = "process.log")]
-        log_file: String,
-        /// Additional arguments to pass to the process binary
-        #[arg(last = true)]
-        args: Vec<String>,
-    },
-    /// Capture local stdio payloads from a target process
-    Stdio {
-        /// Target PID (required)
-        #[arg(short = 'p', long)]
-        pid: u32,
-        /// Filter by UID
-        #[arg(short = 'u', long)]
-        uid: Option<u32>,
-        /// Filter by command name
-        #[arg(short = 'c', long)]
-        comm: Option<String>,
-        /// Capture all FDs instead of only stdin/stdout/stderr
-        #[arg(long)]
-        all_fds: bool,
-        /// Maximum bytes captured per event
-        #[arg(long, default_value = "8192")]
-        max_bytes: u32,
-        /// Suppress console output
-        #[arg(short, long)]
-        quiet: bool,
-        /// Enable log rotation
-        #[arg(long)]
-        rotate_logs: bool,
-        /// Maximum log file size in MB (used with --rotate-logs)
-        #[arg(long, default_value = "10")]
-        max_log_size: u64,
-        /// Start web server on port 7395
-        #[arg(long)]
-        server: bool,
-        /// Server port (used with --server)
-        #[arg(long, default_value = "7395")]
-        server_port: u16,
-        /// Log file to serve via API (used with --server)
-        #[arg(long, default_value = "stdio.log")]
-        log_file: String,
-    },
-    /// Combined SSL and Process monitoring with configurable options
-    Trace {
-        /// Enable SSL monitoring
-        #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
-        ssl: bool,
-        /// SSL filter by UID
-        #[arg(long)]
-        ssl_uid: Option<u32>,
-        /// Show SSL handshake events
-        #[arg(long)]
-        ssl_handshake: bool,
-
-        /// Enable process monitoring
-        #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
-        process: bool,
-        /// Enable stdio payload monitoring (requires --pid)
-        #[arg(long, requires = "pid")]
-        stdio: bool,
-        /// Stdio filter by UID
-        #[arg(long)]
-        stdio_uid: Option<u32>,
-        /// Stdio filter by command name
-        #[arg(long)]
-        stdio_comm: Option<String>,
-        /// Capture all FDs for stdio monitoring instead of only 0/1/2
-        #[arg(long)]
-        stdio_all_fds: bool,
-        /// Maximum bytes captured per stdio event
-        #[arg(long, default_value = "8192")]
-        stdio_max_bytes: u32,
-        /// Process command filter (comma-separated list)
-        #[arg(short = 'c', long)]
-        comm: Option<String>,
-        /// Process PID filter
-        #[arg(short = 'p', long)]
-        pid: Option<u32>,
-        /// Process duration filter (minimum duration in ms)
-        #[arg(long)]
-        duration: Option<u32>,
-        /// Process filtering mode (0=all, 1=proc, 2=filter)
-        #[arg(long)]
-        mode: Option<u32>,
-
-        /// Enable system resource monitoring (CPU and memory)
-        #[arg(long)]
-        system: bool,
-        /// System monitoring interval in seconds
-        #[arg(long, default_value = "2")]
-        system_interval: u64,
-
-        /// Path to the binary executable to monitor (e.g., ~/.nvm/versions/node/v20.0.0/bin/node)
-        #[arg(long)]
-        binary_path: Option<String>,
-        /// Log file for output and server
-        #[arg(short = 'o', long, default_value = "trace.log")]
-        log_file: String,
-        /// Suppress console output
-        #[arg(short, long)]
-        quiet: bool,
-        /// Enable log rotation
-        #[arg(long)]
-        rotate_logs: bool,
-        /// Maximum log file size in MB (used with --rotate-logs)
-        #[arg(long, default_value = "10")]
-        max_log_size: u64,
-        /// Start web server on port 7395
-        #[arg(long)]
-        server: bool,
-        /// Server port (used with --server)
-        #[arg(long, default_value = "7395")]
-        server_port: u16,
-    },
-    /// Record agent activity with optimized filters and settings
-    /// Equivalent to: trace -c claude -q --server-port 7395 --server -o record.log
-    Record {
-        /// Process command filter (defaults to "claude")
-        #[arg(short = 'c', long)]
-        comm: String,
-        /// Path to the binary executable to monitor (e.g., ~/.nvm/versions/node/v20.0.0/bin/node)
-        #[arg(long)]
-        binary_path: Option<String>,
-        /// Log file for output and server
-        #[arg(short = 'o', long, default_value = "record.log")]
-        log_file: String,
-        /// Enable log rotation
-        #[arg(long, default_value = "true")]
-        rotate_logs: bool,
-        /// Maximum log file size in MB (used with --rotate-logs)
-        #[arg(long, default_value = "10")]
-        max_log_size: u64,
-        /// Server port (used with --server, always enabled)
-        #[arg(long, default_value = "7395")]
-        server_port: u16,
-    },
-    /// Monitor system resources (CPU and memory)
-    System {
-        /// Monitoring interval in seconds
-        #[arg(short = 'i', long, default_value = "2")]
-        interval: u64,
-        /// Process PID to monitor
-        #[arg(short = 'p', long)]
-        pid: Option<u32>,
-        /// Process command name to monitor
-        #[arg(short = 'c', long)]
-        comm: Option<String>,
-        /// Exclude children processes from aggregation
-        #[arg(long)]
-        no_children: bool,
-        /// CPU usage threshold for alerts (%)
-        #[arg(long)]
-        cpu_threshold: Option<f64>,
-        /// Memory usage threshold for alerts (MB)
-        #[arg(long)]
-        memory_threshold: Option<u64>,
-        /// Log file for output and server
-        #[arg(short = 'o', long, default_value = "system.log")]
-        log_file: String,
-        /// Suppress console output
-        #[arg(short, long)]
-        quiet: bool,
-        /// Enable log rotation
-        #[arg(long)]
-        rotate_logs: bool,
-        /// Maximum log file size in MB (used with --rotate-logs)
-        #[arg(long, default_value = "10")]
-        max_log_size: u64,
-        /// Start web server on port 7395
-        #[arg(long)]
-        server: bool,
-        /// Server port (used with --server)
-        #[arg(long, default_value = "7395")]
-        server_port: u16,
-    },
+/// A violation event as emitted by the `process` tracer in taint mode.
+#[derive(serde::Deserialize)]
+struct Violation {
+    pid: i32,
+    ppid: i32,
+    comm: String,
+    filename: String,
+    rule_id: usize,
+    #[allow(dead_code)]
+    taint_label: u64,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // Initialize env_logger with default log level of info
-    env_logger::Builder::from_default_env()
-        .filter_level(log::LevelFilter::Info)
-        .init();
-    
+    env_logger::init();
     let cli = Cli::parse();
-    
-    // Setup signal handler for graceful shutdown
-    setup_signal_handler().await;
-    
-    // Create BinaryExtractor with embedded binaries
-    let binary_extractor = BinaryExtractor::new().await?;
-    
-    match &cli.command {
-        Commands::Ssl { quiet, rotate_logs, max_log_size, server, server_port, log_file, binary_path, args } => run_raw_ssl(&binary_extractor, *quiet, *rotate_logs, *max_log_size, *server, *server_port, log_file, binary_path.as_deref(), args).await.map_err(convert_runner_error)?,
-        Commands::Process { quiet, rotate_logs, max_log_size, server, server_port, log_file, args } => run_raw_process(&binary_extractor, *quiet, *rotate_logs, *max_log_size, *server, *server_port, log_file, args).await.map_err(convert_runner_error)?,
-        Commands::Stdio { pid, uid, comm, all_fds, max_bytes, quiet, rotate_logs, max_log_size, server, server_port, log_file } => run_raw_stdio(&binary_extractor, *pid, *uid, comm.as_deref(), *all_fds, *max_bytes, *quiet, *rotate_logs, *max_log_size, *server, *server_port, log_file).await.map_err(convert_runner_error)?,
-        Commands::Trace { ssl, ssl_uid, pid, comm, ssl_handshake, process, stdio, stdio_uid, stdio_comm, stdio_all_fds, stdio_max_bytes, duration, mode, system, system_interval, binary_path, log_file, quiet, rotate_logs, max_log_size, server, server_port } => run_trace(&binary_extractor, *ssl, *pid, *ssl_uid, comm.as_deref(), *ssl_handshake, *process, *stdio, *stdio_uid, stdio_comm.as_deref(), *stdio_all_fds, *stdio_max_bytes, *duration, *mode, *system, *system_interval, binary_path.as_deref(), log_file, *quiet, *rotate_logs, *max_log_size, *server, *server_port).await.map_err(convert_runner_error)?,
-        Commands::Record { comm, binary_path, log_file, rotate_logs, max_log_size, server_port } => {
-            // Enable system monitoring by default for record command
-            run_trace(&binary_extractor, true, None, None, Some(comm), false, true, false, None, None, false, 8192, None, None, true, 2, binary_path.as_deref(), log_file, true, *rotate_logs, *max_log_size, true, *server_port).await.map_err(convert_runner_error)?
-        },
-        Commands::System { interval, pid, comm, no_children, cpu_threshold, memory_threshold, log_file, quiet, rotate_logs, max_log_size, server, server_port } => run_system(*interval, *pid, comm.as_deref(), !*no_children, *cpu_threshold, *memory_threshold, log_file, *quiet, *rotate_logs, *max_log_size, *server, *server_port).await.map_err(convert_runner_error)?,
+
+    // Compile the policy: config edges first, then inline --rule edges. Edge
+    // order is the kernel's rule_id, so the reporting lookup stays consistent.
+    let mut edges: Vec<Edge> = match &cli.config {
+        Some(path) => {
+            let text = std::fs::read_to_string(path)
+                .map_err(|e| format!("reading {}: {}", path, e))?;
+            Policy::from_yaml(&text)?.into_edges()
+        }
+        None => Vec::new(),
+    };
+    for r in &cli.rules {
+        let (source, sink) = r
+            .split_once(':')
+            .filter(|(s, k)| !s.is_empty() && !k.is_empty())
+            .ok_or_else(|| format!("invalid --rule '{}' (expected SOURCE:SINK)", r))?;
+        edges.push(Edge {
+            source: source.to_string(),
+            sink: sink.to_string(),
+            rule_name: "inline".to_string(),
+            reason: String::new(),
+        });
     }
-    
+    let policy = Policy::from_edges(edges);
+
+    if policy.is_empty() {
+        return Err("no taint rules: pass --config <yaml> or --rule SOURCE:SINK".into());
+    }
+
+    let edge_args = policy.edge_args();
+    eprintln!("ActPlane: enforcing {} taint edge(s):", edge_args.len());
+    for (i, e) in policy.edges().iter().enumerate() {
+        eprintln!("  [{}] {} -> deny exec {}  ({})", i, e.source, e.sink, e.rule_name);
+    }
+
+    // Extract the embedded eBPF loader and run it in taint mode.
+    let extractor = BinaryExtractor::new().await?;
+    let mut cmd = Command::new(extractor.get_process_path());
+    for edge in &edge_args {
+        cmd.arg("-T").arg(edge);
+    }
+    cmd.stdout(Stdio::piped()).stderr(Stdio::inherit());
+
+    let mut child = cmd.spawn().map_err(|e| format!("spawning tracer: {}", e))?;
+    let stdout = child.stdout.take().expect("piped stdout");
+    let mut lines = BufReader::new(stdout).lines();
+
+    eprintln!("ActPlane: watching for violations (Ctrl-C to stop)...\n");
+    while let Some(line) = lines.next_line().await? {
+        if line.is_empty() {
+            continue;
+        }
+        if let Ok(v) = serde_json::from_str::<Violation>(&line) {
+            report(&policy, &v);
+        }
+    }
+
+    let status = child.wait().await?;
+    if !status.success() {
+        return Err(format!("tracer exited with {}", status).into());
+    }
     Ok(())
 }
 
-
-/// Show raw SSL events as JSON
-async fn run_raw_ssl(binary_extractor: &BinaryExtractor, quiet: bool, rotate_logs: bool, max_log_size: u64, enable_server: bool, server_port: u16, log_file: &str, binary_path: Option<&str>, args: &Vec<String>) -> Result<(), RunnerError> {
-    println!("Raw SSL Events");
-    println!("{}", "=".repeat(60));
-    
-    let mut ssl_runner = SslRunner::from_binary_extractor(binary_extractor.get_sslsniff_path());
-
-    // Set up event broadcasting for server if enabled
-    let (event_sender, _event_receiver) = broadcast::channel(1000);
-
-    // Build arguments list with binary_path if provided
-    let mut final_args = Vec::new();
-    if let Some(path) = binary_path {
-        final_args.push("--binary-path".to_string());
-        final_args.push(path.to_string());
+/// Print a human-readable violation with the policy's reason.
+fn report(policy: &Policy, v: &Violation) {
+    let (rule_name, reason) = match policy.edge(v.rule_id) {
+        Some(e) => (e.rule_name.as_str(), e.reason.as_str()),
+        None => ("?", ""),
+    };
+    println!(
+        "🚫 BLOCKED [{}]: process '{}' (pid {}, ppid {}) tried to exec {}",
+        rule_name, v.comm, v.pid, v.ppid, v.filename
+    );
+    if !reason.is_empty() {
+        println!("   reason: {}", reason);
     }
-    final_args.extend_from_slice(args);
-
-    // Add all arguments if we have any
-    if !final_args.is_empty() {
-        ssl_runner = ssl_runner.with_args(&final_args);
-    }
-
-    // Add TimestampNormalizer first to convert nanoseconds since boot to milliseconds since epoch
-    ssl_runner = ssl_runner.add_analyzer(Box::new(TimestampNormalizer::new()));
-
-    println!("Starting SSL event stream with raw JSON output (press Ctrl+C to stop):");
-
-    ssl_runner = ssl_runner
-        .add_analyzer(Box::new(
-            if rotate_logs {
-                FileLogger::with_max_size(log_file, max_log_size).unwrap()
-            } else {
-                FileLogger::new(log_file).unwrap()
-            }
-        ));
-    
-    if !quiet {
-        ssl_runner = ssl_runner.add_analyzer(Box::new(OutputAnalyzer::new()));
-    }
-    
-    // Start web server if enabled
-    let _server_handle = start_web_server_if_enabled(enable_server, server_port, Some(log_file), event_sender.clone()).await
-        .map_err(|e| RunnerError::from(format!("Failed to start server: {}", e)))?;
-
-    let mut stream = ssl_runner.run().await?;
-    
-    // Consume the stream to actually process events
-    while let Some(event) = stream.next().await {
-        // Forward events to web server if enabled
-        if enable_server {
-            let _ = event_sender.send(event);
-        }
-    }
-    
-    Ok(())
-}
-
-/// Show raw process events as JSON
-async fn run_raw_process(binary_extractor: &BinaryExtractor, quiet: bool, rotate_logs: bool, max_log_size: u64, enable_server: bool, server_port: u16, log_file: &str, args: &Vec<String>) -> Result<(), RunnerError> {
-    println!("Raw Process Events");
-    println!("{}", "=".repeat(60));
-    
-    let mut process_runner = ProcessRunner::from_binary_extractor(binary_extractor.get_process_path());
-
-    // Set up event broadcasting for server if enabled
-    let (event_sender, _event_receiver) = broadcast::channel(1000);
-
-    // Add additional arguments if provided
-    if !args.is_empty() {
-        process_runner = process_runner.with_args(args);
-    }
-
-    // Add TimestampNormalizer first to convert nanoseconds since boot to milliseconds since epoch
-    process_runner = process_runner.add_analyzer(Box::new(TimestampNormalizer::new()));
-
-    if !quiet {
-        process_runner = process_runner.add_analyzer(Box::new(OutputAnalyzer::new()));
-    }
-
-    process_runner = process_runner
-        .add_analyzer(Box::new(
-            if rotate_logs {
-                FileLogger::with_max_size(log_file, max_log_size).unwrap()
-            } else {
-                FileLogger::new(log_file).unwrap()
-            }
-        ));
-
-    // Start web server if enabled
-    let _server_handle = start_web_server_if_enabled(enable_server, server_port, Some(log_file), event_sender.clone()).await
-        .map_err(|e| RunnerError::from(format!("Failed to start server: {}", e)))?;
-    
-    println!("Starting process event stream with raw JSON output (press Ctrl+C to stop):");
-    let mut stream = process_runner.run().await?;
-
-    // Consume the stream to actually process events
-    while let Some(event) = stream.next().await {
-        // Forward events to web server if enabled
-        if enable_server {
-            let _ = event_sender.send(event);
-        }
-    }
-
-    Ok(())
-}
-
-fn build_stdio_args(pid: u32, uid: Option<u32>, comm: Option<&str>, all_fds: bool, max_bytes: u32) -> Vec<String> {
-    let mut args = vec!["-p".to_string(), pid.to_string()];
-
-    if let Some(uid_filter) = uid {
-        args.extend(["-u".to_string(), uid_filter.to_string()]);
-    }
-    if let Some(comm_filter) = comm {
-        args.extend(["-c".to_string(), comm_filter.to_string()]);
-    }
-    if all_fds {
-        args.push("--all-fds".to_string());
-    }
-    args.extend(["--max-bytes".to_string(), max_bytes.to_string()]);
-
-    args
-}
-
-/// Show raw stdio events as JSON
-async fn run_raw_stdio(binary_extractor: &BinaryExtractor, pid: u32, uid: Option<u32>, comm: Option<&str>, all_fds: bool, max_bytes: u32, quiet: bool, rotate_logs: bool, max_log_size: u64, enable_server: bool, server_port: u16, log_file: &str) -> Result<(), RunnerError> {
-    println!("Raw Stdio Events");
-    println!("{}", "=".repeat(60));
-
-    let mut stdio_runner = StdioRunner::from_binary_extractor(binary_extractor.get_stdiocap_path()?);
-
-    // Set up event broadcasting for server if enabled
-    let (event_sender, _event_receiver) = broadcast::channel(1000);
-
-    let stdio_args = build_stdio_args(pid, uid, comm, all_fds, max_bytes);
-    stdio_runner = stdio_runner.with_args(&stdio_args);
-
-    // Add TimestampNormalizer first to convert nanoseconds since boot to milliseconds since epoch
-    stdio_runner = stdio_runner.add_analyzer(Box::new(TimestampNormalizer::new()));
-
-    if !quiet {
-        stdio_runner = stdio_runner.add_analyzer(Box::new(OutputAnalyzer::new()));
-    }
-
-    stdio_runner = stdio_runner
-        .add_analyzer(Box::new(
-            if rotate_logs {
-                FileLogger::with_max_size(log_file, max_log_size).unwrap()
-            } else {
-                FileLogger::new(log_file).unwrap()
-            }
-        ));
-
-    // Start web server if enabled
-    let _server_handle = start_web_server_if_enabled(enable_server, server_port, Some(log_file), event_sender.clone()).await
-        .map_err(|e| RunnerError::from(format!("Failed to start server: {}", e)))?;
-
-    println!("Starting stdio event stream for PID {} (press Ctrl+C to stop):", pid);
-    let mut stream = stdio_runner.run().await?;
-
-    while let Some(event) = stream.next().await {
-        if enable_server {
-            let _ = event_sender.send(event);
-        }
-    }
-
-    Ok(())
-}
-
-/// Trace monitoring with configurable runners and analyzers
-async fn run_trace(
-    binary_extractor: &BinaryExtractor,
-    ssl_enabled: bool,
-    pid: Option<u32>,
-    ssl_uid: Option<u32>,
-    comm: Option<&str>,
-    ssl_handshake: bool,
-    process_enabled: bool,
-    stdio_enabled: bool,
-    stdio_uid: Option<u32>,
-    stdio_comm: Option<&str>,
-    stdio_all_fds: bool,
-    stdio_max_bytes: u32,
-    duration: Option<u32>,
-    mode: Option<u32>,
-    system_enabled: bool,
-    system_interval: u64,
-    binary_path: Option<&str>,
-    log_file: &str,
-    quiet: bool,
-    rotate_logs: bool,
-    max_log_size: u64,
-    enable_server: bool,
-    server_port: u16,
-) -> Result<(), RunnerError> {
-    println!("Trace Monitoring");
-    println!("{}", "=".repeat(60));
-    
-    // Set up event broadcasting for server if enabled
-    let (event_sender, _event_receiver) = broadcast::channel(1000);
-    
-    let mut agent = AgentRunner::new("trace");
-    
-    // Add SSL runner if enabled
-    if ssl_enabled {
-        let mut ssl_runner = SslRunner::from_binary_extractor(binary_extractor.get_sslsniff_path());
-
-        // Configure SSL runner arguments (sslsniff supports -p, -u, -c, -h, -v, --binary-path)
-        let mut ssl_args = Vec::new();
-        if let Some(pid_filter) = pid {
-            ssl_args.extend(["-p".to_string(), pid_filter.to_string()]);
-        }
-        if let Some(uid_filter) = ssl_uid {
-            ssl_args.extend(["-u".to_string(), uid_filter.to_string()]);
-        }
-        // Note: when --binary-path is specified, we skip the --comm filter for sslsniff
-        // because SSL traffic comes from "HTTP Client" thread (not the process name).
-        // bpf_get_current_comm() returns thread name, so -c <process-name> would filter
-        // out all SSL traffic. Instead, --binary-path alone provides sufficient targeting.
-        if binary_path.is_none() {
-            if let Some(comm_filter) = comm {
-                ssl_args.extend(["-c".to_string(), comm_filter.to_string()]);
-            }
-        }
-        if ssl_handshake {
-            ssl_args.push("--handshake".to_string());
-        }
-        if let Some(path) = binary_path {
-            ssl_args.extend(["--binary-path".to_string(), path.to_string()]);
-        }
-        if !ssl_args.is_empty() {
-            ssl_runner = ssl_runner.with_args(&ssl_args);
-        }
-
-        // Add TimestampNormalizer first
-        ssl_runner = ssl_runner.add_analyzer(Box::new(TimestampNormalizer::new()));
-
-        agent = agent.add_runner(Box::new(ssl_runner));
-        println!("✓ SSL monitoring enabled");
-    }
-
-    // Add stdio runner if enabled
-    if stdio_enabled {
-        let pid_filter = pid.ok_or_else(|| RunnerError::from("stdio capture currently requires --pid"))?;
-        let mut stdio_runner = StdioRunner::from_binary_extractor(binary_extractor.get_stdiocap_path()?);
-        let stdio_args = build_stdio_args(pid_filter, stdio_uid, stdio_comm, stdio_all_fds, stdio_max_bytes);
-
-        stdio_runner = stdio_runner.with_args(&stdio_args);
-        stdio_runner = stdio_runner.add_analyzer(Box::new(TimestampNormalizer::new()));
-
-        agent = agent.add_runner(Box::new(stdio_runner));
-        println!("✓ Stdio monitoring enabled for PID {}", pid_filter);
-    }
-    
-    // Add process runner if enabled
-    if process_enabled {
-        let mut process_runner = ProcessRunner::from_binary_extractor(binary_extractor.get_process_path());
-
-        // Configure process runner arguments (process supports -c, -d, -m, -v)
-        let mut process_args = Vec::new();
-        if let Some(comm_filter) = comm {
-            process_args.extend(["-c".to_string(), comm_filter.to_string()]);
-        }
-        if let Some(duration_filter) = duration {
-            process_args.extend(["-d".to_string(), duration_filter.to_string()]);
-        }
-        if let Some(mode_filter) = mode {
-            process_args.extend(["-m".to_string(), mode_filter.to_string()]);
-        }
-        if !process_args.is_empty() {
-            process_runner = process_runner.with_args(&process_args);
-        }
-
-        // Add TimestampNormalizer first
-        process_runner = process_runner.add_analyzer(Box::new(TimestampNormalizer::new()));
-
-        agent = agent.add_runner(Box::new(process_runner));
-        println!("✓ Process monitoring enabled");
-    }
-    
-    // Add system resource runner if enabled
-    if system_enabled {
-        let mut system_runner = SystemRunner::new()
-            .interval(system_interval);
-
-        // Use same comm filter as other runners if provided
-        if let Some(comm_filter) = comm {
-            system_runner = system_runner.comm(comm_filter);
-        }
-
-        // Use same pid filter if provided
-        if let Some(pid_filter) = pid {
-            system_runner = system_runner.pid(pid_filter);
-        }
-
-        // Add TimestampNormalizer first
-        system_runner = system_runner.add_analyzer(Box::new(TimestampNormalizer::new()));
-
-        agent = agent.add_runner(Box::new(system_runner));
-        println!("✓ System monitoring enabled (interval: {}s)", system_interval);
-    }
-
-    // Ensure at least one runner is enabled
-    if !ssl_enabled && !process_enabled && !stdio_enabled && !system_enabled {
-        return Err("At least one monitoring type must be enabled (--ssl, --process, --stdio, or --system)".into());
-    }
-    
-    // Add global analyzers (HTTP filter is now added to SSL runner instead)
-
-    agent = agent.add_global_analyzer(Box::new(
-        if rotate_logs {
-            FileLogger::with_max_size(log_file, max_log_size).unwrap()
-        } else {
-            FileLogger::new(log_file).unwrap()
-        }
-    ));
-    println!("✓ Logging to file: {}", log_file);
-    
-    if !quiet {
-        agent = agent.add_global_analyzer(Box::new(OutputAnalyzer::new()));
-        println!("✓ Console output enabled");
-    }
-    
-    println!("{}", "=".repeat(60));
-    println!("Starting flexible trace monitoring with {} runners and {} global analyzers...",
-             agent.runner_count(), agent.analyzer_count());
-    println!("Press Ctrl+C to stop");
-
-    // Start web server if enabled
-    let _server_handle = start_web_server_if_enabled(enable_server, server_port, Some(log_file), event_sender.clone()).await
-        .map_err(|e| RunnerError::from(format!("Failed to start server: {}", e)))?;
-    
-    let mut stream = agent.run().await?;
-    
-    // Consume the stream to actually process events
-    while let Some(event) = stream.next().await {
-        // Forward events to web server if enabled
-        if enable_server {
-            let _ = event_sender.send(event);
-        }
-    }
-    
-    Ok(())
-}
-
-
-// Shared server management function
-/// Monitor system resources (CPU and memory)
-async fn run_system(
-    interval: u64,
-    pid: Option<u32>,
-    comm: Option<&str>,
-    include_children: bool,
-    cpu_threshold: Option<f64>,
-    memory_threshold: Option<u64>,
-    log_file: &str,
-    quiet: bool,
-    rotate_logs: bool,
-    max_log_size: u64,
-    enable_server: bool,
-    server_port: u16,
-) -> Result<(), RunnerError> {
-    println!("System Resource Monitoring");
-    println!("{}", "=".repeat(60));
-
-    let mut system_runner = SystemRunner::new()
-        .interval(interval);
-
-    // Configure monitoring target
-    if let Some(pid) = pid {
-        system_runner = system_runner.pid(pid);
-        println!("Monitoring PID: {}", pid);
-    } else if let Some(comm) = comm {
-        system_runner = system_runner.comm(comm);
-        println!("Monitoring process: {}", comm);
-    } else {
-        println!("Monitoring system-wide resources");
-    }
-
-    // Configure options
-    system_runner = system_runner.include_children(include_children);
-
-    if let Some(threshold) = cpu_threshold {
-        system_runner = system_runner.cpu_threshold(threshold);
-        println!("CPU alert threshold: {}%", threshold);
-    }
-
-    if let Some(threshold) = memory_threshold {
-        system_runner = system_runner.memory_threshold(threshold);
-        println!("Memory alert threshold: {} MB", threshold);
-    }
-
-    println!("Interval: {}s", interval);
-    println!("Include children: {}", include_children);
-    println!("{}", "=".repeat(60));
-    println!("Starting system monitoring (press Ctrl+C to stop):");
-
-    // Set up event broadcasting for server if enabled
-    let (event_sender, _event_receiver) = broadcast::channel(1000);
-
-    // Add TimestampNormalizer first
-    system_runner = system_runner.add_analyzer(Box::new(TimestampNormalizer::new()));
-
-    // Add file logger
-    system_runner = system_runner
-        .add_analyzer(Box::new(
-            if rotate_logs {
-                FileLogger::with_max_size(log_file, max_log_size).unwrap()
-            } else {
-                FileLogger::new(log_file).unwrap()
-            }
-        ));
-
-    // Add console output unless quiet
-    if !quiet {
-        system_runner = system_runner.add_analyzer(Box::new(OutputAnalyzer::new()));
-    }
-
-    // Start web server if enabled
-    let _server_handle = start_web_server_if_enabled(
-        enable_server,
-        server_port,
-        Some(log_file),
-        event_sender.clone()
-    ).await
-        .map_err(|e| RunnerError::from(format!("Failed to start server: {}", e)))?;
-
-    let mut stream = system_runner.run().await?;
-
-    // Consume the stream to actually process events
-    while let Some(event) = stream.next().await {
-        // Forward events to web server if enabled
-        if enable_server {
-            let _ = event_sender.send(event);
-        }
-    }
-
-    Ok(())
-}
-
-async fn start_web_server_if_enabled(
-    enable_server: bool,
-    port: u16,
-    log_file: Option<&str>,
-    event_sender: broadcast::Sender<crate::framework::core::Event>,
-) -> Result<Option<tokio::task::JoinHandle<()>>, Box<dyn std::error::Error>> {
-    if !enable_server {
-        return Ok(None);
-    }
-
-    let addr = format!("0.0.0.0:{}", port).parse()
-        .map_err(|e| format!("Invalid server address: {}", e))?;
-
-    let web_server = WebServer::new(event_sender, log_file).map_err(|e| format!("Failed to create web server: {}", e))?;
-
-    println!("🌐 Starting web server on http://{}", addr);
-    println!("   Frontend will be available once the server starts");
-
-    let server_handle = tokio::spawn(async move {
-        if let Err(e) = web_server.start(addr).await {
-            eprintln!("❌ Web server error: {}", e);
-        }
-    });
-
-    // Give the server a moment to start
-    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-    Ok(Some(server_handle))
 }
