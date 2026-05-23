@@ -288,8 +288,12 @@ static __noinline int te_check(pid_t pid, unsigned int op, const char *target,
 			continue;
 		if (!taint_match(r.match, target, r.target))
 			continue;
-		if (op == TOP_EXEC && argv && !taint_arg_match(argv, argv_len, r.arg))
-			continue;
+		if (op == TOP_EXEC && r.arg[0] != '\0') {
+			if (!argv || argv_len <= 0)
+				continue;
+			if (!taint_arg_match(argv, argv_len, r.arg))
+				continue;
+		}
 		if (te_cond_satisfied(&r, pid, target))
 			continue;
 		return (int)r.rule_id;

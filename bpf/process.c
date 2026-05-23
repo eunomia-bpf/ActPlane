@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <bpf/libbpf.h>
 #include "process.h"
 #include "process.skel.h"
@@ -55,10 +56,24 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va
 static volatile bool exiting = false;
 static void sig_handler(int sig) { (void)sig; exiting = true; }
 
+static bool bpf_lsm_active(void)
+{
+	FILE *f = fopen("/sys/kernel/security/lsm", "r");
+	char buf[512];
+	bool active = false;
+
+	if (!f)
+		return false;
+	if (fgets(buf, sizeof(buf), f))
+		active = strstr(buf, "bpf") != NULL;
+	fclose(f);
+	return active;
+}
+
 static int handle_event(void *ctx, void *data, size_t sz)
 {
 	const struct event *e = data;
-	char target[64];
+	char target[MAX_FILENAME_LEN];
 	(void)ctx; (void)sz;
 	if (e->type != EVENT_TYPE_TAINT_VIOLATION)
 		return 0;
@@ -69,10 +84,11 @@ static int handle_event(void *ctx, void *data, size_t sz)
 	} else {
 		snprintf(target, sizeof(target), "%s", e->filename);
 	}
-	printf("{\"timestamp\":%llu,\"event\":\"TAINT_VIOLATION\",\"comm\":\"%s\","
-	       "\"pid\":%d,\"ppid\":%d,\"target\":\"%s\",\"rule_id\":%u,\"taint_label\":%llu}\n",
-	       e->timestamp_ns, e->comm, e->pid, e->ppid, target,
-	       e->taint_rule_id, e->taint_label);
+	printf("{\"timestamp\":%llu,\"event\":\"TAINT_VIOLATION\",\"blocked\":%s,"
+	       "\"comm\":\"%s\",\"pid\":%d,\"ppid\":%d,\"target\":\"%s\","
+	       "\"rule_id\":%u,\"taint_label\":%llu}\n",
+	       e->timestamp_ns, e->blocked ? "true" : "false", e->comm, e->pid,
+	       e->ppid, target, e->taint_rule_id, e->taint_label);
 	fflush(stdout);
 	return 0;
 }
@@ -100,6 +116,7 @@ int main(int argc, char **argv)
 	struct ring_buffer *rb = NULL;
 	struct process_bpf *skel;
 	struct taint_config cfg;
+	bool enforce;
 	int err;
 
 	err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
@@ -111,6 +128,7 @@ int main(int argc, char **argv)
 	}
 	if (load_config(env.config, &cfg))
 		return 1;
+	enforce = bpf_lsm_active();
 
 	libbpf_set_print(libbpf_print_fn);
 	signal(SIGINT, sig_handler);
@@ -121,8 +139,19 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to open BPF skeleton\n");
 		return 1;
 	}
+	if (!enforce) {
+		bpf_program__set_autoload(skel->progs.enforce_bprm_check_security, false);
+		bpf_program__set_autoload(skel->progs.enforce_file_open, false);
+		bpf_program__set_autoload(skel->progs.enforce_file_permission, false);
+		bpf_program__set_autoload(skel->progs.enforce_file_truncate, false);
+		bpf_program__set_autoload(skel->progs.enforce_path_truncate, false);
+		bpf_program__set_autoload(skel->progs.enforce_path_unlink, false);
+		bpf_program__set_autoload(skel->progs.enforce_path_rename, false);
+		bpf_program__set_autoload(skel->progs.enforce_socket_connect, false);
+	}
 
 	/* install compiled tables into rodata before load */
+	skel->rodata->enforce_mode = enforce ? 1 : 0;
 	skel->rodata->n_sources = cfg.n_sources;
 	skel->rodata->n_rules = cfg.n_rules;
 	skel->rodata->n_xforms = cfg.n_xforms;
@@ -133,6 +162,9 @@ int main(int argc, char **argv)
 	memcpy((void *)skel->rodata->taint_gates, cfg.gates, sizeof(cfg.gates));
 	fprintf(stderr, "ActPlane: %u sources, %u rules, %u xforms, %u gates\n",
 		cfg.n_sources, cfg.n_rules, cfg.n_xforms, cfg.n_gates);
+	fprintf(stderr, "ActPlane: %s mode (%s)\n",
+		enforce ? "enforce" : "audit",
+		enforce ? "BPF LSM is active" : "BPF LSM is not active");
 
 	err = process_bpf__load(skel);
 	if (err) { fprintf(stderr, "Failed to load BPF skeleton\n"); goto cleanup; }

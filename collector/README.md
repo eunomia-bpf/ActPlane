@@ -2,9 +2,10 @@
 
 The userspace half of ActPlane: a **taint-DSL compiler + reporting shim**. It
 parses a `.dsl` policy, lowers it to the kernel ABI (`struct taint_config`), runs
-the embedded eBPF enforcer, and prints each `TAINT_VIOLATION` the kernel emits
-with its policy reason. The kernel does all taint propagation, matching, and
-detection — this binary compiles policy and reports.
+the embedded eBPF program, and prints each `TAINT_VIOLATION` the kernel emits
+with its policy reason. The kernel does all taint propagation and matching; when
+BPF LSM is active, violations from LSM hooks are blocked, and otherwise the loader
+falls back to audit mode.
 
 ## Build & test
 
@@ -16,7 +17,7 @@ cargo test                   # DSL compiler unit tests (E1–E12, DNF, ABI size)
 ## Usage
 
 ```bash
-sudo ./target/release/actplane policy.dsl          # compile + enforce
+sudo ./target/release/actplane policy.dsl          # compile + enforce/audit
 ./target/release/actplane policy.dsl --out cfg.bin # compile only -> kernel blob
 ```
 

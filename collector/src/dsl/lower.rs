@@ -192,7 +192,11 @@ impl Ctx {
         }
         let b = 1u64 << self.next_gate;
         self.next_gate += 1;
-        let mut g = CGate { m, pat: [0; PAT], bit: b };
+        let mut g = CGate {
+            m,
+            pat: [0; PAT],
+            bit: b,
+        };
         set_pat(&mut g.pat, &lit);
         self.gates.push(g);
         self.gate_bits.insert(key, b);
@@ -224,12 +228,13 @@ fn dnf(e: &Expr, ctx: &mut Ctx) -> Result<Vec<(u64, u64)>, String> {
     })
 }
 
-fn op_lower(op: Op) -> Result<u8, String> {
+fn op_lowers(op: Op) -> Result<&'static [u8], String> {
     match op {
-        Op::Exec => Ok(OP_EXEC),
-        Op::Read | Op::Open => Ok(OP_OPEN),
-        Op::Write | Op::Unlink => Ok(OP_WRITE),
-        Op::Connect => Ok(OP_CONNECT),
+        Op::Exec => Ok(&[OP_EXEC]),
+        Op::Read => Ok(&[OP_OPEN]),
+        Op::Open => Ok(&[OP_OPEN, OP_WRITE]),
+        Op::Write | Op::Unlink => Ok(&[OP_WRITE]),
+        Op::Connect => Ok(&[OP_CONNECT]),
         Op::Recv => Err("recv is a source, not a sink op".into()),
     }
 }
@@ -274,81 +279,95 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
                 (SRC_ENDPOINT, (M_ANY, String::new())) // matched numerically
             }
         };
-        let mut cs = CSource { kind, m, pat: [0; PAT], label: bit, ipv4: net, ipv4_mask: mask };
+        let mut cs = CSource {
+            kind,
+            m,
+            pat: [0; PAT],
+            label: bit,
+            ipv4: net,
+            ipv4_mask: mask,
+        };
         set_pat(&mut cs.pat, &lit);
         sources.push(cs);
     }
     for x in &pol.xforms {
         let bit = ctx.label_bit(&x.label)?;
         let (m, lit) = lower_exec(&x.gate);
-        let mut cx = CXform { m, add: x.endorse as u8, gate: [0; PAT], label: bit };
+        let mut cx = CXform {
+            m,
+            add: x.endorse as u8,
+            gate: [0; PAT],
+            label: bit,
+        };
         set_pat(&mut cx.gate, &lit);
         xforms.push(cx);
     }
     for (rid, rule) in pol.rules.iter().enumerate() {
         reasons.push(rule.reason.clone());
         for cl in &rule.clauses {
-            let op = op_lower(cl.op)?;
-            let (tm, tlit) = lower_target(op, cl.target.kind, &cl.target.pattern);
-            // connect: numeric IPv4 target
-            let (ipv4, ipv4_mask) = if op == OP_CONNECT {
-                lower_ipv4(&cl.target.pattern)
-            } else {
-                (0, 0)
-            };
-            // condition
-            let (mut ck, mut cneg, mut cm, mut clit, mut gate) =
-                (C_NONE, 0u8, M_EXACT, String::new(), 0u64);
-            let (mut cipv4, mut cipv4_mask) = (0u32, 0u32);
-            match &cl.unless {
-                None => {}
-                Some(Cond::Target { negate, pattern }) => {
-                    ck = C_TARGET;
-                    cneg = *negate as u8;
-                    if op == OP_CONNECT {
-                        let (n, mk) = lower_ipv4(pattern);
-                        cipv4 = n;
-                        cipv4_mask = mk;
-                    } else {
-                        let (m, l) = lower_target(op, cl.target.kind, pattern);
-                        cm = m;
-                        clit = l;
+            for op in op_lowers(cl.op)? {
+                let op = *op;
+                let (tm, tlit) = lower_target(op, cl.target.kind, &cl.target.pattern);
+                // connect: numeric IPv4 target
+                let (ipv4, ipv4_mask) = if op == OP_CONNECT {
+                    lower_ipv4(&cl.target.pattern)
+                } else {
+                    (0, 0)
+                };
+                // condition
+                let (mut ck, mut cneg, mut cm, mut clit, mut gate) =
+                    (C_NONE, 0u8, M_EXACT, String::new(), 0u64);
+                let (mut cipv4, mut cipv4_mask) = (0u32, 0u32);
+                match &cl.unless {
+                    None => {}
+                    Some(Cond::Target { negate, pattern }) => {
+                        ck = C_TARGET;
+                        cneg = *negate as u8;
+                        if op == OP_CONNECT {
+                            let (n, mk) = lower_ipv4(pattern);
+                            cipv4 = n;
+                            cipv4_mask = mk;
+                        } else {
+                            let (m, l) = lower_target(op, cl.target.kind, pattern);
+                            cm = m;
+                            clit = l;
+                        }
+                    }
+                    Some(Cond::LineageIncludes { exec }) => {
+                        ck = C_LINEAGE;
+                        gate = ctx.gate_bit(exec)?;
+                    }
+                    Some(Cond::After { exec }) => {
+                        ck = C_AFTER;
+                        gate = ctx.gate_bit(exec)?;
                     }
                 }
-                Some(Cond::LineageIncludes { exec }) => {
-                    ck = C_LINEAGE;
-                    gate = ctx.gate_bit(exec)?;
+                for (req, forbid) in dnf(&cl.when, &mut ctx)? {
+                    let mut cr = CRule {
+                        op,
+                        m: tm,
+                        cond_kind: ck,
+                        cond_neg: cneg,
+                        cond_match: cm,
+                        target: [0; PAT],
+                        arg: [0; ARG],
+                        cond_pat: [0; PAT],
+                        req,
+                        forbid,
+                        gate,
+                        rule_id: rid as u32,
+                        ipv4,
+                        ipv4_mask,
+                        cond_ipv4: cipv4,
+                        cond_ipv4_mask: cipv4_mask,
+                    };
+                    set_pat(&mut cr.target, &tlit);
+                    if let Some(a) = &cl.target.arg {
+                        set_pat(&mut cr.arg, a);
+                    }
+                    set_pat(&mut cr.cond_pat, &clit);
+                    rules.push(cr);
                 }
-                Some(Cond::After { exec }) => {
-                    ck = C_AFTER;
-                    gate = ctx.gate_bit(exec)?;
-                }
-            }
-            for (req, forbid) in dnf(&cl.when, &mut ctx)? {
-                let mut cr = CRule {
-                    op,
-                    m: tm,
-                    cond_kind: ck,
-                    cond_neg: cneg,
-                    cond_match: cm,
-                    target: [0; PAT],
-                    arg: [0; ARG],
-                    cond_pat: [0; PAT],
-                    req,
-                    forbid,
-                    gate,
-                    rule_id: rid as u32,
-                    ipv4,
-                    ipv4_mask,
-                    cond_ipv4: cipv4,
-                    cond_ipv4_mask: cipv4_mask,
-                };
-                set_pat(&mut cr.target, &tlit);
-                if let Some(a) = &cl.target.arg {
-                    set_pat(&mut cr.arg, a);
-                }
-                set_pat(&mut cr.cond_pat, &clit);
-                rules.push(cr);
             }
         }
     }
@@ -357,7 +376,11 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
         return Err("too many sources".into());
     }
     if rules.len() > MAX_RULES {
-        return Err(format!("too many compiled rules ({} > {})", rules.len(), MAX_RULES));
+        return Err(format!(
+            "too many compiled rules ({} > {})",
+            rules.len(),
+            MAX_RULES
+        ));
     }
     if xforms.len() > MAX_XFORMS {
         return Err("too many xforms".into());

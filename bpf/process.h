@@ -17,6 +17,7 @@ struct event {
 	enum event_type type;
 	int pid;
 	int ppid;
+	unsigned int blocked;          /* 1 if an LSM hook denied the operation */
 	unsigned long long timestamp_ns;
 	char comm[TASK_COMM_LEN];
 	char filename[MAX_FILENAME_LEN]; /* offending exe / path ("" for connect) */

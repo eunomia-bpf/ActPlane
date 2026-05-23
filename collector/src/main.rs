@@ -37,6 +37,7 @@ struct Violation {
     comm: String,
     target: String,
     rule_id: usize,
+    blocked: Option<bool>,
     #[allow(dead_code)]
     taint_label: u64,
 }
@@ -72,11 +73,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     cmd.arg("--config").arg(&cfg_path);
     cmd.stdout(Stdio::piped()).stderr(Stdio::inherit());
 
-    let mut child = cmd.spawn().map_err(|e| format!("spawning enforcer: {}", e))?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("spawning enforcer: {}", e))?;
     let stdout = child.stdout.take().expect("piped stdout");
     let mut lines = BufReader::new(stdout).lines();
 
-    eprintln!("ActPlane: enforcing (Ctrl-C to stop)...\n");
+    eprintln!("ActPlane: running (Ctrl-C to stop)...\n");
     while let Some(line) = lines.next_line().await? {
         if line.is_empty() {
             continue;
@@ -96,9 +99,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 /// Report a violation with its policy reason — the corrective-feedback payload.
 fn report(reasons: &[String], v: &Violation) {
     let reason = reasons.get(v.rule_id).map(|s| s.as_str()).unwrap_or("");
+    let verb = if v.blocked.unwrap_or(false) {
+        "BLOCKED"
+    } else {
+        "VIOLATION"
+    };
     println!(
-        "🚫 BLOCKED: process '{}' (pid {}, ppid {}) — {}",
-        v.comm, v.pid, v.ppid, v.target
+        "🚫 {}: process '{}' (pid {}, ppid {}) — {}",
+        verb, v.comm, v.pid, v.ppid, v.target
     );
     if !reason.is_empty() {
         println!("   reason: {}", reason);

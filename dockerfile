@@ -7,11 +7,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libelf1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY collector/target/release/agentsight /app/agentsight
+COPY collector/target/release/actplane /app/actplane
 
-RUN chmod +x /app/agentsight
+RUN chmod +x /app/actplane
 
-# Expose default web server port
-EXPOSE 7395
-
-ENTRYPOINT ["/app/agentsight"]
+ENTRYPOINT ["/app/actplane"]

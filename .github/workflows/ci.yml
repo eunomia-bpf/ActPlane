@@ -23,11 +23,6 @@ jobs:
       with:
         toolchain: stable
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -44,12 +39,6 @@ jobs:
       run: |
         cd bpf
         make test
-
-    - name: Build frontend
-      run: |
-        cd frontend
-        npm install
-        npm run build
 
     - name: Build Rust collector
       run: |
@@ -82,11 +71,6 @@ jobs:
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: stable
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
 
     - name: Install dependencies
       run: |
@@ -181,11 +165,6 @@ jobs:
 
           return tag ? tag.name : increase_v(latest_release_tag)
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -213,7 +192,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          collector/target/release/agentsight
+          collector/target/release/actplane
         prerelease: false
         tag_name: ${{ steps.set_version.outputs.result }}
         generate_release_notes: true

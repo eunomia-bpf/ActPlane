@@ -20,8 +20,8 @@ eBPF programs use the CO-RE pattern with an architecture-specific `vmlinux.h` fr
 |------|------|
 | `taint.h` | The rule **ABI** + matching predicates, shared with the Rust compiler. Defines `struct taint_source / taint_rule / taint_xform / taint_gate / taint_config`, the `taint_match`/`taint_src_kind`/`taint_op`/`taint_cond` enums, and the matchers (`taint_streq`, `taint_prefix`, `taint_suffix`, `taint_match`, `taint_mask_ok`, `taint_arg_match`). |
 | `taint_engine.bpf.h` | The engine state + helpers. Maps: `ts_proc` (pid → labels + lineage gates), `ts_root`, `ts_sess` (session gates), `ts_file` (fnv1a(path) → labels), `ts_endp` (IPv4 → labels). Rodata rule tables (filled by the loader). `te_*` propagation/eval functions. |
-| `process.bpf.c` | The hooks: `fork → te_fork`; `exec → te_exec_update + te_check`; `open → te_read + te_check`; `unlink/rename → te_write_flow + te_check`; `connect → te_endp_src_ip + te_connect_flow + te_connect_check`. The **only** output is `emit_violation()`. |
-| `process.c` | Userspace loader. `--config <blob>` reads a `struct taint_config` into the BPF rodata, attaches, and prints each `TAINT_VIOLATION` as NDJSON (formatting `conn_ip` for connect rules). |
+| `process.bpf.c` | The hooks: tracepoints maintain lineage/audit fallback; BPF LSM hooks (`bprm_check_security`, `file_open`, `file_permission`, `file_truncate`, `path_truncate`, `path_unlink`, `path_rename`, `socket_connect`) block with `-EPERM` when BPF LSM is active. The **only** output is `emit_violation()`. |
+| `process.c` | Userspace loader. `--config <blob>` reads a `struct taint_config` into the BPF rodata, detects whether `bpf` LSM is active, disables LSM programs in audit mode, and prints each `TAINT_VIOLATION` as NDJSON (formatting `conn_ip` for connect rules). |
 | `test_taint.c` | Unit tests for the matching predicates. |
 
 ### Taint model (summary)
@@ -30,11 +30,13 @@ Each node (process / file / endpoint) carries a `u64` label bitmask. Sources add
 labels (`exec` comm match, `file` path match, `endpoint` IP match). Propagation:
 fork → child inherits; exec → source/xform/gate applied to the process; read → file
 labels flow into the process; write → process labels flow into the file; connect →
-process labels flow to the endpoint. Sinks (`deny exec/open/write/connect`) match
+process labels flow to the endpoint. In enforce mode, the LSM hook checks before
+committing the operation and only propagates on allow. Sinks (`deny exec/open/write/connect`) match
 on a label mask (`req` AND / `forbid` NOT, DNF-expanded by the compiler) plus the
 target pattern, optional `@arg` match, and an optional condition (`lineage-includes`,
-`after`, target scope). On a match the rule's `rule_id` is emitted; the compiler
-keeps the reason strings. Full semantics: [`../docs/taint-dsl.md`](../docs/taint-dsl.md).
+`after`, target scope). On a match the rule's `rule_id` is emitted with a `blocked`
+flag; the compiler keeps the reason strings. Full semantics:
+[`../docs/taint-dsl.md`](../docs/taint-dsl.md).
 
 ### eBPF verifier notes (why the code looks the way it does)
 
