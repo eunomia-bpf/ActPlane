@@ -2,7 +2,7 @@
 
 本目录是 ActPlane 论文用的**实证语料**：流行的 **AI agent 代码项目**（非纯文档/列表）所附带的 `CLAUDE.md` / `AGENTS.md`（agent 指令文件），按 star 从高到低收集。用于回答"开发者实际用自然语言给 agent 写了哪些*行为约束*，其中多少能在内核 IFC 层强制"。完整研究方法学见 [`../docs/agent-policy-survey.md`](../docs/agent-policy-survey.md)；本文件记录**这一份语料是如何收集的、如何复现**。
 
-> 当前快照：采集于 2026‑05（UTC），star 降序扫了 ~349 个候选，**150 个**真实 agent 代码项目带 `CLAUDE.md`/`AGENTS.md`（star 374k→9.7k）。其中 **149 进入语料**，1 个（`cline/cline`，纯 `@`‑指针文件）按"无信息"清理排除。锚点是 **`openclaw/openclaw`**（★374k，2025‑11 起，2026 年的爆发式 agent 平台，formerly Moltbot/ClawdBot）。
+> 当前快照：采集于 2026‑05（UTC），star 降序扫了 ~349 个候选，**150 个**真实 agent 代码项目带 `CLAUDE.md`/`AGENTS.md`（star 374k→9.7k）。其中 **144 进入语料**，6 个按 **≥500B 大小下限**排除（`cline`/`serena` 是纯指针；`smolagents`/`BrowserOS`/`Roo-Code`/`E2B` 是 <500B 的极短文件）。锚点是 **`openclaw/openclaw`**（★374k，2025‑11 起，2026 年的爆发式 agent 平台，formerly Moltbot/ClawdBot）。
 
 ## 目录结构（每仓一个文件夹）
 

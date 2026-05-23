@@ -30,5 +30,6 @@
       "raw_url": "https://raw.githubusercontent.com/huggingface/smolagents/c22159809803632bd1c45c68ef624edc996ee82c/AGENTS.md"
     }
   ],
-  "excluded": false
+  "excluded": true,
+  "exclude_reason": "size<500B (157B)"
 }

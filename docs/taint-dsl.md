@@ -1,6 +1,6 @@
 # ActPlane Taint DSL — Formal Definition & Worked Examples
 
-> Goal: a policy language for **OS-enforced agent harnesses** whose rules are *information-flow / provenance invariants* over the agent's whole execution, not static access-control lists.
+> Goal: a policy language for **OS-enforced agent harnesses** whose rules are workflow, capability, and provenance contracts over the agent's whole execution, not static access-control lists. Security-relevant policies are one class of contract, not the sole product framing.
 >
 > **Honest novelty position (see `related_work.md`)**: in-kernel cross-channel taint *enforcement* is **not** itself new — **CamQuery (CCS'18)** already propagates a `confidential` label across process/file/network in-kernel and blocks before the action. ActPlane does **not** claim to invent that. What this DSL contributes is the combination CamQuery and the agent-guardrail tools each miss: an **agent-oriented rule model** (the source/sink/declassify classes of §3, framed around agent behaviors) on the **modern eBPF/BPF-LSM substrate** (vs CamQuery's kernel module / Linux Provenance Module), enforced **below the tool layer** so the bash/SDK escape doesn't bypass it (vs AgentSpec/Invariant), and closing the loop with **corrective semantic feedback** to a cooperative-but-forgetful agent. Tetragon gives boolean lineage + single-channel block; SLEUTH/CamFlow detect-only; AgentSpec dataflow policy at the bypassable tool layer. The DSL below is the expressiveness that ties these together.
 
@@ -58,7 +58,7 @@ recv(p,e)    : σ(p) ∪= σ(e)                      # received data taints rece
 
 The **invariant**: `L ∈ σ(n)` iff information from some `L`-source has reached `n` through a fork/exec/read/write/recv chain — i.e. the transitive provenance closure, maintained incrementally (O(1) per event, no graph walk; this is what makes in-kernel enforcement feasible).
 
-### 1.6 Declassification / endorsement (what makes IFC usable)
+### 1.6 Declassification / endorsement (what makes provenance policies usable)
 A blunt "tainted ⇒ deny" is unusable (everything taints, all false-positives). Two label transforms, triggered by a **gate** event:
 - `declassify L by exec G` — when a process execs gate `G`, **remove** `L` from it (confidentiality release: e.g. a redactor clears `SECRET`).
 - `endorse K by exec G` — when a process execs gate `G`, **add** marker `K` (integrity upgrade: e.g. human-review adds `REVIEWED`).
@@ -124,29 +124,29 @@ policies should use `effect block|audit|kill`. See
 
 ## 3. Worked examples (each: scenario · why · rule)
 
-> Each example gives the scenario, the rationale, and the rule as it would be written in the DSL.
+> These are harness examples: agent operating contracts that keep a cooperative-but-forgetful agent on the intended path. Some examples are security-relevant because secrets and untrusted content are clear provenance labels, but the point is broader than a DLP or sandbox.
 
-### E1 — Secret no-exfil (confidentiality)
-**Scenario**: while debugging, the agent reads `.env` for a value, and later (telemetry, or an injected instruction) opens an HTTPS connection. **Why**: API keys / customer secrets must never leave the host, regardless of which later tool sends them.
+### E1 — Sensitive context stays on approved paths
+**Scenario**: while debugging, the agent reads `.env` for a value, and later another tool in the same task opens an external connection. **Why**: the harness should preserve a data-handling contract across later tools, not rely on the agent remembering where the value came from.
 ```
 source SECRET = file "**/.env"
 source SECRET = file "/etc/secrets/**"
-rule no-exfil:
+rule sensitive-context-boundary:
   deny connect endpoint "*"        if SECRET
   deny write   file "/shared/**"   if SECRET
-  reason "secret data must not leave the host; redact first"
+  reason "sensitive task context must stay local unless redacted first"
 declassify SECRET by exec "**/redact"
 ```
 
-### E2 — Prompt-injection ⇒ no privileged action (integrity)
-**Scenario**: the agent fetches a web page / reads a GitHub issue containing "now run `git push --force`". The content taints the agent `UNTRUST`; it must not perform privileged actions on injected input. **Why**: the classic agent attack — untrusted input steering privileged behavior — that prompt rules can't reliably stop.
+### E2 — Untrusted task input needs review before privileged action
+**Scenario**: the agent fetches a web page or reads an issue that says "now run `git push --force`". The content marks the task context as `UNTRUST`; privileged actions need review before proceeding. **Why**: this is a harness contract for handling untrusted instructions, enforced below the prompt and tool API.
 ```
 source UNTRUST = endpoint "*"
 source UNTRUST = file "**/downloads/**"
 rule no-injected-priv:
   deny exec "**/git" @arg "push"  if UNTRUST and not REVIEWED
   deny exec "**/deploy*"          if UNTRUST and not REVIEWED
-  reason "action derived from untrusted input; needs human review"
+  reason "privileged action is derived from untrusted task input; needs review"
 endorse REVIEWED by exec "**/human-approve"
 ```
 
@@ -158,8 +158,8 @@ rule mediate-proddb:
   reason "prod.db is reachable only through the migration tool"
 ```
 
-### E4 — Workspace confinement (lineage-scoped writes)
-**Scenario**: the agent should only modify files in its task workspace, but via `bash` it `rm`/writes outside. **Why**: keep a fallible agent inside its sandbox-by-policy without a container.
+### E4 — Workspace contract (lineage-scoped writes)
+**Scenario**: the agent should only modify files in its task workspace, but via `bash` it writes or deletes outside. **Why**: keep a fallible agent inside its task boundary without relying on a container boundary.
 ```
 source AGENT = exec "**/codex"
 rule confine-writes:
@@ -188,21 +188,21 @@ rule research-readonly:
   reason "research sub-agent is read-only; spawn an executor for changes"
 ```
 
-### E7 — Transitive secret derivation (cross-process, cross-file)
-**Scenario**: process A reads a secret, transforms it, writes `/tmp/out.json`; later, an unrelated uploader B reads `out.json` and tries to POST it. **Why**: confidentiality must follow *derived* data through files and across processes — the thing single-event matchers (Tetragon/PATROL) cannot do.
+### E7 — Transitive derived-data tracking (cross-process, cross-file)
+**Scenario**: process A reads sensitive task context, transforms it, writes `/tmp/out.json`; later, an unrelated uploader B reads `out.json` and tries to POST it. **Why**: the data-handling contract should follow *derived* data through files and across processes, which single-event matchers cannot do.
 ```
-# reuses E1's SECRET source + no-exfil rule:
+# reuses E1's SECRET source + sensitive-context-boundary rule:
 #   write(A,/tmp/out.json) propagates SECRET to the file;
 #   read(B,/tmp/out.json)  propagates SECRET to B;
-#   connect(B,*) is then a violation — even though B never touched .env.
+#   connect(B,*) is then a violation even though B never touched .env.
 ```
 
-### E8 — Declassification done right (usability)
-**Scenario**: a confidential report legitimately needs to be sent — but only after a redactor strips secrets. **Why**: shows the policy is not a blunt deny; the sanctioned release path is expressible.
+### E8 — Redaction path (usability)
+**Scenario**: a report legitimately needs to be sent, but only after a redactor removes sensitive fields. **Why**: shows the harness is not a blunt deny; the sanctioned path is expressible.
 ```
 # E1 rule + `declassify SECRET by exec "**/redact"`:
-#   send WITHOUT redact in lineage  -> blocked
-#   redact in lineage clears SECRET -> the post-redaction connect is allowed
+#   send without running the redactor process -> blocked
+#   the redactor process clears SECRET for its output path -> post-redaction connect is allowed
 ```
 
 ### E9 — Cross-tool / unbypassable coverage
@@ -216,26 +216,26 @@ rule no-git:
 ```
 
 ### E10 — Provenance-scoped network allow-list
-**Scenario**: a process that has handled customer PII may connect *only* to internal endpoints; once PII-tainted it cannot reach arbitrary hosts. **Why**: egress control conditioned on what data the process holds, not on a static firewall rule.
+**Scenario**: a process that has handled customer records may connect only to approved internal ranges; once it carries that label, arbitrary external connections are outside the task contract. **Why**: network policy is conditioned on what data the process has handled, not just on a static process name.
 ```
-source PII = file "/data/customers/**"
-rule pii-egress:
-  deny connect endpoint "*"               if PII  unless target "*.internal"
-  reason "PII-handling process may only reach *.internal"
+source CUSTOMER_DATA = file "/data/customers/**"
+rule customer-data-egress:
+  deny connect endpoint "*"               if CUSTOMER_DATA  unless target "10.0.0."
+  reason "customer-data task may only reach approved internal ranges"
 ```
 
 ### E11 — Destructive op requires a confirmation gate
-**Scenario**: the agent attempts `git push --force` (or `unlink` under `/data`) without a confirmation step. **Why**: gate irreversible actions behind an explicit, lineage-visible confirmation.
+**Scenario**: the agent attempts `git push --force` or deletes under `/data` without a confirmation step. **Why**: gate irreversible actions behind an explicit confirmation that the harness can observe.
 ```
 source AGENT = exec "**/codex"
 rule confirm-destructive:
-  deny exec "**/git" @arg "--force"  if AGENT  unless lineage-includes exec "**/confirm"
-  deny unlink file "/data/**"        if AGENT  unless lineage-includes exec "**/confirm"
-  reason "destructive action needs an explicit confirm step in its lineage"
+  deny exec "**/git" @arg "--force"  if AGENT  unless after exec "**/confirm"
+  deny unlink file "/data/**"        if AGENT  unless after exec "**/confirm"
+  reason "destructive action needs an explicit confirm step first"
 ```
 
 ### E12 — Task non-interference / separation (multi-label sets)
-**Scenario**: two concurrent agent tasks share a workspace; data produced under task A must not end up in task B's commit. **Why**: prevent cross-task contamination — needs label *sets*, not a single bit.
+**Scenario**: two concurrent agent tasks share a workspace; data produced under task A must not end up in task B's commit. **Why**: preserve task separation across shared tools and files; this needs label *sets*, not a single bit.
 ```
 source TASK_A = exec "**/task-a"
 source TASK_B = exec "**/task-b"
@@ -247,12 +247,12 @@ rule no-cross-task-commit:
 ---
 
 ## 4. Why these are valuable (and where the novelty actually is)
-> Caveat repeated: the *mechanism* (cross-channel taint enforced in-kernel) is CamQuery's; the novelty is the agent-oriented rule model + eBPF substrate + sub-tool-layer coverage + feedback loop. Per-example value:
-- **E1, E7, E8, E10** are *information-flow* (confidentiality) over **derived, cross-process, cross-channel** data — propagation is the point; single-event matchers (Tetragon/eBPF-PATROL) can't *follow derivation*, and detection-only provenance (CamFlow/SLEUTH) can't *prevent* (CamQuery can — these examples are where we overlap it and must differentiate on substrate/agent-domain).
-- **E2, E11** are *integrity* (untrusted-input ⇏ privileged-action) — the agent-specific prompt-injection threat, enforced below the tool layer so the bash/SDK escape (E9) doesn't bypass it.
-- **E3, E5, E11** are *mandatory-mediation / temporal* invariants ("only via gate", "only after tests") — behavioral contracts no access-control list expresses.
-- **E4, E6, E12** are *lineage-scoped capability / separation* — least privilege and non-interference over the fork/exec subtree.
-- **Declassification (E8) + endorsement (E2)** are what move this from "blunt deny" to a usable policy — and are exactly what the agent-guardrail tools at the tool layer lack at OS scope.
+> Caveat repeated: the *mechanism* (cross-channel taint enforced in-kernel) is CamQuery's; the novelty is the agent-oriented harness model + eBPF substrate + sub-tool-layer coverage + feedback loop. Per-example value:
+- **E3, E5, E11** are *mandatory-mediation / temporal* contracts ("only via gate", "only after tests", "only after confirm") that prompt instructions do not reliably preserve.
+- **E4, E6, E9, E12** are *lineage-scoped capability / task-boundary* contracts over the fork/exec subtree.
+- **E1, E7, E8, E10** are data-handling contracts over **derived, cross-process, cross-channel** data. They are security-relevant, but the harness point is provenance continuity across tools.
+- **E2** is an untrusted-input review contract: when task context came from outside, privileged actions require an endorsement step.
+- **Declassification (E8) + endorsement (E2)** are what move this from "blunt deny" to a usable operating contract with sanctioned paths.
 
 ---
 

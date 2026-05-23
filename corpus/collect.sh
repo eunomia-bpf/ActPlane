@@ -11,6 +11,7 @@ cd "$(dirname "$0")"
 OUT="."
 TARGET="${1:-50}"
 PROBE_CAP=950
+MINSIZE=500   # size floor (bytes): files smaller than this are saved but flagged excluded
 CAND="$(mktemp)"; SEEDM="$(mktemp)"
 QLOG="$OUT/queries.log"; XLOG="$OUT/exclusions.log"
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -147,16 +148,21 @@ while read -r row; do
   probe_file "$full" "AGENTS.md" "$dir" "AGENTS.md"
   if [ -f "$dir/.files.ndjson" ]; then
     files="$(jq -s '.' "$dir/.files.ndjson")"; rm -f "$dir/.files.ndjson"
-    jq -n --argjson r "$row" --argjson files "$files" --arg now "$NOW" \
+    bytes=$(cat "$dir"/CLAUDE.md "$dir"/AGENTS.md 2>/dev/null | wc -c)
+    ex=false; rsn=""
+    if [ "$bytes" -lt "$MINSIZE" ]; then ex=true; rsn="size<${MINSIZE}B (${bytes}B)"; echo "$full reason=$rsn" >>"$XLOG"; fi
+    jq -n --argjson r "$row" --argjson files "$files" --arg now "$NOW" --argjson ex "$ex" --arg rsn "$rsn" \
       '{repo:$r.full_name, owner:($r.full_name|split("/")[0]), name:($r.full_name|split("/")[1]),
         stars:$r.stars, forks:$r.forks, open_issues:$r.issues, created_at:$r.created_at,
         language:$r.language, license:$r.license, fork:$r.fork, archived:$r.archived,
         pushed_at:$r.pushed_at, default_branch:$r.default_branch, html_url:$r.html_url,
         description:$r.description, topics:$r.topics, seed:($r.seed//false),
-        domain:"", retrieved_at:$now, files:$files}' > "$dir/meta.json"
+        domain:"", retrieved_at:$now, excluded:$ex, exclude_reason:$rsn, files:$files}' > "$dir/meta.json"
     jq -c '.' "$dir/meta.json" >> "$MANIFEST"
-    hits=$((hits+1))
-    printf '  [%2d] %-44s ★%-7s %s\n' "$hits" "$full" "$stars" "$(jq -r '[.files[].family]|join(",")' "$dir/meta.json")"
+    if [ "$ex" = false ]; then
+      hits=$((hits+1))
+      printf '  [%2d] %-44s ★%-7s %s\n' "$hits" "$full" "$stars" "$(jq -r '[.files[].family]|join(",")' "$dir/meta.json")"
+    fi
   else
     rmdir "$dir" 2>/dev/null
   fi

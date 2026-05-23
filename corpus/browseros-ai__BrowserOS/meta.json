@@ -41,5 +41,7 @@
       "content_sha256": "1e5e655e7b20d1ec2d70392623a0037612d98e00de593c80b6ebc3da13a03597",
       "raw_url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/91d3f420d417f6ebe5fbd0b70f9fabaab94525e3/CLAUDE.md"
     }
-  ]
+  ],
+  "excluded": true,
+  "exclude_reason": "size<500B (405B)"
 }

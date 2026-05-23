@@ -31,5 +31,5 @@
     }
   ],
   "excluded": true,
-  "exclude_reason": "no-info stub (<300B, no analyzable content)"
+  "exclude_reason": "size<500B (48B)"
 }

@@ -48,5 +48,7 @@
       "content_sha256": "5d73b39fd7d3d7ccb09b6943ed3ef79105923bcc498fadb1a5b6ff3690c345f4",
       "raw_url": "https://raw.githubusercontent.com/e2b-dev/E2B/7982da9de058ebe06d47e1850e67b2db9ea93777/CLAUDE.md"
     }
-  ]
+  ],
+  "excluded": true,
+  "exclude_reason": "size<500B (480B)"
 }

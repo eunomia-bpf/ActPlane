@@ -29,5 +29,7 @@
       "content_sha256": "0050c55acd56fd4f1842938bb9e4408ad7cc9330ccb04588330997d270ff2823",
       "raw_url": "https://raw.githubusercontent.com/RooCodeInc/Roo-Code/fa92ec4586788c189ed18264b41a173f3d647dea/AGENTS.md"
     }
-  ]
+  ],
+  "excluded": true,
+  "exclude_reason": "size<500B (445B)"
 }

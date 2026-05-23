@@ -52,5 +52,7 @@
       "content_sha256": "e575ccbb1433c3486dcb5d8be4844db9a52a9bb07373abcf6254a68f8a13d88d",
       "raw_url": "https://raw.githubusercontent.com/oraios/serena/e2696f9f54950d699d8efaf50cbf04ad68765eeb/AGENTS.md"
     }
-  ]
+  ],
+  "excluded": true,
+  "exclude_reason": "size<500B (442B)"
 }

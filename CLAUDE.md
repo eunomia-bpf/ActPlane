@@ -75,7 +75,12 @@ policy.dsl ─▶ collector (Rust) ─▶ struct taint_config ─▶ eBPF engine
 ### Collector (`collector/src/`)
 
 - `main.rs` — driver: read policy → `dsl::compile_str` → temp blob → spawn loader →
-  parse `Violation` lines → `report()` with the reason.
+  parse `Violation` lines → `report()` with the reason. `--feedback-file` appends
+  the §6 corrective-feedback payload for each kernel-detected violation (channel
+  a1 reason file the agent reads on EPERM).
+- `feedback.rs` — `format_payload`: turns a kernel-detected violation (rule meta +
+  target) into the model-facing §6 corrective-feedback string. No userspace
+  re-detection — the kernel is the sole detector. Agent integration: `script/agent-feedback.md`.
 - `dsl/` — `ast.rs`, `parse.rs` (lexer + recursive-descent), `lower.rs` (`#[repr(C)]`
   mirrors of the C structs + `compile()`: bit allocation, `dnf()` label-expr
   expansion, glob lowering), `mod.rs` (`compile_str` + tests E1–E12).

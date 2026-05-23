@@ -2,11 +2,12 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-ActPlane is an **OS-level harness for AI agents**: it evaluates behavioral rules on
-an agent's *whole* execution — across any tool, subprocess, or direct syscall —
-from the kernel via eBPF. When BPF LSM is active it blocks matching operations;
-otherwise it runs in audit mode and reports each violation with a human-readable
-reason (the corrective-feedback payload).
+ActPlane is an **OS-level harness for AI agents**: it evaluates workflow,
+capability, and provenance contracts over an agent's *whole* execution, across
+any tool, subprocess, or direct syscall, from the kernel via eBPF. When BPF LSM
+is active it blocks matching operations; otherwise it runs in audit mode and
+reports each violation with a human-readable reason (the corrective-feedback
+payload).
 
 The motivation: agent constraints today live in prompts (`CLAUDE.md` / `AGENTS.md`),
 which are only *probabilistic* — a long-context agent forgets or routes around
@@ -14,13 +15,15 @@ them, often non-maliciously. Tool-layer guards (AgentSpec, MCP gateways) only se
 the tool API and are bypassed the moment the agent shells out or links an SDK.
 ActPlane sits **below the tool layer**: every `exec` / file / network operation is
 a syscall, so a rule like *"nothing descended from `codex`, however many hops, may
-run `git` or read `secrets.env`"* holds no matter how the agent gets there.
+run `git` or modify files outside `/work`"* holds no matter how the agent gets there.
 
-Rules are **information-flow / provenance** rules, not static allow-lists. Taint
-labels propagate along fork/exec edges and, as data flow, along file read/write
-and network edges, so confidentiality / integrity invariants follow *derived* data
-across processes and files. See [`docs/taint-dsl.md`](docs/taint-dsl.md) for the
-rule language and 12 worked examples, [`docs/actplane-research-plan.md`](docs/actplane-research-plan.md)
+Rules are **information-flow / provenance** contracts, not static allow-lists.
+Taint labels propagate along fork/exec edges and, as data flow, along file
+read/write and network edges, so task boundaries and workflow obligations follow
+derived data across processes and files. Security-relevant policies are one use
+case, but the primary framing is a deterministic operating contract for
+cooperative-but-forgetful agents. See [`docs/taint-dsl.md`](docs/taint-dsl.md) for
+the rule language and 12 worked examples, [`docs/actplane-research-plan.md`](docs/actplane-research-plan.md)
 for the framing, and [`docs/related_work.md`](docs/related_work.md) for positioning.
 
 ## How it works
