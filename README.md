@@ -99,9 +99,7 @@ tracepoint mode terminate `block` violations when BPF LSM is unavailable.
 
 Codex reads hooks from `.codex/hooks.json` or `~/.codex/hooks.json`. Use an
 absolute feedback path so the hook still works if the agent changes directory.
-`PostToolUse` injects feedback after supported tool calls. `Stop` is an optional
-fallback for Codex modes that emit stop hooks; when new ActPlane feedback is
-waiting, it asks Codex to continue for one extra turn with that feedback:
+`PostToolUse` injects feedback after supported tool calls:
 
 ```json
 {
@@ -109,17 +107,6 @@ waiting, it asks Codex to continue for one extra turn with that feedback:
     "PostToolUse": [
       {
         "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "ACTPLANE_FEEDBACK_FILE=/abs/workspace/.actplane/last-violation.txt python3 /abs/ActPlane/script/actplane-feedback-hook.py",
-            "statusMessage": "Checking ActPlane feedback"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
         "hooks": [
           {
             "type": "command",

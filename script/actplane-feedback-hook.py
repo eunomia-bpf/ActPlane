@@ -92,16 +92,12 @@ def context_text(feedback: str, max_chars: int) -> str:
 
 def hook_output(event: str, feedback: str, max_chars: int) -> dict[str, Any]:
     context = context_text(feedback, max_chars)
-    output: dict[str, Any] = {
+    return {
         "hookSpecificOutput": {
             "hookEventName": event,
             "additionalContext": context,
         }
     }
-    if event == "Stop":
-        output["decision"] = "block"
-        output["reason"] = context
-    return output
 
 
 def main() -> int:

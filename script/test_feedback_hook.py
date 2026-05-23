@@ -77,22 +77,5 @@ class FeedbackHookTest(unittest.TestCase):
             self.assertNotIn("old violation", output["additionalContext"])
             self.assertIn("claude failure feedback", output["additionalContext"])
 
-    def test_codex_stop_hook_can_continue_with_feedback(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            cwd = Path(td)
-            feedback = cwd / ".actplane" / "last-violation.txt"
-            feedback.parent.mkdir()
-            feedback.write_text("[ActPlane] stop feedback\n", encoding="utf-8")
-            env = os.environ.copy()
-            env["ACTPLANE_FEEDBACK_FILE"] = str(feedback)
-
-            result = run_hook(cwd, "Stop", env)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            data = json.loads(result.stdout)
-            self.assertEqual(data["decision"], "block")
-            self.assertIn("stop feedback", data["reason"])
-            self.assertEqual(data["hookSpecificOutput"]["hookEventName"], "Stop")
-
-
 if __name__ == "__main__":
     unittest.main()
