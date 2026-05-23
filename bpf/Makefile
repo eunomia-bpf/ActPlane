@@ -31,10 +31,10 @@ CFLAGS += $(ASAN_FLAGS)
 ALL_LDFLAGS += $(ASAN_FLAGS)
 endif
 
-APPS = sslsniff browsertrace stdiocap process test_process_utils test_process_filter test_taint # minimal minimal_legacy uprobe kprobe fentry usdt sockfilter tc ksyscall
+APPS = sslsniff browsertrace stdiocap process test_taint # minimal minimal_legacy uprobe kprobe fentry usdt sockfilter tc ksyscall
 
 # All test programs (no BPF skeleton needed)
-TEST_APPS = test_process_utils test_process_filter test_taint
+TEST_APPS = test_taint
 
 CARGO ?= $(shell which cargo)
 ifeq ($(strip $(CARGO)),)
@@ -111,13 +111,7 @@ help:
 	@echo "  make ASAN=1 sslsniff"
 
 .PHONY: test
-test: test_process_utils test_process_filter test_taint
-	@echo "Running process_utils tests..."
-	@./test_process_utils
-	@echo ""
-	@echo "Running process_filter tests..."
-	@./test_process_filter
-	@echo ""
+test: test_taint
 	@echo "Running ActPlane taint tests..."
 	@./test_taint
 
@@ -172,14 +166,6 @@ $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT) $(BPFTOOL)
 $(patsubst %,$(OUTPUT)/%.o,$(filter-out $(TEST_APPS),$(APPS))): %.o: %.skel.h
 
 # Special rule for test programs (no BPF skeleton needed)
-$(OUTPUT)/test_process_utils.o: test_process_utils.c $(wildcard *.h) | $(OUTPUT)
-	$(call msg,CC,$@)
-	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
-
-$(OUTPUT)/test_process_filter.o: test_process_filter.c $(wildcard *.h) | $(OUTPUT)
-	$(call msg,CC,$@)
-	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
-
 $(OUTPUT)/test_taint.o: test_taint.c $(wildcard *.h) | $(OUTPUT)
 	$(call msg,CC,$@)
 	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
@@ -198,14 +184,6 @@ $(filter-out $(TEST_APPS),$(APPS)): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(Q)$(CC) $(CFLAGS) $^ $(ALL_LDFLAGS) -lelf -lz -o $@
 
 # Special rules for test programs (no libbpf needed)
-test_process_utils: $(OUTPUT)/test_process_utils.o | $(OUTPUT)
-	$(call msg,BINARY,$@)
-	$(Q)$(CC) $(CFLAGS) $^ $(ALL_LDFLAGS) -o $@
-
-test_process_filter: $(OUTPUT)/test_process_filter.o | $(OUTPUT)
-	$(call msg,BINARY,$@)
-	$(Q)$(CC) $(CFLAGS) $^ $(ALL_LDFLAGS) -o $@
-
 test_taint: $(OUTPUT)/test_taint.o | $(OUTPUT)
 	$(call msg,BINARY,$@)
 	$(Q)$(CC) $(CFLAGS) $^ $(ALL_LDFLAGS) -o $@

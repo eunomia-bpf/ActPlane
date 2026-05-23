@@ -72,8 +72,10 @@ static __always_inline int te_exec_sink(const char *comm, __u64 label, unsigned 
 	return 0;
 }
 
-/* file-open sink: does pid (if tainted) opening `path` violate a rule? */
-static __always_inline int te_file_sink(pid_t pid, const char *path, unsigned int *rid)
+/* prefix sink (file-open / file-mutate / connect): does pid (if tainted)
+ * performing op `kind` on `target` (path or host) violate a rule? */
+static __always_inline int te_prefix_sink(pid_t pid, const char *target,
+					  unsigned int kind, unsigned int *rid)
 {
 	__u64 *cur = bpf_map_lookup_elem(&taint_labels, &pid);
 	__u64 label = cur ? *cur : 0;
@@ -81,8 +83,8 @@ static __always_inline int te_file_sink(pid_t pid, const char *path, unsigned in
 		return 0;
 	for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
 		struct taint_rule r = taint_rules_cfg[i];
-		if (r.sink_kind == TAINT_SINK_FILE_OPEN && (label & r.label) &&
-		    taint_path_has_prefix(path, r.sink)) {
+		if (r.sink_kind == kind && (label & r.label) &&
+		    taint_path_has_prefix(target, r.sink)) {
 			*rid = r.rule_id;
 			return 1;
 		}

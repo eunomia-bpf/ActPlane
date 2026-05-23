@@ -1,70 +1,27 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
-/* Copyright (c) 2020 Facebook */
+/* Copyright (c) 2026 eunomia-bpf org. */
 #ifndef __PROCESS_H
 #define __PROCESS_H
 
 #define TASK_COMM_LEN 16
 #define MAX_FILENAME_LEN 127
-#define MAX_COMMAND_FILTERS 10
-#define MAX_TRACKED_PIDS 1024
-#define MAX_COMMAND_LEN 256
 
 #include "taint.h"
 
-enum filter_mode {
-	FILTER_MODE_ALL = 0,      /* Trace all processes and all read/write operations */
-	FILTER_MODE_PROC = 1,     /* Trace all processes but only read/write for tracked PIDs */
-	FILTER_MODE_FILTER = 2,   /* Only trace processes matching filters and their read/write */
-};
-
+/* The kernel emits exactly one kind of event: a taint-rule violation. */
 enum event_type {
-	EVENT_TYPE_PROCESS = 0,
-	EVENT_TYPE_BASH_READLINE = 1,
-	EVENT_TYPE_FILE_OPERATION = 2,
-	EVENT_TYPE_TAINT_VIOLATION = 3,   /* ActPlane: tainted process hit a sink */
-	EVENT_TYPE_FILE_DELETE = 4,       /* unlink/unlinkat */
-	EVENT_TYPE_FILE_RENAME = 5,       /* rename/renameat/renameat2 (new path) */
-	EVENT_TYPE_NET_CONNECT = 6,       /* connect(2) */
+	EVENT_TYPE_TAINT_VIOLATION = 3,
 };
 
 struct event {
 	enum event_type type;
 	int pid;
 	int ppid;
-	unsigned exit_code;
-	unsigned long long duration_ns;
 	unsigned long long timestamp_ns;
 	char comm[TASK_COMM_LEN];
-	char full_command[MAX_COMMAND_LEN];     /* full command line with args */
-	union {
-		char filename[MAX_FILENAME_LEN];     /* for process events */
-		char command[MAX_COMMAND_LEN];       /* for bash readline events */
-		struct {                             /* for file operation events */
-			char filepath[MAX_FILENAME_LEN];
-			int fd;
-			int flags;
-			bool is_open;  /* true for open/openat, false for close */
-		} file_op;
-		struct {                             /* for NET_CONNECT events */
-			unsigned int addr4;  /* IPv4 dest, network byte order */
-			unsigned short port; /* dest port, network byte order */
-			unsigned short family; /* AF_INET=2, AF_INET6=10, ... */
-		} net_op;
-	};
-	bool exit_event;
-	/* ActPlane taint fields (valid for EVENT_TYPE_TAINT_VIOLATION) */
-	unsigned int taint_rule_id;            /* offending rule index */
-	unsigned long long taint_label;        /* process's active taint mask */
-};
-
-struct command_filter {
-	char comm[TASK_COMM_LEN];
-};
-
-struct pid_info {
-	pid_t pid;
-	pid_t ppid;
-	bool is_tracked;
+	char filename[MAX_FILENAME_LEN]; /* offending exe / path / host */
+	unsigned int taint_rule_id;
+	unsigned long long taint_label;
 };
 
 #endif /* __PROCESS_H */

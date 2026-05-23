@@ -146,21 +146,55 @@ static void test_file_sink(void)
 	rules[1].rule_id = 1;
 
 	unsigned int rid = 999;
-	check(taint_check_file_sink(rules, 2, "/etc/secrets/key", (1ULL << 0), &rid) == 1 && rid == 1,
+	check(taint_check_prefix_sink(rules, 2, "/etc/secrets/key", (1ULL << 0), TAINT_SINK_FILE_OPEN, &rid) == 1 && rid == 1,
 	      "file_sink: tainted process opening /etc/secrets/* is a violation (rule 1)");
 
 	rid = 999;
-	check(taint_check_file_sink(rules, 2, "/tmp/ok", (1ULL << 0), &rid) == 0,
+	check(taint_check_prefix_sink(rules, 2, "/tmp/ok", (1ULL << 0), TAINT_SINK_FILE_OPEN, &rid) == 0,
 	      "file_sink: tainted process opening /tmp/ok is allowed");
 
 	rid = 999;
-	check(taint_check_file_sink(rules, 2, "/etc/secrets/key", TAINT_LABEL_NONE, &rid) == 0,
+	check(taint_check_prefix_sink(rules, 2, "/etc/secrets/key", TAINT_LABEL_NONE, TAINT_SINK_FILE_OPEN, &rid) == 0,
 	      "file_sink: untainted process opening /etc/secrets is allowed");
 
 	/* the exec sink must NOT fire on a file path, and vice-versa */
 	rid = 999;
 	check(taint_check_exec_sink(rules, 2, "/etc/secrets/key", (1ULL << 0), &rid) == 0,
 	      "file_sink: file path does not trip the exec sink");
+}
+
+static void test_mutate_and_connect_sinks(void)
+{
+	struct taint_rule rules[2] = {0};
+	/* file-mutate rule: tainted proc may not unlink/rename under /data */
+	set_comm(rules[0].source_comm, "codex");
+	rules[0].sink_kind = TAINT_SINK_FILE_MUTATE;
+	set_sink(rules[0].sink, "/data");
+	rules[0].label = 1ULL << 0;
+	rules[0].rule_id = 0;
+	/* connect rule: tainted proc may not connect to 10.0.0.* */
+	set_comm(rules[1].source_comm, "codex");
+	rules[1].sink_kind = TAINT_SINK_CONNECT;
+	set_sink(rules[1].sink, "10.0.0.");
+	rules[1].label = 1ULL << 0;
+	rules[1].rule_id = 1;
+
+	unsigned int rid = 999;
+	check(taint_check_prefix_sink(rules, 2, "/data/x", (1ULL << 0), TAINT_SINK_FILE_MUTATE, &rid) == 1 && rid == 0,
+	      "mutate_sink: tainted unlink/rename under /data is a violation");
+	rid = 999;
+	check(taint_check_prefix_sink(rules, 2, "/work/x", (1ULL << 0), TAINT_SINK_FILE_MUTATE, &rid) == 0,
+	      "mutate_sink: /work/x allowed");
+	rid = 999;
+	check(taint_check_prefix_sink(rules, 2, "10.0.0.5", (1ULL << 0), TAINT_SINK_CONNECT, &rid) == 1 && rid == 1,
+	      "connect_sink: tainted connect to 10.0.0.5 is a violation");
+	rid = 999;
+	check(taint_check_prefix_sink(rules, 2, "8.8.8.8", (1ULL << 0), TAINT_SINK_CONNECT, &rid) == 0,
+	      "connect_sink: connect to 8.8.8.8 allowed");
+	/* kinds don't cross: a path must not trip the connect sink */
+	rid = 999;
+	check(taint_check_prefix_sink(rules, 2, "/data/x", (1ULL << 0), TAINT_SINK_CONNECT, &rid) == 0,
+	      "connect_sink: file path does not trip connect sink");
 }
 
 int main(void)
@@ -171,6 +205,7 @@ int main(void)
 	test_exec_sink();
 	test_path_prefix();
 	test_file_sink();
+	test_mutate_and_connect_sinks();
 
 	printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
 	return tests_failed == 0 ? 0 : 1;
