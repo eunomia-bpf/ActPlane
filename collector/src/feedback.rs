@@ -35,10 +35,10 @@ pub fn format_payload(
                 "请改用不触发该约束的等价方式完成任务；若确无替代路径，请向用户说明并确认",
             );
             format!(
-                "[ActPlane] 操作被规则「{name}」拦截。\n\
-                 - 被拦操作：{op} {target}\n\
+                "[ActPlane] 操作被规则「{name}」拒绝。\n\
+                 - 目标操作：{op} {target}\n\
                  - 触发原因：{reason}\n\
-                 - 这是一条 OS 层硬约束，无论用工具、bash 还是直接调用都会被拦截，重试相同操作不会成功。\n\
+                 - 这是一条 OS 层 harness 约束，无论用工具、bash 还是直接调用都会失败，重试相同操作不会成功。\n\
                  - 如何继续：{rem}。"
             )
         }
@@ -47,8 +47,8 @@ pub fn format_payload(
                 "请停止该路径，改用不触发该约束的等价方式；若确无替代路径，请向用户说明并确认",
             );
             format!(
-                "[ActPlane] 操作触发了终止规则「{name}」。\n\
-                 - 被拦操作：{op} {target}\n\
+                "[ActPlane] 操作被规则「{name}」终止。\n\
+                 - 目标操作：{op} {target}\n\
                  - 触发原因：{reason}\n\
                  - 该规则会终止当前违规进程，重试相同操作不会成功。\n\
                  - 如何继续：{rem}。"
@@ -60,7 +60,9 @@ pub fn format_payload(
         Effect::Block => "block",
         Effect::Kill => "kill",
     };
-    let retry_useful = matches!(effect, Effect::Audit);
+    // "retry_useful" means retrying the same operation as-is. Audit already
+    // succeeded, and block/kill need a different path or a satisfied gate.
+    let retry_useful = false;
     // §6.6: a machine-readable copy for SDK / supervisor consumption.
     let tag = format!(
         "{{\"actplane_rule\":{},\"effect\":\"{}\",\"enforcement\":\"{}\",\"retry_useful\":{}}}",
@@ -106,6 +108,6 @@ mod tests {
             Effect::Audit,
         );
         assert!(s.contains("先跑 pytest"));
-        assert!(s.contains("\"retry_useful\":true"));
+        assert!(s.contains("\"retry_useful\":false"));
     }
 }

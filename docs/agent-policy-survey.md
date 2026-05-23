@@ -160,14 +160,14 @@ schema/{manifest,rule}.schema.json
 
 选场景的规则是机械的：**`D5.observable ∧ D5.expressible ∧ D5.robust ∧ D7.temptable`，并按 `D6=yes` 优先排序** → 评测场景。每个场景记录：源规则（带 provenance）、编译后的 `.dsl`、诱发违规的 agent 任务 prompt、期望违规、baseline。
 
-结合当前内核已具备的 **BPF-LSM 强制**（`enforce_mode`，命中即 `-EPERM`；不可用时降级 tracepoint audit），每个场景跑四个条件：
+结合当前内核已具备的 **BPF-LSM 强制**（`block` 命中即 `-EPERM`；不可用时降级 tracepoint audit，必要时用 `kill` 让动作失败），每个场景跑四个条件：
 
 1. **prompt-only**（规则只写进 CLAUDE.md，无强制）——测"本就会违反"的基线违规率（这是我们存在的正当性，若此项恒为 0 则该规则对我们无证据价值，需如实剔除）；
 2. **audit**（只报不拦）；
-3. **hard-block**（LSM 拦截）；
-4. **block + 纠偏反馈**（拦截并把 reason 回灌上下文，看 agent 能否自我纠正并仍完成任务）。
+3. **fail-no-reason**（LSM `-EPERM` 或 `SIGKILL`，但不回灌 ActPlane reason）；
+4. **fail + 纠偏反馈**（让动作失败并把 reason 回灌上下文，看 agent 能否自我纠正并仍完成任务）。
 
-指标：违规率、**误报/过度阻断率**（拦住正常工作的 harness 比 prompt 更糟，此数与命中率同等重要）、任务完成率、纠正迭代数、以及"同一规则在 *工具调用* / `bash -c` / `python -c subprocess` / 直接 syscall 四条路径上是否都被拦住"（D6 的直接验证）。
+指标：违规率、**误报/过度阻断率**（让正常工作失败的 harness 比 prompt 更糟，此数与命中率同等重要）、任务完成率、纠正迭代数、以及"同一规则在 *工具调用* / `bash -c` / `python -c subprocess` / 直接 syscall 四条路径上是否都被强制失败"（D6 的直接验证）。
 
 > **语料论断与 eval 论断严格分离**：§2 只说"开发者写了什么、其中多少可强制"；§6 才说"agent 实际违反多少、强制后如何"。
 

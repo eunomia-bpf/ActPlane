@@ -113,7 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 /// Report a violation: a human one-liner to stdout, plus the structured
 /// corrective-feedback payload (docs/feedback-design.md §6) appended to the
 /// feedback file if one was requested — channel (a1), the reason file an agent
-/// reads when a syscall fails with EPERM.
+/// reads when an operation fails with EPERM or the task is terminated.
 fn report(meta: &[dsl::RuleMeta], v: &Violation, feedback_file: Option<&str>) {
     let verb = if v.killed.unwrap_or(false) {
         "KILLED"

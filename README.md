@@ -4,10 +4,10 @@
 
 ActPlane is an **OS-level harness for AI agents**: it evaluates workflow,
 capability, and provenance contracts over an agent's *whole* execution, across
-any tool, subprocess, or direct syscall, from the kernel via eBPF. When BPF LSM
-is active it blocks matching operations; otherwise it runs in audit mode and
-reports each violation with a human-readable reason (the corrective-feedback
-payload).
+any tool, subprocess, or direct syscall, from the kernel via eBPF. Enforcement is
+defined at the harness level: a matching action either fails before the kernel
+commits it (`block`) or the resulting task is immediately terminated (`kill`),
+and the agent gets a human-readable reason (the corrective-feedback payload).
 
 The motivation: agent constraints today live in prompts (`CLAUDE.md` / `AGENTS.md`),
 which are only *probabilistic* — a long-context agent forgets or routes around
@@ -70,7 +70,8 @@ sudo ./collector/target/release/actplane codex.dsl      # compile + enforce/audi
 ```
 
 `actplane` compiles the policy, loads the embedded eBPF program, and prints
-whether the kernel actually blocked the operation or only audited it:
+whether the kernel denied the operation, killed the violating task, or only
+audited it:
 
 ```
 🚫 BLOCKED: process 'git' (pid 4213, ppid 4210) — /usr/bin/git
@@ -90,8 +91,9 @@ whether the kernel actually blocked the operation or only audited it:
 ## Status
 
 The DSL compiler and the kernel matching predicates are unit-tested (`make test`).
-The BPF program now has LSM hooks for exec, file access/mutation, and IPv4 connect
-blocking, with tracepoint audit fallback when `bpf` is not present in
-`/sys/kernel/security/lsm`. Remaining gaps include full `@arg` pre-exec blocking,
-hostname/SNI network policy, inode-first file identity, and a clean live e2e suite.
+The BPF program now has LSM hooks for exec, file access/mutation, and IPv4
+connect blocking, with tracepoint audit/kill fallback when `bpf` is not present
+in `/sys/kernel/security/lsm`. Remaining gaps include full `@arg` pre-exec
+blocking (currently handled as post-exec audit/kill), hostname/SNI network
+policy, inode-first file identity, and a clean live e2e suite.
 This is a research prototype.

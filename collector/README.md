@@ -3,11 +3,11 @@
 The userspace half of ActPlane: a **taint-DSL compiler + reporting shim**. It
 parses a `.dsl` policy, lowers it to the kernel ABI (`struct taint_config`), runs
 the embedded eBPF program, and prints each `TAINT_VIOLATION` the kernel emits
-with its policy reason. The kernel does all taint propagation and matching; when
-BPF LSM is active, violations from LSM hooks are blocked, and otherwise the loader
-falls back to audit mode. Individual rules can request `effect audit`, `effect block`,
-or `effect kill`; `--kill-on-violation` upgrades fallback `block` hits to SIGKILL
-when BPF LSM is unavailable.
+with its policy reason. The kernel does all taint propagation and matching.
+Individual rules can request `effect audit`, `effect block`, or `effect kill`.
+For harness enforcement, `block` denies through BPF LSM when available, while
+`kill` makes the action fail by terminating the violating task; `--kill-on-violation`
+upgrades fallback `block` hits to SIGKILL when BPF LSM is unavailable.
 
 ## Build & test
 

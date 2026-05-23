@@ -7,9 +7,26 @@
 > **Status: implemented as a BPF-LSM enforcement backend with tracepoint audit fallback.**
 > - **Compiler** `collector/src/dsl/` (parse → lower to the kernel ABI `struct taint_config`): bit allocation, boolean→`req`/`forbid` masks via DNF, glob→exact/prefix/suffix/any lowering, IPv4→net/mask, gates, declassify/endorse. 15 unit tests (E1–E12 compile + effect coverage).
 > - **Kernel engine** `bpf/taint.h` + `taint_engine.bpf.h` + `process.bpf.c`: object+subject sources, boolean masks, declassify/endorse, lineage/after/target conditions, process+file+endpoint data-flow propagation (fork/exec/read/write/connect), exact/prefix/suffix/any matching, numeric IPv4 connect. It uses LSM hooks for exec, file access/mutation, and connect blocking when `bpf` LSM is active; otherwise tracepoints provide audit reporting. Matching predicates have 30 unit tests (`test_taint.c`).
-> - **Loader** `bpf/process.c` installs the compiled config, detects BPF LSM availability, and reports only `TAINT_VIOLATION` with a `blocked` flag.
+> - **Loader** `bpf/process.c` installs the compiled config, detects BPF LSM availability, and reports only `TAINT_VIOLATION` with `effect`, `blocked`, and `killed` fields.
 >
-> Current limitations: `@arg` exec predicates are audited after exec unless an argv cache is added before `bprm_check_security`; endpoint host globs require userspace DNS/SNI support because kernel connect matching is numeric IPv4; file labels are still keyed by path hash rather than inode/dev. The corrective-feedback loop is wired up kernel-side: violations the eBPF/LSM enforcer detects are formatted (`--feedback-file`) into the §6 reason payload the agent reads on EPERM (see [`feedback-design.md`](feedback-design.md), [`../script/agent-feedback.md`](../script/agent-feedback.md)); the agent eval across the four conditions (C1–C4) remains.
+> Current limitations: `@arg` exec predicates are handled after exec unless an argv cache is added before `bprm_check_security`; this still gives harness-level enforcement when the matching task is killed, but not security-style pre-exec denial. Endpoint host globs require userspace DNS/SNI support because kernel connect matching is numeric IPv4; file labels are still keyed by path hash rather than inode/dev. The corrective-feedback loop is wired up kernel-side: violations the eBPF/LSM enforcer detects are formatted (`--feedback-file`) into the §6 reason payload the agent reads on failure (see [`feedback-design.md`](feedback-design.md), [`../script/agent-feedback.md`](../script/agent-feedback.md)); the agent eval across the four conditions (C1–C4) remains.
+
+### Enforcement Semantics
+
+ActPlane uses **harness-level enforcement**. A matched action is enforced if it
+does not complete as a useful agent action and the agent receives corrective
+feedback:
+
+- `block`: a BPF-LSM hook denies the operation before the kernel commits it
+  (`-EPERM`). This is security-style pre-operation blocking.
+- `kill`: the OS immediately terminates the violating task. For exec rules that
+  rely on post-exec argv observation, the new image may have started, but the
+  agent action is still forced to fail.
+- `audit`: report only; the action proceeds.
+
+This distinction is intentional: ActPlane is an agent operating harness, not
+only a security reference monitor. When a security claim needs pre-operation
+denial, use `block` on hooks whose arguments are available before commit.
 
 ---
 
@@ -79,9 +96,9 @@ rule NAME:
 `match(o, pat) ∧ Φ(σ(s)) ∧ ¬cond(s, o, history)`.
 Each rule has an explicit `effect`:
 
-- `block` (default): deny at the BPF-LSM hook when available; otherwise report in tracepoint fallback.
+- `block` (default): deny at the BPF-LSM hook when available; otherwise report in tracepoint fallback, or terminate the task when `--kill-on-violation` is enabled.
 - `audit`: report only; the operation proceeds.
-- `kill`: send `SIGKILL` to the violating task. With BPF-LSM active, the hook also denies the triggering operation.
+- `kill`: send `SIGKILL` to the violating task. With BPF-LSM active, the hook also denies the triggering operation when the rule is evaluated before commit.
 
 If multiple clauses/rules match the same event, the kernel chooses the strongest effect: `kill > block > audit`.
 

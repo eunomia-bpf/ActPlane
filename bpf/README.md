@@ -30,8 +30,9 @@ Each node (process / file / endpoint) carries a `u64` label bitmask. Sources add
 labels (`exec` comm match, `file` path match, `endpoint` IP match). Propagation:
 fork → child inherits; exec → source/xform/gate applied to the process; read → file
 labels flow into the process; write → process labels flow into the file; connect →
-process labels flow to the endpoint. In enforce mode, the LSM hook checks before
-committing the operation and only propagates on allow. Sinks (`deny exec/open/write/connect`) match
+process labels flow to the endpoint. LSM hooks can deny before commit (`block`);
+tracepoint fallback can still enforce the harness by terminating the violating
+task (`kill`). Sinks (`deny exec/open/write/connect`) match
 on a label mask (`req` AND / `forbid` NOT, DNF-expanded by the compiler) plus the
 target pattern, optional `@arg` match, and an optional condition (`lineage-includes`,
 `after`, target scope). Each rule carries an explicit effect (`audit`, `block`,
