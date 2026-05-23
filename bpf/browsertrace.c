@@ -1063,7 +1063,6 @@ static int validate_utf8_char(const unsigned char *str, size_t remaining)
 
 static void print_event(struct probe_SSL_data_t *event)
 {
-	static unsigned long long start;
 	unsigned int buf_size;
 	unsigned int i;
 
@@ -1088,9 +1087,6 @@ static void print_event(struct probe_SSL_data_t *event)
 		return;
 	if (!target_process_matches(event->pid))
 		return;
-
-	if (start == 0)
-		start = event->timestamp_ns;
 
 	printf("{");
 	printf("\"function\":\"%s\",", event->rw == 0 ? "READ/RECV" : "WRITE/SEND");

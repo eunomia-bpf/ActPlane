@@ -43,12 +43,21 @@
 #define MAX_TAINT_RULES  16   /* one taint label bit per rule */
 #define TAINT_LABEL_NONE 0ULL
 
-/* A compiled rule edge: "processes tainted by `source_comm` may not exec
- * `sink_comm`". The DSL compiler in the collector emits one of these per
- * (source, deny-exec sink) pair. */
+#define TAINT_SINK_LEN   64   /* sink operand: exec comm (<=15) or file path prefix */
+
+/* Sink operation kind: what forbidden operation this rule guards. */
+enum taint_sink_kind {
+	TAINT_SINK_EXEC      = 0, /* tainted process may not exec `sink` (comm) */
+	TAINT_SINK_FILE_OPEN = 1, /* tainted process may not open a path under `sink` */
+};
+
+/* A compiled rule: "processes tainted by `source_comm` (and their descendants)
+ * may not perform `sink_kind` on `sink`". The collector emits one per
+ * (source, deny-operation, target) triple. One taint label bit per rule. */
 struct taint_rule {
 	char source_comm[TAINT_COMM_LEN]; /* executable that introduces the taint */
-	char sink_comm[TAINT_COMM_LEN];   /* executable forbidden to tainted procs */
+	unsigned int sink_kind;           /* enum taint_sink_kind */
+	char sink[TAINT_SINK_LEN];        /* exec: comm; file: path prefix */
 	unsigned long long label;         /* taint bit for this rule (1 << rule_id) */
 	unsigned int rule_id;             /* index back into the DSL rule table */
 };
@@ -69,9 +78,24 @@ static __always_inline int taint_comm_eq(const char *a, const char *b)
 	return 1;
 }
 
+/* Returns true if `path` starts with the non-empty `prefix`. Bounded to
+ * TAINT_SINK_LEN bytes (compile-time constant) for the verifier. */
+static __always_inline int taint_path_has_prefix(const char *path, const char *prefix)
+{
+	if (prefix[0] == '\0')
+		return 0;
+	TAINT_UNROLL
+	for (int i = 0; i < TAINT_SINK_LEN; i++) {
+		if (prefix[i] == '\0')
+			return 1;          /* matched all of prefix */
+		if (path[i] != prefix[i])
+			return 0;
+	}
+	return 1;
+}
+
 /* OR in the taint labels of every rule whose source matches `comm`.
- * `cur_label` is the process's existing (inherited) label. Returns the
- * resulting label. */
+ * `cur_label` is the process's existing (inherited) label. Returns the result. */
 static __always_inline unsigned long long taint_apply_sources(const struct taint_rule *rules,
 						       unsigned int n_rules,
 						       const char *comm,
@@ -93,15 +117,13 @@ static __always_inline unsigned long long taint_apply_sources(const struct taint
 	return label;
 }
 
-/* Check whether a process carrying `label` is allowed to exec `comm`.
- * If a rule's label is active and `comm` matches that rule's sink, the access
- * is a violation: returns 1 and writes the offending rule_id to *out_rule_id.
- * Returns 0 when allowed. */
-static __always_inline int taint_check_sink(const struct taint_rule *rules,
-				     unsigned int n_rules,
-				     const char *comm,
-				     unsigned long long label,
-				     unsigned int *out_rule_id)
+/* Is exec of `comm` by a process carrying `label` a violation? Checks only
+ * TAINT_SINK_EXEC rules. Returns 1 + sets *out_rule_id on the first hit. */
+static __always_inline int taint_check_exec_sink(const struct taint_rule *rules,
+					 unsigned int n_rules,
+					 const char *comm,
+					 unsigned long long label,
+					 unsigned int *out_rule_id)
 {
 	if (n_rules > MAX_TAINT_RULES)
 		n_rules = MAX_TAINT_RULES;
@@ -110,9 +132,36 @@ static __always_inline int taint_check_sink(const struct taint_rule *rules,
 	for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
 		if (i >= n_rules)
 			break;
-		if ((label & rules[i].label) &&
-		    rules[i].sink_comm[0] != '\0' &&
-		    taint_comm_eq(comm, rules[i].sink_comm)) {
+		if (rules[i].sink_kind == TAINT_SINK_EXEC &&
+		    (label & rules[i].label) &&
+		    rules[i].sink[0] != '\0' &&
+		    taint_comm_eq(comm, rules[i].sink)) {
+			if (out_rule_id)
+				*out_rule_id = rules[i].rule_id;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/* Is opening `path` by a process carrying `label` a violation? Checks only
+ * TAINT_SINK_FILE_OPEN rules (prefix match). Returns 1 + sets *out_rule_id. */
+static __always_inline int taint_check_file_sink(const struct taint_rule *rules,
+					 unsigned int n_rules,
+					 const char *path,
+					 unsigned long long label,
+					 unsigned int *out_rule_id)
+{
+	if (n_rules > MAX_TAINT_RULES)
+		n_rules = MAX_TAINT_RULES;
+
+	TAINT_UNROLL
+	for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
+		if (i >= n_rules)
+			break;
+		if (rules[i].sink_kind == TAINT_SINK_FILE_OPEN &&
+		    (label & rules[i].label) &&
+		    taint_path_has_prefix(path, rules[i].sink)) {
 			if (out_rule_id)
 				*out_rule_id = rules[i].rule_id;
 			return 1;

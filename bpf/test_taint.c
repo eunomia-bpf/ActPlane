@@ -52,15 +52,24 @@ static void test_comm_eq(void)
 	      "comm_eq: full-length mismatch at last byte");
 }
 
+/* Set a sink operand (exec comm or file path prefix, up to TAINT_SINK_LEN). */
+static void set_sink(char *dst, const char *src)
+{
+	strncpy(dst, src, TAINT_SINK_LEN - 1);
+	dst[TAINT_SINK_LEN - 1] = '\0';
+}
+
 static void test_apply_sources(void)
 {
 	struct taint_rule rules[2] = {0};
 	set_comm(rules[0].source_comm, "codex");
-	set_comm(rules[0].sink_comm, "git");
+	rules[0].sink_kind = TAINT_SINK_EXEC;
+	set_sink(rules[0].sink, "git");
 	rules[0].label = 1ULL << 0;
 	rules[0].rule_id = 0;
 	set_comm(rules[1].source_comm, "agent");
-	set_comm(rules[1].sink_comm, "ssh");
+	rules[1].sink_kind = TAINT_SINK_EXEC;
+	set_sink(rules[1].sink, "ssh");
 	rules[1].label = 1ULL << 1;
 	rules[1].rule_id = 1;
 
@@ -77,33 +86,81 @@ static void test_apply_sources(void)
 	      "apply_sources: inherited label preserved + new added");
 }
 
-static void test_check_sink(void)
+static void test_exec_sink(void)
 {
 	struct taint_rule rules[2] = {0};
 	set_comm(rules[0].source_comm, "codex");
-	set_comm(rules[0].sink_comm, "git");
+	rules[0].sink_kind = TAINT_SINK_EXEC;
+	set_sink(rules[0].sink, "git");
 	rules[0].label = 1ULL << 0;
 	rules[0].rule_id = 0;
 	set_comm(rules[1].source_comm, "codex");
-	set_comm(rules[1].sink_comm, "ssh");
+	rules[1].sink_kind = TAINT_SINK_EXEC;
+	set_sink(rules[1].sink, "ssh");
 	rules[1].label = 1ULL << 0;   /* same source -> same label */
 	rules[1].rule_id = 1;
 
 	unsigned int rid = 999;
-	check(taint_check_sink(rules, 2, "git", (1ULL << 0), &rid) == 1 && rid == 0,
-	      "check_sink: tainted process running git is a violation (rule 0)");
+	check(taint_check_exec_sink(rules, 2, "git", (1ULL << 0), &rid) == 1 && rid == 0,
+	      "exec_sink: tainted process running git is a violation (rule 0)");
 
 	rid = 999;
-	check(taint_check_sink(rules, 2, "ssh", (1ULL << 0), &rid) == 1 && rid == 1,
-	      "check_sink: tainted process running ssh is a violation (rule 1)");
+	check(taint_check_exec_sink(rules, 2, "ssh", (1ULL << 0), &rid) == 1 && rid == 1,
+	      "exec_sink: tainted process running ssh is a violation (rule 1)");
 
 	rid = 999;
-	check(taint_check_sink(rules, 2, "ls", (1ULL << 0), &rid) == 0,
-	      "check_sink: tainted process running ls is allowed");
+	check(taint_check_exec_sink(rules, 2, "ls", (1ULL << 0), &rid) == 0,
+	      "exec_sink: tainted process running ls is allowed");
 
 	rid = 999;
-	check(taint_check_sink(rules, 2, "git", TAINT_LABEL_NONE, &rid) == 0,
-	      "check_sink: untainted process running git is allowed");
+	check(taint_check_exec_sink(rules, 2, "git", TAINT_LABEL_NONE, &rid) == 0,
+	      "exec_sink: untainted process running git is allowed");
+}
+
+static void test_path_prefix(void)
+{
+	check(taint_path_has_prefix("/etc/secrets/key", "/etc/secrets") == 1,
+	      "path_prefix: /etc/secrets/key under /etc/secrets");
+	check(taint_path_has_prefix("/etc/passwd", "/etc/secrets") == 0,
+	      "path_prefix: /etc/passwd not under /etc/secrets");
+	check(taint_path_has_prefix("/etc", "/etc/secrets") == 0,
+	      "path_prefix: shorter path is not under longer prefix");
+	check(taint_path_has_prefix("/anything", "") == 0,
+	      "path_prefix: empty prefix never matches");
+}
+
+static void test_file_sink(void)
+{
+	struct taint_rule rules[2] = {0};
+	/* exec rule (should be ignored by the file-sink check) */
+	set_comm(rules[0].source_comm, "codex");
+	rules[0].sink_kind = TAINT_SINK_EXEC;
+	set_sink(rules[0].sink, "git");
+	rules[0].label = 1ULL << 0;
+	rules[0].rule_id = 0;
+	/* file-open rule */
+	set_comm(rules[1].source_comm, "codex");
+	rules[1].sink_kind = TAINT_SINK_FILE_OPEN;
+	set_sink(rules[1].sink, "/etc/secrets");
+	rules[1].label = 1ULL << 0;
+	rules[1].rule_id = 1;
+
+	unsigned int rid = 999;
+	check(taint_check_file_sink(rules, 2, "/etc/secrets/key", (1ULL << 0), &rid) == 1 && rid == 1,
+	      "file_sink: tainted process opening /etc/secrets/* is a violation (rule 1)");
+
+	rid = 999;
+	check(taint_check_file_sink(rules, 2, "/tmp/ok", (1ULL << 0), &rid) == 0,
+	      "file_sink: tainted process opening /tmp/ok is allowed");
+
+	rid = 999;
+	check(taint_check_file_sink(rules, 2, "/etc/secrets/key", TAINT_LABEL_NONE, &rid) == 0,
+	      "file_sink: untainted process opening /etc/secrets is allowed");
+
+	/* the exec sink must NOT fire on a file path, and vice-versa */
+	rid = 999;
+	check(taint_check_exec_sink(rules, 2, "/etc/secrets/key", (1ULL << 0), &rid) == 0,
+	      "file_sink: file path does not trip the exec sink");
 }
 
 int main(void)
@@ -111,7 +168,9 @@ int main(void)
 	printf("=== ActPlane taint unit tests ===\n");
 	test_comm_eq();
 	test_apply_sources();
-	test_check_sink();
+	test_exec_sink();
+	test_path_prefix();
+	test_file_sink();
 
 	printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
 	return tests_failed == 0 ? 0 : 1;

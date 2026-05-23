@@ -18,7 +18,7 @@ mod binary_extractor;
 mod policy;
 
 use binary_extractor::BinaryExtractor;
-use policy::{Edge, Policy};
+use policy::{Edge, Policy, SinkKind};
 
 #[derive(Parser)]
 #[command(author, version, about = "ActPlane: OS-enforced agent harness (taint-rule violations)", long_about = None)]
@@ -66,6 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .ok_or_else(|| format!("invalid --rule '{}' (expected SOURCE:SINK)", r))?;
         edges.push(Edge {
             source: source.to_string(),
+            kind: SinkKind::Exec,
             sink: sink.to_string(),
             rule_name: "inline".to_string(),
             reason: String::new(),
@@ -80,7 +81,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let edge_args = policy.edge_args();
     eprintln!("ActPlane: enforcing {} taint edge(s):", edge_args.len());
     for (i, e) in policy.edges().iter().enumerate() {
-        eprintln!("  [{}] {} -> deny exec {}  ({})", i, e.source, e.sink, e.rule_name);
+        let op = match e.kind {
+            SinkKind::Exec => "exec",
+            SinkKind::FileOpen => "open",
+        };
+        eprintln!("  [{}] {} -> deny {} {}  ({})", i, e.source, op, e.sink, e.rule_name);
     }
 
     // Extract the embedded eBPF loader and run it in taint mode.
@@ -114,13 +119,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
 /// Print a human-readable violation with the policy's reason.
 fn report(policy: &Policy, v: &Violation) {
-    let (rule_name, reason) = match policy.edge(v.rule_id) {
-        Some(e) => (e.rule_name.as_str(), e.reason.as_str()),
-        None => ("?", ""),
+    let (rule_name, reason, op) = match policy.edge(v.rule_id) {
+        Some(e) => (
+            e.rule_name.as_str(),
+            e.reason.as_str(),
+            match e.kind {
+                SinkKind::Exec => "exec",
+                SinkKind::FileOpen => "open",
+            },
+        ),
+        None => ("?", "", "access"),
     };
     println!(
-        "🚫 BLOCKED [{}]: process '{}' (pid {}, ppid {}) tried to exec {}",
-        rule_name, v.comm, v.pid, v.ppid, v.filename
+        "🚫 BLOCKED [{}]: process '{}' (pid {}, ppid {}) tried to {} {}",
+        rule_name, v.comm, v.pid, v.ppid, op, v.filename
     );
     if !reason.is_empty() {
         println!("   reason: {}", reason);

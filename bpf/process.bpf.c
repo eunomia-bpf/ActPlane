@@ -5,6 +5,8 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include "process.h"
+/* ActPlane taint engine: taint_labels map, rodata rules, te_* helpers. */
+#include "taint_engine.bpf.h"
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
@@ -20,22 +22,29 @@ struct {
 	__uint(max_entries, 256 * 1024);
 } rb SEC(".maps");
 
-/* ActPlane: per-pid taint label bitmask. Propagated along the process tree. */
-struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 8192);
-	__type(key, pid_t);
-	__type(value, u64);
-} taint_labels SEC(".maps");
-
 const volatile unsigned long long min_duration_ns = 0;
 
-/* ActPlane: compiled taint rules, set from userspace (collector) before load.
- * Kept in rodata rather than a BPF map so the per-exec scan is a constant-index
- * read that the verifier sees as fully-unrolled straight-line code (a map
- * lookup inside the loop blocks unrolling and trips the loop detector). */
-const volatile unsigned int n_taint_rules = 0;
-const volatile struct taint_rule taint_rules_cfg[MAX_TAINT_RULES] = {};
+/* Emit a TAINT_VIOLATION event for `rule_id` (operation already known). */
+static __always_inline void emit_violation(struct task_struct *task, pid_t pid,
+					   u64 ts, unsigned int rule_id, u64 label,
+					   const char *filename)
+{
+	struct event *v = bpf_ringbuf_reserve(&rb, sizeof(*v), 0);
+	if (!v)
+		return;
+	v->type = EVENT_TYPE_TAINT_VIOLATION;
+	v->exit_event = false;
+	v->pid = pid;
+	v->ppid = BPF_CORE_READ(task, real_parent, tgid);
+	v->timestamp_ns = ts;
+	v->exit_code = 0;
+	v->duration_ns = 0;
+	v->taint_rule_id = rule_id;
+	v->taint_label = label;
+	bpf_get_current_comm(&v->comm, sizeof(v->comm));
+	bpf_probe_read_kernel_str(&v->filename, sizeof(v->filename), filename);
+	bpf_ringbuf_submit(v, 0);
+}
 
 /* Bash readline uretprobe handler */
 SEC("uretprobe//usr/bin/bash:readline")
@@ -82,15 +91,7 @@ int BPF_URETPROBE(bash_readline, const void *ret)
 SEC("tp/sched/sched_process_fork")
 int handle_fork(struct trace_event_raw_sched_process_fork *ctx)
 {
-	pid_t parent_pid = ctx->parent_pid;
-	pid_t child_pid = ctx->child_pid;
-	u64 *plabel;
-
-	plabel = bpf_map_lookup_elem(&taint_labels, &parent_pid);
-	if (plabel && *plabel) {
-		u64 label = *plabel;
-		bpf_map_update_elem(&taint_labels, &child_pid, &label, BPF_ANY);
-	}
+	te_fork(ctx->parent_pid, ctx->child_pid);
 	return 0;
 }
 
@@ -179,72 +180,20 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 	/* successfully submit it to user-space for post-processing */
 	bpf_ringbuf_submit(e, 0);
 
-	/* ActPlane taint evaluation. Done after the exec event is submitted so
-	 * the normal trace is unaffected even if no rules are configured. */
+	/* ActPlane taint: fold in any source rule this exec matches, then check
+	 * the exec sink. Done after the trace event so a no-rule run is unaffected. */
 	if (n_taint_rules) {
 		char tcomm[TASK_COMM_LEN];
-		u64 label = 0;
-		u64 *cur;
 		unsigned int rule_id = 0;
+		u64 label;
 
 		bpf_get_current_comm(&tcomm, sizeof(tcomm));
-
-		/* inherited taint (via fork) for this pid */
-		cur = bpf_map_lookup_elem(&taint_labels, &pid);
-		if (cur)
-			label = *cur;
-
-		/* Does this executable introduce new taint? Scan the rodata rule
-		 * table (taint_comm_eq is the same predicate the unit test covers).
-		 *
-		 * We iterate the full constant MAX_TAINT_RULES rather than breaking
-		 * at n_taint_rules: a dynamic (volatile-dependent) bound blocks
-		 * clang's full unroll and the verifier then rejects the loop. Unused
-		 * rule slots are zeroed, so the source_comm[0] check skips them. */
-		TAINT_UNROLL
-		for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
-			/* copy out of volatile rodata into a local so the comm
-			 * compare operates on plain memory and unrolls cleanly */
-			struct taint_rule r = taint_rules_cfg[i];
-			if (r.source_comm[0] != '\0' &&
-			    taint_comm_eq(tcomm, r.source_comm))
-				label |= r.label;
-		}
-
-		if (label) {
-			bpf_map_update_elem(&taint_labels, &pid, &label, BPF_ANY);
-
-			/* sink check: is a tainted process running a forbidden exe? */
-			TAINT_UNROLL
-			for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
-				struct taint_rule r = taint_rules_cfg[i];
-				if ((label & r.label) &&
-				    r.sink_comm[0] != '\0' &&
-				    taint_comm_eq(tcomm, r.sink_comm)) {
-					rule_id = r.rule_id;
-
-					struct event *v =
-						bpf_ringbuf_reserve(&rb, sizeof(*v), 0);
-					if (!v)
-						break;
-					v->type = EVENT_TYPE_TAINT_VIOLATION;
-					v->exit_event = false;
-					v->pid = pid;
-					v->ppid = BPF_CORE_READ(task, real_parent, tgid);
-					v->timestamp_ns = ts;
-					v->exit_code = 0;
-					v->duration_ns = 0;
-					v->taint_rule_id = rule_id;
-					v->taint_label = label;
-					bpf_get_current_comm(&v->comm, sizeof(v->comm));
-					fname_off = ctx->__data_loc_filename & 0xFFFF;
-					bpf_probe_read_str(&v->filename,
-							   sizeof(v->filename),
-							   (void *)ctx + fname_off);
-					bpf_ringbuf_submit(v, 0);
-					break;
-				}
-			}
+		label = te_exec_label(pid, tcomm);
+		if (te_exec_sink(tcomm, label, &rule_id)) {
+			char fname[MAX_FILENAME_LEN];
+			fname_off = ctx->__data_loc_filename & 0xFFFF;
+			bpf_probe_read_str(fname, sizeof(fname), (void *)ctx + fname_off);
+			emit_violation(task, pid, ts, rule_id, label, fname);
 		}
 	}
 	return 0;
@@ -277,7 +226,7 @@ int handle_exit(struct trace_event_raw_sched_process_template* ctx)
 	bpf_map_delete_elem(&exec_start, &pid);
 
 	/* ActPlane: drop taint label on exit so the map doesn't leak pids */
-	bpf_map_delete_elem(&taint_labels, &pid);
+	te_exit(pid);
 
 	/* if process didn't live long enough, return early */
 	if (min_duration_ns && duration_ns < min_duration_ns)
@@ -326,6 +275,18 @@ int trace_openat(struct trace_event_raw_sys_enter *ctx)
 	if (bpf_probe_read_user_str(filepath, sizeof(filepath), filename) < 0)
 		return 0;
 
+	/* ActPlane: file-open sink -- a tainted process opening a forbidden path. */
+	if (n_taint_rules) {
+		unsigned int rule_id = 0;
+		if (te_file_sink(pid, filepath, &rule_id)) {
+			struct task_struct *task =
+				(struct task_struct *)bpf_get_current_task();
+			u64 *cur = bpf_map_lookup_elem(&taint_labels, &pid);
+			emit_violation(task, pid, bpf_ktime_get_ns(), rule_id,
+				       cur ? *cur : 0, filepath);
+		}
+	}
+
 	/* Reserve sample from BPF ringbuf */
 	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
 	if (!e)
@@ -371,6 +332,18 @@ int trace_open(struct trace_event_raw_sys_enter *ctx)
 	/* Read filename from user space */
 	if (bpf_probe_read_user_str(filepath, sizeof(filepath), filename) < 0)
 		return 0;
+
+	/* ActPlane: file-open sink -- a tainted process opening a forbidden path. */
+	if (n_taint_rules) {
+		unsigned int rule_id = 0;
+		if (te_file_sink(pid, filepath, &rule_id)) {
+			struct task_struct *task =
+				(struct task_struct *)bpf_get_current_task();
+			u64 *cur = bpf_map_lookup_elem(&taint_labels, &pid);
+			emit_violation(task, pid, bpf_ktime_get_ns(), rule_id,
+				       cur ? *cur : 0, filepath);
+		}
+	}
 
 	/* Reserve sample from BPF ringbuf */
 	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);

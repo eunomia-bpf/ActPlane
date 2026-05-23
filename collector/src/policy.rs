@@ -14,16 +14,29 @@
 //!   - name: codex-no-git
 //!     source: codex            # this exe and all its descendants are tainted
 //!     deny: [git, ssh]         # tainted processes may not exec these
-//!     reason: "Codex may not use git/ssh; use the review workflow."
+//!     deny_open: [/etc/secrets] # ...nor open paths under these prefixes
+//!     reason: "Codex may not use git/ssh or read secrets."
 //! ```
-//! `deny: [a, b]` and a single `sink: a` are both accepted. Each (source, sink)
-//! pair becomes one compiled edge, in declaration order, matching the
-//! `rule_id = edge index`, `label = 1 << index` convention in the loader.
+//! `deny`/`sink` are exec sinks (comm); `deny_open`/`open` are file-open sinks
+//! (path prefix). Each (source, sink) pair becomes one compiled edge, in
+//! declaration order, matching the `rule_id = edge index`, `label = 1 << index`
+//! convention in the loader. Edges compile to `SOURCE:SINK` (exec) or
+//! `SOURCE:open:PREFIX` (file) argv for the eBPF loader.
 
-/// One compiled taint edge: descendants of `source` may not exec `sink`.
+/// What forbidden operation an edge guards.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SinkKind {
+    /// tainted process may not exec `sink` (a comm name)
+    Exec,
+    /// tainted process may not open a path under `sink` (a path prefix)
+    FileOpen,
+}
+
+/// One compiled taint edge: descendants of `source` may not perform `kind` on `sink`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Edge {
     pub source: String,
+    pub kind: SinkKind,
     pub sink: String,
     pub rule_name: String,
     pub reason: String,
@@ -43,7 +56,8 @@ impl Policy {
         // Current rule being assembled.
         let mut name = String::new();
         let mut source = String::new();
-        let mut sinks: Vec<String> = Vec::new();
+        let mut exec_sinks: Vec<String> = Vec::new();
+        let mut file_sinks: Vec<String> = Vec::new();
         let mut reason = String::new();
         let mut in_rule = false;
 
@@ -52,22 +66,30 @@ impl Policy {
             edges: &mut Vec<Edge>,
             name: &str,
             source: &str,
-            sinks: &[String],
+            exec_sinks: &[String],
+            file_sinks: &[String],
             reason: &str,
         ) -> Result<(), String> {
             if source.is_empty() {
                 return Err(format!("rule '{}' has no source", name));
             }
-            if sinks.is_empty() {
-                return Err(format!("rule '{}' has no deny/sink entries", name));
+            if exec_sinks.is_empty() && file_sinks.is_empty() {
+                return Err(format!("rule '{}' has no deny/deny_open entries", name));
             }
-            for sink in sinks {
+            let mut push = |kind: SinkKind, sink: &String| {
                 edges.push(Edge {
                     source: source.to_string(),
+                    kind,
                     sink: sink.clone(),
                     rule_name: name.to_string(),
                     reason: reason.to_string(),
                 });
+            };
+            for s in exec_sinks {
+                push(SinkKind::Exec, s);
+            }
+            for s in file_sinks {
+                push(SinkKind::FileOpen, s);
             }
             Ok(())
         }
@@ -88,12 +110,13 @@ impl Policy {
             if starts_item {
                 // close the previous rule, start a new one
                 if in_rule {
-                    flush(&mut edges, &name, &source, &sinks, &reason)?;
+                    flush(&mut edges, &name, &source, &exec_sinks, &file_sinks, &reason)?;
                 }
                 in_rule = true;
                 name.clear();
                 source.clear();
-                sinks.clear();
+                exec_sinks.clear();
+                file_sinks.clear();
                 reason.clear();
                 rest = rest[1..].trim();
                 if rest.is_empty() {
@@ -117,14 +140,16 @@ impl Policy {
                 "name" => name = val.to_string(),
                 "source" => source = val.to_string(),
                 "reason" => reason = val.to_string(),
-                "sink" => sinks.push(val.to_string()),
-                "deny" => sinks.extend(parse_list(val)),
+                "sink" => exec_sinks.push(val.to_string()),
+                "deny" => exec_sinks.extend(parse_list(val)),
+                "open" => file_sinks.push(val.to_string()),
+                "deny_open" => file_sinks.extend(parse_list(val)),
                 _ => {} // ignore unknown keys
             }
         }
 
         if in_rule {
-            flush(&mut edges, &name, &source, &sinks, &reason)?;
+            flush(&mut edges, &name, &source, &exec_sinks, &file_sinks, &reason)?;
         }
 
         Ok(Policy { edges })
@@ -149,11 +174,15 @@ impl Policy {
         self.edges.is_empty()
     }
 
-    /// `SOURCE:SINK` argv strings, one per edge, in `rule_id` order.
+    /// Argv strings for the eBPF loader, one per edge in `rule_id` order:
+    /// `SOURCE:SINK` for exec sinks, `SOURCE:open:PREFIX` for file-open sinks.
     pub fn edge_args(&self) -> Vec<String> {
         self.edges
             .iter()
-            .map(|e| format!("{}:{}", e.source, e.sink))
+            .map(|e| match e.kind {
+                SinkKind::Exec => format!("{}:{}", e.source, e.sink),
+                SinkKind::FileOpen => format!("{}:open:{}", e.source, e.sink),
+            })
             .collect()
     }
 
@@ -222,6 +251,27 @@ mod tests {
         assert_eq!(p.edge_args(), vec!["codex:git", "agent:curl"]);
         assert_eq!(p.edge(1).unwrap().source, "agent");
         assert_eq!(p.edge(1).unwrap().reason, "no exfil");
+    }
+
+    #[test]
+    fn parses_file_open_sinks() {
+        let yaml = r#"
+            rules:
+              - name: secret
+                source: codex
+                deny: [curl]
+                deny_open: [/etc/secrets, /root/.ssh]
+                reason: no exfil
+        "#;
+        let p = Policy::from_yaml(yaml).unwrap();
+        // exec sinks first, then file sinks, in declaration order
+        assert_eq!(
+            p.edge_args(),
+            vec!["codex:curl", "codex:open:/etc/secrets", "codex:open:/root/.ssh"]
+        );
+        assert_eq!(p.edge(0).unwrap().kind, SinkKind::Exec);
+        assert_eq!(p.edge(1).unwrap().kind, SinkKind::FileOpen);
+        assert_eq!(p.edge(2).unwrap().sink, "/root/.ssh");
     }
 
     #[test]

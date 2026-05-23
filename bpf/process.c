@@ -174,17 +174,19 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		free(arg_copy);
 		break;
 	case 'T': {
-		/* One compiled taint edge "SOURCE:SINK" (comm names). The DSL/YAML
-		 * lives in the Rust collector, which parses policy and passes each
-		 * edge here on argv; this loader does no parsing of its own.
-		 * Presence of any rule enables taint mode: report ONLY violations. */
+		/* One compiled taint edge. Formats (the DSL/YAML lives in the Rust
+		 * collector, which compiles policy down to these):
+		 *   SOURCE:SINK           exec sink (default)
+		 *   SOURCE:exec:CMD       exec sink
+		 *   SOURCE:open:PREFIX    file-open sink (path prefix)
+		 * Any rule enables taint mode: report ONLY violations. */
 		if (env.taint_rule_count >= MAX_TAINT_RULES) {
 			fprintf(stderr, "Too many taint rules (max %d)\n", MAX_TAINT_RULES);
 			argp_usage(state);
 		}
 		char *colon = strchr(arg, ':');
 		if (!colon || colon == arg || *(colon + 1) == '\0') {
-			fprintf(stderr, "Invalid taint rule '%s' (expected SOURCE:SINK)\n", arg);
+			fprintf(stderr, "Invalid taint rule '%s' (expected SOURCE:[exec:|open:]TARGET)\n", arg);
 			argp_usage(state);
 		}
 		struct taint_rule *r = &env.taint_rules[env.taint_rule_count];
@@ -193,8 +195,23 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (src_len >= TAINT_COMM_LEN)
 			src_len = TAINT_COMM_LEN - 1;
 		memcpy(r->source_comm, arg, src_len);
-		strncpy(r->sink_comm, colon + 1, TAINT_COMM_LEN - 1);
-		r->sink_comm[TAINT_COMM_LEN - 1] = '\0';
+
+		const char *rest = colon + 1;
+		if (strncmp(rest, "open:", 5) == 0) {
+			r->sink_kind = TAINT_SINK_FILE_OPEN;
+			rest += 5;
+		} else if (strncmp(rest, "exec:", 5) == 0) {
+			r->sink_kind = TAINT_SINK_EXEC;
+			rest += 5;
+		} else {
+			r->sink_kind = TAINT_SINK_EXEC;
+		}
+		if (*rest == '\0') {
+			fprintf(stderr, "Invalid taint rule '%s' (empty sink target)\n", arg);
+			argp_usage(state);
+		}
+		strncpy(r->sink, rest, TAINT_SINK_LEN - 1);
+		r->sink[TAINT_SINK_LEN - 1] = '\0';
 		r->rule_id = (unsigned int)env.taint_rule_count;
 		r->label = 1ULL << env.taint_rule_count;
 		env.taint_rule_count++;
@@ -710,9 +727,10 @@ int main(int argc, char **argv)
 	skel->rodata->n_taint_rules = (unsigned int)env.taint_rule_count;
 	for (int i = 0; i < env.taint_rule_count; i++) {
 		skel->rodata->taint_rules_cfg[i] = env.taint_rules[i];
-		fprintf(stderr, "ActPlane taint rule %d: '%s' -> deny exec '%s' (label 0x%llx)\n",
-			i, env.taint_rules[i].source_comm, env.taint_rules[i].sink_comm,
-			env.taint_rules[i].label);
+		fprintf(stderr, "ActPlane taint rule %d: '%s' -> deny %s '%s' (label 0x%llx)\n",
+			i, env.taint_rules[i].source_comm,
+			env.taint_rules[i].sink_kind == TAINT_SINK_FILE_OPEN ? "open" : "exec",
+			env.taint_rules[i].sink, env.taint_rules[i].label);
 	}
 
 	/* Load & verify BPF programs */

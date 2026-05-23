@@ -160,34 +160,6 @@ static int validate_utf8_char(const unsigned char *str, size_t remaining)
 	return expected_len;
 }
 
-static const char *fd_role(int fd)
-{
-	switch (fd) {
-	case 0:
-		return "stdin";
-	case 1:
-		return "stdout";
-	case 2:
-		return "stderr";
-	default:
-		return "fd";
-	}
-}
-
-static bool resolve_fd_target(pid_t pid, int fd, char *buf, size_t buf_size)
-{
-	char proc_fd[128];
-	ssize_t len;
-
-	snprintf(proc_fd, sizeof(proc_fd), "/proc/%d/fd/%d", pid, fd);
-	len = readlink(proc_fd, buf, buf_size - 1);
-	if (len < 0)
-		return false;
-
-	buf[len] = '\0';
-	return true;
-}
-
 static void print_json_escaped(const char *buf, unsigned int len)
 {
 	unsigned int i;
@@ -231,8 +203,6 @@ static void print_json_escaped(const char *buf, unsigned int len)
 static void print_event(const struct stdiocap_event_t *event)
 {
 	unsigned int buf_size = event->buf_size;
-	char fd_target[PATH_MAX];
-	bool have_fd_target = false;
 
 	if (env.comm && strcmp(env.comm, event->comm) != 0)
 		return;
@@ -247,8 +217,7 @@ static void print_event(const struct stdiocap_event_t *event)
 		event_buf[buf_size] = '\0';
 	}
 
-	have_fd_target = resolve_fd_target(event->pid, event->fd, fd_target, sizeof(fd_target));
-
+	/* One minimal JSON line per event using the fields the event carries */
 	printf("{");
 	printf("\"direction\":\"%s\",", event->is_read ? "READ" : "WRITE");
 	printf("\"timestamp_ns\":%llu,", event->timestamp_ns);
@@ -257,14 +226,6 @@ static void print_event(const struct stdiocap_event_t *event)
 	printf("\"tid\":%u,", event->tid);
 	printf("\"uid\":%u,", event->uid);
 	printf("\"fd\":%d,", event->fd);
-	printf("\"fd_role\":\"%s\",", fd_role(event->fd));
-	if (have_fd_target) {
-		printf("\"fd_target\":");
-		print_json_escaped(fd_target, strlen(fd_target));
-		printf(",");
-	} else {
-		printf("\"fd_target\":null,");
-	}
 	printf("\"len\":%u,", event->len);
 	printf("\"buf_size\":%u,", buf_size);
 	printf("\"latency_ms\":%.3f,", (double)event->delta_ns / 1000000.0);

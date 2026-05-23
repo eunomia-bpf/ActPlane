@@ -22,40 +22,11 @@
 #include "process_ext/map_flush.h"
 #include "process_ext/mem_info.h"
 #include "process_ext/resource_sampler.h"
-#include "container_info.h"
 
 #define MAX_COMMAND_LIST 256
-#define FILE_DEDUP_WINDOW_NS 60000000000ULL  /* 60 seconds */
-#define MAX_FILE_HASHES 1024
-#define MAX_PID_LIMITS 256
-#define MAX_DISTINCT_FILES_PER_SEC 30
 
 #define POLL_TIMEOUT_MS  1000   /* ring buffer poll timeout */
 #define FLUSH_INTERVAL_S 5      /* BPF map flush interval */
-
-/* ========== FILE_OPEN dedup (copied from process.c) ========== */
-
-struct per_second_limit {
-	pid_t pid;
-	uint64_t current_second;
-	uint32_t distinct_file_count;
-	bool should_warn_next;
-};
-
-struct file_hash_entry {
-	uint64_t hash;
-	uint64_t timestamp_ns;
-	uint32_t count;
-	pid_t pid;
-	char comm[TASK_COMM_LEN];
-	char filepath[MAX_FILENAME_LEN];
-	int flags;
-};
-
-static struct file_hash_entry file_hashes[MAX_FILE_HASHES];
-static int hash_count = 0;
-static struct per_second_limit pid_limits[MAX_PID_LIMITS];
-static int pid_limit_count = 0;
 
 /* ========== Configuration ========== */
 
@@ -443,166 +414,6 @@ static void sig_handler(int sig)
 	exiting = true;
 }
 
-/* ========== Rate limiting (copied from process.c) ========== */
-
-static bool should_rate_limit_file(const struct event *e, uint64_t timestamp_ns, bool *add_warning)
-{
-	uint64_t current_second = timestamp_ns / 1000000000ULL;
-	*add_warning = false;
-
-	struct per_second_limit *limit = NULL;
-	for (int i = 0; i < pid_limit_count; i++) {
-		if (pid_limits[i].pid == e->pid) {
-			limit = &pid_limits[i];
-			break;
-		}
-	}
-
-	if (!limit && pid_limit_count < MAX_PID_LIMITS) {
-		limit = &pid_limits[pid_limit_count++];
-		limit->pid = e->pid;
-		limit->current_second = current_second;
-		limit->distinct_file_count = 0;
-		limit->should_warn_next = false;
-	}
-
-	if (!limit) return false;
-
-	if (limit->current_second != current_second) {
-		if (limit->should_warn_next) {
-			*add_warning = true;
-			limit->should_warn_next = false;
-		}
-		limit->current_second = current_second;
-		limit->distinct_file_count = 0;
-	}
-
-	limit->distinct_file_count++;
-	if (limit->distinct_file_count > MAX_DISTINCT_FILES_PER_SEC) {
-		limit->should_warn_next = true;
-		return true;
-	}
-
-	return false;
-}
-
-/* ========== FILE_OPEN print + dedup (copied from process.c) ========== */
-
-static void print_file_open_event(const struct event *e, uint64_t timestamp_ns, uint32_t count, const char *extra_fields)
-{
-	printf("{");
-	printf("\"timestamp\":%llu,", (unsigned long long)timestamp_ns);
-	printf("\"event\":\"FILE_OPEN\",");
-	printf("\"comm\":\"%s\",", e->comm);
-	printf("\"pid\":%d,", e->pid);
-	printf("\"count\":%u,", count);
-	printf("\"filepath\":\"%s\",", e->file_op.filepath);
-	printf("\"flags\":%d", e->file_op.flags);
-	if (extra_fields && strlen(extra_fields) > 0)
-		printf(",%s", extra_fields);
-	print_container_fields(e->pid);
-	printf("}\n");
-	fflush(stdout);
-}
-
-static uint64_t hash_file_open(const struct event *e)
-{
-	uint64_t hash = 5381;
-	hash = ((hash << 5) + hash) + e->pid;
-	const char *str = e->file_op.filepath;
-	while (*str)
-		hash = ((hash << 5) + hash) + *str++;
-	return hash;
-}
-
-static uint32_t get_file_open_count(const struct event *e, uint64_t timestamp_ns, char *warning_msg, size_t warning_msg_size)
-{
-	if (e->type != EVENT_TYPE_FILE_OPERATION || !e->file_op.is_open)
-		return 1;
-
-	warning_msg[0] = '\0';
-	bool add_warning = false;
-	if (should_rate_limit_file(e, timestamp_ns, &add_warning))
-		return 0;
-
-	if (add_warning)
-		snprintf(warning_msg, warning_msg_size, "\"rate_limit_warning\":\"Previous second exceeded %d file limit\"", MAX_DISTINCT_FILES_PER_SEC);
-
-	uint64_t hash = hash_file_open(e);
-
-	/* Clean expired entries */
-	for (int i = 0; i < hash_count; i++) {
-		if (timestamp_ns - file_hashes[i].timestamp_ns > FILE_DEDUP_WINDOW_NS) {
-			if (file_hashes[i].count > 1) {
-				struct event fake_event = {
-					.type = EVENT_TYPE_FILE_OPERATION,
-					.pid = file_hashes[i].pid,
-					.file_op = { .fd = -1, .flags = file_hashes[i].flags, .is_open = true }
-				};
-				strncpy(fake_event.comm, file_hashes[i].comm, TASK_COMM_LEN - 1);
-				fake_event.comm[TASK_COMM_LEN - 1] = '\0';
-				strncpy(fake_event.file_op.filepath, file_hashes[i].filepath, MAX_FILENAME_LEN - 1);
-				fake_event.file_op.filepath[MAX_FILENAME_LEN - 1] = '\0';
-				print_file_open_event(&fake_event, timestamp_ns, file_hashes[i].count, "\"window_expired\":true");
-			}
-			file_hashes[i] = file_hashes[hash_count - 1];
-			hash_count--;
-			i--;
-		}
-	}
-
-	/* Check for existing hash */
-	for (int i = 0; i < hash_count; i++) {
-		if (file_hashes[i].hash == hash) {
-			file_hashes[i].count++;
-			file_hashes[i].timestamp_ns = timestamp_ns;
-			return 0;
-		}
-	}
-
-	/* Add new entry */
-	if (hash_count < MAX_FILE_HASHES) {
-		file_hashes[hash_count].hash = hash;
-		file_hashes[hash_count].timestamp_ns = timestamp_ns;
-		file_hashes[hash_count].count = 1;
-		file_hashes[hash_count].pid = e->pid;
-		strncpy(file_hashes[hash_count].comm, e->comm, TASK_COMM_LEN - 1);
-		file_hashes[hash_count].comm[TASK_COMM_LEN - 1] = '\0';
-		strncpy(file_hashes[hash_count].filepath, e->file_op.filepath, MAX_FILENAME_LEN - 1);
-		file_hashes[hash_count].filepath[MAX_FILENAME_LEN - 1] = '\0';
-		file_hashes[hash_count].flags = e->file_op.flags;
-		hash_count++;
-	}
-
-	return 1;
-}
-
-static void flush_pid_file_opens(pid_t pid, uint64_t timestamp_ns)
-{
-	for (int i = 0; i < hash_count; i++) {
-		if (file_hashes[i].pid == pid && file_hashes[i].count > 1) {
-			struct event fake_event = {
-				.type = EVENT_TYPE_FILE_OPERATION,
-				.pid = file_hashes[i].pid,
-				.file_op = { .fd = -1, .flags = file_hashes[i].flags, .is_open = true }
-			};
-			strncpy(fake_event.comm, file_hashes[i].comm, TASK_COMM_LEN - 1);
-			fake_event.comm[TASK_COMM_LEN - 1] = '\0';
-			strncpy(fake_event.file_op.filepath, file_hashes[i].filepath, MAX_FILENAME_LEN - 1);
-			fake_event.file_op.filepath[MAX_FILENAME_LEN - 1] = '\0';
-			print_file_open_event(&fake_event, timestamp_ns, file_hashes[i].count, "\"reason\":\"process_exit\"");
-		}
-	}
-
-	for (int i = 0; i < hash_count; i++) {
-		if (file_hashes[i].pid == pid) {
-			file_hashes[i] = file_hashes[hash_count - 1];
-			hash_count--;
-			i--;
-		}
-	}
-}
-
 /* ========== Populate initial PIDs ========== */
 
 static int populate_initial_pids(struct pid_tracker *tracker)
@@ -656,7 +467,6 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	switch (e->type) {
 	case EVENT_TYPE_PROCESS:
 		if (e->exit_event) {
-			bool is_tracked = pid_tracker_is_tracked(tracker, e->pid);
 			pid_tracker_remove(tracker, e->pid);
 
 			/* Remove from BPF tracked_pids */
@@ -665,91 +475,46 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				bpf_map_delete_elem(g_tracked_pids_fd, &bpf_pid);
 			}
 
-			if (!is_tracked && tracker->filter_mode == FILTER_MODE_FILTER)
-				break;
-
-			printf("{\"timestamp\":%llu,\"event\":\"EXIT\","
-			       "\"comm\":\"%s\",\"pid\":%d,\"ppid\":%d",
-			       (unsigned long long)timestamp_ns, e->comm, e->pid, e->ppid);
-			printf(",\"exit_code\":%u", e->exit_code);
-			if (e->duration_ns)
-				printf(",\"duration_ms\":%llu", (unsigned long long)(e->duration_ns / 1000000));
-
-			/* Memory info at exit (from BPF exit_mem map) */
-			if (g_exit_mem_fd >= 0) {
-				uint32_t mem_pid = e->pid;
-				struct exit_mem_info emem = {};
-				if (bpf_map_lookup_elem(g_exit_mem_fd, &mem_pid, &emem) == 0) {
-					printf(",\"vm_hwm_kb\":%llu",
-					       (unsigned long long)(emem.hiwater_rss * page_size_kb));
-					bpf_map_delete_elem(g_exit_mem_fd, &mem_pid);
-				}
-			}
-
-			print_container_fields(e->pid);
-			printf("}\n");
+			printf("{\"timestamp\":%llu,\"event\":\"EXIT\",\"comm\":\"%s\","
+			       "\"pid\":%d,\"ppid\":%d,\"exit_code\":%u,\"duration_ms\":%llu}\n",
+			       (unsigned long long)timestamp_ns, e->comm, e->pid, e->ppid,
+			       e->exit_code, (unsigned long long)(e->duration_ns / 1000000));
 			fflush(stdout);
-
-			/* Flush FILE_OPEN dedup for this PID */
-			flush_pid_file_opens(e->pid, timestamp_ns);
 
 			/* Flush BPF agg map entries for this PID */
 			if (g_agg_map_fd >= 0)
 				flush_pid_from_agg_map(g_agg_map_fd, e->pid);
 		} else {
+			/* Track PID and configure resource sampling target as before. */
 			if (should_track_process(tracker, e->comm, e->pid, e->ppid)) {
 				pid_tracker_add(tracker, e->pid, e->ppid);
 
-				/* Set resource sampling target from first matching EXEC */
 				if (env.trace_resources && g_resource_target_pid == 0 &&
 				    tracker->command_filter_count > 0 &&
 				    command_matches_any_filter(e->comm, tracker->command_filters,
 				                              tracker->command_filter_count)) {
 					g_resource_target_pid = e->pid;
-					/* Auto-detect cgroup path if not specified */
 					if (env.cgroup_path[0] == '\0')
 						detect_cgroup_path(e->pid, env.cgroup_path, sizeof(env.cgroup_path));
 				}
 
-				/* Add to BPF tracked_pids */
 				if (g_tracked_pids_fd >= 0) {
 					uint32_t bpf_pid = e->pid;
 					uint8_t val = 1;
 					bpf_map_update_elem(g_tracked_pids_fd, &bpf_pid, &val, BPF_ANY);
 				}
-
-				printf("{\"timestamp\":%llu,\"event\":\"EXEC\","
-				       "\"comm\":\"%s\",\"pid\":%d,\"ppid\":%d",
-				       (unsigned long long)timestamp_ns, e->comm, e->pid, e->ppid);
-				printf(",\"filename\":\"%s\"", e->filename);
-				printf(",\"full_command\":\"%s\"", postprocess_full_command(e->full_command, MAX_COMMAND_LEN, e->exit_code));
-
-				/* Memory info at exec */
-				struct proc_mem_info mem;
-				if (read_proc_mem_info(e->pid, &mem)) {
-					printf(",\"rss_kb\":%ld,\"shared_kb\":%ld",
-					       mem.rss_pages * page_size_kb,
-					       mem.shared_pages * page_size_kb);
-				}
-
-				print_container_fields(e->pid);
-				printf("}\n");
-				fflush(stdout);
 			} else if (tracker->filter_mode == FILTER_MODE_FILTER) {
 				break;
-			} else {
-				if (tracker->filter_mode == FILTER_MODE_PROC)
-					pid_tracker_add(tracker, e->pid, e->ppid);
-
-				printf("{\"timestamp\":%llu,\"event\":\"EXEC\","
-				       "\"comm\":\"%s\",\"pid\":%d,\"ppid\":%d",
-				       (unsigned long long)timestamp_ns, e->comm, e->pid, e->ppid);
-				printf(",\"filename\":\"%s\"", e->filename);
-				printf(",\"full_command\":\"%s\"", postprocess_full_command(e->full_command, MAX_COMMAND_LEN, e->exit_code));
-				print_container_fields(e->pid);
-				printf("}\n");
-				fflush(stdout);
+			} else if (tracker->filter_mode == FILTER_MODE_PROC) {
+				pid_tracker_add(tracker, e->pid, e->ppid);
 			}
+
+			printf("{\"timestamp\":%llu,\"event\":\"EXEC\",\"comm\":\"%s\","
+			       "\"pid\":%d,\"ppid\":%d,\"filename\":\"%s\",\"full_command\":\"%s\"}\n",
+			       (unsigned long long)timestamp_ns, e->comm, e->pid, e->ppid,
+			       e->filename,
+			       postprocess_full_command(e->full_command, MAX_COMMAND_LEN, e->exit_code));
+			fflush(stdout);
 		}
 		break;
 
@@ -767,13 +532,11 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			break;
 		if (!should_report_file_ops(tracker, e->pid))
 			break;
-		{
-			char warning_msg[128];
-			uint32_t count = get_file_open_count(e, timestamp_ns, warning_msg, sizeof(warning_msg));
-			if (count == 0)
-				break;
-			print_file_open_event(e, timestamp_ns, count, strlen(warning_msg) > 0 ? warning_msg : NULL);
-		}
+		printf("{\"timestamp\":%llu,\"event\":\"FILE_OPEN\",\"comm\":\"%s\","
+		       "\"pid\":%d,\"filepath\":\"%s\",\"flags\":%d}\n",
+		       (unsigned long long)timestamp_ns, e->comm, e->pid,
+		       e->file_op.filepath, e->file_op.flags);
+		fflush(stdout);
 		break;
 
 	default:
@@ -977,8 +740,6 @@ cleanup:
 	process_new_bpf__destroy(skel);
 	for (int i = 0; i < env.command_count; i++)
 		free(env.command_list[i]);
-	hash_count = 0;
-	pid_limit_count = 0;
 
 	return err < 0 ? -err : 0;
 }

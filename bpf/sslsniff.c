@@ -23,7 +23,6 @@
 #include "sslsniff.skel.h"
 #include "sslsniff.h"
 #include "container_utils.h"
-#include "container_info.h"
 
 #define INVALID_UID -1
 #define INVALID_PID -1
@@ -588,7 +587,6 @@ int validate_utf8_char(const unsigned char *str, size_t remaining) {
 
 // Function to print the event from the perf buffer in JSON format
 void print_event(struct probe_SSL_data_t *event, const char *evt) {
-	static unsigned long long start = 0;  // Use static to retain value across function calls
 	unsigned int buf_size;
 
 	// Safety check for global buffer
@@ -616,42 +614,26 @@ void print_event(struct probe_SSL_data_t *event, const char *evt) {
 		return;
 	}
 
-	if (start == 0) {
-		start = event->timestamp_ns;
-	}
-
 	char *rw_event[] = {
 		"READ/RECV",
 		"WRITE/SEND",
 		"HANDSHAKE"
 	};
 
-	// Start JSON object
+	// One minimal JSON line per event using the fields the event carries
 	printf("{");
-	
-	// Basic fields - always include all fields
 	printf("\"function\":\"%s\",", rw_event[event->rw]);
 	printf("\"timestamp_ns\":%llu,", event->timestamp_ns);
 	printf("\"comm\":\"%s\",", event->comm);
 	printf("\"pid\":%d,", event->pid);
+	printf("\"tid\":%d,", event->tid);
+	printf("\"uid\":%d,", event->uid);
 	printf("\"len\":%d,", event->len);
 	printf("\"buf_size\":%u,", event->buf_size);
-
-	// Always include extra fields (UID, TID)
-	printf("\"uid\":%d,", event->uid);
-	printf("\"tid\":%d,", event->tid);
-
-	// Always include latency field
-	if (event->delta_ns) {
-		printf("\"latency_ms\":%.3f,", (double)event->delta_ns / 1000000);
-	} else {
-		printf("\"latency_ms\":0,");
-	}
-
-	// Always include handshake field
+	printf("\"latency_ms\":%.3f,", (double)event->delta_ns / 1000000);
 	printf("\"is_handshake\":%s,", event->is_handshake ? "true" : "false");
 
-	// Data field - always include both text and hex
+	// Data field carries the captured payload
 	if (buf_size > 0) {
 		// Text data
 		printf("\"data\":\"");
@@ -704,10 +686,6 @@ void print_event(struct probe_SSL_data_t *event, const char *evt) {
 		printf("\"data\":null,\"truncated\":false");
 	}
 
-	// Container info (ns_pid, container_id) if applicable
-	print_container_fields(event->pid);
-
-	// Close JSON object
 	printf("}\n");
 	fflush(stdout);
 }
