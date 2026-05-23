@@ -13,7 +13,7 @@ mod server;
 use framework::{
     binary_extractor::BinaryExtractor,
     runners::{SslRunner, StdioRunner, ProcessRunner, AgentRunner, SystemRunner, RunnerError, Runner},
-    analyzers::{OutputAnalyzer, FileLogger, SSEProcessor, HTTPParser, HTTPFilter, AuthHeaderRemover, SSLFilter, TimestampNormalizer, print_global_http_filter_metrics, print_global_ssl_filter_metrics}
+    analyzers::{OutputAnalyzer, FileLogger, TimestampNormalizer}
 };
 
 use server::WebServer;
@@ -31,13 +31,7 @@ async fn setup_signal_handler() {
     tokio::spawn(async move {
         sigint.recv().await;
         println!("\n\nReceived SIGINT, shutting down...");
-        
-        // Print HTTP filter metrics using the global function
-        print_global_http_filter_metrics();
-        
-        // Print SSL filter metrics using the global function
-        print_global_ssl_filter_metrics();
-        
+
         SHUTDOWN_REQUESTED.store(true, Ordering::Relaxed);
         std::process::exit(0);
     });
@@ -54,24 +48,6 @@ struct Cli {
 enum Commands {
     /// Analyze SSL traffic with raw JSON output
     Ssl {
-        /// Enable SSE processing for SSL traffic
-        #[arg(long)]
-        sse_merge: bool,
-        /// Enable HTTP parsing (automatically enables SSE merge first)
-        #[arg(long)]
-        http_parser: bool,
-        /// Include raw SSL data in HTTP parser events
-        #[arg(long)]
-        http_raw_data: bool,
-        /// HTTP filter patterns to exclude events (can be used multiple times)
-        #[arg(long)]
-        http_filter: Vec<String>,
-        /// Disable authorization header removal from HTTP traffic
-        #[arg(long)]
-        disable_auth_removal: bool,
-        /// SSL filter patterns to exclude events (can be used multiple times)
-        #[arg(long)]
-        ssl_filter: Vec<String>,
         /// Suppress console output
         #[arg(short, long)]
         quiet: bool,
@@ -165,18 +141,9 @@ enum Commands {
         /// SSL filter by UID
         #[arg(long)]
         ssl_uid: Option<u32>,
-        /// SSL filter patterns (for analyzer-level filtering)
-        #[arg(long)]
-        ssl_filter: Vec<String>,
         /// Show SSL handshake events
         #[arg(long)]
         ssl_handshake: bool,
-        /// Enable HTTP parsing for SSL
-        #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
-        ssl_http: bool,
-        /// Include raw SSL data in HTTP parser events
-        #[arg(long)]
-        ssl_raw_data: bool,
 
         /// Enable process monitoring
         #[arg(long, action = clap::ArgAction::Set, default_value = "true")]
@@ -216,12 +183,6 @@ enum Commands {
         #[arg(long, default_value = "2")]
         system_interval: u64,
 
-        /// HTTP filters (applied to SSL runner after HTTP parsing)
-        #[arg(long)]
-        http_filter: Vec<String>,
-        /// Disable authorization header removal from HTTP traffic
-        #[arg(long)]
-        disable_auth_removal: bool,
         /// Path to the binary executable to monitor (e.g., ~/.nvm/versions/node/v20.0.0/bin/node)
         #[arg(long)]
         binary_path: Option<String>,
@@ -245,7 +206,7 @@ enum Commands {
         server_port: u16,
     },
     /// Record agent activity with optimized filters and settings
-    /// Equivalent to: trace -c claude --http-filter "request.path_prefix=/v1/rgstr | response.status_code=202 | request.method=HEAD | response.body=" --ssl-filter "data=0\\r\\n\\r\\n|data.type=binary" -q --server-port 7395 --server -o record.log
+    /// Equivalent to: trace -c claude -q --server-port 7395 --server -o record.log
     Record {
         /// Process command filter (defaults to "claude")
         #[arg(short = 'c', long)]
@@ -323,21 +284,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let binary_extractor = BinaryExtractor::new().await?;
     
     match &cli.command {
-        Commands::Ssl { sse_merge, http_parser, http_raw_data, http_filter, disable_auth_removal, ssl_filter, quiet, rotate_logs, max_log_size, server, server_port, log_file, binary_path, args } => run_raw_ssl(&binary_extractor, *sse_merge, *http_parser, *http_raw_data, http_filter, *disable_auth_removal, ssl_filter, *quiet, *rotate_logs, *max_log_size, *server, *server_port, log_file, binary_path.as_deref(), args).await.map_err(convert_runner_error)?,
+        Commands::Ssl { quiet, rotate_logs, max_log_size, server, server_port, log_file, binary_path, args } => run_raw_ssl(&binary_extractor, *quiet, *rotate_logs, *max_log_size, *server, *server_port, log_file, binary_path.as_deref(), args).await.map_err(convert_runner_error)?,
         Commands::Process { quiet, rotate_logs, max_log_size, server, server_port, log_file, args } => run_raw_process(&binary_extractor, *quiet, *rotate_logs, *max_log_size, *server, *server_port, log_file, args).await.map_err(convert_runner_error)?,
         Commands::Stdio { pid, uid, comm, all_fds, max_bytes, quiet, rotate_logs, max_log_size, server, server_port, log_file } => run_raw_stdio(&binary_extractor, *pid, *uid, comm.as_deref(), *all_fds, *max_bytes, *quiet, *rotate_logs, *max_log_size, *server, *server_port, log_file).await.map_err(convert_runner_error)?,
-        Commands::Trace { ssl, ssl_uid, pid, comm, ssl_filter, ssl_handshake, ssl_http, ssl_raw_data, process, stdio, stdio_uid, stdio_comm, stdio_all_fds, stdio_max_bytes, duration, mode, system, system_interval, http_filter, disable_auth_removal, binary_path, log_file, quiet, rotate_logs, max_log_size, server, server_port } => run_trace(&binary_extractor, *ssl, *pid, *ssl_uid, comm.as_deref(), ssl_filter, *ssl_handshake, *ssl_http, *ssl_raw_data, *process, *stdio, *stdio_uid, stdio_comm.as_deref(), *stdio_all_fds, *stdio_max_bytes, *duration, *mode, *system, *system_interval, http_filter, *disable_auth_removal, binary_path.as_deref(), log_file, *quiet, *rotate_logs, *max_log_size, *server, *server_port).await.map_err(convert_runner_error)?,
+        Commands::Trace { ssl, ssl_uid, pid, comm, ssl_handshake, process, stdio, stdio_uid, stdio_comm, stdio_all_fds, stdio_max_bytes, duration, mode, system, system_interval, binary_path, log_file, quiet, rotate_logs, max_log_size, server, server_port } => run_trace(&binary_extractor, *ssl, *pid, *ssl_uid, comm.as_deref(), *ssl_handshake, *process, *stdio, *stdio_uid, stdio_comm.as_deref(), *stdio_all_fds, *stdio_max_bytes, *duration, *mode, *system, *system_interval, binary_path.as_deref(), log_file, *quiet, *rotate_logs, *max_log_size, *server, *server_port).await.map_err(convert_runner_error)?,
         Commands::Record { comm, binary_path, log_file, rotate_logs, max_log_size, server_port } => {
-            // Predefined filter patterns optimized for agent monitoring
-            let http_filter_patterns = vec![
-                "request.path_prefix=/v1/rgstr | response.status_code=202 | request.method=HEAD | response.body=".to_string(),
-            ];
-            let ssl_filter_patterns = vec![
-                "data=0\\r\\n\\r\\n | data.type=binary".to_string(),
-            ];
-
             // Enable system monitoring by default for record command
-            run_trace(&binary_extractor, true, None, None, Some(comm), &ssl_filter_patterns, false, true, false, true, false, None, None, false, 8192, None, None, true, 2, &http_filter_patterns, false, binary_path.as_deref(), log_file, true, *rotate_logs, *max_log_size, true, *server_port).await.map_err(convert_runner_error)?
+            run_trace(&binary_extractor, true, None, None, Some(comm), false, true, false, None, None, false, 8192, None, None, true, 2, binary_path.as_deref(), log_file, true, *rotate_logs, *max_log_size, true, *server_port).await.map_err(convert_runner_error)?
         },
         Commands::System { interval, pid, comm, no_children, cpu_threshold, memory_threshold, log_file, quiet, rotate_logs, max_log_size, server, server_port } => run_system(*interval, *pid, comm.as_deref(), !*no_children, *cpu_threshold, *memory_threshold, log_file, *quiet, *rotate_logs, *max_log_size, *server, *server_port).await.map_err(convert_runner_error)?,
     }
@@ -346,8 +299,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 
-/// Show raw SSL events as JSON with optional chunk merging and HTTP parsing
-async fn run_raw_ssl(binary_extractor: &BinaryExtractor, enable_chunk_merger: bool, enable_http_parser: bool, include_raw_data: bool, http_filter_patterns: &Vec<String>, disable_auth_removal: bool, ssl_filter_patterns: &Vec<String>, quiet: bool, rotate_logs: bool, max_log_size: u64, enable_server: bool, server_port: u16, log_file: &str, binary_path: Option<&str>, args: &Vec<String>) -> Result<(), RunnerError> {
+/// Show raw SSL events as JSON
+async fn run_raw_ssl(binary_extractor: &BinaryExtractor, quiet: bool, rotate_logs: bool, max_log_size: u64, enable_server: bool, server_port: u16, log_file: &str, binary_path: Option<&str>, args: &Vec<String>) -> Result<(), RunnerError> {
     println!("Raw SSL Events");
     println!("{}", "=".repeat(60));
     
@@ -372,46 +325,8 @@ async fn run_raw_ssl(binary_extractor: &BinaryExtractor, enable_chunk_merger: bo
     // Add TimestampNormalizer first to convert nanoseconds since boot to milliseconds since epoch
     ssl_runner = ssl_runner.add_analyzer(Box::new(TimestampNormalizer::new()));
 
-    // Add SSL filter if patterns are provided
-    if !ssl_filter_patterns.is_empty() {
-        ssl_runner = ssl_runner.add_analyzer(Box::new(SSLFilter::with_patterns(ssl_filter_patterns.clone())));
-    }
-    
-    // Add analyzers based on flags - when HTTP parser is enabled, always enable SSE merge first
-    if enable_http_parser {
-        ssl_runner = ssl_runner.add_analyzer(Box::new(SSEProcessor::new_with_timeout(30000)));
-        
-        // Create HTTP parser with appropriate configuration
-        let http_parser = if include_raw_data {
-            HTTPParser::new()
-        } else {
-            HTTPParser::new().disable_raw_data()
-        };
-        ssl_runner = ssl_runner.add_analyzer(Box::new(http_parser));
-        
-        // Add HTTP filter if patterns are provided
-        if !http_filter_patterns.is_empty() {
-            ssl_runner = ssl_runner.add_analyzer(Box::new(HTTPFilter::with_patterns(http_filter_patterns.clone())));
-        }
-        
-        // Add authorization header remover by default (unless disabled)
-        if !disable_auth_removal {
-            ssl_runner = ssl_runner.add_analyzer(Box::new(AuthHeaderRemover::new()));
-        }
-        
-        let raw_data_info = if include_raw_data { " (with raw data)" } else { "" };
-        let ssl_filter_info = if !ssl_filter_patterns.is_empty() { " with SSL filtering," } else { "" };
-        let http_filter_info = if !http_filter_patterns.is_empty() { " and HTTP filtering" } else { "" };
-        println!("Starting SSL event stream{} with SSE processing, HTTP parsing{}{} enabled (press Ctrl+C to stop):", ssl_filter_info, raw_data_info, http_filter_info);
-    } else if enable_chunk_merger {
-        ssl_runner = ssl_runner.add_analyzer(Box::new(SSEProcessor::new_with_timeout(30000)));
-        let ssl_filter_info = if !ssl_filter_patterns.is_empty() { " with SSL filtering and" } else { " with" };
-        println!("Starting SSL event stream{} SSE processing enabled (press Ctrl+C to stop):", ssl_filter_info);
-    } else {
-        let ssl_filter_info = if !ssl_filter_patterns.is_empty() { " with SSL filtering and" } else { " with" };
-        println!("Starting SSL event stream{} raw JSON output (press Ctrl+C to stop):", ssl_filter_info);
-    }
-    
+    println!("Starting SSL event stream with raw JSON output (press Ctrl+C to stop):");
+
     ssl_runner = ssl_runner
         .add_analyzer(Box::new(
             if rotate_logs {
@@ -560,10 +475,7 @@ async fn run_trace(
     pid: Option<u32>,
     ssl_uid: Option<u32>,
     comm: Option<&str>,
-    ssl_filter: &[String],
     ssl_handshake: bool,
-    ssl_http: bool,
-    ssl_raw_data: bool,
     process_enabled: bool,
     stdio_enabled: bool,
     stdio_uid: Option<u32>,
@@ -574,8 +486,6 @@ async fn run_trace(
     mode: Option<u32>,
     system_enabled: bool,
     system_interval: u64,
-    http_filter: &[String],
-    disable_auth_removal: bool,
     binary_path: Option<&str>,
     log_file: &str,
     quiet: bool,
@@ -626,39 +536,8 @@ async fn run_trace(
         // Add TimestampNormalizer first
         ssl_runner = ssl_runner.add_analyzer(Box::new(TimestampNormalizer::new()));
 
-        // Add SSL-specific analyzers
-        if !ssl_filter.is_empty() {
-            ssl_runner = ssl_runner.add_analyzer(Box::new(SSLFilter::with_patterns(ssl_filter.to_vec())));
-        }
-        
-        if ssl_http {
-            ssl_runner = ssl_runner.add_analyzer(Box::new(SSEProcessor::new_with_timeout(30000)));
-            
-            let http_parser = if ssl_raw_data {
-                HTTPParser::new()
-            } else {
-                HTTPParser::new().disable_raw_data()
-            };
-            ssl_runner = ssl_runner.add_analyzer(Box::new(http_parser));
-            
-            // Add HTTP filter to SSL runner if patterns are provided
-            if !http_filter.is_empty() {
-                ssl_runner = ssl_runner.add_analyzer(Box::new(HTTPFilter::with_patterns(http_filter.to_vec())));
-            }
-            
-            // Add authorization header remover by default (unless disabled)
-            if !disable_auth_removal {
-                ssl_runner = ssl_runner.add_analyzer(Box::new(AuthHeaderRemover::new()));
-            }
-        }
-        
         agent = agent.add_runner(Box::new(ssl_runner));
-        let http_filter_info = if ssl_http && !http_filter.is_empty() { 
-            format!(" with {} HTTP filter patterns", http_filter.len()) 
-        } else { 
-            String::new() 
-        };
-        println!("✓ SSL monitoring enabled{}", http_filter_info);
+        println!("✓ SSL monitoring enabled");
     }
 
     // Add stdio runner if enabled

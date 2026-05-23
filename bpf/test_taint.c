@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 eunomia-bpf org.
 //
-// Unit tests for ActPlane taint matching (taint.h) and YAML config parsing
-// (taint_config.h). These exercise the exact predicates the eBPF program uses,
-// without requiring a kernel/BPF load.
+// Unit tests for ActPlane taint matching (taint.h). These exercise the exact
+// predicates the eBPF program uses, without requiring a kernel/BPF load.
+// Policy authoring (YAML/DSL -> source:sink edges) lives in the Rust collector
+// and is tested there.
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 #include "taint.h"
-#include "taint_config.h"
+
+/* Local helper: copy a comm name into a fixed TAINT_COMM_LEN field. */
+static void set_comm(char *dst, const char *src)
+{
+	strncpy(dst, src, TAINT_COMM_LEN - 1);
+	dst[TAINT_COMM_LEN - 1] = '\0';
+}
 
 #define RESET   "\033[0m"
 #define RED     "\033[31m"
@@ -50,12 +55,12 @@ static void test_comm_eq(void)
 static void test_apply_sources(void)
 {
 	struct taint_rule rules[2] = {0};
-	taint_cfg_set_comm(rules[0].source_comm, "codex");
-	taint_cfg_set_comm(rules[0].sink_comm, "git");
+	set_comm(rules[0].source_comm, "codex");
+	set_comm(rules[0].sink_comm, "git");
 	rules[0].label = 1ULL << 0;
 	rules[0].rule_id = 0;
-	taint_cfg_set_comm(rules[1].source_comm, "agent");
-	taint_cfg_set_comm(rules[1].sink_comm, "ssh");
+	set_comm(rules[1].source_comm, "agent");
+	set_comm(rules[1].sink_comm, "ssh");
 	rules[1].label = 1ULL << 1;
 	rules[1].rule_id = 1;
 
@@ -75,12 +80,12 @@ static void test_apply_sources(void)
 static void test_check_sink(void)
 {
 	struct taint_rule rules[2] = {0};
-	taint_cfg_set_comm(rules[0].source_comm, "codex");
-	taint_cfg_set_comm(rules[0].sink_comm, "git");
+	set_comm(rules[0].source_comm, "codex");
+	set_comm(rules[0].sink_comm, "git");
 	rules[0].label = 1ULL << 0;
 	rules[0].rule_id = 0;
-	taint_cfg_set_comm(rules[1].source_comm, "codex");
-	taint_cfg_set_comm(rules[1].sink_comm, "ssh");
+	set_comm(rules[1].source_comm, "codex");
+	set_comm(rules[1].sink_comm, "ssh");
 	rules[1].label = 1ULL << 0;   /* same source -> same label */
 	rules[1].rule_id = 1;
 
@@ -101,69 +106,12 @@ static void test_check_sink(void)
 	      "check_sink: untainted process running git is allowed");
 }
 
-static void test_config_parse(void)
-{
-	const char *yaml =
-		"# ActPlane taint rules\n"
-		"rules:\n"
-		"  - source: codex\n"
-		"    sink: git\n"
-		"    reason: \"no git for codex\"\n"
-		"  - source: codex\n"
-		"    sink: ssh\n";
-	struct taint_rule rules[MAX_TAINT_RULES] = {0};
-	int n = taint_config_parse_str(yaml, rules, MAX_TAINT_RULES);
-
-	check(n == 2, "config: parsed two rules");
-	check(taint_comm_eq(rules[0].source_comm, "codex") &&
-	      taint_comm_eq(rules[0].sink_comm, "git"),
-	      "config: rule 0 = codex -> git");
-	check(rules[0].label == (1ULL << 0) && rules[0].rule_id == 0,
-	      "config: rule 0 label/id");
-	check(taint_comm_eq(rules[1].source_comm, "codex") &&
-	      taint_comm_eq(rules[1].sink_comm, "ssh"),
-	      "config: rule 1 = codex -> ssh");
-	check(rules[1].label == (1ULL << 1) && rules[1].rule_id == 1,
-	      "config: rule 1 label/id");
-}
-
-static void test_config_inline_and_quotes(void)
-{
-	// "- source:" inline on the dash line, single-quoted value
-	const char *yaml =
-		"rules:\n"
-		"  - source: 'agent'\n"
-		"    sink: 'curl'\n";
-	struct taint_rule rules[MAX_TAINT_RULES] = {0};
-	int n = taint_config_parse_str(yaml, rules, MAX_TAINT_RULES);
-	check(n == 1, "config(inline): one rule");
-	check(taint_comm_eq(rules[0].source_comm, "agent") &&
-	      taint_comm_eq(rules[0].sink_comm, "curl"),
-	      "config(inline): quotes stripped, agent -> curl");
-}
-
-static void test_config_malformed(void)
-{
-	// key/value before any list item is malformed
-	const char *yaml = "source: codex\n";
-	struct taint_rule rules[MAX_TAINT_RULES] = {0};
-	int n = taint_config_parse_str(yaml, rules, MAX_TAINT_RULES);
-	check(n == -1, "config: kv before list item -> error");
-
-	// empty config yields zero rules
-	n = taint_config_parse_str("# nothing here\n", rules, MAX_TAINT_RULES);
-	check(n == 0, "config: empty -> zero rules");
-}
-
 int main(void)
 {
 	printf("=== ActPlane taint unit tests ===\n");
 	test_comm_eq();
 	test_apply_sources();
 	test_check_sink();
-	test_config_parse();
-	test_config_inline_and_quotes();
-	test_config_malformed();
 
 	printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
 	return tests_failed == 0 ? 0 : 1;

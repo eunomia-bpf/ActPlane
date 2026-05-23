@@ -20,25 +20,12 @@ pub trait Analyzer: Send + Sync {
 
 pub mod output;
 pub mod file_logger;
-pub mod sse_processor;
-pub mod http_parser;
-pub mod http_filter;
-pub mod auth_header_remover;
-pub mod ssl_filter;
 pub mod event;
 pub mod common;
 pub mod timestamp_normalizer;
 
-#[cfg(test)]
-mod sse_processor_tests;
-
 pub use output::OutputAnalyzer;
 pub use file_logger::FileLogger;
-pub use sse_processor::SSEProcessor;
-pub use http_parser::HTTPParser;
-pub use http_filter::{HTTPFilter, print_global_http_filter_metrics};
-pub use auth_header_remover::AuthHeaderRemover;
-pub use ssl_filter::{SSLFilter, print_global_ssl_filter_metrics};
 pub use timestamp_normalizer::TimestampNormalizer;
 
 #[cfg(test)]
@@ -170,7 +157,6 @@ mod comprehensive_analyzer_chain_tests {
             .event_count(5) // 10 events total
             .delay_ms(10)
             .add_analyzer(Box::new(FilterAnalyzer::new("ssl_only".to_string())))
-            .add_analyzer(Box::new(SSEProcessor::new_with_timeout(5000)))
             .add_analyzer(Box::new(MetadataEnricherAnalyzer::new(json!({"test_run": "complex_chain", "version": "1.0"}))))
             .add_analyzer(Box::new(FileLogger::new(temp_file.path()).unwrap()))
             .add_analyzer(Box::new(OutputAnalyzer::new()));
@@ -185,7 +171,7 @@ mod comprehensive_analyzer_chain_tests {
         assert!(events.len() > 0, "Should have events");
         
         // All remaining events should be SSL (due to filter)
-        let non_ssl_events = events.iter().filter(|e| e.source != "ssl" && e.source != "sse_processor").count();
+        let non_ssl_events = events.iter().filter(|e| e.source != "ssl").count();
         assert_eq!(non_ssl_events, 0, "Filter should remove non-SSL events");
         
         // Events should have enriched metadata
@@ -193,12 +179,6 @@ mod comprehensive_analyzer_chain_tests {
             .filter(|e| e.data.get("enriched_metadata").is_some())
             .count();
         assert!(enriched_events > 0, "Should have enriched events");
-        
-        // Verify sse processor events were created
-        let _sse_events = events.iter()
-            .filter(|e| e.source == "sse_processor")
-            .count();
-        // Note: sse_events might be 0 if no SSE data was processed
         
         // Verify file was written
         let file_size = std::fs::metadata(temp_file.path()).unwrap().len();
@@ -214,7 +194,6 @@ mod comprehensive_analyzer_chain_tests {
             .event_count(5)
             .delay_ms(10)
             .add_analyzer(Box::new(ErrorSimulatorAnalyzer::new(3))) // Error on 3rd event
-            .add_analyzer(Box::new(SSEProcessor::new_with_timeout(5000)))
             .add_analyzer(Box::new(OutputAnalyzer::new()));
 
         let stream = runner.run().await.unwrap();
@@ -251,7 +230,6 @@ mod comprehensive_analyzer_chain_tests {
                 let mut runner = FakeRunner::new()
                     .event_count(3)
                     .delay_ms(5)
-                    .add_analyzer(Box::new(SSEProcessor::new_with_timeout(5000)))
                     .add_analyzer(Box::new(OutputAnalyzer::new()));
 
                 let stream = runner.run().await.unwrap();

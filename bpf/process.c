@@ -14,7 +14,6 @@
 #include "process.skel.h"
 #include "process_utils.h"
 #include "process_filter.h"
-#include "taint_config.h"
 
 #define MAX_COMMAND_LIST 256
 #define FILE_DEDUP_WINDOW_NS 60000000000ULL  // 60 seconds in nanoseconds
@@ -93,7 +92,7 @@ const char argp_program_doc[] =
 "  ./process -c \"claude,python\"    # Trace only claude/python processes\n"
 "  ./process -c \"ssh\" -d 1000     # Trace ssh processes lasting > 1 second\n"
 "  ./process -p 1234                # Trace only PID 1234\n"
-"  ./process -T taint.example.yaml  # ActPlane: report only taint-rule violations\n";
+"  ./process -T codex:git           # ActPlane: report only taint-rule violations\n";
 
 static const struct argp_option opts[] = {
 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
@@ -102,7 +101,7 @@ static const struct argp_option opts[] = {
 	{ "pid", 'p', "PID", 0, "Trace this PID only" },
 	{ "mode", 'm', "FILTER-MODE", 0, "Filter mode: 0=all, 1=proc, 2=filter (default=2)" },
 	{ "all", 'a', NULL, 0, "Deprecated: use -m 0 instead" },
-	{ "taint-rule", 'T', "SOURCE:SINK", 0, "ActPlane taint rule: processes descended from SOURCE may not exec SINK (repeatable)" },
+	{ "taint-rule", 'T', "SOURCE:SINK", 0, "ActPlane taint edge: processes descended from SOURCE may not exec SINK (repeatable; YAML/DSL is compiled to these by the collector)" },
 	{},
 };
 
@@ -175,14 +174,30 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		free(arg_copy);
 		break;
 	case 'T': {
-		/* Load taint rules from a YAML config file. In taint mode the
-		 * tracer reports ONLY rule violations -- no exec/exit/file spam. */
-		int n = taint_config_parse_file(arg, env.taint_rules, MAX_TAINT_RULES);
-		if (n < 0) {
-			fprintf(stderr, "Failed to load taint config '%s'\n", arg);
+		/* One compiled taint edge "SOURCE:SINK" (comm names). The DSL/YAML
+		 * lives in the Rust collector, which parses policy and passes each
+		 * edge here on argv; this loader does no parsing of its own.
+		 * Presence of any rule enables taint mode: report ONLY violations. */
+		if (env.taint_rule_count >= MAX_TAINT_RULES) {
+			fprintf(stderr, "Too many taint rules (max %d)\n", MAX_TAINT_RULES);
 			argp_usage(state);
 		}
-		env.taint_rule_count = n;
+		char *colon = strchr(arg, ':');
+		if (!colon || colon == arg || *(colon + 1) == '\0') {
+			fprintf(stderr, "Invalid taint rule '%s' (expected SOURCE:SINK)\n", arg);
+			argp_usage(state);
+		}
+		struct taint_rule *r = &env.taint_rules[env.taint_rule_count];
+		memset(r, 0, sizeof(*r));
+		size_t src_len = (size_t)(colon - arg);
+		if (src_len >= TAINT_COMM_LEN)
+			src_len = TAINT_COMM_LEN - 1;
+		memcpy(r->source_comm, arg, src_len);
+		strncpy(r->sink_comm, colon + 1, TAINT_COMM_LEN - 1);
+		r->sink_comm[TAINT_COMM_LEN - 1] = '\0';
+		r->rule_id = (unsigned int)env.taint_rule_count;
+		r->label = 1ULL << env.taint_rule_count;
+		env.taint_rule_count++;
 		env.taint_mode = true;
 		break;
 	}

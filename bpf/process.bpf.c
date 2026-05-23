@@ -28,17 +28,14 @@ struct {
 	__type(value, u64);
 } taint_labels SEC(".maps");
 
-/* ActPlane: compiled taint rules, populated from userspace (DSL compiler). */
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, MAX_TAINT_RULES);
-	__type(key, u32);
-	__type(value, struct taint_rule);
-} taint_rules SEC(".maps");
-
 const volatile unsigned long long min_duration_ns = 0;
-/* number of active entries in taint_rules; set from userspace before load */
+
+/* ActPlane: compiled taint rules, set from userspace (collector) before load.
+ * Kept in rodata rather than a BPF map so the per-exec scan is a constant-index
+ * read that the verifier sees as fully-unrolled straight-line code (a map
+ * lookup inside the loop blocks unrolling and trips the loop detector). */
 const volatile unsigned int n_taint_rules = 0;
+const volatile struct taint_rule taint_rules_cfg[MAX_TAINT_RULES] = {};
 
 /* Bash readline uretprobe handler */
 SEC("uretprobe//usr/bin/bash:readline")
@@ -201,11 +198,15 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 		 * by index here rather than calling taint_apply_sources(): BPF
 		 * ARRAY values must be fetched via bpf_map_lookup_elem and can't
 		 * be passed as a contiguous C array. The matching predicate
-		 * (taint_comm_eq) is the same one the unit test exercises. */
+		 * (taint_comm_eq) is the same one the unit test exercises.
+		 *
+		 * We iterate the full constant MAX_TAINT_RULES rather than breaking
+		 * at n_taint_rules: a dynamic (volatile-dependent) bound blocks
+		 * clang's full unroll and the verifier then rejects the loop. Unused
+		 * rule slots are zeroed, so the source_comm[0] check skips them. */
+		TAINT_UNROLL
 		for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
 			struct taint_rule *r;
-			if (i >= n_taint_rules)
-				break;
 			r = bpf_map_lookup_elem(&taint_rules, &i);
 			if (!r)
 				continue;
@@ -218,10 +219,9 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 			bpf_map_update_elem(&taint_labels, &pid, &label, BPF_ANY);
 
 			/* sink check: is a tainted process running a forbidden exe? */
+			TAINT_UNROLL
 			for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
 				struct taint_rule *r;
-				if (i >= n_taint_rules)
-					break;
 				r = bpf_map_lookup_elem(&taint_rules, &i);
 				if (!r)
 					continue;

@@ -90,7 +90,7 @@ impl Runner for AgentRunner {
 mod tests {
     use super::*;
     use crate::framework::runners::FakeRunner;
-    use crate::framework::analyzers::{OutputAnalyzer, SSEProcessor, HTTPParser, FileLogger};
+    use crate::framework::analyzers::{OutputAnalyzer, FileLogger};
     use futures::stream::StreamExt;
     use tempfile::NamedTempFile;
     use std::time::Duration;
@@ -158,13 +158,11 @@ mod tests {
     async fn test_agent_runner_multiple_runners_with_analyzers() {
         let fake_runner1 = FakeRunner::new()
             .event_count(1)
-            .delay_ms(10)
-            .add_analyzer(Box::new(SSEProcessor::new_with_timeout(5000)));
-        
+            .delay_ms(10);
+
         let fake_runner2 = FakeRunner::new()
             .event_count(1)
-            .delay_ms(10)
-            .add_analyzer(Box::new(HTTPParser::new()));
+            .delay_ms(10);
         
         let mut agent = AgentRunner::new("complex-agent")
             .add_runner(Box::new(fake_runner1))

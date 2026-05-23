@@ -28,9 +28,15 @@
 /* Fully unroll the bounded loops below when compiled for BPF (clang), so the
  * verifier sees straight-line code. A no-op for the gcc-built unit test. */
 #if defined(__clang__)
-#define TAINT_UNROLL _Pragma("unroll")
+#define TAINT_UNROLL _Pragma("clang loop unroll(full)")
 #else
 #define TAINT_UNROLL
+#endif
+
+/* Force inlining in BPF so helpers don't become separate subprograms with
+ * loops the verifier can't bound. The unit test (gcc) supplies its own. */
+#ifndef __always_inline
+#define __always_inline inline __attribute__((always_inline))
 #endif
 
 #define TAINT_COMM_LEN   16   /* matches TASK_COMM_LEN */
@@ -51,7 +57,7 @@ struct taint_rule {
  * 16-byte, NUL-padded names from bpf_get_current_comm(); a NUL terminates the
  * comparison early. Returns true on full match. BPF-verifier friendly: the
  * loop bound is a compile-time constant. */
-static __inline int taint_comm_eq(const char *a, const char *b)
+static __always_inline int taint_comm_eq(const char *a, const char *b)
 {
 	TAINT_UNROLL
 	for (int i = 0; i < TAINT_COMM_LEN; i++) {
@@ -66,7 +72,7 @@ static __inline int taint_comm_eq(const char *a, const char *b)
 /* OR in the taint labels of every rule whose source matches `comm`.
  * `cur_label` is the process's existing (inherited) label. Returns the
  * resulting label. */
-static __inline unsigned long long taint_apply_sources(const struct taint_rule *rules,
+static __always_inline unsigned long long taint_apply_sources(const struct taint_rule *rules,
 						       unsigned int n_rules,
 						       const char *comm,
 						       unsigned long long cur_label)
@@ -91,7 +97,7 @@ static __inline unsigned long long taint_apply_sources(const struct taint_rule *
  * If a rule's label is active and `comm` matches that rule's sink, the access
  * is a violation: returns 1 and writes the offending rule_id to *out_rule_id.
  * Returns 0 when allowed. */
-static __inline int taint_check_sink(const struct taint_rule *rules,
+static __always_inline int taint_check_sink(const struct taint_rule *rules,
 				     unsigned int n_rules,
 				     const char *comm,
 				     unsigned long long label,

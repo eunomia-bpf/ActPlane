@@ -209,7 +209,7 @@ impl Runner for FakeRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::framework::analyzers::{SSEProcessor, FileLogger, OutputAnalyzer, Analyzer};
+    use crate::framework::analyzers::{FileLogger, OutputAnalyzer, Analyzer};
     use futures::stream::StreamExt;
     use std::fs;
 
@@ -244,12 +244,11 @@ mod tests {
     async fn test_fake_runner_with_chunk_merger() {
         let mut runner = FakeRunner::new()
             .event_count(2)
-            .delay_ms(10)
-            .add_analyzer(Box::new(SSEProcessor::new_with_timeout(5000))); // 5 second timeout
+            .delay_ms(10);
 
         let stream = runner.run().await.unwrap();
         let events: Vec<_> = stream.collect().await;
-        
+
         println!("Chunk Merger Test Results:");
         println!("Total events: {}", events.len());
         
@@ -314,8 +313,7 @@ mod tests {
     #[tokio::test]
     async fn test_chunk_merger_basic() {
         let mut runner = FakeRunner::new()
-            .event_count(3) // Explicitly set to 3 pairs for clear validation
-            .add_analyzer(Box::new(SSEProcessor::new_with_timeout(5000)));
+            .event_count(3); // Explicitly set to 3 pairs for clear validation
 
         let stream = runner.run().await.unwrap();
         let events: Vec<_> = stream.collect().await;
@@ -345,7 +343,6 @@ mod tests {
         let mut runner = FakeRunner::new()
             .event_count(2)
             .delay_ms(10)
-            .add_analyzer(Box::new(SSEProcessor::new_with_timeout(5000)))
             .add_analyzer(Box::new(FileLogger::new_with_options(test_log_file1, true, true).unwrap()))
             .add_analyzer(Box::new(FileLogger::new_with_options(test_log_file2, false, false).unwrap())) // Different settings
             .add_analyzer(Box::new(OutputAnalyzer::new()))
@@ -391,7 +388,6 @@ mod tests {
         let mut runner = FakeRunner::new()
             .event_count(0) // No events
             .delay_ms(10)
-            .add_analyzer(Box::new(SSEProcessor::new_with_timeout(5000)))
             .add_analyzer(Box::new(OutputAnalyzer::new()));
 
         let stream = runner.run().await.unwrap();
@@ -415,7 +411,6 @@ mod tests {
             .event_count(0) // Manual event generation
             .delay_ms(10);
 
-        runner = runner.add_analyzer(Box::new(SSEProcessor::new_with_timeout(5000)));
         runner = runner.add_analyzer(Box::new(OutputAnalyzer::new()));
 
         // Generate mixed source events
@@ -578,7 +573,6 @@ mod tests {
         let mut runner = FakeRunner::new()
             .event_count(10) // 20 events total
             .delay_ms(25) // Realistic timing
-            .add_analyzer(Box::new(SSEProcessor::new_with_timeout(10000))) // 10 second timeout
             .add_analyzer(Box::new(FileLogger::new_with_options(test_log_file, true, true).unwrap()))
             .add_analyzer(Box::new(OutputAnalyzer::new())); // Silent for test
 
