@@ -20,7 +20,25 @@ struct {
 	__uint(max_entries, 256 * 1024);
 } rb SEC(".maps");
 
+/* ActPlane: per-pid taint label bitmask. Propagated along the process tree. */
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 8192);
+	__type(key, pid_t);
+	__type(value, u64);
+} taint_labels SEC(".maps");
+
+/* ActPlane: compiled taint rules, populated from userspace (DSL compiler). */
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, MAX_TAINT_RULES);
+	__type(key, u32);
+	__type(value, struct taint_rule);
+} taint_rules SEC(".maps");
+
 const volatile unsigned long long min_duration_ns = 0;
+/* number of active entries in taint_rules; set from userspace before load */
+const volatile unsigned int n_taint_rules = 0;
 
 /* Bash readline uretprobe handler */
 SEC("uretprobe//usr/bin/bash:readline")
@@ -58,6 +76,24 @@ int BPF_URETPROBE(bash_readline, const void *ret)
 
 	/* Submit to user-space for post-processing */
 	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
+
+/* ActPlane: propagate taint from parent to child at fork time. This is the
+ * core of provenance tracking -- a label set on a source process flows to its
+ * entire descendant subtree without any runtime graph traversal. */
+SEC("tp/sched/sched_process_fork")
+int handle_fork(struct trace_event_raw_sched_process_fork *ctx)
+{
+	pid_t parent_pid = ctx->parent_pid;
+	pid_t child_pid = ctx->child_pid;
+	u64 *plabel;
+
+	plabel = bpf_map_lookup_elem(&taint_labels, &parent_pid);
+	if (plabel && *plabel) {
+		u64 label = *plabel;
+		bpf_map_update_elem(&taint_labels, &child_pid, &label, BPF_ANY);
+	}
 	return 0;
 }
 
@@ -145,6 +181,79 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 
 	/* successfully submit it to user-space for post-processing */
 	bpf_ringbuf_submit(e, 0);
+
+	/* ActPlane taint evaluation. Done after the exec event is submitted so
+	 * the normal trace is unaffected even if no rules are configured. */
+	if (n_taint_rules) {
+		char tcomm[TASK_COMM_LEN];
+		u64 label = 0;
+		u64 *cur;
+		unsigned int rule_id = 0;
+
+		bpf_get_current_comm(&tcomm, sizeof(tcomm));
+
+		/* inherited taint (via fork) for this pid */
+		cur = bpf_map_lookup_elem(&taint_labels, &pid);
+		if (cur)
+			label = *cur;
+
+		/* Does this executable introduce new taint? We iterate the map
+		 * by index here rather than calling taint_apply_sources(): BPF
+		 * ARRAY values must be fetched via bpf_map_lookup_elem and can't
+		 * be passed as a contiguous C array. The matching predicate
+		 * (taint_comm_eq) is the same one the unit test exercises. */
+		for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
+			struct taint_rule *r;
+			if (i >= n_taint_rules)
+				break;
+			r = bpf_map_lookup_elem(&taint_rules, &i);
+			if (!r)
+				continue;
+			if (r->source_comm[0] != '\0' &&
+			    taint_comm_eq(tcomm, r->source_comm))
+				label |= r->label;
+		}
+
+		if (label) {
+			bpf_map_update_elem(&taint_labels, &pid, &label, BPF_ANY);
+
+			/* sink check: is a tainted process running a forbidden exe? */
+			for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
+				struct taint_rule *r;
+				if (i >= n_taint_rules)
+					break;
+				r = bpf_map_lookup_elem(&taint_rules, &i);
+				if (!r)
+					continue;
+				if ((label & r->label) &&
+				    r->sink_comm[0] != '\0' &&
+				    taint_comm_eq(tcomm, r->sink_comm)) {
+					rule_id = r->rule_id;
+
+					struct event *v =
+						bpf_ringbuf_reserve(&rb, sizeof(*v), 0);
+					if (!v)
+						break;
+					v->type = EVENT_TYPE_TAINT_VIOLATION;
+					v->exit_event = false;
+					v->pid = pid;
+					v->ppid = BPF_CORE_READ(task, real_parent, tgid);
+					v->timestamp_ns = ts;
+					v->exit_code = 0;
+					v->duration_ns = 0;
+					v->taint_rule_id = rule_id;
+					v->taint_label = label;
+					bpf_get_current_comm(&v->comm, sizeof(v->comm));
+					fname_off = ctx->__data_loc_filename & 0xFFFF;
+					bpf_probe_read_str(&v->filename,
+							   sizeof(v->filename),
+							   (void *)ctx + fname_off);
+					bpf_ringbuf_submit(v, 0);
+					break;
+				}
+			}
+		}
+	}
 	return 0;
 }
 
@@ -173,6 +282,9 @@ int handle_exit(struct trace_event_raw_sched_process_template* ctx)
 	else if (min_duration_ns)
 		return 0;
 	bpf_map_delete_elem(&exec_start, &pid);
+
+	/* ActPlane: drop taint label on exit so the map doesn't leak pids */
+	bpf_map_delete_elem(&taint_labels, &pid);
 
 	/* if process didn't live long enough, return early */
 	if (min_duration_ns && duration_ns < min_duration_ns)

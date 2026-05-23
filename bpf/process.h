@@ -9,6 +9,8 @@
 #define MAX_TRACKED_PIDS 1024
 #define MAX_COMMAND_LEN 256
 
+#include "taint.h"
+
 enum filter_mode {
 	FILTER_MODE_ALL = 0,      /* Trace all processes and all read/write operations */
 	FILTER_MODE_PROC = 1,     /* Trace all processes but only read/write for tracked PIDs */
@@ -19,6 +21,7 @@ enum event_type {
 	EVENT_TYPE_PROCESS = 0,
 	EVENT_TYPE_BASH_READLINE = 1,
 	EVENT_TYPE_FILE_OPERATION = 2,
+	EVENT_TYPE_TAINT_VIOLATION = 3,   /* ActPlane: tainted process hit a sink */
 };
 
 struct event {
@@ -41,6 +44,9 @@ struct event {
 		} file_op;
 	};
 	bool exit_event;
+	/* ActPlane taint fields (valid for EVENT_TYPE_TAINT_VIOLATION) */
+	unsigned int taint_rule_id;            /* offending rule index */
+	unsigned long long taint_label;        /* process's active taint mask */
 };
 
 struct command_filter {

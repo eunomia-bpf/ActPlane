@@ -14,6 +14,7 @@
 #include "process.skel.h"
 #include "process_utils.h"
 #include "process_filter.h"
+#include "taint_config.h"
 
 #define MAX_COMMAND_LIST 256
 #define FILE_DEDUP_WINDOW_NS 60000000000ULL  // 60 seconds in nanoseconds
@@ -54,12 +55,18 @@ static struct env {
 	int command_count;
 	enum filter_mode filter_mode;
 	pid_t pid;
+	/* ActPlane: compiled taint rules loaded from a YAML config file */
+	struct taint_rule taint_rules[MAX_TAINT_RULES];
+	int taint_rule_count;
+	bool taint_mode;   /* when set, report ONLY taint violations */
 } env = {
 	.verbose = false,
 	.min_duration_ms = 0,
 	.command_count = 0,
 	.filter_mode = FILTER_MODE_PROC,
-	.pid = 0
+	.pid = 0,
+	.taint_rule_count = 0,
+	.taint_mode = false,
 };
 
 /* Global PID tracker for userspace filtering */
@@ -85,7 +92,8 @@ const char argp_program_doc[] =
 "  ./process -m 1                   # Trace all processes, selective read/write\n"
 "  ./process -c \"claude,python\"    # Trace only claude/python processes\n"
 "  ./process -c \"ssh\" -d 1000     # Trace ssh processes lasting > 1 second\n"
-"  ./process -p 1234                # Trace only PID 1234\n";
+"  ./process -p 1234                # Trace only PID 1234\n"
+"  ./process -T taint.example.yaml  # ActPlane: report only taint-rule violations\n";
 
 static const struct argp_option opts[] = {
 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
@@ -94,6 +102,7 @@ static const struct argp_option opts[] = {
 	{ "pid", 'p', "PID", 0, "Trace this PID only" },
 	{ "mode", 'm', "FILTER-MODE", 0, "Filter mode: 0=all, 1=proc, 2=filter (default=2)" },
 	{ "all", 'a', NULL, 0, "Deprecated: use -m 0 instead" },
+	{ "taint-rule", 'T', "SOURCE:SINK", 0, "ActPlane taint rule: processes descended from SOURCE may not exec SINK (repeatable)" },
 	{},
 };
 
@@ -165,6 +174,18 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		}
 		free(arg_copy);
 		break;
+	case 'T': {
+		/* Load taint rules from a YAML config file. In taint mode the
+		 * tracer reports ONLY rule violations -- no exec/exit/file spam. */
+		int n = taint_config_parse_file(arg, env.taint_rules, MAX_TAINT_RULES);
+		if (n < 0) {
+			fprintf(stderr, "Failed to load taint config '%s'\n", arg);
+			argp_usage(state);
+		}
+		env.taint_rule_count = n;
+		env.taint_mode = true;
+		break;
+	}
 	case ARGP_KEY_ARG:
 		argp_usage(state);
 		break;
@@ -478,6 +499,11 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	// Use kernel timestamp from the event instead of generating our own
 	uint64_t timestamp_ns = e->timestamp_ns;
 
+	// ActPlane taint mode: this is the "final form" -- only surface taint
+	// rule violations, suppressing the normal exec/exit/file event stream.
+	if (env.taint_mode && e->type != EVENT_TYPE_TAINT_VIOLATION)
+		return 0;
+
 	switch (e->type) {
 		case EVENT_TYPE_PROCESS:
 			if (e->exit_event) {
@@ -600,6 +626,23 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			print_file_open_event(e, timestamp_ns, count, strlen(warning_msg) > 0 ? warning_msg : NULL);
 			break;
 
+		case EVENT_TYPE_TAINT_VIOLATION:
+			// ActPlane: a tainted process tried to exec a forbidden sink.
+			// Always reported regardless of filter mode -- it is the
+			// whole point of the run.
+			printf("{");
+			printf("\"timestamp\":%llu,", timestamp_ns);
+			printf("\"event\":\"TAINT_VIOLATION\",");
+			printf("\"comm\":\"%s\",", e->comm);
+			printf("\"pid\":%d,", e->pid);
+			printf("\"ppid\":%d,", e->ppid);
+			printf("\"filename\":\"%s\",", e->filename);
+			printf("\"rule_id\":%u,", e->taint_rule_id);
+			printf("\"taint_label\":%llu", e->taint_label);
+			printf("}\n");
+			fflush(stdout);
+			break;
+
 		default:
 			// For unknown events, always report immediately
 			printf("{");
@@ -646,12 +689,29 @@ int main(int argc, char **argv)
 
 	/* Parameterize BPF code with minimum duration */
 	skel->rodata->min_duration_ns = env.min_duration_ms * 1000000ULL;
+	/* ActPlane: tell the BPF program how many taint rules are active */
+	skel->rodata->n_taint_rules = (unsigned int)env.taint_rule_count;
 
 	/* Load & verify BPF programs */
 	err = process_bpf__load(skel);
 	if (err) {
 		fprintf(stderr, "Failed to load and verify BPF skeleton\n");
 		goto cleanup;
+	}
+
+	/* ActPlane: populate the compiled taint rules into the BPF array map */
+	for (int i = 0; i < env.taint_rule_count; i++) {
+		__u32 key = (__u32)i;
+		err = bpf_map__update_elem(skel->maps.taint_rules, &key, sizeof(key),
+					   &env.taint_rules[i], sizeof(env.taint_rules[i]),
+					   BPF_ANY);
+		if (err) {
+			fprintf(stderr, "Failed to install taint rule %d\n", i);
+			goto cleanup;
+		}
+		fprintf(stderr, "ActPlane taint rule %d: '%s' -> deny exec '%s' (label 0x%llx)\n",
+			i, env.taint_rules[i].source_comm, env.taint_rules[i].sink_comm,
+			env.taint_rules[i].label);
 	}
 
 	/* Populate initial PIDs from existing processes into userspace tracker */
