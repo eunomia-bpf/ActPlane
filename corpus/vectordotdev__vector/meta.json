@@ -1,0 +1,62 @@
+{
+  "repo": "vectordotdev/vector",
+  "owner": "vectordotdev",
+  "name": "vector",
+  "stars": 21897,
+  "forks": 2142,
+  "open_issues": 2445,
+  "created_at": "2018-08-27T16:57:34Z",
+  "language": "Rust",
+  "license": "mpl-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T01:24:18Z",
+  "default_branch": "master",
+  "html_url": "https://github.com/vectordotdev/vector",
+  "description": "A high-performance observability data pipeline.",
+  "topics": [
+    "agent",
+    "cloud-native",
+    "data-transformation",
+    "datadog",
+    "etl",
+    "events",
+    "forwarder",
+    "hacktoberfest",
+    "high-performance",
+    "logs",
+    "metrics",
+    "monitoring",
+    "observability",
+    "pipelines",
+    "rust-lang",
+    "stream-processing",
+    "telemetry",
+    "traces"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "43c994c2d3617f947bcb5adf1933e21dabe46bb5",
+      "byte_size": 11,
+      "last_commit_sha": "cbbae138a299b6fd380d2b2d56d51bc1d858e264",
+      "last_commit_date": "2026-02-20T20:18:43Z",
+      "content_sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+      "raw_url": "https://raw.githubusercontent.com/vectordotdev/vector/cbbae138a299b6fd380d2b2d56d51bc1d858e264/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "118ebb7461dbfdeee82d20cba140082ad2376305",
+      "byte_size": 7858,
+      "last_commit_sha": "3112033384d47b0eae9fa36a1297dab32cac1f88",
+      "last_commit_date": "2026-04-13T16:08:25Z",
+      "content_sha256": "5320c304f1d6e4bb211b3bb42ba54a09470352e8fa500e3c109a4be5ba0e8c4e",
+      "raw_url": "https://raw.githubusercontent.com/vectordotdev/vector/3112033384d47b0eae9fa36a1297dab32cac1f88/AGENTS.md"
+    }
+  ]
+}

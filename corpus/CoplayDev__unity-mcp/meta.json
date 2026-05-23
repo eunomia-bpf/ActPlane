@@ -1,0 +1,50 @@
+{
+  "repo": "CoplayDev/unity-mcp",
+  "owner": "CoplayDev",
+  "name": "unity-mcp",
+  "stars": 9903,
+  "forks": 1115,
+  "open_issues": 52,
+  "created_at": "2025-03-18T11:01:58Z",
+  "language": "C#",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T15:54:18Z",
+  "default_branch": "beta",
+  "html_url": "https://github.com/CoplayDev/unity-mcp",
+  "description": "Unity MCP acts as a bridge, allowing AI assistants (like Claude, Cursor) to interact directly with your Unity Editor via a local MCP (Model Context Protocol) Client. Give your LLM tools to manage assets, control scenes, edit scripts, and automate tasks within Unity.",
+  "topics": [
+    "ai",
+    "ai-integration",
+    "anthropic",
+    "claude",
+    "copilot",
+    "cursor",
+    "game-development",
+    "gamedev",
+    "gemini",
+    "llm",
+    "mcp",
+    "model-context-protocol",
+    "openai",
+    "unity",
+    "unity3d",
+    "videogames"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "d6287c5d85447bd9b840c220432e3d7c4536a83c",
+      "byte_size": 8526,
+      "last_commit_sha": "1e7248f79cee6c75955b40834ca14c5f44503a52",
+      "last_commit_date": "2026-05-22T08:23:35Z",
+      "content_sha256": "1e50358a3048b1a8451450a790e61cba8ab0180d71c72e8276a23861a79629af",
+      "raw_url": "https://raw.githubusercontent.com/CoplayDev/unity-mcp/1e7248f79cee6c75955b40834ca14c5f44503a52/CLAUDE.md"
+    }
+  ]
+}

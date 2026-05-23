@@ -1,0 +1,43 @@
+{
+  "repo": "alibaba/spring-ai-alibaba",
+  "owner": "alibaba",
+  "name": "spring-ai-alibaba",
+  "stars": 9707,
+  "forks": 2174,
+  "open_issues": 309,
+  "created_at": "2024-09-09T01:35:50Z",
+  "language": "Java",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T16:10:00Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/alibaba/spring-ai-alibaba",
+  "description": "Agentic AI Framework for Java Developers",
+  "topics": [
+    "agentic",
+    "artificial-intelligence",
+    "context-engineering",
+    "graph",
+    "java",
+    "multi-agent",
+    "reactagent",
+    "spring-ai",
+    "workflow"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "30b3d4f083da5bb36385914e6910e373c27b3e10",
+      "byte_size": 5901,
+      "last_commit_sha": "99055ef30e35a25401d9a0a55d7d6b6991abc544",
+      "last_commit_date": "2026-03-10T09:20:03Z",
+      "content_sha256": "0559020321d62a90b2170faa4634395140112638576f717f2fad5fc77b493b08",
+      "raw_url": "https://raw.githubusercontent.com/alibaba/spring-ai-alibaba/99055ef30e35a25401d9a0a55d7d6b6991abc544/CLAUDE.md"
+    }
+  ]
+}

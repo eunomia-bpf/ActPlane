@@ -2,7 +2,10 @@
   "repo": "thedotmack/claude-mem",
   "owner": "thedotmack",
   "name": "claude-mem",
-  "stars": 77545,
+  "stars": 77551,
+  "forks": 6686,
+  "open_issues": 211,
+  "created_at": "2025-08-31T20:50:03Z",
   "language": "TypeScript",
   "license": "apache-2.0",
   "fork": false,
@@ -33,9 +36,9 @@
     "sqlite",
     "supermemory"
   ],
-  "seed": false,
+  "seed": true,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "CLAUDE.md",

@@ -1,0 +1,40 @@
+{
+  "repo": "Hmbown/DeepSeek-TUI",
+  "owner": "Hmbown",
+  "name": "DeepSeek-TUI",
+  "stars": 33642,
+  "forks": 2880,
+  "open_issues": 506,
+  "created_at": "2026-01-19T18:21:01Z",
+  "language": "Rust",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-21T09:14:54Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/Hmbown/DeepSeek-TUI",
+  "description": "Coding agent for DeepSeek models that runs in your terminal",
+  "topics": [
+    "cli",
+    "deepseek",
+    "llm",
+    "rust",
+    "terminal",
+    "tui"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "e6b30ef85307ac617001ac6caa2a14958f1a4236",
+      "byte_size": 11200,
+      "last_commit_sha": "485ba7bbd4937a7bab0ed41a0a5dd26c7c6b55b5",
+      "last_commit_date": "2026-05-13T03:03:47Z",
+      "content_sha256": "cd275db70b939353726e5f12d27c64cf7289e55731b3d361c2b1d59ed1dd5207",
+      "raw_url": "https://raw.githubusercontent.com/Hmbown/DeepSeek-TUI/485ba7bbd4937a7bab0ed41a0a5dd26c7c6b55b5/AGENTS.md"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "repo": "activepieces/activepieces",
+  "owner": "activepieces",
+  "name": "activepieces",
+  "stars": 22361,
+  "forks": 3688,
+  "open_issues": 497,
+  "created_at": "2022-12-03T02:52:46Z",
+  "language": "TypeScript",
+  "license": "other",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T00:41:55Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/activepieces/activepieces",
+  "description": "AI Agents & MCPs & AI Workflow Automation • (~400 MCP servers for AI agents) • AI Automation / AI Agent with MCPs • AI Workflows & AI Agents • MCPs for AI Agents",
+  "topics": [
+    "ai-agent",
+    "ai-agent-tools",
+    "ai-agents",
+    "ai-agents-framework",
+    "mcp",
+    "mcp-server",
+    "mcp-tools",
+    "mcps",
+    "n8n-alternative",
+    "no-code-automation",
+    "workflow",
+    "workflow-automation",
+    "workflows"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "byte_size": 10640,
+      "last_commit_sha": "6cc226e7b4086a8bebac3da789d619ce21eaacf4",
+      "last_commit_date": "2026-03-24T14:15:02Z",
+      "content_sha256": "351ee02e220506557dcdabc1bf1cab3a7b9571b460cc864d0101981504e51b62",
+      "raw_url": "https://raw.githubusercontent.com/activepieces/activepieces/6cc226e7b4086a8bebac3da789d619ce21eaacf4/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "70a903a445f25b4a1463c36c00810881418e8e60",
+      "byte_size": 10640,
+      "last_commit_sha": "527e1b287d6c57000e3b8a85261f9e77f5441c45",
+      "last_commit_date": "2026-05-15T10:19:40Z",
+      "content_sha256": "351ee02e220506557dcdabc1bf1cab3a7b9571b460cc864d0101981504e51b62",
+      "raw_url": "https://raw.githubusercontent.com/activepieces/activepieces/527e1b287d6c57000e3b8a85261f9e77f5441c45/AGENTS.md"
+    }
+  ]
+}

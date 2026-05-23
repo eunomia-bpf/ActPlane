@@ -1,0 +1,36 @@
+{
+  "repo": "microsoft/playwright-mcp",
+  "owner": "microsoft",
+  "name": "playwright-mcp",
+  "stars": 32897,
+  "forks": 2695,
+  "open_issues": 4,
+  "created_at": "2025-03-21T17:48:36Z",
+  "language": "TypeScript",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-12T18:18:54Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/microsoft/playwright-mcp",
+  "description": "Playwright MCP server",
+  "topics": [
+    "mcp",
+    "playwright"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "8e81165eda1439bc26de7dbd97c20825c1708afe",
+      "byte_size": 1352,
+      "last_commit_sha": "f22c92438be9b27eb8fc755b1d91678b43e42f85",
+      "last_commit_date": "2026-05-06T22:33:52Z",
+      "content_sha256": "e4cf26b7670c61bd23be10c66a4879467e5c9f3e341603116b147b803b4ef244",
+      "raw_url": "https://raw.githubusercontent.com/microsoft/playwright-mcp/f22c92438be9b27eb8fc755b1d91678b43e42f85/CLAUDE.md"
+    }
+  ]
+}

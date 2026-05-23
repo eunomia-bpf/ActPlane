@@ -1,0 +1,43 @@
+{
+  "repo": "Alishahryar1/free-claude-code",
+  "owner": "Alishahryar1",
+  "name": "free-claude-code",
+  "stars": 28174,
+  "forks": 4187,
+  "open_issues": 148,
+  "created_at": "2026-01-28T19:02:30Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T06:31:39Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/Alishahryar1/free-claude-code",
+  "description": "Use claude-code for free in the terminal, VSCode extension or discord like OpenClaw (voice supported)",
+  "topics": [],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "2e14bd454e7cbb7e89e9bd4a99fd37cf8de06665",
+      "byte_size": 105,
+      "last_commit_sha": "d679ca2411c7d9568817dcdd53cc4063debd070e",
+      "last_commit_date": "2026-03-08T19:19:18Z",
+      "content_sha256": "6ea0491eba549586fb9aca1201a7fa69ea123d75816c1cd4244dbc57f523abb8",
+      "raw_url": "https://raw.githubusercontent.com/Alishahryar1/free-claude-code/d679ca2411c7d9568817dcdd53cc4063debd070e/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "3710c1029438b580aa686f36b527c63f164c4378",
+      "byte_size": 4076,
+      "last_commit_sha": "dc089df3171beb3e53a8632ffa1ac329c02552ea",
+      "last_commit_date": "2026-05-22T19:12:14Z",
+      "content_sha256": "bcb8b39e8c383ab1c7b608791fc58c5260338580d4666fac4d0019cf7687bab9",
+      "raw_url": "https://raw.githubusercontent.com/Alishahryar1/free-claude-code/dc089df3171beb3e53a8632ffa1ac329c02552ea/AGENTS.md"
+    }
+  ]
+}

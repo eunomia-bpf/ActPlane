@@ -2,7 +2,10 @@
   "repo": "earendil-works/pi",
   "owner": "earendil-works",
   "name": "pi",
-  "stars": 53065,
+  "stars": 53081,
+  "forks": 6351,
+  "open_issues": 36,
+  "created_at": "2025-08-09T14:03:50Z",
   "language": "TypeScript",
   "license": "mit",
   "fork": false,
@@ -14,7 +17,7 @@
   "topics": [],
   "seed": false,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "AGENTS.md",

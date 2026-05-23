@@ -1,0 +1,47 @@
+{
+  "repo": "comet-ml/opik",
+  "owner": "comet-ml",
+  "name": "opik",
+  "stars": 19362,
+  "forks": 1483,
+  "open_issues": 153,
+  "created_at": "2023-05-10T12:57:13Z",
+  "language": "Python",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T19:23:18Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/comet-ml/opik",
+  "description": "Debug, evaluate, and monitor your LLM applications, RAG systems, and agentic workflows with comprehensive tracing, automated evaluations, and production-ready dashboards.",
+  "topics": [
+    "evaluation",
+    "hacktoberfest",
+    "hacktoberfest2025",
+    "langchain",
+    "llama-index",
+    "llm",
+    "llm-evaluation",
+    "llm-observability",
+    "llmops",
+    "open-source",
+    "openai",
+    "playground",
+    "prompt-engineering"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "97d2eef318f4b096052de1c832264ff492e10db8",
+      "byte_size": 5419,
+      "last_commit_sha": "ae5f993b4cc325501b9cd3c9d2ccd9f8cbe0faa4",
+      "last_commit_date": "2026-02-24T15:06:24Z",
+      "content_sha256": "22591204f0ca237804eb78a6e8c3e368ce68a489a4ddc8aa84a4e0c4ccabeab7",
+      "raw_url": "https://raw.githubusercontent.com/comet-ml/opik/ae5f993b4cc325501b9cd3c9d2ccd9f8cbe0faa4/AGENTS.md"
+    }
+  ]
+}

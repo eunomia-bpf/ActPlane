@@ -1,0 +1,52 @@
+{
+  "repo": "alibaba/page-agent",
+  "owner": "alibaba",
+  "name": "page-agent",
+  "stars": 18039,
+  "forks": 1534,
+  "open_issues": 58,
+  "created_at": "2025-09-23T09:30:17Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-11T11:40:48Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/alibaba/page-agent",
+  "description": "JavaScript in-page GUI agent. Control web interfaces with natural language.",
+  "topics": [
+    "agent",
+    "ai",
+    "ai-agents",
+    "browser-automation",
+    "javascript",
+    "mcp",
+    "typescript",
+    "web"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "43c994c2d3617f947bcb5adf1933e21dabe46bb5",
+      "byte_size": 11,
+      "last_commit_sha": "d9d8d558a9be0a8435d891df3f77564d49350736",
+      "last_commit_date": "2026-04-16T12:05:08Z",
+      "content_sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+      "raw_url": "https://raw.githubusercontent.com/alibaba/page-agent/d9d8d558a9be0a8435d891df3f77564d49350736/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "92bc757563ca993c327e8fdac1e1b5286549a0ac",
+      "byte_size": 6118,
+      "last_commit_sha": "e9eaf44bdd5a4b118a4fa6d4d7da03617a7dd5d9",
+      "last_commit_date": "2026-04-14T20:02:16Z",
+      "content_sha256": "6dee8645fc168125ed5249ad7b9d80000440bbc8fb4d6418b29255d365e852e5",
+      "raw_url": "https://raw.githubusercontent.com/alibaba/page-agent/e9eaf44bdd5a4b118a4fa6d4d7da03617a7dd5d9/AGENTS.md"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "repo": "agentsmd/agents.md",
+  "owner": "agentsmd",
+  "name": "agents.md",
+  "stars": 21626,
+  "forks": 1580,
+  "open_issues": 144,
+  "created_at": "2025-08-19T17:22:54Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-03-12T14:26:14Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/agentsmd/agents.md",
+  "description": "AGENTS.md — a simple, open format for guiding coding agents",
+  "topics": [],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "3cf929b91208081e40df9dec3835e4ff54bf4dc4",
+      "byte_size": 2031,
+      "last_commit_sha": "ba9474a69e9a2c0c4176713843b78e8f54377941",
+      "last_commit_date": "2025-08-19T21:49:01Z",
+      "content_sha256": "7f8ae31d13502bb23b1629151405fa40637da8d3b0dd7545eb295c1ec45ab2c9",
+      "raw_url": "https://raw.githubusercontent.com/agentsmd/agents.md/ba9474a69e9a2c0c4176713843b78e8f54377941/AGENTS.md"
+    }
+  ]
+}

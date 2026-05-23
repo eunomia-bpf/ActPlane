@@ -2,7 +2,10 @@
   "repo": "browser-use/browser-use",
   "owner": "browser-use",
   "name": "browser-use",
-  "stars": 95161,
+  "stars": 95165,
+  "forks": 10717,
+  "open_issues": 232,
+  "created_at": "2024-10-31T16:00:56Z",
   "language": "Python",
   "license": "mit",
   "fork": false,
@@ -22,7 +25,7 @@
   ],
   "seed": true,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "CLAUDE.md",

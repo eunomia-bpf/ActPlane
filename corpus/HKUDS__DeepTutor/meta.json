@@ -1,0 +1,43 @@
+{
+  "repo": "HKUDS/DeepTutor",
+  "owner": "HKUDS",
+  "name": "DeepTutor",
+  "stars": 24210,
+  "forks": 3247,
+  "open_issues": 56,
+  "created_at": "2025-12-28T15:35:54Z",
+  "language": "Python",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T13:10:06Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/HKUDS/DeepTutor",
+  "description": "DeepTutor -- Agent-native, Open-sourced Personalized Tutoring. https://deeptutor.info/.",
+  "topics": [
+    "ai-agents",
+    "ai-tutor",
+    "clawdbot",
+    "cli-tool",
+    "deepresearch",
+    "interactive-learning",
+    "large-language-models",
+    "multi-agent-systems",
+    "rag"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "582924651a34efd020b3f9ac608b2526c4044ef3",
+      "byte_size": 6675,
+      "last_commit_sha": "6153d8c09293ae10689d79f50941b15bc38345bf",
+      "last_commit_date": "2026-05-22T13:09:22Z",
+      "content_sha256": "65b52bf936aac1e78b8691e80cf8b6447d790a61e0d3fc18458322b66b22e211",
+      "raw_url": "https://raw.githubusercontent.com/HKUDS/DeepTutor/6153d8c09293ae10689d79f50941b15bc38345bf/AGENTS.md"
+    }
+  ]
+}

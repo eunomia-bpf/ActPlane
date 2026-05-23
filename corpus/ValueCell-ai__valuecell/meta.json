@@ -1,0 +1,46 @@
+{
+  "repo": "ValueCell-ai/valuecell",
+  "owner": "ValueCell-ai",
+  "name": "valuecell",
+  "stars": 10696,
+  "forks": 1800,
+  "open_issues": 59,
+  "created_at": "2025-09-01T09:07:06Z",
+  "language": "Python",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-03-09T08:30:21Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/ValueCell-ai/valuecell",
+  "description": "ValueCell is a community-driven, multi-agent platform for financial applications.",
+  "topics": [
+    "agentic-ai",
+    "agents",
+    "ai",
+    "assitant",
+    "crypto",
+    "equity",
+    "finance",
+    "investment",
+    "mcp",
+    "python",
+    "react",
+    "stock-market"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "7bd51f944c46fd138c02c88d02dff34d01ddb8e4",
+      "byte_size": 5537,
+      "last_commit_sha": "fc905ccd1d4e88246f3a7db359774e9d9fca28de",
+      "last_commit_date": "2025-11-20T02:02:19Z",
+      "content_sha256": "33b2f7087c55c6538b475ed206619f67e7ec00d7c8b1b424b557f7c281c54da8",
+      "raw_url": "https://raw.githubusercontent.com/ValueCell-ai/valuecell/fc905ccd1d4e88246f3a7db359774e9d9fca28de/AGENTS.md"
+    }
+  ]
+}

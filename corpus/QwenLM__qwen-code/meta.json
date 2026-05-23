@@ -1,0 +1,33 @@
+{
+  "repo": "QwenLM/qwen-code",
+  "owner": "QwenLM",
+  "name": "qwen-code",
+  "stars": 24601,
+  "forks": 2399,
+  "open_issues": 824,
+  "created_at": "2025-06-26T01:37:46Z",
+  "language": "TypeScript",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:10:56Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/QwenLM/qwen-code",
+  "description": "An open-source AI agent that lives in your terminal.",
+  "topics": [],
+  "seed": true,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "f7bfd45037d4334a26353acdea14822a2d74306d",
+      "byte_size": 6233,
+      "last_commit_sha": "cadda23782d24b15690944afb5a33bd07219fa76",
+      "last_commit_date": "2026-05-11T09:29:50Z",
+      "content_sha256": "311bb090789695c54890c4ebf2d25a0918aff7a0ce132ff1ec8bee406fbf2dfd",
+      "raw_url": "https://raw.githubusercontent.com/QwenLM/qwen-code/cadda23782d24b15690944afb5a33bd07219fa76/AGENTS.md"
+    }
+  ]
+}

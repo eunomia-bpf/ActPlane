@@ -1,0 +1,47 @@
+{
+  "repo": "rohitg00/agentmemory",
+  "owner": "rohitg00",
+  "name": "agentmemory",
+  "stars": 16529,
+  "forks": 1355,
+  "open_issues": 158,
+  "created_at": "2026-02-25T07:32:52Z",
+  "language": "TypeScript",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T18:23:11Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/rohitg00/agentmemory",
+  "description": "#1 Persistent memory for AI coding agents based on real-world benchmarks",
+  "topics": [
+    "agentmemory",
+    "agents",
+    "ai",
+    "claude",
+    "claudecode",
+    "codex",
+    "copilot",
+    "cursor",
+    "genai",
+    "harness",
+    "hermes",
+    "memory",
+    "openclaw"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "ebcf35844bc27c061e5174f11a4d7464cd56dcec",
+      "byte_size": 4641,
+      "last_commit_sha": "249d8ff0323c84a625a6babaf470647a2a7245c7",
+      "last_commit_date": "2026-05-18T10:19:47Z",
+      "content_sha256": "a048322647bc14a4c70ff5a4834b19027e675f3c070e23ab100032940992578a",
+      "raw_url": "https://raw.githubusercontent.com/rohitg00/agentmemory/249d8ff0323c84a625a6babaf470647a2a7245c7/AGENTS.md"
+    }
+  ]
+}

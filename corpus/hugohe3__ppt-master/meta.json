@@ -1,0 +1,54 @@
+{
+  "repo": "hugohe3/ppt-master",
+  "owner": "hugohe3",
+  "name": "ppt-master",
+  "stars": 19882,
+  "forks": 1846,
+  "open_issues": 5,
+  "created_at": "2025-12-10T06:54:33Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T06:41:17Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/hugohe3/ppt-master",
+  "description": "AI generates natively editable PPTX from any document — real PowerPoint shapes with native animations, not images · by Hugo He",
+  "topics": [
+    "ai-agent",
+    "aippt",
+    "office",
+    "powerpoint",
+    "powerpoint-generation",
+    "ppt",
+    "pptx",
+    "presentation",
+    "slide",
+    "slides"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "576b0b2fa8c64d30f9b945580694339876ea5105",
+      "byte_size": 8181,
+      "last_commit_sha": "9a3aecd8c0369c610a4d895f7cc0dda9bba87c5e",
+      "last_commit_date": "2026-05-20T12:08:15Z",
+      "content_sha256": "f1de2e1fff0333d06eb66fc49dc8533a57c30ee74dc4c523c4b2a5a481fcc957",
+      "raw_url": "https://raw.githubusercontent.com/hugohe3/ppt-master/9a3aecd8c0369c610a4d895f7cc0dda9bba87c5e/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "ca9e1dbb271121cd261eea4e10d9d65b8c9863be",
+      "byte_size": 8187,
+      "last_commit_sha": "9a3aecd8c0369c610a4d895f7cc0dda9bba87c5e",
+      "last_commit_date": "2026-05-20T12:08:15Z",
+      "content_sha256": "b968eef566999ee0a2348caf8ec3a6dc08b79a816f2265b735dda6d59c6d4156",
+      "raw_url": "https://raw.githubusercontent.com/hugohe3/ppt-master/9a3aecd8c0369c610a4d895f7cc0dda9bba87c5e/AGENTS.md"
+    }
+  ]
+}

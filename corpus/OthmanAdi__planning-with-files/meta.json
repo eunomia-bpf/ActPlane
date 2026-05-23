@@ -1,0 +1,53 @@
+{
+  "repo": "OthmanAdi/planning-with-files",
+  "owner": "OthmanAdi",
+  "name": "planning-with-files",
+  "stars": 21905,
+  "forks": 1939,
+  "open_issues": 14,
+  "created_at": "2026-01-03T07:37:28Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T15:17:37Z",
+  "default_branch": "master",
+  "html_url": "https://github.com/OthmanAdi/planning-with-files",
+  "description": "Claude Code skill implementing Manus-style persistent markdown planning — the workflow pattern behind the $2B acquisition.",
+  "topics": [
+    "adal",
+    "agent-skills",
+    "antigravity",
+    "claude",
+    "claude-code",
+    "claude-skills",
+    "copilot",
+    "copilot-skills",
+    "hermes",
+    "hermes-agent",
+    "hermes-skill",
+    "kilocode",
+    "manus",
+    "mastra",
+    "openclaw",
+    "openclaw-skills",
+    "pi",
+    "pi-agent",
+    "planning"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "030330fff59b4e7c250cd4aebd8f996203d735ab",
+      "byte_size": 5473,
+      "last_commit_sha": "fadbf1f6e31356628cc990de64f4b20a0fbe3378",
+      "last_commit_date": "2026-05-01T19:10:40Z",
+      "content_sha256": "5284eabb3b9341518e41551dd6ec2a083bf52000e480601327aedbdc6c93f865",
+      "raw_url": "https://raw.githubusercontent.com/OthmanAdi/planning-with-files/fadbf1f6e31356628cc990de64f4b20a0fbe3378/AGENTS.md"
+    }
+  ]
+}

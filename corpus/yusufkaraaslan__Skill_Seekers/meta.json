@@ -1,0 +1,62 @@
+{
+  "repo": "yusufkaraaslan/Skill_Seekers",
+  "owner": "yusufkaraaslan",
+  "name": "Skill_Seekers",
+  "stars": 13717,
+  "forks": 1413,
+  "open_issues": 100,
+  "created_at": "2025-10-17T14:43:48Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T20:15:07Z",
+  "default_branch": "development",
+  "html_url": "https://github.com/yusufkaraaslan/Skill_Seekers",
+  "description": "Convert documentation websites, GitHub repositories, and PDFs into Claude AI skills with automatic conflict detection",
+  "topics": [
+    "ai-tools",
+    "ast-parser",
+    "automation",
+    "claude-ai",
+    "claude-skills",
+    "code-analysis",
+    "conflict-detection",
+    "documentation",
+    "documentation-generator",
+    "github",
+    "github-scraper",
+    "mcp",
+    "mcp-server",
+    "multi-source",
+    "ocr",
+    "pdf",
+    "python",
+    "web-scraping"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "fd819cf7017263911d4e5dc1bce1d1ca71b298e6",
+      "byte_size": 11515,
+      "last_commit_sha": "bebc632a2a9e21e34c8e4f6f608c60106fff7703",
+      "last_commit_date": "2026-04-11T10:50:39Z",
+      "content_sha256": "faa08eb79911d24b9823955664df7a00ca5534983356ea2d4953d53fbc29cb72",
+      "raw_url": "https://raw.githubusercontent.com/yusufkaraaslan/Skill_Seekers/bebc632a2a9e21e34c8e4f6f608c60106fff7703/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "616dfe41599f63d0600d65ebd03216ec169780cf",
+      "byte_size": 13306,
+      "last_commit_sha": "bebc632a2a9e21e34c8e4f6f608c60106fff7703",
+      "last_commit_date": "2026-04-11T10:50:39Z",
+      "content_sha256": "eebeba52b7bdfa2f3e1e72772a710fc21b346738c17f0e5c0a60ac9917dc1be0",
+      "raw_url": "https://raw.githubusercontent.com/yusufkaraaslan/Skill_Seekers/bebc632a2a9e21e34c8e4f6f608c60106fff7703/AGENTS.md"
+    }
+  ]
+}

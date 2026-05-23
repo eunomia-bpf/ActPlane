@@ -1,0 +1,52 @@
+{
+  "repo": "apache/doris",
+  "owner": "apache",
+  "name": "doris",
+  "stars": 15379,
+  "forks": 3794,
+  "open_issues": 963,
+  "created_at": "2017-08-10T12:13:30Z",
+  "language": "Java",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:41:46Z",
+  "default_branch": "master",
+  "html_url": "https://github.com/apache/doris",
+  "description": "Apache Doris is an easy-to-use, high performance and unified analytics database.",
+  "topics": [
+    "agent",
+    "ai",
+    "bigquery",
+    "database",
+    "dbt",
+    "delta-lake",
+    "elt",
+    "hudi",
+    "iceberg",
+    "lakehouse",
+    "olap",
+    "paimon",
+    "query-engine",
+    "real-time",
+    "redshift",
+    "snowflake",
+    "spark",
+    "sql"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "785c13d535f4cbc0d741d8877f0ad70542045e0c",
+      "byte_size": 10952,
+      "last_commit_sha": "9a58cde5977c39a1aed48f6336509a29cb037fd7",
+      "last_commit_date": "2026-05-23T04:51:43Z",
+      "content_sha256": "5a87139c4777021169faf1a07ad7d52e33b3fdaf595e4879a6fd99e7de21092b",
+      "raw_url": "https://raw.githubusercontent.com/apache/doris/9a58cde5977c39a1aed48f6336509a29cb037fd7/AGENTS.md"
+    }
+  ]
+}

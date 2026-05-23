@@ -1,0 +1,49 @@
+{
+  "repo": "rowboatlabs/rowboat",
+  "owner": "rowboatlabs",
+  "name": "rowboat",
+  "stars": 14269,
+  "forks": 1433,
+  "open_issues": 111,
+  "created_at": "2025-01-13T09:30:40Z",
+  "language": "TypeScript",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T04:32:49Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/rowboatlabs/rowboat",
+  "description": "Open-source AI coworker, with memory",
+  "topics": [
+    "agents",
+    "agents-sdk",
+    "ai",
+    "ai-agents",
+    "ai-agents-automation",
+    "chatgpt",
+    "claude-code",
+    "claude-cowork",
+    "generative-ai",
+    "llm",
+    "multiagent",
+    "opeani",
+    "open-source",
+    "orchestration",
+    "productivity"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "75a0f6a50d7024f839e054ff588f9905568ba76d",
+      "byte_size": 5719,
+      "last_commit_sha": "dabca3da1948f76634c5499c0723a9b73fd0618d",
+      "last_commit_date": "2026-05-08T19:00:43Z",
+      "content_sha256": "2e26e705980c4447f7a83d7a1f4d6e6571ad40412fe88e8279f1e682149ad25e",
+      "raw_url": "https://raw.githubusercontent.com/rowboatlabs/rowboat/dabca3da1948f76634c5499c0723a9b73fd0618d/CLAUDE.md"
+    }
+  ]
+}

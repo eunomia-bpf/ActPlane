@@ -1,0 +1,52 @@
+{
+  "repo": "RightNow-AI/openfang",
+  "owner": "RightNow-AI",
+  "name": "openfang",
+  "stars": 17623,
+  "forks": 2251,
+  "open_issues": 72,
+  "created_at": "2026-02-24T23:12:38Z",
+  "language": "Rust",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-14T08:28:37Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/RightNow-AI/openfang",
+  "description": "Open-source Agent Operating System",
+  "topics": [
+    "agent-framework",
+    "ai-agents",
+    "llm",
+    "mcp",
+    "open-source",
+    "openclaw",
+    "operating-system",
+    "rust"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "cf1afa06f8637515d2dc3096a0cd724c8fd168c6",
+      "byte_size": 4936,
+      "last_commit_sha": "5692c96494b2ab9d24d4e67653203a2898785144",
+      "last_commit_date": "2026-02-25T22:00:27Z",
+      "content_sha256": "2783c2ca5584a6cc0bb30bf97e70d92d5d20c039fe8c43060c27892cfa18e0e4",
+      "raw_url": "https://raw.githubusercontent.com/RightNow-AI/openfang/5692c96494b2ab9d24d4e67653203a2898785144/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "031acea41c9f796cde88508d739be17eb3d9d0da",
+      "byte_size": 192,
+      "last_commit_sha": "53f206694539d0adc02b837fb2bcae118028e97d",
+      "last_commit_date": "2026-04-29T12:45:01Z",
+      "content_sha256": "59a9876b13e51e2f4d64a01fcb5f55d86dfa2351111c973dc9228d5aade9794a",
+      "raw_url": "https://raw.githubusercontent.com/RightNow-AI/openfang/53f206694539d0adc02b837fb2bcae118028e97d/AGENTS.md"
+    }
+  ]
+}

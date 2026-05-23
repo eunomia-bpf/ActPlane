@@ -1,0 +1,50 @@
+{
+  "repo": "google/adk-python",
+  "owner": "google",
+  "name": "adk-python",
+  "stars": 19809,
+  "forks": 3440,
+  "open_issues": 839,
+  "created_at": "2025-04-01T20:44:40Z",
+  "language": "Python",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T00:25:40Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/google/adk-python",
+  "description": "An open-source, code-first Python toolkit for building, evaluating, and deploying sophisticated AI agents with flexibility and control.",
+  "topics": [
+    "agent",
+    "agentic",
+    "agentic-ai",
+    "agents",
+    "agents-sdk",
+    "ai",
+    "ai-agents",
+    "aiagentframework",
+    "genai",
+    "genai-chatbot",
+    "llm",
+    "llms",
+    "multi-agent",
+    "multi-agent-systems",
+    "multi-agents",
+    "multi-agents-collaboration"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "258b509e2038aac21180388736cde16b46143635",
+      "byte_size": 2667,
+      "last_commit_sha": "162279358c1327a36e69c16f47f2fc3447ed9d0c",
+      "last_commit_date": "2026-05-19T02:01:33Z",
+      "content_sha256": "49439d699a1e7156999fdd9ed96a135d3e6ba3919468c7430f326541e52930a8",
+      "raw_url": "https://raw.githubusercontent.com/google/adk-python/162279358c1327a36e69c16f47f2fc3447ed9d0c/AGENTS.md"
+    }
+  ]
+}

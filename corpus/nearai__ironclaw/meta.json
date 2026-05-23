@@ -1,0 +1,49 @@
+{
+  "repo": "nearai/ironclaw",
+  "owner": "nearai",
+  "name": "ironclaw",
+  "stars": 12322,
+  "forks": 1432,
+  "open_issues": 962,
+  "created_at": "2026-02-03T06:57:10Z",
+  "language": "Rust",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T06:55:49Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/nearai/ironclaw",
+  "description": "IronClaw is an Agent OS focused on privacy, security and extensibility",
+  "topics": [
+    "codeact",
+    "openclaw",
+    "rlm",
+    "rust",
+    "wasm"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "db929b29ee00707a2e28d3e33a9ed89a93b28c30",
+      "byte_size": 20513,
+      "last_commit_sha": "f1a8664da734fcbe29fc09d39b3dd46772ac1127",
+      "last_commit_date": "2026-05-19T16:07:05Z",
+      "content_sha256": "27e2b476128fb5f445d142a6e4c1e516ee16a3f79ae734653b93747626960c3b",
+      "raw_url": "https://raw.githubusercontent.com/nearai/ironclaw/f1a8664da734fcbe29fc09d39b3dd46772ac1127/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "0a91e9f928643568c81fef13059e15593e05953d",
+      "byte_size": 6157,
+      "last_commit_sha": "1ecb16907d18430da9071fe16c8eee85eec3d674",
+      "last_commit_date": "2026-05-08T06:54:59Z",
+      "content_sha256": "c1153be3ee514cebcc64559782a91c4d7dedb60193655c117c2a1d54ae970df0",
+      "raw_url": "https://raw.githubusercontent.com/nearai/ironclaw/1ecb16907d18430da9071fe16c8eee85eec3d674/AGENTS.md"
+    }
+  ]
+}

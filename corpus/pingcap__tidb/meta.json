@@ -3,6 +3,9 @@
   "owner": "pingcap",
   "name": "tidb",
   "stars": 40120,
+  "forks": 6186,
+  "open_issues": 6298,
+  "created_at": "2015-09-06T04:01:52Z",
   "language": "Go",
   "license": "apache-2.0",
   "fork": false,
@@ -34,7 +37,7 @@
   ],
   "seed": false,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "CLAUDE.md",

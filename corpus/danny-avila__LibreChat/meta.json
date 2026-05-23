@@ -2,7 +2,10 @@
   "repo": "danny-avila/LibreChat",
   "owner": "danny-avila",
   "name": "LibreChat",
-  "stars": 37355,
+  "stars": 37359,
+  "forks": 7692,
+  "open_issues": 456,
+  "created_at": "2023-02-12T01:06:52Z",
   "language": "TypeScript",
   "license": "mit",
   "fork": false,
@@ -35,7 +38,7 @@
   ],
   "seed": false,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "CLAUDE.md",

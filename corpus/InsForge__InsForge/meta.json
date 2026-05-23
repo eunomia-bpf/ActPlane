@@ -1,0 +1,47 @@
+{
+  "repo": "InsForge/InsForge",
+  "owner": "InsForge",
+  "name": "InsForge",
+  "stars": 10505,
+  "forks": 884,
+  "open_issues": 51,
+  "created_at": "2025-07-29T05:56:00Z",
+  "language": "TypeScript",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:38:27Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/InsForge/InsForge",
+  "description": "The all-in-one, open-source backend platform for agentic coding. InsForge gives your coding agent database, auth, storage, compute, hosting, and AI gateway to ship full-stack apps end-to-end.",
+  "topics": [
+    "ai",
+    "ai-agents",
+    "coding",
+    "deno",
+    "embeddings",
+    "insforge",
+    "nextjs",
+    "oauth2",
+    "pgvector",
+    "postgresql",
+    "realtime",
+    "vectors",
+    "websockets"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "1bd8a2a6e2fc499cc6c810d1e9ee460c59df1a1e",
+      "byte_size": 3996,
+      "last_commit_sha": "87c3e292524877da0b0496198203ce4935b097ab",
+      "last_commit_date": "2026-05-15T17:44:07Z",
+      "content_sha256": "0eed11e1f8542b07d030d64bf128360a40dd79454f3ae5d0b566121d2a3a99a2",
+      "raw_url": "https://raw.githubusercontent.com/InsForge/InsForge/87c3e292524877da0b0496198203ce4935b097ab/AGENTS.md"
+    }
+  ]
+}

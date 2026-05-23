@@ -1,0 +1,43 @@
+{
+  "repo": "NVIDIA/NemoClaw",
+  "owner": "NVIDIA",
+  "name": "NemoClaw",
+  "stars": 20608,
+  "forks": 2720,
+  "open_issues": 464,
+  "created_at": "2026-03-15T17:04:09Z",
+  "language": "TypeScript",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:36:24Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/NVIDIA/NemoClaw",
+  "description": "Run OpenClaw more securely inside NVIDIA OpenShell with managed inference",
+  "topics": [],
+  "seed": true,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "byte_size": 9307,
+      "last_commit_sha": "65248ce30c4772d82e5bc5e8830472252eeefb5e",
+      "last_commit_date": "2026-04-08T17:00:57Z",
+      "content_sha256": "33bd152f17659eb69128a304200c2e219ba85430f3c5809760ee83cf2c779240",
+      "raw_url": "https://raw.githubusercontent.com/NVIDIA/NemoClaw/65248ce30c4772d82e5bc5e8830472252eeefb5e/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "ea315b8773de5b38290f02b82732e4b4dc330324",
+      "byte_size": 9307,
+      "last_commit_sha": "30d1be9bddeea7cc0986f4885008db78ab7d3063",
+      "last_commit_date": "2026-05-18T21:16:18Z",
+      "content_sha256": "33bd152f17659eb69128a304200c2e219ba85430f3c5809760ee83cf2c779240",
+      "raw_url": "https://raw.githubusercontent.com/NVIDIA/NemoClaw/30d1be9bddeea7cc0986f4885008db78ab7d3063/AGENTS.md"
+    }
+  ]
+}

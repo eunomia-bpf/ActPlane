@@ -190,9 +190,8 @@ static __noinline __u64 te_endp_src_ip(__u32 ip)
 }
 
 /* connect sink: numeric IPv4 match (no string formatting). Returns rule_id/-1. */
-static __noinline int te_connect_check(pid_t pid, __u32 ip)
+static __noinline int te_connect_check_labels(pid_t pid, __u64 labels, __u32 ip)
 {
-	__u64 labels = te_labels(pid);
 	for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
 		if (i >= n_rules)
 			break;
@@ -223,12 +222,23 @@ static __noinline int te_connect_check(pid_t pid, __u32 ip)
 	return -1;
 }
 
-/* read: proc absorbs file labels + file source. */
-static __always_inline void te_read(pid_t pid, const char *path)
+static __always_inline int te_connect_check(pid_t pid, __u32 ip)
+{
+	return te_connect_check_labels(pid, te_labels(pid), ip);
+}
+
+static __always_inline __u64 te_file_labels(const char *path)
 {
 	__u64 h = te_fnv1a(path);
 	__u64 *fl = bpf_map_lookup_elem(&ts_file, &h);
-	te_add_labels(pid, (fl ? *fl : 0) | te_file_src(path));
+
+	return (fl ? *fl : 0) | te_file_src(path);
+}
+
+/* read: proc absorbs file labels + file source. */
+static __always_inline void te_read(pid_t pid, const char *path)
+{
+	te_add_labels(pid, te_file_labels(path));
 }
 /* write: file absorbs proc labels. */
 static __always_inline void te_write_flow(pid_t pid, const char *path)
@@ -274,10 +284,10 @@ static __always_inline int te_cond_satisfied(const struct taint_rule *r, pid_t p
 /* Evaluate sinks for op `op` on `target` by process `pid`. Returns the matched
  * rule_id, or -1 if none. argv may be NULL (non-exec ops). Limited to 5 args so
  * it can be a bpf2bpf subprogram (own stack frame). */
-static __noinline int te_check(pid_t pid, unsigned int op, const char *target,
-			       const char *argv, int argv_len)
+static __noinline int te_check_labels(pid_t pid, __u64 labels, unsigned int op,
+				      const char *target, const char *argv,
+				      int argv_len)
 {
-	__u64 labels = te_labels(pid);
 	for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
 		if (i >= n_rules)
 			break;
@@ -299,6 +309,12 @@ static __noinline int te_check(pid_t pid, unsigned int op, const char *target,
 		return (int)r.rule_id;
 	}
 	return -1;
+}
+
+static __always_inline int te_check(pid_t pid, unsigned int op, const char *target,
+				    const char *argv, int argv_len)
+{
+	return te_check_labels(pid, te_labels(pid), op, target, argv, argv_len);
 }
 
 static __always_inline void te_exit(pid_t pid)

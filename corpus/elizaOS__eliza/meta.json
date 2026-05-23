@@ -1,0 +1,49 @@
+{
+  "repo": "elizaOS/eliza",
+  "owner": "elizaOS",
+  "name": "eliza",
+  "stars": 18437,
+  "forks": 5546,
+  "open_issues": 8,
+  "created_at": "2024-07-09T07:55:40Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:04:45Z",
+  "default_branch": "develop",
+  "html_url": "https://github.com/elizaOS/eliza",
+  "description": "Open source agentic operating system",
+  "topics": [
+    "agent",
+    "agentic",
+    "ai",
+    "autonomous",
+    "chatbot",
+    "crypto",
+    "discord",
+    "eliza",
+    "elizaos",
+    "framework",
+    "plugins",
+    "rag",
+    "slack",
+    "swarm",
+    "telegram"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "d009fd20b793fe205acce3569fe8603dc8beaf9e",
+      "byte_size": 4243,
+      "last_commit_sha": "31a8631e5a2223826619d2002a9603f619ec7fb1",
+      "last_commit_date": "2026-05-21T10:35:35Z",
+      "content_sha256": "a70ce18bd88f38d90ca3252a1093f31964c5e1558c5796cc6f38d649c31f6dc9",
+      "raw_url": "https://raw.githubusercontent.com/elizaOS/eliza/31a8631e5a2223826619d2002a9603f619ec7fb1/AGENTS.md"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "repo": "xpzouying/xiaohongshu-mcp",
+  "owner": "xpzouying",
+  "name": "xiaohongshu-mcp",
+  "stars": 13711,
+  "forks": 2077,
+  "open_issues": 265,
+  "created_at": "2025-08-03T09:08:45Z",
+  "language": "Go",
+  "license": null,
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T12:06:59Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/xpzouying/xiaohongshu-mcp",
+  "description": "MCP for xiaohongshu.com",
+  "topics": [
+    "mcp",
+    "mcp-server",
+    "xiaohongshu-mcp"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "08594735cb71117f5d8b1f62d052608e6e3eafef",
+      "byte_size": 701,
+      "last_commit_sha": "31a80ecacc96b9ee7e40a5f80506e36b890d7fbe",
+      "last_commit_date": "2026-02-28T14:42:37Z",
+      "content_sha256": "ee1b5181b2142a7420697dc51c79cb48ab5a537f0b9b43ee0d4a3f8c4f1ad4b9",
+      "raw_url": "https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/31a80ecacc96b9ee7e40a5f80506e36b890d7fbe/CLAUDE.md"
+    }
+  ]
+}

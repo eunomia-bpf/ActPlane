@@ -1,0 +1,58 @@
+{
+  "repo": "onyx-dot-app/onyx",
+  "owner": "onyx-dot-app",
+  "name": "onyx",
+  "stars": 29616,
+  "forks": 4020,
+  "open_issues": 389,
+  "created_at": "2023-04-27T06:04:01Z",
+  "language": "Python",
+  "license": "other",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T06:39:21Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/onyx-dot-app/onyx",
+  "description": "Open Source AI Platform - AI Chat with advanced features that works with every LLM",
+  "topics": [
+    "ai",
+    "ai-chat",
+    "chatgpt",
+    "chatui",
+    "enterprise-search",
+    "gen-ai",
+    "information-retrieval",
+    "llm",
+    "llm-ui",
+    "nextjs",
+    "python",
+    "rag",
+    "self-hosted",
+    "vector-search"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "byte_size": 15169,
+      "last_commit_sha": "97b44b530e23315c8782452e870804e7a8c83adc",
+      "last_commit_date": "2026-02-05T22:46:37Z",
+      "content_sha256": "5273268f34e59ed537183f1a5d26e01d281cacb6b2257193ac4ff036bf10467f",
+      "raw_url": "https://raw.githubusercontent.com/onyx-dot-app/onyx/97b44b530e23315c8782452e870804e7a8c83adc/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "c6dff1a6ce8e05e1e1352113fe49034ed9683fce",
+      "byte_size": 15169,
+      "last_commit_sha": "21235cf34acec2c62524172c2704a2cfc95888ce",
+      "last_commit_date": "2026-05-06T18:01:16Z",
+      "content_sha256": "5273268f34e59ed537183f1a5d26e01d281cacb6b2257193ac4ff036bf10467f",
+      "raw_url": "https://raw.githubusercontent.com/onyx-dot-app/onyx/21235cf34acec2c62524172c2704a2cfc95888ce/AGENTS.md"
+    }
+  ]
+}

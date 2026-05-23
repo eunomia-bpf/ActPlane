@@ -1,0 +1,55 @@
+{
+  "repo": "electric-sql/electric",
+  "owner": "electric-sql",
+  "name": "electric",
+  "stars": 10205,
+  "forks": 332,
+  "open_issues": 305,
+  "created_at": "2022-06-01T14:18:11Z",
+  "language": "TypeScript",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T21:44:39Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/electric-sql/electric",
+  "description": "The agent platform built on sync.",
+  "topics": [
+    "agent",
+    "agents",
+    "crdt",
+    "crdts",
+    "data",
+    "elixir",
+    "platform",
+    "postgres",
+    "replication",
+    "runtime",
+    "sync"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "d8eb5ee6d6b19fcc3119383637f8fbcb5ef18d7e",
+      "byte_size": 117,
+      "last_commit_sha": "20e151bb2d90241a4086795c6884683e341fa7e1",
+      "last_commit_date": "2026-02-11T15:28:43Z",
+      "content_sha256": "c612956b7f5a7999dac1280cf3acb3580e5563bcc77fdaa70e92d430170d0dde",
+      "raw_url": "https://raw.githubusercontent.com/electric-sql/electric/20e151bb2d90241a4086795c6884683e341fa7e1/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "f59c37faec14e2cab289c44bc6dac8dcbaed88ce",
+      "byte_size": 14165,
+      "last_commit_sha": "0333175ed835ab2e41b878cb4140eb34a4d203b7",
+      "last_commit_date": "2026-05-12T09:52:40Z",
+      "content_sha256": "733845ceae6c6ea1afa2e68ee191a553a708d61486a4fe7c34afe948d08fc3f2",
+      "raw_url": "https://raw.githubusercontent.com/electric-sql/electric/0333175ed835ab2e41b878cb4140eb34a4d203b7/AGENTS.md"
+    }
+  ]
+}

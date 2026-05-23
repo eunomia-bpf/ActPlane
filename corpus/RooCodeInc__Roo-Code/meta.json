@@ -1,0 +1,33 @@
+{
+  "repo": "RooCodeInc/Roo-Code",
+  "owner": "RooCodeInc",
+  "name": "Roo-Code",
+  "stars": 24137,
+  "forks": 3265,
+  "open_issues": 1042,
+  "created_at": "2024-10-31T17:56:50Z",
+  "language": "TypeScript",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": true,
+  "pushed_at": "2026-05-15T18:08:47Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/RooCodeInc/Roo-Code",
+  "description": "Roo Code gives you a whole dev team of AI agents in your code editor.",
+  "topics": [],
+  "seed": true,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "ae09fd9b30d39b7aa610931cad32257820b12601",
+      "byte_size": 445,
+      "last_commit_sha": "fa92ec4586788c189ed18264b41a173f3d647dea",
+      "last_commit_date": "2026-01-21T22:11:39Z",
+      "content_sha256": "0050c55acd56fd4f1842938bb9e4408ad7cc9330ccb04588330997d270ff2823",
+      "raw_url": "https://raw.githubusercontent.com/RooCodeInc/Roo-Code/fa92ec4586788c189ed18264b41a173f3d647dea/AGENTS.md"
+    }
+  ]
+}

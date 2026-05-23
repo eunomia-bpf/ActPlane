@@ -1,0 +1,39 @@
+{
+  "repo": "nanocoai/nanoclaw",
+  "owner": "nanocoai",
+  "name": "nanoclaw",
+  "stars": 29289,
+  "forks": 12861,
+  "open_issues": 680,
+  "created_at": "2026-01-31T15:47:22Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T20:17:35Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/nanocoai/nanoclaw",
+  "description": "A lightweight alternative to OpenClaw that runs in containers for security. Connects to WhatsApp, Telegram, Slack, Discord, Gmail and other messaging apps,, has memory, scheduled jobs, and runs directly on Anthropic's Agents SDK",
+  "topics": [
+    "ai-agents",
+    "ai-assistant",
+    "claude-code",
+    "claude-skills",
+    "openclaw"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "1cf7e6ff78f1d8ad0e5a15529315024e4180e2e1",
+      "byte_size": 24871,
+      "last_commit_sha": "1c7623ca4120104fe2f32afbe93471a19bf35ac7",
+      "last_commit_date": "2026-05-09T17:23:44Z",
+      "content_sha256": "2af32265410b69dc31ea2ab44d15cf1f6f089b34c15d0c740b432404b2dfad4c",
+      "raw_url": "https://raw.githubusercontent.com/nanocoai/nanoclaw/1c7623ca4120104fe2f32afbe93471a19bf35ac7/CLAUDE.md"
+    }
+  ]
+}

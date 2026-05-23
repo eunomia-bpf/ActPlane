@@ -1,0 +1,55 @@
+{
+  "repo": "moeru-ai/airi",
+  "owner": "moeru-ai",
+  "name": "airi",
+  "stars": 39462,
+  "forks": 4002,
+  "open_issues": 138,
+  "created_at": "2024-12-01T16:33:36Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T01:43:25Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/moeru-ai/airi",
+  "description": "💖🧸 Self hosted, you-owned Grok Companion, a container of souls of waifu, cyber livings to bring them into our worlds, wishing to achieve Neuro-sama's altitude. Capable of realtime voice chat, Minecraft, Factorio playing. Web / macOS / Windows supported.",
+  "topics": [
+    "ai-companion",
+    "ai-vtuber",
+    "airi",
+    "digital-life",
+    "grok-companion",
+    "live2d",
+    "neuro-sama",
+    "neurosama",
+    "openclaw",
+    "vrm",
+    "vtuber"
+  ],
+  "seed": true,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "43c994c2d3617f947bcb5adf1933e21dabe46bb5",
+      "byte_size": 11,
+      "last_commit_sha": "2b4ff6ab20c290da7e8e91992acf5c9e16da3c33",
+      "last_commit_date": "2026-03-23T05:56:52Z",
+      "content_sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+      "raw_url": "https://raw.githubusercontent.com/moeru-ai/airi/2b4ff6ab20c290da7e8e91992acf5c9e16da3c33/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "e1a6a261c087ce2469f8ff71c279d9698b303077",
+      "byte_size": 25390,
+      "last_commit_sha": "2c432fc1c8f364668037b80d8316cf46fc0b538b",
+      "last_commit_date": "2026-05-13T04:03:30Z",
+      "content_sha256": "d7d763522e6fb7f01bb0e2540487ee7364d1d005909b69fa069648ef49e7530e",
+      "raw_url": "https://raw.githubusercontent.com/moeru-ai/airi/2c432fc1c8f364668037b80d8316cf46fc0b538b/AGENTS.md"
+    }
+  ]
+}

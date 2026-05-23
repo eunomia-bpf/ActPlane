@@ -1,0 +1,51 @@
+{
+  "repo": "openai/openai-agents-python",
+  "owner": "openai",
+  "name": "openai-agents-python",
+  "stars": 26593,
+  "forks": 4077,
+  "open_issues": 105,
+  "created_at": "2025-03-11T03:42:36Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T20:54:53Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/openai/openai-agents-python",
+  "description": "A lightweight, powerful framework for multi-agent workflows",
+  "topics": [
+    "agents",
+    "ai",
+    "framework",
+    "harness",
+    "llm",
+    "openai",
+    "python"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "byte_size": 14519,
+      "last_commit_sha": "2d665c9a67fdf3198a0daa0f9978b8239d78e78b",
+      "last_commit_date": "2026-04-15T17:00:40Z",
+      "content_sha256": "5f685c9a63f4ad59d39d04a4c1a49fe68b4dfed2317e1f8defa46280f6513caf",
+      "raw_url": "https://raw.githubusercontent.com/openai/openai-agents-python/2d665c9a67fdf3198a0daa0f9978b8239d78e78b/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "33aeaeff71097e5aea616233694279f357f0be74",
+      "byte_size": 14519,
+      "last_commit_sha": "564584513f74e74f7916bd865ea77003d47b739c",
+      "last_commit_date": "2026-05-12T07:05:42Z",
+      "content_sha256": "5f685c9a63f4ad59d39d04a4c1a49fe68b4dfed2317e1f8defa46280f6513caf",
+      "raw_url": "https://raw.githubusercontent.com/openai/openai-agents-python/564584513f74e74f7916bd865ea77003d47b739c/AGENTS.md"
+    }
+  ]
+}

@@ -2,7 +2,10 @@
   "repo": "huggingface/transformers",
   "owner": "huggingface",
   "name": "transformers",
-  "stars": 160894,
+  "stars": 160896,
+  "forks": 33299,
+  "open_issues": 2383,
+  "created_at": "2018-10-29T13:56:00Z",
   "language": "Python",
   "license": "apache-2.0",
   "fork": false,
@@ -34,7 +37,7 @@
   ],
   "seed": false,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "CLAUDE.md",

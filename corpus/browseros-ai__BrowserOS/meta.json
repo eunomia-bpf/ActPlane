@@ -1,0 +1,45 @@
+{
+  "repo": "browseros-ai/BrowserOS",
+  "owner": "browseros-ai",
+  "name": "BrowserOS",
+  "stars": 11047,
+  "forks": 1116,
+  "open_issues": 123,
+  "created_at": "2025-05-18T16:23:54Z",
+  "language": "TypeScript",
+  "license": "agpl-3.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T18:31:28Z",
+  "default_branch": "dev",
+  "html_url": "https://github.com/browseros-ai/BrowserOS",
+  "description": "🌐 The open-source Agentic browser; alternative to ChatGPT Atlas, Perplexity Comet, Dia.",
+  "topics": [
+    "agent",
+    "browser",
+    "browseros",
+    "chromium",
+    "hacktoberfest",
+    "linux",
+    "llm",
+    "lmstudio",
+    "macos",
+    "ollama",
+    "windows"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "45f0c23a77a756bb730665a7f4ca6824714ae997",
+      "byte_size": 405,
+      "last_commit_sha": "91d3f420d417f6ebe5fbd0b70f9fabaab94525e3",
+      "last_commit_date": "2026-01-07T00:24:19Z",
+      "content_sha256": "1e5e655e7b20d1ec2d70392623a0037612d98e00de593c80b6ebc3da13a03597",
+      "raw_url": "https://raw.githubusercontent.com/browseros-ai/BrowserOS/91d3f420d417f6ebe5fbd0b70f9fabaab94525e3/CLAUDE.md"
+    }
+  ]
+}

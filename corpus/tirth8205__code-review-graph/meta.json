@@ -1,0 +1,56 @@
+{
+  "repo": "tirth8205/code-review-graph",
+  "owner": "tirth8205",
+  "name": "code-review-graph",
+  "stars": 17213,
+  "forks": 1852,
+  "open_issues": 125,
+  "created_at": "2026-02-26T17:25:13Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-16T13:11:25Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/tirth8205/code-review-graph",
+  "description": "Local knowledge graph for Claude Code. Builds a persistent map of your codebase so Claude reads only what matters — 6.8× fewer tokens on reviews and up to 49× on daily coding tasks.",
+  "topics": [
+    "ai-coding",
+    "claude",
+    "claude-code",
+    "code-review",
+    "graphrag",
+    "incremental",
+    "knowledge-graph",
+    "llm",
+    "mcp",
+    "python",
+    "static-analysis",
+    "tree-sitter"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "b9f4dcdf3f3ac52dfe207aa10b202eaaea25dd6f",
+      "byte_size": 9637,
+      "last_commit_sha": "460921d866ccffd81d69f43ce682a5c1455ac7e9",
+      "last_commit_date": "2026-04-30T22:06:06Z",
+      "content_sha256": "09853656ddc506eb4601baaaecd0263b0d279cca78b82d8a845017dece6cfcea",
+      "raw_url": "https://raw.githubusercontent.com/tirth8205/code-review-graph/460921d866ccffd81d69f43ce682a5c1455ac7e9/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "0c6eddda6e1d97158adbd8d487408127901f619d",
+      "byte_size": 4664,
+      "last_commit_sha": "4be59ee164c1f6121d0e5964a76456e00880388f",
+      "last_commit_date": "2026-04-21T15:45:33Z",
+      "content_sha256": "0d138e0443c32c06be18144f60a4682819be9101f64bd2317ae07e215485fa1e",
+      "raw_url": "https://raw.githubusercontent.com/tirth8205/code-review-graph/4be59ee164c1f6121d0e5964a76456e00880388f/AGENTS.md"
+    }
+  ]
+}

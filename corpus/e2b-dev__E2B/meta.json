@@ -1,0 +1,52 @@
+{
+  "repo": "e2b-dev/E2B",
+  "owner": "e2b-dev",
+  "name": "E2B",
+  "stars": 12331,
+  "forks": 911,
+  "open_issues": 60,
+  "created_at": "2023-03-04T13:41:18Z",
+  "language": "Python",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T05:30:58Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/e2b-dev/E2B",
+  "description": "Open-source, secure environment with real-world tools for enterprise-grade agents.",
+  "topics": [
+    "agent",
+    "ai",
+    "ai-agent",
+    "ai-agents",
+    "code-interpreter",
+    "copilot",
+    "development",
+    "devtools",
+    "gpt",
+    "gpt-4",
+    "javascript",
+    "llm",
+    "nextjs",
+    "openai",
+    "python",
+    "react",
+    "software",
+    "typescript"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "859268f3eacc3ef85c56061ef5f110d705e0f0d3",
+      "byte_size": 480,
+      "last_commit_sha": "7982da9de058ebe06d47e1850e67b2db9ea93777",
+      "last_commit_date": "2026-04-30T17:52:59Z",
+      "content_sha256": "5d73b39fd7d3d7ccb09b6943ed3ef79105923bcc498fadb1a5b6ff3690c345f4",
+      "raw_url": "https://raw.githubusercontent.com/e2b-dev/E2B/7982da9de058ebe06d47e1850e67b2db9ea93777/CLAUDE.md"
+    }
+  ]
+}

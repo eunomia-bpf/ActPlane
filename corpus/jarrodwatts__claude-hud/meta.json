@@ -1,0 +1,41 @@
+{
+  "repo": "jarrodwatts/claude-hud",
+  "owner": "jarrodwatts",
+  "name": "claude-hud",
+  "stars": 23490,
+  "forks": 1057,
+  "open_issues": 22,
+  "created_at": "2026-01-02T01:35:07Z",
+  "language": "JavaScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T02:43:40Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/jarrodwatts/claude-hud",
+  "description": "A Claude Code plugin that shows what's happening - context usage, active tools, running agents, and todo progress",
+  "topics": [
+    "anthropic",
+    "claude",
+    "claude-code",
+    "cli",
+    "plugin",
+    "statusline",
+    "typescript"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "296f2a68823fa1e80d5a0ad0852d317dfe975414",
+      "byte_size": 4530,
+      "last_commit_sha": "cb2f07c172845a193b2a8af51682317979c112bf",
+      "last_commit_date": "2026-03-23T03:48:33Z",
+      "content_sha256": "1c76c750ed99966cfcb764c481ba4b2bdd138e4b677faef492e7967683976afa",
+      "raw_url": "https://raw.githubusercontent.com/jarrodwatts/claude-hud/cb2f07c172845a193b2a8af51682317979c112bf/CLAUDE.md"
+    }
+  ]
+}

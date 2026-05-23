@@ -1,0 +1,61 @@
+{
+  "repo": "0xJacky/nginx-ui",
+  "owner": "0xJacky",
+  "name": "nginx-ui",
+  "stars": 11166,
+  "forks": 831,
+  "open_issues": 83,
+  "created_at": "2021-02-19T10:51:04Z",
+  "language": "Go",
+  "license": "agpl-3.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T04:50:36Z",
+  "default_branch": "dev",
+  "html_url": "https://github.com/0xJacky/nginx-ui",
+  "description": "Yet another WebUI for Nginx",
+  "topics": [
+    "chatgpt-app",
+    "code-completion",
+    "copilot",
+    "cron",
+    "deepseek-r1",
+    "docker",
+    "go",
+    "letsencrypt",
+    "linux",
+    "macos",
+    "mcp",
+    "mcp-server",
+    "nginx",
+    "self-hosted",
+    "vue",
+    "webui",
+    "windows"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "f7d2507890d64a2c587e78e5ac71d96bcb0a04f3",
+      "byte_size": 5221,
+      "last_commit_sha": "0301578295d027e9999ff9b0a830d6cc11c95108",
+      "last_commit_date": "2026-04-28T01:05:52Z",
+      "content_sha256": "34d560d13cbc5abef65bf7584ccf611a3da4adfe0328a7cc4b34d1ef84efa2d4",
+      "raw_url": "https://raw.githubusercontent.com/0xJacky/nginx-ui/0301578295d027e9999ff9b0a830d6cc11c95108/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "681311eb9cf453d0faddf3aacaec7357e97ba8e9",
+      "byte_size": 5221,
+      "last_commit_sha": "2093509b469b3d6c88c5f2219d8c1db4d7c480d6",
+      "last_commit_date": "2025-12-06T09:08:35Z",
+      "content_sha256": "34d560d13cbc5abef65bf7584ccf611a3da4adfe0328a7cc4b34d1ef84efa2d4",
+      "raw_url": "https://raw.githubusercontent.com/0xJacky/nginx-ui/2093509b469b3d6c88c5f2219d8c1db4d7c480d6/AGENTS.md"
+    }
+  ]
+}

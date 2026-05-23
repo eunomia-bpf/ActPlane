@@ -2,7 +2,10 @@
   "repo": "netdata/netdata",
   "owner": "netdata",
   "name": "netdata",
-  "stars": 78915,
+  "stars": 78916,
+  "forks": 6439,
+  "open_issues": 328,
+  "created_at": "2013-06-17T18:39:10Z",
   "language": "C",
   "license": "gpl-3.0",
   "fork": false,
@@ -35,7 +38,7 @@
   ],
   "seed": false,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "CLAUDE.md",

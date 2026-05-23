@@ -1,0 +1,62 @@
+{
+  "repo": "mlflow/mlflow",
+  "owner": "mlflow",
+  "name": "mlflow",
+  "stars": 26072,
+  "forks": 5770,
+  "open_issues": 2077,
+  "created_at": "2018-06-05T16:05:58Z",
+  "language": "Python",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T06:56:07Z",
+  "default_branch": "master",
+  "html_url": "https://github.com/mlflow/mlflow",
+  "description": "The open source AI engineering platform for agents, LLMs, and ML models. MLflow enables teams of all sizes to debug, evaluate, monitor, and optimize production-quality AI applications while controlling costs and managing access to models and data.",
+  "topics": [
+    "agentops",
+    "agents",
+    "ai",
+    "ai-governance",
+    "apache-spark",
+    "evaluation",
+    "langchain",
+    "llm-evaluation",
+    "llmops",
+    "machine-learning",
+    "ml",
+    "mlflow",
+    "mlops",
+    "model-management",
+    "observability",
+    "open-source",
+    "openai",
+    "prompt-engineering"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "d64f934c0144eaa48bc43b2ba4df15615c53daf6",
+      "byte_size": 7147,
+      "last_commit_sha": "dbcd0ebe59e4ea682a8433af2e87cbff131abe69",
+      "last_commit_date": "2026-05-06T11:47:56Z",
+      "content_sha256": "5f723c69a4e750fadb74ae643e23c5e8f0c4d56b7114ce4f73007a1230ee36aa",
+      "raw_url": "https://raw.githubusercontent.com/mlflow/mlflow/dbcd0ebe59e4ea682a8433af2e87cbff131abe69/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "681311eb9cf453d0faddf3aacaec7357e97ba8e9",
+      "byte_size": 7147,
+      "last_commit_sha": "bd9c64f93f8f9f9d5b9a49b521e9221a6aac1b42",
+      "last_commit_date": "2026-05-22T10:12:35Z",
+      "content_sha256": "5f723c69a4e750fadb74ae643e23c5e8f0c4d56b7114ce4f73007a1230ee36aa",
+      "raw_url": "https://raw.githubusercontent.com/mlflow/mlflow/bd9c64f93f8f9f9d5b9a49b521e9221a6aac1b42/AGENTS.md"
+    }
+  ]
+}

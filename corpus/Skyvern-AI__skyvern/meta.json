@@ -1,0 +1,60 @@
+{
+  "repo": "Skyvern-AI/skyvern",
+  "owner": "Skyvern-AI",
+  "name": "skyvern",
+  "stars": 21701,
+  "forks": 2018,
+  "open_issues": 151,
+  "created_at": "2024-02-28T15:45:19Z",
+  "language": "Python",
+  "license": "agpl-3.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T06:48:36Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/Skyvern-AI/skyvern",
+  "description": "Automate browser based workflows with AI",
+  "topics": [
+    "ai",
+    "api",
+    "automation",
+    "browser",
+    "browser-automation",
+    "computer",
+    "gpt",
+    "llm",
+    "playwright",
+    "powerautomate",
+    "puppeteer",
+    "python",
+    "rpa",
+    "selenium",
+    "vision",
+    "workflow"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "4c186f2e0b5c4a878ead287d2d4b34cbe886218e",
+      "byte_size": 3905,
+      "last_commit_sha": "73a98ec12e0d672feaecbfa0014dd1dda7c545c5",
+      "last_commit_date": "2026-04-21T07:45:57Z",
+      "content_sha256": "44c8b28686945c7c0148b3071a973a4ad913cad6d69797e90dd11c3b26acd5e9",
+      "raw_url": "https://raw.githubusercontent.com/Skyvern-AI/skyvern/73a98ec12e0d672feaecbfa0014dd1dda7c545c5/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "416c58a44fd50a39e34525ff4d1db87010020a14",
+      "byte_size": 2838,
+      "last_commit_sha": "9174791c1a89fa38303b01c8dd81412c1bcb9903",
+      "last_commit_date": "2025-05-29T21:07:42Z",
+      "content_sha256": "e67961179047fcf19435dafc36a957eac8e5026af5878ea76097ed410ae72699",
+      "raw_url": "https://raw.githubusercontent.com/Skyvern-AI/skyvern/9174791c1a89fa38303b01c8dd81412c1bcb9903/AGENTS.md"
+    }
+  ]
+}

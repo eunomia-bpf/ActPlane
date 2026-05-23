@@ -1,0 +1,51 @@
+{
+  "repo": "Panniantong/Agent-Reach",
+  "owner": "Panniantong",
+  "name": "Agent-Reach",
+  "stars": 20116,
+  "forks": 1782,
+  "open_issues": 41,
+  "created_at": "2026-02-24T02:10:24Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-18T12:39:22Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/Panniantong/Agent-Reach",
+  "description": "Give your AI agent eyes to see the entire internet. Read & search Twitter, Reddit, YouTube, GitHub, Bilibili, XiaoHongShu — one CLI, zero API fees.",
+  "topics": [
+    "agent-infrastructure",
+    "ai-agent",
+    "ai-search",
+    "automation",
+    "bilibili",
+    "claude-code",
+    "cli",
+    "cursor",
+    "free-api",
+    "llm-tools",
+    "mcp",
+    "python",
+    "reddit-scraper",
+    "twitter-scraper",
+    "web-scraper",
+    "xiaohongshu",
+    "youtube-transcript"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "cb6b9cbe7eff69c26f448d4243f568bbc2cd7209",
+      "byte_size": 2265,
+      "last_commit_sha": "be9f9ab83852bc8149378eb216f0b03b78517a25",
+      "last_commit_date": "2026-03-16T11:02:41Z",
+      "content_sha256": "509481011b7f607ff81a49f4464e5b01f6d5f35e6288d29c568b4b067366bacc",
+      "raw_url": "https://raw.githubusercontent.com/Panniantong/Agent-Reach/be9f9ab83852bc8149378eb216f0b03b78517a25/CLAUDE.md"
+    }
+  ]
+}

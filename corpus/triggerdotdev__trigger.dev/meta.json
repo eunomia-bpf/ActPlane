@@ -1,0 +1,57 @@
+{
+  "repo": "triggerdotdev/trigger.dev",
+  "owner": "triggerdotdev",
+  "name": "trigger.dev",
+  "stars": 15037,
+  "forks": 1249,
+  "open_issues": 323,
+  "created_at": "2022-11-30T14:59:07Z",
+  "language": "TypeScript",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T17:22:46Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/triggerdotdev/trigger.dev",
+  "description": "Trigger.dev – build and deploy fully‑managed AI agents and workflows",
+  "topics": [
+    "ai",
+    "ai-agent-framework",
+    "ai-agents",
+    "automation",
+    "background-jobs",
+    "mcp",
+    "mcp-server",
+    "nextjs",
+    "orchestration",
+    "scheduler",
+    "serverless",
+    "workflow-automation",
+    "workflows"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "d6aa9d5e3a4a946224bc01977c997f1e8186d08b",
+      "byte_size": 11780,
+      "last_commit_sha": "71d98b4e6b4d27c4745c5e336f6c439d365be7bb",
+      "last_commit_date": "2026-05-22T13:43:03Z",
+      "content_sha256": "333a19422de6d43da0cd7c3e655a68cdea08dd0186cac58df3a0b7a6a4db16d7",
+      "raw_url": "https://raw.githubusercontent.com/triggerdotdev/trigger.dev/71d98b4e6b4d27c4745c5e336f6c439d365be7bb/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "d3f23dfaf2c23572ac9574c7d93108b1d79fb6ab",
+      "byte_size": 3044,
+      "last_commit_sha": "6c9f1f197e94b43716f40077b1a0da58b8ed9592",
+      "last_commit_date": "2026-05-18T09:28:58Z",
+      "content_sha256": "37e81f6a35987f2bf53a75072c480bfae455988d7e2b2881e77f4df24047eeb0",
+      "raw_url": "https://raw.githubusercontent.com/triggerdotdev/trigger.dev/6c9f1f197e94b43716f40077b1a0da58b8ed9592/AGENTS.md"
+    }
+  ]
+}

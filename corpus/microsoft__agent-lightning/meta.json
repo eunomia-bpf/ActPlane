@@ -1,0 +1,49 @@
+{
+  "repo": "microsoft/agent-lightning",
+  "owner": "microsoft",
+  "name": "agent-lightning",
+  "stars": 17211,
+  "forks": 1504,
+  "open_issues": 157,
+  "created_at": "2025-06-18T07:28:45Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-04-29T06:32:24Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/microsoft/agent-lightning",
+  "description": "The absolute trainer to light up AI agents.",
+  "topics": [
+    "agent",
+    "agentic-ai",
+    "llm",
+    "mlops",
+    "reinforcement-learning"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "byte_size": 4490,
+      "last_commit_sha": "feebaec24ce1f447a15c58ce28aff7c1209bec08",
+      "last_commit_date": "2025-12-06T05:16:26Z",
+      "content_sha256": "1a33e9e908bdb47a7a2fee0969d31bb44e7f45061df41d61cb1bcb73e3358587",
+      "raw_url": "https://raw.githubusercontent.com/microsoft/agent-lightning/feebaec24ce1f447a15c58ce28aff7c1209bec08/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "93904c1ab09d8f6d1e4a0dce22e532ea90ca9b0c",
+      "byte_size": 4490,
+      "last_commit_sha": "94d1cd780eb3443a8ef0a8f23502234239cea2d8",
+      "last_commit_date": "2025-12-10T13:11:29Z",
+      "content_sha256": "1a33e9e908bdb47a7a2fee0969d31bb44e7f45061df41d61cb1bcb73e3358587",
+      "raw_url": "https://raw.githubusercontent.com/microsoft/agent-lightning/94d1cd780eb3443a8ef0a8f23502234239cea2d8/AGENTS.md"
+    }
+  ]
+}

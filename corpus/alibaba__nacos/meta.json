@@ -1,0 +1,60 @@
+{
+  "repo": "alibaba/nacos",
+  "owner": "alibaba",
+  "name": "nacos",
+  "stars": 32963,
+  "forks": 13277,
+  "open_issues": 245,
+  "created_at": "2018-06-15T06:49:27Z",
+  "language": "Java",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T09:25:06Z",
+  "default_branch": "develop",
+  "html_url": "https://github.com/alibaba/nacos",
+  "description": "an easy-to-use dynamic service discovery, configuration and service management platform for building AI cloud native applications.",
+  "topics": [
+    "a2a-registry",
+    "agent",
+    "ai-registry",
+    "configuration-management",
+    "distributed-configuration",
+    "dubbo",
+    "istio",
+    "kubernetes",
+    "mcp",
+    "mcp-management",
+    "mcp-registry",
+    "microservices",
+    "nacos",
+    "prompt",
+    "skills",
+    "spring-cloud"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "43c994c2d3617f947bcb5adf1933e21dabe46bb5",
+      "byte_size": 11,
+      "last_commit_sha": "6b45c593d6c47265df33f12476a41fba39bfaa6b",
+      "last_commit_date": "2026-04-02T03:11:30Z",
+      "content_sha256": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
+      "raw_url": "https://raw.githubusercontent.com/alibaba/nacos/6b45c593d6c47265df33f12476a41fba39bfaa6b/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "b9c8ed732c24fc8fe0e43d79a263a89a53580feb",
+      "byte_size": 20968,
+      "last_commit_sha": "874533ef7a4374499a37538befcb6b1fe5d3cc13",
+      "last_commit_date": "2026-05-21T07:09:01Z",
+      "content_sha256": "cbb173a3ac92633957326f80c4214a655eafc35c84c88d6521d40b58e7aecf4e",
+      "raw_url": "https://raw.githubusercontent.com/alibaba/nacos/874533ef7a4374499a37538befcb6b1fe5d3cc13/AGENTS.md"
+    }
+  ]
+}

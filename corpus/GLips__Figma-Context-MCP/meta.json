@@ -1,0 +1,39 @@
+{
+  "repo": "GLips/Figma-Context-MCP",
+  "owner": "GLips",
+  "name": "Figma-Context-MCP",
+  "stars": 14838,
+  "forks": 1177,
+  "open_issues": 27,
+  "created_at": "2025-02-13T02:55:06Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-04-30T00:17:20Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/GLips/Figma-Context-MCP",
+  "description": "MCP server to provide Figma layout information to AI coding agents like Cursor",
+  "topics": [
+    "ai",
+    "cursor",
+    "figma",
+    "mcp",
+    "typescript"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "f4f3f638c586c749a21e844b9d9e18ea25f03895",
+      "byte_size": 8359,
+      "last_commit_sha": "9dfb1cb65a081655d7dca5f076ab76f5d7e9edc0",
+      "last_commit_date": "2026-03-24T17:47:06Z",
+      "content_sha256": "91abf5458b8d1c5d3b0e04c5a86228a6f72a386dff5cfdc95cb2a36fa42d50e7",
+      "raw_url": "https://raw.githubusercontent.com/GLips/Figma-Context-MCP/9dfb1cb65a081655d7dca5f076ab76f5d7e9edc0/CLAUDE.md"
+    }
+  ]
+}

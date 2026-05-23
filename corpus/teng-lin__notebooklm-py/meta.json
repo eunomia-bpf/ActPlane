@@ -1,0 +1,58 @@
+{
+  "repo": "teng-lin/notebooklm-py",
+  "owner": "teng-lin",
+  "name": "notebooklm-py",
+  "stars": 14683,
+  "forks": 2019,
+  "open_issues": 0,
+  "created_at": "2026-01-07T15:27:19Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:35:56Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/teng-lin/notebooklm-py",
+  "description": "Unofficial Python API and agentic skill for Google NotebookLM. Full programmatic access to NotebookLM's features—including capabilities the web UI doesn't expose—via Python, CLI, and AI agents like Claude Code, Codex, and OpenClaw.",
+  "topics": [
+    "agentic-skill",
+    "api",
+    "claude",
+    "claude-skills",
+    "google-notebooklm",
+    "notebooklm",
+    "notebooklm-api",
+    "notebooklm-skill",
+    "openclaw-skills",
+    "podcast-generator",
+    "python",
+    "python-api",
+    "sdk",
+    "skills"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "735886503e4718b54e9fa97f19e0f1c852861e02",
+      "byte_size": 19494,
+      "last_commit_sha": "f79801111f0e3c38e395c06dd6eb5810f06759f4",
+      "last_commit_date": "2026-05-22T03:15:36Z",
+      "content_sha256": "d934894fc22d4bfbb3c32a6d46a730703e6e45eac47728750d128297e2617441",
+      "raw_url": "https://raw.githubusercontent.com/teng-lin/notebooklm-py/f79801111f0e3c38e395c06dd6eb5810f06759f4/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "7f79511e309b23a80991498aba29001ad8fb5dc2",
+      "byte_size": 2806,
+      "last_commit_sha": "c7e2968f90a0b23db7aa35571442aa7c7e6de9bf",
+      "last_commit_date": "2026-05-16T01:29:41Z",
+      "content_sha256": "1de94aff3590c5be6610dc26258810b44c64d6d9d36d242eafb0c70516cbc21e",
+      "raw_url": "https://raw.githubusercontent.com/teng-lin/notebooklm-py/c7e2968f90a0b23db7aa35571442aa7c7e6de9bf/AGENTS.md"
+    }
+  ]
+}

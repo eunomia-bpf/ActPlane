@@ -1,0 +1,48 @@
+{
+  "repo": "browser-use/browser-harness",
+  "owner": "browser-use",
+  "name": "browser-harness",
+  "stars": 13520,
+  "forks": 1250,
+  "open_issues": 99,
+  "created_at": "2026-04-17T01:56:15Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-20T19:28:42Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/browser-use/browser-harness",
+  "description": "Browser Harness | Self-healing harness that enables LLMs to complete any task.",
+  "topics": [
+    "ai-agent",
+    "browser-agent",
+    "browser-automation",
+    "browser-use",
+    "browser-use-box",
+    "browser-use-cloud",
+    "cdp",
+    "cloud-browser",
+    "llm",
+    "persistent-browser",
+    "playwright",
+    "telegram-agent",
+    "vps-agent",
+    "web-automation"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "546075ebb0c537a302c3b38c04061201c2e5e552",
+      "byte_size": 941,
+      "last_commit_sha": "a2443d1d5166288b698ee8ac3f77191239006e26",
+      "last_commit_date": "2026-05-03T01:02:36Z",
+      "content_sha256": "08c1a4728597ce910bd400a13e4e941866e2afa22e61bd4b180cbf2a4c5fde0f",
+      "raw_url": "https://raw.githubusercontent.com/browser-use/browser-harness/a2443d1d5166288b698ee8ac3f77191239006e26/AGENTS.md"
+    }
+  ]
+}

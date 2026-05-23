@@ -2,7 +2,10 @@
   "repo": "cline/cline",
   "owner": "cline",
   "name": "cline",
-  "stars": 62199,
+  "stars": 62198,
+  "forks": 6505,
+  "open_issues": 916,
+  "created_at": "2024-07-06T07:28:10Z",
   "language": "TypeScript",
   "license": "apache-2.0",
   "fork": false,
@@ -14,7 +17,7 @@
   "topics": [],
   "seed": true,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "CLAUDE.md",
@@ -26,5 +29,7 @@
       "content_sha256": "a6173deede31e86d28400fda0773ab0681542788dacb44943d79e2c8e4190add",
       "raw_url": "https://raw.githubusercontent.com/cline/cline/1f5e2086a137b6aa1506d064cc206d768af29fb7/CLAUDE.md"
     }
-  ]
+  ],
+  "excluded": true,
+  "exclude_reason": "no-info stub (<300B, no analyzable content)"
 }

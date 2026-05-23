@@ -3,6 +3,9 @@
   "owner": "aaif-goose",
   "name": "goose",
   "stars": 45716,
+  "forks": 4695,
+  "open_issues": 174,
+  "created_at": "2024-08-23T19:03:36Z",
   "language": "Rust",
   "license": "apache-2.0",
   "fork": false,
@@ -19,7 +22,7 @@
   ],
   "seed": true,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "CLAUDE.md",

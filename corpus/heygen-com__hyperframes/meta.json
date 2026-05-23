@@ -1,0 +1,55 @@
+{
+  "repo": "heygen-com/hyperframes",
+  "owner": "heygen-com",
+  "name": "hyperframes",
+  "stars": 20562,
+  "forks": 1929,
+  "open_issues": 42,
+  "created_at": "2026-03-10T01:51:06Z",
+  "language": "TypeScript",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T05:12:21Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/heygen-com/hyperframes",
+  "description": "Write HTML. Render video. Built for agents.",
+  "topics": [
+    "ai",
+    "animation",
+    "ffmpeg",
+    "framework",
+    "gsap",
+    "html",
+    "mcp",
+    "puppeteer",
+    "rendering",
+    "typescript",
+    "video"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "4c8b6990ac3f9ff5607049b1d33d6e9658973493",
+      "byte_size": 3946,
+      "last_commit_sha": "051e985868fa4279a9cbb3b7ef742137e5541839",
+      "last_commit_date": "2026-05-04T21:59:35Z",
+      "content_sha256": "10d2280e1816b733225c70d993cbfb85cd3eaa549e56cbe071e435250d9ccea0",
+      "raw_url": "https://raw.githubusercontent.com/heygen-com/hyperframes/051e985868fa4279a9cbb3b7ef742137e5541839/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "19f9519730a952b73b71beb03440eb824802e856",
+      "byte_size": 2921,
+      "last_commit_sha": "237847e5c68f2a35ee39b617bcc335eb9c39913c",
+      "last_commit_date": "2026-04-16T05:22:46Z",
+      "content_sha256": "d4de568f6604f6caf2190f38a6a5d80f9807d70bc1429e064d21085341e2ac2d",
+      "raw_url": "https://raw.githubusercontent.com/heygen-com/hyperframes/237847e5c68f2a35ee39b617bcc335eb9c39913c/AGENTS.md"
+    }
+  ]
+}

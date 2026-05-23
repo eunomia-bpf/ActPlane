@@ -1,0 +1,37 @@
+{
+  "repo": "luongnv89/claude-howto",
+  "owner": "luongnv89",
+  "name": "claude-howto",
+  "stars": 33883,
+  "forks": 4152,
+  "open_issues": 29,
+  "created_at": "2025-11-07T22:59:34Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-20T11:13:43Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/luongnv89/claude-howto",
+  "description": "A visual, example-driven guide to Claude Code — from basic concepts to advanced agents, with copy-paste templates that bring immediate value.",
+  "topics": [
+    "claude-code",
+    "guide",
+    "tutorial"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "2b137d682b6d254bf129098c676a63f9047ce062",
+      "byte_size": 3207,
+      "last_commit_sha": "f925478d787746578f45dcd679c1b6461f511d52",
+      "last_commit_date": "2026-05-01T22:50:22Z",
+      "content_sha256": "160b15a7b250e6d658ec78e012f081f0452e5edfe0ae9c7bae3f0d1330cdfcd7",
+      "raw_url": "https://raw.githubusercontent.com/luongnv89/claude-howto/f925478d787746578f45dcd679c1b6461f511d52/CLAUDE.md"
+    }
+  ]
+}

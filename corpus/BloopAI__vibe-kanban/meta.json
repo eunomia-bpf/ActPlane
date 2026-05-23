@@ -1,0 +1,49 @@
+{
+  "repo": "BloopAI/vibe-kanban",
+  "owner": "BloopAI",
+  "name": "vibe-kanban",
+  "stars": 26429,
+  "forks": 2767,
+  "open_issues": 526,
+  "created_at": "2025-06-14T19:10:21Z",
+  "language": "Rust",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-04-24T09:17:34Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/BloopAI/vibe-kanban",
+  "description": "Get 10X more out of Claude Code, Codex or any coding agent",
+  "topics": [
+    "agent",
+    "ai-agents",
+    "kanban",
+    "management",
+    "task-manager"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "byte_size": 3989,
+      "last_commit_sha": "cbe27a754974b633a83c89c4909e17c430a68b4a",
+      "last_commit_date": "2025-12-09T16:04:20Z",
+      "content_sha256": "c82e8bb68b45691cfc3faecc9e937f758ae9482b4d0769e237ca93b34a35d4a8",
+      "raw_url": "https://raw.githubusercontent.com/BloopAI/vibe-kanban/cbe27a754974b633a83c89c4909e17c430a68b4a/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "9396b8f346ac5cc9f92e15bcfa40612d619d445b",
+      "byte_size": 3989,
+      "last_commit_sha": "6bd9f4a9a5c97d9a06680e4a29fe6b6a5590b4ac",
+      "last_commit_date": "2026-03-31T14:57:40Z",
+      "content_sha256": "c82e8bb68b45691cfc3faecc9e937f758ae9482b4d0769e237ca93b34a35d4a8",
+      "raw_url": "https://raw.githubusercontent.com/BloopAI/vibe-kanban/6bd9f4a9a5c97d9a06680e4a29fe6b6a5590b4ac/AGENTS.md"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "repo": "Yeachan-Heo/oh-my-claudecode",
+  "owner": "Yeachan-Heo",
+  "name": "oh-my-claudecode",
+  "stars": 34626,
+  "forks": 3169,
+  "open_issues": 1,
+  "created_at": "2026-01-09T03:36:29Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:15:46Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/Yeachan-Heo/oh-my-claudecode",
+  "description": "Teams-first Multi-agent orchestration for Claude Code",
+  "topics": [
+    "agentic-coding",
+    "ai-agents",
+    "automation",
+    "claude",
+    "claude-code",
+    "multi-agent-systems",
+    "oh-my-opencode",
+    "opencode",
+    "parallel-execution",
+    "vibe-coding"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "a09d9a0f17e5b6051a78b703395a4715c3dc3e43",
+      "byte_size": 6620,
+      "last_commit_sha": "58dd0a296a4b10e394c149ecfc61465aa3368d84",
+      "last_commit_date": "2026-04-13T20:23:59Z",
+      "content_sha256": "4cba3a4eef66c4077e50ad9f8a43602af1892f93077798d05968f442a398ad1e",
+      "raw_url": "https://raw.githubusercontent.com/Yeachan-Heo/oh-my-claudecode/58dd0a296a4b10e394c149ecfc61465aa3368d84/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "9e91918f8a1b74f706441d6d8114823ef139a84e",
+      "byte_size": 20992,
+      "last_commit_sha": "df0f27071f99da146cab707c9cca90d502e72cfc",
+      "last_commit_date": "2026-03-21T01:10:33Z",
+      "content_sha256": "f39ce6165da527786a219dc5256978d07a6a8fd4877f7271c9b5b217da99369c",
+      "raw_url": "https://raw.githubusercontent.com/Yeachan-Heo/oh-my-claudecode/df0f27071f99da146cab707c9cca90d502e72cfc/AGENTS.md"
+    }
+  ]
+}

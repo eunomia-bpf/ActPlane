@@ -1,0 +1,47 @@
+{
+  "repo": "gastownhall/beads",
+  "owner": "gastownhall",
+  "name": "beads",
+  "stars": 24023,
+  "forks": 1599,
+  "open_issues": 370,
+  "created_at": "2025-10-12T03:09:46Z",
+  "language": "Go",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T05:23:54Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/gastownhall/beads",
+  "description": "Beads - A memory upgrade for your coding agent",
+  "topics": [
+    "agents",
+    "claude-code",
+    "coding"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "bd43df88624b687105ee801ac22650fc402b9df2",
+      "byte_size": 1087,
+      "last_commit_sha": "8b7cbfc3bc1da3f7a30f2d0a4ec65aeeb8eb34c3",
+      "last_commit_date": "2026-05-07T20:44:56Z",
+      "content_sha256": "ba853bbf9a7d97a974f8ad82ed6dde37e50d5c2d84a3603dece434e28bfa3707",
+      "raw_url": "https://raw.githubusercontent.com/gastownhall/beads/8b7cbfc3bc1da3f7a30f2d0a4ec65aeeb8eb34c3/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "34299895020f9a43ffd2f4954f1bdec9f5fb9e25",
+      "byte_size": 9074,
+      "last_commit_sha": "7044802d653cb35ff344d5fcd0f531e87991903c",
+      "last_commit_date": "2026-05-13T13:49:11Z",
+      "content_sha256": "b37168d8b07a4aada0b8c544c495d0f7fef47e3d135d0ef77ef817740dfd4cef",
+      "raw_url": "https://raw.githubusercontent.com/gastownhall/beads/7044802d653cb35ff344d5fcd0f531e87991903c/AGENTS.md"
+    }
+  ]
+}

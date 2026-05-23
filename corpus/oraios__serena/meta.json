@@ -1,0 +1,56 @@
+{
+  "repo": "oraios/serena",
+  "owner": "oraios",
+  "name": "serena",
+  "stars": 24520,
+  "forks": 1645,
+  "open_issues": 108,
+  "created_at": "2025-03-23T22:35:24Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-21T15:23:23Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/oraios/serena",
+  "description": "A powerful MCP toolkit for coding, providing semantic retrieval and editing capabilities  - the IDE for your agent",
+  "topics": [
+    "agent",
+    "ai",
+    "ai-coding",
+    "claude",
+    "claude-code",
+    "codex",
+    "ide",
+    "jetbrains",
+    "language-server",
+    "mcp-server",
+    "programming",
+    "vibe-coding"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "2b07df32f8bf0ea30ef60958a067e29cfd12c196",
+      "byte_size": 221,
+      "last_commit_sha": "fe2e2ce0ccb1c0af6dab50b901b13a507ecc498c",
+      "last_commit_date": "2026-04-08T11:17:09Z",
+      "content_sha256": "e575ccbb1433c3486dcb5d8be4844db9a52a9bb07373abcf6254a68f8a13d88d",
+      "raw_url": "https://raw.githubusercontent.com/oraios/serena/fe2e2ce0ccb1c0af6dab50b901b13a507ecc498c/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "2b07df32f8bf0ea30ef60958a067e29cfd12c196",
+      "byte_size": 221,
+      "last_commit_sha": "e2696f9f54950d699d8efaf50cbf04ad68765eeb",
+      "last_commit_date": "2026-04-07T13:55:57Z",
+      "content_sha256": "e575ccbb1433c3486dcb5d8be4844db9a52a9bb07373abcf6254a68f8a13d88d",
+      "raw_url": "https://raw.githubusercontent.com/oraios/serena/e2696f9f54950d699d8efaf50cbf04ad68765eeb/AGENTS.md"
+    }
+  ]
+}

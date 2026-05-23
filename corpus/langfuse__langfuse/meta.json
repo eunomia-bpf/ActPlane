@@ -1,0 +1,63 @@
+{
+  "repo": "langfuse/langfuse",
+  "owner": "langfuse",
+  "name": "langfuse",
+  "stars": 27751,
+  "forks": 2839,
+  "open_issues": 626,
+  "created_at": "2023-05-18T17:47:09Z",
+  "language": "TypeScript",
+  "license": "other",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:26:19Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/langfuse/langfuse",
+  "description": "🪢 Open source LLM engineering platform: LLM Observability, metrics, evals, prompt management, playground, datasets. Integrates with OpenTelemetry, Langchain, OpenAI SDK, LiteLLM, and more. 🍊YC W23 ",
+  "topics": [
+    "analytics",
+    "autogen",
+    "evaluation",
+    "langchain",
+    "large-language-models",
+    "llama-index",
+    "llm",
+    "llm-evaluation",
+    "llm-observability",
+    "llmops",
+    "monitoring",
+    "observability",
+    "open-source",
+    "openai",
+    "playground",
+    "prompt-engineering",
+    "prompt-management",
+    "self-hosted",
+    "ycombinator"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "byte_size": 10142,
+      "last_commit_sha": "1dc9ce65cfb97fe2e348e3cca463f842e7e2dcc3",
+      "last_commit_date": "2026-03-26T10:31:21Z",
+      "content_sha256": "8a318a46b4ffeba3fb44f351c4d92401cb0eadcc9afd483e83c597eca947631b",
+      "raw_url": "https://raw.githubusercontent.com/langfuse/langfuse/1dc9ce65cfb97fe2e348e3cca463f842e7e2dcc3/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "41280d2fa808081dc9c5bd47c047fe1ea62e6aae",
+      "byte_size": 10142,
+      "last_commit_sha": "1dc9ce65cfb97fe2e348e3cca463f842e7e2dcc3",
+      "last_commit_date": "2026-03-26T10:31:21Z",
+      "content_sha256": "8a318a46b4ffeba3fb44f351c4d92401cb0eadcc9afd483e83c597eca947631b",
+      "raw_url": "https://raw.githubusercontent.com/langfuse/langfuse/1dc9ce65cfb97fe2e348e3cca463f842e7e2dcc3/AGENTS.md"
+    }
+  ]
+}

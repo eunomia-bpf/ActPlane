@@ -1,0 +1,46 @@
+{
+  "repo": "Kilo-Org/kilocode",
+  "owner": "Kilo-Org",
+  "name": "kilocode",
+  "stars": 19506,
+  "forks": 2572,
+  "open_issues": 1255,
+  "created_at": "2025-03-10T15:34:26Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:37:50Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/Kilo-Org/kilocode",
+  "description": "Kilo is the all-in-one agentic engineering platform. Build, ship, and iterate faster with the most popular open source coding agent.",
+  "topics": [
+    "ai",
+    "ai-age",
+    "ai-coding",
+    "ai-developer-tools",
+    "chatgpt",
+    "claude",
+    "cli",
+    "gemini",
+    "jetbrains",
+    "sonnet",
+    "vscode",
+    "vscode-extension"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "914d394946b1f3484cb03bca9dcabd4c9bea6feb",
+      "byte_size": 15629,
+      "last_commit_sha": "30b1848c5121c1a66c5a3810c2f97b16d242c0f7",
+      "last_commit_date": "2026-05-20T20:49:02Z",
+      "content_sha256": "89f0b17a542a506201ccc7f38b0735b4c8d1c9f9c4da4cc427180ae4fd48cef8",
+      "raw_url": "https://raw.githubusercontent.com/Kilo-Org/kilocode/30b1848c5121c1a66c5a3810c2f97b16d242c0f7/AGENTS.md"
+    }
+  ]
+}

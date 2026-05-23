@@ -1,0 +1,51 @@
+{
+  "repo": "openclaw/openclaw",
+  "owner": "openclaw",
+  "name": "openclaw",
+  "stars": 374052,
+  "forks": 77743,
+  "open_issues": 7230,
+  "created_at": "2025-11-24T10:16:47Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:42:51Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/openclaw/openclaw",
+  "description": "Your own personal AI assistant. Any OS. Any Platform. The lobster way. 🦞 ",
+  "topics": [
+    "ai",
+    "assistant",
+    "crustacean",
+    "molty",
+    "openclaw",
+    "own-your-data",
+    "personal"
+  ],
+  "seed": true,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "byte_size": 18138,
+      "last_commit_sha": "1685a0dd12b54d76189a44364f41e9c7b6c449ea",
+      "last_commit_date": "2026-02-22T17:40:06Z",
+      "content_sha256": "248b86559b20b3ba80544e58bf8c5bb60b4ae87dd66ed1440e5295605a04904d",
+      "raw_url": "https://raw.githubusercontent.com/openclaw/openclaw/1685a0dd12b54d76189a44364f41e9c7b6c449ea/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "5d2a7978a5f68dbc72bd5d87e04735c62da28699",
+      "byte_size": 18138,
+      "last_commit_sha": "b6c8807ca0ffe27326f7594767ad63c336556c8a",
+      "last_commit_date": "2026-05-22T11:56:10Z",
+      "content_sha256": "248b86559b20b3ba80544e58bf8c5bb60b4ae87dd66ed1440e5295605a04904d",
+      "raw_url": "https://raw.githubusercontent.com/openclaw/openclaw/b6c8807ca0ffe27326f7594767ad63c336556c8a/AGENTS.md"
+    }
+  ]
+}

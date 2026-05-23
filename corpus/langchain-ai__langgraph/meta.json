@@ -1,0 +1,62 @@
+{
+  "repo": "langchain-ai/langgraph",
+  "owner": "langchain-ai",
+  "name": "langgraph",
+  "stars": 32733,
+  "forks": 5537,
+  "open_issues": 554,
+  "created_at": "2023-08-09T18:33:12Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T16:57:50Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/langchain-ai/langgraph",
+  "description": "Build resilient agents.",
+  "topics": [
+    "agents",
+    "ai",
+    "ai-agents",
+    "chatgpt",
+    "deepagents",
+    "enterprise",
+    "framework",
+    "gemini",
+    "generative-ai",
+    "langchain",
+    "langgraph",
+    "llm",
+    "multiagent",
+    "open-source",
+    "openai",
+    "pydantic",
+    "python",
+    "rag"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "cc4ee1a9a254d47ed182622392e67f437df9b945",
+      "byte_size": 1863,
+      "last_commit_sha": "f688b068e7f06111fc69ee70adc1b66c75fa5a93",
+      "last_commit_date": "2026-02-05T23:32:08Z",
+      "content_sha256": "9ac68fdcd0c7c44b2d3c1d9d2c72049c314222d50b29f813c4a5e19baeb01945",
+      "raw_url": "https://raw.githubusercontent.com/langchain-ai/langgraph/f688b068e7f06111fc69ee70adc1b66c75fa5a93/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "7a8d1dc123639a5db6acd2e09563b7340154d77c",
+      "byte_size": 1866,
+      "last_commit_sha": "f688b068e7f06111fc69ee70adc1b66c75fa5a93",
+      "last_commit_date": "2026-02-05T23:32:08Z",
+      "content_sha256": "484374d953fe69448d757922c530a13bdba87eb9916cfcbff9202a136a1202df",
+      "raw_url": "https://raw.githubusercontent.com/langchain-ai/langgraph/f688b068e7f06111fc69ee70adc1b66c75fa5a93/AGENTS.md"
+    }
+  ]
+}

@@ -3,6 +3,9 @@
   "owner": "HKUDS",
   "name": "nanobot",
   "stars": 43017,
+  "forks": 7578,
+  "open_issues": 863,
+  "created_at": "2026-02-01T07:16:15Z",
   "language": "Python",
   "license": "mit",
   "fork": false,
@@ -26,9 +29,9 @@
     "openai",
     "openclaw"
   ],
-  "seed": false,
+  "seed": true,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "CLAUDE.md",

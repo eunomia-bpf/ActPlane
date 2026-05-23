@@ -1,0 +1,51 @@
+{
+  "repo": "udecode/plate",
+  "owner": "udecode",
+  "name": "plate",
+  "stars": 16287,
+  "forks": 980,
+  "open_issues": 23,
+  "created_at": "2019-12-02T01:40:10Z",
+  "language": "TypeScript",
+  "license": "other",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T05:09:48Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/udecode/plate",
+  "description": "Rich-text editor with AI and shadcn/ui",
+  "topics": [
+    "ai",
+    "mcp",
+    "react",
+    "shadcn-ui",
+    "slate",
+    "typescript",
+    "wysiwyg"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "925ecf34a142abf1c5498eeb74817f59770b450d",
+      "byte_size": 19,
+      "last_commit_sha": "36c5ebb7c9a849ef646f9d3f41af0a48e5395d47",
+      "last_commit_date": "2026-03-29T22:23:27Z",
+      "content_sha256": "57f7bdfb14ab39b35edaa1820b96be140ab2a7fa808580f1f7c59f309c0205bd",
+      "raw_url": "https://raw.githubusercontent.com/udecode/plate/36c5ebb7c9a849ef646f9d3f41af0a48e5395d47/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "ec6990d8acd5e4926d47f123cfaeb2c1823e7110",
+      "byte_size": 14299,
+      "last_commit_sha": "4cbf32e630a8e3f0627f2161a8e09acb40303a33",
+      "last_commit_date": "2026-05-20T17:58:24Z",
+      "content_sha256": "ff1a233934c13d8d60114238d70d20a639c0706fe7468fd637f07f846497c862",
+      "raw_url": "https://raw.githubusercontent.com/udecode/plate/4cbf32e630a8e3f0627f2161a8e09acb40303a33/AGENTS.md"
+    }
+  ]
+}

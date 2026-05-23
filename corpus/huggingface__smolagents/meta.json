@@ -1,0 +1,34 @@
+{
+  "repo": "huggingface/smolagents",
+  "owner": "huggingface",
+  "name": "smolagents",
+  "stars": 27461,
+  "forks": 2602,
+  "open_issues": 549,
+  "created_at": "2024-12-05T11:28:04Z",
+  "language": "Python",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-19T20:32:05Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/huggingface/smolagents",
+  "description": "🤗 smolagents: a barebones library for agents that think in code.",
+  "topics": [],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "444c8a72789e4c5875d09d59a7ff5da95e488445",
+      "byte_size": 157,
+      "last_commit_sha": "c22159809803632bd1c45c68ef624edc996ee82c",
+      "last_commit_date": "2025-08-20T14:05:48Z",
+      "content_sha256": "69e08bedb27a4feae9f3ecf99ade010260a36b9ae05963b414ed2df614c3b6bf",
+      "raw_url": "https://raw.githubusercontent.com/huggingface/smolagents/c22159809803632bd1c45c68ef624edc996ee82c/AGENTS.md"
+    }
+  ],
+  "excluded": false
+}

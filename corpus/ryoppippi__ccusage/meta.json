@@ -1,0 +1,43 @@
+{
+  "repo": "ryoppippi/ccusage",
+  "owner": "ryoppippi",
+  "name": "ccusage",
+  "stars": 14555,
+  "forks": 583,
+  "open_issues": 13,
+  "created_at": "2025-05-29T16:56:50Z",
+  "language": "Rust",
+  "license": "other",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T21:00:44Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/ryoppippi/ccusage",
+  "description": "Analyze coding (agent) CLI token usage and costs from local data.",
+  "topics": [],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "7ba93ce1accd1503087e4521d5296cee8a82955c",
+      "byte_size": 4639,
+      "last_commit_sha": "e4c32d6b7ccdbd40a7dc1a3bcbc84acaddc68950",
+      "last_commit_date": "2026-05-19T22:30:08Z",
+      "content_sha256": "c848bb336792eb114375e3f678ec31045a1890f668efa06e6cd39fd53735a3c8",
+      "raw_url": "https://raw.githubusercontent.com/ryoppippi/ccusage/e4c32d6b7ccdbd40a7dc1a3bcbc84acaddc68950/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "681311eb9cf453d0faddf3aacaec7357e97ba8e9",
+      "byte_size": 4639,
+      "last_commit_sha": "5129d614f99a7d685c553979b5c98a73aab0fc79",
+      "last_commit_date": "2025-09-23T16:45:32Z",
+      "content_sha256": "c848bb336792eb114375e3f678ec31045a1890f668efa06e6cd39fd53735a3c8",
+      "raw_url": "https://raw.githubusercontent.com/ryoppippi/ccusage/5129d614f99a7d685c553979b5c98a73aab0fc79/AGENTS.md"
+    }
+  ]
+}

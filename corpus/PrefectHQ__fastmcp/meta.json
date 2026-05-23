@@ -1,0 +1,53 @@
+{
+  "repo": "PrefectHQ/fastmcp",
+  "owner": "PrefectHQ",
+  "name": "fastmcp",
+  "stars": 25274,
+  "forks": 2027,
+  "open_issues": 239,
+  "created_at": "2024-11-30T01:47:40Z",
+  "language": "Python",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T01:14:12Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/PrefectHQ/fastmcp",
+  "description": "🚀 The fast, Pythonic way to build MCP servers and clients.",
+  "topics": [
+    "agents",
+    "fastmcp",
+    "llms",
+    "mcp",
+    "mcp-clients",
+    "mcp-servers",
+    "mcp-tools",
+    "model-context-protocol",
+    "python"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "0643525442fcfb499cdda2f9b9008e6f986f5b70",
+      "byte_size": 14253,
+      "last_commit_sha": "b19434998303ae6c5c1d5c25129a4c8aec8b0091",
+      "last_commit_date": "2026-05-21T10:42:48Z",
+      "content_sha256": "d533fcc93d50313b09bd060df1699da17e48bfcaaff325e95c35f2db500ca959",
+      "raw_url": "https://raw.githubusercontent.com/PrefectHQ/fastmcp/b19434998303ae6c5c1d5c25129a4c8aec8b0091/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "681311eb9cf453d0faddf3aacaec7357e97ba8e9",
+      "byte_size": 14253,
+      "last_commit_sha": "270783e6149fece5e14dd0b2b9ad53e098d5cb9b",
+      "last_commit_date": "2026-02-25T16:18:59Z",
+      "content_sha256": "d533fcc93d50313b09bd060df1699da17e48bfcaaff325e95c35f2db500ca959",
+      "raw_url": "https://raw.githubusercontent.com/PrefectHQ/fastmcp/270783e6149fece5e14dd0b2b9ad53e098d5cb9b/AGENTS.md"
+    }
+  ]
+}

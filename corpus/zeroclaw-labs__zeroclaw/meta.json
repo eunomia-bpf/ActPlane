@@ -1,0 +1,52 @@
+{
+  "repo": "zeroclaw-labs/zeroclaw",
+  "owner": "zeroclaw-labs",
+  "name": "zeroclaw",
+  "stars": 31536,
+  "forks": 4647,
+  "open_issues": 510,
+  "created_at": "2026-02-13T08:56:04Z",
+  "language": "Rust",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T05:34:57Z",
+  "default_branch": "master",
+  "html_url": "https://github.com/zeroclaw-labs/zeroclaw",
+  "description": "Fast, small, and fully autonomous AI personal assistant infrastructure, any OS, any platform — deploy anywhere, swap anything 🦀",
+  "topics": [
+    "agent",
+    "agentic",
+    "ai",
+    "infra",
+    "ml",
+    "openclaw",
+    "os",
+    "zeroclaw"
+  ],
+  "seed": true,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "d5d8466359e43c00237202ecd1e1cdd83e98800a",
+      "byte_size": 461,
+      "last_commit_sha": "c3ff635300c03132441cbf9ae9ad0477a6e11ddb",
+      "last_commit_date": "2026-03-29T01:19:03Z",
+      "content_sha256": "bf42e64307ae6d17bad1cead5fc50b9768310b1355cfc4f554070f8ad19eb958",
+      "raw_url": "https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/c3ff635300c03132441cbf9ae9ad0477a6e11ddb/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "d6028f3cffdd365d0a080245df905fe3d68966fd",
+      "byte_size": 13118,
+      "last_commit_sha": "18622d91b681f1898dfc02414bdcdf2a77116670",
+      "last_commit_date": "2026-05-20T11:54:16Z",
+      "content_sha256": "344464ffdefa91b187f0b78663c508dad8e5ed2cc58a46d4d21a72961bb53677",
+      "raw_url": "https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/18622d91b681f1898dfc02414bdcdf2a77116670/AGENTS.md"
+    }
+  ]
+}

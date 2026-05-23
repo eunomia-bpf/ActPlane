@@ -1,0 +1,49 @@
+{
+  "repo": "Portkey-AI/gateway",
+  "owner": "Portkey-AI",
+  "name": "gateway",
+  "stars": 11825,
+  "forks": 1080,
+  "open_issues": 174,
+  "created_at": "2023-08-23T11:52:47Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-19T11:51:54Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/Portkey-AI/gateway",
+  "description": "A blazing fast AI Gateway with integrated guardrails. Route to 1,600+ LLMs, 50+ AI Guardrails with 1 fast & friendly API.",
+  "topics": [
+    "ai-gateway",
+    "gateway",
+    "generative-ai",
+    "hacktoberfest",
+    "langchain",
+    "llm",
+    "llm-gateway",
+    "llmops",
+    "llms",
+    "mcp",
+    "mcp-client",
+    "mcp-gateway",
+    "mcp-servers",
+    "model-router",
+    "openai"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "9d16a34fc97ae83404fcf5cf03dbb653a043a4c0",
+      "byte_size": 3382,
+      "last_commit_sha": "7bd99d1196b1a09210eb5dbd0042d909911c6b69",
+      "last_commit_date": "2025-06-10T10:49:04Z",
+      "content_sha256": "3615e4732827d92a8757eb9fad40e5a9cb2cf22014857e5049b2aa7e6f0b3ed3",
+      "raw_url": "https://raw.githubusercontent.com/Portkey-AI/gateway/7bd99d1196b1a09210eb5dbd0042d909911c6b69/CLAUDE.md"
+    }
+  ]
+}

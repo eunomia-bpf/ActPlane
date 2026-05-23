@@ -1,0 +1,50 @@
+{
+  "repo": "AstrBotDevs/AstrBot",
+  "owner": "AstrBotDevs",
+  "name": "AstrBot",
+  "stars": 32888,
+  "forks": 2262,
+  "open_issues": 1155,
+  "created_at": "2022-12-08T13:27:46Z",
+  "language": "Python",
+  "license": "agpl-3.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T12:57:20Z",
+  "default_branch": "master",
+  "html_url": "https://github.com/AstrBotDevs/AstrBot",
+  "description": "AI Agent Assistant & development framework that integrates lots of IM platforms, LLMs, plugins and AI feature, and can be your openclaw alternative. ✨",
+  "topics": [
+    "agent",
+    "ai",
+    "chatbot",
+    "chatgpt",
+    "discord",
+    "docker",
+    "gemini",
+    "gpt",
+    "llama",
+    "llm",
+    "mcp",
+    "openai",
+    "python",
+    "qq",
+    "qqbot",
+    "telegram"
+  ],
+  "seed": true,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "e8fe4b3558c8052bdb448d51d2d92ab4519ba5e7",
+      "byte_size": 2052,
+      "last_commit_sha": "dceacd5a879737a777672f9ae1039752b3795743",
+      "last_commit_date": "2026-05-17T07:07:39Z",
+      "content_sha256": "e5a9b31485c6cb02bfa6e4e0436576bc6d679c7777bc5aefc1fd161ba99a2a4d",
+      "raw_url": "https://raw.githubusercontent.com/AstrBotDevs/AstrBot/dceacd5a879737a777672f9ae1039752b3795743/AGENTS.md"
+    }
+  ]
+}

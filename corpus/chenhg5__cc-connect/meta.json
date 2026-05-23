@@ -1,0 +1,43 @@
+{
+  "repo": "chenhg5/cc-connect",
+  "owner": "chenhg5",
+  "name": "cc-connect",
+  "stars": 10219,
+  "forks": 942,
+  "open_issues": 446,
+  "created_at": "2026-02-28T02:39:39Z",
+  "language": "Go",
+  "license": null,
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-20T14:16:34Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/chenhg5/cc-connect",
+  "description": "Bridge local AI coding agents (Claude Code, Cursor, Gemini CLI, Codex) to messaging platforms (Feishu/Lark, DingTalk, Slack, Telegram, Discord, LINE, WeChat Work). Chat with your AI dev assistant from anywhere — no public IP required for most platforms.",
+  "topics": [],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "0469017314ef10d34c68c0ef139926419e4a491b",
+      "byte_size": 9924,
+      "last_commit_sha": "e055bc8cf5e2fa6c976b657fa3cee40f7839d5dc",
+      "last_commit_date": "2026-04-17T05:18:33Z",
+      "content_sha256": "c345cdd5dc25069f8f0b4eeeac2c3a656887f392195e300d339a48f66885d656",
+      "raw_url": "https://raw.githubusercontent.com/chenhg5/cc-connect/e055bc8cf5e2fa6c976b657fa3cee40f7839d5dc/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "0469017314ef10d34c68c0ef139926419e4a491b",
+      "byte_size": 9924,
+      "last_commit_sha": "e055bc8cf5e2fa6c976b657fa3cee40f7839d5dc",
+      "last_commit_date": "2026-04-17T05:18:33Z",
+      "content_sha256": "c345cdd5dc25069f8f0b4eeeac2c3a656887f392195e300d339a48f66885d656",
+      "raw_url": "https://raw.githubusercontent.com/chenhg5/cc-connect/e055bc8cf5e2fa6c976b657fa3cee40f7839d5dc/AGENTS.md"
+    }
+  ]
+}

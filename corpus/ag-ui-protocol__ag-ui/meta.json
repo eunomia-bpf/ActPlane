@@ -1,0 +1,49 @@
+{
+  "repo": "ag-ui-protocol/ag-ui",
+  "owner": "ag-ui-protocol",
+  "name": "ag-ui",
+  "stars": 13758,
+  "forks": 1233,
+  "open_issues": 312,
+  "created_at": "2025-05-07T12:49:37Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T23:54:13Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/ag-ui-protocol/ag-ui",
+  "description": "AG-UI: the Agent-User Interaction Protocol. Bring Agents into Frontend Applications.",
+  "topics": [
+    "ag-ui-protocol",
+    "agent-frontend",
+    "agent-ui",
+    "agentic-workflow",
+    "ai-agents"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "201604aa042e1513d7b20d488569f34131b60cd9",
+      "byte_size": 4766,
+      "last_commit_sha": "ebf3bcf2eb9fe76aa11040b8ce85f79dbcf8e527",
+      "last_commit_date": "2026-02-10T21:04:09Z",
+      "content_sha256": "00ecb58ca9bbdf7695394988355120664852ea87fe416db0bcdf9b043479b5a6",
+      "raw_url": "https://raw.githubusercontent.com/ag-ui-protocol/ag-ui/ebf3bcf2eb9fe76aa11040b8ce85f79dbcf8e527/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "6b65631a07669481c471be3719a006dce03657fb",
+      "byte_size": 1233,
+      "last_commit_sha": "ebf3bcf2eb9fe76aa11040b8ce85f79dbcf8e527",
+      "last_commit_date": "2026-02-10T21:04:09Z",
+      "content_sha256": "3e1b213305627a3010d761e9676b630d11f9a3d614a02f4ce42d053be2de71bb",
+      "raw_url": "https://raw.githubusercontent.com/ag-ui-protocol/ag-ui/ebf3bcf2eb9fe76aa11040b8ce85f79dbcf8e527/AGENTS.md"
+    }
+  ]
+}

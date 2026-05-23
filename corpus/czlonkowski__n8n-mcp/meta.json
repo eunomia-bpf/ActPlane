@@ -1,0 +1,38 @@
+{
+  "repo": "czlonkowski/n8n-mcp",
+  "owner": "czlonkowski",
+  "name": "n8n-mcp",
+  "stars": 21194,
+  "forks": 3432,
+  "open_issues": 73,
+  "created_at": "2025-06-07T12:15:57Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T10:40:06Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/czlonkowski/n8n-mcp",
+  "description": "A MCP for Claude Desktop / Claude Code / Windsurf / Cursor to build n8n workflows for you ",
+  "topics": [
+    "mcp",
+    "mcp-server",
+    "n8n",
+    "workflows"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "3ea015ac018b4670b7f57610625435b16296f8c1",
+      "byte_size": 11032,
+      "last_commit_sha": "796c42731760ddf5d1dc69a1ed001ed32b4b90ab",
+      "last_commit_date": "2026-04-04T09:27:20Z",
+      "content_sha256": "885e29ad6460bc5bd7874e2002c0dd702141145f36281fd531f676386ae48caf",
+      "raw_url": "https://raw.githubusercontent.com/czlonkowski/n8n-mcp/796c42731760ddf5d1dc69a1ed001ed32b4b90ab/CLAUDE.md"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "repo": "chroma-core/chroma",
+  "owner": "chroma-core",
+  "name": "chroma",
+  "stars": 28059,
+  "forks": 2268,
+  "open_issues": 632,
+  "created_at": "2022-10-05T17:58:44Z",
+  "language": "Rust",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T00:22:55Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/chroma-core/chroma",
+  "description": "Search infrastructure for AI",
+  "topics": [
+    "agents",
+    "ai",
+    "ai-agents",
+    "database",
+    "rust",
+    "rust-lang"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "ad428f6977d43cb6d63e579a9a6ab2e53f43151e",
+      "byte_size": 1272,
+      "last_commit_sha": "b7cb6acb3fcedfd4cb310b8d550366de070dd56b",
+      "last_commit_date": "2026-05-04T18:24:33Z",
+      "content_sha256": "6fb3af334990a87ab8b25461d3c950ec3b5bdc3d47ef191da77a8f3666e88408",
+      "raw_url": "https://raw.githubusercontent.com/chroma-core/chroma/b7cb6acb3fcedfd4cb310b8d550366de070dd56b/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "ddc88d378dc9c013c79ac692954c9a3f939834b1",
+      "byte_size": 129,
+      "last_commit_sha": "1251ff7659e21f3f25cc53941cd2b95c17e4482f",
+      "last_commit_date": "2026-05-01T18:13:50Z",
+      "content_sha256": "bf57b0829caaaf6214792ce17859f1ea78182cc8ec6aa3a88e6914383453143d",
+      "raw_url": "https://raw.githubusercontent.com/chroma-core/chroma/1251ff7659e21f3f25cc53941cd2b95c17e4482f/AGENTS.md"
+    }
+  ]
+}

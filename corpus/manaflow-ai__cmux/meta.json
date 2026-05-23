@@ -1,0 +1,52 @@
+{
+  "repo": "manaflow-ai/cmux",
+  "owner": "manaflow-ai",
+  "name": "cmux",
+  "stars": 17742,
+  "forks": 1393,
+  "open_issues": 2047,
+  "created_at": "2026-01-28T10:03:24Z",
+  "language": "Swift",
+  "license": "other",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:27:53Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/manaflow-ai/cmux",
+  "description": "Ghostty-based macOS terminal with vertical tabs and notifications for AI coding agents",
+  "topics": [
+    "amp",
+    "claude-code",
+    "codex",
+    "gemini",
+    "ghostty",
+    "opencode",
+    "terminal",
+    "tmux"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "82d739dd43c6db44ad529d10967fc577512e6c02",
+      "byte_size": 21527,
+      "last_commit_sha": "16bcb32264e4e25df42400a7bef2d989eb91d1fb",
+      "last_commit_date": "2026-05-22T08:42:01Z",
+      "content_sha256": "6ac94970e726bdde9367de31d188c710167058ac4a7dd3cacfeb5f75f6ba2d99",
+      "raw_url": "https://raw.githubusercontent.com/manaflow-ai/cmux/16bcb32264e4e25df42400a7bef2d989eb91d1fb/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "681311eb9cf453d0faddf3aacaec7357e97ba8e9",
+      "byte_size": 21527,
+      "last_commit_sha": "fd78696474182081a2208ca68b6192b7fcca6b38",
+      "last_commit_date": "2026-01-22T11:18:02Z",
+      "content_sha256": "6ac94970e726bdde9367de31d188c710167058ac4a7dd3cacfeb5f75f6ba2d99",
+      "raw_url": "https://raw.githubusercontent.com/manaflow-ai/cmux/fd78696474182081a2208ca68b6192b7fcca6b38/AGENTS.md"
+    }
+  ]
+}

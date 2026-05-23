@@ -1,0 +1,60 @@
+{
+  "repo": "googleworkspace/cli",
+  "owner": "googleworkspace",
+  "name": "cli",
+  "stars": 26511,
+  "forks": 1388,
+  "open_issues": 111,
+  "created_at": "2026-03-02T19:46:06Z",
+  "language": "Rust",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-12T16:46:11Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/googleworkspace/cli",
+  "description": "Google Workspace CLI — one command-line tool for Drive, Gmail, Calendar, Sheets, Docs, Chat, Admin, and more. Dynamically built from Google Discovery Service. Includes AI agent skills.",
+  "topics": [
+    "agent-skills",
+    "ai-agent",
+    "automation",
+    "cli",
+    "discovery-api",
+    "gemini-cli-extension",
+    "google-admin",
+    "google-api",
+    "google-calendar",
+    "google-chat",
+    "google-docs",
+    "google-drive",
+    "google-sheets",
+    "google-workspace",
+    "oauth2",
+    "rust"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "2b3af2d1b7f5e0553b6f8a46a92abd93742c2c0d",
+      "byte_size": 110,
+      "last_commit_sha": "62d6ddbfa98dd0b29365dbdcc9c4e4b23f7a54ab",
+      "last_commit_date": "2026-03-05T17:08:50Z",
+      "content_sha256": "03046a60fcbdcbe5a82f953c34d15e30d2a1f43398797855cdf5a3d52e5287f2",
+      "raw_url": "https://raw.githubusercontent.com/googleworkspace/cli/62d6ddbfa98dd0b29365dbdcc9c4e4b23f7a54ab/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "722112264ba71816a4e7c5561b56aa19011e0dea",
+      "byte_size": 11981,
+      "last_commit_sha": "86c08cfc0d1b69653bc7d0575d0a5989fd87d2ad",
+      "last_commit_date": "2026-03-31T17:17:57Z",
+      "content_sha256": "5e64cee7455c0684d9b3266f00395b16a49d0c4f4022fa21009bd686f57465bf",
+      "raw_url": "https://raw.githubusercontent.com/googleworkspace/cli/86c08cfc0d1b69653bc7d0575d0a5989fd87d2ad/AGENTS.md"
+    }
+  ]
+}

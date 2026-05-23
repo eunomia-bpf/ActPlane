@@ -1,0 +1,63 @@
+{
+  "repo": "nocobase/nocobase",
+  "owner": "nocobase",
+  "name": "nocobase",
+  "stars": 22491,
+  "forks": 2620,
+  "open_issues": 298,
+  "created_at": "2020-10-24T07:27:48Z",
+  "language": "TypeScript",
+  "license": "other",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T07:10:41Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/nocobase/nocobase",
+  "description": "NocoBase is an open-source AI + no-code platform for building business systems fast. Instead of generating everything from scratch, AI works on top of production-proven infrastructure and a WYSIWYG no-code interface, so you get both speed and reliability.",
+  "topics": [
+    "admin-dashboard",
+    "ai-agent",
+    "ai-agents",
+    "ai-assistant",
+    "ai-tools",
+    "airtable",
+    "crm",
+    "crud",
+    "erp",
+    "internal-tool",
+    "internal-tools",
+    "low-code",
+    "lowcode",
+    "no-code",
+    "nocode",
+    "project-management",
+    "salesforce",
+    "self-hosted",
+    "workflows"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "1917d33c5f9a3a3cb4a9e7f115d09f08448083e7",
+      "byte_size": 181,
+      "last_commit_sha": "a7753e223cc52c68e46069bb136a892b7d571a0d",
+      "last_commit_date": "2026-05-22T02:59:35Z",
+      "content_sha256": "0ff53f7946fa5df499dbd3921fa694907e061f6aef252deacd5d1aa5fa9181ad",
+      "raw_url": "https://raw.githubusercontent.com/nocobase/nocobase/a7753e223cc52c68e46069bb136a892b7d571a0d/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "8110cbd78bd53a0b5c6c6d58f9db3d6793dbd90d",
+      "byte_size": 4237,
+      "last_commit_sha": "a7753e223cc52c68e46069bb136a892b7d571a0d",
+      "last_commit_date": "2026-05-22T02:59:35Z",
+      "content_sha256": "50a009b55aa22af32ea4b32e25073a3f5c7ef3b1cc0db7b6654c386d6448885a",
+      "raw_url": "https://raw.githubusercontent.com/nocobase/nocobase/a7753e223cc52c68e46069bb136a892b7d571a0d/AGENTS.md"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "repo": "multica-ai/multica",
+  "owner": "multica-ai",
+  "name": "multica",
+  "stars": 31548,
+  "forks": 3818,
+  "open_issues": 680,
+  "created_at": "2026-01-13T17:59:46Z",
+  "language": "TypeScript",
+  "license": "other",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T11:14:55Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/multica-ai/multica",
+  "description": "The open-source managed agents platform. Turn coding agents into real teammates — assign tasks, track progress, compound skills.",
+  "topics": [],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "fecef50914512ab43983c26d0d76c9f2bc6506eb",
+      "byte_size": 27326,
+      "last_commit_sha": "fd0fe1d08a18784462fc1ceb363adfbb31601878",
+      "last_commit_date": "2026-05-22T11:14:55Z",
+      "content_sha256": "bd8f0a1e736bea051660ce3af032cda9adf67e3934961dd02d8dae5f5895084d",
+      "raw_url": "https://raw.githubusercontent.com/multica-ai/multica/fd0fe1d08a18784462fc1ceb363adfbb31601878/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "81cd47b0c56c164c306ee7395bb37aa5c07e1b22",
+      "byte_size": 1892,
+      "last_commit_sha": "43466a6402e0d6b6bd88b76d573fa8a03da2c042",
+      "last_commit_date": "2026-04-13T05:38:02Z",
+      "content_sha256": "6d0d162591262ace500a54d4bb8c65b4ed23760a3e8df6c4116bb2071ffa369f",
+      "raw_url": "https://raw.githubusercontent.com/multica-ai/multica/43466a6402e0d6b6bd88b76d573fa8a03da2c042/AGENTS.md"
+    }
+  ]
+}

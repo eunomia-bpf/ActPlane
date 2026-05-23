@@ -1,0 +1,55 @@
+{
+  "repo": "tambo-ai/tambo",
+  "owner": "tambo-ai",
+  "name": "tambo",
+  "stars": 11156,
+  "forks": 567,
+  "open_issues": 28,
+  "created_at": "2024-06-15T17:11:37Z",
+  "language": "TypeScript",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-21T21:27:08Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/tambo-ai/tambo",
+  "description": "Generative UI SDK for React",
+  "topics": [
+    "agent",
+    "agents",
+    "ai",
+    "assistant",
+    "assistant-chat-bots",
+    "generative-ui",
+    "js",
+    "react",
+    "reactjs",
+    "ui",
+    "ui-components"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "66f8854c540fdb02a88276eaff61f01bd47e68e2",
+      "byte_size": 1309,
+      "last_commit_sha": "2fdb145cd41f95a67dc29bfd390d6a2018f6ed05",
+      "last_commit_date": "2026-02-13T00:31:50Z",
+      "content_sha256": "653ad813cf76fe73a923a2691a9d15e213474ccc1a3595b9832fd9e48b54a60c",
+      "raw_url": "https://raw.githubusercontent.com/tambo-ai/tambo/2fdb145cd41f95a67dc29bfd390d6a2018f6ed05/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "9bd2813631d2167afde7e747af2b55a7e5deb727",
+      "byte_size": 27515,
+      "last_commit_sha": "8a245ba64972ba665da7b324b70c1d3cd1ec71b1",
+      "last_commit_date": "2026-02-27T22:14:44Z",
+      "content_sha256": "49c6a7461704b424f249e8aab50b9db5d8bcbc331dfa3811ddca004a6cc5abbf",
+      "raw_url": "https://raw.githubusercontent.com/tambo-ai/tambo/8a245ba64972ba665da7b324b70c1d3cd1ec71b1/AGENTS.md"
+    }
+  ]
+}

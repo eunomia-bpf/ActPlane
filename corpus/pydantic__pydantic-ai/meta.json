@@ -1,0 +1,49 @@
+{
+  "repo": "pydantic/pydantic-ai",
+  "owner": "pydantic",
+  "name": "pydantic-ai",
+  "stars": 17223,
+  "forks": 2118,
+  "open_issues": 540,
+  "created_at": "2024-06-21T15:55:04Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-23T02:43:55Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/pydantic/pydantic-ai",
+  "description": "AI Agent Framework, the Pydantic way",
+  "topics": [
+    "agent-framework",
+    "genai",
+    "llm",
+    "pydantic",
+    "python"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "47dc3e3d863cfb5727b87d785d09abf9743c0a72",
+      "byte_size": 12172,
+      "last_commit_sha": "a456cffce61537e3f50fdd345e72330a32adde34",
+      "last_commit_date": "2026-02-02T20:48:42Z",
+      "content_sha256": "8afdecf26ae16c213879316a04e793e50a25a46c5e4d58d229e22aee3a2a5fd1",
+      "raw_url": "https://raw.githubusercontent.com/pydantic/pydantic-ai/a456cffce61537e3f50fdd345e72330a32adde34/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "4fc0ae0eceb42db617cb0a9a07681602617bb1c9",
+      "byte_size": 12172,
+      "last_commit_sha": "8b21d4bb9a125236f921fa0745616c08d90d6abc",
+      "last_commit_date": "2026-05-20T22:12:56Z",
+      "content_sha256": "8afdecf26ae16c213879316a04e793e50a25a46c5e4d58d229e22aee3a2a5fd1",
+      "raw_url": "https://raw.githubusercontent.com/pydantic/pydantic-ai/8b21d4bb9a125236f921fa0745616c08d90d6abc/AGENTS.md"
+    }
+  ]
+}

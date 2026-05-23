@@ -1,0 +1,57 @@
+{
+  "repo": "Usagi-org/ai-goofish-monitor",
+  "owner": "Usagi-org",
+  "name": "ai-goofish-monitor",
+  "stars": 12049,
+  "forks": 1746,
+  "open_issues": 47,
+  "created_at": "2025-07-16T08:13:41Z",
+  "language": "Python",
+  "license": "mit",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-18T10:52:34Z",
+  "default_branch": "master",
+  "html_url": "https://github.com/Usagi-org/ai-goofish-monitor",
+  "description": "基于 Playwright 和AI实现的闲鱼多任务实时/定时监控与智能分析系统，配备了功能完善的后台管理UI。帮助用户从闲鱼海量商品中，找到心仪产品。",
+  "topics": [
+    "ai",
+    "ai-assistant",
+    "ai-tools",
+    "automation",
+    "gemini",
+    "goofish",
+    "open-source",
+    "openai",
+    "playwright",
+    "tool",
+    "xian-yu",
+    "xianyu",
+    "xianyu-bot"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "45d92ad474fd6306e25109155c348c214f08b5a8",
+      "byte_size": 3011,
+      "last_commit_sha": "e2d70bab1332613339090c55965d835691624cb3",
+      "last_commit_date": "2026-01-13T05:53:22Z",
+      "content_sha256": "6c5bc1056b0985e77a2c291d950b5e798cbef958c39957ceb239c56018e2faac",
+      "raw_url": "https://raw.githubusercontent.com/Usagi-org/ai-goofish-monitor/e2d70bab1332613339090c55965d835691624cb3/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "5bae24d1aa48b7b8ee4441a2ff286363006c23f1",
+      "byte_size": 3085,
+      "last_commit_sha": "ab4fecc47aace7845e3cde196be7635c1c7f7b04",
+      "last_commit_date": "2026-01-13T08:35:45Z",
+      "content_sha256": "6c99c8370c89ef5c12fb045d7ec95c0ec4fb0c9a1fdb332c8efee9eba50757d4",
+      "raw_url": "https://raw.githubusercontent.com/Usagi-org/ai-goofish-monitor/ab4fecc47aace7845e3cde196be7635c1c7f7b04/AGENTS.md"
+    }
+  ]
+}

@@ -2,7 +2,10 @@
   "repo": "infiniflow/ragflow",
   "owner": "infiniflow",
   "name": "ragflow",
-  "stars": 81067,
+  "stars": 81068,
+  "forks": 9285,
+  "open_issues": 3057,
+  "created_at": "2023-12-12T06:13:13Z",
   "language": "Python",
   "license": "apache-2.0",
   "fork": false,
@@ -25,7 +28,7 @@
   ],
   "seed": false,
   "domain": "",
-  "retrieved_at": "2026-05-23T06:41:37Z",
+  "retrieved_at": "2026-05-23T07:42:19Z",
   "files": [
     {
       "family": "CLAUDE.md",

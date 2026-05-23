@@ -1,0 +1,49 @@
+{
+  "repo": "alibaba/OpenSandbox",
+  "owner": "alibaba",
+  "name": "OpenSandbox",
+  "stars": 10776,
+  "forks": 872,
+  "open_issues": 79,
+  "created_at": "2025-12-17T08:41:09Z",
+  "language": "Python",
+  "license": "apache-2.0",
+  "fork": false,
+  "archived": false,
+  "pushed_at": "2026-05-22T03:20:24Z",
+  "default_branch": "main",
+  "html_url": "https://github.com/alibaba/OpenSandbox",
+  "description": "Secure, Fast, and Extensible Sandbox runtime for AI agents.",
+  "topics": [
+    "ai",
+    "ai-agent",
+    "ai-infra",
+    "kubernetes",
+    "sandbox"
+  ],
+  "seed": false,
+  "domain": "",
+  "retrieved_at": "2026-05-23T07:42:19Z",
+  "files": [
+    {
+      "family": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "blob_sha": "796b682463d57bafab68aad6b06842d6f6ab4a52",
+      "byte_size": 3209,
+      "last_commit_sha": "470f0c5fce9b452912e21720c2a0ef85b125415b",
+      "last_commit_date": "2026-05-07T03:09:50Z",
+      "content_sha256": "be3f2057802565b7e39141cdbbb25e3807a0a99c84cf2d7aef46194647d63162",
+      "raw_url": "https://raw.githubusercontent.com/alibaba/OpenSandbox/470f0c5fce9b452912e21720c2a0ef85b125415b/CLAUDE.md"
+    },
+    {
+      "family": "AGENTS.md",
+      "path": "AGENTS.md",
+      "blob_sha": "18340c60d21e8bedb7925f153442d6382ee2158d",
+      "byte_size": 4445,
+      "last_commit_sha": "470f0c5fce9b452912e21720c2a0ef85b125415b",
+      "last_commit_date": "2026-05-07T03:09:50Z",
+      "content_sha256": "abde00ebba6a76eea3d3f42bb37a7dbedb4df946d6a0e83e1cbacb3dfbc9ca25",
+      "raw_url": "https://raw.githubusercontent.com/alibaba/OpenSandbox/470f0c5fce9b452912e21720c2a0ef85b125415b/AGENTS.md"
+    }
+  ]
+}
