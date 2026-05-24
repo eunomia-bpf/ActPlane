@@ -23,12 +23,28 @@
  */
 
 #if defined(__clang__)
-#define TAINT_UNROLL _Pragma("unroll")
+/* Keep the string-match loops as real backedge loops, NOT unrolled. A constant
+ * trip count (TAINT_PAT_LEN) would otherwise be fully unrolled; the verifier then
+ * re-walks every unrolled copy over symbolic input (path/argv), and the per-rule
+ * cost explodes past the 1M-insn limit at >1 rule. As bounded loops the body is
+ * verified once with state pruning. */
+#define TAINT_UNROLL _Pragma("clang loop unroll(disable)")
 #else
 #define TAINT_UNROLL
 #endif
 #ifndef __always_inline
 #define __always_inline inline __attribute__((always_inline))
+#endif
+/* taint_match is inlined on purpose: the rule's match `kind` and pattern are
+ * frozen rodata (concrete to the verifier), so inlining lets the verifier resolve
+ * the kind switch to the single matcher a rule actually uses and skip the others.
+ * As a noinline subprogram it would instead be verified generically with a
+ * symbolic kind — walking ALL four matchers (incl. taint_suffix's symbolic strlen)
+ * on every rule, which is what exhausted the 1M-insn budget. Combined with the
+ * branchless matchers below (no per-byte state fork on symbolic input), this keeps
+ * the per-rule cost tiny so the full ruleset loads. */
+#ifndef TAINT_NOINLINE
+#define TAINT_NOINLINE __attribute__((noinline))
 #endif
 
 #define TAINT_PAT_LEN     64
@@ -140,46 +156,55 @@ struct taint_config {
 /* ---- pure matching predicates (pattern side is volatile: it lives in rodata
  * in the kernel; tests pass plain pointers, which convert fine) ---- */
 
-/* exact compare up to TAINT_PAT_LEN, NUL-terminated either side */
-static __always_inline int taint_streq(const char *a, const char *b)
+/* exact compare up to TAINT_PAT_LEN, NUL-terminated either side.
+ *
+ * Branchless w.r.t. the *input* `a`: the only data-dependent branch is on `b`,
+ * which is the rule pattern (frozen rodata, concrete to the verifier), so it
+ * resolves at verification time. Comparing the symbolic input with an XOR
+ * accumulator instead of a per-char `if` avoids the state fork on every byte
+ * that otherwise exploded verifier complexity per rule. Reads of `a` are bounded
+ * by `b`'s NUL, so callers need not zero-pad `a` to TAINT_PAT_LEN. */
+static TAINT_NOINLINE int taint_streq(const char *a, const char *b)
 {
+	long diff = 0;
 	TAINT_UNROLL
 	for (int i = 0; i < TAINT_PAT_LEN; i++) {
-		char ca = a[i], cb = b[i];
-		if (ca != cb)
-			return 0;
-		if (ca == '\0')
-			return 1;
+		char cb = b[i];
+		diff |= (unsigned char)(a[i] ^ cb);
+		if (cb == '\0')   /* branch on the concrete pattern byte only */
+			break;
 	}
-	return 1;
+	return diff == 0;
 }
 
-/* does `text` start with non-empty `pre`? */
-static __always_inline int taint_prefix(const char *text, const char *pre)
+/* does `text` start with non-empty `pre`? Branchless on `text` (see taint_streq). */
+static TAINT_NOINLINE int taint_prefix(const char *text, const char *pre)
 {
+	long diff = 0;
 	if (pre[0] == '\0')
 		return 0;
 	TAINT_UNROLL
 	for (int i = 0; i < TAINT_PAT_LEN; i++) {
 		char cp = pre[i];
-		if (cp == '\0')
-			return 1;
-		if (text[i] != cp)
-			return 0;
+		if (cp == '\0')   /* concrete pattern byte: prefix consumed */
+			break;
+		diff |= (unsigned char)(text[i] ^ cp);
 	}
-	return 1;
+	return diff == 0;
 }
 
 /* does `text` end with non-empty `suf`? bounded to TAINT_PAT_LEN. Uses explicit
  * bound guards (not index masking, which makes clang emit a verifier-rejected
  * pointer-OR). */
-static __always_inline int taint_suffix(const char *text, const char *suf)
+static TAINT_NOINLINE int taint_suffix(const char *text, const char *suf)
 {
 	int tn = 0, sn = 0;
+	TAINT_UNROLL
 	for (int i = 0; i < TAINT_PAT_LEN; i++) {
 		if (!text[i]) break;
 		tn++;
 	}
+	TAINT_UNROLL
 	for (int i = 0; i < TAINT_PAT_LEN; i++) {
 		if (!suf[i]) break;
 		sn++;
@@ -187,16 +212,21 @@ static __always_inline int taint_suffix(const char *text, const char *suf)
 	if (sn == 0 || sn > tn)
 		return 0;
 	int off = tn - sn; /* >= 0, < TAINT_PAT_LEN */
+	/* Branchless compare over the symbolic tail: branch only on the concrete
+	 * `suf` byte (resolves at verify) and the bound guard; accumulate the input
+	 * difference with XOR instead of a per-char `if` to avoid per-byte state
+	 * forks (the cost that limited how many rules could load). */
+	long diff = 0;
+	TAINT_UNROLL
 	for (int j = 0; j < TAINT_PAT_LEN; j++) {
 		if (j >= sn)
 			break;
 		int ti = off + j;
 		if (ti < 0 || ti >= TAINT_PAT_LEN)
 			return 0;
-		if (text[ti] != suf[j])
-			return 0;
+		diff |= (unsigned char)(text[ti] ^ suf[j]);
 	}
-	return 1;
+	return diff == 0;
 }
 
 static __always_inline int taint_match(unsigned int kind, const char *text,
@@ -221,35 +251,49 @@ static __always_inline int taint_mask_ok(unsigned long long labels,
 /* is `tok` (NUL-terminated) present as a whole token in the NUL-separated argv
  * blob `argv` (length `argv_len`, capacity TAINT_ARGV_CAP)? "" matches anything.
  * Indices are masked to TAINT_ARGV_CAP so the verifier sees bounded access. */
-static __always_inline int taint_arg_match(const char *argv, int argv_len,
+/* Is `tok` present as a whole NUL-delimited token in the argv blob? "" matches
+ * anything. Single linear pass over argv (O(TAINT_ARGV_CAP)), not a restart-at-
+ * every-position O(cap*arglen) scan: argv is symbolic user data, so the nested
+ * version's branching exploded verifier state and only ~1 @arg rule could load
+ * before -E2BIG. This walks each byte once, tracking whether the current token
+ * still matches tok and confirming the match at the token boundary (NUL). */
+static TAINT_NOINLINE int taint_arg_match(const char *argv, int argv_len,
 					   const char *tok)
 {
+	int j = 0;        /* compare position within tok for the current token */
+	int live = 1;     /* current token still a prefix-match of tok */
+	int started = 0;  /* have we consumed any byte of the current token */
+
 	if (tok[0] == '\0')
 		return 1;
 	if (argv_len > TAINT_ARGV_CAP)
 		argv_len = TAINT_ARGV_CAP;
-	for (int s = 0; s < TAINT_ARGV_CAP; s++) {
-		if (s >= argv_len)
+	TAINT_UNROLL
+	for (int i = 0; i < TAINT_ARGV_CAP; i++) {
+		if (i >= argv_len)
 			break;
-		int ok = 1, eot = 0;
-		for (int j = 0; j < TAINT_ARG_LEN; j++) {
-			char tc = tok[j];
-			int idx = s + j;
-			if (tc == '\0') {
-				eot = 1; /* token end: require argv token boundary (NUL) */
-				char ac = (idx < argv_len) ? argv[idx] : '\0';
-				if (ac != '\0')
-					ok = 0;
-				break;
-			}
-			if (idx >= argv_len || argv[idx] != tc) {
-				ok = 0;
-				break;
-			}
+		char c = argv[i];
+		if (c == '\0') {
+			/* token boundary: full match iff we consumed tok exactly */
+			if (started && live && tok[j] == '\0')
+				return 1;
+			j = 0;
+			live = 1;
+			started = 0;
+			continue;
 		}
-		if (ok && eot)
-			return 1;
+		started = 1;
+		if (live) {
+			char tc = (j < TAINT_ARG_LEN) ? tok[j] : 'x';
+			if (tc == '\0' || tc != c)
+				live = 0;       /* token longer than / differs from tok */
+			else
+				j++;
+		}
 	}
+	/* last token may not be NUL-terminated within the scanned window */
+	if (started && live && tok[j] == '\0')
+		return 1;
 	return 0;
 }
 
