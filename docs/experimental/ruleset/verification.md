@@ -35,3 +35,17 @@
 cd docs/experimental/ruleset && python3 build_ruleset.py    # 重建 ruleset.jsonl / ruleset.md
 # 核验（引用 + 编译）：见本会话 verify 脚本，或 docs/experimental/run_all.sh 的 ruleset-verify 步
 ```
+
+## 更新:codex 提取实际成功(36 条,独立来源)
+后台 codex 运行最终**写出了 `raw_codex_extraction.jsonl`(36 条规则)**——之前判 "未写出" 是检查过早。
+核验结果:
+- **引用真实性 36/36**:每条至少一个 example 的原文逐字命中真实语料文件(0 幻觉)。
+- **DSL 可编译 0/36**:codex **不知道 ActPlane 的确切 DSL 文法**,自创了近似语法(如 `source <名> <谓词>`、
+  `endorse … on …`、在 source 里写 `label`),全部编译失败。
+- **类别分布与我们的确定性规则集高度一致**(均以 vcs-gating / secrets / approval / mediation / test-before
+  为主)——构成**双来源交叉印证**(独立的 codex 提取 ⟷ 我们的确定性聚类)。
+
+**结论与采用**:`raw_codex_extraction.jsonl` 作为**用户要求的 codex 独立提取**保留(类别/频率/出处的
+经验证据,36/36 引用真实);**实验使用的可编译规则集是 `ruleset.jsonl`**(32 条,DSL 32/32 编译通过、
+引用 32/32 核验),因为 codex 的 DSL 语法无效需由我们(领域专家)编码。两来源在类别上的一致性是
+信度证据;未来可在此基础上做双编码者 + κ。
