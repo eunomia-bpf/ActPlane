@@ -317,6 +317,23 @@ semantics rather than high-level intent. Userspace, framework-level, bypassable.
   *vs ActPlane:* Shares provenance-graph + enforcement + denial-as-feedback for agents — but
   operates over the **tool-call/agent execution graph**, not OS-level process/file/network objects;
   same bypass gap as other tool-layer guardrails.
+- **FIDES — "Securing AI Agents with Information-Flow Control"** (Microsoft Research, arXiv
+  2505.23643, 2025; `fides.pdf`). Decomposes the agent loop into a planner and a planning loop and
+  carries **typed taint labels** through it, intercepting each suggested action to enforce a
+  confidentiality/integrity policy *deterministically* before it runs.
+  *vs ActPlane:* The **mechanism-cousin** — typed taint + deterministic pre-action block is exactly
+  ActPlane's model. The difference is the *layer*: FIDES enforces inside the agent loop (L1), so a
+  forgetful agent that shells out / opens a socket / makes a direct syscall escapes it; ActPlane
+  runs the same typed-taint discipline at the kernel/LSM boundary (L3), cross-process/file/network,
+  uncircumventable. The single closest paper to cite as "same idea, wrong layer for un-bypassable
+  enforcement."
+- **CaMeL — "Defeating Prompt Injections by Design"** (arXiv 2503.18813, 2025; `camel.pdf`). A
+  dual-LLM design that separates a trusted control flow from untrusted data and attaches
+  capabilities/data-flow provenance as "model scaffolding," giving verifiable security without
+  retraining.
+  *vs ActPlane:* A design-time L1 guarantee for prompt-injection; complementary but cannot see
+  below the tool layer. Reinforces that the modern agent-security frontier is *typed/capability
+  IFC at the application layer* — ActPlane's contribution is moving that frontier to the OS.
 
 ---
 
@@ -338,6 +355,52 @@ taint, no data-flow, no graph, and no agent feedback.
 agent code in a box."
 *vs ActPlane:* Agent-aware at the isolation-boundary level only; no fine-grained taint or
 cross-channel data-flow policy.
+
+---
+
+## 7. Empirical Studies of Agent Instruction Files (CLAUDE.md / AGENTS.md)
+
+ActPlane's empirical motivation comes from a corpus of real `CLAUDE.md` / `AGENTS.md` files
+(`corpus/`, analysis in `docs/tmp/corpus-analysis.md`). A small but fast-growing 2025–26 line of
+work studies these files directly — but along **orthogonal axes** to ActPlane: they characterize
+*what developers write* (content taxonomy), *how it is structured/maintained*, and *whether it
+helps task performance*. **None asks which instructions are behavioral/flow constraints, nor
+whether any are enforceable below the tool layer** — the question ActPlane is built around.
+
+**Chatlatanagulchai et al.** ("On the Use of Agentic Coding Manifests," arXiv 2509.14744, 2025;
+`claude-manifests-empirical.pdf`) give the first taxonomy: 253 CLAUDE.md / 242 repos, a 15-label
+content scheme (LLM-assisted label creation + 3-inspector manual assignment, consensus-resolved,
+**no κ**). Content is dominated by Build&Run (77.1%), Implementation Details (71.9%), Architecture
+(64.8%), Testing (60.5%); **"Security" is only 8.7%**. **Chen/woraamy et al.** extend this to a
+cross-tool corpus ("Agent READMEs," arXiv 2511.12884, 2025; `agent-readmes-context-files.pdf`):
+2,303 files / 1,925 repos across Claude Code, Codex, and Copilot, a 16-label scheme (Security
+14.5%), plus readability, maintenance, and feasibility of automatic classification.
+**Santos et al.** ("Decoding the Configuration of AI Coding Agents," arXiv 2511.09268, 2025;
+`claude-config-decoding.pdf`) analyze 328 Claude Code config files for SE concerns and their
+co-occurrence, finding architecture-centric patterns.
+
+*vs ActPlane:* Two points matter for our corpus study. (i) **Their "Security" category (8.7–14.5%)
+is about the *product's* security** (vulnerabilities, secure-coding best practices), **not about
+constraining the agent's behavior**, and their taxonomies have no "behavioral guardrail vs style"
+or **enforceability** dimension. ActPlane's lens — *which instructions are information-flow /
+behavioral invariants, and which are enforceable at the syscall layer* (`docs/agent-policy-survey.md`
+D1/D5) — cross-cuts their categories: what ActPlane counts as an enforceable constraint is scattered
+across their Development-Process, Testing, and Security buckets. Our corpus figure (≈70% of repos
+carry ≥1 ActPlane-relevant behavioral constraint) is therefore **not** comparable to their "Security
+%" and must not be read as such. (ii) These studies resolve inter-annotator disagreement by
+consensus **without reporting κ**; our survey's double-coding with a reported κ is a reliability
+improvement we can claim.
+
+On the **effectiveness** question (orthogonal to enforcement, but useful background on whether these
+files are worth maintaining), **Lulla et al.** ("On the Impact of AGENTS.md Files on the Efficiency
+of AI Coding Agents," arXiv 2601.20404, 2026; `agentsmd-efficiency-impact.pdf`) run paired
+same-task/same-repo PR experiments and find AGENTS.md *reduces* median runtime (≈28.6%) and output
+tokens (≈16.6%) at comparable task quality. Finally, **Liu et al.** ("Dive into Claude Code," arXiv
+2604.14228, 2026; `dive-into-claude-code.pdf`) reverse-engineer Claude Code's architecture and
+contrast its **per-action safety evaluation (a tool/permission-layer, L1, ML-classifier-gated
+permission system)** with OpenClaw's **perimeter-level access control** — a concrete datapoint that
+today's deployed agent guardrails sit at the tool/permission layer and are therefore bypassable by
+actions that do not pass through it, exactly the gap ActPlane closes at L3.
 
 ---
 

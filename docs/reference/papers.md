@@ -303,9 +303,37 @@ enforce at the **tool/SDK layer (L1)**, not the kernel.
 
 ---
 
+## 7. Empirical studies of CLAUDE.md / AGENTS.md context files (2025–2026)
+
+The **prior work most directly adjacent to ActPlane's corpus study** (`corpus/`,
+`docs/tmp/corpus-analysis.md`). Crucial framing: **all of these study *content
+taxonomy*, *structure*, *maintenance*, or *task efficiency* — none studies which
+instructions are *behavioral/flow constraints* or whether they are *enforceable*
+below the tool layer.** Their "Security" label (8.7–14.5%) means *the product's*
+security, not *constraining the agent*. ActPlane's enforceability lens (D5) and
+its 70% "≥1 ActPlane-relevant behavioral constraint" figure are orthogonal to,
+and cross-cut, their categories (our notion spans their Development-Process /
+Testing / Security buckets).
+
+- **On the Use of Agentic Coding Manifests: An Empirical Study of Claude Code** — *arXiv 2509.14744 (Sep 2025), NAIST/Kasetsart.* PDF: `claude-manifests-empirical.pdf`. 253 CLAUDE.md / 242 repos. RQ1 structure (shallow: H1 median 1, H2 median 5, H3 median 9). RQ2 content: two-stage LLM-assisted label creation + manual assignment by 3 inspectors → **15 labels**; 1,228 assignments, 113 disagreements, **resolved by consensus (no κ reported)**. Build&Run 77.1%, Impl 71.9%, Arch 64.8%, Testing 60.5%, SysOverview 48.2%, DevProcess 37.2%, **Security 8.7%**. *ActPlane:* the first CLAUDE.md taxonomy; our D1 categories align (build/style dominate, out-of-scope) but we add the behavioral-constraint + enforceability cut they lack, and add κ they omit.
+- **Agent READMEs: An Empirical Study of Context Files for Agentic Coding** — *arXiv 2511.12884 (Nov 2025), same group, extended.* PDF: `agent-readmes-context-files.pdf`. 2,303 files / 1,925 repos across **Claude Code + Codex + Copilot**. RQ1 size+readability (Claude/Copilot longer & harder to read, FRE), RQ2 maintenance (actively maintained, not static), RQ3 content (manual on 332 files → **16 labels**, 80.3% agreement, consensus; Build&Run 62.3%, Impl 69.9%, Arch 67.7%, Testing 75.0%, **Security 14.5%**), RQ4 auto-classification (feasible). *ActPlane:* largest cross-tool content study; same taxonomy-and-effectiveness framing, no enforceability dimension.
+- **Decoding the Configuration of AI Coding Agents: Insights from Claude Code Projects** — *arXiv 2511.09268 (Nov 2025), UFMG.* PDF: `claude-config-decoding.pdf`. 328 config files. Studies SE concerns/practices + their co-occurrence; top pattern Architecture+Dependencies+Overview (~21.6%), strong emphasis on architecture. Abstract names "architectural constraints, coding practices, and tool-usage policies" but does not test enforceability.
+- **On the Impact of AGENTS.md Files on the Efficiency of AI Coding Agents** — *arXiv 2601.20404 v2 (Mar 2026), SMU/KCL/Heidelberg/Bamberg.* PDF: `agentsmd-efficiency-impact.pdf`. Paired same-task/same-repo PR runs measuring wall-clock + tokens. Finding: AGENTS.md **reduces** median runtime ≈28.64% and output tokens ≈16.58% at comparable task quality (a *positive* efficiency result — corrects the earlier "context files hurt" narrative from secondary sources). *ActPlane:* effectiveness lens, not enforcement; relevant background on whether instruction files are worth maintaining.
+- **Dive into Claude Code: The Design Space of Today's and Future AI Agent Systems** — *arXiv 2604.14228 (Apr 2026), VILA-Lab MBZUAI.* PDF: `dive-into-claude-code.pdf`. **Not** a CLAUDE.md content study — a source-level design-space analysis of Claude Code (permission system: 7 modes + ML classifier; compaction; MCP/plugins/skills/hooks; subagents) vs OpenClaw. Explicitly contrasts **per-action safety evaluation (Claude Code, L1) vs perimeter-level access control (OpenClaw)**. *ActPlane:* useful for the "which layer enforces" argument and for documenting that Claude Code's guardrails live at the tool/permission layer (bypassable below it).
+
+> **Takeaway for ActPlane's related work:** prior CLAUDE.md/AGENTS.md studies
+> [2509.14744, 2511.12884, 2511.09268] characterize *what developers write* (content
+> categories) and *whether it helps* (efficiency [2601.20404]); none asks *which
+> instructions are security/behavioral invariants enforceable at the syscall layer.*
+> That enforceability cut is ActPlane's contribution. We also note these studies
+> resolve label disagreement by consensus without reporting κ — our survey's
+> double-coding + κ (`docs/agent-policy-survey.md` §5) is a reliability improvement.
+
+---
+
 ## Notes on downloads
 
-All 33 PDFs above were downloaded and verified as valid PDF files (>50 KB) in
+All 38 PDFs above were downloaded and verified as valid PDF files (>50 KB) in
 `docs/reference/`. One item (**Landlock**) has no canonical academic PDF; its authoritative
 references are the Linux kernel documentation and LWN article linked inline above. Standard
 production enforcement tools (`seccomp`, Cilium **Tetragon**, Aqua **Tracee**) are mentioned for
