@@ -10,4 +10,4 @@ conn,syscall,1,0
 write,tool-call,1,1
 write,bash-c,1,0
 write,py-subproc,1,0
-write,syscall,0,0
+write,syscall,1,0

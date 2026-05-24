@@ -81,6 +81,22 @@ struct {
 	__uint(max_entries, 256 * 1024);
 } rb SEC(".maps");
 
+/* Pending open(at) args, stashed at sys_enter and consumed at sys_exit. The
+ * sys_enter tracepoint fires before the kernel's copy_from_user faults the path
+ * page in, so a non-faulting read of the path there can EFAULT and silently drop
+ * the open (notably a fresh exec's own .rodata path, touched first at open()).
+ * By sys_exit the page is resident, so the read is reliable. Keyed by tid. */
+struct open_pend {
+	__u64 path_ptr;
+	__u32 flags;
+};
+struct {
+	__uint(type, BPF_MAP_TYPE_LRU_HASH);
+	__uint(max_entries, 16384);
+	__type(key, __u64);
+	__type(value, struct open_pend);
+} ts_openpend SEC(".maps");
+
 /* The one and only output channel. */
 static __always_inline void emit_violation(pid_t pid, unsigned int rule_id,
 					   const char *target, u32 conn_ip,
@@ -594,20 +610,59 @@ int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 	return 0;
 }
 
+/* Stash the path pointer + flags; the actual handling happens at sys_exit, once
+ * the path page is resident (see ts_openpend). Tracking opens at exit also means
+ * we only act on opens that actually entered the kernel, which is fine for the
+ * audit/kill model (kill still terminates the offending process). */
+static __always_inline int stash_open(const void *path_ptr, unsigned int flags)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	struct open_pend p = { .path_ptr = (__u64)path_ptr, .flags = flags };
+
+	bpf_map_update_elem(&ts_openpend, &tid, &p, BPF_ANY);
+	return 0;
+}
+
+static __always_inline int handle_open_exit(long ret)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	struct open_pend *p = bpf_map_lookup_elem(&ts_openpend, &tid);
+	int rc = 0;
+
+	if (!p)
+		return 0;
+	/* On success the kernel has copied the path in, so the user page is now
+	 * resident and the read in te_handle_file is reliable. */
+	if (ret >= 0)
+		rc = te_handle_file(TE_REF_USER_PATH, (const void *)p->path_ptr, 0,
+				    te_access_from_open_flags(p->flags),
+				    te_tracepoint_mode());
+	bpf_map_delete_elem(&ts_openpend, &tid);
+	return rc;
+}
+
 SEC("tp/syscalls/sys_enter_openat")
 int trace_openat(struct trace_event_raw_sys_enter *ctx)
 {
-	return te_handle_file(TE_REF_USER_PATH, (const void *)ctx->args[1], 0,
-			      te_access_from_open_flags((unsigned int)ctx->args[2]),
-			      te_tracepoint_mode());
+	return stash_open((const void *)ctx->args[1], (unsigned int)ctx->args[2]);
+}
+
+SEC("tp/syscalls/sys_exit_openat")
+int trace_openat_exit(struct trace_event_raw_sys_exit *ctx)
+{
+	return handle_open_exit(ctx->ret);
 }
 
 SEC("tp/syscalls/sys_enter_open")
 int trace_open(struct trace_event_raw_sys_enter *ctx)
 {
-	return te_handle_file(TE_REF_USER_PATH, (const void *)ctx->args[0], 0,
-			      te_access_from_open_flags((unsigned int)ctx->args[1]),
-			      te_tracepoint_mode());
+	return stash_open((const void *)ctx->args[0], (unsigned int)ctx->args[1]);
+}
+
+SEC("tp/syscalls/sys_exit_open")
+int trace_open_exit(struct trace_event_raw_sys_exit *ctx)
+{
+	return handle_open_exit(ctx->ret);
 }
 
 SEC("tp/syscalls/sys_enter_unlink")
