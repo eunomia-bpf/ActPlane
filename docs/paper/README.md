@@ -45,8 +45,8 @@ The draft uses the local class/style files so it can build without requiring a
 system-wide `acmart` installation.
 
 The CTAN archive was extracted only to generate the local class/style files; the
-expanded template tree is not kept in the repository. Build PDFs and LaTeX
-scratch files are ignored by `docs/paper/.gitignore`.
+expanded template tree is not kept in the repository. Build PDFs are tracked,
+while LaTeX scratch files are ignored by `docs/paper/.gitignore`.
 
 The draft follows the CFP's `sigplan,10pt` setup and keeps page numbers enabled
 with `\settopmatter{printfolios=true}`.
