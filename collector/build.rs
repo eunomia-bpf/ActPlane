@@ -12,13 +12,19 @@ fn main() {
     let process = bpf_dir.join("process");
     let out_process = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR")).join("process");
 
+    // Re-embed whenever any loader/engine source OR the built binary changes.
+    // Watching `bpf/process` itself is what catches an out-of-band `make -C bpf`
+    // (rebuilt binary) so the embedded copy can never go stale relative to disk.
     println!("cargo:rerun-if-changed=../bpf/Makefile");
     println!("cargo:rerun-if-changed=../bpf/process.c");
     println!("cargo:rerun-if-changed=../bpf/process.bpf.c");
     println!("cargo:rerun-if-changed=../bpf/process.h");
     println!("cargo:rerun-if-changed=../bpf/taint.h");
     println!("cargo:rerun-if-changed=../bpf/taint_engine.bpf.h");
+    println!("cargo:rerun-if-changed=../bpf/process");
 
+    // Always (re)build the eBPF loader so `cargo build` alone embeds the latest
+    // bpf/process — no need to remember a separate `make -C bpf` first.
     let status = Command::new("make")
         .arg("-C")
         .arg(&bpf_dir)

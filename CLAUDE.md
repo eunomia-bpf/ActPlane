@@ -15,6 +15,18 @@ The repo descends from AgentSight (an eBPF observability framework); the SSL/HTT
 analyzer chain, runners, web server, and frontend were removed. What remains is the
 taint enforcer plus a minimal Rust compiler/driver.
 
+## Agent behavioral constraints (ActPlane-enforced)
+
+When acting as an agent in this repo, **do not run `git branch` or `git worktree`** —
+the user does not want new branches or worktrees created right now. **Other git
+operations are allowed** (`git commit`, `git add`, `git status`, `git log`, `git push`,
+…). If you think a different branch is needed, ask the user instead of creating one.
+
+`git branch` and `git worktree` are also enforced below the tool layer by ActPlane
+itself (`actplane.yaml`, rule `no-git-branch`, `@arg "branch"`/`@arg "worktree"`): they
+are killed whether invoked via a tool call, `bash -c`, or a subprocess — a worked
+example of a real corpus-derived guardrail in the taint DSL.
+
 ## Build & Test Commands
 
 ```bash

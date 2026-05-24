@@ -19,7 +19,12 @@ SETTLE=2.8   # let BPF attach before triggers fire
 WIN=6        # loader lifetime per case
 
 [ -f "$CASES" ] || { echo "cases file not found: $CASES" >&2; exit 2; }
-[ -x "$ACT" ]   || { echo "build the collector first: $ACT missing" >&2; exit 2; }
+# Always (re)build a fresh loader so this suite can never run a stale bpf/process.
+# Set ACTPLANE_SKIP_BUILD=1 to skip (e.g. when the caller just built).
+if [ "${ACTPLANE_SKIP_BUILD:-0}" != "1" ]; then
+  make -C "$ROOT/bpf" process >/dev/null || { echo "make -C bpf process failed" >&2; exit 2; }
+fi
+[ -x "$ACT" ]   || { echo "build the collector first ('make' or 'cargo build --release'): $ACT missing" >&2; exit 2; }
 [ -x "$PROC" ]  || { echo "build bpf first: $PROC missing" >&2; exit 2; }
 
 # --- fixtures --------------------------------------------------------------

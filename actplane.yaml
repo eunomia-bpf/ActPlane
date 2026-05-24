@@ -17,8 +17,11 @@ policy: |
     reason "Data derived from local secrets must not leave the workspace."
     remediation "Stop the network action and ask the user for an explicit safe handling path"
 
-  rule no-agent-git:
-    deny exec "**/git" if AGENT
+  # Forbid `git branch` and `git worktree` while allowing other git ops.
+  # effect=kill so it fires on kernels without BPF-LSM (block needs LSM active).
+  rule no-git-branch:
+    deny exec "**/git" @arg "branch"   if AGENT
+    deny exec "**/git" @arg "worktree" if AGENT
     effect kill
-    reason "Agent runs must not invoke git directly under the default ActPlane development harness."
-    remediation "Use review output or patches; ask the user to run git commands outside the harness"
+    reason "This workspace forbids creating git branches or worktrees; other git operations (commit/add/status/log/push) are allowed."
+    remediation "Do not run `git branch` or `git worktree`; use other git commands, or ask the user to manage branches"
