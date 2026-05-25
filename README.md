@@ -2,57 +2,144 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-**Define behavioral contracts for your AI agent in YAML. eBPF enforces them on every syscall, and feeds violation reasons back to the agent so it self-corrects.**
+ActPlane is an **OS-level harness for AI agents**. It lets you write behavioral
+contracts for your agent in YAML, and enforces them deterministically at the OS
+level via eBPF, across every process, file access, and network connection, no
+matter how the agent gets there. When a contract is violated, ActPlane blocks
+the action and feeds the reason back to the agent so it self-corrects.
 
-ActPlane is an **OS-level harness for AI agents**: it evaluates workflow,
-capability, and provenance contracts over an agent's *whole* execution, across
-any tool, subprocess, or direct syscall, from the kernel via eBPF. Enforcement is
-defined at the harness level: a matching action either fails before the kernel
-commits it (`block`) or the resulting task is immediately terminated (`kill`),
-and the agent gets a human-readable reason (the corrective-feedback payload).
+Prompt constraints are probabilistic. ActPlane is deterministic.
 
-The motivation: agent constraints today live in prompts (`CLAUDE.md` / `AGENTS.md`),
-which are only *probabilistic* — a long-context agent forgets or routes around
-them, often non-maliciously. Tool-layer guards (AgentSpec, MCP gateways) only see
-the tool API and are bypassed the moment the agent shells out or links an SDK.
-ActPlane sits **below the tool layer**: every `exec` / file / network operation is
-a syscall, so a rule like *"nothing descended from `codex`, however many hops, may
-run `git` or modify files outside `/work`"* holds no matter how the agent gets there.
+## Why an OS-level harness?
 
-Rules are **labeled information-flow** / provenance contracts, not static
-allow-lists. Unlike classic taint analysis (single-bit, usually offline, aimed
-at vulnerabilities), ActPlane carries multiple named labels and enforces at
-runtime: labels propagate along fork/exec edges and, as data flow, along file
-read/write and network edges, so task boundaries and workflow obligations follow
-derived data across processes and files. Security-relevant policies are one use
-case, but the primary framing is a deterministic operating contract for
-cooperative-but-forgetful agents.
+Agent constraints today come in three forms. Each solves a real problem but
+leaves a gap that the next layer down needs to cover.
 
-The rule language is designed so that **agents can write and maintain their own
-contracts**: an agent (or a human) authors rules in YAML, `actplane check`
-validates them in plain language, and the kernel enforces them. When a rule no
-longer fits the workflow, the agent can propose an update, get it reviewed, and
-`actplane check` again. The harness stays deterministic; the rules stay
-evolvable.
+| Approach | What it does | What it can't cover |
+|----------|-------------|---------------------|
+| **Prompt constraints** (`CLAUDE.md`, `AGENTS.md`) | Tell the agent what to do and not do | Probabilistic: long-context agents forget or route around them, often non-maliciously |
+| **Tool-layer guards** (MCP gateways, AgentSpec) | Intercept and authorize at the tool API | Bypassed the moment the agent shells out, links an SDK, or spawns a subprocess |
+| **Sandboxes** (containers, VMs, E2B, Daytona) | Isolate the entire execution environment | All-or-nothing: can't express "file A must only be accessed via script A" or "run tests before committing" |
+
+ActPlane sits below all three, at the OS level. Every `exec`, file open, and
+network connect goes through the kernel, so a rule like *"nothing descended from
+`codex`, however many hops, may run `git` or modify files outside `/work`"*
+holds regardless of which tool path the agent takes.
+
+The key differences:
+
+- **OS-level coverage**: enforcement happens at the kernel, not the tool API. Bash, Python subprocess, direct SDK calls, all covered.
+- **Call-chain granularity**: rules follow process lineage, not just single operations. "Codex's entire subprocess tree cannot touch git" is one rule.
+- **Corrective feedback, not just blocking**: violations feed a human-readable reason back to the agent, so it can retry a different way. This is what makes it a harness, not a sandbox.
+- **Agent-maintained rules**: the rule language is designed so agents can write, validate (`actplane check`), and evolve their own contracts.
+
+## Quickstart
+
+```bash
+make                                         # build eBPF programs + Rust collector
+A=./collector/target/release/actplane
+
+$A init                                      # write a starter actplane.yaml
+$A check                                     # validate rules (no privileges needed)
+```
+
+```
+✓ ./actplane.yaml: 3 rule(s) compile.
+  1. no-git-branch     — deny exec    → kill (create branches/worktrees on the host…)
+  2. no-secret-exfil   — deny connect → kill (data derived from local secrets must not leave…)
+  3. test-before-commit — deny exec   → kill (run the tests before committing)
+✓ no warnings.
+```
+
+Now run an agent (or any command) under enforcement:
+
+```bash
+sudo -E $A run -- claude -p "review this repo"
+```
+
+When the agent violates a rule, ActPlane kills the action and tells it why:
+
+```
+🚫 KILLED: process 'git' (pid 4213, ppid 4210) — /usr/bin/git
+   effect: kill
+   reason: Codex must not invoke git; use the review workflow.
+```
+
+The agent receives this reason through its hook integration, understands the
+constraint, and takes a different path to complete the task.
+
+`run`/`watch` load the eBPF enforcer, so they need root (or `CAP_BPF` +
+`CAP_SYS_ADMIN`); ActPlane drops the target command back to your user.
+
+## How rules work
+
+Rules are **labeled information-flow contracts**, not static allow-lists.
+Labels propagate along fork/exec edges and file read/write edges, so
+constraints follow derived data across processes and files.
+
+```yaml
+# actplane.yaml
+rules:
+  - name: no-secret-exfil
+    source: { file: "/etc/secrets/**" }
+    deny:
+      - { connect: "*" }
+      - { write: "/tmp/**" }
+    reason: "Data derived from secrets must not leave the machine."
+    effect: kill
+```
+
+A process that reads `/etc/secrets/api-key` gets labeled. If any descendant of
+that process (however many hops) tries to connect to the network or write to
+`/tmp`, the kernel kills it and reports the reason.
+
+See [`docs/taint-dsl.md`](docs/taint-dsl.md) for the full rule language and 12
+worked examples.
+
+## Agent integration
+
+ActPlane feeds violation reasons back to agents via their hook systems.
+
+**Claude Code** (`.claude/settings.local.json`):
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/path/to/actplane feedback-hook" }] }],
+    "PostToolUseFailure": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/path/to/actplane feedback-hook" }] }]
+  }
+}
+```
+
+**Codex** (`.codex/hooks.json`):
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [{ "matcher": ".*", "hooks": [{ "type": "command", "command": "/path/to/actplane feedback-hook" }] }]
+  }
+}
+```
+
+The adapter forwards new violations as hook context. The kernel remains the sole
+authority for enforcement. See [`script/CLAUDE.snippet.md`](script/CLAUDE.snippet.md)
+for the agent instruction snippet.
 
 ## How it works
 
 ```
-actplane.yaml ─▶ collector (Rust compiler) ─▶ struct taint_config ─▶ eBPF kernel engine
- policy: |        parse + lower DSL to ABI       (rodata blob)       propagate labels,
-                                                                      match rules,
- violations ◀───────── NDJSON (TAINT_VIOLATION + reason) ◀────────── emit on match only
+actplane.yaml ─▶ collector (Rust) ─▶ struct taint_config ─▶ eBPF kernel engine
+ policy: |        parse + lower DSL      (rodata blob)       propagate labels,
+                                                              match rules,
+ violations ◀──── NDJSON (TAINT_VIOLATION + reason) ◀─────── emit on match only
 ```
 
-- **Kernel** (`bpf/`): performs labeled information-flow control — hooks
-  `fork / exec / exit / open / unlink / rename / connect`,
-  keeps a per-node label set (process / file / endpoint), propagates it,
-  evaluates the compiled rules, and emits **only** `TAINT_VIOLATION` events through
-  a single `emit_violation()` function.
-- **Collector** (`collector/`): a Rust runner that discovers `actplane.yaml`,
-  lowers the embedded `policy: |` DSL to the kernel config (`struct taint_config`),
-  runs the embedded loader, seeds the target command's pid lineage as `AGENT`, and
-  prints each violation with its policy reason.
+- **Kernel** (`bpf/`): hooks `fork / exec / exit / open / unlink / rename / connect`,
+  keeps a per-node label set (process / file / endpoint), propagates labels,
+  evaluates compiled rules, emits only violation events.
+- **Collector** (`collector/`): discovers `actplane.yaml`, compiles the DSL to
+  kernel config, loads the eBPF program, seeds the target process lineage, and
+  prints violations with policy reasons.
 
 ## Build
 
@@ -62,135 +149,4 @@ make test       # bpf C unit tests + collector Rust unit tests
 ```
 
 Requires clang/llvm, libelf, zlib, a recent kernel (5.8+; developed on 6.15), and
-a Rust toolchain. `make install` installs the system dependencies (Ubuntu/Debian).
-
-## Quickstart (≈30 seconds)
-
-```bash
-A=./collector/target/release/actplane
-
-$A init                  # write a starter actplane.yaml (commented guardrails)
-$A check                 # validate it in plain language — no privileges needed
-sudo -E $A run -- bash -lc 'git branch x'   # enforce around any command
-```
-
-`check` summarizes every rule and warns about anything that won't enforce as
-written (e.g. `block` with no BPF-LSM, or a hostname where the kernel matches IPs):
-
-```
-✓ ./actplane.yaml: 3 rule(s) compile.
-  1. no-git-branch    — deny exec    → kill (create branches/worktrees on the host…)
-  2. no-secret-exfil  — deny connect → kill (data derived from local secrets must not leave…)
-  3. test-before-commit — deny exec  → kill (run the tests before committing)
-✓ no warnings.
-```
-
-`run`/`watch` load the eBPF enforcer, so they need root (or `CAP_BPF` +
-`CAP_SYS_ADMIN`); ActPlane drops the target command back to your user. If you
-forget `sudo`, it tells you how.
-
-## Run commands
-
-```bash
-sudo -E ./collector/target/release/actplane run -- bash -lc 'git status'
-# compile only (no privileges): ./collector/target/release/actplane compile --out policy.bin
-```
-
-`actplane run` discovers `actplane.yaml` upward from the current directory,
-creates `.actplane/last-violation.txt`, loads the embedded eBPF program, marks
-the target command's pid lineage as `AGENT`, and prints whether the kernel denied
-the operation, killed the violating task, or only audited it:
-
-```
-🚫 KILLED: process 'git' (pid 4213, ppid 4210) — /usr/bin/git
-   effect: kill
-   reason: Codex must not invoke git; use the review workflow.
-```
-
-`effect block` and `effect kill` are intentionally not equivalent. `block` means
-BPF-LSM pre-operation denial (`-EPERM`) and is unsupported in tracepoint mode.
-Use `effect audit` for tracepoint reporting or `effect kill` when the harness
-should terminate the violating task from a tracepoint observation.
-
-## Agent feedback
-
-To make Codex or Claude receive the rule reason automatically, launch the agent
-through `actplane run` and install the post-tool hook adapter:
-
-```bash
-sudo -E ./collector/target/release/actplane run -- codex --cd "$PWD"
-sudo -E ./collector/target/release/actplane run -- claude -p "review this repo"
-```
-
-`run` always prepares the feedback file and exports `ACTPLANE_FEEDBACK_FILE` plus
-`ACTPLANE_HOOK_STATE` to the child agent. Tracepoint mode does not support
-`effect block`; those rules require BPF LSM and will not fire without it. Rules
-that explicitly say `effect audit` report, and rules that explicitly say
-`effect kill` terminate a task from tracepoint observations.
-
-Codex reads hooks from `.codex/hooks.json` or `~/.codex/hooks.json`. Use an
-absolute `actplane` binary path so the hook still works if the agent changes
-directory. `PostToolUse` injects feedback after supported tool calls:
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/abs/ActPlane/collector/target/release/actplane feedback-hook",
-            "statusMessage": "Checking ActPlane feedback"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-In interactive Codex, open `/hooks` once to review and trust the hook. For
-one-off automation that already vets the hook source, Codex also accepts
-`--dangerously-bypass-hook-trust`.
-
-Claude Code uses the same adapter from `.claude/settings.local.json`. Register
-both success and failure events:
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/abs/ActPlane/collector/target/release/actplane feedback-hook"
-          }
-        ]
-      }
-    ],
-    "PostToolUseFailure": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/abs/ActPlane/collector/target/release/actplane feedback-hook"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-The adapter only forwards new bytes from the feedback file as hook
-`additionalContext`; it does not re-evaluate policy in userspace. The kernel is
-still the sole authority for match/block/kill/audit. Keep the short instruction
-snippet in [`script/CLAUDE.snippet.md`](script/CLAUDE.snippet.md) in the target
-`CLAUDE.md` or `AGENTS.md` so the agent knows how to handle `[ActPlane]`
-messages and EPERM failures.
-
+a Rust toolchain. `make install` installs system dependencies (Ubuntu/Debian).
