@@ -36,7 +36,17 @@ const DEFAULT_HOOK_STATE_FILE: &str = ".actplane/feedback-hook.state.json";
 const HOOK_MAX_CHARS: usize = 8000;
 
 #[derive(Parser)]
-#[command(author, version, about = "ActPlane: OS-enforced agent harness", long_about = None)]
+#[command(author, version, about = "ActPlane: OS-enforced agent harness", long_about = None,
+    after_help = "EXAMPLES:\n  \
+      # enforce a one-line policy around a command (needs sudo for the eBPF load)\n  \
+      sudo -E actplane --rule 'label AGENT\n                       rule no-git-branch:\n                         deny exec \"**/git\" @arg \"branch\" if AGENT\n                         effect kill\n                         reason \"create a branch via the host, not the agent\"' run -- claude -p '...'\n\n  \
+      # use a project policy file (auto-discovered as ./actplane.yaml upward)\n  \
+      sudo -E actplane run -- <your agent command>\n\n  \
+      # just compile/validate a policy (no privileges needed)\n  \
+      actplane --policy actplane.yaml compile --out /tmp/policy.bin\n\n  \
+      # watch & report violations system-wide without launching a child\n  \
+      sudo -E actplane --policy actplane.yaml watch\n\n\
+    See docs/taint-dsl.md for the policy language.")]
 struct Cli {
     /// Project policy YAML. Defaults to discovering actplane.yaml upward from cwd.
     #[arg(long, global = true, conflicts_with = "rule")]
@@ -145,6 +155,7 @@ async fn compile_policy(cli: &Cli, out: &Path) -> Result<i32> {
 }
 
 async fn watch_policy(cli: &Cli) -> Result<i32> {
+    require_bpf_caps()?;
     let loaded = load_policy(cli)?;
     let compiled = dsl::compile_str(&loaded.config.policy)?;
     let feedback = feedback_paths(&loaded);
@@ -176,7 +187,36 @@ async fn watch_policy(cli: &Cli) -> Result<i32> {
     Ok(0)
 }
 
+/// Loading the eBPF enforcer needs root or CAP_BPF + CAP_SYS_ADMIN. Check up front
+/// and fail with an actionable message instead of a bare "Permission denied".
+fn require_bpf_caps() -> Result<()> {
+    if unsafe { libc::geteuid() } == 0 {
+        return Ok(());
+    }
+    // CapEff bits: CAP_SYS_ADMIN = 21, CAP_BPF = 39.
+    let eff = std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|s| {
+            s.lines()
+                .find_map(|l| l.strip_prefix("CapEff:"))
+                .and_then(|h| u64::from_str_radix(h.trim(), 16).ok())
+        })
+        .unwrap_or(0);
+    let has = |bit: u32| eff & (1u64 << bit) != 0;
+    if has(39) && has(21) {
+        return Ok(());
+    }
+    eprintln!(
+        "actplane: this command loads an eBPF enforcer, which needs root \
+         (or CAP_BPF + CAP_SYS_ADMIN).\n\
+         \n  Re-run with sudo, e.g.:   sudo -E actplane <same args>\n\
+         \n  (sudo-launched ActPlane drops the target command back to your user automatically.)"
+    );
+    std::process::exit(1);
+}
+
 async fn run_command(cli: &Cli, cmd: &[String]) -> Result<i32> {
+    require_bpf_caps()?;
     let loaded = load_policy(cli)?;
     let compiled = dsl::compile_str(&loaded.config.policy)?;
     let agent_label = compiled
