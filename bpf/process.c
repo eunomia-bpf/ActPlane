@@ -147,7 +147,6 @@ struct proc_state_seed {
 static int seed_agent_root(struct process_bpf *skel)
 {
 	struct proc_state_seed state = {};
-	unsigned long long sess = 0;
 	pid_t pid = env.agent_pid;
 
 	if (!env.agent_pid && !env.agent_label)
@@ -166,10 +165,9 @@ static int seed_agent_root(struct process_bpf *skel)
 		fprintf(stderr, "failed to seed AGENT pid %d in ts_root: %s\n", pid, strerror(errno));
 		return -1;
 	}
-	if (bpf_map_update_elem(bpf_map__fd(skel->maps.ts_sess), &pid, &sess, BPF_ANY) < 0) {
-		fprintf(stderr, "failed to seed AGENT pid %d in ts_sess: %s\n", pid, strerror(errno));
-		return -1;
-	}
+	/* ts_sess (gate/staleness state) is created lazily by te_sess_init when the
+	 * first gate or `since` invalidator fires; an absent entry reads as all-zero
+	 * (no gate fired yet), which is the correct initial state. */
 	fprintf(stderr, "ActPlane: seeded AGENT pid %d label 0x%llx\n", pid, env.agent_label);
 	return 0;
 }
@@ -219,12 +217,14 @@ int main(int argc, char **argv)
 	skel->rodata->n_rules = cfg.n_rules;
 	skel->rodata->n_xforms = cfg.n_xforms;
 	skel->rodata->n_gates = cfg.n_gates;
+	skel->rodata->n_invals = cfg.n_invals;
 	memcpy((void *)skel->rodata->taint_sources, cfg.sources, sizeof(cfg.sources));
 	memcpy((void *)skel->rodata->taint_rules, cfg.rules, sizeof(cfg.rules));
 	memcpy((void *)skel->rodata->taint_xforms, cfg.xforms, sizeof(cfg.xforms));
 	memcpy((void *)skel->rodata->taint_gates, cfg.gates, sizeof(cfg.gates));
-	fprintf(stderr, "ActPlane: %u sources, %u rules, %u xforms, %u gates\n",
-		cfg.n_sources, cfg.n_rules, cfg.n_xforms, cfg.n_gates);
+	memcpy((void *)skel->rodata->taint_invals, cfg.invals, sizeof(cfg.invals));
+	fprintf(stderr, "ActPlane: %u sources, %u rules, %u xforms, %u gates, %u invals\n",
+		cfg.n_sources, cfg.n_rules, cfg.n_xforms, cfg.n_gates, cfg.n_invals);
 	fprintf(stderr, "ActPlane: %s mode (%s)\n",
 		enforce ? "enforce" : "tracepoint",
 		enforce ? "BPF LSM is active" :
@@ -239,10 +239,11 @@ int main(int argc, char **argv)
 	/* Loop counts in a (non-frozen) map so the verifier checks each bpf_loop
 	 * callback once, not once per table entry. Slots: 0=rules 1=sources 2=xforms 3=gates. */
 	{
-		__u32 ks[4] = {0, 1, 2, 3};
-		__u32 vs[4] = { cfg.n_rules, cfg.n_sources, cfg.n_xforms, cfg.n_gates };
+		__u32 ks[5] = {0, 1, 2, 3, 4};
+		__u32 vs[5] = { cfg.n_rules, cfg.n_sources, cfg.n_xforms,
+				cfg.n_gates, cfg.n_invals };
 		int cfd = bpf_map__fd(skel->maps.ts_counts);
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < 5; i++) {
 			if (bpf_map_update_elem(cfd, &ks[i], &vs[i], BPF_ANY) < 0) {
 				fprintf(stderr, "failed to set loop count %d: %s\n", i, strerror(errno));
 				err = -1; goto cleanup;

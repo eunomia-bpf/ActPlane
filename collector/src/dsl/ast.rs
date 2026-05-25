@@ -47,7 +47,10 @@ pub enum Expr {
 pub enum Cond {
     Target { negate: bool, pattern: String },
     LineageIncludes { exec: String },
-    After { exec: String },
+    /// `after exec X [since EV ("or" EV)*]`. Each EV is an (op, pattern) event
+    /// whose later occurrence makes the X gate stale. `since` empty = v1
+    /// latching semantics (gate fired ever).
+    After { exec: String, since: Vec<(Op, String)> },
 }
 
 #[derive(Debug, Clone, PartialEq)]

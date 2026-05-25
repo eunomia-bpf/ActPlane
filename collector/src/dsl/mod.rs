@@ -82,6 +82,63 @@ mod tests {
     }
 
     #[test]
+    fn e5p_test_before_commit_since() {
+        // v2 staleness: editing src after the gate makes the prior pytest stale.
+        let c = ok(r#"
+            source AGENT = exec "**/codex"
+            rule test-before-commit:
+              deny exec "**/git" @arg "commit"
+                if AGENT
+                unless after exec "**/pytest" since write "src/**" or write "tests/**"
+              reason "tests are stale — you edited code after the last run"
+        "#);
+        assert_eq!(c.reasons.len(), 1);
+    }
+
+    #[test]
+    fn e11p_confirm_single_shot_since() {
+        // v2: each force-push needs a fresh confirm (a later git makes it stale).
+        ok(r#"
+            source AGENT = exec "**/codex"
+            rule confirm-destructive:
+              deny exec "**/git" @arg "--force"
+                if AGENT
+                unless after exec "**/confirm" since exec "**/git"
+              reason "each force-push needs a fresh confirm"
+        "#);
+    }
+
+    #[test]
+    fn e13_migrate_check_since() {
+        // v2: prod.db write needs a migration-check fresh w.r.t. the migrations.
+        ok(r#"
+            source AGENT = exec "**/codex"
+            rule migrate-checked:
+              deny write file "**/prod.db"
+                if AGENT
+                unless after exec "**/migrate-check" since write "migrations/**"
+              reason "migration-check must have seen the current migrations"
+        "#);
+    }
+
+    #[test]
+    fn since_without_clause_is_v1_latching() {
+        // `after` with no `since` must still compile (v1 semantics, since_mask=0)
+        // and produce the same fixed-size blob as a since-bearing policy.
+        let v1 = ok("rule r:\n  deny exec \"git\" if A unless after exec \"pytest\"\n  reason \"x\"\n");
+        let v2 = ok("rule r:\n  deny exec \"git\" if A unless after exec \"pytest\" since write \"src/**\"\n  reason \"x\"\n");
+        assert_eq!(v1.bytes.len(), v2.bytes.len());
+    }
+
+    #[test]
+    fn since_bad_invalidator_op_is_rejected() {
+        assert!(compile_str(
+            "rule r:\n  deny exec \"git\" if A unless after exec \"pytest\" since connect \"*\"\n  reason \"x\"\n"
+        )
+        .is_err());
+    }
+
+    #[test]
     fn e6_research_readonly() {
         ok(r#"
             source RESEARCH = exec "**/research-agent"

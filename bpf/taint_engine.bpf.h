@@ -19,6 +19,39 @@ struct proc_state {
 	__u64 lin_gates; /* gate bits seen in this pid's ancestor chain (incl self) */
 };
 
+/* Per-session (keyed by root pid) gate + staleness state.
+ *  - gate_bits: v1 latching "after exec X" bits (also used by `since_mask==0`).
+ *  - epoch:     monotonic per-session event counter.
+ *  - gate_epoch[i]:  epoch of the most recent exec matching gate i (0 = never).
+ *  - inval_epoch[i]: epoch of the most recent event matching invalidator i.
+ * `after X since Y` is satisfied iff gate_epoch[X] > max(inval_epoch[Y in mask]).
+ * It is a HASH map value, mutated in place via the lookup pointer. */
+struct te_sess {
+	__u64 gate_bits;
+	__u32 epoch;
+	__u32 _pad;
+	__u32 gate_epoch[MAX_TAINT_GATES];
+	__u32 inval_epoch[MAX_TAINT_INVALS];
+};
+
+/* File object identity (Layer A, docs/taint-dsl-v2.md §4). A real (dev, inode)
+ * when the hook has an inode (LSM mode); otherwise (0, fnv1a(path)) so the
+ * tracepoint path keeps its old path-keyed behavior byte-for-byte. Used as a
+ * HASH key, so it MUST be fully zero-initialized (incl _pad) before use. */
+struct file_id {
+	__u64 ino;
+	__u32 dev;
+	__u32 _pad;
+};
+/* ts_file value: taint labels (as before) plus the epoch of this object's last
+ * observed write. last_write_epoch is infrastructure for staleness precision
+ * (Layer B); Layer A only populates it for files that already carry labels. */
+struct file_state {
+	__u64 labels;
+	__u32 last_write_epoch;
+	__u32 _pad;
+};
+
 struct te_rule_eval {
 	pid_t pid;
 	__u64 labels;
@@ -49,14 +82,23 @@ struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 16384);
 	__type(key, pid_t);
-	__type(value, __u64);
-} ts_sess SEC(".maps"); /* root pid -> session gate bits */
+	__type(value, struct te_sess);
+} ts_sess SEC(".maps"); /* root pid -> session gate + staleness state */
+
+/* A single never-written, zero-initialized te_sess used only as the seed value
+ * for new ts_sess entries (te_sess is too big to zero on the BPF stack). */
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct te_sess);
+} ts_sess_zero SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 65536);
-	__type(key, __u64); /* fnv1a(path) */
-	__type(value, __u64);
+	__type(key, struct file_id);
+	__type(value, struct file_state);
 } ts_file SEC(".maps");
 
 struct {
@@ -71,18 +113,21 @@ const volatile unsigned int n_sources = 0;
 const volatile unsigned int n_rules = 0;
 const volatile unsigned int n_xforms = 0;
 const volatile unsigned int n_gates = 0;
+const volatile unsigned int n_invals = 0;
 const volatile struct taint_source taint_sources[MAX_TAINT_SOURCES] = {};
 const volatile struct taint_rule taint_rules[MAX_TAINT_RULES] = {};
 const volatile struct taint_xform taint_xforms[MAX_TAINT_XFORMS] = {};
 const volatile struct taint_gate taint_gates[MAX_TAINT_GATES] = {};
+const volatile struct taint_inval taint_invals[MAX_TAINT_INVALS] = {};
 
 /* Loop trip counts in a (non-frozen) map so the verifier treats them as unknown
  * scalars: every table loop runs via bpf_loop(), whose callback is then verified
  * exactly ONCE (a frozen/known count would make the verifier simulate per
- * iteration and -E2BIG at scale). Slots: 0=rules 1=sources 2=xforms 3=gates. */
+ * iteration and -E2BIG at scale). Slots: 0=rules 1=sources 2=xforms 3=gates
+ * 4=invals. */
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 4);
+	__uint(max_entries, 5);
 	__type(key, __u32);
 	__type(value, __u32);
 } ts_counts SEC(".maps");
@@ -194,6 +239,108 @@ static __always_inline pid_t te_root(pid_t pid)
 	return r ? *r : pid;
 }
 
+static __always_inline struct te_sess *te_sess_get(pid_t root)
+{
+	return bpf_map_lookup_elem(&ts_sess, &root);
+}
+static __always_inline struct te_sess *te_sess_init(pid_t root)
+{
+	struct te_sess *s = bpf_map_lookup_elem(&ts_sess, &root);
+	if (s)
+		return s;
+	/* te_sess is >512B, so a zeroed stack template blows the BPF stack. Seed
+	 * the new entry from a never-written, BSS-zeroed per-CPU template instead. */
+	__u32 k = 0;
+	struct te_sess *z = bpf_map_lookup_elem(&ts_sess_zero, &k);
+	if (!z)
+		return 0;
+	bpf_map_update_elem(&ts_sess, &root, z, BPF_NOEXIST);
+	return bpf_map_lookup_elem(&ts_sess, &root);
+}
+
+/* Invalidator matching: which invals[] slots match this (op, target) event.
+ * Returned as a bitmask over slots (MAX_TAINT_INVALS <= 64). Runs via bpf_loop
+ * (count from ts_counts slot 4) so the callback is verified once. */
+struct te_inval_ctx { unsigned int op; const char *target; __u64 hits; };
+static int te_inval_cb(__u32 i, void *vc)
+{
+	struct te_inval_ctx *c = vc;
+	if (i >= MAX_TAINT_INVALS)
+		return 1;
+	struct taint_inval iv = taint_invals[i];
+	if (iv.op == c->op && taint_match(iv.match, c->target, iv.pat))
+		c->hits |= (1ULL << i);
+	return 0;
+}
+static __noinline __u64 te_inval_hits(unsigned int op, const char *target)
+{
+	struct te_inval_ctx c = { .op = op, .target = target, .hits = 0 };
+	bpf_loop(te_count(4), te_inval_cb, &c, 0);
+	return c.hits;
+}
+
+/* Bump and return this session's monotonic event counter, creating the session
+ * entry if needed. Returns 0 if the session map is unavailable. Callers tick
+ * once per OS event, then stamp every gate/invalidator/file touched at that
+ * same epoch — so a write and its invalidator share one ordering point. */
+static __noinline __u32 te_tick(pid_t root)
+{
+	struct te_sess *s = te_sess_init(root);
+	if (!s)
+		return 0;
+	s->epoch += 1;
+	return s->epoch;
+}
+
+/* Stamp the gates and invalidators that fired in one event at `ep`. gate_hits
+ * also latch into gate_bits (v1 `after`). The two scans are constant-bound
+ * (<= 64) writes through the in-place map-value pointer. */
+static __noinline void te_stamp(pid_t root, __u32 ep, __u64 gate_hits, __u64 inval_hits)
+{
+	if (!ep || (!gate_hits && !inval_hits))
+		return;
+	struct te_sess *s = te_sess_get(root);
+	if (!s)
+		return;
+	s->gate_bits |= gate_hits;
+	for (int i = 0; i < MAX_TAINT_GATES; i++)
+		if (gate_hits & (1ULL << i))
+			s->gate_epoch[i] = ep;
+	for (int i = 0; i < MAX_TAINT_INVALS; i++)
+		if (inval_hits & (1ULL << i))
+			s->inval_epoch[i] = ep;
+}
+
+/* Is a TCOND_AFTER condition satisfied (i.e. the deny is relaxed / allowed)?
+ *  - since_mask == 0 : v1 latching — the gate fired at some point.
+ *  - since_mask != 0 : v2 staleness — the gate fired AND is still fresh, i.e.
+ *    no invalidator in since_mask has fired more recently. */
+static __noinline int te_after_satisfied(const struct taint_rule *r, pid_t pid)
+{
+	pid_t rt = te_root(pid);
+	struct te_sess *s = te_sess_get(rt);
+
+	if (!s)
+		return 0;
+	if (r->since_mask == 0)
+		return (s->gate_bits & r->gate) ? 1 : 0;
+	__u32 gidx = r->gate_idx;
+	if (gidx >= MAX_TAINT_GATES)
+		return 0;
+	__u32 ge = s->gate_epoch[gidx];
+	if (ge == 0)
+		return 0; /* gate never fired -> stale */
+	__u32 last_inval = 0;
+	for (int i = 0; i < MAX_TAINT_INVALS; i++) {
+		if (r->since_mask & (1ULL << i)) {
+			__u32 ie = s->inval_epoch[i];
+			if (ie > last_inval)
+				last_inval = ie;
+		}
+	}
+	return ge > last_inval ? 1 : 0;
+}
+
 /* fork: child inherits labels + lineage gates; root carries down. */
 static __always_inline void te_fork(pid_t ppid, pid_t cpid)
 {
@@ -264,11 +411,12 @@ static __noinline void te_exec_update(pid_t pid, const char *comm)
 	ns.labels = (ns.labels | c.add) & ~c.del;
 	ns.lin_gates |= c.gbits;
 	bpf_map_update_elem(&ts_proc, &pid, &ns, BPF_ANY);
-	if (c.gbits) {
+	/* session: latch gate bits + stamp their epoch, and stamp any exec-side
+	 * `since exec` invalidators that this exec matched (TOP_EXEC, on comm). */
+	__u64 ih = te_inval_hits(TOP_EXEC, comm);
+	if (c.gbits || ih) {
 		pid_t r = te_root(pid);
-		__u64 *s = bpf_map_lookup_elem(&ts_sess, &r);
-		__u64 nv = (s ? *s : 0) | c.gbits;
-		bpf_map_update_elem(&ts_sess, &r, &nv, BPF_ANY);
+		te_stamp(r, te_tick(r), c.gbits, ih);
 	}
 }
 
@@ -341,9 +489,7 @@ static int te_conn_rule_cb(__u32 i, void *vc)
 		if (p && (p->lin_gates & r.gate))
 			return 0;
 	} else if (r.cond_kind == TCOND_AFTER) {
-		pid_t rt = te_root(e->pid);
-		__u64 *s = bpf_map_lookup_elem(&ts_sess, &rt);
-		if (s && (*s & r.gate))
+		if (te_after_satisfied(&r, e->pid))
 			return 0;
 	} else if (r.cond_kind == TCOND_TARGET) {
 		int m = ((c->ip & r.cond_ipv4_mask) == r.cond_ipv4);
@@ -377,29 +523,49 @@ static __always_inline int te_connect_check(pid_t pid, __u32 ip)
 	return te_connect_check_labels(&e, ip);
 }
 
-static __always_inline __u64 te_file_labels(const char *path)
+static __always_inline __u64 te_file_labels(struct file_id *fid, const char *path)
 {
-	__u64 h = te_fnv1a(path);
-	__u64 *fl = bpf_map_lookup_elem(&ts_file, &h);
+	struct file_state *fs = bpf_map_lookup_elem(&ts_file, fid);
 
-	return (fl ? *fl : 0) | te_file_src(path);
+	return (fs ? fs->labels : 0) | te_file_src(path);
 }
 
-/* read: proc absorbs file labels + file source. */
-static __always_inline void te_read(pid_t pid, const char *path)
+/* read: proc absorbs file labels + file source; stamp `since read` invalidators. */
+static __always_inline void te_read(pid_t pid, struct file_id *fid, const char *path)
 {
-	te_add_labels(pid, te_file_labels(path));
+	te_add_labels(pid, te_file_labels(fid, path));
+	__u64 ih = te_inval_hits(TOP_OPEN, path);
+	if (ih) {
+		pid_t r = te_root(pid);
+		te_stamp(r, te_tick(r), 0, ih);
+	}
 }
-/* write: file absorbs proc labels. */
-static __always_inline void te_write_flow(pid_t pid, const char *path)
+/* write: file absorbs proc labels; stamp `since write` invalidators (this is
+ * what makes a gate go stale when the agent edits an input again). The label
+ * flow is gated on pl != 0, but invalidator stamping is not — editing an
+ * unlabeled source file must still invalidate a prior gate. Layer A: when the
+ * file does carry labels (so we already touch ts_file), record this write's
+ * epoch as the object's last_write_epoch. */
+static __always_inline void te_write_flow(pid_t pid, struct file_id *fid, const char *path)
 {
-	__u64 h = te_fnv1a(path);
+	__u64 ih = te_inval_hits(TOP_WRITE, path);
 	__u64 pl = te_labels(pid);
-	if (!pl)
+	if (!ih && !pl)
 		return;
-	__u64 *fl = bpf_map_lookup_elem(&ts_file, &h);
-	__u64 nv = (fl ? *fl : 0) | pl;
-	bpf_map_update_elem(&ts_file, &h, &nv, BPF_ANY);
+	pid_t r = te_root(pid);
+	__u32 ep = te_tick(r);
+	if (ih)
+		te_stamp(r, ep, 0, ih);
+	if (pl) {
+		struct file_state *fs = bpf_map_lookup_elem(&ts_file, fid);
+		if (fs) {
+			fs->labels |= pl;
+			fs->last_write_epoch = ep;
+		} else {
+			struct file_state ns = { .labels = pl, .last_write_epoch = ep };
+			bpf_map_update_elem(&ts_file, fid, &ns, BPF_ANY);
+		}
+	}
 }
 /* connect egress: endpoint records proc labels. */
 static __always_inline void te_connect_flow(__u32 ip, pid_t pid)
@@ -421,11 +587,8 @@ static __always_inline int te_cond_satisfied(const struct taint_rule *r, pid_t p
 		struct proc_state *p = te_get(pid);
 		return p && (p->lin_gates & r->gate);
 	}
-	if (r->cond_kind == TCOND_AFTER) {
-		pid_t rt = te_root(pid);
-		__u64 *s = bpf_map_lookup_elem(&ts_sess, &rt);
-		return s && (*s & r->gate);
-	}
+	if (r->cond_kind == TCOND_AFTER)
+		return te_after_satisfied(r, pid);
 	/* TCOND_TARGET */
 	int m = taint_match(r->cond_match, target, r->cond_pat);
 	return r->cond_neg ? !m : m;

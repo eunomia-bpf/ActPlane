@@ -169,3 +169,23 @@ cases:
     expect:
       count: 1
       re: '"comm":"git"'
+
+  # v2 staleness (docs/taint-dsl-v2.md). `since` makes the pytest gate go stale
+  # when work/** is edited again — which v1's latching `after` (E5) misses.
+  #  session 1: pytest -> commit                  => FRESH, allowed (no kill)
+  #  session 2: pytest -> edit work/foo -> commit => STALE, killed
+  # exactly one git violation proves both the allow-path and the staleness-path.
+  - name: "E5b test-before-commit goes stale (since)"
+    policy: |-
+      source AGENT = exec "**/codex"
+      rule test-before-commit:
+        deny exec "**/git" @arg "commit"
+          if AGENT
+          unless after exec "**/pytest" since write "${D}/work/**"
+        reason "tests are stale — you edited code after the last run"
+        effect kill
+    trigger: |-
+      ${D}/codex -c '${D}/pytest -c true; ${D}/git commit'; ${D}/codex -c '${D}/pytest -c true; echo x > ${D}/work/foo; ${D}/git commit'
+    expect:
+      count: 1
+      re: '"comm":"git"'

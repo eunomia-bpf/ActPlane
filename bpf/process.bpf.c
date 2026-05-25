@@ -299,6 +299,40 @@ static __always_inline int te_resolve_file_ref(__u32 ref_kind, const void *a,
 	}
 }
 
+/* Resolve the file's object identity from the same ref. With a real inode
+ * (LSM hooks) we use (i_ino, s_dev); the tracepoint USER_PATH path has no
+ * inode, so we fall back to (0, fnv1a(path)) — identical to the old path-keyed
+ * behavior. The key is fully zeroed first (HASH compares raw key bytes). */
+static __always_inline void te_resolve_file_id(__u32 ref_kind, const void *a,
+					       const void *b, const char *path,
+					       struct file_id *fid)
+{
+	struct inode *inode = NULL;
+
+	switch (ref_kind) {
+	case TE_REF_FILE:
+		inode = BPF_CORE_READ((struct file *)a, f_inode);
+		break;
+	case TE_REF_PATH:
+		inode = BPF_CORE_READ((const struct path *)a, dentry, d_inode);
+		break;
+	case TE_REF_PATH_DENTRY:
+		inode = BPF_CORE_READ((struct dentry *)b, d_inode);
+		break;
+	default:
+		break; /* TE_REF_USER_PATH: no inode available */
+	}
+	fid->ino = 0;
+	fid->dev = 0;
+	fid->_pad = 0;
+	if (inode) {
+		fid->ino = BPF_CORE_READ(inode, i_ino);
+		fid->dev = BPF_CORE_READ(inode, i_sb, s_dev);
+	}
+	if (!fid->ino)
+		fid->ino = te_fnv1a(path);
+}
+
 static __always_inline int te_resolve_sockaddr(__u32 ref_kind, const void *addr,
 					       __u32 *ip)
 {
@@ -324,7 +358,10 @@ static __always_inline int te_resolve_sockaddr(__u32 ref_kind, const void *addr,
 	return 0;
 }
 
-static __always_inline int te_handle_event(struct te_event *ev)
+/* `fid` is the file object identity for TE_OBJ_FILE events (NULL otherwise);
+ * it is only dereferenced in the FILE branches, which the verifier prunes for
+ * the connect/exec programs (obj_kind is a compile-time constant per caller). */
+static __always_inline int te_handle_event(struct te_event *ev, struct file_id *fid)
 {
 	__u64 labels = te_labels(ev->pid);
 	struct te_rule_eval eval = {};
@@ -335,7 +372,7 @@ static __always_inline int te_handle_event(struct te_event *ev)
 	int candidate = -1;
 
 	if (ev->obj_kind == TE_OBJ_FILE && (ev->access & TE_ACCESS_READ))
-		labels |= te_file_labels(ev->target);
+		labels |= te_file_labels(fid, ev->target);
 	if (ev->obj_kind == TE_OBJ_ENDPOINT && (ev->access & TE_ACCESS_CONNECT))
 		labels |= te_endp_src_ip(ev->ip);
 
@@ -401,9 +438,9 @@ static __always_inline int te_handle_event(struct te_event *ev)
 
 	if (ev->obj_kind == TE_OBJ_FILE) {
 		if (ev->access & TE_ACCESS_READ)
-			te_read(ev->pid, ev->target);
+			te_read(ev->pid, fid, ev->target);
 		if (ev->access & TE_ACCESS_WRITE)
-			te_write_flow(ev->pid, ev->target);
+			te_write_flow(ev->pid, fid, ev->target);
 	} else if (ev->obj_kind == TE_OBJ_ENDPOINT) {
 		te_add_labels(ev->pid, te_endp_src_ip(ev->ip));
 		te_connect_flow(ev->ip, ev->pid);
@@ -418,6 +455,7 @@ static __always_inline int te_handle_file(__u32 ref_kind, const void *a,
 {
 	char path[MAX_FILENAME_LEN] = {};
 	struct te_event ev = {};
+	struct file_id fid = {};
 
 	if ((mode == TE_MODE_BLOCK && !enforce_mode) ||
 	    ((mode == TE_MODE_AUDIT || mode == TE_MODE_KILL) && enforce_mode))
@@ -426,13 +464,14 @@ static __always_inline int te_handle_file(__u32 ref_kind, const void *a,
 		return 0;
 	if (te_resolve_file_ref(ref_kind, a, b, path, sizeof(path)) < 0)
 		return 0;
+	te_resolve_file_id(ref_kind, a, b, path, &fid);
 
 	ev.pid = bpf_get_current_pid_tgid() >> 32;
 	ev.obj_kind = TE_OBJ_FILE;
 	ev.access = access;
 	ev.mode = mode;
 	ev.target = path;
-	return te_handle_event(&ev);
+	return te_handle_event(&ev, &fid);
 }
 
 static __always_inline int te_handle_net(__u32 ref_kind, const void *a,
@@ -456,7 +495,7 @@ static __always_inline int te_handle_net(__u32 ref_kind, const void *a,
 	ev.access = access;
 	ev.mode = mode;
 	ev.ip = ip;
-	return te_handle_event(&ev);
+	return te_handle_event(&ev, 0);
 }
 
 static __always_inline int te_handle_exec(__u32 ref_kind, const void *a,
@@ -494,7 +533,7 @@ static __always_inline int te_handle_exec(__u32 ref_kind, const void *a,
 	ev.display = shown;
 	ev.argv = argv;
 	ev.argv_len = argv_len;
-	return te_handle_event(&ev);
+	return te_handle_event(&ev, 0);
 }
 
 SEC("lsm/bprm_check_security")

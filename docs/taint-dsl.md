@@ -126,10 +126,18 @@ expr        := term (("and"|"or") term)*
 term        := ["not"] IDENT | "true"
 cond        := "target" ["not"] PATTERN
              | "lineage-includes" "exec" PATTERN
-             | "after" "exec" PATTERN
+             | "after" "exec" PATTERN [ "since" event_pat ("or" event_pat)* ]
+event_pat   := ("write"|"read"|"exec") PATTERN
 PATTERN, STRING := quoted string
 ```
 (`open` is sugar matching both `read` and `write`; `@arg "x"` additionally requires token `x` in argv — for `git push` etc.)
+
+> **v2 staleness (`since`)** — `after exec X` is *latching* (satisfied once X
+> ever ran). Adding `since EV…` makes the gate go **stale** when a later EV
+> (a write/read/exec event) occurs in the same session, exactly like a build
+> system re-marking a target dirty when its inputs change. `after exec
+> "**/pytest" since write "src/**"` = "tests must have run *after* your last
+> edit to src". Full design + engine model: [`taint-dsl-v2.md`](taint-dsl-v2.md).
 
 `effect` is compiled into the kernel ABI and is the source of truth for what
 happens on a match. `reason` and `remediation` stay Rust-side and shape the

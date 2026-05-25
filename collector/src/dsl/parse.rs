@@ -182,9 +182,22 @@ impl P {
             }
             "after" => {
                 self.eat("exec")?;
-                Ok(Cond::After {
-                    exec: self.string()?,
-                })
+                let exec = self.string()?;
+                let mut since = Vec::new();
+                if self.is_word("since") {
+                    self.next();
+                    loop {
+                        let op = P::op(&self.word()?)?;
+                        let pat = self.string()?;
+                        since.push((op, pat));
+                        if self.is_word("or") {
+                            self.next();
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                Ok(Cond::After { exec, since })
             }
             _ => Err(format!("unknown unless cond '{}'", w)),
         }

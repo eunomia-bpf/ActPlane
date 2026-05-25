@@ -72,6 +72,11 @@
 #define MAX_TAINT_RULES   128
 #define MAX_TAINT_XFORMS  64
 #define MAX_TAINT_GATES   64
+/* v2: `since` invalidators. `after exec X since Y` makes the X gate go stale
+ * when a later Y-event (write/read/exec matching the invalidator) occurs in the
+ * same session — the build-system "stale target" idea. Capped at 64 so the set
+ * of invalidators that reset a given rule fits one u64 mask (since_mask). */
+#define MAX_TAINT_INVALS  64
 #define TAINT_LABEL_NONE  0ULL
 
 enum taint_match {
@@ -100,8 +105,17 @@ enum taint_op {
 enum taint_cond {
 	TCOND_NONE    = 0,
 	TCOND_LINEAGE = 1, /* allowed if gate bit set in lineage (ancestor) mask */
-	TCOND_AFTER   = 2, /* allowed if gate bit set in session mask */
+	TCOND_AFTER   = 2, /* allowed if gate fired; for `since`, also still fresh */
 	TCOND_TARGET  = 3, /* allowed if object matches cond_pat (neg flips) */
+};
+
+/* v2 `since` invalidator: an event whose later occurrence makes a TCOND_AFTER
+ * gate stale. op is the lowered taint_op (TOP_EXEC comm / TOP_OPEN read /
+ * TOP_WRITE write); the engine stamps inval_epoch[i] when one matches. */
+struct taint_inval {
+	unsigned char op;    /* enum taint_op */
+	unsigned char match; /* enum taint_match */
+	char pat[TAINT_PAT_LEN];
 };
 
 /* rule result */
@@ -139,6 +153,11 @@ struct taint_rule {
 	unsigned int ipv4_mask;
 	unsigned int cond_ipv4;      /* TCOND_TARGET on connect */
 	unsigned int cond_ipv4_mask;
+	/* v2 staleness (TCOND_AFTER only). gate_idx is the gates[] slot of the X
+	 * gate; since_mask is the set of invals[] slots (Y) that reset it. When
+	 * since_mask == 0 the rule keeps v1 latching semantics (gate fired ever). */
+	unsigned int gate_idx;
+	unsigned long long since_mask;
 };
 
 struct taint_xform {
@@ -163,10 +182,12 @@ struct taint_config {
 	unsigned int n_rules;
 	unsigned int n_xforms;
 	unsigned int n_gates;
+	unsigned int n_invals;
 	struct taint_source sources[MAX_TAINT_SOURCES];
 	struct taint_rule rules[MAX_TAINT_RULES];
 	struct taint_xform xforms[MAX_TAINT_XFORMS];
 	struct taint_gate gates[MAX_TAINT_GATES];
+	struct taint_inval invals[MAX_TAINT_INVALS];
 };
 
 /* ---- pure matching predicates ----

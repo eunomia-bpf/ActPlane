@@ -16,6 +16,7 @@ const MAX_SOURCES: usize = 128;
 const MAX_RULES: usize = 128;
 const MAX_XFORMS: usize = 64;
 const MAX_GATES: usize = 64;
+const MAX_INVALS: usize = 64;
 
 const M_EXACT: u8 = 0;
 const M_PREFIX: u8 = 1;
@@ -66,6 +67,8 @@ struct CRule {
     ipv4_mask: u32,
     cond_ipv4: u32,
     cond_ipv4_mask: u32,
+    gate_idx: u32,
+    since_mask: u64,
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -84,15 +87,24 @@ struct CGate {
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
+struct CInval {
+    op: u8,
+    m: u8,
+    pat: [u8; PAT],
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
 struct CConfig {
     n_sources: u32,
     n_rules: u32,
     n_xforms: u32,
     n_gates: u32,
+    n_invals: u32,
     sources: [CSource; MAX_SOURCES],
     rules: [CRule; MAX_RULES],
     xforms: [CXform; MAX_XFORMS],
     gates: [CGate; MAX_GATES],
+    invals: [CInval; MAX_INVALS],
 }
 
 fn set_pat(dst: &mut [u8], s: &str) {
@@ -170,8 +182,11 @@ struct Ctx {
     labels: HashMap<String, u64>,
     next_label: u32,
     gates: Vec<CGate>,
-    gate_bits: HashMap<(u8, String), u64>,
+    gate_bits: HashMap<(u8, String), (u64, u32)>,
     next_gate: u32,
+    invals: Vec<CInval>,
+    inval_slots: HashMap<(u8, u8, String), u32>,
+    next_inval: u32,
 }
 impl Ctx {
     fn label_bit(&mut self, name: &str) -> Result<u64, String> {
@@ -186,7 +201,9 @@ impl Ctx {
         self.labels.insert(name.to_string(), b);
         Ok(b)
     }
-    fn gate_bit(&mut self, exec_pat: &str) -> Result<u64, String> {
+    /// Returns (gate bit, gate slot index). The index is what the engine uses to
+    /// look up the gate's epoch for staleness; the bit is the v1 latching mask.
+    fn gate_bit(&mut self, exec_pat: &str) -> Result<(u64, u32), String> {
         let (m, lit) = lower_exec(exec_pat);
         let key = (m, lit.clone());
         if let Some(b) = self.gate_bits.get(&key) {
@@ -195,7 +212,8 @@ impl Ctx {
         if self.next_gate >= 64 || self.gates.len() >= MAX_GATES {
             return Err("too many gates".into());
         }
-        let b = 1u64 << self.next_gate;
+        let idx = self.next_gate;
+        let b = 1u64 << idx;
         self.next_gate += 1;
         let mut g = CGate {
             m,
@@ -204,8 +222,36 @@ impl Ctx {
         };
         set_pat(&mut g.pat, &lit);
         self.gates.push(g);
-        self.gate_bits.insert(key, b);
-        Ok(b)
+        self.gate_bits.insert(key, (b, idx));
+        Ok((b, idx))
+    }
+    /// Allocate (or reuse) a `since` invalidator slot, returning its bit in the
+    /// rule's `since_mask`. `op` is the lowered taint_op; the pattern is matched
+    /// like a sink target (exec on comm, others on path).
+    fn inval_slot(&mut self, op: u8, kind: Kind, pat: &str) -> Result<u64, String> {
+        let (m, lit) = if op == OP_EXEC {
+            lower_exec(pat)
+        } else {
+            lower_target(op, kind, pat)
+        };
+        let key = (op, m, lit.clone());
+        if let Some(i) = self.inval_slots.get(&key) {
+            return Ok(1u64 << *i);
+        }
+        if self.next_inval >= 64 || self.invals.len() >= MAX_INVALS {
+            return Err("too many `since` invalidators (max 64)".into());
+        }
+        let idx = self.next_inval;
+        self.next_inval += 1;
+        let mut iv = CInval {
+            op,
+            m,
+            pat: [0; PAT],
+        };
+        set_pat(&mut iv.pat, &lit);
+        self.invals.push(iv);
+        self.inval_slots.insert(key, idx);
+        Ok(1u64 << idx)
     }
 }
 
@@ -257,6 +303,18 @@ fn op_lowers(op: Op) -> Result<&'static [u8], String> {
     }
 }
 
+/// Lower a `since` event op to the single taint_op the engine stamps on. Only
+/// read/write/exec can invalidate a gate.
+fn inval_op(op: Op) -> Result<u8, String> {
+    match op {
+        Op::Read => Ok(OP_OPEN),
+        Op::Write => Ok(OP_WRITE),
+        Op::Exec => Ok(OP_EXEC),
+        other => Err(format!("`since {}` is not a valid invalidator (use read/write/exec)",
+                             op_name(other))),
+    }
+}
+
 fn lower_target(op: u8, kind: Kind, pat: &str) -> (u8, String) {
     let _ = kind;
     match op {
@@ -300,6 +358,9 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
         gates: Vec::new(),
         gate_bits: HashMap::new(),
         next_gate: 0,
+        invals: Vec::new(),
+        inval_slots: HashMap::new(),
+        next_inval: 0,
     };
     let mut sources: Vec<CSource> = Vec::new();
     let mut rules: Vec<CRule> = Vec::new();
@@ -377,6 +438,8 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
                 let (mut ck, mut cneg, mut cm, mut clit, mut gate) =
                     (C_NONE, 0u8, M_EXACT, String::new(), 0u64);
                 let (mut cipv4, mut cipv4_mask) = (0u32, 0u32);
+                let mut gate_idx = 0u32;
+                let mut since_mask = 0u64;
                 match &cl.unless {
                     None => {}
                     Some(Cond::Target { negate, pattern }) => {
@@ -394,11 +457,18 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
                     }
                     Some(Cond::LineageIncludes { exec }) => {
                         ck = C_LINEAGE;
-                        gate = ctx.gate_bit(exec)?;
+                        let (b, _idx) = ctx.gate_bit(exec)?;
+                        gate = b;
                     }
-                    Some(Cond::After { exec }) => {
+                    Some(Cond::After { exec, since }) => {
                         ck = C_AFTER;
-                        gate = ctx.gate_bit(exec)?;
+                        let (b, idx) = ctx.gate_bit(exec)?;
+                        gate = b;
+                        gate_idx = idx;
+                        for (op, pat) in since {
+                            let iop = inval_op(*op)?;
+                            since_mask |= ctx.inval_slot(iop, cl.target.kind, pat)?;
+                        }
                     }
                 }
                 for (req, forbid) in dnf(&cl.when, &mut ctx)? {
@@ -420,6 +490,8 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
                         ipv4_mask,
                         cond_ipv4: cipv4,
                         cond_ipv4_mask: cipv4_mask,
+                        gate_idx,
+                        since_mask,
                     };
                     set_pat(&mut cr.target, &tlit);
                     if let Some(a) = &cl.target.arg {
@@ -445,6 +517,9 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
     if xforms.len() > MAX_XFORMS {
         return Err("too many xforms".into());
     }
+    if ctx.invals.len() > MAX_INVALS {
+        return Err("too many `since` invalidators".into());
+    }
 
     // build the repr(C) config
     let mut cfg: CConfig = unsafe { std::mem::zeroed() };
@@ -452,6 +527,7 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
     cfg.n_rules = rules.len() as u32;
     cfg.n_xforms = xforms.len() as u32;
     cfg.n_gates = ctx.gates.len() as u32;
+    cfg.n_invals = ctx.invals.len() as u32;
     for (i, s) in sources.iter().enumerate() {
         cfg.sources[i] = *s;
     }
@@ -463,6 +539,9 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
     }
     for (i, g) in ctx.gates.iter().enumerate() {
         cfg.gates[i] = *g;
+    }
+    for (i, iv) in ctx.invals.iter().enumerate() {
+        cfg.invals[i] = *iv;
     }
 
     let bytes = unsafe {
