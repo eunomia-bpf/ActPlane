@@ -28,6 +28,7 @@ struct te_rule_eval {
 	int argv_len;
 	unsigned int effect;
 	unsigned int effect_mask;
+	int matched_rule;       /* set by te_rule_effect on a hit */
 };
 
 struct {
@@ -74,6 +75,85 @@ const volatile struct taint_source taint_sources[MAX_TAINT_SOURCES] = {};
 const volatile struct taint_rule taint_rules[MAX_TAINT_RULES] = {};
 const volatile struct taint_xform taint_xforms[MAX_TAINT_XFORMS] = {};
 const volatile struct taint_gate taint_gates[MAX_TAINT_GATES] = {};
+
+/* Loop trip counts in a (non-frozen) map so the verifier treats them as unknown
+ * scalars: every table loop runs via bpf_loop(), whose callback is then verified
+ * exactly ONCE (a frozen/known count would make the verifier simulate per
+ * iteration and -E2BIG at scale). Slots: 0=rules 1=sources 2=xforms 3=gates. */
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 4);
+	__type(key, __u32);
+	__type(value, __u32);
+} ts_counts SEC(".maps");
+
+static __always_inline unsigned int te_count(__u32 slot)
+{
+	__u32 *v = bpf_map_lookup_elem(&ts_counts, &slot);
+	return v ? *v : 0;
+}
+
+/* Per-CPU scratch for the raw argv blob + tokenized slots (off-stack; the exec
+ * hook fills it then matches synchronously, so per-CPU reuse is safe). Both live
+ * in the map so the bpf_loop tokenizer can do variable-offset reads/writes, which
+ * the verifier rejects on the stack. */
+struct te_argslots {
+	char blob[TAINT_ARGV_CAP];
+	char slots[TAINT_ARG_SLOTS_BUF];
+};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct te_argslots);
+} ts_argslots SEC(".maps");
+
+static __always_inline struct te_argslots *te_argslots_buf(void)
+{
+	__u32 k = 0;
+	return bpf_map_lookup_elem(&ts_argslots, &k);
+}
+
+/* Tokenize the argv blob into fixed slots via bpf_loop (callback verified once;
+ * a plain inlined loop's dynamic-index write exploded the verifier). The callback
+ * re-looks-up the per-CPU scratch so the verifier keeps the map_value bound (a
+ * pointer carried through the bpf_loop ctx loses it -> "unbounded access"). */
+struct te_tok_ctx { int si; int pj; };
+static int te_tok_cb(__u32 i, void *vc)
+{
+	struct te_tok_ctx *c = vc;
+	struct te_argslots *a = te_argslots_buf();
+
+	if (!a)
+		return 1;
+	/* barrier_var keeps clang from eliding the mask (it otherwise proves i<CAP and
+	 * reuses an unbounded copy for the access); the AND makes bi<=CAP-1 verifiably. */
+	__u32 bi = i;
+	barrier_var(bi);
+	bi &= (__u32)(TAINT_ARGV_CAP - 1);
+	char ch = a->blob[bi];
+	if (ch == '\0') {
+		c->si++;
+		c->pj = 0;
+		return c->si >= MAX_ARG_SLOTS ? 1 : 0;
+	}
+	if (c->si >= 0 && c->si < MAX_ARG_SLOTS && c->pj >= 0 && c->pj < TAINT_ARG_LEN - 1) {
+		__u32 sidx = ((__u32)c->si * TAINT_ARG_LEN + (__u32)c->pj);
+		if (sidx < TAINT_ARG_SLOTS_BUF)
+			a->slots[sidx] = ch;
+		c->pj++;
+	}
+	return 0;
+}
+static __always_inline void te_tokenize_args_eng(int len)
+{
+	if (len < 0)
+		len = 0;
+	if (len > TAINT_ARGV_CAP)        /* so the callback's i < len stays bounded */
+		len = TAINT_ARGV_CAP;
+	struct te_tok_ctx c = { .si = 0, .pj = 0 };
+	bpf_loop((unsigned int)len, te_tok_cb, &c, 0);
+}
 
 static __always_inline __u64 te_fnv1a(const char *s)
 {
@@ -126,130 +206,166 @@ static __always_inline void te_fork(pid_t ppid, pid_t cpid)
 	bpf_map_update_elem(&ts_root, &cpid, &r, BPF_ANY);
 }
 
+/* All table scans below run via bpf_loop() (count from the ts_counts map) so the
+ * callback is verified once regardless of table size — see ts_counts. Each
+ * callback range-checks its index for the verifier's static bound. */
+
+struct te_exec_ctx { const char *comm; __u64 add, del, gbits; };
+
+static int te_exec_src_cb(__u32 i, void *vc)
+{
+	struct te_exec_ctx *c = vc;
+	if (i >= MAX_TAINT_SOURCES)
+		return 1;
+	struct taint_source s = taint_sources[i];
+	if (s.kind == TSRC_EXEC && taint_match(s.match, c->comm, s.pat))
+		c->add |= s.label;
+	return 0;
+}
+static int te_exec_xform_cb(__u32 i, void *vc)
+{
+	struct te_exec_ctx *c = vc;
+	if (i >= MAX_TAINT_XFORMS)
+		return 1;
+	struct taint_xform x = taint_xforms[i];
+	if (taint_match(x.match, c->comm, x.gate)) {
+		if (x.add)
+			c->add |= x.label;
+		else
+			c->del |= x.label;
+	}
+	return 0;
+}
+static int te_exec_gate_cb(__u32 i, void *vc)
+{
+	struct te_exec_ctx *c = vc;
+	if (i >= MAX_TAINT_GATES)
+		return 1;
+	struct taint_gate g = taint_gates[i];
+	if (taint_match(g.match, c->comm, g.pat))
+		c->gbits |= g.bit;
+	return 0;
+}
+
 /* on exec: apply exec sources, xforms (declassify/endorse), and gates (set
  * lineage + session bits). All exec-side patterns are matched on comm. */
 static __noinline void te_exec_update(pid_t pid, const char *comm)
 {
-	__u64 add = 0, del = 0, gbits = 0;
+	struct te_exec_ctx c = { .comm = comm };
 
-	for (unsigned int i = 0; i < MAX_TAINT_SOURCES; i++) {
-		if (i >= n_sources)
-			break;
-		struct taint_source s = taint_sources[i]; /* local copy: plain reads */
-		if (s.kind == TSRC_EXEC && taint_match(s.match, comm, s.pat))
-			add |= s.label;
-	}
-	for (unsigned int i = 0; i < MAX_TAINT_XFORMS; i++) {
-		if (i >= n_xforms)
-			break;
-		struct taint_xform x = taint_xforms[i];
-		if (taint_match(x.match, comm, x.gate)) {
-			if (x.add)
-				add |= x.label;
-			else
-				del |= x.label;
-		}
-	}
-	for (unsigned int i = 0; i < MAX_TAINT_GATES; i++) {
-		if (i >= n_gates)
-			break;
-		struct taint_gate g = taint_gates[i];
-		if (taint_match(g.match, comm, g.pat))
-			gbits |= g.bit;
-	}
+	bpf_loop(te_count(1), te_exec_src_cb, &c, 0);
+	bpf_loop(te_count(2), te_exec_xform_cb, &c, 0);
+	bpf_loop(te_count(3), te_exec_gate_cb, &c, 0);
 
 	struct proc_state *p = te_get(pid);
 	struct proc_state ns = { 0 };
 	if (p)
 		ns = *p;
-	ns.labels = (ns.labels | add) & ~del;
-	ns.lin_gates |= gbits;
+	ns.labels = (ns.labels | c.add) & ~c.del;
+	ns.lin_gates |= c.gbits;
 	bpf_map_update_elem(&ts_proc, &pid, &ns, BPF_ANY);
-	if (gbits) {
+	if (c.gbits) {
 		pid_t r = te_root(pid);
 		__u64 *s = bpf_map_lookup_elem(&ts_sess, &r);
-		__u64 nv = (s ? *s : 0) | gbits;
+		__u64 nv = (s ? *s : 0) | c.gbits;
 		bpf_map_update_elem(&ts_sess, &r, &nv, BPF_ANY);
 	}
 }
 
 /* object sources: reading a matching file / receiving from a matching endpoint
  * taints the subject. */
+struct te_fsrc_ctx { const char *path; __u32 ip; __u64 add; };
+
+static int te_file_src_cb(__u32 i, void *vc)
+{
+	struct te_fsrc_ctx *c = vc;
+	if (i >= MAX_TAINT_SOURCES)
+		return 1;
+	struct taint_source s = taint_sources[i];
+	if (s.kind == TSRC_FILE && taint_match(s.match, c->path, s.pat))
+		c->add |= s.label;
+	return 0;
+}
+static int te_endp_src_cb(__u32 i, void *vc)
+{
+	struct te_fsrc_ctx *c = vc;
+	if (i >= MAX_TAINT_SOURCES)
+		return 1;
+	struct taint_source s = taint_sources[i];
+	if (s.kind == TSRC_ENDPOINT && (c->ip & s.ipv4_mask) == s.ipv4)
+		c->add |= s.label;
+	return 0;
+}
 static __noinline __u64 te_file_src(const char *path)
 {
-	__u64 add = 0;
-	for (unsigned int i = 0; i < MAX_TAINT_SOURCES; i++) {
-		if (i >= n_sources)
-			break;
-		struct taint_source s = taint_sources[i];
-		if (s.kind == TSRC_FILE && taint_match(s.match, path, s.pat))
-			add |= s.label;
-	}
-	return add;
+	struct te_fsrc_ctx c = { .path = path };
+	bpf_loop(te_count(1), te_file_src_cb, &c, 0);
+	return c.add;
 }
 static __noinline __u64 te_endp_src_ip(__u32 ip)
 {
-	__u64 add = 0;
-	for (unsigned int i = 0; i < MAX_TAINT_SOURCES; i++) {
-		if (i >= n_sources)
-			break;
-		struct taint_source s = taint_sources[i];
-		if (s.kind == TSRC_ENDPOINT && (ip & s.ipv4_mask) == s.ipv4)
-			add |= s.label;
-	}
-	return add;
+	struct te_fsrc_ctx c = { .ip = ip };
+	bpf_loop(te_count(1), te_endp_src_cb, &c, 0);
+	return c.add;
 }
 
-/* connect sink: numeric IPv4 match (no string formatting). Returns rule_id/-1. */
+/* connect sink: numeric IPv4 match (no string formatting). bpf_loop over rules. */
+struct te_conn_ctx {
+	struct te_rule_eval *e;
+	__u32 ip;
+	unsigned int best_effect;
+	int best_rule;
+};
+static int te_conn_rule_cb(__u32 i, void *vc)
+{
+	struct te_conn_ctx *c = vc;
+	if (i >= MAX_TAINT_RULES)
+		return 1;
+	struct taint_rule r = taint_rules[i];
+	struct te_rule_eval *e = c->e;
+
+	if (r.op != TOP_CONNECT)
+		return 0;
+	if (e->effect_mask) {
+		if (r.effect > TEFFECT_KILL)
+			return 0;
+		if (!(e->effect_mask & (1U << r.effect)))
+			return 0;
+	}
+	if (!taint_mask_ok(e->labels, r.req, r.forbid))
+		return 0;
+	if ((c->ip & r.ipv4_mask) != r.ipv4)
+		return 0;
+	if (r.cond_kind == TCOND_LINEAGE) {
+		struct proc_state *p = te_get(e->pid);
+		if (p && (p->lin_gates & r.gate))
+			return 0;
+	} else if (r.cond_kind == TCOND_AFTER) {
+		pid_t rt = te_root(e->pid);
+		__u64 *s = bpf_map_lookup_elem(&ts_sess, &rt);
+		if (s && (*s & r.gate))
+			return 0;
+	} else if (r.cond_kind == TCOND_TARGET) {
+		int m = ((c->ip & r.cond_ipv4_mask) == r.cond_ipv4);
+		if (r.cond_neg ? !m : m)
+			return 0;
+	}
+	if (c->best_rule < 0 || r.effect > c->best_effect) {
+		c->best_rule = (int)r.rule_id;
+		c->best_effect = r.effect;
+		if (c->best_effect == TEFFECT_KILL)
+			return 1;
+	}
+	return 0;
+}
 static __noinline int te_connect_check_labels(struct te_rule_eval *e, __u32 ip)
 {
-	pid_t pid = e->pid;
-	__u64 labels = e->labels;
-	unsigned int best_effect = TEFFECT_AUDIT;
-	int best_rule = -1;
-
-	for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
-		if (i >= n_rules)
-			break;
-		if (taint_rules[i].op != TOP_CONNECT)
-			continue;
-		unsigned int effect = taint_rules[i].effect;
-		if (e->effect_mask) {
-			if (effect > TEFFECT_KILL)
-				continue;
-			if (!(e->effect_mask & (1U << effect)))
-				continue;
-		}
-		if (!taint_mask_ok(labels, taint_rules[i].req, taint_rules[i].forbid))
-			continue;
-		if ((ip & taint_rules[i].ipv4_mask) != taint_rules[i].ipv4)
-			continue;
-		/* conditions */
-		if (taint_rules[i].cond_kind == TCOND_LINEAGE) {
-			struct proc_state *p = te_get(pid);
-			if (p && (p->lin_gates & taint_rules[i].gate))
-				continue;
-		} else if (taint_rules[i].cond_kind == TCOND_AFTER) {
-			pid_t rt = te_root(pid);
-			__u64 *s = bpf_map_lookup_elem(&ts_sess, &rt);
-			if (s && (*s & taint_rules[i].gate))
-				continue;
-		} else if (taint_rules[i].cond_kind == TCOND_TARGET) {
-			int m = ((ip & taint_rules[i].cond_ipv4_mask) ==
-				 taint_rules[i].cond_ipv4);
-			if (taint_rules[i].cond_neg ? !m : m)
-				continue;
-		}
-		if (best_rule < 0 || effect > best_effect) {
-			best_rule = (int)taint_rules[i].rule_id;
-			best_effect = effect;
-			if (best_effect == TEFFECT_KILL)
-				break;
-		}
-	}
-	if (best_rule >= 0)
-		e->effect = best_effect;
-	return best_rule;
+	struct te_conn_ctx c = { .e = e, .ip = ip,
+				 .best_effect = TEFFECT_AUDIT, .best_rule = -1 };
+	bpf_loop(te_count(0), te_conn_rule_cb, &c, 0);
+	if (c.best_rule >= 0)
+		e->effect = c.best_effect;
+	return c.best_rule;
 }
 
 static __always_inline int te_connect_check(pid_t pid, __u32 ip)
@@ -315,53 +431,67 @@ static __always_inline int te_cond_satisfied(const struct taint_rule *r, pid_t p
 	return r->cond_neg ? !m : m;
 }
 
-/* Evaluate sinks for one normalized event. Returns the matched rule_id, or -1
- * if none. The context pointer keeps the bpf2bpf call within the 5-arg limit. */
+/* Match event `e` against one rule index; returns the rule's effect (>=0) on a
+ * hit, else -1, recording the matched rule_id in e->matched_rule. */
+static __noinline int te_rule_effect(struct te_rule_eval *e, unsigned int idx)
+{
+	if (idx >= MAX_TAINT_RULES)
+		return -1;
+	struct taint_rule r = taint_rules[idx]; /* local copy: plain reads */
+
+	if (r.op != e->op)
+		return -1;
+	if (e->effect_mask) {
+		if (r.effect > TEFFECT_KILL)
+			return -1;
+		if (!(e->effect_mask & (1U << r.effect)))
+			return -1;
+	}
+	if (!taint_mask_ok(e->labels, r.req, r.forbid))
+		return -1;
+	if (!taint_match(r.match, e->target, r.target))
+		return -1;
+	if (e->op == TOP_EXEC && r.arg[0] != '\0') {
+		/* Match against the pre-tokenized arg slots. Re-look-up the per-CPU
+		 * scratch here so the verifier keeps the map_value bound (a pointer
+		 * carried via e->argv would be treated as unbounded). */
+		struct te_argslots *a = te_argslots_buf();
+		if (!a || !taint_arg_match(a->slots, r.arg))
+			return -1;
+	}
+	if (te_cond_satisfied(&r, e->pid, e->target))
+		return -1;
+	e->matched_rule = (int)r.rule_id;
+	return (int)r.effect;
+}
+
+struct te_rule_ctx { struct te_rule_eval *e; unsigned int best_effect; int best_rule; };
+static int te_rule_cb(__u32 i, void *vc)
+{
+	struct te_rule_ctx *c = vc;
+	int eff = te_rule_effect(c->e, i);
+	if (eff < 0)
+		return 0;
+	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
+		c->best_rule = c->e->matched_rule;
+		c->best_effect = (unsigned int)eff;
+		if (c->best_effect == TEFFECT_KILL)
+			return 1;
+	}
+	return 0;
+}
+
+/* Evaluate sinks for one normalized event. Returns the matched rule_id, or -1.
+ * The rule loop runs via bpf_loop() with the count from the ts_counts map, so
+ * the callback is verified ONCE — verifier cost is independent of rule count,
+ * which (with the branchless matchers) lets 100+ rules load in one program. */
 static __noinline int te_check_labels(struct te_rule_eval *e)
 {
-	pid_t pid = e->pid;
-	__u64 labels = e->labels;
-	unsigned int op = e->op;
-	const char *target = e->target;
-	const char *argv = e->argv;
-	int argv_len = e->argv_len;
-	unsigned int best_effect = TEFFECT_AUDIT;
-	int best_rule = -1;
-
-	for (unsigned int i = 0; i < MAX_TAINT_RULES; i++) {
-		if (i >= n_rules)
-			break;
-		struct taint_rule r = taint_rules[i]; /* local copy: plain reads */
-		if (r.op != op)
-			continue;
-		if (e->effect_mask) {
-			if (r.effect > TEFFECT_KILL)
-				continue;
-			if (!(e->effect_mask & (1U << r.effect)))
-				continue;
-		}
-		if (!taint_mask_ok(labels, r.req, r.forbid))
-			continue;
-		if (!taint_match(r.match, target, r.target))
-			continue;
-		if (op == TOP_EXEC && r.arg[0] != '\0') {
-			if (!argv || argv_len <= 0)
-				continue;
-			if (!taint_arg_match(argv, argv_len, r.arg))
-				continue;
-		}
-		if (te_cond_satisfied(&r, pid, target))
-			continue;
-		if (best_rule < 0 || r.effect > best_effect) {
-			best_rule = (int)r.rule_id;
-			best_effect = r.effect;
-			if (best_effect == TEFFECT_KILL)
-				break;
-		}
-	}
-	if (best_rule >= 0)
-		e->effect = best_effect;
-	return best_rule;
+	struct te_rule_ctx c = { .e = e, .best_effect = TEFFECT_AUDIT, .best_rule = -1 };
+	bpf_loop(te_count(0), te_rule_cb, &c, 0);
+	if (c.best_rule >= 0)
+		e->effect = c.best_effect;
+	return c.best_rule;
 }
 
 static __always_inline int te_check(pid_t pid, unsigned int op, const char *target,

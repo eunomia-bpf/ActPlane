@@ -463,7 +463,7 @@ static __always_inline int te_handle_exec(__u32 ref_kind, const void *a,
 					  const void *b, const char *argv,
 					  int argv_len, __u32 mode)
 {
-	char match[TAINT_PAT_LEN] = {};
+	char match[TAINT_TEXT_BUF] = {}; /* >= PAT_LEN+SUF_MAX for suffix tail copy */
 	char display[MAX_FILENAME_LEN] = {};
 	const char *target = match;
 	const char *shown = display;
@@ -574,28 +574,35 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 {
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-	char comm[TAINT_PAT_LEN] = {}; /* >= pattern len so matchers stay in-bounds */
-	char argv[TAINT_ARGV_CAP];
+	char comm[TAINT_TEXT_BUF] = {}; /* >= PAT_LEN+SUF_MAX so matchers stay in-bounds */
 	char fname[MAX_FILENAME_LEN] = {};
 	unsigned fname_off;
 	int alen = 0;
+	char *slots = 0;
 
 	bpf_get_current_comm(&comm, TASK_COMM_LEN);
 	te_exec_update(pid, comm);
 
-	/* read argv blob (NUL-separated) for @arg matching */
-	struct mm_struct *mm = BPF_CORE_READ(task, mm);
-	unsigned long a0 = BPF_CORE_READ(mm, arg_start);
-	unsigned long a1 = BPF_CORE_READ(mm, arg_end);
-	unsigned long len = a1 - a0;
-	if (len > TAINT_ARGV_CAP - 1)
-		len = TAINT_ARGV_CAP - 1;
-	if (len > 0 && bpf_probe_read_user(argv, len, (void *)a0) == 0)
-		alen = (int)len;
+	/* read argv blob (NUL-separated) into per-CPU scratch, then tokenize into
+	 * fixed slots there for @arg matching — see te_tokenize_args_eng / taint_arg_match. */
+	struct te_argslots *as = te_argslots_buf();
+	if (as) {
+		struct mm_struct *mm = BPF_CORE_READ(task, mm);
+		unsigned long a0 = BPF_CORE_READ(mm, arg_start);
+		unsigned long a1 = BPF_CORE_READ(mm, arg_end);
+		unsigned long len = a1 - a0;
+		if (len > TAINT_ARGV_CAP - 1)
+			len = TAINT_ARGV_CAP - 1;
+		__builtin_memset(as, 0, sizeof(*as));
+		if (len > 0 && bpf_probe_read_user(as->blob, len, (void *)a0) == 0)
+			alen = (int)len;
+		te_tokenize_args_eng(alen);
+		slots = as->slots;
+	}
 
 	fname_off = ctx->__data_loc_filename & 0xFFFF;
 	bpf_probe_read_str(fname, sizeof(fname), (void *)ctx + fname_off);
-	te_handle_exec(TE_REF_STRINGS, comm, fname, argv, alen, te_tracepoint_mode());
+	te_handle_exec(TE_REF_STRINGS, comm, fname, slots, alen, te_tracepoint_mode());
 	return 0;
 }
 

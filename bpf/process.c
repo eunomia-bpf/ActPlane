@@ -235,6 +235,21 @@ int main(int argc, char **argv)
 
 	err = process_bpf__load(skel);
 	if (err) { fprintf(stderr, "Failed to load BPF skeleton\n"); goto cleanup; }
+
+	/* Loop counts in a (non-frozen) map so the verifier checks each bpf_loop
+	 * callback once, not once per table entry. Slots: 0=rules 1=sources 2=xforms 3=gates. */
+	{
+		__u32 ks[4] = {0, 1, 2, 3};
+		__u32 vs[4] = { cfg.n_rules, cfg.n_sources, cfg.n_xforms, cfg.n_gates };
+		int cfd = bpf_map__fd(skel->maps.ts_counts);
+		for (int i = 0; i < 4; i++) {
+			if (bpf_map_update_elem(cfd, &ks[i], &vs[i], BPF_ANY) < 0) {
+				fprintf(stderr, "failed to set loop count %d: %s\n", i, strerror(errno));
+				err = -1; goto cleanup;
+			}
+		}
+	}
+
 	err = process_bpf__attach(skel);
 	if (err) { fprintf(stderr, "Failed to attach BPF skeleton\n"); goto cleanup; }
 	if (seed_agent_root(skel)) { err = -1; goto cleanup; }

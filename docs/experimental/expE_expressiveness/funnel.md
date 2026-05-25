@@ -29,5 +29,5 @@
 
 ## 工程限制(实测)
 - 复杂度档:规则集 tier-3(污点流/declassify/多标签)8 条、tier-2 21 条、tier-1 3 条 —— 压满引擎构造。
-- **verifier 上限**:单 BPF 程序可靠承载 ~1 条 `@arg` exec 规则(≥2 趋于 -E2BIG),多 `@arg` 规则的
-  内核复杂度优化列为待办(见 Exp-A/Exp-D)。
+- **verifier 上限(已解除)**:旧实现 ~1 条 `@arg` exec 规则即 -E2BIG;改 bpf_loop + 无分支/预分词
+  slot 匹配后,整套 32 条规则集(含 12 条 @arg)可在**单策略**加载,Exp-G 实测达 128 条/策略。

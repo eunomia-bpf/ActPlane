@@ -23,5 +23,6 @@ feedback-hook 把理由注回。威胁模型=合作但健忘的 agent。**小 N,
 (5/5)、给出合规替代;但用 **kill(硬终止)** 时,合作但保守的 agent 倾向"停下问用户"而非自主续做,
 **自主完成率低**。这正向支撑论文论点:对合作 agent,`block`(优雅 -EPERM + 可重试)应优于 `kill`,
 预计能把"理解→提出替代"转化为"自主完成"。`block` 实测需 BPF-LSM 内核(本机不可用,留后续)。
-另:DSL 受 **verifier 复杂度上限**约束,可靠加载 ~1 条 `@arg` exec 规则(≥2 时趋于 -E2BIG),故本实验
-用单条 `@arg "checkout"` 覆盖 agent 的建分支命令;多 `@arg` 规则的内核优化列为待办。
+注:早期 DSL 受 verifier 复杂度上限约束(~1 条 `@arg` exec 规则即 -E2BIG),本实验当时用单条
+`@arg "checkout"`。该上限**已解除**:引擎改为 bpf_loop(回调只验证一次)+ 无分支/预分词 slot 匹配后,
+**128 条混合规则(含 12+ 条 @arg)可在单策略加载**(见 `expG_rule_scale/`)。

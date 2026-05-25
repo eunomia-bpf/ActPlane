@@ -11,10 +11,11 @@ use std::collections::HashMap;
 // must match bpf/taint.h
 const PAT: usize = 64;
 const ARG: usize = 24;
-const MAX_SOURCES: usize = 32;
-const MAX_RULES: usize = 32;
-const MAX_XFORMS: usize = 16;
-const MAX_GATES: usize = 16;
+// Must match bpf/taint.h MAX_TAINT_* exactly (ABI). Sized for 100+ rules/policy.
+const MAX_SOURCES: usize = 128;
+const MAX_RULES: usize = 128;
+const MAX_XFORMS: usize = 64;
+const MAX_GATES: usize = 64;
 
 const M_EXACT: u8 = 0;
 const M_PREFIX: u8 = 1;

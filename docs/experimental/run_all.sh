@@ -28,4 +28,5 @@ echo "== Exp-B overhead (sudo) =="; EXPB_N=${EXPB_N:-12} bash "$HERE/expB_overhe
 echo "== Exp-C precision (sudo) =="; sudo -n bash "$HERE/expC_false_positive/run.sh"   | tail -2
 echo "== Exp-D agent loop (user; C2 uses sudo internally) =="; EXPD_N=${EXPD_N:-5} bash "$HERE/expD_agent_loop/run_agent.sh" | tail -2
 echo "== Exp-E funnel (offline) =="; ( cd "$HERE" && python3 expE_expressiveness/../expE_expressiveness/funnel.py 2>/dev/null || echo "see expE_expressiveness/funnel.md" )
+echo "== Exp-G rule-count scalability (sudo) =="; sudo -n bash "$HERE/expG_rule_scale/run.sh" | tail -8
 echo "== done. See docs/experimental/README.md and each exp*/ result file. =="
