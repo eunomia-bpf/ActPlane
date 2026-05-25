@@ -54,22 +54,36 @@ make test       # bpf C unit tests + collector Rust unit tests
 Requires clang/llvm, libelf, zlib, a recent kernel (5.8+; developed on 6.15), and
 a Rust toolchain. `make install` installs the system dependencies (Ubuntu/Debian).
 
-## Run
+## Quickstart (≈30 seconds)
 
 ```bash
-# write a project policy (full grammar in docs/taint-dsl.md)
-cat > actplane.yaml <<'EOF'
-policy: |
-  label AGENT
+A=./collector/target/release/actplane
 
-  rule no-git:
-    deny exec "**/git" if AGENT
-    effect kill
-    reason "Codex must not invoke git; use the review workflow."
-EOF
+$A init                  # write a starter actplane.yaml (commented guardrails)
+$A check                 # validate it in plain language — no privileges needed
+sudo -E $A run -- bash -lc 'git branch x'   # enforce around any command
+```
 
+`check` summarizes every rule and warns about anything that won't enforce as
+written (e.g. `block` with no BPF-LSM, or a hostname where the kernel matches IPs):
+
+```
+✓ ./actplane.yaml: 3 rule(s) compile.
+  1. no-git-branch    — deny exec    → kill (create branches/worktrees on the host…)
+  2. no-secret-exfil  — deny connect → kill (data derived from local secrets must not leave…)
+  3. test-before-commit — deny exec  → kill (run the tests before committing)
+✓ no warnings.
+```
+
+`run`/`watch` load the eBPF enforcer, so they need root (or `CAP_BPF` +
+`CAP_SYS_ADMIN`); ActPlane drops the target command back to your user. If you
+forget `sudo`, it tells you how.
+
+## Run (details)
+
+```bash
 sudo -E ./collector/target/release/actplane run -- bash -lc 'git status'
-# compile only: ./collector/target/release/actplane compile --out policy.bin
+# compile only (no privileges): ./collector/target/release/actplane compile --out policy.bin
 ```
 
 `actplane run` discovers `actplane.yaml` upward from the current directory,

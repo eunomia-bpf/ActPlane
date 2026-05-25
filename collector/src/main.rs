@@ -38,6 +38,8 @@ const HOOK_MAX_CHARS: usize = 8000;
 #[derive(Parser)]
 #[command(author, version, about = "ActPlane: OS-enforced agent harness", long_about = None,
     after_help = "EXAMPLES:\n  \
+      # get started: write a starter policy, then validate it (no sudo needed)\n  \
+      actplane init  &&  actplane check\n\n  \
       # enforce a one-line policy around a command (needs sudo for the eBPF load)\n  \
       sudo -E actplane --rule 'label AGENT\n                       rule no-git-branch:\n                         deny exec \"**/git\" @arg \"branch\" if AGENT\n                         effect kill\n                         reason \"create a branch via the host, not the agent\"' run -- claude -p '...'\n\n  \
       # use a project policy file (auto-discovered as ./actplane.yaml upward)\n  \
@@ -74,6 +76,15 @@ enum Commands {
         #[arg(short, long)]
         out: PathBuf,
     },
+    /// Write a starter actplane.yaml (commented guardrail template) in the cwd.
+    Init {
+        /// Overwrite an existing actplane.yaml.
+        #[arg(short, long)]
+        force: bool,
+    },
+    /// Validate the policy (no privileges): compile it, summarize each rule in
+    /// plain language, and warn about anything that won't enforce as written.
+    Check,
     /// Load the policy and report violations without starting a child command.
     Watch,
     /// Hook adapter: forward new feedback-file bytes as agent additionalContext.
@@ -130,6 +141,8 @@ async fn main() -> Result<()> {
     let code = match &cli.command {
         Commands::Run { cmd } => run_command(&cli, cmd).await?,
         Commands::Compile { out } => compile_policy(&cli, out).await?,
+        Commands::Init { force } => init_policy(*force)?,
+        Commands::Check => check_policy(&cli)?,
         Commands::Watch => watch_policy(&cli).await?,
         Commands::FeedbackHook => {
             feedback_hook().await?;
@@ -151,6 +164,125 @@ async fn compile_policy(cli: &Cli, out: &Path) -> Result<i32> {
         compiled.reasons.len(),
         out.display()
     );
+    Ok(0)
+}
+
+const STARTER_POLICY: &str = r#"# ActPlane project policy. Constraints are enforced in the kernel (eBPF), below
+# the tool layer, so they hold across any tool / subprocess / direct syscall.
+# Validate any time with:  actplane check
+# Enforce around an agent:  sudo -E actplane run -- <your agent command>
+# DSL reference: docs/taint-dsl.md
+policy: |
+  # `label AGENT` marks the process tree launched by `actplane run` as the agent.
+  label AGENT
+
+  # 1) The agent must not create git branches/worktrees (do it yourself on the host).
+  rule no-git-branch:
+    deny exec "**/git" @arg "branch"   if AGENT
+    deny exec "**/git" @arg "worktree" if AGENT
+    effect kill
+    reason "create branches/worktrees on the host, not via the agent"
+
+  # 2) Secrets must not leave the host. Reading a secret file taints the process;
+  #    a tainted process may not open an outbound connection (redact to clear it).
+  source SECRET = file "**/.env"
+  source SECRET = file "**/secrets/**"
+  rule no-secret-exfil:
+    deny connect endpoint "*" if SECRET
+    effect kill
+    reason "data derived from local secrets must not leave the host; redact first"
+  declassify SECRET by exec "**/redact"
+
+  # 3) No commit before the tests have run in this session.
+  rule test-before-commit:
+    deny exec "**/git" @arg "commit" if AGENT unless after exec "**/pytest"
+    effect kill
+    reason "run the tests before committing"
+"#;
+
+fn init_policy(force: bool) -> Result<i32> {
+    let path = std::env::current_dir()?.join("actplane.yaml");
+    if path.exists() && !force {
+        eprintln!(
+            "actplane: {} already exists (use --force to overwrite).",
+            path.display()
+        );
+        return Ok(1);
+    }
+    std::fs::write(&path, STARTER_POLICY)?;
+    eprintln!(
+        "actplane: wrote {}\n  Next:  actplane check        # validate it (no sudo)\n         \
+         sudo -E actplane run -- <your agent command>",
+        path.display()
+    );
+    Ok(0)
+}
+
+fn check_policy(cli: &Cli) -> Result<i32> {
+    let loaded = load_policy(cli)?;
+    let compiled = match dsl::compile_str(&loaded.config.policy) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("✗ policy does not compile: {}", e);
+            return Ok(1);
+        }
+    };
+    let where_ = loaded
+        .path
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "--rule".into());
+    println!("✓ {}: {} rule(s) compile.\n", where_, compiled.meta.len());
+    for (i, m) in compiled.meta.iter().enumerate() {
+        let eff = format!("{:?}", m.effect).to_lowercase();
+        let ops = if m.ops.is_empty() { "—".into() } else { m.ops.join("/") };
+        println!("  {}. {} — deny {} → {} ({})", i + 1, m.name, ops, eff, m.reason);
+    }
+    // Warnings: things that compile but won't enforce as the author likely expects.
+    let lsm_bpf = std::fs::read_to_string("/sys/kernel/security/lsm")
+        .map(|s| s.contains("bpf"))
+        .unwrap_or(false);
+    let mut warns: Vec<String> = Vec::new();
+    if !lsm_bpf
+        && compiled
+            .meta
+            .iter()
+            .any(|m| format!("{:?}", m.effect).eq_ignore_ascii_case("block"))
+    {
+        warns.push(
+            "`effect block` needs BPF-LSM (not active here: /sys/kernel/security/lsm has no `bpf`); \
+             those rules will report (audit) but not deny. Use `effect kill` to terminate."
+                .into(),
+        );
+    }
+    // hostname (non-IP) connect targets are not enforced numerically in-kernel.
+    for line in loaded.config.policy.lines() {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("deny connect endpoint") {
+            if let Some(pat) = rest.split('"').nth(1) {
+                let ipish = pat == "*"
+                    || pat.trim_end_matches('.').split('.').all(|o| !o.is_empty() && o.chars().all(|c| c.is_ascii_digit()));
+                if !ipish {
+                    warns.push(format!(
+                        "connect endpoint \"{}\" looks like a hostname; the kernel matches \
+                         numeric IPv4 only, so this rule will not fire (use an IP/CIDR prefix).",
+                        pat
+                    ));
+                }
+            }
+        }
+    }
+    if warns.is_empty() {
+        println!("\n✓ no warnings.");
+    } else {
+        println!("\n⚠ {} warning(s):", warns.len());
+        for w in &warns {
+            println!("  - {}", w);
+        }
+    }
+    if unsafe { libc::geteuid() } != 0 {
+        println!("\n(note: `check` needs no privileges; enforcing needs `sudo -E actplane run/watch`.)");
+    }
     Ok(0)
 }
 
