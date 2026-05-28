@@ -151,10 +151,12 @@ Prior studies classify by topic but do not distinguish factual descriptions
 ("this project uses React") from directives ("always use TypeScript for new
 files"). RQ1 establishes the base rate of directive content.
 
-**RQ2 (Directive taxonomy): What types of directives do developers write?**
-Among the directives identified in RQ1, we classify each into subtypes:
-style, build/tooling, constraint, and communication. This taxonomy
-cross-cuts the topic-based categories of prior studies.
+**RQ2 (Topic distribution): How do descriptions and directives distribute
+across topic categories?**
+We apply Chatlatanagulchai et al.'s 16 topic categories at statement level
+and cross-tabulate with the description/directive distinction from RQ1.
+This reveals how directives are distributed across topics that prior
+studies report only at file level.
 
 **RQ3 (Directive density): How many directives does each project contain,
 and how are they distributed?**
@@ -243,75 +245,199 @@ collection time.
 | Median file size (bytes) | TODO |
 | Primary languages represented | TODO |
 
-### 4.2 Statement Extraction
+### 4.2 Statement Extraction and Classification
 
-**Definition.** A *statement* is a contiguous segment of an instruction
-file that expresses a single coherent thought. Statements may span one or
-more lines. A statement boundary occurs at a sentence boundary, list-item
-boundary, or paragraph boundary. Statements are the unit of analysis;
-each is subsequently classified as a description or a directive.
+**Definition.** A *statement* is a coherent unit of content in an
+instruction file that expresses a single thought: one factual claim, one
+directive, or one constraint. Statements may span one or more lines and
+do not necessarily align with markdown structure (a single list item may
+contain multiple statements; a statement may span a paragraph).
 
-**Extraction method.** We use a two-stage extraction pipeline:
+**Why not automated segmentation.** Mechanical splitting by markdown
+structure (list items, paragraphs, sentences) produces poor results:
+instruction files vary widely in formatting; a single list item may
+contain multiple directives ("never commit secrets or push to main");
+and context is often interleaved with directives in the same paragraph.
+We therefore use LLM-based extraction, which identifies semantic
+boundaries rather than syntactic ones.
 
-1. **Automated segmentation.** Files are parsed into candidate statements
-   using markdown structure (list items, paragraphs, sentences within
-   paragraphs). Code blocks (fenced with triple backticks) are excluded.
+**Extraction method.** We use a two-pass LLM pipeline. Both passes use
+model [TODO] with temperature 0 and a fixed random seed for
+reproducibility. The full prompts are included in the replication package.
 
-2. **LLM-assisted classification.** Each candidate statement is classified
-   by an
-   LLM (model: [TODO]) using a structured prompt that asks:
-   (a) Is this a description or a directive?
-   (b) If directive, what subtype? (style / build / constraint /
-   communication)
-   (c) Confidence (high / medium / low).
-   The prompt includes definitions and 3 examples per category.
+**Pass 1: Extraction + classification.** The LLM reads the complete
+instruction file and outputs a structured YAML document. Each extracted
+statement is classified along both taxonomy axes and assessed for
+enforceability. The output schema:
+
+```yaml
+file: "owner/repo/CLAUDE.md"
+statements:
+  - id: 0
+    lines: [1, 3]             # half-open line range [start, end) in the original file
+    text: "# Project CLAUDE.md\n\n"
+    type: structural           # structural | description | directive
+    topic: null
+
+  - id: 1
+    lines: [3, 4]
+    text: "The backend uses Express with TypeScript."
+    type: description
+    topic: Architecture        # 16 categories from Chatlatanagulchai et al.
+    # fields below apply only to directives:
+    enforceability: null       # intent | action | behavior_per_event | behavior_cross_object
+    confidence: null           # high | medium | low
+
+  - id: 2
+    lines: [15, 16]
+    text: "Run the full test suite before committing."
+    type: directive
+    topic: Testing
+    enforceability: behavior_cross_object
+    confidence: high
+
+  - id: 3
+    lines: [22, 25]           # multi-line statement
+    text: "Never commit secrets or credentials. Use environment variables for all sensitive configuration."
+    type: directive
+    topic: Security
+    enforceability: behavior_cross_object
+    confidence: high
+
+  - id: 4
+    lines: [30, 31]
+    text: "Prefer const over let."
+    type: directive
+    topic: Implementation Details
+    enforceability: intent
+    confidence: high
+```
+
+The `lines` field records the half-open line range `[start, end)` in the
+original file (1-indexed). The union of all line ranges for a file covers
+lines 1 through N (total line count) with no gaps or overlaps, ensuring
+every line is assigned to exactly one statement. Structural content
+(markdown headers, blank lines, code blocks, formatting) is included as
+statements with `type: structural`. The `text` field preserves the
+original file content verbatim.
+
+**Granularity rule.** The minimum unit is a line. Each line belongs to
+exactly one statement; no sub-line splitting is performed. Multiple
+consecutive lines may form a single statement, but a single line is
+never split across statements. When a line contains multiple directives
+with different topics (e.g., "Never commit secrets or push to main
+directly"), the broader topic is assigned (Development Process rather
+than Security). This avoids subjective sub-line segmentation at the
+cost of slight topic imprecision, which we consider an acceptable
+trade-off for mechanical verifiability. The prompt instructs the LLM to: (a) extract every distinct
+statement with its line range, (b) classify each using the taxonomy
+(Axis 1: type, Axis 2: topic, Axis 3: enforceability) following the
+definitions in Sections 4.3 and 4.4, (c) assign a confidence level, and
+(d) preserve the original text verbatim.
+
+**Pass 2: Cross-validation.** A second LLM call reads the original file
+together with the Pass 1 YAML and directly updates it: adding missed
+statements, removing false extractions, and correcting classifications.
+Each change is annotated with a `_review` field for auditability:
+
+```yaml
+file: "owner/repo/CLAUDE.md"
+_review:
+  pass1_count: 47
+  added: 1
+  removed: 1
+  modified: 1
+statements:
+  - id: 2
+    lines: [15, 16]
+    text: "Run the full test suite before committing."
+    type: directive
+    topic: Testing
+    enforceability: behavior_cross_object
+    confidence: high
+
+  # added by Pass 2 (was merged into id 14 in Pass 1)
+  - id: 48
+    lines: [67, 70]
+    text: "Treat external input as untrusted."
+    type: directive
+    topic: Security
+    enforceability: behavior_cross_object
+    confidence: medium
+    _review: "added: missed by Pass 1, embedded in security paragraph"
+
+  # modified by Pass 2
+  - id: 7
+    lines: [28, 29]
+    text: "Always run linter before pushing."
+    type: directive
+    topic: Development Process  # was: Implementation Details
+    enforceability: behavior_cross_object
+    confidence: medium
+    _review: "modified topic: Implementation Details -> Development Process"
+
+  # id 12 removed by Pass 2 (was a code example, not a statement)
+```
+
+The `_review` metadata block records Pass 2 statistics; per-statement
+`_review` fields record individual changes. Statements without a
+`_review` field were unchanged from Pass 1.
+
+**Methodological metrics from the two-pass pipeline.** For the full
+corpus, we report:
+- Pass 2 addition rate: fraction of statements missed by Pass 1
+  (estimates extraction recall).
+- Pass 2 removal rate: fraction of Pass 1 extractions rejected
+  (estimates extraction precision).
+- Pass 2 modification rate: fraction of classifications changed
+  (estimates classification stability).
 
 **Manual validation.** A stratified random sample of [TODO: N] statements
-(stratified by LLM-assigned category) is independently coded by two
-annotators. We report Cohen's kappa for the description-vs-directive
-distinction (RQ1) and for the directive subtype classification (RQ2).
-Disagreements are resolved by discussion; the resolution is recorded.
+(stratified by LLM-assigned type and subtype) is independently coded by
+two human annotators using the same taxonomy. We report Cohen's kappa for
+Axis 1 (description vs. directive), Axis 2 (topic category), and
+Axis 3 (enforceability level). Disagreements are resolved by discussion; the
+resolution and rationale are recorded.
 
 ### 4.3 Taxonomy
 
-We classify rules along two axes.
+Each statement is classified along three dimensions.
 
-The taxonomy draws on speech-act theory (Searle, 1976): Axis 1
-distinguishes constative (descriptive) from directive (action-requesting)
-speech acts; Axis 2 classifies directives by their enforcement
-implications.
-
-**Axis 1: Content type.**
+**Axis 1: Content type** (speech-act distinction, following Searle 1976).
 
 | Type | Definition | Example |
 |---|---|---|
-| **Description** | Factual statement about the project, its architecture, dependencies, or environment. Does not instruct the agent to do or avoid anything. | "The backend uses Express with TypeScript." |
+| **Structural** | Markdown formatting with no semantic content: headers, blank lines, code fences, horizontal rules. | `## Testing`, blank lines, `` ``` `` |
+| **Description** | Factual statement about the project. Does not instruct the agent to do or avoid anything. | "The backend uses Express with TypeScript." |
 | **Directive** | Statement that instructs the agent to perform, avoid, or condition an action. | "Run tests before committing." |
 
-**Decision procedure for Axis 1.** If the statement can be rephrased as an
+**Decision procedure.** If the segment is purely formatting (header, blank
+line, code fence), it is structural. If the segment can be rephrased as an
 imperative ("do X", "do not do X", "do X before Y"), it is a directive.
-If it can only be rephrased as a declarative ("X is the case"), it is a
-description.
+Otherwise it is a description.
 
-**Axis 2: Directive subtype** (applied only to directives).
+**Axis 2: Topic category** (reused from Chatlatanagulchai et al. 2025b).
 
-| Subtype | Definition | Example |
-|---|---|---|
-| **Style** | Governs code formatting, naming, idiom preference. Not observable at the system-call boundary. | "Prefer `const` over `let`." |
-| **Build/tooling** | Specifies how to build, install, or run the project. Observable as process execution. | "Run `npm install` before `npm run dev`." |
-| **Constraint** | Restricts, gates, or conditions the agent's actions on execution state: ordering ("do X before Y"), capability ("do not do X if Y"), or scope ("only access files in Z"). | "Run tests before committing." / "Never expose secrets to the network." / "Do not modify files outside the working directory." |
-| **Communication** | Governs the agent's interaction with the user: when to ask, what to explain, how to present results. | "Always explain your reasoning before making changes." / "Ask before making destructive changes." |
+We adopt the 16-category topic scheme from the largest prior corpus study
+to enable direct comparison. The categories are: System Overview, AI
+Integration, Documentation, Architecture, Implementation Details, Build
+and Run, Testing, Configuration & Environment, DevOps, Development
+Process, Project Management, Maintenance, Debugging, Performance,
+Security, UI/UX. Definitions and examples follow Chatlatanagulchai et al.
+(2025b); the full coding guide is in the replication package.
 
-**Decision procedure for Axis 2.** Given a directive:
-1. Does it govern code text only (formatting, naming, idiom)? → **Style**.
-2. Does it specify a build, install, or run command? → **Build/tooling**.
-3. Does it govern agent-user interaction (ask, explain, confirm)? → **Communication**.
-4. Does it restrict, gate, or condition an action on execution state? → **Constraint**.
+Prior studies applied these categories at file level ("this file contains
+Testing content"). We apply them at statement level ("this statement is
+about Testing"). This enables cross-tabulation: for each topic category,
+what fraction of statements are descriptions vs. directives? This
+directly answers how behavioral directives are distributed across the
+topic categories that prior studies report.
 
-This decision procedure is applied in order; the first matching category
-is assigned. The ordering resolves ambiguity: "ask before making
-destructive changes" matches both communication (step 3) and constraint
-(step 4); the procedure assigns it to communication.
+**Axis 3: Enforceability** (new, applied only to directives).
+
+Assessed using the intent/action/behavior framework via the decision
+procedure in Section 4.4. Levels: intent, action, behavior (per-event),
+behavior (cross-object).
 
 ### 4.4 Enforceability Assessment
 
@@ -362,28 +488,33 @@ is included in the inter-rater reliability assessment (Section 4.6).
 The following examples illustrate the full annotation pipeline from raw
 text to final labels.
 
-| Raw text (from real file) | Axis 1 | Axis 2 | Enforceability | Rationale |
-|---|---|---|---|---|
-| "The backend uses Express with TypeScript." | Description | — | — | Factual; no imperative. |
-| "Prefer `const` over `let`." | Directive | Style | Intent | Code-level idiom; no syscall signal. |
-| "Run `npm install` before `npm run dev`." | Directive | Build/tooling | Action | Tool-call argument matching suffices. |
-| "Always explain your reasoning before making changes." | Directive | Communication | Intent | Agent-user interaction; no syscall signal. |
-| "Run the full test suite before committing." | Directive | Constraint | Behavior (cross-object) | Requires tracking that a test process executed before a commit process in the same session. |
-| "Never commit secrets or credentials." | Directive | Constraint | Behavior (cross-object) | Requires tracking which files the process has read (secret source) before a commit/push. |
-| "Do not execute `rm -rf`." | Directive | Constraint | Behavior (per-event) | Single `execve` match. |
-| "Do not push to main directly." | Directive | Constraint | Behavior (cross-object) | Action-level if via dedicated tool call, but behavior-level via `bash -c`. Assignment rule → behavior. |
+| Raw text | Lines | Axis 1 | Axis 2 (Topic) | Axis 3 (Enforceability) | Rationale |
+|---|---|---|---|---|---|
+| "The backend uses Express with TypeScript." | [3,3] | Description | Architecture | — | Factual; no imperative. |
+| "Prefer `const` over `let`." | [12,12] | Directive | Implementation Details | Intent | Code idiom; no syscall signal. |
+| "Run `npm install` before `npm run dev`." | [8,8] | Directive | Build and Run | Action | Tool-call argument matching suffices. |
+| "Always explain your reasoning before making changes." | [45,45] | Directive | AI Integration | Intent | Agent-user interaction; no syscall signal. |
+| "Run the full test suite before committing." | [15,15] | Directive | Testing | Behavior (cross-object) | Requires tracking test execution before commit. |
+| "Never commit secrets or credentials." | [22,24] | Directive | Security | Behavior (cross-object) | Requires tracking file reads (secret source) before commit/push. |
+| "Do not execute `rm -rf`." | [31,31] | Directive | Development Process | Behavior (per-event) | Single `execve` match. |
+| "Do not push to main directly." | [18,18] | Directive | Development Process | Behavior (cross-object) | Action-level via tool call, but behavior-level via `bash -c`. Assignment rule: behavior. |
 
 Two additional edge cases:
 
-| Raw text | Axis 1 | Axis 2 | Enforceability | Rationale |
-|---|---|---|---|---|
-| "We use Jest. Always run `jest --coverage` before committing." | Split: first sentence = Description, second = Directive (Constraint) | — / Constraint | Behavior (cross-object) | Hybrid sentence: split at sentence boundary. |
-| "Do not make changes without explaining them first." | Directive | Communication (step 3 matches before step 4) | Intent | Governs agent-user interaction; "explaining" has no syscall signal. |
+| Raw text | Lines | Axis 1 | Axis 2 (Topic) | Axis 3 | Rationale |
+|---|---|---|---|---|---|
+| "We use Jest. Always run `jest --coverage` before committing." | [9,9] | Split: Description + Directive | Testing / Testing | — / Behavior (cross-object) | Hybrid: split at sentence boundary into two statements. |
+| "Do not make changes without explaining them first." | [52,52] | Directive | AI Integration | Intent | Agent-user interaction; "explaining" has no syscall signal. |
 
 The "push to main" example illustrates an enforceability ambiguity: the
 level depends on whether the agent uses the tool API or a shell. Per the
 assignment rule in Section 4.4, we assign behavior-level (reliable across
 all tool paths).
+
+Note that the same topic category (e.g., Testing, Development Process)
+can contain both descriptions and directives, and directives at different
+enforceability levels. This is precisely the cross-tabulation that prior
+file-level studies cannot produce.
 
 ### 4.6 Inter-Rater Reliability
 
@@ -391,8 +522,8 @@ Two annotators independently code a stratified random sample of [TODO: N]
 statements. We report:
 
 - Cohen's kappa for Axis 1 (description vs. directive).
-- Cohen's kappa for Axis 2 (directive subtype, 4 categories).
-- Cohen's kappa for enforceability level (intent, action, behavior).
+- Cohen's kappa for Axis 2 (topic category, 16 categories).
+- Cohen's kappa for Axis 3 (enforceability: intent, action, behavior).
 - Cohen's kappa for per-event vs. cross-object (within behavior).
 
 Target: kappa >= 0.7 (substantial agreement) for all dimensions. If kappa
