@@ -3,7 +3,7 @@
 ## Abstract
 
 AI coding agents are increasingly governed by natural-language instruction
-files (CLAUDE.md, AGENTS.md, copilot-instructions.md). Prior empirical
+files (CLAUDE.md, AGENTS.md). Prior empirical
 studies classify these files by topic (Architecture, Testing, Security) at
 file or section granularity, but do not distinguish descriptions from
 directives, do not extract individual rules, and do not assess
@@ -12,9 +12,10 @@ agent instruction files. We extract individual statements from instruction
 files in N popular open-source projects, classify each statement along two
 axes (description vs. directive; directive subtype), and assess the
 enforceability of each directive using the intent/action/behavior
-framework: can the directive be enforced at the intent level (LLM
-prompt), the action level (tool-call guard), or the behavior level
-(e,g, system calls and commands)? We find that
+framework: can the directive be enforced at the intent level (the agent's
+own compliance), the action level (tool-call interception), or the
+behavior level (OS-level observation of system calls and their
+provenance)? We find that
 (TODO: headline findings). Our taxonomy and annotated dataset provide a
 foundation for future work on agent compliance measurement and
 enforcement system design.
@@ -71,17 +72,20 @@ instruction files. We make three contributions:
 ### 2.1 Agent Instruction Files
 
 Agent instruction files are project-specific natural-language documents
-that configure agent behavior. The three dominant formats are:
+that configure agent behavior. This study focuses on the two formats used
+by coding agents with full tool access (shell, file system, network):
 
 - **CLAUDE.md**: used by Claude Code (Anthropic). Loaded from the project
   root and parent directories; treated as context injected into the agent's
   system prompt.
 - **AGENTS.md**: used by OpenAI Codex CLI. Similar role and structure.
-- **copilot-instructions.md**: used by GitHub Copilot Workspace.
 
-These files have no formal schema. Their content ranges from one-line
-directives ("never push to main") to multi-page documents covering
-architecture, build instructions, testing procedures, and coding standards.
+We exclude copilot-instructions.md (GitHub Copilot) because Copilot
+Workspace operates with more constrained tool access, making the
+intent-behavior gap less relevant. These files have no formal schema.
+Their content ranges from one-line directives ("never push to main") to
+multi-page documents covering architecture, build instructions, testing
+procedures, and coding standards.
 
 ### 2.2 Prior Empirical Studies
 
@@ -121,8 +125,8 @@ showing a 93% permission-prompt approval rate (not independently verified).
 All prior corpus studies share three limitations that this study addresses:
 
 **G1: File-level granularity.** Classification is applied to whole files or
-section headings. No study extracts individual rules or counts rules per
-file. A file classified as "Testing" may contain 1 testing rule or 20; the
+section headings. No study extracts individual statements or counts
+directives per file. A file classified as "Testing" may contain 1 testing rule or 20; the
 studies cannot distinguish these cases.
 
 **G2: Topic-based taxonomy.** Categories describe what a file is *about*
@@ -152,11 +156,11 @@ Among the directives identified in RQ1, we classify each into subtypes:
 style, build/tooling, constraint, and communication. This taxonomy
 cross-cuts the topic-based categories of prior studies.
 
-**RQ3 (Rule density): How many rules does each project contain, and how
-are they distributed?**
+**RQ3 (Directive density): How many directives does each project contain,
+and how are they distributed?**
 Prior studies report file-level prevalence ("77% of files contain Build/Run
-content") but not rule counts. RQ3 measures the number of rules per
-project, enabling distribution analysis (median, mean, skewness).
+content") but not directive counts. RQ3 measures the number of directives
+per project, enabling distribution analysis (median, mean, skewness).
 
 **RQ4 (Enforceability): Which directives are enforceable, and at what
 level?**
@@ -189,15 +193,45 @@ mechanisms and which require mechanisms not yet deployed in practice.
 least one agent instruction file (CLAUDE.md or AGENTS.md) in a standard
 location (repository root or `.claude/` directory).
 
-**Sampling strategy.** We select the top N repositories by GitHub star
-count, filtered to exclude: (a) documentation-only repositories (no source
-code), (b) repositories where the instruction file is less than 500 bytes
-(trivial content), (c) duplicate files (where CLAUDE.md and AGENTS.md are
-byte-identical, counted once). We acknowledge that star-based sampling
-introduces popularity bias (Section 8).
+**Search strategy.** We search for repositories in the AI agent ecosystem
+via GitHub topic and keyword queries (e.g., `topic:ai-agent`,
+`topic:coding-agent`, `topic:llm-agent`, `topic:mcp`) rather than
+searching for CLAUDE.md files by filename. This targets projects whose
+developers actively use coding agents in their development workflow,
+producing more mature and substantive instruction files. A direct filename
+search (as used by Chatlatanagulchai et al.) would include repositories
+where CLAUDE.md was added experimentally or contains minimal content.
+The full list of 15 search queries is recorded in the replication package
+(`queries.log`).
+
+**Filtering.** From the search results, we apply four exclusion criteria:
+
+1. **Non-code repositories.** Repositories whose primary language is
+   null or Markdown, or whose name/topics match documentation patterns
+   (awesome-lists, tutorials, prompt collections, skill catalogs).
+2. **Fake-star filtering.** The AI agent ecosystem has significant
+   star inflation. We exclude repositories where forks > 0.8 × stars
+   (fork-bot signal), stars > 40k with open issues < 20 (no community),
+   or age < 2 months with stars > 40k (implausible growth). A manual
+   blocklist covers confirmed fake/SEO repositories.
+3. **Inactive repositories.** Repositories with no push activity within
+   2 weeks of the snapshot date are excluded, ensuring the corpus reflects
+   projects under active development with agents.
+4. **Trivial content.** Instruction files smaller than 500 bytes (pointer
+   files, empty stubs) are excluded. Where CLAUDE.md and AGENTS.md are
+   byte-identical, the duplicate is counted once.
+
+Critically, we do **not** exclude repositories based on whether they
+contain behavioral directives. Repositories with zero directives (all
+descriptions) remain in the corpus as honest data points in the
+denominator.
+
+All exclusions are logged with reasons (`exclusions.log`) for
+reproducibility.
 
 **Snapshot.** All files were collected on [DATE]. Repository metadata
-(stars, primary language, creation date) was recorded at collection time.
+(stars, primary language, creation date, last push date) was recorded at
+collection time.
 
 **Corpus statistics.** [TODO: fill]
 
@@ -209,20 +243,22 @@ introduces popularity bias (Section 8).
 | Median file size (bytes) | TODO |
 | Primary languages represented | TODO |
 
-### 4.2 Rule Extraction
+### 4.2 Statement Extraction
 
-**Definition.** A *rule* is a contiguous segment of an instruction file
-that expresses a single coherent statement. Rules may span one or more
-lines. A rule boundary occurs at a sentence boundary, list-item boundary,
-or paragraph boundary.
+**Definition.** A *statement* is a contiguous segment of an instruction
+file that expresses a single coherent thought. Statements may span one or
+more lines. A statement boundary occurs at a sentence boundary, list-item
+boundary, or paragraph boundary. Statements are the unit of analysis;
+each is subsequently classified as a description or a directive.
 
 **Extraction method.** We use a two-stage extraction pipeline:
 
-1. **Automated segmentation.** Files are parsed into candidate rules using
-   markdown structure (list items, paragraphs, sentences within paragraphs).
-   Code blocks (fenced with triple backticks) are excluded.
+1. **Automated segmentation.** Files are parsed into candidate statements
+   using markdown structure (list items, paragraphs, sentences within
+   paragraphs). Code blocks (fenced with triple backticks) are excluded.
 
-2. **LLM-assisted classification.** Each candidate rule is classified by an
+2. **LLM-assisted classification.** Each candidate statement is classified
+   by an
    LLM (model: [TODO]) using a structured prompt that asks:
    (a) Is this a description or a directive?
    (b) If directive, what subtype? (style / build / constraint /
@@ -230,7 +266,7 @@ or paragraph boundary.
    (c) Confidence (high / medium / low).
    The prompt includes definitions and 3 examples per category.
 
-**Manual validation.** A stratified random sample of [TODO: N] rules
+**Manual validation.** A stratified random sample of [TODO: N] statements
 (stratified by LLM-assigned category) is independently coded by two
 annotators. We report Cohen's kappa for the description-vs-directive
 distinction (RQ1) and for the directive subtype classification (RQ2).
@@ -352,7 +388,7 @@ all tool paths).
 ### 4.6 Inter-Rater Reliability
 
 Two annotators independently code a stratified random sample of [TODO: N]
-rules. We report:
+statements. We report:
 
 - Cohen's kappa for Axis 1 (description vs. directive).
 - Cohen's kappa for Axis 2 (directive subtype, 4 categories).
@@ -377,9 +413,9 @@ distribution]
 studies' topic-based categories — show how directives scatter across their
 categories]
 
-### 5.3 RQ3: Rule Density
+### 5.3 RQ3: Directive Density
 
-[TODO: Histogram of rules per project. Median, mean, p25, p75. Comparison
+[TODO: Histogram of directives per project. Median, mean, p25, p75. Comparison
 with prior studies' file-level prevalence numbers]
 
 ### 5.4 RQ4: Enforceability
@@ -478,14 +514,14 @@ potential enforcement mechanisms for cross-object directives.]
 
 - Inter-rater reliability (Cohen's kappa) is computed on a sample, not the
   full dataset. Sample size and stratification affect generalizability.
-- Rule extraction depends on markdown parsing heuristics; malformed files
-  may lose rules.
+- Statement extraction depends on markdown parsing heuristics; malformed
+  files may lose statements.
 
 ### 8.3 External Validity
 
 - Star-based sampling biases toward well-maintained, popular projects.
   Instruction files in less popular or private repositories may differ.
-- Only three file types (CLAUDE.md, AGENTS.md, copilot-instructions.md)
+- Only two file types (CLAUDE.md, AGENTS.md)
   are included. Other agent configuration mechanisms (settings files, MCP
   configs, system prompts) are excluded.
 - Single-time-point snapshot. Instruction files evolve rapidly

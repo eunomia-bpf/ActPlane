@@ -63,6 +63,10 @@ docs/corpus/
 5. 收满 **N 个命中**即停（本快照 N=150，探测了 ~349 个候选，排除 53）。
 6. 由所有 `meta.json` 重建 `manifest.jsonl`（带 `excluded` 标记）。
 
+### 搜索策略（为什么搜 AI agent 生态，不是搜文件名）
+
+我们搜索 AI agent 生态内的 popular repos（`topic:ai-agent`、`topic:coding-agent` 等），而不是直接搜 `filename:CLAUDE.md`。原因：AI agent 生态内的项目更可能大量使用 agent 进行开发，其 instruction files 更成熟、更有实质内容。直接按文件名搜索会混入实验性添加或极短内容的仓库。
+
 ### 过滤规则（关键：AI‑agent 领域 star 造假严重）
 
 > 这个领域是热点、可变现，**fake‑star / SEO 仓库泛滥**。`sort:stars` 原始结果里混入大量刷星/灌水仓（如 1 个月龄就 5 万星的未知仓、"fastest repo in history" 之类）。语料必须显式过滤，否则不可信。
@@ -73,6 +77,7 @@ docs/corpus/
    - `stars > 40k 且 open_issues < 20`（大体量却零社区互动，如某 188k 星仓仅 14 issues）；
    - `创建 ≤ 2 个月 且 stars > 40k`（不可能的增长速度，如多个 1 月龄 5 万星未知仓）。
 3. **人工裁定排除清单 `EXCLUDE_LIST`**：把已确证的 fake/SEO 仓与漏网的 doc/skill 合集显式列出（如 `affaan-m/ECC`、`ultraworkers/claw-code`、各 `awesome-*`、`*-best-practice`、`*-skills`）。
+4. **活跃度过滤**：排除 `pushed_at` 距采集时间超过 2 周的仓库（不活跃项目的 instruction files 可能已过时且不代表当前开发实践）。当前快照中 130/144 在 2 周内有 push，14 个被此规则排除。
 
 被规则 1–3 排除的候选都写进 `exclusions.log`（含原因），可审计、可复现。
 
