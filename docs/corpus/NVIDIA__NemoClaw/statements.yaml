@@ -1,15 +1,16 @@
 file: "NVIDIA/NemoClaw/CLAUDE.md"
 statements:
   - id: 1
-    lines: [1, 10]
+    lines: [1, 11]
     text: |
-      <!-- SPDX ... -->
+      <!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
+      <!-- SPDX-License-Identifier: Apache-2.0 -->
 
       # Agent Instructions
 
       ## Project Overview
 
-      NVIDIA NemoClaw is an open-source reference stack ...
+      NVIDIA NemoClaw is an open-source reference stack for running [OpenClaw](https://openclaw.ai) always-on assistants inside [NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) sandboxes more safely. It provides CLI tooling, a blueprint for sandbox orchestration, and security hardening.
 
       **Status:** Alpha (March 2026+). Interfaces may change without notice.
     type: description
@@ -18,13 +19,13 @@ statements:
     confidence: high
 
   - id: 2
-    lines: [11, 14]
+    lines: [11, 15]
     text: |
 
       ## Agent Skills
 
-      This repo ships agent skills under `.agents/skills/`, organized into three audience buckets ...
-    type: directive
+      This repo ships agent skills under `.agents/skills/`, organized into three audience buckets: `nemoclaw-user-*` (end users), `nemoclaw-maintainer-*` (project maintainers), and `nemoclaw-contributor-*` (codebase contributors). Load the `nemoclaw-skills-guide` skill for a full catalog and quick decision guide mapping tasks to skills.
+    type: description
     topic: AI Integration
     enforceability: null
     confidence: high
@@ -36,52 +37,135 @@ statements:
       ## Architecture
 
       | Path | Language | Purpose |
-      ...
+      |------|----------|---------|
+      | `bin/` | JavaScript (CJS) | CLI launcher (`nemoclaw.js`) and small compatibility helpers |
+      | `src/lib/` | TypeScript | Core CLI logic: onboard, credentials, inference, policies, preflight, runner |
+      | `nemoclaw/` | TypeScript | Plugin project (Commander CLI extension for OpenClaw) |
+      | `nemoclaw/src/blueprint/` | TypeScript | Runner, snapshot, SSRF validation, state management |
+      | `nemoclaw/src/commands/` | TypeScript | Slash commands, migration state |
+      | `nemoclaw/src/onboard/` | TypeScript | Onboarding config |
+      | `nemoclaw-blueprint/` | YAML | Blueprint definition and network policies |
+      | `nemoclaw-blueprint/model-specific-setup/` | JSON | Agent-scoped model/provider compatibility registry |
+      | `scripts/` | Bash/JS/TS | Install helpers, setup, automation, E2E tooling |
+      | `test/` | JavaScript (ESM) | Root-level integration tests (Vitest) |
+      | `test/e2e/` | Bash/JS/TS | End-to-end tests, scenario-based runner (see `test/e2e/README.md`) |
+      | `docs/` | MDX/Markdown | User-facing docs (Fern MDX plus legacy MyST source during migration) |
+      | `fern/` | YAML/CSS/SVG | Fern site configuration and shared assets |
     type: description
     topic: Architecture
     enforceability: null
     confidence: high
 
   - id: 4
-    lines: [34, 49]
+    lines: [33, 49]
     text: |
 
       ## Quick Reference
 
       | Task | Command |
-      ...
+      |------|---------|
+      | Install all deps | `npm install && npm link && cd nemoclaw && npm install && npm run build && cd .. && cd nemoclaw-blueprint && uv sync && cd ..` |
+      | Build plugin | `cd nemoclaw && npm run build` |
+      | Watch mode | `cd nemoclaw && npm run dev` |
+      | Run all tests | `npm test` |
+      | Run plugin tests | `cd nemoclaw && npm test` |
+      | Run all linters | `make check` |
+      | Run all hooks manually | `npx prek run --all-files` |
+      | Type-check CLI | `npm run typecheck:cli` |
+      | Auto-format | `make format` |
+      | Build docs | `make docs` |
+      | Serve docs locally | `make docs-live` |
     type: directive
     topic: Build and Run
     enforceability: null
     confidence: high
 
   - id: 5
-    lines: [50, 84]
+    lines: [49, 60]
     text: |
 
       ## Key Architecture Decisions
 
       ### Dual-Language Stack
-      ...
-      ### Testing Strategy
-      ...
-      ### Security Model
-      ...
+
+      - **CLI and plugin**: TypeScript (`src/`, `nemoclaw/src/`) with a small CommonJS launcher in `bin/`; ESM in `test/`
+      - **Blueprint**: YAML configuration (`nemoclaw-blueprint/`)
+      - **Docs**: Fern MDX for migrated pages; legacy MyST Markdown remains during the transition for generated skills and parity checks
+      - **Tooling scripts**: Bash and Python
+
+      The `bin/` directory uses CommonJS intentionally for the launcher and a few compatibility helpers so the CLI still has a stable executable entry point. The main CLI implementation lives in `src/` and compiles to `dist/`. The `nemoclaw/` plugin uses TypeScript and requires compilation.
     type: description
     topic: Architecture
     enforceability: null
     confidence: high
 
   - id: 6
-    lines: [85, 85]
-    text: "Security-sensitive code paths require extra test coverage."
-    type: directive
-    topic: Security
+    lines: [60, 68]
+    text: |
+
+      ### Testing Strategy
+
+      Tests are organized into three Vitest projects defined in `vitest.config.ts`:
+
+      1. **`cli`** — `test/**/*.test.{js,ts}` — integration tests for CLI behavior
+      2. **`plugin`** — `nemoclaw/src/**/*.test.ts` — unit tests co-located with source
+      3. **`e2e-branch-validation`** — `test/e2e/brev-e2e.test.ts` — validates a branch from source on ephemeral Brev instance (requires `BREV_API_TOKEN`)
+    type: description
+    topic: Testing
     enforceability: null
     confidence: high
 
   - id: 7
-    lines: [86, 91]
+    lines: [68, 73]
+    text: |
+
+      When writing tests:
+
+      - Root-level tests (`test/`) use ESM imports
+      - Plugin tests use TypeScript and are co-located with their source files
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [73, 75]
+    text: |
+      - Mock external dependencies; don't call real NVIDIA APIs in unit tests
+      - E2E tests run on ephemeral Brev cloud instances
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [75, 85]
+    text: |
+
+      ### Security Model
+
+      NemoClaw isolates agents inside OpenShell sandboxes with:
+
+      - Network policies (`nemoclaw-blueprint/policies/`) controlling egress
+      - Credential sanitization to prevent leaks
+      - SSRF validation (`nemoclaw/src/blueprint/ssrf.ts`)
+      - Docker capability drops and process limits
+    type: description
+    topic: Security
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [85, 86]
+    text: |
+      Security-sensitive code paths require extra test coverage.
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [86, 98]
     text: |
 
       ## Code Style and Conventions
@@ -89,43 +173,82 @@ statements:
       ### Commit Messages
 
       Conventional Commits required. Enforced by commitlint via prek `commit-msg` hook.
+
+      ```text
+      <type>(<scope>): <description>
+      ```
+
+      Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `perf`, `merge`
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
-  - id: 8
-    lines: [92, 108]
+  - id: 12
+    lines: [98, 109]
     text: |
-      ```text
-      <type>(<scope>): <description>
-      ```
-      Types: ...
 
       ### SPDX Headers
 
-      Every source file must include an SPDX license header. ...
+      Every source file must include an SPDX license header. The pre-commit hook auto-inserts them:
+
+      ```javascript
+      // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+      // SPDX-License-Identifier: Apache-2.0
+      ```
+
+      For shell scripts use `#` comments. For Markdown use HTML comments.
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 9
-    lines: [109, 128]
+  - id: 13
+    lines: [109, 117]
     text: |
+
       ### JavaScript
-      ...
-      ### TypeScript
-      ...
-      ### Shell Scripts
-      ...
+
+      - `bin/` launcher and remaining `scripts/*.js`: **CommonJS** (`require`/`module.exports`), Node.js 22.16+
+      - `test/`: **ESM** (`import`/`export`)
+      - Biome config in `biome.json`
+      - Keep function complexity low; existing complexity hotspots are tracked separately
+      - Unused vars pattern: prefix with `_`
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 10
-    lines: [129, 132]
+  - id: 14
+    lines: [117, 123]
+    text: |
+
+      ### TypeScript
+
+      - Plugin code in `nemoclaw/src/` is linted and formatted by the root Biome config
+      - CLI type-checking via `tsconfig.cli.json`
+      - Plugin type-checking via `nemoclaw/tsconfig.json`
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [123, 129]
+    text: |
+
+      ### Shell Scripts
+
+      - ShellCheck enforced (`.shellcheckrc` at root)
+      - `shfmt` for formatting
+      - All scripts must have shebangs and be executable
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [129, 133]
     text: |
 
       ### No External Project Links
@@ -136,23 +259,26 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 11
+  - id: 17
     lines: [133, 143]
     text: |
 
       ## Git Hooks (prek)
 
-      All hooks managed by [prek] ...
+      All hooks managed by [prek](https://prek.j178.dev/) (installed via `npm install`):
 
       | Hook | What runs |
-      ...
+      |------|-----------|
+      | **pre-commit** | File fixers, formatters, linters, Vitest (plugin) |
+      | **commit-msg** | commitlint (Conventional Commits) |
+      | **pre-push** | TypeScript type check (tsc --noEmit for plugin, JS, CLI) |
     type: description
     topic: DevOps
     enforceability: null
     confidence: high
 
-  - id: 12
-    lines: [144, 150]
+  - id: 18
+    lines: [143, 151]
     text: |
 
       ## Working with This Repo
@@ -167,53 +293,108 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 13
-    lines: [151, 178]
+  - id: 19
+    lines: [151, 159]
     text: |
 
       ### Common Patterns
 
-      **Adding a CLI command:** ...
-      **Adding a plugin feature:** ...
-      **Adding a network policy preset:** ...
-      **Adding model-specific sandbox compatibility:** ...
+      **Adding a CLI command:**
+
+      - Entry point: `bin/nemoclaw.js` (launches the compiled CLI in `dist/`)
+      - Main CLI implementation lives in `src/lib/` and compiles to `dist/lib/`
+      - Add tests in `test/`
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 20
+    lines: [159, 165]
+    text: |
+
+      **Adding a plugin feature:**
+
+      - Source: `nemoclaw/src/`
+      - Co-locate tests as `*.test.ts`
+      - Build with `cd nemoclaw && npm run build`
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [165, 170]
+    text: |
+
+      **Adding a network policy preset:**
+
+      - Add YAML to `nemoclaw-blueprint/policies/presets/`
+      - Follow existing preset structure (see `slack.yaml`, `discord.yaml`)
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 22
+    lines: [170, 179]
+    text: |
+
+      **Adding model-specific sandbox compatibility:**
+
+      - Add a declarative manifest under `nemoclaw-blueprint/model-specific-setup/<agent>/`
+      - Use one exact `agent` per manifest (`openclaw`, `hermes`, etc.); do not make shared multi-agent manifests
+      - Put OpenClaw executable wrappers under `nemoclaw-blueprint/openclaw-plugins/`
+      - Put Hermes executable wrappers under `agents/hermes/`
+      - Keep `agents/hermes/generate-config.ts` as a thin build-time entrypoint; add Hermes env parsing, config construction, registry handling, and serialization under `agents/hermes/config/`
       - Do not add Hermes behavior for an OpenClaw issue without a Hermes-specific repro or acceptance test
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
-  - id: 14
-    lines: [179, 186]
+  - id: 23
+    lines: [179, 187]
     text: |
 
       ### Gotchas
 
-      - `npm install` at root triggers `prek install` ...
-      - The `nemoclaw/` subdirectory has its own `package.json` ...
-      - SPDX headers are auto-inserted ...
-      - Coverage thresholds are ratcheted ...
-      - The `.claude/skills` symlink points to `.agents/skills` ...
+      - `npm install` at root triggers `prek install` which sets up git hooks. If hooks fail, check that `core.hooksPath` is unset: `git config --unset core.hooksPath`
+      - The `nemoclaw/` subdirectory has its own `package.json` and `node_modules`, while sharing the root Biome config — it's a separate npm project
+      - SPDX headers are auto-inserted by pre-commit hooks; don't worry about adding them manually
+      - Coverage thresholds are ratcheted in `ci/coverage-threshold-*.json` — new code should not decrease CLI or plugin coverage
+      - The `.claude/skills` symlink points to `.agents/skills` — both paths resolve to the same content
     type: description
     topic: Configuration & Environment
     enforceability: null
     confidence: high
 
-  - id: 15
-    lines: [187, 195]
+  - id: 24
+    lines: [187, 192]
     text: |
 
       ## Documentation
 
       - Source of truth: `docs/` directory
       - `.agents/skills/nemoclaw-user-*/*.md` is **autogenerated** — never edit directly
-      ...
     type: directive
     topic: Documentation
     enforceability: null
     confidence: high
 
-  - id: 16
+  - id: 25
+    lines: [192, 196]
+    text: |
+      - User skills are generated agent-skill packages, prefixed with `nemoclaw-user-*`, that help AI agents guide end users through NemoClaw workflows.
+      - For normal docs changes, include only the source pages under `docs/`; the docs-to-skills hook runs in dry-run mode to validate generated output.
+      - Follow style guide in `docs/CONTRIBUTING.md`
+      - **Release prep only:** During release prep, run `nemoclaw-contributor-update-docs`, make doc version bumps, regenerate user skills, then open the docs refresh PR with both docs and generated user skills.
+    type: directive
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 26
     lines: [196, 205]
     text: |
 
