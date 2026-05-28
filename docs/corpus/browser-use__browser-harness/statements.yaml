@@ -1,15 +1,16 @@
 file: "browser-use/browser-harness/AGENTS.md"
 statements:
   - id: 1
-    lines: [1, 1]
-    text: "browser-harness is a thin layer that connects agents to browsers via an editable CDP harness."
+    lines: [1, 2]
+    text: |
+      browser-harness is a thin layer that connects agents to browsers via an editable CDP harness.
     type: description
     topic: System Overview
     enforceability: null
     confidence: high
 
   - id: 2
-    lines: [2, 7]
+    lines: [2, 8]
     text: |
 
       # Code priorities
@@ -23,7 +24,7 @@ statements:
     confidence: high
 
   - id: 3
-    lines: [8, 17]
+    lines: [8, 18]
     text: |
 
       # Overview
@@ -41,7 +42,7 @@ statements:
     confidence: high
 
   - id: 4
-    lines: [18, 21]
+    lines: [18, 22]
     text: |
 
       An agent operating the harness only edits inside `agent-workspace/`:

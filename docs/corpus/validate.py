@@ -79,7 +79,7 @@ def validate_repo(repo_dir: Path) -> list[str]:
     if extra:
         errors.append(f"{repo_dir.name}: lines beyond file end: {sorted(extra)[:10]} (file has {total_lines} lines)")
 
-    # Check 2: text matches source
+    # Check 2: text matches source (ignoring leading/trailing whitespace/newlines)
     for stmt in statements:
         lines = stmt.get("lines", [])
         if len(lines) != 2:
@@ -89,9 +89,25 @@ def validate_repo(repo_dir: Path) -> list[str]:
         # Get actual source text for these lines
         actual = "".join(source_lines[start-1:end-1])  # [start, end) half-open, 1-indexed
 
-        # Check if text contains "..." (abbreviation)
-        if "..." in text and len(text.strip()) < len(actual.strip()) * 0.5:
+        # Normalize: strip leading/trailing whitespace, normalize internal whitespace
+        # YAML | blocks add indentation; strip it
+        import textwrap
+        text_stripped = textwrap.dedent(text).strip()
+        actual_stripped = actual.strip()
+
+        # Check if text contains "..." (abbreviation) — likely truncated
+        if "..." in text_stripped and len(text_stripped) < len(actual_stripped) * 0.5:
             errors.append(f"{repo_dir.name}: stmt {stmt.get('id')}: text appears abbreviated (contains '...')")
+        else:
+            # Loose text match: strip all whitespace and compare
+            import re
+            text_nows = re.sub(r'\s+', '', text)
+            actual_nows = re.sub(r'\s+', '', actual)
+            if text_nows and actual_nows and text_nows != actual_nows:
+                errors.append(
+                    f"{repo_dir.name}: stmt {stmt.get('id')}: text content mismatch "
+                    f"(yaml {len(text_nows)} chars vs source {len(actual_nows)} chars, ignoring whitespace)"
+                )
 
     # Check 3: warn about statements that look like merged independent list items
     for stmt in statements:

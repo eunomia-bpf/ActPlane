@@ -325,6 +325,15 @@ every line is assigned to exactly one statement. The `text` field
 preserves the original file content verbatim, including any headers,
 blank lines, or formatting that fall within the line range.
 
+**YAML formatting rules.** The `text` field uses YAML block scalar (`|`)
+syntax. The text content must exactly match the source file lines for the
+specified range. Quoted strings with `\n` escapes are not used.
+Automated scripts must not be used to fill the `text` field; all
+annotation is manual to ensure the annotator has read and classified each
+statement. A validation script (`validate.py`) checks line-range
+coverage (no gaps, no overlaps) and text fidelity (content matches source
+after stripping whitespace) for every `statements.yaml` file.
+
 **Granularity rules.**
 
 - *Minimum unit is a line.* Each line belongs to exactly one statement;

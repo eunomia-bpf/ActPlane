@@ -1,7 +1,7 @@
 file: "Panniantong/Agent-Reach/CLAUDE.md"
 statements:
   - id: 1
-    lines: [1, 7]
+    lines: [1, 8]
     text: |
       # CLAUDE.md
 
@@ -9,13 +9,14 @@ statements:
       Agent Reach — Python CLI + library that gives AI agents read/search access to 14+ internet platforms.
       Positioning: installer + doctor + config tool. NOT a wrapper — after install, agents call upstream tools directly.
       Repo: github.com/Panniantong/Agent-Reach | License: MIT | Version: 1.3.0
+
     type: description
     topic: System Overview
     enforceability: null
     confidence: high
 
   - id: 2
-    lines: [8, 15]
+    lines: [8, 16]
     text: |
       ## Commands
       - `pip install -e .` — Dev install
@@ -24,13 +25,14 @@ statements:
       - `bash test.sh` — Full integration test (creates venv, installs, runs doctor + channel tests)
       - `python -m agent_reach.cli doctor` — Run diagnostics
       - `python -m agent_reach.cli install --env=auto` — Auto-configure
+
     type: directive
     topic: Build and Run
     enforceability: null
     confidence: high
 
   - id: 3
-    lines: [16, 28]
+    lines: [16, 29]
     text: |
       ## Structure
       - `agent_reach/cli.py` — CLI entry point (argparse)
@@ -44,48 +46,68 @@ statements:
       - `agent_reach/guides/` — Usage guides
       - `tests/` — pytest tests
       - `config/mcporter.json` — MCP tool config
+
     type: description
     topic: Architecture
     enforceability: null
     confidence: high
 
   - id: 4
-    lines: [29, 31]
+    lines: [29, 30]
     text: |
       ## Conventions
-      - Python 3.10+ with type hints
-      - Each channel is a single file in `channels/`, inherits from `BaseChannel`
-    type: directive
+    type: description
     topic: Implementation Details
     enforceability: null
     confidence: high
 
   - id: 5
-    lines: [32, 32]
-    text: "- Channel contract: must implement `can_handle(url)`, `read(url)`, `search(query)`, `check()` methods"
+    lines: [30, 31]
+    text: |
+      - Python 3.10+ with type hints
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
   - id: 6
-    lines: [33, 33]
-    text: "- Use `loguru` for logging, `rich` for CLI output"
+    lines: [31, 32]
+    text: |
+      - Each channel is a single file in `channels/`, inherits from `BaseChannel`
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
   - id: 7
-    lines: [34, 34]
-    text: "- Commit format: `type(scope): message` (one commit = one thing)"
+    lines: [32, 33]
+    text: |
+      - Channel contract: must implement `can_handle(url)`, `read(url)`, `search(query)`, `check()` methods
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [33, 34]
+    text: |
+      - Use `loguru` for logging, `rich` for CLI output
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [34, 35]
+    text: |
+      - Commit format: `type(scope): message` (one commit = one thing)
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
-  - id: 8
-    lines: [35, 36]
+  - id: 10
+    lines: [35, 38]
     text: |
       - All upstream tool calls go through public API/CLI, never hack internals
 
@@ -95,55 +117,61 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 9
-    lines: [38, 38]
-    text: "- NEVER modify upstream open source projects' source code"
-    type: directive
-    topic: Development Process
-    enforceability: null
-    confidence: high
-
-  - id: 10
-    lines: [39, 39]
-    text: "- Agent Reach is a \"glue layer\" — only route and call, don't reimagine"
-    type: directive
-    topic: Development Process
-    enforceability: null
-    confidence: high
-
   - id: 11
-    lines: [40, 40]
-    text: "- Version in THREE places must match: `pyproject.toml`, `__init__.py`, `tests/test_cli.py`"
+    lines: [38, 39]
+    text: |
+      - NEVER modify upstream open source projects' source code
     type: directive
     topic: Development Process
     enforceability: null
-    confidence: medium
+    confidence: high
 
   - id: 12
-    lines: [41, 41]
-    text: "- Always new branch for changes, PR to main, never push to main directly"
+    lines: [39, 40]
+    text: |
+      - Agent Reach is a "glue layer" — only route and call, don't reimagine
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
   - id: 13
-    lines: [42, 42]
-    text: "- Run `pytest tests/ -v` before committing — all tests must pass"
+    lines: [40, 41]
+    text: |
+      - Version in THREE places must match: `pyproject.toml`, `__init__.py`, `tests/test_cli.py`
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: medium
+
+  - id: 14
+    lines: [41, 42]
+    text: |
+      - Always new branch for changes, PR to main, never push to main directly
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [42, 43]
+    text: |
+      - Run `pytest tests/ -v` before committing — all tests must pass
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
-  - id: 14
-    lines: [43, 43]
-    text: "- Cookie-based auth (Twitter, XHS): use Cookie-Editor export method only, no QR scan"
+  - id: 16
+    lines: [43, 44]
+    text: |
+      - Cookie-based auth (Twitter, XHS): use Cookie-Editor export method only, no QR scan
     type: directive
     topic: Configuration & Environment
     enforceability: null
     confidence: high
 
-  - id: 15
+  - id: 17
     lines: [44, 45]
     text: |
       - XHS login: Cookie-Editor browser export only (QR will hang)

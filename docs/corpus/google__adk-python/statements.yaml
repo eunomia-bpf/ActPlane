@@ -1,18 +1,19 @@
 file: "google/adk-python/AGENTS.md"
 statements:
   - id: 1
-    lines: [1, 4]
+    lines: [1, 5]
     text: |
       # AI Coding Assistant Context
 
       This document provides context for AI coding assistants (Antigravity, Gemini CLI, etc.) to understand the ADK Python project and assist with development.
+
     type: description
     topic: System Overview
     enforceability: null
     confidence: high
 
   - id: 2
-    lines: [5, 8]
+    lines: [5, 9]
     text: |
       ## ADK Knowledge, Architecture, and Style
 
@@ -24,7 +25,7 @@ statements:
     confidence: high
 
   - id: 3
-    lines: [9, 10]
+    lines: [9, 11]
     text: |
       - **`adk-architecture`**: Use this skill whenever you need to understand the architecture, event flow, or state management of the ADK system, or when designing or modifying core components and public APIs.
         - Read `.agents/skills/adk-architecture/SKILL.md` for full instructions.
@@ -34,7 +35,7 @@ statements:
     confidence: high
 
   - id: 4
-    lines: [11, 12]
+    lines: [11, 13]
     text: |
       - **`adk-style`**: Use this skill whenever writing code, tests, or reviewing PRs for the ADK project to ensure compliance with styling and coding conventions. Also use it for committing, bug fixing, and testing rules.
         - Read `.agents/skills/adk-style/SKILL.md` for full instructions.
@@ -44,7 +45,7 @@ statements:
     confidence: high
 
   - id: 5
-    lines: [13, 14]
+    lines: [13, 15]
     text: |
       - **`adk-git`**: Use this skill for any git operation (commit, push, pull, rebase, etc.). It provides guidelines for Conventional Commits and branch naming.
         - Read `.agents/skills/adk-git/SKILL.md` for full instructions.
@@ -54,7 +55,7 @@ statements:
     confidence: high
 
   - id: 6
-    lines: [15, 16]
+    lines: [15, 17]
     text: |
       - **`adk-sample-creator`**: Use this skill when creating new samples demonstrating features or agent patterns, or when adding examples to subdirectories under `contributing/`.
         - Read `.agents/skills/adk-sample-creator/SKILL.md` for full instructions.
@@ -64,7 +65,7 @@ statements:
     confidence: high
 
   - id: 7
-    lines: [17, 32]
+    lines: [17, 33]
     text: |
 
       ## Project Overview
@@ -81,26 +82,29 @@ statements:
       - **Workflow** (ADK 2.0): Graph-based orchestration of complex, multi-step agent interactions.
       - **BaseNode** (ADK 2.0): Contract for all nodes, supporting output streaming and human-in-the-loop steps.
       - **Context** (ADK 2.0): Holds execution state and telemetry context mapped 1:1 to nodes.
+
     type: description
     topic: Architecture
     enforceability: null
     confidence: high
 
   - id: 8
-    lines: [33, 33]
-    text: "For details on how the Runner works and the invocation lifecycle, please refer to the `adk-architecture` skill and the referenced documentation therein."
+    lines: [33, 34]
+    text: |
+      For details on how the Runner works and the invocation lifecycle, please refer to the `adk-architecture` skill and the referenced documentation therein.
     type: directive
     topic: AI Integration
     enforceability: null
     confidence: high
 
   - id: 9
-    lines: [34, 37]
+    lines: [34, 38]
     text: |
 
       ## Project Architecture
 
       For detailed architecture patterns, component descriptions, and core interfaces, please refer to the **`adk-architecture`** skill at `.agents/skills/adk-architecture/SKILL.md`.
+
     type: directive
     topic: AI Integration
     enforceability: null

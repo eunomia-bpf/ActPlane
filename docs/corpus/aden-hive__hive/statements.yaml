@@ -9,54 +9,67 @@ statements:
 
       ## Coding Agent Notes
 
-      -
     type: description
     topic: System Overview
     enforceability: null
     confidence: high
 
   - id: 2
-    lines: [8, 8]
-    text: "- When working on a GitHub Issue or PR, print the full URL at the end of the task."
-    type: directive
-    topic: AI Integration
+    lines: [7, 8]
+    text: |
+      -
+    type: description
+    topic: System Overview
     enforceability: null
-    confidence: high
+    confidence: low
 
   - id: 3
-    lines: [9, 9]
-    text: "- When answering questions, respond with high-confidence answers only: verify in code; do not guess."
+    lines: [8, 9]
+    text: |
+      - When working on a GitHub Issue or PR, print the full URL at the end of the task.
     type: directive
     topic: AI Integration
     enforceability: null
     confidence: high
 
   - id: 4
-    lines: [10, 10]
-    text: "- Do not update dependencies casually. Version bumps, patched dependencies, overrides, or vendored dependency changes require explicit approval."
-    type: directive
-    topic: Development Process
-    enforceability: null
-    confidence: medium
-
-  - id: 5
-    lines: [11, 11]
-    text: "- Add brief comments for tricky logic. Keep files reasonably small when practical; split or refactor large files instead of growing them indefinitely."
-    type: directive
-    topic: Implementation Details
-    enforceability: null
-    confidence: high
-
-  - id: 6
-    lines: [12, 12]
-    text: "- If shared guardrails are available locally, review them; otherwise follow this repo's guidance."
+    lines: [9, 10]
+    text: |
+      - When answering questions, respond with high-confidence answers only: verify in code; do not guess.
     type: directive
     topic: AI Integration
     enforceability: null
     confidence: high
 
+  - id: 5
+    lines: [10, 11]
+    text: |
+      - Do not update dependencies casually. Version bumps, patched dependencies, overrides, or vendored dependency changes require explicit approval.
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [11, 12]
+    text: |
+      - Add brief comments for tricky logic. Keep files reasonably small when practical; split or refactor large files instead of growing them indefinitely.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
   - id: 7
-    lines: [13, 14]
+    lines: [12, 13]
+    text: |
+      - If shared guardrails are available locally, review them; otherwise follow this repo's guidance.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [13, 15]
     text: |
       - Use `uv` for Python execution and package management. Do not use `python` or `python3` directly unless the user explicitly asks for it.
       - Prefer `uv run` for scripts and tests, and `uv pip` for package operations.
@@ -65,80 +78,102 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 8
+  - id: 9
     lines: [15, 19]
     text: |
 
 
       ## Multi-Agent Safety
 
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [19, 20]
+    text: |
       - Do not create, apply, or drop `git stash` entries unless explicitly requested.
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
-  - id: 9
-    lines: [20, 20]
-    text: "- Do not create, remove, or modify `git worktree` checkouts unless explicitly requested."
-    type: directive
-    topic: Development Process
-    enforceability: null
-    confidence: high
-
-  - id: 10
-    lines: [21, 21]
-    text: "- Do not switch branches or check out a different branch unless explicitly requested."
-    type: directive
-    topic: Development Process
-    enforceability: null
-    confidence: high
-
   - id: 11
-    lines: [22, 22]
-    text: "- When the user says `push`, you may `git pull --rebase` to integrate latest changes, but never discard other in-progress work."
+    lines: [20, 21]
+    text: |
+      - Do not create, remove, or modify `git worktree` checkouts unless explicitly requested.
     type: directive
     topic: Development Process
     enforceability: null
-    confidence: medium
+    confidence: high
 
   - id: 12
-    lines: [23, 23]
-    text: "- When the user says `commit`, commit only your changes. When the user says `commit all`, commit everything in grouped chunks."
+    lines: [21, 22]
+    text: |
+      - Do not switch branches or check out a different branch unless explicitly requested.
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
   - id: 13
-    lines: [24, 24]
-    text: "- When you see unrecognized files or unrelated changes, keep going and focus on your scoped changes."
+    lines: [22, 23]
+    text: |
+      - When the user says `push`, you may `git pull --rebase` to integrate latest changes, but never discard other in-progress work.
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
   - id: 14
-    lines: [25, 28]
+    lines: [23, 24]
     text: |
-
-      ## Change Hygiene
-
-      - If staged and unstaged diffs are formatting-only, resolve them without asking.
+      - When the user says `commit`, commit only your changes. When the user says `commit all`, commit everything in grouped chunks.
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
   - id: 15
-    lines: [29, 29]
-    text: "- If a commit or push was already requested, include formatting-only follow-up changes in that same commit when practical."
+    lines: [24, 26]
+    text: |
+      - When you see unrecognized files or unrelated changes, keep going and focus on your scoped changes.
+
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
   - id: 16
+    lines: [26, 28]
+    text: |
+      ## Change Hygiene
+
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [28, 29]
+    text: |
+      - If staged and unstaged diffs are formatting-only, resolve them without asking.
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [29, 30]
+    text: |
+      - If a commit or push was already requested, include formatting-only follow-up changes in that same commit when practical.
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 19
     lines: [30, 31]
     text: |
       - Only stop to ask for confirmation when changes are semantic and may alter behavior.
