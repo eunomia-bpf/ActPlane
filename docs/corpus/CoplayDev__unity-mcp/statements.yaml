@@ -1,0 +1,225 @@
+file: "CoplayDev/unity-mcp/CLAUDE.md"
+statements:
+  - id: 1
+    lines: [1, 4]
+    text: |
+      # CLAUDE.md
+
+      This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [5, 19]
+    text: |
+      ## What This Project Is
+
+      **MCP for Unity** is a bridge that lets AI assistants (Claude, Cursor, Windsurf, etc.) control the Unity Editor through the Model Context Protocol (MCP). ...
+
+      ## Architecture
+
+      ```text
+      AI Assistant (Claude/Cursor)
+      ...
+      ```
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [20, 41]
+    text: |
+      **Two codebases, one system:**
+      - `Server/` - Python MCP server using FastMCP
+      - `MCPForUnity/` - Unity C# Editor package
+
+      ### Three Layers on the Python Side
+      ...
+      ### Transport Modes
+      ...
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [42, 46]
+    text: |
+
+      ## Code Philosophy
+
+      ### 1. Domain Symmetry
+      Python MCP tools mirror C# Editor tools. Each domain exists in both:
+      - `Server/src/services/tools/manage_material.py` ↔ `MCPForUnity/Editor/Tools/ManageMaterial.cs`
+    type: directive
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [47, 50]
+    text: |
+      - CLI commands (`Server/src/cli/commands/`) also mirror these but are a separate implementation.
+
+      ### 2. Minimal Abstraction
+      Avoid premature abstraction. Three similar lines of code is better than a helper that's used once. Only abstract when you have 3+ genuine use cases.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [51, 53]
+    text: |
+
+      ### 3. Delete Rather Than Deprecate
+      When removing functionality, delete it completely. No `_unused` renames, no `// removed` comments, no backwards-compatibility shims for internal code.
+    type: directive
+    topic: Maintenance
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [54, 56]
+    text: |
+
+      ### 4. Test Coverage Required
+      Every new feature needs tests. Run them before PRs.
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [57, 59]
+    text: |
+
+      ### 5. Keep Tools Focused
+      Each MCP tool does one thing well. Resist the urge to add "convenient" parameters that bloat the API surface.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [60, 62]
+    text: |
+
+      ### 6. Use Resources for Reading
+      Keep them smart and focused rather than "read everything" type resources. Resources should be quick and LLM-friendly.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [63, 148]
+    text: |
+      ## Key Patterns
+
+      ### Python MCP Tool Registration
+      ...
+      ### C# Tool Registration
+      ...
+      ### Paging Large Results
+      ...
+      ### Unity API Compatibility Shims
+      ...
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [149, 168]
+    text: |
+
+      ## Commands
+
+      ### Running Tests
+      ```bash
+      # Python (all tests)
+      cd Server && uv run pytest tests/ -v
+      ...
+      ```
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [169, 175]
+    text: |
+
+      ### Local Development
+      1. Set **Server Source Override** in MCP for Unity Advanced Settings to your local `Server/` path
+      2. Enable **Dev Mode** checkbox to force fresh installs
+      3. Use `mcp_source.py` to switch Unity package sources
+      4. Test on Windows and Mac if possible, and multiple clients (Claude Desktop and Claude Code are tricky for configuration as of this writing)
+
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [176, 182]
+    text: |
+      ### Adding a New Tool
+      1. Add Python MCP tool in `Server/src/services/tools/manage_<domain>.py` using `@mcp_for_unity_tool`
+      2. Add Python CLI commands in `Server/src/cli/commands/<domain>.py` using Click
+      3. Add C# implementation in `MCPForUnity/Editor/Tools/Manage<Domain>.cs` with `[McpForUnityTool]`
+      4. Add Python tests in `Server/tests/test_manage_<domain>.py`
+      5. Add Unity tests in `TestProjects/UnityMCPTests/Assets/Tests/`
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [183, 185]
+    text: |
+
+      ## What Not To Do
+
+      - Don't add features without tests
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [186, 186]
+    text: "- Don't create helper functions for one-time operations"
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [187, 187]
+    text: "- Don't add error handling for scenarios that can't happen"
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [188, 188]
+    text: "- Don't commit to `main` directly - branch off `beta` for PRs"
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [189, 190]
+    text: "- Don't add docstrings/comments to code you didn't change"
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high

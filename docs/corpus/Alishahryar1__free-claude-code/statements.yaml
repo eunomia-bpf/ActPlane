@@ -1,0 +1,226 @@
+file: "Alishahryar1/free-claude-code/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 4]
+    text: |
+      # AGENTIC DIRECTIVE
+
+      > This file is identical to CLAUDE.md. Keep them in sync.
+
+    type: directive
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [5, 7]
+    text: |
+      ## CODING ENVIRONMENT
+
+      - Install astral uv using "curl -LsSf https://astral.sh/uv/install.sh | sh" if not already installed and if already installed then update it to the latest version
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [8, 8]
+    text: "- Install Python 3.14.0 stable using `uv python install 3.14.0` if not already installed (requires uv >=0.9; see `[tool.uv] required-version` in `pyproject.toml`)"
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [9, 9]
+    text: "- Always use `uv run` to run files instead of the global `python` command."
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [10, 11]
+    text: |
+      - Current uv ruff formatter is set to py314 which has supports multiple exception types without paranthesis (except TypeError, ValueError:)
+      - Read `.env.example` for environment variables.
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [12, 12]
+    text: "- All CI checks must pass; failing checks block merge."
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [13, 13]
+    text: "- Add tests for new changes (including edge cases), then run `uv run pytest`."
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [14, 14]
+    text: "- Run checks in this order: `uv run ruff format`, `uv run ruff check`, `uv run ty check`, `uv run pytest`."
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [15, 15]
+    text: "- Do not add `# type: ignore` or `# ty: ignore`; fix the underlying type issue."
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [16, 17]
+    text: |
+      - All 5 checks are enforced in `tests.yml` on push/merge (parallel jobs: suppression grep, ruff-format, ruff-check, ty, pytest).
+      - Branch protection: set **required status checks** to **all** of those statuses (e.g. **Ban type ignore suppressions**, **ruff-format**, **ruff-check**, **ty**, **pytest**—use the exact labels GitHub shows, which may be prefixed with **CI /**). Remove **ci** from required checks if it was previously added for the old gate job.
+    type: directive
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [18, 23]
+    text: |
+
+      ## IDENTITY & CONTEXT
+
+      - You are an expert Software Architect and Systems Engineer.
+      - Goal: Zero-defect, root-cause-oriented engineering for bugs; test-driven engineering for new features. Think carefully; no need to rush.
+      - Code: Write the simplest code possible. Keep the codebase minimal and modular.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [24, 27]
+    text: |
+
+      ## ARCHITECTURE PRINCIPLES
+
+      - **Shared utilities**: Put shared Anthropic protocol logic in neutral `core/anthropic/` modules. Do not have one provider import from another provider's utils.
+    type: directive
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [28, 28]
+    text: "- **DRY**: Extract shared base classes to eliminate duplication. Prefer composition over copy-paste."
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [29, 29]
+    text: "- **Encapsulation**: Use accessor methods for internal state (e.g. `set_current_task()`), not direct `_attribute` assignment from outside."
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [30, 30]
+    text: "- **Provider-specific config**: Keep provider-specific fields (e.g. `nim_settings`) in provider constructors, not in the base `ProviderConfig`."
+    type: directive
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [31, 31]
+    text: "- **Dead code**: Remove unused code, legacy systems, and hardcoded values. Use settings/config instead of literals (e.g. `settings.provider_type` not `\"nvidia_nim\"`)."
+    type: directive
+    topic: Maintenance
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [32, 32]
+    text: "- **Performance**: Use list accumulation for strings (not `+=` in loops), cache env vars at init, prefer iterative over recursive when stack depth matters."
+    type: directive
+    topic: Performance
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [33, 33]
+    text: "- **Platform-agnostic naming**: Use generic names (e.g. `PLATFORM_EDIT`) not platform-specific ones (e.g. `TELEGRAM_EDIT`) in shared code."
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 19
+    lines: [34, 34]
+    text: "- **No type ignores**: Do not add `# type: ignore` or `# ty: ignore`. Fix the underlying type issue."
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 20
+    lines: [35, 36]
+    text: |
+      - **Complete migrations**: When moving modules, update imports to the new owner and remove old compatibility shims in the same change unless preserving a published interface is explicitly required.
+      - **Maximum Test Coverage**: There should be maximum test coverage for everything, preferably live smoke test coverage to catch bugs early
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [37, 45]
+    text: |
+
+      ## COGNITIVE WORKFLOW
+
+      1. **ANALYZE**: Read relevant files. Do not guess.
+      2. **PLAN**: Map out the logic. Identify root cause or required changes. Order changes by dependency.
+      3. **EXECUTE**: Fix the cause, not the symptom. Execute incrementally with clear commits.
+      4. **VERIFY**: Run ci checks and relevant smoke tests. Confirm the fix via logs or output.
+      5. **SPECIFICITY**: Do exactly as much as asked; nothing more, nothing less.
+      6. **PROPAGATION**: Changes impact multiple files; propagate updates correctly.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 22
+    lines: [46, 50]
+    text: |
+
+      ## SUMMARY STANDARDS
+
+      - Summaries must be technical and granular.
+      - Include: [Files Changed], [Logic Altered], [Verification Method], [Residual Risks] (if no residual risks then say none).
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 23
+    lines: [51, 55]
+    text: |
+
+      ## TOOLS
+
+      - Prefer built-in tools (grep, read_file, etc.) over manual workflows. Check tool availability before use.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
