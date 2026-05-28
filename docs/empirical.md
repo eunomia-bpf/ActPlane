@@ -605,6 +605,8 @@ falls below 0.6 for any dimension, we refine the coding guide and re-code.
 
 ### 5.1 RQ1: What fraction of instruction-file content is directive?
 
+#### 5.1.1 RQ1a: By statement count
+
 Of the 2,152 statements extracted from 64 repositories, 1,361 (63.2%) are
 directives and 791 (36.8%) are descriptions. The per-repository directive
 fraction has a median of 69.6% and mean of 63.4%, indicating that the
@@ -624,18 +626,46 @@ directives.
 
 Figure 1 shows the per-repository directive fraction sorted from lowest
 to highest. The median is 69.6%, and 75% of repositories have a directive
-fraction above 50%. One repository (HKUDS/DeepTutor) contains only
-descriptions; at the other extreme, alibaba/OpenSandbox is 97% directives.
+fraction above 50%.
 
-![RQ1](tmp/fig1_rq1_directive_fraction.png)
-*Figure 1. Per-repository directive fraction, sorted. Red = majority
-directive; teal = majority description. Dashed line = median (69.6%).*
+![RQ1a](tmp/fig1_rq1_directive_fraction.png)
+*Figure 1. Per-repository directive fraction (by statement count), sorted.
+Red = majority directive; teal = majority description. Dashed line =
+median (69.6%).*
 *(Script: `docs/tmp/fig_all_rqs.py`)*
 
-**Takeaway.** Instruction files are predominantly behavioral contracts, not
-documentation. Nearly two-thirds of all statements are directives, and the
-typical repository devotes roughly 70% of its instruction file to telling
-the agent what to do (or not do).
+#### 5.1.2 RQ1b: By line count
+
+The same question measured by source lines yields a different answer.
+Of the 10,209 lines covered by the corpus, 4,890 (47.9%) belong to
+directive statements and 5,319 (52.1%) belong to descriptions. The
+per-repository median drops to 55.4%.
+
+| Metric | By statements | By lines |
+|---|---|---|
+| Directive | 1,361 (63.2%) | 4,890 (47.9%) |
+| Description | 791 (36.8%) | 5,319 (52.1%) |
+| Per-repo median | 69.6% | 55.4% |
+
+The 15.3 percentage-point gap arises because directives are terse (average
+3.6 lines per statement) while descriptions are verbose (average 6.7
+lines). A typical directive is a one-line list item ("Never push to
+main"); a typical description is a multi-line directory listing or
+code block.
+
+![RQ1b](tmp/fig1b_rq1b_directive_lines.png)
+*Figure 2. Per-repository directive fraction (by line count), sorted.
+Compared to Figure 1, fewer repos cross the 50% line: descriptions
+dominate by line count even when directives dominate by statement count.*
+*(Script: `docs/tmp/fig_all_rqs.py`)*
+
+**Takeaway.** By statement count, instruction files are predominantly
+behavioral contracts (63.2% directive). By line count, descriptions
+slightly outnumber directives (52.1% vs 47.9%). The discrepancy reveals
+that directives are dense, short rules while descriptions are verbose
+context blocks. File-level and line-level analyses see a balanced
+document; statement-level analysis reveals a 2:1 directive majority
+hidden inside verbose descriptive wrappers.
 
 ### 5.2 RQ2: How do topics distribute across description and directive?
 
