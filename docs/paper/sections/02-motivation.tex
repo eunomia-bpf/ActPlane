@@ -23,7 +23,7 @@ produce observable effects at the system-call boundary.
 
 An agent's execution spans three abstraction levels.
 
-\textbf{Intent} is the agent's own goals and self-constraints---what it
+\textbf{Intent} is the agent's own goals and self-constraints, i.e., what it
 declares it will and will not do. 
 % In ActPlane's design, the agent
 % formalizes its intent in a compact DSL, just as a program formalizes its
@@ -62,12 +62,12 @@ the opacity of the action-to-behavior mapping causes unintentional bypass
 in routine operation. Three representative scenarios illustrate this.
 (1)~An agent calls \texttt{run\_command("npm~test")}; the test harness
 internally invokes \texttt{git~push} to a staging server. The tool-call
-guard sees \texttt{npm~test}---a permitted action---while the kernel
+guard sees \texttt{npm~test} (a permitted action), while the kernel
 observes the forbidden \texttt{git~push} behavior.
 (2)~An agent calls \texttt{read\_file(".env")} to inspect a configuration
 value, then later calls \texttt{run\_command("curl~api.example.com")}.
 Each tool call is individually permitted, but the combination constitutes
-secret exfiltration---a cross-object violation visible only to an enforcer
+secret exfiltration, a cross-object violation visible only to an enforcer
 that tracks information flow from file read to network connect.
 (3)~An agent writes a Python script containing
 \texttt{subprocess.run(["git",~"push",~"--force"])} and executes it. The
@@ -88,8 +88,8 @@ The trust boundary is the kernel. The eBPF programs and BPF maps that
 propagate labels and check rules run in kernel space and cannot be modified
 by the agent. The policy DSL and feedback formatting run in a trusted
 userspace process (\texttt{actplane run}) that is not part of the agent's
-process tree. The agent's process tree---including all descendants spawned
-through tools, shells, or subprocesses---is the monitored domain.
+process tree. The monitored domain is the agent's entire process tree,
+including all descendants spawned through tools, shells, or subprocesses.
 
 ActPlane does not defend against an agent that deliberately exploits kernel
 vulnerabilities or manipulates the eBPF loader. Such attacks require
@@ -119,7 +119,7 @@ statement along seven dimensions: (D1)~coding style vs.\ behavioral
 contract, (D2)~contract category, (D3)~observable at the syscall boundary,
 (D4)~expressible in the ActPlane DSL, (D5)~enforceable without false
 positives under normal use, (D6)~robust to naming and path variation, and
-(D7)~temptable---likely to be violated by an agent in a realistic task.
+(D7)~temptable (likely to be violated by an agent in a realistic task).
 Two annotators independently coded the full set; we report Cohen's
 $\kappa$ for inter-rater reliability.
 

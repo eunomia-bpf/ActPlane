@@ -28,11 +28,11 @@ is delivered to the agent.
 Does corrective feedback improve agent task completion and reduce repeated
 violations compared with enforcement without feedback?
 
-We run agent tasks under four conditions: (C1)~prompt-only---the
-contract is stated in the prompt but not enforced; (C2)~audit---ActPlane
+We run agent tasks under four conditions: (C1)~prompt-only, in which the
+contract is stated in the prompt but not enforced; (C2)~audit, in which ActPlane
 reports violations but does not fail operations; (C3)~enforcement without
-feedback---the operation fails with \texttt{-EPERM} or \texttt{SIGKILL}
-but no structured reason; (C4)~enforcement with feedback---the operation
+feedback, in which the operation fails with \texttt{-EPERM} or \texttt{SIGKILL}
+but no structured reason; (C4)~enforcement with feedback, in which the operation
 fails and ActPlane injects the rule name, reason, and remediation into the
 agent's context.
 

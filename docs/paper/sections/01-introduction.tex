@@ -22,8 +22,8 @@ Existing agent harness enforcement operates at a single level, leaving an
 \emph{intent--behavior gap}. An agent's execution spans three abstraction
 levels: \emph{intent} (what the agent declares it will and will not do),
 \emph{action} (the tool calls it issues through its runtime), and
-\emph{behavior} (the actual OS operations---\texttt{open}, \texttt{execve},
-\texttt{connect}---that
+\emph{behavior} (the actual OS operations, including \texttt{open}, \texttt{execve},
+and \texttt{connect}, that
 result)~\cite{agentsight}. The mapping from action to behavior is many-to-many
 and opaque: a single \texttt{run\_command("make")} can trigger hundreds of
 system calls, and the same \texttt{git~push} can be reached through a direct
@@ -40,7 +40,7 @@ level bridges the gap.
 % ¶4: Insight — contracts are cross-object information flow
 Real behavioral contracts frequently require cross-object information-flow
 tracking that no single enforcement level provides. A contract like ``never
-expose secrets to the network'' is not a predicate on one system call---it
+expose secrets to the network'' is not a predicate on one system call; it
 requires knowing that the current process previously read a secret file and
 now attempts a network connection. A contract like ``run tests before
 committing'' requires knowing that a test process executed before a commit
@@ -54,7 +54,7 @@ feedback components at the application layer, where they cannot connect behavior
 ActPlane bridges intent and behavior by compiling agent-declared contracts into
 OS-level labeled information-flow enforcement with corrective feedback. 
 Agents and developers declare behavioral
-contracts in a compact DSL---voluntary confinement, analogous to
+contracts in a compact DSL, a form of voluntary confinement analogous to
 \texttt{pledge()} in OpenBSD~\cite{openbsd-pledge}.
 ActPlane compiles these declarations into labeled information-flow rules and
 loads them into an eBPF/BPF-LSM backend. Named
@@ -62,9 +62,8 @@ labels propagate across process, file, and network objects at kernel hooks,
 encoding execution history as checkable state: when a process reads a file
 labeled \texttt{SECRET}, the process acquires that label; when it forks, the
 child inherits it. When a labeled subject violates a rule, ActPlane returns
-corrective feedback to the agent---which contract was violated, why, and what
-alternative path satisfies it---not \texttt{Permission~denied} but a reminder
-of the agent's own declared intent. Unlike prior work that enforces at a
+corrective feedback to the agent, specifying which contract was violated, why,
+and what alternative path satisfies it. Unlike prior work that enforces at a
 single layer~(\S\ref{sec:related}), ActPlane unifies cross-object
 information-flow enforcement and corrective feedback at the OS level, where
 contracts survive context loss and cannot be bypassed below the tool API.
