@@ -1,7 +1,7 @@
 file: "nanocoai/nanoclaw/CLAUDE.md"
 statements:
   - id: 1
-    lines: [1, 13]
+    lines: [1, 14]
     text: |
       # ⚠️ STOP — READ THIS FIRST IF YOU ARE CLAUDE ⚠️
 
@@ -22,7 +22,7 @@ statements:
     confidence: high
 
   - id: 2
-    lines: [13, 18]
+    lines: [14, 20]
     text: |
 
       ---
@@ -37,7 +37,7 @@ statements:
     confidence: high
 
   - id: 3
-    lines: [18, 25]
+    lines: [20, 26]
     text: |
 
       ## Quick Context
@@ -52,7 +52,7 @@ statements:
     confidence: high
 
   - id: 4
-    lines: [25, 42]
+    lines: [26, 43]
     text: |
 
       ## Entity Model
@@ -78,7 +78,7 @@ statements:
     confidence: high
 
   - id: 5
-    lines: [42, 51]
+    lines: [43, 52]
     text: |
 
       ## Two-DB Session Split
@@ -96,7 +96,7 @@ statements:
     confidence: high
 
   - id: 6
-    lines: [51, 57]
+    lines: [52, 58]
     text: |
 
       ## Central DB
@@ -111,7 +111,7 @@ statements:
     confidence: high
 
   - id: 7
-    lines: [57, 86]
+    lines: [58, 87]
     text: |
 
       ## Key Files
@@ -149,7 +149,7 @@ statements:
     confidence: high
 
   - id: 8
-    lines: [86, 112]
+    lines: [87, 113]
     text: |
 
       ## Admin CLI (`ncl`)
@@ -184,7 +184,7 @@ statements:
     confidence: high
 
   - id: 9
-    lines: [112, 121]
+    lines: [113, 122]
     text: |
 
       ## Channels and Providers (skill-installed)
@@ -202,7 +202,7 @@ statements:
     confidence: high
 
   - id: 10
-    lines: [121, 129]
+    lines: [122, 130]
     text: |
 
       ## Self-Modification
@@ -219,7 +219,7 @@ statements:
     confidence: high
 
   - id: 11
-    lines: [129, 143]
+    lines: [130, 144]
     text: |
 
       ## Container Config
@@ -242,7 +242,7 @@ statements:
     confidence: high
 
   - id: 12
-    lines: [143, 151]
+    lines: [144, 152]
     text: |
 
       ## Container Restart
@@ -259,7 +259,7 @@ statements:
     confidence: high
 
   - id: 13
-    lines: [151, 155]
+    lines: [152, 156]
     text: |
 
       ## Secrets / Credentials / OneCLI
@@ -272,7 +272,7 @@ statements:
     confidence: high
 
   - id: 14
-    lines: [155, 181]
+    lines: [156, 182]
     text: |
 
       ### Gotcha: auto-created agents start in `selective` secret mode
@@ -307,7 +307,7 @@ statements:
     confidence: high
 
   - id: 15
-    lines: [181, 190]
+    lines: [182, 191]
     text: |
 
       ### Requiring approval for credential use
@@ -325,7 +325,7 @@ statements:
     confidence: high
 
   - id: 16
-    lines: [190, 199]
+    lines: [191, 200]
     text: |
 
       ## Skills
@@ -343,9 +343,8 @@ statements:
     confidence: high
 
   - id: 17
-    lines: [199, 210]
+    lines: [200, 210]
     text: |
-
       | Skill | When to Use |
       |-------|-------------|
       | `/setup` | First-time install, auth, service config |
@@ -362,7 +361,7 @@ statements:
     confidence: high
 
   - id: 18
-    lines: [210, 213]
+    lines: [210, 214]
     text: |
 
       ## Contributing
@@ -375,7 +374,7 @@ statements:
     confidence: high
 
   - id: 19
-    lines: [213, 224]
+    lines: [214, 225]
     text: |
 
       ## PR Hygiene
@@ -395,7 +394,7 @@ statements:
     confidence: high
 
   - id: 20
-    lines: [224, 242]
+    lines: [225, 243]
     text: |
 
       ## Development
@@ -422,7 +421,7 @@ statements:
     confidence: high
 
   - id: 21
-    lines: [242, 253]
+    lines: [243, 254]
     text: |
 
       Service management:
@@ -442,7 +441,7 @@ statements:
     confidence: high
 
   - id: 22
-    lines: [253, 265]
+    lines: [254, 266]
     text: |
 
       ## Troubleshooting
@@ -463,7 +462,7 @@ statements:
     confidence: high
 
   - id: 23
-    lines: [265, 274]
+    lines: [266, 271]
     text: |
 
       ## Supply Chain Security (pnpm)
@@ -471,8 +470,33 @@ statements:
       This project uses pnpm with `minimumReleaseAge: 4320` (3 days) in `pnpm-workspace.yaml`. New package versions must exist on the npm registry for 3 days before pnpm will resolve them.
 
       **Rules — do not bypass without explicit human approval:**
+
+    type: description
+    topic: Security
+    enforceability: null
+    confidence: high
+
+  - id: 24
+    lines: [271, 272]
+    text: |
       - **`minimumReleaseAgeExclude`**: Never add entries without human sign-off. If a package must bypass the release age gate, the human must approve and the entry must pin the exact version being excluded (e.g. `package@1.2.3`), never a range.
+    type: directive
+    topic: Security
+    enforceability: null
+    confidence: high
+
+  - id: 25
+    lines: [272, 273]
+    text: |
       - **`onlyBuiltDependencies`**: Never add packages to this list without human approval — build scripts execute arbitrary code during install.
+    type: directive
+    topic: Security
+    enforceability: null
+    confidence: high
+
+  - id: 26
+    lines: [273, 275]
+    text: |
       - **`pnpm install --frozen-lockfile`** should be used in CI, automation, and container builds. Never run bare `pnpm install` in those contexts.
 
     type: directive
@@ -480,8 +504,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 24
-    lines: [274, 291]
+  - id: 27
+    lines: [275, 292]
     text: |
 
       ## Docs Index
@@ -506,8 +530,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 25
-    lines: [291, 295]
+  - id: 28
+    lines: [292, 296]
     text: |
 
       ## Container Build Cache
@@ -519,8 +543,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 26
-    lines: [295, 299]
+  - id: 29
+    lines: [296, 300]
     text: |
 
       ## Container Runtime (Bun)
@@ -532,64 +556,76 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 27
-    lines: [299, 302]
+  - id: 30
+    lines: [300, 303]
     text: |
 
       **Gotchas — trigger + action:**
 
       - **Adding or bumping a runtime dep in `container/agent-runner/`** → edit `package.json`, then `cd container/agent-runner && bun install` and commit the updated `bun.lock`. Do not run `pnpm install` there — agent-runner is not a pnpm workspace.
-
     type: directive
     topic: Dependencies
     enforceability: null
     confidence: high
 
-  - id: 28
-    lines: [302, 304]
+  - id: 31
+    lines: [303, 304]
     text: |
       - **Bumping `@anthropic-ai/claude-agent-sdk`, `@modelcontextprotocol/sdk`, or any agent-runner runtime dep** → no `minimumReleaseAge` policy applies to this tree. Check the release date on npm, pin deliberately, never `bun update` blindly.
-
     type: directive
     topic: Dependencies
     enforceability: null
     confidence: high
 
-  - id: 29
-    lines: [304, 306]
+  - id: 32
+    lines: [304, 305]
     text: |
       - **Writing a new named-param SQL insert/update in the container** → use `$name` in both SQL and JS keys: `.run({ $id: msg.id })`. `bun:sqlite` does not auto-strip the prefix the way `better-sqlite3` does on the host. Positional `?` params work normally.
-
     type: directive
     topic: Code Style
     enforceability: null
     confidence: high
 
-  - id: 30
-    lines: [306, 308]
+  - id: 33
+    lines: [305, 306]
     text: |
       - **Adding a test in `container/agent-runner/src/`** → import from `bun:test`, not `vitest`. Vitest runs on Node and can't load `bun:sqlite`. `vitest.config.ts` excludes this tree.
-
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
-  - id: 31
-    lines: [308, 310]
+  - id: 34
+    lines: [306, 307]
     text: |
       - **Adding a Node CLI the agent invokes at runtime** (like `agent-browser`, `claude-code`, `vercel`) → put it in the Dockerfile's pnpm global-install block, pinned to an exact version via a new `ARG`. Don't use `bun install -g` — that bypasses the pnpm supply-chain policy.
-      - **Changing the Dockerfile entrypoint or the dynamic-spawn command** (`src/container-runner.ts` line ~301) → keep `exec bun ...` so signals forward cleanly. The image has no `/app/dist`; don't reintroduce a tsc build step.
-
     type: directive
     topic: Build System
     enforceability: null
     confidence: high
 
-  - id: 32
-    lines: [310, 325]
+  - id: 35
+    lines: [307, 308]
+    text: |
+      - **Changing the Dockerfile entrypoint or the dynamic-spawn command** (`src/container-runner.ts` line ~301) → keep `exec bun ...` so signals forward cleanly. The image has no `/app/dist`; don't reintroduce a tsc build step.
+    type: directive
+    topic: Build System
+    enforceability: null
+    confidence: high
+
+  - id: 36
+    lines: [308, 310]
     text: |
       - **Changing session-DB pragmas** (`container/agent-runner/src/db/connection.ts`) → `journal_mode=DELETE` is load-bearing for cross-mount visibility. Read the comment block at the top of the file first.
+
+    type: directive
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 37
+    lines: [310, 325]
+    text: |
 
       ## CJK font support
 
@@ -606,7 +642,6 @@ statements:
       ```
 
       `container/build.sh` reads `INSTALL_CJK_FONTS` from `.env` and passes it through as a Docker build-arg. Without CJK fonts, Chromium-rendered screenshots and PDFs containing CJK text show tofu (empty rectangles) instead of characters.
-
     type: directive
     topic: Build System
     enforceability: null

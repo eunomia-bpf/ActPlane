@@ -8,15 +8,15 @@ statements:
       globs: *
       alwaysApply: true
       ---
-
     type: description
     topic: Configuration & Environment
     enforceability: null
     confidence: high
 
   - id: 2
-    lines: [7, 17]
+    lines: [6, 18]
     text: |
+
       # InsForge SDK Documentation - Overview
 
       ## What is InsForge?
@@ -34,7 +34,7 @@ statements:
     confidence: high
 
   - id: 3
-    lines: [18, 25]
+    lines: [18, 26]
     text: |
 
       ## Installation
@@ -50,7 +50,7 @@ statements:
     confidence: high
 
   - id: 4
-    lines: [26, 31]
+    lines: [26, 32]
     text: |
 
       ### Step 2: Install SDK
@@ -64,7 +64,7 @@ statements:
     confidence: high
 
   - id: 5
-    lines: [32, 47]
+    lines: [32, 48]
     text: |
 
       ### Step 3: Create SDK Client
@@ -88,7 +88,7 @@ statements:
     confidence: high
 
   - id: 6
-    lines: [48, 53]
+    lines: [48, 54]
     text: |
 
       ## Getting Detailed Documentation
@@ -102,7 +102,7 @@ statements:
     confidence: high
 
   - id: 7
-    lines: [54, 69]
+    lines: [54, 70]
     text: |
 
       ### Use the InsForge `fetch-docs` MCP tool to get specific SDK documentation:
@@ -126,7 +126,7 @@ statements:
     confidence: high
 
   - id: 8
-    lines: [70, 71]
+    lines: [70, 72]
     text: |
 
       For InsForge Cloud projects, InsForge provisions the OpenRouter key and admins can copy the active key from Model Gateway into a server-only `OPENROUTER_API_KEY`. For self-hosted projects, configure `OPENROUTER_API_KEY` in the backend environment.
@@ -136,7 +136,7 @@ statements:
     confidence: high
 
   - id: 9
-    lines: [72, 81]
+    lines: [72, 82]
     text: |
 
       ## When to Use SDK vs MCP Tools
@@ -154,7 +154,7 @@ statements:
     confidence: high
 
   - id: 10
-    lines: [82, 89]
+    lines: [82, 90]
     text: |
 
       ### Use MCP Tools for Infrastructure:
@@ -170,7 +170,7 @@ statements:
     confidence: high
 
   - id: 11
-    lines: [90, 93]
+    lines: [90, 94]
     text: |
 
       ## Important Notes
@@ -182,40 +182,45 @@ statements:
     confidence: high
 
   - id: 12
-    lines: [94, 94]
-    text: "- SDK returns `{data, error}` structure for all operations"
+    lines: [94, 95]
+    text: |
+      - SDK returns `{data, error}` structure for all operations
     type: description
     topic: Implementation Details
     enforceability: null
     confidence: high
 
   - id: 13
-    lines: [95, 95]
-    text: "- Database inserts require array format: `[{...}]`"
+    lines: [95, 96]
+    text: |
+      - Database inserts require array format: `[{...}]`
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
   - id: 14
-    lines: [96, 96]
-    text: "- Serverless functions have single endpoint (no subpaths)"
+    lines: [96, 97]
+    text: |
+      - Serverless functions have single endpoint (no subpaths)
     type: description
     topic: Architecture
     enforceability: null
     confidence: high
 
   - id: 15
-    lines: [97, 97]
-    text: "- Storage: Upload files to buckets, store URLs in database"
+    lines: [97, 98]
+    text: |
+      - Storage: Upload files to buckets, store URLs in database
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
   - id: 16
-    lines: [98, 98]
-    text: "- AI integrations should call OpenRouter directly with `baseURL: \"https://openrouter.ai/api/v1\"` and a server-side `OPENROUTER_API_KEY`"
+    lines: [98, 99]
+    text: |
+      - AI integrations should call OpenRouter directly with `baseURL: "https://openrouter.ai/api/v1"` and a server-side `OPENROUTER_API_KEY`
     type: directive
     topic: Implementation Details
     enforceability: null
@@ -223,7 +228,8 @@ statements:
 
   - id: 17
     lines: [99, 100]
-    text: "- **EXTRA IMPORTANT**: Use Tailwind CSS 3.4 (do not upgrade to v4). Lock these dependencies in `package.json`"
+    text: |
+      - **EXTRA IMPORTANT**: Use Tailwind CSS 3.4 (do not upgrade to v4). Lock these dependencies in `package.json`
     type: directive
     topic: Maintenance
     enforceability: null

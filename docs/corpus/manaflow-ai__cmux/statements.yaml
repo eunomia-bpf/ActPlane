@@ -1,7 +1,7 @@
 file: "manaflow-ai/cmux/AGENTS.md"
 statements:
   - id: 1
-    lines: [1, 9]
+    lines: [1, 10]
     text: |
       # cmux agent notes
 
@@ -12,13 +12,14 @@ statements:
       ```bash
       ./scripts/setup.sh
       ```
+
     type: directive
     topic: Setup & Installation
     enforceability: null
     confidence: high
 
   - id: 2
-    lines: [9, 17]
+    lines: [10, 18]
     text: |
 
       ## Local dev
@@ -28,13 +29,14 @@ statements:
       ```bash
       ./scripts/reload.sh --tag fix-zsh-autosuggestions
       ```
+
     type: directive
     topic: Build & Run
     enforceability: null
     confidence: high
 
   - id: 3
-    lines: [17, 23]
+    lines: [18, 24]
     text: |
 
       By default, `reload.sh` builds but does **not** launch the app. The script prints the `.app` path so the user can cmd-click to open it. After a successful build, it always terminates any running app with the same tag (so cmd-clicking launches the freshly-built binary instead of foregrounding the stale instance). Pass `--launch` to open the app automatically after the build:
@@ -42,13 +44,14 @@ statements:
       ```bash
       ./scripts/reload.sh --tag fix-zsh-autosuggestions --launch
       ```
+
     type: description
     topic: Build & Run
     enforceability: null
     confidence: high
 
   - id: 4
-    lines: [23, 50]
+    lines: [24, 50]
     text: |
 
       `reload.sh` prints an `App path:` line with the absolute path to the built `.app`. Use that path to build a cmd-clickable `file://` URL. Steps:
@@ -83,16 +86,18 @@ statements:
     confidence: high
 
   - id: 5
-    lines: [50, 51]
+    lines: [50, 52]
     text: |
+
       Never use `/tmp/cmux-<tag>/...` app links in chat output.
+
     type: directive
     topic: Build & Run
     enforceability: null
     confidence: high
 
   - id: 6
-    lines: [51, 66]
+    lines: [52, 67]
     text: |
 
       For CLI or socket dogfood against a tagged Debug app, use the tag-bound helper and set `CMUX_TAG`.
@@ -109,13 +114,14 @@ statements:
       ambient cmux terminal context (`CMUX_SOCKET`, `CMUX_SOCKET_PASSWORD`, workspace/surface/tab/panel
       IDs, cmuxd socket, and debug log), then sets `CMUX_SOCKET_PATH`, `CMUX_BUNDLE_ID`, and
       `CMUX_BUNDLED_CLI_PATH` for the selected tag.
+
     type: directive
     topic: Build & Run
     enforceability: null
     confidence: high
 
   - id: 7
-    lines: [66, 72]
+    lines: [67, 73]
     text: |
 
       After making code changes, always use `reload.sh --tag` to build. **Never run bare `xcodebuild` or `open` an untagged `cmux DEV.app`.** Untagged builds share the default debug socket and bundle ID with other agents, causing conflicts and stealing focus.
@@ -123,13 +129,14 @@ statements:
       ```bash
       ./scripts/reload.sh --tag <your-branch-slug>
       ```
+
     type: directive
     topic: Build & Run
     enforceability: null
     confidence: high
 
   - id: 8
-    lines: [72, 78]
+    lines: [73, 79]
     text: |
 
       If you only need to verify the build compiles (no launch), use a tagged derivedDataPath:
@@ -137,13 +144,14 @@ statements:
       ```bash
       xcodebuild -project cmux.xcodeproj -scheme cmux -configuration Debug -destination 'platform=macOS' -derivedDataPath /tmp/cmux-<your-tag> build
       ```
+
     type: directive
     topic: Build & Run
     enforceability: null
     confidence: high
 
   - id: 9
-    lines: [78, 84]
+    lines: [79, 85]
     text: |
 
       When rebuilding GhosttyKit.xcframework, always use Release optimizations:
@@ -151,13 +159,14 @@ statements:
       ```bash
       cd ghostty && zig build -Demit-xcframework=true -Dxcframework-target=universal -Doptimize=ReleaseFast
       ```
+
     type: directive
     topic: Build & Run
     enforceability: null
     confidence: high
 
   - id: 10
-    lines: [84, 90]
+    lines: [85, 91]
     text: |
 
       When rebuilding cmuxd for release/bundling, always use ReleaseFast:
@@ -165,13 +174,14 @@ statements:
       ```bash
       cd cmuxd && zig build -Doptimize=ReleaseFast
       ```
+
     type: directive
     topic: Build & Run
     enforceability: null
     confidence: high
 
   - id: 11
-    lines: [90, 97]
+    lines: [91, 98]
     text: |
 
       `reload` = build the Debug app (tag required) and terminate any running app with the same tag. Pass `--launch` to also open the freshly-built app:
@@ -180,13 +190,14 @@ statements:
       ./scripts/reload.sh --tag <tag>
       ./scripts/reload.sh --tag <tag> --launch
       ```
+
     type: description
     topic: Build & Run
     enforceability: null
     confidence: high
 
   - id: 12
-    lines: [97, 104]
+    lines: [98, 104]
     text: |
 
       `reloadp` = kill and launch the Release app:
@@ -194,6 +205,7 @@ statements:
       ```bash
       ./scripts/reloadp.sh
       ```
+
     type: description
     topic: Build & Run
     enforceability: null
@@ -208,6 +220,7 @@ statements:
       ```bash
       ./scripts/reloads.sh
       ```
+
     type: description
     topic: Build & Run
     enforceability: null
@@ -222,6 +235,7 @@ statements:
       ```bash
       ./scripts/reload2.sh --tag <tag>
       ```
+
     type: description
     topic: Build & Run
     enforceability: null
@@ -238,6 +252,7 @@ statements:
       ```
 
       This creates an isolated app with its own name, bundle ID, socket, and derived data path so it runs side-by-side with the main app. Important: use a non-`/tmp` derived data path if you need xcframework resolution (the script handles this automatically).
+
     type: description
     topic: Build & Run
     enforceability: null
@@ -248,6 +263,7 @@ statements:
     text: |
 
       Before launching a new tagged run, clean up any older tags you started in this session (quit old tagged app + remove its `/tmp` socket/derived data).
+
     type: directive
     topic: Build & Run
     enforceability: null
@@ -272,6 +288,7 @@ statements:
       source ~/.secrets/cmux.env
       set +a
       ```
+
     type: description
     topic: Secrets & Credentials
     enforceability: null
@@ -285,6 +302,7 @@ statements:
       `bun dev` sources `~/.secrets/cmux.env` first when present, then `~/.secrets/cmuxterm-dev.env` so
       cmuxterm-specific Stack settings override broader cmux secrets. The web dev loader still accepts
       the legacy `~/.secret/cmuxterm.env` and `~/.secrets/cmuxterm.env` paths while machines migrate.
+
     type: description
     topic: Secrets & Credentials
     enforceability: null
@@ -301,6 +319,7 @@ statements:
       model workflows as `Effect.Effect` values with typed domain errors and explicit service
       dependencies. Keep Next route handlers thin: parse the request, run one Effect program at the
       boundary, map typed errors to HTTP responses, and treat unexpected defects separately.
+
     type: directive
     topic: Code Style & Patterns
     enforceability: null
@@ -312,6 +331,7 @@ statements:
 
       Use plain TypeScript only for trivial data shapes, constants, config files, frontend React code, or
       small glue where Effect would add ceremony without improving failure handling.
+
     type: directive
     topic: Code Style & Patterns
     enforceability: null
@@ -324,6 +344,7 @@ statements:
       Cloud VM backend logic must stay in Vercel route handlers and Effect services backed by Postgres.
       Do not reintroduce Rivet or a raw actor protocol for this feature unless a later architecture doc
       explicitly changes the control plane.
+
     type: directive
     topic: Architecture
     enforceability: null
@@ -340,6 +361,7 @@ statements:
       Local development keeps using the `CMUX_PORT`-derived Docker Postgres path from `bun dev`.
       Cloud VM create pricing gates should use Stack Auth team payment items when enabled. Postgres remains
       the source of truth for VM lifecycle, active VM limits, idempotency, and usage events.
+
     type: directive
     topic: Architecture
     enforceability: null
@@ -362,14 +384,17 @@ statements:
       ```bash
       tail -f "$(cat /tmp/cmux-last-debug-log-path 2>/dev/null || echo /tmp/cmux-debug.log)"
       ```
+
     type: directive
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 24
-    lines: [184, 185]
+    lines: [184, 186]
     text: |
+
+      - Untagged Debug app: `/tmp/cmux-debug.log`
 
     type: description
     topic: Debugging & Logging
@@ -377,45 +402,50 @@ statements:
     confidence: high
 
   - id: 25
-    lines: [185, 186]
+    lines: [186, 187]
     text: |
-      - Untagged Debug app: `/tmp/cmux-debug.log`
+      - Tagged Debug app (`./scripts/reload.sh --tag <tag>`): `/tmp/cmux-debug-<tag>.log`
+
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 26
-    lines: [186, 187]
+    lines: [187, 188]
     text: |
-      - Tagged Debug app (`./scripts/reload.sh --tag <tag>`): `/tmp/cmux-debug-<tag>.log`
+      - `reload.sh` writes the current path to `/tmp/cmux-last-debug-log-path`
+
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 27
-    lines: [187, 188]
+    lines: [188, 189]
     text: |
-      - `reload.sh` writes the current path to `/tmp/cmux-last-debug-log-path`
+      - `reload.sh` writes the selected dev CLI path to `/tmp/cmux-last-cli-path`
+
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 28
-    lines: [188, 189]
+    lines: [189, 191]
     text: |
-      - `reload.sh` writes the selected dev CLI path to `/tmp/cmux-last-cli-path`
+      - `reload.sh` updates `/tmp/cmux-cli` and `$HOME/.local/bin/cmux-dev` to that CLI
+
+
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 29
-    lines: [189, 191]
+    lines: [191, 192]
     text: |
-      - `reload.sh` updates `/tmp/cmux-cli` and `$HOME/.local/bin/cmux-dev` to that CLI
+      - Implementation: `Packages/CMUXDebugLog/Sources/CMUXDebugLog/DebugEventLog.swift`
 
     type: description
     topic: Debugging & Logging
@@ -423,88 +453,87 @@ statements:
     confidence: high
 
   - id: 30
-    lines: [191, 192]
+    lines: [192, 193]
     text: |
-      - Implementation: `Packages/CMUXDebugLog/Sources/CMUXDebugLog/DebugEventLog.swift`
+      - App shim: `Sources/App/DebugLogging.swift`
+
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 31
-    lines: [192, 193]
+    lines: [193, 194]
     text: |
-      - App shim: `Sources/App/DebugLogging.swift`
+      - Free function `cmuxDebugLog("message")` — logs with timestamp and appends to file in real time from cmux code
+
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 32
-    lines: [193, 194]
-    text: |
-      - Free function `cmuxDebugLog("message")` — logs with timestamp and appends to file in real time from cmux code
-    type: description
-    topic: Debugging & Logging
-    enforceability: null
-    confidence: high
-
-  - id: 33
     lines: [194, 195]
     text: |
       - The package implementation and app shim are `#if DEBUG`; all call sites must be wrapped in `#if DEBUG` / `#endif`
+
     type: directive
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
-  - id: 34
+  - id: 33
     lines: [195, 196]
     text: |
       - 500-entry ring buffer; `CMUXDebugLog.DebugEventLog.shared.dump()` writes full buffer to file
+
+    type: description
+    topic: Debugging & Logging
+    enforceability: null
+    confidence: high
+
+  - id: 34
+    lines: [196, 197]
+    text: |
+      - Key events logged in `AppDelegate.swift` (monitor, performKeyEquivalent)
+
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 35
-    lines: [196, 197]
+    lines: [197, 198]
     text: |
-      - Key events logged in `AppDelegate.swift` (monitor, performKeyEquivalent)
+      - Mouse/UI events logged inline in views (ContentView, BrowserPanelView, etc.)
+
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 36
-    lines: [197, 198]
+    lines: [198, 199]
     text: |
-      - Mouse/UI events logged inline in views (ContentView, BrowserPanelView, etc.)
+      - Focus events: `focus.panel`, `focus.bonsplit`, `focus.firstResponder`, `focus.moveFocus`
+
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 37
-    lines: [198, 199]
+    lines: [199, 201]
     text: |
-      - Focus events: `focus.panel`, `focus.bonsplit`, `focus.firstResponder`, `focus.moveFocus`
+      - Bonsplit events: `tab.select`, `tab.close`, `tab.dragStart`, `tab.drop`, `pane.focus`, `pane.drop`, `divider.dragStart`
+
+
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
   - id: 38
-    lines: [199, 201]
-    text: |
-      - Bonsplit events: `tab.select`, `tab.close`, `tab.dragStart`, `tab.drop`, `pane.focus`, `pane.drop`, `divider.dragStart`
-
-    type: description
-    topic: Debugging & Logging
-    enforceability: null
-    confidence: high
-
-  - id: 39
     lines: [201, 209]
     text: |
       ## Regression test commit policy
@@ -515,56 +544,72 @@ statements:
       2. **Commit 2:** Add the fix. CI should go green.
 
       This makes it visible in the GitHub PR UI (Commits tab, check statuses) that the test genuinely fails without the fix.
+
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
-  - id: 40
+  - id: 39
     lines: [209, 212]
     text: |
 
       ## Shared behavior policy
+
 
     type: description
     topic: Code Style & Patterns
     enforceability: null
     confidence: high
 
-  - id: 41
+  - id: 40
     lines: [212, 213]
     text: |
       - When a behavior is exposed through multiple entrypoints (keyboard shortcut, command palette, context menu, CLI, settings, debug menu), implement one shared action/model path and verify every entrypoint that should invoke it. Do not patch one surface while leaving the others with duplicated logic.
+
+    type: directive
+    topic: Code Style & Patterns
+    enforceability: null
+    confidence: high
+
+  - id: 41
+    lines: [213, 214]
+    text: |
+      - For optimistic UI or CLI updates, keep one mutation path, record pending state with a request id or previous snapshot, reconcile from the authoritative result, and handle failure with an explicit rollback or error state. Do not let each entrypoint maintain its own optimistic copy.
+
     type: directive
     topic: Code Style & Patterns
     enforceability: null
     confidence: high
 
   - id: 42
-    lines: [213, 214]
-    text: |
-      - For optimistic UI or CLI updates, keep one mutation path, record pending state with a request id or previous snapshot, reconcile from the authoritative result, and handle failure with an explicit rollback or error state. Do not let each entrypoint maintain its own optimistic copy.
-    type: directive
-    topic: Code Style & Patterns
-    enforceability: null
-    confidence: high
-
-  - id: 43
     lines: [214, 216]
     text: |
       - When a user says tests missed a bug, add or adjust behavior-level coverage around the exact repro path before claiming the fix is complete.
+
 
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
-  - id: 44
+  - id: 43
     lines: [216, 220]
     text: |
       ## Debug menu
 
       The app has a **Debug** menu in the macOS menu bar (only in DEBUG builds). Use it for visual iteration:
+
+
+    type: description
+    topic: Debugging & Logging
+    enforceability: null
+    confidence: high
+
+  - id: 44
+    lines: [220, 221]
+    text: |
+      - **Debug > Debug Windows** contains panels for tuning layout, colors, and behavior. Entries are alphabetical with no dividers.
 
     type: description
     topic: Debugging & Logging
@@ -572,140 +617,151 @@ statements:
     confidence: high
 
   - id: 45
-    lines: [220, 221]
-    text: |
-      - **Debug > Debug Windows** contains panels for tuning layout, colors, and behavior. Entries are alphabetical with no dividers.
-    type: description
-    topic: Debugging & Logging
-    enforceability: null
-    confidence: high
-
-  - id: 46
     lines: [221, 222]
     text: |
       - To add a debug toggle or visual option: create an `NSWindowController` subclass with a `shared` singleton, add it to the "Debug Windows" menu in `Sources/cmuxApp.swift`, and add a SwiftUI view with `@AppStorage` bindings for live changes.
+
     type: directive
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
-  - id: 47
+  - id: 46
     lines: [222, 224]
     text: |
       - When the user says "debug menu" or "debug window", they mean this menu, not `defaults write`.
+
 
     type: description
     topic: Debugging & Logging
     enforceability: null
     confidence: high
 
-  - id: 48
+  - id: 47
     lines: [224, 226]
     text: |
       ## Pitfalls
+
 
     type: description
     topic: Pitfalls
     enforceability: null
     confidence: high
 
-  - id: 49
+  - id: 48
     lines: [226, 227]
     text: |
       - **Custom UTTypes** for drag-and-drop must be declared in `Resources/Info.plist` under `UTExportedTypeDeclarations` (e.g. `com.splittabbar.tabtransfer`, `com.cmux.sidebar-tab-reorder`).
+
+    type: directive
+    topic: Pitfalls
+    enforceability: null
+    confidence: high
+
+  - id: 49
+    lines: [227, 228]
+    text: |
+      - Do not add an app-level display link or manual `ghostty_surface_draw` loop; rely on Ghostty wakeups/renderer to avoid typing lag.
+
     type: directive
     topic: Pitfalls
     enforceability: null
     confidence: high
 
   - id: 50
-    lines: [227, 228]
+    lines: [228, 229]
     text: |
-      - Do not add an app-level display link or manual `ghostty_surface_draw` loop; rely on Ghostty wakeups/renderer to avoid typing lag.
+      - **Typing-latency-sensitive paths** (read carefully before touching these areas):
+
     type: directive
     topic: Pitfalls
     enforceability: null
     confidence: high
 
   - id: 51
-    lines: [228, 232]
+    lines: [229, 230]
     text: |
-      - **Typing-latency-sensitive paths** (read carefully before touching these areas):
         - `WindowTerminalHostView.hitTest()` in `TerminalWindowPortal.swift`: called on every event including keyboard. All divider/sidebar/drag routing is gated to pointer events only. Do not add work outside the `isPointerEvent` guard.
-        - `TabItemView` in `ContentView.swift`: uses `Equatable` conformance + `.equatable()` to skip body re-evaluation during typing. Do not add `@EnvironmentObject`, `@ObservedObject` (besides `tab`), or `@Binding` properties without updating the `==` function. Do not remove `.equatable()` from the ForEach call site. Do not read `tabManager` or `notificationStore` in the body; use the precomputed `let` parameters instead.
-        - `TerminalSurface.forceRefresh()` in `GhosttyTerminalView.swift`: called on every keystroke. Do not add allocations, file I/O, or formatting here.
+
     type: directive
     topic: Pitfalls
     enforceability: null
     confidence: high
 
   - id: 52
-    lines: [232, 233]
+    lines: [230, 231]
     text: |
-      - **Terminal find layering contract:** `SurfaceSearchOverlay` must be mounted from `GhosttySurfaceScrollView` in `Sources/GhosttyTerminalView.swift` (AppKit portal layer), not from SwiftUI panel containers such as `Sources/Panels/TerminalPanelView.swift`. Portal-hosted terminal views can sit above SwiftUI during split/workspace churn.
+        - `TabItemView` in `ContentView.swift`: uses `Equatable` conformance + `.equatable()` to skip body re-evaluation during typing. Do not add `@EnvironmentObject`, `@ObservedObject` (besides `tab`), or `@Binding` properties without updating the `==` function. Do not remove `.equatable()` from the ForEach call site. Do not read `tabManager` or `notificationStore` in the body; use the precomputed `let` parameters instead.
+
     type: directive
     topic: Pitfalls
     enforceability: null
     confidence: high
 
   - id: 53
-    lines: [233, 234]
+    lines: [231, 232]
     text: |
-      - **Submodule safety:** When modifying a submodule (ghostty, vendor/bonsplit, etc.), always push the submodule commit to its remote `main` branch BEFORE committing the updated pointer in the parent repo. Never commit on a detached HEAD or temporary branch — the commit will be orphaned and lost. Verify with: `cd <submodule> && git merge-base --is-ancestor HEAD origin/main`.
+        - `TerminalSurface.forceRefresh()` in `GhosttyTerminalView.swift`: called on every keystroke. Do not add allocations, file I/O, or formatting here.
+
     type: directive
     topic: Pitfalls
     enforceability: null
     confidence: high
 
   - id: 54
-    lines: [234, 235]
+    lines: [232, 233]
     text: |
-      - **All user-facing strings must be localized.** Use `String(localized: "key.name", defaultValue: "English text")` for every string shown in the UI (labels, buttons, menus, dialogs, tooltips, error messages). Keys go in `Resources/Localizable.xcstrings` with translations for all supported languages (currently English and Japanese). Never use bare string literals in SwiftUI `Text()`, `Button()`, alert titles, etc.
+      - **Terminal find layering contract:** `SurfaceSearchOverlay` must be mounted from `GhosttySurfaceScrollView` in `Sources/GhosttyTerminalView.swift` (AppKit portal layer), not from SwiftUI panel containers such as `Sources/Panels/TerminalPanelView.swift`. Portal-hosted terminal views can sit above SwiftUI during split/workspace churn.
+
     type: directive
     topic: Pitfalls
     enforceability: null
     confidence: high
 
   - id: 55
-    lines: [235, 236]
+    lines: [233, 234]
     text: |
-      - **Shortcut policy:** Every new cmux-owned keyboard shortcut must be added to `KeyboardShortcutSettings`, visible/editable in Settings, supported in `~/.config/cmux/cmux.json`, and documented in the keyboard shortcut and configuration docs.
+      - **Submodule safety:** When modifying a submodule (ghostty, vendor/bonsplit, etc.), always push the submodule commit to its remote `main` branch BEFORE committing the updated pointer in the parent repo. Never commit on a detached HEAD or temporary branch — the commit will be orphaned and lost. Verify with: `cd <submodule> && git merge-base --is-ancestor HEAD origin/main`.
+
     type: directive
     topic: Pitfalls
     enforceability: null
     confidence: high
 
   - id: 56
-    lines: [236, 237]
+    lines: [234, 235]
     text: |
-      - **Snapshot boundary for list subtrees.** In any SwiftUI panel whose `body` contains a `LazyVStack` / `LazyHStack` / `List` / `ForEach` of rows, no view below that boundary may hold a reference to an `ObservableObject` / `@Observable` store (no `@ObservedObject`, `@EnvironmentObject`, `@StateObject`, `@Bindable`, or even a plain `let store: SomeStore` property). Rows and drop-gaps receive immutable value snapshots plus closure action bundles only. Violating this reintroduces the "orthogonal @Published change invalidates every row and thrashes `LazyLayoutViewCache`" class of 100% CPU spin loop that hit the Sessions panel and the workspace sidebar (https://github.com/manaflow-ai/cmux/issues/2586). Reference pattern: `IndexSectionActions` / `SectionGapActions` / `SessionSearchFn` in `Sources/SessionIndexView.swift`.
+      - **All user-facing strings must be localized.** Use `String(localized: "key.name", defaultValue: "English text")` for every string shown in the UI (labels, buttons, menus, dialogs, tooltips, error messages). Keys go in `Resources/Localizable.xcstrings` with translations for all supported languages (currently English and Japanese). Never use bare string literals in SwiftUI `Text()`, `Button()`, alert titles, etc.
+
     type: directive
     topic: Pitfalls
     enforceability: null
     confidence: high
 
   - id: 57
-    lines: [237, 238]
+    lines: [235, 236]
     text: |
-      - **No state mutation inside view-body computations.** A function called from `body` (directly or through a helper) must not write `@Published` state, schedule a `Task { @MainActor in store.x = … }`, or `DispatchQueue.main.async` a store write. That creates a re-render feedback loop and pegs the main thread (same root-cause family as the snapshot-boundary rule). State-changing work triggered by "new data appeared" belongs in a `reload()` completion, a `didSet`, or a property-observer — never in the projection that feeds `ForEach`.
+      - **Shortcut policy:** Every new cmux-owned keyboard shortcut must be added to `KeyboardShortcutSettings`, visible/editable in Settings, supported in `~/.config/cmux/cmux.json`, and documented in the keyboard shortcut and configuration docs.
+
     type: directive
     topic: Pitfalls
     enforceability: null
     confidence: high
 
   - id: 58
-    lines: [238, 239]
+    lines: [236, 237]
     text: |
-      - **Foundation, SwiftUI, AttributeGraph, and WebKit semantics change silently between macOS major versions.** A function that "obviously" returns the same value on every macOS is not a reliable assumption. Concrete case from https://github.com/manaflow-ai/cmux/issues/4529: `URL(fileURLWithPath: "/").deletingLastPathComponent().path` returns `"/.."` on macOS 14 and 15 but `"/"` on macOS 26 — Apple silently fixed the underlying CFURL normalization. The repo's `macos-26` CI and every maintainer's dev machine were on the fixed-behavior side; every reporter on the issue was on the broken side. Always test on the reporter's macOS before declaring a user-reported repro disproven. AWS M4 Pro builders (`cmux-aws-mac`, `cmux-aws-m4pro`, `aws-m4pro-1..6`) are pre-provisioned on macOS 15.7.4 and the preferred empirical-repro path; see the `regression-hunt` skill in the cmuxterm-hq sibling repo for the full playbook.
+      - **Snapshot boundary for list subtrees.** In any SwiftUI panel whose `body` contains a `LazyVStack` / `LazyHStack` / `List` / `ForEach` of rows, no view below that boundary may hold a reference to an `ObservableObject` / `@Observable` store (no `@ObservedObject`, `@EnvironmentObject`, `@StateObject`, `@Bindable`, or even a plain `let store: SomeStore` property). Rows and drop-gaps receive immutable value snapshots plus closure action bundles only. Violating this reintroduces the "orthogonal @Published change invalidates every row and thrashes `LazyLayoutViewCache`" class of 100% CPU spin loop that hit the Sessions panel and the workspace sidebar (https://github.com/manaflow-ai/cmux/issues/2586). Reference pattern: `IndexSectionActions` / `SectionGapActions` / `SessionSearchFn` in `Sources/SessionIndexView.swift`.
+
     type: directive
     topic: Pitfalls
     enforceability: null
     confidence: high
 
   - id: 59
-    lines: [239, 241]
+    lines: [237, 238]
     text: |
-      - **Test files in `cmuxTests/` must be wired into `cmux.xcodeproj/project.pbxproj`.** A `.swift` file added to the worktree without a matching `PBXFileReference` + `PBXSourcesBuildPhase` entry is silently ignored by Xcode and never compiles or runs on CI. Both `xcodebuild test -only-testing:cmuxTests/<TestClass>` and bot reviews pass with "Executed 0 tests" — so the missing wiring is indistinguishable from a clean two-commit red/green regression test until a real user hits the bug. The `workflow-guard-tests` job runs `./scripts/lint-pbxproj-test-wiring.sh` to catch this at PR time; surfaced during the https://github.com/manaflow-ai/cmux/issues/4529 investigation against https://github.com/manaflow-ai/cmux/pull/4536. Add via Xcode (drag the file into the cmuxTests target) or hand-edit the four pbxproj entries; reference any wired sibling like `TabManagerUnitTests.swift` as a template.
+      - **No state mutation inside view-body computations.** A function called from `body` (directly or through a helper) must not write `@Published` state, schedule a `Task { @MainActor in store.x = … }`, or `DispatchQueue.main.async` a store write. That creates a re-render feedback loop and pegs the main thread (same root-cause family as the snapshot-boundary rule). State-changing work triggered by "new data appeared" belongs in a `reload()` completion, a `didSet`, or a property-observer — never in the projection that feeds `ForEach`.
 
     type: directive
     topic: Pitfalls
@@ -713,64 +769,71 @@ statements:
     confidence: high
 
   - id: 60
+    lines: [238, 239]
+    text: |
+      - **Foundation, SwiftUI, AttributeGraph, and WebKit semantics change silently between macOS major versions.** A function that "obviously" returns the same value on every macOS is not a reliable assumption. Concrete case from https://github.com/manaflow-ai/cmux/issues/4529: `URL(fileURLWithPath: "/").deletingLastPathComponent().path` returns `"/.."` on macOS 14 and 15 but `"/"` on macOS 26 — Apple silently fixed the underlying CFURL normalization. The repo's `macos-26` CI and every maintainer's dev machine were on the fixed-behavior side; every reporter on the issue was on the broken side. Always test on the reporter's macOS before declaring a user-reported repro disproven. AWS M4 Pro builders (`cmux-aws-mac`, `cmux-aws-m4pro`, `aws-m4pro-1..6`) are pre-provisioned on macOS 15.7.4 and the preferred empirical-repro path; see the `regression-hunt` skill in the cmuxterm-hq sibling repo for the full playbook.
+
+    type: directive
+    topic: Pitfalls
+    enforceability: null
+    confidence: high
+
+  - id: 61
+    lines: [239, 241]
+    text: |
+      - **Test files in `cmuxTests/` must be wired into `cmux.xcodeproj/project.pbxproj`.** A `.swift` file added to the worktree without a matching `PBXFileReference` + `PBXSourcesBuildPhase` entry is silently ignored by Xcode and never compiles or runs on CI. Both `xcodebuild test -only-testing:cmuxTests/<TestClass>` and bot reviews pass with "Executed 0 tests" — so the missing wiring is indistinguishable from a clean two-commit red/green regression test until a real user hits the bug. The `workflow-guard-tests` job runs `./scripts/lint-pbxproj-test-wiring.sh` to catch this at PR time; surfaced during the https://github.com/manaflow-ai/cmux/issues/4529 investigation against https://github.com/manaflow-ai/cmux/pull/4536. Add via Xcode (drag the file into the cmuxTests target) or hand-edit the four pbxproj entries; reference any wired sibling like `TabManagerUnitTests.swift` as a template.
+
+
+    type: directive
+    topic: Pitfalls
+    enforceability: null
+    confidence: high
+
+  - id: 62
     lines: [241, 243]
     text: |
       ## Test quality policy
+
 
     type: description
     topic: Testing
     enforceability: null
     confidence: high
 
-  - id: 61
+  - id: 63
     lines: [243, 244]
     text: |
       - Do not add tests that only verify source code text, method signatures, AST fragments, or grep-style patterns.
-    type: directive
-    topic: Testing
-    enforceability: null
-    confidence: high
 
-  - id: 62
-    lines: [244, 245]
-    text: |
-      - Do not add tests that read checked-in metadata or project files such as `Resources/Info.plist`, `project.pbxproj`, `.xcconfig`, or source files only to assert that a key, string, plist entry, or snippet exists.
-    type: directive
-    topic: Testing
-    enforceability: null
-    confidence: high
-
-  - id: 63
-    lines: [245, 246]
-    text: |
-      - Tests must verify observable runtime behavior through executable paths (unit/integration/e2e/CLI), not implementation shape.
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
   - id: 64
-    lines: [246, 247]
+    lines: [244, 245]
     text: |
-      - For metadata changes, prefer verifying the built app bundle or the runtime behavior that depends on that metadata, not the checked-in source file.
+      - Do not add tests that read checked-in metadata or project files such as `Resources/Info.plist`, `project.pbxproj`, `.xcconfig`, or source files only to assert that a key, string, plist entry, or snippet exists.
+
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
   - id: 65
-    lines: [247, 248]
+    lines: [245, 246]
     text: |
-      - If a behavior cannot be exercised end-to-end yet, add a small runtime seam or harness first, then test through that seam.
+      - Tests must verify observable runtime behavior through executable paths (unit/integration/e2e/CLI), not implementation shape.
+
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
   - id: 66
-    lines: [248, 250]
+    lines: [246, 247]
     text: |
-      - If no meaningful behavioral or artifact-level test is practical, skip the fake regression test and state that explicitly.
+      - For metadata changes, prefer verifying the built app bundle or the runtime behavior that depends on that metadata, not the checked-in source file.
 
     type: directive
     topic: Testing
@@ -778,41 +841,45 @@ statements:
     confidence: high
 
   - id: 67
+    lines: [247, 248]
+    text: |
+      - If a behavior cannot be exercised end-to-end yet, add a small runtime seam or harness first, then test through that seam.
+
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 68
+    lines: [248, 250]
+    text: |
+      - If no meaningful behavioral or artifact-level test is practical, skip the fake regression test and state that explicitly.
+
+
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 69
     lines: [250, 253]
     text: |
       ## Socket command threading policy
 
       - Do not use `DispatchQueue.main.sync` for high-frequency socket telemetry commands (`report_*`, `ports_kick`, status/progress/log metadata updates).
-    type: directive
-    topic: Code Style & Patterns
-    enforceability: null
-    confidence: high
 
-  - id: 68
-    lines: [253, 257]
-    text: |
-      - For telemetry hot paths:
-        - Parse and validate arguments off-main.
-        - Dedupe/coalesce off-main first.
-        - Schedule minimal UI/model mutation with `DispatchQueue.main.async` only when needed.
-    type: directive
-    topic: Code Style & Patterns
-    enforceability: null
-    confidence: high
-
-  - id: 69
-    lines: [257, 258]
-    text: |
-      - Commands that directly manipulate AppKit/Ghostty UI state (focus/select/open/close/send key/input, list/current queries requiring exact synchronous snapshot) are allowed to run on main actor.
     type: directive
     topic: Code Style & Patterns
     enforceability: null
     confidence: high
 
   - id: 70
-    lines: [258, 260]
+    lines: [253, 257]
     text: |
-      - If adding a new socket command, default to off-main handling; require an explicit reason in code comments when main-thread execution is necessary.
+      - For telemetry hot paths:
+        - Parse and validate arguments off-main.
+        - Dedupe/coalesce off-main first.
+        - Schedule minimal UI/model mutation with `DispatchQueue.main.async` only when needed.
 
     type: directive
     topic: Code Style & Patterns
@@ -820,29 +887,32 @@ statements:
     confidence: high
 
   - id: 71
-    lines: [260, 263]
+    lines: [257, 258]
     text: |
-      ## Socket focus policy
+      - Commands that directly manipulate AppKit/Ghostty UI state (focus/select/open/close/send key/input, list/current queries requiring exact synchronous snapshot) are allowed to run on main actor.
 
-      - Socket/CLI commands must not steal macOS app focus (no app activation/window raising side effects).
     type: directive
     topic: Code Style & Patterns
     enforceability: null
     confidence: high
 
   - id: 72
-    lines: [263, 264]
+    lines: [258, 260]
     text: |
-      - Only explicit focus-intent commands may mutate in-app focus/selection (`window.focus`, `workspace.select/next/previous/last`, `surface.focus`, `pane.focus/last`, browser focus commands, and v1 focus equivalents).
+      - If adding a new socket command, default to off-main handling; require an explicit reason in code comments when main-thread execution is necessary.
+
+
     type: directive
     topic: Code Style & Patterns
     enforceability: null
     confidence: high
 
   - id: 73
-    lines: [264, 266]
+    lines: [260, 263]
     text: |
-      - All non-focus commands should preserve current user focus context while still applying data/model changes.
+      ## Socket focus policy
+
+      - Socket/CLI commands must not steal macOS app focus (no app activation/window raising side effects).
 
     type: directive
     topic: Code Style & Patterns
@@ -850,56 +920,63 @@ statements:
     confidence: high
 
   - id: 74
-    lines: [266, 269]
+    lines: [263, 264]
     text: |
-      ## Testing policy
+      - Only explicit focus-intent commands may mutate in-app focus/selection (`window.focus`, `workspace.select/next/previous/last`, `surface.focus`, `pane.focus/last`, browser focus commands, and v1 focus equivalents).
 
-      **Never run tests locally.** All tests (E2E, UI, python socket tests) run via GitHub Actions or on the VM.
     type: directive
-    topic: Testing
+    topic: Code Style & Patterns
     enforceability: null
     confidence: high
 
   - id: 75
-    lines: [269, 270]
+    lines: [264, 266]
     text: |
+      - All non-focus commands should preserve current user focus context while still applying data/model changes.
 
-    type: description
-    topic: Testing
+
+    type: directive
+    topic: Code Style & Patterns
     enforceability: null
     confidence: high
 
   - id: 76
-    lines: [270, 271]
+    lines: [266, 270]
     text: |
-      - **E2E / UI tests:** trigger via `gh workflow run test-e2e.yml` (see cmuxterm-hq CLAUDE.md for details)
+      ## Testing policy
+
+      **Never run tests locally.** All tests (E2E, UI, python socket tests) run via GitHub Actions or on the VM.
+
+
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
   - id: 77
-    lines: [271, 272]
+    lines: [270, 271]
     text: |
-      - **Unit tests:** `xcodebuild -scheme cmux-unit` is safe (no app launch), but prefer CI
+      - **E2E / UI tests:** trigger via `gh workflow run test-e2e.yml` (see cmuxterm-hq CLAUDE.md for details)
+
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
   - id: 78
-    lines: [272, 273]
+    lines: [271, 272]
     text: |
-      - **Python socket tests (tests_v2/):** these connect to a running cmux instance's socket. Never launch an untagged `cmux DEV.app` to run them. If you must test locally, use a tagged build's socket (`/tmp/cmux-debug-<tag>.sock`) with `CMUX_SOCKET_PATH=/tmp/cmux-debug-<tag>.sock`
+      - **Unit tests:** `xcodebuild -scheme cmux-unit` is safe (no app launch), but prefer CI
+
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
   - id: 79
-    lines: [273, 275]
+    lines: [272, 273]
     text: |
-      - **Never `open` an untagged `cmux DEV.app`** from DerivedData. It conflicts with the user's running debug instance.
+      - **Python socket tests (tests_v2/):** these connect to a running cmux instance's socket. Never launch an untagged `cmux DEV.app` to run them. If you must test locally, use a tagged build's socket (`/tmp/cmux-debug-<tag>.sock`) with `CMUX_SOCKET_PATH=/tmp/cmux-debug-<tag>.sock`
 
     type: directive
     topic: Testing
@@ -907,6 +984,17 @@ statements:
     confidence: high
 
   - id: 80
+    lines: [273, 275]
+    text: |
+      - **Never `open` an untagged `cmux DEV.app`** from DerivedData. It conflicts with the user's running debug instance.
+
+
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 81
     lines: [275, 306]
     text: |
       ## Ghostty submodule workflow
@@ -940,12 +1028,13 @@ statements:
       git add ghostty
       git commit -m "Update ghostty submodule"
       ```
+
     type: directive
     topic: Version Control
     enforceability: null
     confidence: high
 
-  - id: 81
+  - id: 82
     lines: [306, 315]
     text: |
 
@@ -957,12 +1046,13 @@ statements:
       3. Update `CHANGELOG.md` (the docs changelog page at `web/app/docs/changelog/page.tsx` reads from it)
       4. Run `./scripts/bump-version.sh` to update both versions
       5. Commit, run `./scripts/release-pretag-guard.sh`, tag, and push
+
     type: directive
     topic: Release & Deployment
     enforceability: null
     confidence: high
 
-  - id: 82
+  - id: 83
     lines: [315, 326]
     text: |
 
@@ -976,12 +1066,13 @@ statements:
       ```
 
       This updates both `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (build number). The build number is auto-incremented and is required for Sparkle auto-update to work.
+
     type: description
     topic: Release & Deployment
     enforceability: null
     confidence: high
 
-  - id: 83
+  - id: 84
     lines: [326, 334]
     text: |
 
@@ -992,12 +1083,13 @@ statements:
       ```
 
       If it fails, run `./scripts/bump-version.sh`, commit the build-number bump, then retry tagging.
+
     type: directive
     topic: Release & Deployment
     enforceability: null
     confidence: high
 
-  - id: 84
+  - id: 85
     lines: [334, 343]
     text: |
 
@@ -1009,63 +1101,71 @@ statements:
       git push origin vX.Y.Z
       gh run watch --repo manaflow-ai/cmux
       ```
+
     type: directive
     topic: Release & Deployment
     enforceability: null
     confidence: high
 
-  - id: 85
+  - id: 86
     lines: [343, 345]
     text: |
 
       Notes:
-    type: description
-    topic: Release & Deployment
-    enforceability: null
-    confidence: high
 
-  - id: 86
-    lines: [345, 347]
-    text: |
-      - Requires GitHub secrets: `APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`,
-        `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`.
     type: description
     topic: Release & Deployment
     enforceability: null
     confidence: high
 
   - id: 87
-    lines: [347, 348]
+    lines: [345, 347]
     text: |
-      - The release asset is `cmux-macos.dmg` attached to the tag.
+      - Requires GitHub secrets: `APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`,
+        `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`.
+
     type: description
     topic: Release & Deployment
     enforceability: null
     confidence: high
 
   - id: 88
-    lines: [348, 349]
+    lines: [347, 348]
     text: |
-      - README download button points to `releases/latest/download/cmux-macos.dmg`.
+      - The release asset is `cmux-macos.dmg` attached to the tag.
+
     type: description
     topic: Release & Deployment
     enforceability: null
     confidence: high
 
   - id: 89
-    lines: [349, 350]
+    lines: [348, 349]
     text: |
-      - Versioning: bump the minor version for updates unless explicitly asked otherwise.
-    type: directive
+      - README download button points to `releases/latest/download/cmux-macos.dmg`.
+
+    type: description
     topic: Release & Deployment
     enforceability: null
     confidence: high
 
   - id: 90
-    lines: [350, 351]
+    lines: [349, 350]
     text: |
-      - Changelog: update `CHANGELOG.md`; docs changelog is rendered from it.
+      - Versioning: bump the minor version for updates unless explicitly asked otherwise.
+
     type: directive
     topic: Release & Deployment
     enforceability: null
     confidence: high
+
+  - id: 91
+    lines: [350, 351]
+    text: |
+      - Changelog: update `CHANGELOG.md`; docs changelog is rendered from it.
+
+    type: directive
+    topic: Release & Deployment
+    enforceability: null
+    confidence: high
+

@@ -6,48 +6,82 @@ statements:
       # CLAUDE.md
 
       This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
     type: description
     topic: System Overview
     enforceability: null
     confidence: high
 
   - id: 2
-    lines: [5, 19]
+    lines: [4, 8]
     text: |
+
       ## What This Project Is
 
-      **MCP for Unity** is a bridge that lets AI assistants (Claude, Cursor, Windsurf, etc.) control the Unity Editor through the Model Context Protocol (MCP). ...
+      **MCP for Unity** is a bridge that lets AI assistants (Claude, Cursor, Windsurf, etc.) control the Unity Editor through the Model Context Protocol (MCP). It enables AI-driven game development workflows - creating GameObjects, editing scripts, managing assets, running tests, and more.
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [8, 24]
+    text: |
 
       ## Architecture
 
       ```text
       AI Assistant (Claude/Cursor)
-      ...
+              ↓ MCP Protocol (stdio/HTTP)
+      Python Server (Server/src/)
+              ↓ WebSocket + HTTP
+      Unity Editor Plugin (MCPForUnity/)
+              ↓ Unity Editor API
+      Scene, Assets, Scripts
       ```
-    type: description
-    topic: Architecture
-    enforceability: null
-    confidence: high
 
-  - id: 3
-    lines: [20, 41]
-    text: |
       **Two codebases, one system:**
       - `Server/` - Python MCP server using FastMCP
       - `MCPForUnity/` - Unity C# Editor package
-
-      ### Three Layers on the Python Side
-      ...
-      ### Transport Modes
-      ...
     type: description
     topic: Architecture
     enforceability: null
     confidence: high
 
   - id: 4
-    lines: [42, 46]
+    lines: [24, 36]
+    text: |
+
+      ### Three Layers on the Python Side
+
+      The Python server has three distinct layers. These are **not** auto-generated from each other:
+
+      | Layer | Location | Framework | Purpose |
+      |-------|----------|-----------|---------|
+      | **MCP Tools** | `Server/src/services/tools/` | FastMCP (`@mcp_for_unity_tool`) | Exposed to AI assistants via MCP protocol |
+      | **CLI Commands** | `Server/src/cli/commands/` | Click (`@click.command`) | Terminal interface for developers |
+      | **Resources** | `Server/src/services/resources/` | FastMCP (`@mcp_for_unity_resource`) | Read-only state exposed to AI assistants |
+
+      MCP tools call Unity via WebSocket (`send_with_unity_instance`). CLI commands call Unity via HTTP (`run_command`). Both route to the same C# `HandleCommand` methods.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [36, 41]
+    text: |
+
+      ### Transport Modes
+
+      - **Stdio**: Single-agent only. Separate Python process per client. Legacy TCP bridge to Unity. New connections stomp old ones.
+      - **HTTP**: Multi-agent ready. Single shared Python server. WebSocket hub at `/hub/plugin`. Session isolation via `client_id`.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [41, 48]
     text: |
 
       ## Code Philosophy
@@ -55,15 +89,15 @@ statements:
       ### 1. Domain Symmetry
       Python MCP tools mirror C# Editor tools. Each domain exists in both:
       - `Server/src/services/tools/manage_material.py` ↔ `MCPForUnity/Editor/Tools/ManageMaterial.cs`
+      - CLI commands (`Server/src/cli/commands/`) also mirror these but are a separate implementation.
     type: directive
     topic: Architecture
     enforceability: null
     confidence: high
 
-  - id: 5
-    lines: [47, 50]
+  - id: 7
+    lines: [48, 51]
     text: |
-      - CLI commands (`Server/src/cli/commands/`) also mirror these but are a separate implementation.
 
       ### 2. Minimal Abstraction
       Avoid premature abstraction. Three similar lines of code is better than a helper that's used once. Only abstract when you have 3+ genuine use cases.
@@ -72,8 +106,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 6
-    lines: [51, 53]
+  - id: 8
+    lines: [51, 54]
     text: |
 
       ### 3. Delete Rather Than Deprecate
@@ -83,8 +117,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 7
-    lines: [54, 56]
+  - id: 9
+    lines: [54, 57]
     text: |
 
       ### 4. Test Coverage Required
@@ -94,8 +128,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 8
-    lines: [57, 59]
+  - id: 10
+    lines: [57, 60]
     text: |
 
       ### 5. Keep Tools Focused
@@ -105,8 +139,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 9
-    lines: [60, 62]
+  - id: 11
+    lines: [60, 63]
     text: |
 
       ### 6. Use Resources for Reading
@@ -116,26 +150,158 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 10
-    lines: [63, 148]
+  - id: 12
+    lines: [63, 86]
     text: |
+
       ## Key Patterns
 
       ### Python MCP Tool Registration
-      ...
-      ### C# Tool Registration
-      ...
-      ### Paging Large Results
-      ...
-      ### Unity API Compatibility Shims
-      ...
+      Tools in `Server/src/services/tools/` are auto-discovered. Use the `@mcp_for_unity_tool` decorator:
+      ```python
+      from services.registry import mcp_for_unity_tool
+
+      @mcp_for_unity_tool(
+          description="Does something in Unity.",
+          group="core",  # core (default), vfx, animation, ui, scripting_ext, testing, probuilder, profiling, docs
+      )
+      async def manage_something(
+          ctx: Context,
+          action: Annotated[Literal["create", "delete"], "Action to perform"],
+      ) -> dict[str, Any]:
+          unity_instance = await get_unity_instance_from_context(ctx)
+          params = {"action": action}
+          response = await send_with_unity_instance(async_send_command_with_retry, unity_instance, "manage_something", params)
+          return response
+      ```
+
+      The `group` parameter controls tool visibility. Only `"core"` is enabled by default. Non-core groups (vfx, animation, etc.) start disabled and are toggled via `manage_tools`.
     type: description
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 11
-    lines: [149, 168]
+  - id: 13
+    lines: [86, 94]
+    text: |
+
+      ### Python CLI Error Handling
+      CLI commands (not MCP tools) use the `@handle_unity_errors` decorator:
+      ```python
+      @handle_unity_errors
+      async def my_command(ctx, ...):
+          result = await call_unity_tool(...)
+      ```
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [94, 120]
+    text: |
+
+      ### C# Tool Registration
+      Tools are auto-discovered by `CommandRegistry` via reflection. Use the `[McpForUnityTool]` attribute:
+      ```csharp
+      [McpForUnityTool("manage_something", AutoRegister = false, Group = "core")]
+      public static class ManageSomething
+      {
+          // Sync handler (most tools):
+          public static object HandleCommand(JObject @params)
+          {
+              var p = new ToolParams(@params);
+              // ...
+              return new SuccessResponse("Done.", new { data = result });
+          }
+
+          // OR async handler (for long-running operations like play-test, refresh, batch):
+          public static async Task<object> HandleCommand(JObject @params)
+          {
+              // CommandRegistry detects Task return type automatically
+              await SomeAsyncOperation();
+              return new SuccessResponse("Done.");
+          }
+      }
+      ```
+
+      Async handlers use `EditorApplication.update` polling with `TaskCompletionSource` — see `RefreshUnity.cs` for the canonical pattern.
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [120, 128]
+    text: |
+
+      ### C# Parameter Handling
+      Use `ToolParams` for consistent parameter validation:
+      ```csharp
+      var p = new ToolParams(parameters);
+      var pageSize = p.GetInt("page_size", "pageSize") ?? 50;
+      var name = p.RequireString("name");
+      ```
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [128, 131]
+    text: |
+
+      ### C# Resources
+      Resources use `[McpForUnityResource]` and follow the same `HandleCommand` pattern as tools. They provide read-only state to AI assistants.
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [131, 136]
+    text: |
+
+      ### Paging Large Results
+      Always page results that could be large (hierarchies, components, search results):
+      - Use `page_size` and `cursor` parameters
+      - Return `next_cursor` when more results exist
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [136, 142]
+    text: |
+
+      ### Composing Tools Internally (C#)
+      Use `CommandRegistry.InvokeCommandAsync` to call other tools from within a handler:
+      ```csharp
+      var result = await CommandRegistry.InvokeCommandAsync("read_console", consoleParams);
+      ```
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 19
+    lines: [142, 149]
+    text: |
+
+      ### Unity API Compatibility Shims
+      We support a wide Unity version range (2021+ → 6.x → CoreCLR 6.8). When an API is renamed, deprecated, or removed across versions, **don't sprinkle `#if UNITY_x_y_OR_NEWER` at every call site** — add a shim in `MCPForUnity/Runtime/Helpers/Unity*Compat.cs` and route every caller through it.
+
+      The catalog of active shims, the policy for when to add one, what does NOT belong in a shim, and the reflection-cache pattern all live in **`MCPForUnity/Runtime/Helpers/UnityCompatShims.cs`** — the XML doc on that empty marker class is the source of truth and ships inside the UPM package, so end-users can `F12`/Go-to-definition into it. Sources for current deprecations: Unity 6.x upgrade guides and the [CoreCLR 2026 thread](https://discussions.unity.com/t/path-to-coreclr-2026-upgrade-guide/1714279).
+
+      When you touch a shim or anything else gated by `#if UNITY_*_OR_NEWER`, run `tools/check-unity-versions.sh` to compile-check across the CI matrix locally before committing — the matrix lives in `tools/unity-versions.json`.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 20
+    lines: [149, 169]
     text: |
 
       ## Commands
@@ -144,14 +310,25 @@ statements:
       ```bash
       # Python (all tests)
       cd Server && uv run pytest tests/ -v
-      ...
+
+      # Python (single test file)
+      cd Server && uv run pytest tests/test_manage_material.py -v
+
+      # Python (single test by name)
+      cd Server && uv run pytest tests/ -k "test_create_material" -v
+
+      # Unity - open TestProjects/UnityMCPTests in Unity, use Test Runner window
+
+      # Local multi-version compile check (parity with CI matrix, see tools/unity-versions.json)
+      tools/check-unity-versions.sh           # compile-only across installed Unity Hub editors
+      tools/check-unity-versions.sh --full    # full EditMode test run
       ```
-    type: directive
+    type: description
     topic: Testing
     enforceability: null
     confidence: high
 
-  - id: 12
+  - id: 21
     lines: [169, 175]
     text: |
 
@@ -160,15 +337,15 @@ statements:
       2. Enable **Dev Mode** checkbox to force fresh installs
       3. Use `mcp_source.py` to switch Unity package sources
       4. Test on Windows and Mac if possible, and multiple clients (Claude Desktop and Claude Code are tricky for configuration as of this writing)
-
-    type: directive
+    type: description
     topic: Build and Run
     enforceability: null
     confidence: high
 
-  - id: 13
-    lines: [176, 182]
+  - id: 22
+    lines: [175, 182]
     text: |
+
       ### Adding a New Tool
       1. Add Python MCP tool in `Server/src/services/tools/manage_<domain>.py` using `@mcp_for_unity_tool`
       2. Add Python CLI commands in `Server/src/cli/commands/<domain>.py` using Click
@@ -180,45 +357,57 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 14
-    lines: [183, 185]
+  - id: 23
+    lines: [182, 185]
     text: |
 
       ## What Not To Do
 
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 24
+    lines: [185, 186]
+    text: |
       - Don't add features without tests
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
-  - id: 15
-    lines: [186, 186]
-    text: "- Don't create helper functions for one-time operations"
+  - id: 25
+    lines: [186, 187]
+    text: |
+      - Don't create helper functions for one-time operations
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 16
-    lines: [187, 187]
-    text: "- Don't add error handling for scenarios that can't happen"
+  - id: 26
+    lines: [187, 188]
+    text: |
+      - Don't add error handling for scenarios that can't happen
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 17
-    lines: [188, 188]
-    text: "- Don't commit to `main` directly - branch off `beta` for PRs"
+  - id: 27
+    lines: [188, 189]
+    text: |
+      - Don't commit to `main` directly - branch off `beta` for PRs
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
-  - id: 18
+  - id: 28
     lines: [189, 190]
-    text: "- Don't add docstrings/comments to code you didn't change"
+    text: |
+      - Don't add docstrings/comments to code you didn't change
     type: directive
     topic: Implementation Details
     enforceability: null

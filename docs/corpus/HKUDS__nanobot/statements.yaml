@@ -1,22 +1,33 @@
 file: "HKUDS/nanobot/CLAUDE.md"
 statements:
+
   - id: 1
-    lines: [1, 7]
+    lines: [1, 4]
     text: |
       # CLAUDE.md
 
       This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-      ## Project Overview
-
-      nanobot is a lightweight, open-source AI agent framework written in Python with a React/TypeScript WebUI. It centers around a small agent loop that receives messages from chat channels, invokes an LLM provider, executes tools, and manages session memory.
     type: description
     topic: System Overview
     enforceability: null
     confidence: high
 
   - id: 2
-    lines: [8, 24]
+    lines: [4, 8]
+    text: |
+
+      ## Project Overview
+
+      nanobot is a lightweight, open-source AI agent framework written in Python with a React/TypeScript WebUI. It centers around a small agent loop that receives messages from chat channels, invokes an LLM provider, executes tools, and manages session memory.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [8, 25]
     text: |
 
       ## Development Commands
@@ -25,83 +36,383 @@ statements:
       # Python: run single test / lint
       pytest tests/test_openai_api.py::test_function -v
       ruff check nanobot/
-      ...
+
+      # WebUI: dev server (proxies API/WS to gateway :8765), build, test
+      # Build outputs to ../nanobot/web/dist (bundled into the Python wheel)
+      cd webui && bun run dev      # or NANOBOT_API_URL=... bun run dev
+      cd webui && bun run build
+      cd webui && bun run test
+
+      # Gateway
+      nanobot gateway
       ```
+
     type: directive
     topic: Build and Run
     enforceability: null
     confidence: high
 
-  - id: 3
-    lines: [25, 59]
+  - id: 4
+    lines: [25, 36]
     text: |
 
       ## High-Level Architecture
 
       ### Core Data Flow
-      ...
-      ### Key Subsystems
-      ...
-      ### Entry Points
-      ...
+
+      Messages flow through an async `MessageBus` (`nanobot/bus/queue.py`) that decouples chat channels from the agent core:
+
+      1. **Channels** (`nanobot/channels/`) receive messages from external platforms and publish `InboundMessage` events to the bus.
+      2. **`AgentLoop`** (`nanobot/agent/loop.py`) consumes inbound messages, builds context, and coordinates the turn.
+      3. **`AgentRunner`** (`nanobot/agent/runner.py`) handles the actual LLM conversation loop: send messages to the provider, receive tool calls, execute tools, and stream responses.
+      4. Responses are published as `OutboundMessage` events back to the appropriate channel.
+
     type: description
     topic: Architecture
     enforceability: null
     confidence: high
 
-  - id: 4
-    lines: [60, 64]
+  - id: 5
+    lines: [36, 39]
+    text: |
+
+      ### Key Subsystems
+
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [39, 40]
+    text: |
+      - **Agent Loop** (`nanobot/agent/loop.py`, `runner.py`): The core processing engine. `AgentLoop` manages session keys, hooks, and context building. `AgentRunner` executes the multi-turn LLM conversation with tool execution.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [40, 41]
+    text: |
+      - **LLM Providers** (`nanobot/providers/`): Provider implementations (Anthropic, OpenAI-compatible, OpenAI Responses API, Azure, Bedrock, GitHub Copilot, OpenAI Codex, etc.) built on a common base (`base.py`). Includes image generation (`image_generation.py`) and audio transcription (`transcription.py`). `factory.py` and `registry.py` handle instantiation and model discovery.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [41, 42]
+    text: |
+      - **Channels** (`nanobot/channels/`): Platform integrations (Telegram, Discord, Slack, Feishu, Matrix, WhatsApp, QQ, WeChat, WeCom, DingTalk, Email, MoChat, MS Teams, WebSocket). `manager.py` discovers and coordinates them. Channels are auto-discovered via `pkgutil` scan + entry-point plugins.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [42, 43]
+    text: |
+      - **Tools** (`nanobot/agent/tools/`): Agent capabilities exposed to the LLM: filesystem (read/write/edit/list), shell execution (with sandbox backends), web search/fetch, MCP servers, cron, notebook editing, subagent spawning, long-running tasks / sustained goals (`long_task.py`), image generation, and self-modification. Tools are auto-discovered via `pkgutil` scan + entry-point plugins.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [43, 44]
+    text: |
+      - **Memory** (`nanobot/agent/memory.py`): Session history persistence with Dream two-phase memory consolidation. Uses atomic writes with fsync for durability.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [44, 45]
+    text: |
+      - **Session Management** (`nanobot/session/`): Per-session history, context compaction, TTL-based auto-compaction (`manager.py`), and sustained goal state tracking (`goal_state.py`).
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [45, 46]
+    text: |
+      - **Config** (`nanobot/config/schema.py`, `loader.py`): Pydantic-based configuration loaded from `~/.nanobot/config.json`. Supports camelCase aliases for JSON compatibility.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [46, 47]
+    text: |
+      - **Bridge** (`bridge/`): TypeScript services (e.g. WhatsApp bridge) bundled into the wheel via `pyproject.toml` `force-include`.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [47, 48]
+    text: |
+      - **WebUI** (`webui/`): Vite-based React SPA that talks to the gateway over a WebSocket multiplex protocol. The dev server proxies `/api`, `/webui`, `/auth`, and WebSocket traffic to the gateway.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [48, 49]
+    text: |
+      - **API Server** (`nanobot/api/server.py`): OpenAI-compatible HTTP API (`/v1/chat/completions`, `/v1/models`) for programmatic access.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [49, 50]
+    text: |
+      - **Command Router** (`nanobot/command/`): Slash command routing and built-in command handlers.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [50, 51]
+    text: |
+      - **Heartbeat** (`nanobot/heartbeat/`): Periodic agent wake-up service for scheduled task checking.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [51, 52]
+    text: |
+      - **Pairing** (`nanobot/pairing/`): DM sender approval store with persistent pairing codes per channel.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 19
+    lines: [52, 53]
+    text: |
+      - **Skills** (`nanobot/skills/`): Built-in skill definitions (long-goal, cron, github, image-generation, etc.) loaded into agent context.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 20
+    lines: [53, 54]
+    text: |
+      - **Security** (`nanobot/security/`): PTH file guard and other security measures activated at CLI entry.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [54, 57]
+    text: |
+
+      ### Entry Points
+
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 22
+    lines: [57, 58]
+    text: |
+      - **CLI**: `nanobot/cli/commands.py`
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 23
+    lines: [58, 59]
+    text: |
+      - **Python SDK**: `nanobot/nanobot.py`
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 24
+    lines: [59, 62]
     text: |
 
       ## Project-Specific Notes
 
-      - Architecture constraints: [`.agent/design.md`](.agent/design.md)
-      - Security boundaries: [`.agent/security.md`](.agent/security.md)
-      - Common gotchas: [`.agent/gotchas.md`](.agent/gotchas.md)
+
     type: directive
     topic: Documentation
     enforceability: null
     confidence: high
 
-  - id: 5
-    lines: [65, 68]
+  - id: 25
+    lines: [62, 63]
+    text: |
+      - Architecture constraints: [`.agent/design.md`](.agent/design.md)
+
+    type: directive
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 26
+    lines: [63, 65]
+    text: |
+      - Security boundaries: [`.agent/security.md`](.agent/security.md)
+      - Common gotchas: [`.agent/gotchas.md`](.agent/gotchas.md)
+
+    type: directive
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 27
+    lines: [65, 69]
     text: |
 
       ## Branching Strategy
 
       See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full two-branch model (`main` vs `nightly`) and PR guidelines.
+
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
-  - id: 6
-    lines: [69, 75]
+  - id: 28
+    lines: [69, 72]
     text: |
 
       ## Code Style
 
-      - Python 3.11+, asyncio throughout.
-      - Line length: 100.
-      - Linting: `ruff` with rules E, F, I, N, W (E501 ignored).
-      - pytest with `asyncio_mode = "auto"`.
+
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 7
-    lines: [76, 85]
+  - id: 29
+    lines: [72, 73]
+    text: |
+      - Python 3.11+, asyncio throughout.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 30
+    lines: [73, 74]
+    text: |
+      - Line length: 100.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 31
+    lines: [74, 76]
+    text: |
+      - Linting: `ruff` with rules E, F, I, N, W (E501 ignored).
+      - pytest with `asyncio_mode = "auto"`.
+
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 32
+    lines: [76, 79]
     text: |
 
       ## Common File Locations
 
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 33
+    lines: [79, 80]
+    text: |
       - Config schema: `nanobot/config/schema.py`
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 34
+    lines: [80, 81]
+    text: |
       - Provider base / new provider template: `nanobot/providers/base.py`
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 35
+    lines: [81, 82]
+    text: |
       - Channel base / new channel template: `nanobot/channels/base.py`
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 36
+    lines: [82, 83]
+    text: |
       - Tool registry: `nanobot/agent/tools/registry.py`
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 37
+    lines: [83, 85]
+    text: |
       - WebUI dev proxy config: `webui/vite.config.ts`
       - Tests mirror the `nanobot/` package structure.
+
     type: description
     topic: Architecture
     enforceability: null

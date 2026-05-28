@@ -1,7 +1,7 @@
 file: "charmbracelet/crush/AGENTS.md"
 statements:
   - id: 1
-    lines: [1, 12]
+    lines: [1, 14]
     text: |
       # Crush Development Guide
 
@@ -15,88 +15,280 @@ statements:
       agent skills.
 
       The module path is `github.com/charmbracelet/crush`.
+
     type: description
     topic: System Overview
     enforceability: null
     confidence: high
 
   - id: 2
-    lines: [13, 51]
+    lines: [14, 53]
     text: |
-
       ## Architecture
 
       ```
       main.go                            CLI entry point (cobra via internal/cmd)
       internal/
         app/app.go                       Top-level wiring: DB, config, agents, LSP, MCP, events
-        ...
+        cmd/                             CLI commands (root, run, login, models, stats, sessions)
+        config/
+          config.go                      Config struct, context file paths, agent definitions
+          load.go                        crush.json loading and validation
+          provider.go                    Provider configuration and model resolution
+        agent/
+          agent.go                       SessionAgent: runs LLM conversations per session
+          coordinator.go                 Coordinator: manages named agents ("coder", "task")
+          hooked_tool.go                 Decorator that runs PreToolUse hooks before tool execution
+          prompts.go                     Loads Go-template system prompts
+          templates/                     System prompt templates (coder.md.tpl, task.md.tpl, etc.)
+          tools/                         All built-in tools (bash, edit, view, grep, glob, etc.)
+            mcp/                         MCP client integration
+        hooks/                           Hook engine: runs user shell commands on hook events
+          hooks.go                       Decision types, aggregation logic, event constants
+          runner.go                      Parallel hook execution, timeout, dedup
+          input.go                       Stdin payload builder, env vars, stdout parsing (Crush + Claude Code compat)
+        session/session.go               Session CRUD backed by SQLite
+        message/                         Message model and content types
+        db/                              SQLite via sqlc, with migrations
+          sql/                           Raw SQL queries (consumed by sqlc)
+          migrations/                    Schema migrations
+        lsp/                             LSP client manager, auto-discovery, on-demand startup
+        ui/                              Bubble Tea v2 TUI (see internal/ui/AGENTS.md)
+        permission/                      Tool permission checking and allow-lists
+        skills/                          Skill file discovery and loading
+        shell/                           Bash command execution with background job support
+        event/                           Telemetry (PostHog)
+        pubsub/                          Internal pub/sub for cross-component messaging
+        filetracker/                     Tracks files touched per session
+        history/                         Prompt history
       ```
+
     type: description
     topic: Architecture
     enforceability: null
     confidence: high
 
   - id: 3
-    lines: [52, 63]
+    lines: [53, 58]
     text: |
-
       ### Key Dependency Roles
 
-      - **`charm.land/fantasy`**: LLM provider abstraction layer. ...
-      - **`charm.land/bubbletea/v2`**: TUI framework powering the interactive UI.
-      - **`charm.land/lipgloss/v2`**: Terminal styling.
-      - **`charm.land/glamour/v2`**: Markdown rendering in the terminal.
-      - **`charm.land/catwalk`**: Snapshot/golden-file testing for TUI components.
-      - **`sqlc`**: Generates Go code from SQL queries in `internal/db/sql/`.
+      - **`charm.land/fantasy`**: LLM provider abstraction layer. Handles protocol
+        differences between Anthropic, OpenAI, Gemini, etc. Used in `internal/app`
+        and `internal/agent`.
     type: description
     topic: Architecture
     enforceability: null
     confidence: high
 
   - id: 4
-    lines: [64, 86]
+    lines: [58, 59]
     text: |
-
-      ### Key Patterns
-
-      - **Config is a Service**: accessed via `config.Service`, not global state.
-      - **Tools are self-documenting**: each tool has a `.go` implementation and a
-        `.md` description file in `internal/agent/tools/`.
-      - **System prompts are Go templates**: ...
-      - **Context files**: Crush reads AGENTS.md, CRUSH.md, CLAUDE.md, GEMINI.md ...
-      - **Persistence**: SQLite + sqlc. ...
-      - **Pub/sub**: ...
-      - **Hooks**: ...
-      - **CGO disabled**: builds with `CGO_ENABLED=0` and `GOEXPERIMENT=greenteagc`.
+      - **`charm.land/bubbletea/v2`**: TUI framework powering the interactive UI.
     type: description
     topic: Architecture
     enforceability: null
     confidence: high
 
   - id: 5
-    lines: [87, 101]
+    lines: [59, 60]
     text: |
+      - **`charm.land/lipgloss/v2`**: Terminal styling.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
 
+  - id: 6
+    lines: [60, 61]
+    text: |
+      - **`charm.land/glamour/v2`**: Markdown rendering in the terminal.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [61, 62]
+    text: |
+      - **`charm.land/catwalk`**: Snapshot/golden-file testing for TUI components.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [62, 64]
+    text: |
+      - **`sqlc`**: Generates Go code from SQL queries in `internal/db/sql/`.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [64, 67]
+    text: |
+      ### Key Patterns
+
+      - **Config is a Service**: accessed via `config.Service`, not global state.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [67, 69]
+    text: |
+      - **Tools are self-documenting**: each tool has a `.go` implementation and a
+        `.md` description file in `internal/agent/tools/`.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [69, 71]
+    text: |
+      - **System prompts are Go templates**: `internal/agent/templates/*.md.tpl`
+        with runtime data injected.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [71, 74]
+    text: |
+      - **Context files**: Crush reads AGENTS.md, CRUSH.md, CLAUDE.md, GEMINI.md
+        (and `.local` variants) from the working directory for project-specific
+        instructions.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [74, 76]
+    text: |
+      - **Persistence**: SQLite + sqlc. All queries live in `internal/db/sql/`,
+        generated code in `internal/db/`. Migrations in `internal/db/migrations/`.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [76, 78]
+    text: |
+      - **Pub/sub**: `internal/pubsub` for decoupled communication between agent,
+        UI, and services.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [78, 84]
+    text: |
+      - **Hooks**: User-defined shell commands in `crush.json` that fire before
+        tool execution. The engine (`internal/hooks/`) is independent of fantasy
+        and agent — it takes inputs, runs commands, returns decisions. The
+        `hookedTool` decorator in `internal/agent/hooked_tool.go` wraps tools at
+        the coordinator level. Hooks run before permission checks. See
+        `HOOKS.md` for the user-facing protocol.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [84, 87]
+    text: |
+      - **CGO disabled**: builds with `CGO_ENABLED=0` and
+        `GOEXPERIMENT=greenteagc`.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [87, 90]
+    text: |
       ## Build/Test/Lint Commands
 
       - **Build**: `go build .` or `go run .`
-      - **Test**: `task test` or `go test ./...` (run single test:
-        `go test ./internal/llm/prompt -run TestGetContextFromPaths`)
-      - **Update Golden Files**: `go test ./... -update` ...
-      - **Lint**: `task lint:fix`
-      - **Format**: `task fmt` (`gofumpt -w .`)
-      - **Modernize**: `task modernize` ...
-      - **Dev**: `task dev` (runs with profiling enabled)
     type: directive
     topic: Build and Run
     enforceability: null
     confidence: high
 
-  - id: 6
-    lines: [102, 106]
+  - id: 18
+    lines: [90, 92]
     text: |
+      - **Test**: `task test` or `go test ./...` (run single test:
+        `go test ./internal/llm/prompt -run TestGetContextFromPaths`)
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
 
+  - id: 19
+    lines: [92, 97]
+    text: |
+      - **Update Golden Files**: `go test ./... -update` (regenerates `.golden`
+        files when test output changes)
+        - Update specific package:
+          `go test ./internal/tui/components/core -update` (in this case,
+          we're updating "core")
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 20
+    lines: [97, 98]
+    text: |
+      - **Lint**: `task lint:fix`
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [98, 99]
+    text: |
+      - **Format**: `task fmt` (`gofumpt -w .`)
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 22
+    lines: [99, 101]
+    text: |
+      - **Modernize**: `task modernize` (runs `modernize` which makes code
+        simplifications)
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 23
+    lines: [101, 103]
+    text: |
+      - **Dev**: `task dev` (runs with profiling enabled)
+
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 24
+    lines: [103, 107]
+    text: |
       ## Code Style Guidelines
 
       - **Imports**: Use `goimports` formatting, group stdlib, external, internal
@@ -106,8 +298,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 7
-    lines: [107, 108]
+  - id: 25
+    lines: [107, 109]
     text: |
       - **Formatting**: Use gofumpt (stricter than gofmt), enabled in
         golangci-lint.
@@ -116,8 +308,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 8
-    lines: [109, 110]
+  - id: 26
+    lines: [109, 111]
     text: |
       - **Naming**: Standard Go conventions — PascalCase for exported, camelCase
         for unexported.
@@ -126,8 +318,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 9
-    lines: [111, 112]
+  - id: 27
+    lines: [111, 113]
     text: |
       - **Types**: Prefer explicit types, use type aliases for clarity (e.g.,
         `type AgentName string`).
@@ -136,8 +328,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 10
-    lines: [113, 114]
+  - id: 28
+    lines: [113, 115]
     text: |
       - **Error handling**: Return errors explicitly, use `fmt.Errorf` for
         wrapping.
@@ -146,8 +338,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 11
-    lines: [115, 116]
+  - id: 29
+    lines: [115, 117]
     text: |
       - **Context**: Always pass `context.Context` as first parameter for
         operations.
@@ -156,8 +348,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 12
-    lines: [117, 118]
+  - id: 30
+    lines: [117, 119]
     text: |
       - **Interfaces**: Define interfaces in consuming packages, keep them small
         and focused.
@@ -166,10 +358,18 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 13
-    lines: [119, 121]
+  - id: 31
+    lines: [119, 120]
     text: |
       - **Structs**: Use struct embedding for composition, group related fields.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 32
+    lines: [120, 122]
+    text: |
       - **Constants**: Use typed constants with iota for enums, group in const
         blocks.
     type: directive
@@ -177,8 +377,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 14
-    lines: [122, 125]
+  - id: 33
+    lines: [122, 126]
     text: |
       - **Testing**: Use testify's `require` package, parallel tests with
         `t.Parallel()`, `t.SetEnv()` to set environment variables. Always use
@@ -189,16 +389,17 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 15
-    lines: [126, 126]
-    text: "- **JSON tags**: Use snake_case for JSON field names."
+  - id: 34
+    lines: [126, 127]
+    text: |
+      - **JSON tags**: Use snake_case for JSON field names.
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 16
-    lines: [127, 128]
+  - id: 35
+    lines: [127, 129]
     text: |
       - **File permissions**: Use octal notation (0o755, 0o644) for file
         permissions.
@@ -207,8 +408,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 17
-    lines: [129, 131]
+  - id: 36
+    lines: [129, 132]
     text: |
       - **Log messages**: Log messages must start with a capital letter (e.g.,
         "Failed to save session" not "failed to save session").
@@ -218,8 +419,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 18
-    lines: [132, 134]
+  - id: 37
+    lines: [132, 135]
     text: |
       - **Comments**: End comments in periods unless comments are at the end of the
         line.
@@ -229,8 +430,8 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 19
-    lines: [135, 157]
+  - id: 38
+    lines: [135, 159]
     text: |
       ## Testing with Mock Providers
 
@@ -239,18 +440,31 @@ statements:
 
       ```go
       func TestYourFunction(t *testing.T) {
-          ...
+          // Enable mock providers for testing
+          originalUseMock := config.UseMockProviders
+          config.UseMockProviders = true
+          defer func() {
+              config.UseMockProviders = originalUseMock
+              config.ResetProviders()
+          }()
+
+          // Reset providers to ensure fresh mock data
+          config.ResetProviders()
+
+          // Your test code here - providers will now return mock data
+          providers := config.Providers()
+          // ... test logic
       }
       ```
+
     type: directive
     topic: Testing
     enforceability: null
     confidence: high
 
-  - id: 20
-    lines: [158, 166]
+  - id: 39
+    lines: [159, 168]
     text: |
-
       ## Formatting
 
       - ALWAYS format any Go code you write.
@@ -259,43 +473,51 @@ statements:
         - If `goimports` is not available, use `gofmt`.
         - You can also use `task fmt` to run `gofumpt -w .` on the entire project,
           as long as `gofumpt` is on the `PATH`.
+
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 21
-    lines: [167, 171]
+  - id: 40
+    lines: [168, 173]
     text: |
-
       ## Comments
 
       - Comments that live on their own lines should start with capital letters and
         end with periods. Wrap comments at 78 columns.
+
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 22
-    lines: [172, 178]
+  - id: 41
+    lines: [173, 177]
     text: |
-
       ## Committing
 
       - ALWAYS use semantic commits (`fix:`, `feat:`, `chore:`, `refactor:`,
         `docs:`, `sec:`, etc).
-      - Try to keep commits to one line, not including your attribution. Only use
-        multi-line commits when additional context is truly necessary.
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
-  - id: 23
-    lines: [179, 184]
+  - id: 42
+    lines: [177, 180]
     text: |
+      - Try to keep commits to one line, not including your attribution. Only use
+        multi-line commits when additional context is truly necessary.
 
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 43
+    lines: [180, 184]
+    text: |
       ## Working on the TUI (UI)
 
       Anytime you need to work on the TUI, read `internal/ui/AGENTS.md` before

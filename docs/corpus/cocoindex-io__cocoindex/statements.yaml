@@ -407,45 +407,57 @@ statements:
       ### General principles (also covered by `/review-changes`)
 
       - **Top-level imports.** Defer to in-function only for a real circular dependency or a heavy import that isn't always needed.
-      - **Specific types over `Any`.** Use concrete types — including concrete types from third-party libraries. `Any` only when the type is truly generic and no downstream code needs to downcast it.
-
     type: directive
     topic: Code Style
     enforceability: null
     confidence: high
 
   - id: 23
-    lines: [216, 218]
+    lines: [216, 217]
+    text: |
+      - **Specific types over `Any`.** Use concrete types — including concrete types from third-party libraries. `Any` only when the type is truly generic and no downstream code needs to downcast it.
+    type: directive
+    topic: Code Style
+    enforceability: null
+    confidence: high
+
+  - id: 24
+    lines: [217, 218]
     text: |
       - **Validate and exchange early.** When a value enters as a weaker form (`str`, `Any`, raw identifier), convert to the strong type at the earliest point. Don't propagate the weak form. Concrete example in this codebase: connector handlers receive a `ContextKey` string as part of a target-state key. The parent handler resolves the key once (when constructing the child handler) and passes the typed connection directly — the child stores `_pool: asyncpg.Pool`, not `_db_key: str`.
-      - **`NamedTuple`/small dataclass for multi-value returns.** Access fields by name (`result.can_reuse`) at call sites.
-
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 24
+  - id: 25
     lines: [218, 219]
     text: |
-      - **Exceptions for exceptional situations only.** Reserve exceptions (Python) and errors (Rust) for truly unexpected failures — not for end-of-iteration, "not found", or other expected state transitions. Use explicit return values (sentinel, enum variant, `None`) for those.
-
-    type: directive
-    topic: Error Handling
-    enforceability: null
-    confidence: high
-
-  - id: 25
-    lines: [219, 221]
-    text: |
-      - **Single source of truth, delete dead code, honest names.** When the same value/logic appears in multiple places, consolidate. When changes make code unreachable, delete it (and its tests, and any dead config knobs). Function and field names should describe what the implementation does today.
-
+      - **`NamedTuple`/small dataclass for multi-value returns.** Access fields by name (`result.can_reuse`) at call sites.
     type: directive
     topic: Code Style
     enforceability: null
     confidence: high
 
   - id: 26
+    lines: [219, 220]
+    text: |
+      - **Exceptions for exceptional situations only.** Reserve exceptions (Python) and errors (Rust) for truly unexpected failures — not for end-of-iteration, "not found", or other expected state transitions. Use explicit return values (sentinel, enum variant, `None`) for those.
+    type: directive
+    topic: Error Handling
+    enforceability: null
+    confidence: high
+
+  - id: 27
+    lines: [220, 221]
+    text: |
+      - **Single source of truth, delete dead code, honest names.** When the same value/logic appears in multiple places, consolidate. When changes make code unreachable, delete it (and its tests, and any dead config knobs). Function and field names should describe what the implementation does today.
+    type: directive
+    topic: Code Style
+    enforceability: null
+    confidence: high
+
+  - id: 28
     lines: [221, 225]
     text: |
 
@@ -458,7 +470,7 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 27
+  - id: 29
     lines: [225, 236]
     text: |
 
@@ -477,7 +489,7 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 28
+  - id: 30
     lines: [236, 249]
     text: |
       * **Async tests with async resources** (e.g., asyncpg pools): Call inside an async fixture so the Environment binds to the test's running event loop (same loop the pool is on). Use the `suffix` parameter when each test needs its own Environment:
@@ -499,7 +511,7 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 29
+  - id: 31
     lines: [249, 267]
     text: |
 
@@ -526,7 +538,7 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 30
+  - id: 32
     lines: [267, 280]
     text: |
 
@@ -548,7 +560,7 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 31
+  - id: 33
     lines: [280, 284]
     text: |
 
@@ -561,7 +573,7 @@ statements:
     enforceability: null
     confidence: high
 
-  - id: 32
+  - id: 34
     lines: [284, 288]
     text: |
 
