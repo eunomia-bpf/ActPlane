@@ -1,0 +1,203 @@
+\section{Evaluation}
+\label{sec:evaluation}
+
+The evaluation is organized around the following reproducible experiments.
+Result numbers are not filled in until the corresponding experiment is run with
+fixed agent versions, logs, and statistical analysis.
+
+\subsection{Research Questions}
+
+The evaluation targets six questions.
+
+\begin{description}
+\item[RQ1: Bypass coverage.] Does OS-level enforcement catch the same policy
+violation through direct tool calls, shell strings, subprocesses, SDK paths, and
+direct syscalls?
+\item[RQ2: Corrective feedback.] Does semantic feedback improve task completion
+and reduce repeated violations compared with failure without a reason?
+\item[RQ3: False positives.] Do benign tasks and sanctioned gate/declassify
+paths proceed without unnecessary failure?
+\item[RQ4: Overhead.] What are the per-event and end-to-end costs of label
+propagation and rule checks?
+\item[RQ5: Real-policy coverage.] How many real instructions from the corpus
+are observable, expressible, robust, and temptable?
+\item[RQ6: Baselines.] Which capabilities are unique relative to tool-layer
+agent guardrails and kernel provenance/enforcement systems?
+\end{description}
+
+\subsection{Experiments}
+
+\begin{table*}[t]
+\centering
+\caption{Planned evaluation matrix. Result fields remain \textsc{TBD}.}
+\Description{A table listing planned experiments and planned result fields.}
+\begin{tabular}{p{0.12\textwidth}p{0.26\textwidth}p{0.26\textwidth}p{0.24\textwidth}}
+\toprule
+Experiment & Method & Primary metrics & Result status \\
+\midrule
+E1: Cross-path coverage &
+Run the same forbidden action through tool call, nested shell, subprocess, SDK/helper, and direct syscall triggers. Compare against tool-layer baselines. &
+Coverage matrix over policy by path; feedback delivery. &
+\textsc{TBD} \\
+\midrule
+E2: Feedback loop &
+Run Codex and Claude-style agents under prompt-only, audit, fail-without-reason, and fail-with-feedback conditions. &
+Task completion, repeated violations, repair iterations, token/turn cost. &
+\textsc{TBD} \\
+\midrule
+E3: False positives &
+Run allowed tasks and sanctioned paths: redaction, test-before-commit, confirmation, and lineage mediation. &
+False positive rate, allowed-path success. &
+\textsc{TBD} \\
+\midrule
+E4: Overhead &
+Microbench fork/exec/read/write/connect and macrobench real agent tasks with and without ActPlane. &
+p50/p99 latency, wall time, memory/map usage, rule-table scaling. &
+\textsc{TBD} \\
+\midrule
+E5: Corpus coverage &
+Double-code real instruction-file rules with D1--D7, report agreement, and derive policies/tasks mechanically. &
+Observable, expressible, robust, temptable fractions; Cohen's kappa. &
+\textsc{TBD} \\
+\midrule
+E6: Baseline comparison &
+Compare against CamQuery, Tetragon, Progent, AgentSpec, and built-in agent sandboxes where runnable. &
+Layer, enforce/detect, cross-channel taint, bypass resistance, feedback. &
+\textsc{TBD} \\
+\bottomrule
+\end{tabular}
+\label{tab:eval-plan}
+\end{table*}
+
+\subsection{Feedback Conditions}
+
+The agent-facing experiment uses four conditions to isolate the contribution of
+semantic feedback.
+
+\begin{itemize}
+\item C1: prompt-only. The natural-language rule is present, but there is no
+ActPlane enforcement.
+\item C2: audit. ActPlane observes and reports, but does not fail the action.
+\item C3: fail without ActPlane reason. The violating action fails through
+\texttt{-EPERM} or \texttt{SIGKILL}, but the agent receives no structured
+remediation.
+\item C4: fail with feedback. The action fails and ActPlane injects the rule
+reason and remediation through the feedback file and hook bridge.
+\end{itemize}
+
+The main comparison is C3 to C4: the net benefit of the corrective feedback
+loop. C1 to C2 estimates how often the prompt-only harness fails; C2 to C3
+separates observation from action failure.
+
+\subsection{Artifact Expectations}
+
+The artifact should include policies, trigger scripts, agent prompts, raw logs,
+statistical notebooks, and a container or VM description pinning kernel, BPF,
+agent, and model versions. The final paper should avoid reporting any number
+that cannot be regenerated from these artifacts.
+
+
+\section{Related Work}
+\label{sec:related}
+
+\subsection{In-Kernel Provenance and Information Flow}
+
+ActPlane builds on a long line of provenance and information-flow systems.
+PASS made provenance a storage-layer primitive~\cite{muniswamy2006pass}.
+Hi-Fi and LPM used LSM hooks to capture trustworthy system
+provenance~\cite{pohly2012hifi,bates2015lpm}. CamFlow captured whole-system
+provenance streams over processes, files, and sockets~\cite{pasquier2017camflow}.
+
+CamQuery is the closest prior system~\cite{pasquier2018camquery}. It executes
+provenance queries inline in the kernel, propagates labels across process, file,
+and network edges, and can prevent policy violations. ActPlane does not claim
+that this mechanism is new. The difference is the domain and substrate:
+ActPlane targets cooperative AI agents, compiles an agent-oriented source/sink
+DSL to eBPF/BPF-LSM, and returns corrective feedback to the actor that violated
+the rule.
+
+TaintDroid, Dytan, libdft, and Panorama established dynamic taint tracking at
+runtime, binary-instrumentation, or emulation layers~\cite{enck2010taintdroid,
+clause2007dytan,kemerlis2012libdft,yin2007panorama}. ActPlane uses a much
+coarser object-level taint. That coarseness is what allows kernel-wide coverage,
+but it creates an over-taint risk that must be measured.
+
+\subsection{eBPF and LSM Enforcement}
+
+BPF-LSM, originally proposed through KRSI, lets eBPF programs attach to Linux
+security hooks and return allow/deny verdicts~\cite{singh2019krsi,linuxbpflsm}.
+ActPlane uses this as its pre-operation backend. Contemporary eBPF security
+tools and proposals such as Tetragon, Tracee, and eBPF-PATROL demonstrate
+practical event capture and enforcement, but generally evaluate per-event
+predicates or lineage flags rather than typed cross-channel information
+flow~\cite{ciliumtetragon,aquasecuritytracee,ghimire2025ebpfpatrol}.
+
+\subsection{Agent Guardrails}
+
+AgentSpec and Progent are the closest agent-policy systems at the tool
+layer~\cite{wang2025agentspec,shi2025progent}. They provide deterministic
+checks over tool names, arguments, or framework actions. ActPlane complements these systems by
+moving the enforcement point below the tool API. If all effects pass through the
+framework, tool-layer policies are sufficient and cheaper. If the agent can
+execute arbitrary code, spawn subprocesses, or use direct system interfaces, the
+OS layer is the robust boundary.
+
+FIDES and CaMeL show that typed information-flow and capability separation are
+useful abstractions for LLM agents~\cite{costa2025fides,debenedetti2025camel}. They operate
+inside the agent loop or scaffolding. ActPlane applies the same style of
+information-flow reasoning at the OS boundary.
+
+\subsection{Agent Instruction Files}
+
+Recent empirical work studies \texttt{CLAUDE.md}, \texttt{AGENTS.md}, and other
+agent context files: their structure, content, maintenance, and effect on task
+efficiency~\cite{chatlatanagulchai2025manifests,chatlatanagulchai2025agentreadmes,
+santos2025claudeconfig,lulla2026agentsmd}. ActPlane's corpus study asks a
+different question: which instructions are behavioral or flow invariants, and
+which of those can be observed and enforced below the tool layer?
+
+
+\section{Discussion}
+
+\subsection{Security Tool or Harness?}
+
+ActPlane can express security-relevant policies, such as keeping secret-derived
+data local. However, its primary target is an agent harness: a deterministic
+operating contract for a cooperative but forgetful agent. This affects design
+choices. A classic reference monitor would prioritize pre-operation denial for
+all security claims. ActPlane also needs audit-only guidance, harness-level
+termination when pre-operation arguments are unavailable, and remediation text
+that lets the agent complete the original task through an allowed path.
+
+\subsection{Where the Claim Must Stay Honest}
+
+The strongest novelty claim is not the taint algorithm. In-kernel label
+propagation and provenance enforcement are established ideas. ActPlane must be
+evaluated as a systems contribution that combines those ideas with a new
+workload and interface: autonomous agents with rich tool access, natural-language
+policy sources, and corrective feedback.
+
+The final paper should be careful about three boundaries.
+
+\textbf{Block is LSM-only.} Tracepoint observation cannot be described as
+\texttt{block}. The current implementation correctly ignores \texttt{block}
+rules in tracepoint mode and warns the operator.
+
+\textbf{Prompt files are aspirational.} A corpus of instruction files shows what
+developers want agents to do. It does not by itself prove how often agents
+violate those rules. That is the job of the agent evaluation.
+
+\textbf{Coarse taint can over-approximate.} Object-level labels are practical,
+but they may carry more provenance than a byte-level system would. The evaluation
+must measure false positives and demonstrate useful declassification and gate
+patterns.
+
+\section{Conclusion}
+
+ActPlane moves agent harness enforcement below the tool layer. It compiles
+agent-oriented information-flow policies into eBPF/BPF-LSM checks, tracks labels
+across process, file, and endpoint objects, and returns kernel-detected
+violations as corrective feedback to the agent. The evaluation plan is designed
+to test bypass coverage, feedback-driven recovery, false positives, overhead,
+and coverage over real agent instruction files without reporting numbers before
+they can be reproduced.

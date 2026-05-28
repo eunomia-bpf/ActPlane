@@ -1,0 +1,233 @@
+\section{Policy Model}
+
+ActPlane policies are object-level information-flow rules over three node
+types: processes, files, and endpoints. A process node represents a Linux task
+identified by pid and command identity. A file node is currently keyed by path.
+An endpoint node is currently keyed by IPv4 address. The model is intentionally
+coarser than byte-level dynamic taint tracking~\cite{kemerlis2012libdft}; it
+trades precision for low-overhead whole-system coverage.
+
+\subsection{Labels and Propagation}
+
+Each node carries a bitset of labels. A source declaration introduces labels:
+an exec source labels processes that execute a matching binary, a file source
+labels matching files, and an endpoint source labels matching network
+endpoints. Labels propagate through fixed transfer functions:
+
+\begin{itemize}
+\item fork: a child process inherits the parent's labels;
+\item exec: a process absorbs labels from the executed file and matching exec
+sources;
+\item read: a process absorbs labels from the file it reads;
+\item write: a file absorbs labels from the process writing it;
+\item connect: an endpoint records labels from the connecting process.
+\end{itemize}
+
+This is the provenance invariant ActPlane maintains: if a process carries label
+\texttt{SECRET}, then information from some \texttt{SECRET} source has reached
+that process through observed OS-level flow edges.
+
+\subsection{Rules, Gates, and Effects}
+
+A rule contains one or more deny clauses. A clause specifies an operation
+(\texttt{exec}, \texttt{read}, \texttt{write}, \texttt{unlink},
+\texttt{connect}, or \texttt{open}), a target pattern, a Boolean expression over
+labels, and an optional condition such as a target allow-list, a lineage gate,
+or an after gate.
+
+\begin{figure}[t]
+\begin{verbatim}
+label AGENT
+source SECRET = file "**/.env"
+
+rule no-secret-egress:
+  deny connect endpoint "*" if SECRET
+  effect block
+  reason "secret-derived data must stay local"
+  remediation "run the redactor or ask the user"
+
+rule no-agent-git:
+  deny exec "**/git" if AGENT
+  effect kill
+  reason "agent runs must not invoke git"
+\end{verbatim}
+\caption{A shortened ActPlane policy. The first rule asks for LSM-only
+pre-operation deny. The second rule asks for harness-level termination and can
+fire from tracepoint observation.}
+\Description{A code listing showing two ActPlane rules: one blocking secret
+egress and one killing git execution by an agent.}
+\label{fig:policy-example}
+\end{figure}
+
+Rules have explicit effects.
+
+\textbf{Audit.} The kernel reports the violation and allows the action to
+proceed. This is useful for soft workflow guidance and for measurement.
+
+\textbf{Block.} A BPF-LSM hook returns \texttt{-EPERM} before the operation is
+committed. \texttt{block} is not supported in tracepoint mode and is not
+silently downgraded to \texttt{audit} or \texttt{kill}.
+
+\textbf{Kill.} The kernel sends \texttt{SIGKILL} to the current task. If a
+pre-operation LSM hook is active, ActPlane can also return \texttt{-EPERM};
+from a tracepoint, \texttt{kill} is harness-level termination rather than
+pre-operation denial.
+
+If several supported rules match the same event, ActPlane chooses the strongest
+effect in the order \texttt{kill > block > audit}. Unsupported effects are
+ignored by that backend, so a tracepoint \texttt{audit} rule can still fire even
+when an unsupported \texttt{block} rule also matches.
+
+\subsection{Why This Is a Harness DSL}
+
+The language is deliberately not a general-purpose MAC policy. Its primitives
+map to agent workflows: ``after tests,'' ``through a review tool,'' ``data
+derived from untrusted input,'' and ``read-only sub-agent.'' The grammar is
+small because policy authors should be able to translate natural-language
+instructions into a few recurring source/sink/gate shapes.
+
+
+\section{Design}
+
+Figure~\ref{fig:architecture} summarizes ActPlane's control flow. The Rust
+runner discovers a project policy, compiles its embedded DSL into a fixed binary
+configuration, starts the eBPF loader, seeds the target command's pid lineage
+with the \texttt{AGENT} label, and streams violation events back into a feedback
+file.
+
+\begin{figure}[t]
+\begin{verbatim}
+actplane.yaml
+  policy: |
+        |
+        v
+Rust compiler ------> struct taint_config
+        |                    |
+        v                    v
+ actplane run -----> eBPF loader + BPF maps
+        |                    |
+        v                    v
+  target command <--- kernel hooks
+        |
+        v
+.actplane/last-violation.txt
+\end{verbatim}
+\caption{ActPlane pipeline. The collector compiles policy metadata and reasons
+in userspace, while the kernel enforces and reports rule identifiers.}
+\Description{ASCII diagram of policy compilation, eBPF loading, target command
+execution, and feedback output.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Compiler and Kernel ABI}
+
+The collector parses the DSL and lowers it into a C-compatible
+\texttt{struct taint\_config}. Lowering allocates label bits, expands Boolean
+expressions into required and forbidden masks, lowers glob patterns into exact,
+prefix, suffix, or any match kinds, and compiles IPv4 endpoint patterns into
+network/mask pairs. Human-readable rule names, reasons, and remediation strings
+remain in Rust metadata; the kernel only receives fixed-size rule tables and
+emits rule identifiers.
+
+This split keeps the eBPF program verifier-friendly. The kernel program performs
+bounded loops over fixed-size arrays in read-only data, copies rule entries into
+stack locals before matching, and uses explicit bounds checks for argv scanning
+and pattern matching.
+
+\subsection{Kernel State}
+
+The kernel backend maintains three principal maps:
+
+\begin{itemize}
+\item \texttt{ts\_proc}: pid to labels and lineage gates;
+\item \texttt{ts\_root}/\texttt{ts\_sess}: root process and session-level after
+gates;
+\item \texttt{ts\_file} and \texttt{ts\_endp}: file and endpoint labels.
+\end{itemize}
+
+Tracepoints maintain lineage and perform observation-compatible checks. BPF-LSM
+programs perform pre-operation checks for exec, file access/mutation, and socket
+connect. When BPF-LSM is not active in \texttt{/sys/kernel/security/lsm}, the
+loader disables LSM programs and warns that \texttt{block} rules will not fire.
+
+\subsection{Unified Event Handling}
+
+Each hook normalizes kernel arguments into a small event structure: subject pid,
+object kind, access kind, backend mode, target display string, optional argv
+blob, and optional IPv4 address. The shared handler resolves current labels,
+adds object-source labels for read/connect events, evaluates supported rules,
+emits exactly one \texttt{TAINT\_VIOLATION} event when a supported rule matches,
+and then applies propagation updates.
+
+This structure is the code-level counterpart to the policy model. File, exec,
+and network hooks differ only in how they resolve targets and which operations
+they advertise. Matching and feedback are otherwise centralized.
+
+\subsection{Corrective Feedback}
+
+The kernel event contains the rule id, effect, target, pid, and flags indicating
+whether the operation was blocked or killed. The Rust runner maps the rule id
+back to a rule name, reason, operation, and remediation string, then appends a
+model-facing payload to \texttt{.actplane/last-violation.txt}. The same binary
+implements \texttt{actplane feedback-hook}, a post-tool hook adapter that reads
+new bytes from that file and returns them as additional context to compatible
+agents.
+
+The feedback path does not re-evaluate policy in userspace. The kernel is the
+authority for rule matches. Userspace only formats the reason so a cooperative
+agent can choose a different route.
+
+
+\section{Implementation}
+
+ActPlane is implemented as a Rust collector and an eBPF loader/program pair.
+The current codebase builds a single \texttt{actplane} binary that embeds the
+compiled loader, extracts it at runtime, compiles project policy YAML, and runs
+a target command under the policy harness.
+
+\subsection{Runner}
+
+The command \texttt{actplane run -- <cmd>} discovers \texttt{actplane.yaml}
+upward from the current directory unless \texttt{--policy} or \texttt{--rule} is
+specified. The policy YAML contains a \texttt{policy: |} DSL block and an
+optional feedback path. Run mode requires an \texttt{AGENT} label; before the
+target begins executing, the loader seeds the stopped target pid with that label
+so all descendants inherit the agent identity.
+
+The runner prepares \texttt{.actplane/last-violation.txt} and a hook state file,
+exports their paths to the child, waits until the loader reports readiness, then
+continues the target process. This ensures the first target action is observed.
+
+\subsection{BPF Backends}
+
+The eBPF program attaches to process lifecycle tracepoints for fork, exec, and
+exit, to syscall tracepoints for observation-compatible file and connect events,
+and to BPF-LSM hooks for pre-operation enforcement. The loader checks whether
+the running kernel has the \texttt{bpf} LSM active. If not, it uses tracepoint
+mode. In tracepoint mode, supported effects are exactly \texttt{audit} and
+\texttt{kill}; \texttt{block} is unsupported because there is no pre-operation
+verdict to return.
+
+\subsection{Current Limitations}
+
+The implementation deliberately exposes several limitations rather than hiding
+them behind ambiguous semantics.
+
+\textbf{Path identity.} File labels are currently keyed by path hash. This is
+sufficient for the prototype but should move toward inode/device identity for a
+stronger claim.
+
+\textbf{Endpoint identity.} Kernel connect matching is numeric IPv4. Hostname,
+DNS, SNI, and HTTP-layer policies require userspace assist or additional
+instrumentation.
+
+\textbf{Exec arguments.} \texttt{@arg} predicates are currently observed after
+exec unless an argv cache is added before \texttt{bprm\_check\_security}. Thus
+\texttt{effect block} with an argv predicate is not available through the
+tracepoint path; \texttt{effect audit} can report and \texttt{effect kill} can
+terminate after exec.
+
+\textbf{Precision.} Labels propagate at object granularity. This can over-taint
+compared with byte-level DIFT systems. The evaluation must therefore measure
+false positives and validate declassification/gate paths, not only violation
+coverage.
