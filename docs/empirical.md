@@ -1,4 +1,4 @@
-# What Do Developers Tell Their Agents? A Rule-Level Analysis of Agent Instruction Files
+# What Do Developers Tell Their Agents? A Statement-Level Analysis of Agent Instruction Files
 
 ## Abstract
 
@@ -7,14 +7,17 @@ files (CLAUDE.md, AGENTS.md, copilot-instructions.md). Prior empirical
 studies classify these files by topic (Architecture, Testing, Security) at
 file or section granularity, but do not distinguish descriptions from
 directives, do not extract individual rules, and do not assess
-enforceability. This paper presents the first rule-level analysis of agent
-instruction files. We extract individual rules from instruction files in
-N popular open-source projects, classify each rule along two axes
-(description vs. directive; directive subtype), and assess the
-enforceability of each directive at three levels (prompt, tool-call, and
-OS/kernel). We find that (TODO: headline findings). Our taxonomy and
-annotated dataset provide a foundation for future work on agent compliance
-measurement and enforcement system design.
+enforceability. This paper presents the first statement-level analysis of
+agent instruction files. We extract individual statements from instruction
+files in N popular open-source projects, classify each statement along two
+axes (description vs. directive; directive subtype), and assess the
+enforceability of each directive using the intent/action/behavior
+framework: can the directive be enforced at the intent level (LLM
+prompt), the action level (tool-call guard), or the behavior level
+(e,g, system calls and commands)? We find that
+(TODO: headline findings). Our taxonomy and annotated dataset provide a
+foundation for future work on agent compliance measurement and
+enforcement system design.
 
 ---
 
@@ -43,22 +46,23 @@ what specific rules they write, how those rules distribute across projects,
 and which rules can be enforced by deterministic mechanisms at different
 layers of the system stack.
 
-This paper addresses this gap with a rule-level analysis of agent
+This paper addresses this gap with a statement-level analysis of agent
 instruction files. We make three contributions:
 
-1. A **rule-level taxonomy** that classifies individual rules extracted from
-   instruction files along two axes: content type (description vs.
-   directive) and directive subtype (style, build, workflow, access,
-   behavioral contract).
+1. A **statement-level taxonomy** that classifies individual statements
+   extracted from instruction files along two axes: content type
+   (description vs. directive) and directive subtype (style, build,
+   constraint, communication).
 
-2. A **rule-level corpus** of N rules extracted from instruction files in
-   M projects, annotated along the taxonomy and released as a public
-   dataset.
+2. A **statement-level corpus** of N statements extracted from instruction
+   files in M projects, annotated along the taxonomy and released as a
+   public dataset.
 
-3. An **enforceability analysis** that assesses each directive at three
-   enforcement levels (prompt/intent, tool-call/action, OS/behavior),
-   identifying the subset that requires cross-object state tracking and
-   cannot be enforced at a single level.
+3. An **enforceability analysis** using the intent/action/behavior
+   framework that assesses each directive at three levels (intent, action,
+   behavior), identifying the subset that requires cross-object state
+   tracking at the behavior level and cannot be enforced at the action
+   level alone.
 
 ---
 
@@ -276,42 +280,46 @@ destructive changes" matches both communication (step 3) and constraint
 ### 4.4 Enforceability Assessment
 
 For each directive, we assess the minimum enforcement level required using
-the following operationalized decision procedure.
+the intent/action/behavior framework and the following decision procedure.
 
-**Step 1: Can the directive be checked from the tool-call record alone?**
-A directive is *action-level enforceable* if it can be expressed as a
-predicate over a single tool-call record (tool name and its arguments),
-without reference to prior tool calls or OS-level state. Example: "do not
-call the `delete_file` tool" is action-level enforceable. "Do not delete
-files outside the working directory" is not, because the agent may use
-`run_command("rm ...")` instead of `delete_file`.
+**Step 1 (Action): Can the directive be checked from the tool-call record
+alone?** A directive is enforceable at the *action* level if it can be
+expressed as a predicate over a single tool-call record (tool name and
+arguments), without reference to prior tool calls or OS-level state.
+Example: "do not call the `delete_file` tool" is action-level. "Do not
+delete files outside the working directory" is not, because the agent may
+use `run_command("rm ...")` instead of `delete_file`.
 
-**Step 2: Can the directive be checked from a single OS event?**
-A directive is *behavior-level, per-event* if it can be expressed as a
-predicate over a single system call and its arguments, but not over a
-single tool-call record. Example: "do not execute `rm -rf`" requires
-matching `execve("rm", ["-rf", ...])` regardless of which tool call
-produced it.
+**Step 2 (Behavior, per-event): Can the directive be checked from a single
+OS event?** A directive is enforceable at *behavior, per-event* if it can
+be expressed as a predicate over a single system call and its arguments,
+but not over a single tool-call record. Example: "do not execute `rm -rf`"
+requires matching `execve("rm", ["-rf", ...])` regardless of which tool
+call produced it.
 
-**Step 3: Does the directive require state across multiple OS events?**
-A directive is *behavior-level, cross-object* if checking it requires
-state accumulated across multiple system calls and objects (processes,
-files, network endpoints). Example: "a process that has read `.env` must
-not connect to an external endpoint" requires tracking which files the
-process has read (accumulated state) and checking at the `connect` event.
+**Step 3 (Behavior, cross-object): Does the directive require state across
+multiple OS events?** A directive is enforceable at *behavior, cross-object*
+if checking it requires state accumulated across multiple system calls and
+objects (processes, files, network endpoints). Example: "a process that has
+read `.env` must not connect to an external endpoint" requires tracking
+which files the process has read (accumulated state) and checking at the
+`connect` event.
 
-**Step 4: Is the directive only enforceable by LLM compliance?**
-A directive is *intent-level only* if it cannot be expressed as a
+**Step 4 (Intent only): Is the directive only enforceable by LLM
+compliance?** A directive is *intent-only* if it cannot be expressed as a
 predicate over any observable system event. Example: "prefer descriptive
 variable names" requires understanding code semantics, not system events.
 
 **Assignment rule.** When a directive's enforceability depends on the tool
 path the agent takes (e.g., "do not push to main" is action-level if done
-via tool call, but behavior-level if done via `bash -c`), we assign the
-minimum level at which the directive can be *reliably enforced across all
-tool paths*. This procedure assigns each directive to exactly one level.
-Enforceability is included in the inter-rater reliability assessment
-(Section 4.6).
+via a dedicated tool call, but behavior-level if done via `bash -c`), we
+assign the minimum level at which the directive can be *reliably enforced
+across all tool paths*. This maps directly to the intent-behavior gap: the
+gap between action and behavior is precisely the set of directives that
+are action-level for some tool paths but behavior-level for others.
+
+This procedure assigns each directive to exactly one level. Enforceability
+is included in the inter-rater reliability assessment (Section 4.6).
 
 ### 4.5 Worked Examples
 
@@ -321,20 +329,20 @@ text to final labels.
 | Raw text (from real file) | Axis 1 | Axis 2 | Enforceability | Rationale |
 |---|---|---|---|---|
 | "The backend uses Express with TypeScript." | Description | — | — | Factual; no imperative. |
-| "Prefer `const` over `let`." | Directive | Style | Intent-only | Code-level idiom; no syscall signal. |
-| "Run `npm install` before `npm run dev`." | Directive | Build/tooling | Action-level | Tool-call argument matching suffices. |
-| "Always explain your reasoning before making changes." | Directive | Communication | Intent-only | Agent-user interaction; no syscall signal. |
-| "Run the full test suite before committing." | Directive | Constraint | Behavior, cross-object | Requires tracking that a test process executed before a commit process in the same session. |
-| "Never commit secrets or credentials." | Directive | Constraint | Behavior, cross-object | Requires tracking which files the process has read (secret source) before a commit/push. |
-| "Do not execute `rm -rf`." | Directive | Constraint | Behavior, per-event | Single `execve` match. |
-| "Do not push to main directly." | Directive | Constraint | Action-level | Tool-call argument matching on `git push` target. But behavior-level if done via `bash -c`. |
+| "Prefer `const` over `let`." | Directive | Style | Intent | Code-level idiom; no syscall signal. |
+| "Run `npm install` before `npm run dev`." | Directive | Build/tooling | Action | Tool-call argument matching suffices. |
+| "Always explain your reasoning before making changes." | Directive | Communication | Intent | Agent-user interaction; no syscall signal. |
+| "Run the full test suite before committing." | Directive | Constraint | Behavior (cross-object) | Requires tracking that a test process executed before a commit process in the same session. |
+| "Never commit secrets or credentials." | Directive | Constraint | Behavior (cross-object) | Requires tracking which files the process has read (secret source) before a commit/push. |
+| "Do not execute `rm -rf`." | Directive | Constraint | Behavior (per-event) | Single `execve` match. |
+| "Do not push to main directly." | Directive | Constraint | Behavior (cross-object) | Action-level if via dedicated tool call, but behavior-level via `bash -c`. Assignment rule → behavior. |
 
 Two additional edge cases:
 
 | Raw text | Axis 1 | Axis 2 | Enforceability | Rationale |
 |---|---|---|---|---|
-| "We use Jest. Always run `jest --coverage` before committing." | Split: first sentence = Description, second = Directive (Constraint) | — / Constraint | Behavior, cross-object | Hybrid sentence: split at sentence boundary. |
-| "Do not make changes without explaining them first." | Directive | Communication (step 3 matches before step 4) | Intent-only | Governs agent-user interaction; "explaining" has no syscall signal. |
+| "We use Jest. Always run `jest --coverage` before committing." | Split: first sentence = Description, second = Directive (Constraint) | — / Constraint | Behavior (cross-object) | Hybrid sentence: split at sentence boundary. |
+| "Do not make changes without explaining them first." | Directive | Communication (step 3 matches before step 4) | Intent | Governs agent-user interaction; "explaining" has no syscall signal. |
 
 The "push to main" example illustrates an enforceability ambiguity: the
 level depends on whether the agent uses the tool API or a shell. Per the
@@ -348,8 +356,8 @@ rules. We report:
 
 - Cohen's kappa for Axis 1 (description vs. directive).
 - Cohen's kappa for Axis 2 (directive subtype, 4 categories).
-- Cohen's kappa for enforceability level (intent-only, action, behavior).
-- Cohen's kappa for per-event vs. cross-object (within behavior-level).
+- Cohen's kappa for enforceability level (intent, action, behavior).
+- Cohen's kappa for per-event vs. cross-object (within behavior).
 
 Target: kappa >= 0.7 (substantial agreement) for all dimensions. If kappa
 falls below 0.6 for any dimension, we refine the coding guide and re-code.
@@ -376,14 +384,15 @@ with prior studies' file-level prevalence numbers]
 
 ### 5.4 RQ4: Enforceability
 
-[TODO: Table showing enforceability breakdown at three levels. Fraction
-that is per-event vs cross-object at behavior level]
+[TODO: Table showing enforceability breakdown: intent, action, behavior
+(per-event), behavior (cross-object). Per directive subtype.]
 
 ### 5.5 RQ5: Enforcement Requirements
 
 [TODO: Contingency table of directive subtype × enforcement level. For each
-subtype, report the fraction at each level (intent-only, action, behavior
-per-event, behavior cross-object).]
+subtype, report the fraction at each level (intent, action, behavior
+per-event, behavior cross-object). This table directly maps the
+intent/action/behavior framework to empirical data.]
 
 ---
 
@@ -406,13 +415,14 @@ imply for harness engineering?]
 ### 6.3 Implications for Agent Harness Design
 
 [TODO: Connect findings to the three enforcement levels. Discuss:
-- Style directives are inherently intent-level (only LLM compliance).
-- Build/tooling directives are often action-level enforceable.
-- Communication directives are mostly intent-level.
-- Constraint directives frequently require behavior-level enforcement,
-  especially when they involve ordering, scoping, or data-flow conditions.
-- Cross-object constraints specifically require labeled information-flow or
-  equivalent state-tracking mechanisms.]
+- Style directives are enforceable only at the intent level.
+- Build/tooling directives are often enforceable at the action level.
+- Communication directives are mostly enforceable only at the intent level.
+- Constraint directives frequently require enforcement at the behavior
+  level, especially when they involve ordering, scoping, or data-flow
+  conditions.
+- Cross-object constraints specifically require state tracking across
+  process, file, and network boundaries at the behavior level.]
 
 ### 6.4 Limitations of LLM-Assisted Classification
 
