@@ -603,12 +603,12 @@ falls below 0.6 for any dimension, we refine the coding guide and re-code.
 
 ## 5. Results
 
-### 5.1 RQ1: Content Types
+### 5.1 RQ1: What fraction of instruction-file content is directive?
 
 Of the 2,152 statements extracted from 64 repositories, 1,361 (63.2%) are
 directives and 791 (36.8%) are descriptions. The per-repository directive
 fraction has a median of 69.6% and mean of 63.4%, indicating that the
-majority of instruction-file content is prescriptive rather than
+majority of instruction-file content is directive rather than
 informational. One repository (HKUDS/DeepTutor) contains only descriptions
 (0% directives); at the other extreme, alibaba/OpenSandbox is 97%
 directives.
@@ -622,12 +622,39 @@ directives.
 | Directives per repo (median / mean) | 15 / 21.3 |
 | Directive fraction per repo (median) | 69.6% |
 
-### 5.2 RQ2: Topic Distribution
+Figure 1 shows the per-repository directive fraction sorted from lowest
+to highest. The median is 69.6%, and 75% of repositories have a directive
+fraction above 50%. One repository (HKUDS/DeepTutor) contains only
+descriptions; at the other extreme, alibaba/OpenSandbox is 97% directives.
 
-Table 2 shows the cross-tabulation of content type and topic category
-across the 12 analysis categories. The top three topics by statement
-count are Development Process (429, 19.9%), Implementation Details (393,
-18.3%), and Architecture (364, 16.9%).
+![RQ1](tmp/fig1_rq1_directive_fraction.png)
+*Figure 1. Per-repository directive fraction, sorted. Red = majority
+directive; teal = majority description. Dashed line = median (69.6%).*
+*(Script: `docs/tmp/fig_all_rqs.py`)*
+
+**Takeaway.** Instruction files are predominantly behavioral contracts, not
+documentation. Nearly two-thirds of all statements are directives, and the
+typical repository devotes roughly 70% of its instruction file to telling
+the agent what to do (or not do).
+
+### 5.2 RQ2: How do topics distribute across description and directive?
+
+#### 5.2.1 RQ2a: Which topics dominate?
+
+The top three topics by statement count are Development Process (429,
+19.9%), Implementation Details (393, 18.3%), and Architecture (364, 16.9%).
+Together they account for 55.1% of all statements. The bottom six topics
+(Documentation through Maintenance) together account for only 15.2%.
+
+![RQ2a](tmp/fig2_rq2a_topic_prevalence.png)
+*Figure 2. Statement count per topic (12 analysis categories).*
+
+#### 5.2.2 RQ2b: How does the directive ratio vary across topics?
+
+Figure 3 shows the directive ratio per topic, sorted. The split varies
+sharply: Development Process (86.5%) and Implementation Details (85.0%)
+are overwhelmingly directive, while System Overview (0%) and Architecture
+(22.3%) are overwhelmingly descriptive.
 
 | Topic | Desc | Dir | Total | % | Dir% | Lines | L% |
 |---|---|---|---|---|---|---|---|
@@ -645,42 +672,71 @@ count are Development Process (429, 19.9%), Implementation Details (393,
 | Maintenance | 7 | 34 | 41 | 1.9% | 82.9% | 194 | 1.9% |
 | **Total** | **791** | **1,361** | **2,152** | **100%** | **63.2%** | **10,209** | **100%** |
 
-Figure 1 visualizes the distribution. The description/directive split
-varies sharply across topics. Development Process (86.5% directive) and
-Implementation Details (85.0% directive) are overwhelmingly prescriptive.
-System Overview is 100% description. Architecture is the most descriptive
-of the major topics (77.7% description), primarily because it contains
-directory listings, data-flow diagrams, and code-block descriptions of
-project structure.
+![RQ2b](tmp/fig3_rq2b_directive_ratio.png)
+*Figure 3. Directive ratio per topic, sorted. Red > 70%, yellow 40--70%,
+teal < 40%. Dashed line = overall average (63.2%).*
 
-![Topic distribution](tmp/fig_topic_distribution.png)
-*Figure 1. (a) Statement count by topic, split by description vs.
-directive. (b) Directive ratio per topic; dashed line = overall average
-(63.2%). (c) Statement share vs. line share; Architecture occupies 23.7%
-of lines but only 16.9% of statements.*
-*(Script: `docs/tmp/fig_topic_distribution.py`)*
+Architecture is the most descriptive of the major topics (77.7%
+description), primarily because it contains directory listings,
+data-flow diagrams, and code-block descriptions of project structure.
 
-**Comparison with prior studies.** Chatlatanagulchai et al. (2025b) report
-Build and Run as the most prevalent topic (77.1% of files). In our
-statement-level analysis, Build and Run ranks 4th (9.7% of statements).
-The discrepancy is explained by granularity: a file containing a single
+**Takeaway.** The same topic label hides fundamentally different content.
+Architecture is the third-largest topic overall, but 78% of its statements
+are descriptions. Prior file-level studies that classify a file as
+"Architecture" cannot distinguish a file with 20 architecture descriptions
+from one with 20 architecture directives.
+
+#### 5.2.3 RQ2c: Does analysis granularity change topic ranking?
+
+Figure 4 compares our statement-level topic distribution with
+Chatlatanagulchai et al.'s (2025b) file-level prevalence.
+
+![RQ2c](tmp/fig4_rq2c_granularity_comparison.png)
+*Figure 4. Statement-level ranking (our study, % of statements) vs.
+file-level ranking (Chatlatanagulchai et al., % of files containing topic).*
+
+Build and Run drops from #1 at file level (77.1% of files) to #4 at
+statement level (9.7% of statements). The reason: a file with a single
 code block of build commands counts as "Build and Run" at file level but
-produces relatively few statements. Conversely, Development Process
-(17.5%) and Implementation Details (16.8%) dominate at statement level
-because their content consists of many short, independent directives.
+contributes few statements. Conversely, Development Process rises from
+#5 (50% of files) to #1 (19.9% of statements) because its content consists
+of many short, independent directives.
 
-**Statement count vs. line count.** Architecture accounts for 16.9% of
-statements but 23.7% of lines, because architecture content tends to be
-long descriptive blocks (directory trees, data-flow explanations). In
-contrast, Implementation Details accounts for 16.8% of statements but
-only 12.1% of lines, because coding rules are typically one-line list items.
-This divergence illustrates why statement-level analysis reveals patterns
-that line-count or file-level studies miss.
+**Takeaway.** File-level prevalence overstates topics with long but sparse
+content (Build and Run, Architecture) and understates topics with many
+short directives (Development Process, Implementation Details).
+Statement-level analysis corrects this distortion.
 
-### 5.3 RQ3: Directive Density
+#### 5.2.4 RQ2d: Are directives terse or verbose?
+
+Figure 5 shows the difference between each topic's share of total
+statements and its share of total lines.
+
+![RQ2d](tmp/fig5_rq2d_stmt_vs_line.png)
+*Figure 5. Statement share minus line share per topic. Positive (red) =
+topic has more statements per line (terse directives). Negative (teal) =
+topic has fewer statements per line (verbose descriptions).*
+
+Implementation Details accounts for 18.3% of statements but only 13.9%
+of lines (+4.4 pp): its content is predominantly one-line list items like
+"Prefer `const` over `let`." Architecture shows the opposite pattern:
+16.9% of statements but 23.7% of lines (-6.8 pp), because directory
+trees and data-flow diagrams span many lines per statement.
+
+**Takeaway.** Directive-heavy topics produce terse, dense content;
+description-heavy topics produce verbose blocks. Line-count analysis
+would overweight Architecture and underweight Implementation Details
+relative to their actual number of independent rules.
+
+### 5.3 RQ3: How are directives distributed across repositories?
 
 The number of directives per repository ranges from 0 to 131 (median 15,
-mean 21.3). The top five repositories by directive count are:
+mean 21.3). The distribution is right-skewed: the top 10 repositories
+(15.6% of the corpus) account for 40.6% of all directives.
+
+![RQ3](tmp/fig6_rq3_directive_density.png)
+*Figure 6. Directives per repository, sorted. Red = top 15; gray = rest.
+Dashed line = median (15).*
 
 | Repository | Directives | Total | Dir% |
 |---|---|---|---|
@@ -690,9 +746,10 @@ mean 21.3). The top five repositories by directive count are:
 | Kilo-Org/kilocode | 57 | 67 | 85% |
 | earendil-works/pi | 49 | 55 | 89% |
 
-The distribution is right-skewed: a small number of repositories contain
-a disproportionate fraction of all directives. The top 10 repositories
-(15.6% of the corpus) account for 38.6% of all directives.
+**Takeaway.** Most repositories have a modest number of directives
+(median 15), but a few "policy-heavy" projects contribute
+disproportionately. An enforcement system must scale to at least 131
+directives per repository to cover the corpus.
 
 ### 5.4 RQ4: Enforceability
 
