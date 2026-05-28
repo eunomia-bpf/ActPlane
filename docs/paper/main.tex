@@ -22,32 +22,30 @@
 AI coding agents are guided by natural-language instruction files that express
 behavioral contracts: do not leak secrets, run tests before committing, use
 only sanctioned tools. These contracts are declared at the level of
-\emph{intent}---what the agent should and should not do---but their effects
-occur as \emph{behavior}---actual operations such as file access, process
+\emph{intent}, what the agent should and should not do, but their effects
+occur as \emph{behavior}: actual OS operations such as file access, process
 execution, and network connections. Between the two sits the agent's
 \emph{action} layer: tool calls whose mapping to OS behavior is many-to-many
-and opaque.  A single tool invocation can trigger arbitrary system calls, and the
-same OS operation can be reached through different tool paths. 
-Existing enforcement operates at a single level: action-level
-guards check tool calls but miss effects that reach the OS through subprocesses
-or direct system interfaces; behavior-level enforcement (syscall filters,
-sandboxes) is unbypassable but returns opaque failures disconnected from
-intent. 
+and opaque. We call this disconnect the \emph{intent--behavior gap}.
 
-Today's agent harnesses---the non-model infrastructure around an
-agent to enforce the behavioral contracts---keep their  components entirely at the
-application layer, leaving this \emph{intent--behavior gap} unbridged.
-ActPlane is the OS-level enforcement component of an agent harness, allowing agent
-and human. declares behavioral contracts in a compact DSL and ActPlane compiles them 
-into labeled information-flow rules enforced by an eBPF/BPF-LSM backend. 
-Named labels propagate across process, file, and network objects at kernel hooks, 
-tracking which sources have
-influenced which subjects. When a violation is detected, the kernel reports it
-and ActPlane returns corrective feedback to the agent: which contract was
-violated, why, and what alternative path satisfies it. The agent receives not
-\texttt{Permission denied} but a reminder of its own declared intent.we evaluates
-ActPlane on bypass coverage across tool paths, agent recovery rate 
-under feedback conditions, false positives, and per-event overhead.
+However, existing agent harness enforcement operates at a single level:
+intent-level prompts are forgettable and probabilistic;
+action-level guards check tool calls but miss effects that reach the OS through
+subprocesses or direct system interfaces; behavior-level enforcement (syscall
+filters, sandboxes) is unbypassable but returns opaque failures disconnected
+from intent. A corpus study of popular projects shows that real contracts
+frequently involve cross-object information flow in the OS, yet no existing harness
+enforces them across intent and behavior.
+
+ActPlane is the OS-level enforcement component of an agent harness. Agents and
+developers declare behavioral contracts in a DSL; ActPlane compiles
+them into rules enforced by an eBPF/BPF-LSM backend: Named labels propagate 
+across process, file, and network objects at kernel
+hooks, tracking which sources have influenced which subjects. When a violation
+is detected, ActPlane returns corrective intent feedback to the agent: which contract
+was violated, why, and what alternative path satisfies it.
+We evaluate ActPlane on bypass coverage across five tool paths, agent recovery
+rate under four feedback conditions, false positives, and per-event overhead.
 \end{abstract}
 
 \begin{CCSXML}
