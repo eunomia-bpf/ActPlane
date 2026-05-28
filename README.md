@@ -17,7 +17,7 @@ Prompt constraints are probabilistic. ActPlane is deterministic.
 
 **What you can express:**
 
-- **"No `codex` may run `git commit` or write outside `/src`"**: rules follow process lineage, no bypass via bash scripts or python.
+- **"No `codex` may run `git push` or write outside `/src`"**: fine-grand sandboxing rules follow process lineage, no bypass via bash scripts or python.
 - **"Never remove the build cache in makefile unless explicitly asked or debugging"**: bypassable with a specific argument when necessary, not just sandbox.
 - **"When changing `specs/*`, also update the server, SDK, and docs"**: ActPlane never blocks the edit, it notifies the agent that downstream outputs are now stale.
 - **"Run  `make check` & `npm tests` before committing"**: causal ordering, not just per-operation checks.
