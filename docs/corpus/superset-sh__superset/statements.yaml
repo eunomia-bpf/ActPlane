@@ -22,7 +22,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -94,7 +94,7 @@ statements:
       - **Next.js**: Version 16 - NEVER create `middleware.ts`. Next.js 16 renamed middleware to `proxy.ts`. Always use `proxy.ts` for request interception.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 7
@@ -140,7 +140,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 9
@@ -150,7 +150,7 @@ statements:
       1. **Type safety** - avoid `any` unless necessary
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 10
@@ -159,7 +159,7 @@ statements:
       2. **Prefer `gh` CLI** - when performing git operations (PRs, issues, checkout, etc.), prefer the GitHub CLI (`gh`) over raw `git` commands where possible
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 11
@@ -168,7 +168,7 @@ statements:
       3. **Shared command and skill source** - keep command definitions in `.agents/commands/` and skill definitions in `.agents/skills/`. `.claude/commands` and `.cursor/commands` should be symlinks to `../.agents/commands`; `.claude/skills` should be a symlink to `../.agents/skills`. (`packages/chat` discovers slash commands from `.claude/commands`.) Skills aren't a cross-agent format yet, so non-Claude agents (Codex, Cursor, OpenCode) should read the relevant `.agents/skills/*/SKILL.md` file directly when its description matches the task.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 12
@@ -177,7 +177,7 @@ statements:
       4. **Workspace MCP config** - keep shared MCP servers in `.mcp.json`; `.cursor/mcp.json` should link to `../.mcp.json`. Codex uses `.codex/config.toml` (run with `CODEX_HOME=.codex codex ...`). OpenCode uses `opencode.json` and should mirror the same MCP set using OpenCode's `remote`/`local` schema.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 13
@@ -186,7 +186,7 @@ statements:
       5. **Mastra dependencies** - use the published upstream `mastracode` and `@mastra/*` packages. Do not add fork tarball overrides or custom patch steps unless explicitly requested.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 14
@@ -195,7 +195,7 @@ statements:
       6. **Plan & doc placement** - implementation plans go in `plans/` (cross-cutting) or `apps/<app>/plans/` (app-scoped); shipped plans move to `plans/done/`. Architecture/reference docs go in `<app>/docs/`. Never drop `*_PLAN.md` at an app root or inside `src/`.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 15
@@ -204,7 +204,7 @@ statements:
       7. **Always fix lint warnings before pushing** - CI fails on Biome warnings, not just errors (the lint script treats warnings as errors). Run `bun run lint:fix` after edits and verify `bun run lint` exits 0 before `git push`. Never push code that produces lint output, even auto-fixable formatting.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 16
@@ -213,7 +213,7 @@ statements:
       8. **Linear ticket format** - all tickets (creation, drafting, grooming) follow `.agents/skills/ticket-format/SKILL.md`. Read that file before creating or grooming a ticket.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 17
@@ -224,7 +224,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 18
@@ -299,7 +299,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 19
@@ -309,7 +309,7 @@ statements:
       1. **One folder per component**: `ComponentName/ComponentName.tsx` + `index.ts` for barrel export
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 20
@@ -318,7 +318,7 @@ statements:
       2. **Co-locate by usage**: If used once, nest under parent's `components/`. If used 2+ times, promote to **highest shared parent's** `components/` (or `components/` as last resort)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 21
@@ -327,7 +327,7 @@ statements:
       3. **One component per file**: No multi-component files
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 22
@@ -336,7 +336,7 @@ statements:
       4. **Co-locate dependencies**: Utils, hooks, constants, config, tests, stories live next to the file using them
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 23
@@ -362,7 +362,7 @@ statements:
 
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 25
@@ -385,7 +385,7 @@ statements:
       - Always spin up a new neon branch to create migrations. Update our root .env files to point at the neon branch locally.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 27
@@ -394,7 +394,7 @@ statements:
       - Use drizzle to manage the migration. You can see the schema at packages/db/src/schema. Never run a migration yourself.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 28
@@ -403,7 +403,7 @@ statements:
       - Create migrations by changing drizzle schema then running `bunx drizzle-kit generate --name="<sample_name_snake_case>"`
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 29
@@ -430,5 +430,5 @@ statements:
       - **NEVER manually edit files in `packages/db/drizzle/`** - this includes `.sql` migration files, `meta/_journal.json`, and snapshot files. These are auto-generated by Drizzle. If you need to create a migration, only modify the schema files in `packages/db/src/schema/` and ask the user to run `drizzle-kit generate`.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high

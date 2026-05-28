@@ -40,7 +40,7 @@ statements:
       ---
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -57,7 +57,7 @@ statements:
       ```
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 4
@@ -130,7 +130,7 @@ statements:
       ```
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 8
@@ -191,7 +191,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 11
@@ -505,7 +505,7 @@ statements:
       - **YOU (CODEX) execute tasks** - claude-flow only orchestrates
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 26
@@ -514,7 +514,7 @@ statements:
       - Do what is asked; nothing more, nothing less
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 27
@@ -523,7 +523,7 @@ statements:
       - NEVER create files unless absolutely necessary
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 28
@@ -532,7 +532,7 @@ statements:
       - ALWAYS prefer editing existing files
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 29
@@ -541,7 +541,7 @@ statements:
       - NEVER save to root folder
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 30
@@ -550,7 +550,7 @@ statements:
       - NEVER commit secrets or .env files
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 31
@@ -559,7 +559,7 @@ statements:
       - ALWAYS read a file before editing it
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 32
@@ -568,7 +568,7 @@ statements:
       - NEVER wait for claude-flow to "do work" - it doesn't execute, YOU do
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 33
@@ -578,7 +578,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 34
@@ -614,7 +614,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 36
@@ -630,7 +630,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 37
@@ -951,7 +951,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 55
@@ -984,7 +984,7 @@ statements:
       ```
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 57
@@ -1001,7 +1001,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 58
@@ -1022,7 +1022,7 @@ statements:
       ```
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 59

@@ -26,7 +26,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -43,7 +43,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 4
@@ -64,7 +64,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -84,7 +84,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 6
@@ -148,7 +148,7 @@ statements:
       - **Package manager**: bun (not pnpm, not npm for workspace operations)
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 11
@@ -157,7 +157,7 @@ statements:
       - **Commit format**: Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`)
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 12
@@ -166,7 +166,7 @@ statements:
       - **TypeScript**: Avoid `any` and `as T` assertions. Prefer type guards and narrowing.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 13
@@ -175,7 +175,7 @@ statements:
       - **Compositions**: HTML files with `data-*` attributes. Clips need `class="clip"`. GSAP timelines must be paused and registered on `window.__timelines`.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 14
@@ -193,7 +193,7 @@ statements:
       - **Deterministic rendering**: No `Date.now()`, no unseeded `Math.random()`, no render-time network fetches.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 16

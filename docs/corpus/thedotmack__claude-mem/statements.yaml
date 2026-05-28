@@ -237,7 +237,7 @@ statements:
       No need to edit the changelog ever, it's generated automatically.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 17
@@ -250,7 +250,7 @@ statements:
 
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 18
@@ -259,7 +259,7 @@ statements:
       - Check `package.json` (root) and all nested `package.json` files (e.g. `plugin/`, `openclaw/`) for outdated dependencies via `npm outdated`.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 19
@@ -268,7 +268,7 @@ statements:
       - Upgrade every package to `latest` (use `npm install <pkg>@latest` for each, or `npx npm-check-updates -u && npm install`). Bump majors too.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 20
@@ -277,7 +277,7 @@ statements:
       - Run `npm audit fix` to resolve advisories.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 21
@@ -286,7 +286,7 @@ statements:
       - After upgrades, run `npm run build-and-sync` and verify the worker starts and tests pass. Fix any breakage caused by major bumps in the same change.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 22
@@ -295,5 +295,5 @@ statements:
       - Commit the updated `package.json` and `package-lock.json` files.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high

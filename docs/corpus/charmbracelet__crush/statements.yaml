@@ -222,7 +222,7 @@ statements:
       - **Build**: `go build .` or `go run .`
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 18
@@ -232,7 +232,7 @@ statements:
         `go test ./internal/llm/prompt -run TestGetContextFromPaths`)
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 19
@@ -245,7 +245,7 @@ statements:
           we're updating "core")
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 20
@@ -254,7 +254,7 @@ statements:
       - **Lint**: `task lint:fix`
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 21
@@ -263,7 +263,7 @@ statements:
       - **Format**: `task fmt` (`gofumpt -w .`)
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 22
@@ -273,7 +273,7 @@ statements:
         simplifications)
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 23
@@ -283,7 +283,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 24
@@ -295,7 +295,7 @@ statements:
         packages.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 25
@@ -305,7 +305,7 @@ statements:
         golangci-lint.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 26
@@ -315,7 +315,7 @@ statements:
         for unexported.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 27
@@ -325,7 +325,7 @@ statements:
         `type AgentName string`).
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 28
@@ -335,7 +335,7 @@ statements:
         wrapping.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 29
@@ -345,7 +345,7 @@ statements:
         operations.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 30
@@ -355,7 +355,7 @@ statements:
         and focused.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 31
@@ -364,7 +364,7 @@ statements:
       - **Structs**: Use struct embedding for composition, group related fields.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 32
@@ -374,7 +374,7 @@ statements:
         blocks.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 33
@@ -386,7 +386,7 @@ statements:
         not need to be removed.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 34
@@ -395,7 +395,7 @@ statements:
       - **JSON tags**: Use snake_case for JSON field names.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 35
@@ -405,7 +405,7 @@ statements:
         permissions.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 36
@@ -416,7 +416,7 @@ statements:
         - This is enforced by `task lint:log` which runs as part of `task lint`.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 37
@@ -427,7 +427,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 38
@@ -459,7 +459,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 39
@@ -476,7 +476,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 40
@@ -489,7 +489,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 41
@@ -501,7 +501,7 @@ statements:
         `docs:`, `sec:`, etc).
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 42
@@ -512,7 +512,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 43
@@ -524,5 +524,5 @@ statements:
       starting work.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high

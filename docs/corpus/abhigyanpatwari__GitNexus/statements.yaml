@@ -28,7 +28,7 @@ statements:
       | **Off-limits** | Real `.env` / secrets, production credentials, unrelated repos, destructive git ops without confirmation. |
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -41,7 +41,7 @@ statements:
       - **Notes:** The GitNexus CLI indexer does not call an LLM.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 4
@@ -58,7 +58,7 @@ statements:
       On long threads, *"Remember: apply all AGENTS.md rules"* re-weights these instructions against context dilution.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 5
@@ -70,7 +70,7 @@ statements:
       **PreToolUse** hooks can block tools (e.g. `git_commit`) until checks pass. Adapt to this repo: `cd gitnexus && npm test` before commit.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 6
@@ -82,7 +82,7 @@ statements:
       Commands and gotchas live under **Repo reference** below and in **[CONTRIBUTING.md](CONTRIBUTING.md)**. If always-on rules grow, split into **`.cursor/rules/*.mdc`** (globs). **Cursor:** project-wide rules in `.cursor/index.mdc`. **Claude Code:** load `STANDARDS.md` only when needed.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 7
@@ -181,7 +181,7 @@ statements:
       - **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 15
@@ -190,7 +190,7 @@ statements:
       - **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 16
@@ -199,7 +199,7 @@ statements:
       - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 17
@@ -208,7 +208,7 @@ statements:
       - When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 18
@@ -218,7 +218,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 19
@@ -229,7 +229,7 @@ statements:
       - NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 20
@@ -238,7 +238,7 @@ statements:
       - NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 21
@@ -247,7 +247,7 @@ statements:
       - NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 22
@@ -256,7 +256,7 @@ statements:
       - NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 23

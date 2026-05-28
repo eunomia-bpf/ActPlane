@@ -20,7 +20,7 @@ statements:
       - Versatility
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -50,7 +50,7 @@ statements:
       - `domain-skills/` — skills the agent writes and reads
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -61,5 +61,5 @@ statements:
       Consider what is really needed. Prefer the smallest diff that fixes the bug.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high

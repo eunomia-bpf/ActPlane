@@ -21,7 +21,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -31,7 +31,7 @@ statements:
         - Read `.agents/skills/adk-architecture/SKILL.md` for full instructions.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 4
@@ -41,7 +41,7 @@ statements:
         - Read `.agents/skills/adk-style/SKILL.md` for full instructions.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 5
@@ -51,7 +51,7 @@ statements:
         - Read `.agents/skills/adk-git/SKILL.md` for full instructions.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 6
@@ -61,7 +61,7 @@ statements:
         - Read `.agents/skills/adk-sample-creator/SKILL.md` for full instructions.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 7
@@ -94,7 +94,7 @@ statements:
       For details on how the Runner works and the invocation lifecycle, please refer to the `adk-architecture` skill and the referenced documentation therein.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 9
@@ -107,7 +107,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 10
@@ -119,5 +119,5 @@ statements:
       The project uses `uv` for package management and Python 3.11+. Please refer to the **`adk-setup`** skill at `.agents/skills/adk-setup/SKILL.md` for detailed instructions.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high

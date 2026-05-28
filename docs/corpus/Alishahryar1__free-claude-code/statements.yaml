@@ -8,7 +8,7 @@ statements:
       > This file is identical to CLAUDE.md. Keep them in sync.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 2
@@ -20,7 +20,7 @@ statements:
       - Install astral uv using "curl -LsSf https://astral.sh/uv/install.sh | sh" if not already installed and if already installed then update it to the latest version
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -29,7 +29,7 @@ statements:
       - Install Python 3.14.0 stable using `uv python install 3.14.0` if not already installed (requires uv >=0.9; see `[tool.uv] required-version` in `pyproject.toml`)
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 4
@@ -38,7 +38,7 @@ statements:
       - Always use `uv run` to run files instead of the global `python` command.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -56,7 +56,7 @@ statements:
       - Read `.env.example` for environment variables.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 7
@@ -65,7 +65,7 @@ statements:
       - All CI checks must pass; failing checks block merge.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 8
@@ -74,7 +74,7 @@ statements:
       - Add tests for new changes (including edge cases), then run `uv run pytest`.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 9
@@ -83,7 +83,7 @@ statements:
       - Run checks in this order: `uv run ruff format`, `uv run ruff check`, `uv run ty check`, `uv run pytest`.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 10
@@ -92,7 +92,7 @@ statements:
       - Do not add `# type: ignore` or `# ty: ignore`; fix the underlying type issue.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 11
@@ -110,7 +110,7 @@ statements:
       - Branch protection: set **required status checks** to **all** of those statuses (e.g. **Ban type ignore suppressions**, **ruff-format**, **ruff-check**, **ty**, **pytest**—use the exact labels GitHub shows, which may be prefixed with **CI /**). Remove **ci** from required checks if it was previously added for the old gate job.
     type: directive
     topic: DevOps
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 13
@@ -131,7 +131,7 @@ statements:
       - Goal: Zero-defect, root-cause-oriented engineering for bugs; test-driven engineering for new features. Think carefully; no need to rush.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 15
@@ -140,7 +140,7 @@ statements:
       - Code: Write the simplest code possible. Keep the codebase minimal and modular.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 16
@@ -152,7 +152,7 @@ statements:
       - **Shared utilities**: Put shared Anthropic protocol logic in neutral `core/anthropic/` modules. Do not have one provider import from another provider's utils.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 17
@@ -161,7 +161,7 @@ statements:
       - **DRY**: Extract shared base classes to eliminate duplication. Prefer composition over copy-paste.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 18
@@ -170,7 +170,7 @@ statements:
       - **Encapsulation**: Use accessor methods for internal state (e.g. `set_current_task()`), not direct `_attribute` assignment from outside.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 19
@@ -179,7 +179,7 @@ statements:
       - **Provider-specific config**: Keep provider-specific fields (e.g. `nim_settings`) in provider constructors, not in the base `ProviderConfig`.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 20
@@ -188,7 +188,7 @@ statements:
       - **Dead code**: Remove unused code, legacy systems, and hardcoded values. Use settings/config instead of literals (e.g. `settings.provider_type` not `"nvidia_nim"`).
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 21
@@ -197,7 +197,7 @@ statements:
       - **Performance**: Use list accumulation for strings (not `+=` in loops), cache env vars at init, prefer iterative over recursive when stack depth matters.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 22
@@ -206,7 +206,7 @@ statements:
       - **Platform-agnostic naming**: Use generic names (e.g. `PLATFORM_EDIT`) not platform-specific ones (e.g. `TELEGRAM_EDIT`) in shared code.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 23
@@ -215,7 +215,7 @@ statements:
       - **No type ignores**: Do not add `# type: ignore` or `# ty: ignore`. Fix the underlying type issue.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 24
@@ -224,7 +224,7 @@ statements:
       - **Complete migrations**: When moving modules, update imports to the new owner and remove old compatibility shims in the same change unless preserving a published interface is explicitly required.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 25
@@ -233,7 +233,7 @@ statements:
       - **Maximum Test Coverage**: There should be maximum test coverage for everything, preferably live smoke test coverage to catch bugs early
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 26
@@ -245,7 +245,7 @@ statements:
       1. **ANALYZE**: Read relevant files. Do not guess.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 27
@@ -254,7 +254,7 @@ statements:
       2. **PLAN**: Map out the logic. Identify root cause or required changes. Order changes by dependency.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 28
@@ -263,7 +263,7 @@ statements:
       3. **EXECUTE**: Fix the cause, not the symptom. Execute incrementally with clear commits.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 29
@@ -272,7 +272,7 @@ statements:
       4. **VERIFY**: Run ci checks and relevant smoke tests. Confirm the fix via logs or output.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 30
@@ -281,7 +281,7 @@ statements:
       5. **SPECIFICITY**: Do exactly as much as asked; nothing more, nothing less.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 31
@@ -290,7 +290,7 @@ statements:
       6. **PROPAGATION**: Changes impact multiple files; propagate updates correctly.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 32
@@ -302,7 +302,7 @@ statements:
       - Summaries must be technical and granular.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 33
@@ -311,7 +311,7 @@ statements:
       - Include: [Files Changed], [Logic Altered], [Verification Method], [Residual Risks] (if no residual risks then say none).
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 34
@@ -323,5 +323,5 @@ statements:
       - Prefer built-in tools (grep, read_file, etc.) over manual workflows. Check tool availability before use.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high

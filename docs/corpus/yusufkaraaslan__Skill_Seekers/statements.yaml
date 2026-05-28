@@ -238,7 +238,7 @@ statements:
       - Sort with isort (via ruff); `skill_seekers` is first-party
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 19
@@ -247,7 +247,7 @@ statements:
       - Standard library → third-party → first-party, separated by blank lines
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 20
@@ -256,7 +256,7 @@ statements:
       - Use `from __future__ import annotations` only if needed for forward refs
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 21
@@ -274,7 +274,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 22
@@ -331,7 +331,7 @@ statements:
       - Gradual typing — add hints where practical, not enforced everywhere
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 28
@@ -340,7 +340,7 @@ statements:
       - Use modern syntax: `str | None` not `Optional[str]`, `list[str]` not `List[str]`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 29
@@ -369,7 +369,7 @@ statements:
       - Module-level docstring on every file (triple-quoted, describes purpose)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 32
@@ -378,7 +378,7 @@ statements:
       - Google-style docstrings for public functions/classes
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 33
@@ -388,7 +388,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 34
@@ -398,7 +398,7 @@ statements:
       - Use specific exceptions, never bare `except:`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 35
@@ -407,7 +407,7 @@ statements:
       - Provide helpful error messages with context
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 36
@@ -416,7 +416,7 @@ statements:
       - Use `raise ValueError(...)` for invalid arguments, `raise RuntimeError(...)` for state errors
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 37
@@ -425,7 +425,7 @@ statements:
       - Guard optional dependency imports with try/except and give clear install instructions on failure
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 38
@@ -435,7 +435,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 39
@@ -446,7 +446,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 40
@@ -701,7 +701,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 58
@@ -711,7 +711,7 @@ statements:
 
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 59
@@ -830,7 +830,7 @@ statements:
       - **API Keys:** Never commit API keys to version control. Use environment variables or `.env` files (already in `.gitignore`)
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 69

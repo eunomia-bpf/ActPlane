@@ -35,7 +35,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -47,7 +47,7 @@ statements:
       - Formatting: Prettier (`npm run format`). Keep diffs small and avoid reformatting unrelated files.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 4
@@ -56,7 +56,7 @@ statements:
       - Vue components: Vue 3 SFCs with `<script setup>`, PascalCase filenames (e.g. `SemanticTagsDemo.vue`).
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 5
@@ -65,7 +65,7 @@ statements:
       - CSS: prefer VitePress theme variables (`var(--vp-c-*)`) and keep components responsive (`@media (max-width: 720px)` when needed).
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 6
@@ -75,7 +75,7 @@ statements:
 
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 7
@@ -98,7 +98,7 @@ statements:
       - Commits follow a Conventional Commits style seen in history: `feat: ...`, `fix: ...`, `docs: ...` (optionally scoped like `feat(docs): ...`).
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 9
@@ -108,7 +108,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 10
@@ -119,5 +119,5 @@ statements:
       - `vercel.json` is present; keep builds reproducible and avoid relying on local-only assets.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high

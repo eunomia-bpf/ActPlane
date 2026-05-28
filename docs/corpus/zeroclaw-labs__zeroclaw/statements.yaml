@@ -34,7 +34,7 @@ statements:
       Every such field is now banned by this rule.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 3
@@ -50,7 +50,7 @@ statements:
       first place.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 4
@@ -74,7 +74,7 @@ statements:
       canonical source and resolve from there.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 5
@@ -128,7 +128,7 @@ statements:
       ```
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 8
@@ -142,7 +142,7 @@ statements:
       ```
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 9
@@ -152,7 +152,7 @@ statements:
       Docs-only changes: run markdown lint and link-integrity checks. If touching bootstrap scripts: `bash -n install.sh`.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 10
@@ -274,7 +274,7 @@ statements:
       6. **Queue hygiene** — stacked PR: declare `Depends on #...`. Replacing old PR: declare `Supersedes #...`.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 15
@@ -285,7 +285,7 @@ statements:
       - Work from a non-`master` branch. Open a PR to `master`; do not push directly.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 16
@@ -294,7 +294,7 @@ statements:
       - Use conventional commit titles. Prefer small PRs (`size: XS/S/M`).
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 17
@@ -303,7 +303,7 @@ statements:
       - Follow `.github/pull_request_template.md` fully.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 18
@@ -312,7 +312,7 @@ statements:
       - Never commit secrets, personal data, or real identity information (see `@docs/book/src/contributing/privacy.md`).
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 19
@@ -324,7 +324,7 @@ statements:
       - Do not add heavy dependencies for minor convenience.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 20
@@ -333,7 +333,7 @@ statements:
       - Do not silently weaken security policy or access constraints.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 21
@@ -342,7 +342,7 @@ statements:
       - Do not add speculative config/feature flags "just in case".
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 22
@@ -351,7 +351,7 @@ statements:
       - Do not mix massive formatting-only changes with functional changes.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 23
@@ -360,7 +360,7 @@ statements:
       - Do not modify unrelated modules "while here".
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 24
@@ -369,7 +369,7 @@ statements:
       - Do not bypass failing checks without explicit explanation.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 25
@@ -378,7 +378,7 @@ statements:
       - Do not hide behavior-changing side effects in refactor commits.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 26
@@ -387,7 +387,7 @@ statements:
       - Do not suppress unused production code with underscore prefixes or `#[allow(dead_code)]`; delete it, wire it into behavior, or track a follow-up issue. Reserve underscore names for required but intentionally unused API, trait, or callback parameters.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 27
@@ -396,7 +396,7 @@ statements:
       - Do not leave `unwrap()` / `expect()` in production paths; propagate errors or document the invariant that makes panic impossible.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 28
@@ -405,7 +405,7 @@ statements:
       - Do not include personal identity or sensitive information in test data, examples, docs, or commits.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 29
@@ -438,7 +438,7 @@ statements:
       - All user-facing output (CLI messages, tool descriptions, onboarding prompts) must use `fl!()` / Fluent strings — never bare string literals.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 31
@@ -447,7 +447,7 @@ statements:
       - Log messages, `tracing::` spans/events, and panic messages stay in English with stable `error_key` fields (RFC #5653 §4.6).
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 32
@@ -456,7 +456,7 @@ statements:
       - Panics and `tracing::` lines are never translated.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 33
@@ -465,7 +465,7 @@ statements:
       - The Wiki and internal developer docs are English only.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 34
@@ -484,7 +484,7 @@ statements:
       | `docs/book/src/foundations/fnd-00*.md` | `github-pr-review-session` — RFC reference data; public transparency documents |
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 35

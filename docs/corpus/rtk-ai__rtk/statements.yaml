@@ -58,7 +58,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -122,7 +122,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 9
@@ -269,7 +269,7 @@ statements:
       - **anyhow::Result** everywhere, always `.context("description")?`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 22
@@ -278,7 +278,7 @@ statements:
       - **No unwrap()** in production code
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 23
@@ -287,7 +287,7 @@ statements:
       - **lazy_static!** for all regex (never compile inside a function)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 24
@@ -296,7 +296,7 @@ statements:
       - **Fallback pattern**: if filter fails, execute raw command unchanged
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 25
@@ -305,7 +305,7 @@ statements:
       - **No async**: single-threaded by design (startup <10ms)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 26
@@ -315,7 +315,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 27
@@ -351,7 +351,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 30
@@ -361,7 +361,7 @@ statements:
       - Never commit code that hasn't passed all 3 checks
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 31
@@ -370,7 +370,7 @@ statements:
       - Fix ALL clippy warnings before moving on (zero tolerance)
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 32
@@ -380,7 +380,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 33
@@ -395,7 +395,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 34
@@ -412,7 +412,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 35
@@ -422,7 +422,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 36
@@ -434,7 +434,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 37
@@ -444,7 +444,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 38
@@ -454,7 +454,7 @@ statements:
       - Excessive regex pattern testing (trust snapshot tests, don't manually verify 20 edge cases)
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 39
@@ -463,7 +463,7 @@ statements:
       - Deep diving into external command documentation (use fixtures, don't research git/cargo internals)
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 40
@@ -472,7 +472,7 @@ statements:
       - Over-testing cross-platform behavior (test macOS + Linux, trust CI for Windows)
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 41
@@ -482,7 +482,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 42
@@ -492,7 +492,7 @@ statements:
       - "Should I research X external API behavior?" → ASK if it requires >3 commands
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 43
@@ -501,7 +501,7 @@ statements:
       - "Should I test Y edge case?" → ASK if not mentioned in requirements
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 44
@@ -511,7 +511,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 45
@@ -528,5 +528,5 @@ statements:
       5. **Validate assumptions**: Before starting, verify all referenced file paths exist and working directory is correct
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high

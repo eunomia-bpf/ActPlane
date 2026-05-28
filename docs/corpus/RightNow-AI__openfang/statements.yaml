@@ -28,7 +28,7 @@ statements:
       ```
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 3
@@ -43,7 +43,7 @@ statements:
       - Endpoints that compile but return wrong/empty data
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 4
@@ -120,7 +120,7 @@ statements:
       ```
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -155,7 +155,7 @@ statements:
       - **Don't touch `openfang-cli`** — user is actively building the interactive CLI
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 7
@@ -182,7 +182,7 @@ statements:
       - New routes must be registered in `server.rs` router AND implemented in `routes.rs`
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 10
@@ -200,7 +200,7 @@ statements:
       - Config fields need: struct field + `#[serde(default)]` + Default impl entry + Serialize/Deserialize derives
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 12

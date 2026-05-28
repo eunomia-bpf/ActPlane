@@ -28,7 +28,7 @@ statements:
       - **Issue Tracking** - How to use bd for work management
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -37,7 +37,7 @@ statements:
       - **Development Guidelines** - Code standards and testing
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 4
@@ -46,7 +46,7 @@ statements:
       - **Project Scope** - Read [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md) before adding new feature surface area
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 5
@@ -55,7 +55,7 @@ statements:
       - **Visual Design System** - Status icons, colors, and semantic styling for CLI output
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 6
@@ -64,7 +64,7 @@ statements:
       - **Contributor Protection** - Read [CONTRIBUTING.md](CONTRIBUTING.md) before handling external PRs
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 7
@@ -73,7 +73,7 @@ statements:
       - **Maintainer PR Guidelines** - Read [PR_MAINTAINER_GUIDELINES.md](PR_MAINTAINER_GUIDELINES.md) before triaging, landing, or closing PRs
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 8
@@ -88,7 +88,7 @@ statements:
       engine, or casually expand the database schema when metadata would work.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 9
@@ -104,7 +104,7 @@ statements:
       request-changes only as a last resort.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 10
@@ -119,7 +119,7 @@ statements:
       ```
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 11
@@ -132,7 +132,7 @@ statements:
       and credit their design/tests.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 12
@@ -148,7 +148,7 @@ statements:
       - Priority: `● P0` (filled circle with color)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 13
@@ -157,7 +157,7 @@ statements:
       See [AGENT_INSTRUCTIONS.md](AGENT_INSTRUCTIONS.md) for full development guidelines.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 14
@@ -175,7 +175,7 @@ statements:
       driver instead of patching around it in beads.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 15
@@ -200,7 +200,7 @@ statements:
       ```
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 16
@@ -212,7 +212,7 @@ statements:
       - Default local test command: `make test` (or `./scripts/test.sh`).
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 17
@@ -221,7 +221,7 @@ statements:
       - Opt-in ICU regex path: `make test-icu-path` (or `./scripts/test-icu-path.sh ./...`).
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 18
@@ -243,7 +243,7 @@ statements:
       ```
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 20
@@ -269,7 +269,7 @@ statements:
       ```
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 21
@@ -279,7 +279,7 @@ statements:
       - `scp` - use `-o BatchMode=yes` for non-interactive
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 22
@@ -288,7 +288,7 @@ statements:
       - `ssh` - use `-o BatchMode=yes` to fail instead of prompting
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 23
@@ -297,7 +297,7 @@ statements:
       - `apt-get` - use `-y` flag
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 24
@@ -306,7 +306,7 @@ statements:
       - `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 25
@@ -333,7 +333,7 @@ statements:
       7. **Hand off** - Provide context for next session
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 26
@@ -344,7 +344,7 @@ statements:
       - Work is NOT complete until `git push` succeeds
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 27
@@ -353,7 +353,7 @@ statements:
       - NEVER stop before pushing - that leaves work stranded locally
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 28
@@ -362,7 +362,7 @@ statements:
       - NEVER say "ready to push when you are" - YOU must push
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 29
@@ -371,7 +371,7 @@ statements:
       - If push fails, resolve and retry until it succeeds
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 30
@@ -384,7 +384,7 @@ statements:
       **IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 31
@@ -415,7 +415,7 @@ statements:
       ```
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 33
@@ -433,7 +433,7 @@ statements:
       ```
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 34
@@ -448,7 +448,7 @@ statements:
       ```
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 35
@@ -462,7 +462,7 @@ statements:
       ```
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 36
@@ -516,7 +516,7 @@ statements:
       6. **Complete**: `bd close <id> --reason "Done"`
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 39
@@ -544,7 +544,7 @@ statements:
       - ✅ Use bd for ALL task tracking
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 41
@@ -553,7 +553,7 @@ statements:
       - ✅ Always use `--json` flag for programmatic use
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 42
@@ -562,7 +562,7 @@ statements:
       - ✅ Link discovered work with `discovered-from` dependencies
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 43
@@ -571,7 +571,7 @@ statements:
       - ✅ Check `bd ready` before asking "what should I work on?"
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 44
@@ -580,7 +580,7 @@ statements:
       - ❌ Do NOT create markdown TODO lists
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 45
@@ -589,7 +589,7 @@ statements:
       - ❌ Do NOT use external issue trackers
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 46
@@ -598,7 +598,7 @@ statements:
       - ❌ Do NOT duplicate tracking systems
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 47

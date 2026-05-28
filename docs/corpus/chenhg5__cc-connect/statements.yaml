@@ -58,7 +58,7 @@ statements:
 
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 4
@@ -137,7 +137,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 8
@@ -166,7 +166,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 9
@@ -177,7 +177,7 @@ statements:
       - Features that may vary per deployment should be configurable in `config.toml`
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 10
@@ -186,7 +186,7 @@ statements:
       - Use `map[string]any` options for agent/platform factories to stay flexible
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 11
@@ -196,7 +196,7 @@ statements:
 
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 12
@@ -221,7 +221,7 @@ statements:
       - Always wrap errors with context: `fmt.Errorf("feishu: reply card: %w", err)`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 14
@@ -230,7 +230,7 @@ statements:
       - Never silently swallow errors; at minimum log them with `slog.Error` / `slog.Warn`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 15
@@ -239,7 +239,7 @@ statements:
       - Use `slog` (structured logging) consistently; never `log.Printf` or `fmt.Printf` for runtime logs
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 16
@@ -249,7 +249,7 @@ statements:
 
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 17
@@ -260,7 +260,7 @@ statements:
       - Agent sessions are accessed from multiple goroutines; protect shared state with `sync.Mutex` or `atomic` types
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 18
@@ -269,7 +269,7 @@ statements:
       - Use `context.Context` for cancellation propagation
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 19
@@ -278,7 +278,7 @@ statements:
       - Channels should have clear ownership; document who closes them
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 20
@@ -288,7 +288,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 21
@@ -303,7 +303,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 22
@@ -314,7 +314,7 @@ statements:
       - Follow standard Go conventions (`gofmt`, `go vet`)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 23
@@ -323,7 +323,7 @@ statements:
       - Use `strings.EqualFold` for case-insensitive comparisons
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 24
@@ -332,7 +332,7 @@ statements:
       - Avoid `init()` for anything other than platform/agent registration
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 25
@@ -341,7 +341,7 @@ statements:
       - Keep functions focused; extract helpers when a function exceeds ~80 lines
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 26
@@ -351,7 +351,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 27
@@ -364,7 +364,7 @@ statements:
       - All new features must include unit tests
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 28
@@ -373,7 +373,7 @@ statements:
       - All bug fixes should include a regression test
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 29
@@ -383,7 +383,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 30
@@ -418,7 +418,7 @@ statements:
       - Use stub types for `Platform` and `Agent` in core tests (see `core/engine_test.go`)
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 32
@@ -427,7 +427,7 @@ statements:
       - Test card rendering by inspecting the returned `*Card` struct, not JSON
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 33
@@ -437,7 +437,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 34
@@ -519,7 +519,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 39
@@ -537,7 +537,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 40
@@ -555,5 +555,5 @@ statements:
       8. Add unit tests
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high

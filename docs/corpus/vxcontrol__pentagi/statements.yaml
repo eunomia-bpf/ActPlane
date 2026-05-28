@@ -20,7 +20,7 @@ statements:
       1. **Always use English** for all interactions, responses, explanations, and questions with users.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -33,7 +33,7 @@ statements:
          - Both backend and frontend validation must be implemented; do not rely on frontend validation alone
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 4
@@ -247,7 +247,7 @@ statements:
       8. Update the GraphQL schema/types and frontend settings page if needed.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 15
@@ -259,7 +259,7 @@ statements:
       When modifying `backend/pkg/graph/schema.graphqls`, re-run the gqlgen command to regenerate resolver stubs. When modifying REST handler annotations, re-run swag to update Swagger docs. When modifying `frontend/src/graphql/*.graphql` query files, re-run `npm run graphql:generate` to update TypeScript types.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 16

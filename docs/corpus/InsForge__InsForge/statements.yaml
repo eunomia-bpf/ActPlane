@@ -46,7 +46,7 @@ statements:
       Use the `download-template` MCP tool to create a new project with your backend URL and anon key pre-configured.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 4
@@ -60,7 +60,7 @@ statements:
       ```
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -84,7 +84,7 @@ statements:
       **API BASE URL**: Your API base URL is `https://your-app.region.insforge.app`.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 6
@@ -98,7 +98,7 @@ statements:
       Before writing or editing any InsForge integration code, you **MUST** call the `fetch-docs` MCP tool to get the latest SDK documentation. This ensures you have accurate, up-to-date implementation patterns.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 7
@@ -150,7 +150,7 @@ statements:
       - Serverless function invocation
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 10
@@ -166,7 +166,7 @@ statements:
       - Serverless function deployment (`create-function`, `update-function`, `delete-function`)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 11
@@ -178,7 +178,7 @@ statements:
       - For auth: use `auth-sdk` for custom UI, or framework-specific components for pre-built UI
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 12
@@ -196,7 +196,7 @@ statements:
       - Database inserts require array format: `[{...}]`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 14
@@ -214,7 +214,7 @@ statements:
       - Storage: Upload files to buckets, store URLs in database
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 16
@@ -223,7 +223,7 @@ statements:
       - AI integrations should call OpenRouter directly with `baseURL: "https://openrouter.ai/api/v1"` and a server-side `OPENROUTER_API_KEY`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 17
@@ -232,5 +232,5 @@ statements:
       - **EXTRA IMPORTANT**: Use Tailwind CSS 3.4 (do not upgrade to v4). Lock these dependencies in `package.json`
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high

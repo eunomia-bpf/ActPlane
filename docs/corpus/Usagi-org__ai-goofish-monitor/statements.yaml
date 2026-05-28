@@ -29,7 +29,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -43,7 +43,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 4
@@ -72,7 +72,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 6
@@ -85,7 +85,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 7
@@ -98,5 +98,5 @@ statements:
       - Web 认证默认 `admin/admin123`，生产环境务必修改，推荐启用 HTTPS 并限制访问来源。
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high

@@ -67,7 +67,7 @@ statements:
       `copy-assets` (called from `build`) copies `src/db/schema.sql` and all `src/extraction/wasm/*.wasm` files into `dist/`. **Any new SQL or grammar wasm must be copied or it won't ship.**
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 6
@@ -235,7 +235,7 @@ statements:
       - **EdgeKind**: `contains`, `calls`, `imports`, `exports`, `extends`, `implements`, `references`, `type_of`, `returns`, `instantiates`, `overrides`, `decorates`.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 22
@@ -320,7 +320,7 @@ statements:
       - All installer changes need matching coverage in `__tests__/installer-targets.test.ts` — there are ~47 parameterized contract tests covering install idempotency, sibling preservation, uninstall reverses install, byte-equal re-runs returning `unchanged`, and partial-state recovery for Codex.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 31
@@ -332,7 +332,7 @@ statements:
       Cursor launches MCP subprocesses with the wrong cwd and doesn't pass `rootUri` in `initialize`. The installer injects `--path` into Cursor's MCP args — absolute path for local installs, `${workspaceFolder}` for global installs. If you touch Cursor wiring, preserve this.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 32
@@ -344,7 +344,7 @@ statements:
       `src/mcp/server-instructions.ts` is sent back to the agent in the MCP `initialize` response. This is the *first* thing every agent sees about how to use the tools — treat it as the authoritative tool guidance and keep it in sync with `instructions-template.ts` and `.cursor/rules/codegraph.mdc`.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 33
@@ -393,7 +393,7 @@ statements:
       - `pr19-improvements.test.ts`, `frameworks-integration.test.ts` — regression coverage for specific past PRs/incidents; don't rename these, the names anchor to git history.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 38
@@ -415,7 +415,7 @@ statements:
       Behavior that differs by platform (path resolution, drive letters, `SENSITIVE_PATHS`, `%APPDATA%` config dirs, CRLF) must be gated, not assumed. Use `it.runIf(process.platform === 'win32')(...)` for Windows-only assertions and `it.runIf(process.platform !== 'win32')(...)` for POSIX-only ones — e.g. `/etc` is sensitive on POSIX but resolves to `C:\etc` (non-existent) on Windows, so an ungated `/etc` assertion fails on Windows. Validate the Windows side for real (see below); don't merge a Windows-gated test you haven't seen run.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 40
@@ -428,7 +428,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 41
@@ -452,7 +452,7 @@ statements:
       - Clone fresh into a **Windows-local** path (`C:\dev\codegraph`) and `npm ci` there — never run npm against the shared Mac repo, since `esbuild`/`rollup` ship platform-specific binaries.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 43
@@ -508,7 +508,7 @@ statements:
       4. Add the link reference at the bottom: `[X.Y.Z]: https://github.com/colbymchenry/codegraph/releases/tag/vX.Y.Z`.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 48
@@ -565,7 +565,7 @@ statements:
       publish actions on shared state. Write the files, hand the user the commands.
     type: directive
     topic: DevOps
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 52
@@ -577,7 +577,7 @@ statements:
       - The `0.7.x` line is in active multi-agent rollout. Any change to `src/installer/` (especially `targets/`) needs corresponding test coverage and a CHANGELOG entry — installer regressions break every new install silently.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 53
@@ -586,7 +586,7 @@ statements:
       - When changing what the MCP tools do or how agents should use them, update **all three** of `src/mcp/server-instructions.ts`, `src/installer/instructions-template.ts`, and `.cursor/rules/codegraph.mdc` — they're written to different places but say the same thing.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 54
@@ -595,5 +595,5 @@ statements:
       - CodeGraph provides **code context**, not product requirements. For new features, ask the user about UX, edge cases, and acceptance criteria — the graph won't tell you.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high

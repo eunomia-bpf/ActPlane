@@ -8,7 +8,7 @@ statements:
       All contributors (human and AI) must follow [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR. ([Chinese version](CONTRIBUTING.zh.md))
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 2
@@ -22,7 +22,7 @@ statements:
       - **Directory size limit**: A single directory must not exceed **10** direct children (files + subdirectories). Split by responsibility when approaching this limit.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 3
@@ -32,7 +32,7 @@ statements:
       See [docs/contributing/file-structure.md](docs/contributing/file-structure.md) for complete rules on directory naming, page module layout, and shared vs private code placement. Agents working in this repository must also read and follow the `architecture` skill (`.claude/skills/architecture/SKILL.md`) when creating files, modules, or making structure decisions.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 4
@@ -44,7 +44,7 @@ statements:
       - **Components**: PascalCase (`Button.tsx`, `Modal.tsx`)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 5
@@ -53,7 +53,7 @@ statements:
       - **Utilities**: camelCase (`formatDate.ts`)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 6
@@ -62,7 +62,7 @@ statements:
       - **Hooks**: camelCase with `use` prefix (`useTheme.ts`)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 7
@@ -71,7 +71,7 @@ statements:
       - **Constants files**: camelCase (`constants.ts`) — values inside use UPPER_SNAKE_CASE
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 8
@@ -80,7 +80,7 @@ statements:
       - **Type files**: camelCase (`types.ts`)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 9
@@ -89,7 +89,7 @@ statements:
       - **Style files**: kebab-case or `ComponentName.module.css`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 10
@@ -98,7 +98,7 @@ statements:
       - **Unused params**: prefix with `_`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 11
@@ -110,7 +110,7 @@ statements:
       - **Components**: `@arco-design/web-react` — no raw interactive HTML (`<button>`, `<input>`, `<select>`, etc.)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 12
@@ -119,7 +119,7 @@ statements:
       - **Icons**: `@icon-park/react`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 13
@@ -131,7 +131,7 @@ statements:
       - Prefer **UnoCSS utility classes**; complex styles use **CSS Modules** (`ComponentName.module.css`)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 14
@@ -140,7 +140,7 @@ statements:
       - Colors must use **semantic tokens** from `uno.config.ts` or CSS variables — no hardcoded values
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 15
@@ -149,7 +149,7 @@ statements:
       - Arco overrides go in the component's CSS Module via `:global()` — no global override files
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 16
@@ -158,7 +158,7 @@ statements:
       - Global styles only in `src/renderer/styles/`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 17
@@ -180,7 +180,7 @@ statements:
       - Strict mode enabled — no `any`, no implicit returns
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 19
@@ -189,7 +189,7 @@ statements:
       - Use path aliases: `@/*`, `@process/*`, `@renderer/*`, `@worker/*`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 20
@@ -198,7 +198,7 @@ statements:
       - Prefer `type` over `interface` (per Oxlint config)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 21
@@ -207,7 +207,7 @@ statements:
       - English for code comments; JSDoc for public functions
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 22
@@ -223,7 +223,7 @@ statements:
       - `src/process/worker/` — fork workers, no Electron APIs
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 23
@@ -234,7 +234,7 @@ statements:
       See [docs/architecture/overview.md](docs/architecture/overview.md) for details.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 24
@@ -246,7 +246,7 @@ statements:
       **Framework**: Vitest 4 (`vitest.config.ts`). Run `bun run test` before every commit. Coverage target ≥ 80%.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 25
@@ -256,7 +256,7 @@ statements:
       See the `testing` skill (`.claude/skills/testing/SKILL.md`) for complete workflow, quality rules, and checklist.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 26
@@ -274,7 +274,7 @@ statements:
       ```
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 27
@@ -295,7 +295,7 @@ statements:
       > If prek reports formatting or lint issues, run the auto-fix commands above first, then re-run prek to verify.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 28
@@ -312,7 +312,7 @@ statements:
       Both commands must complete without errors before opening a PR. The `oss-pr` skill enforces this automatically.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 29
@@ -324,7 +324,7 @@ statements:
       - Single-element arrays that fit on one line → inline: `[{ id: 'a', value: 'b' }]`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 30
@@ -333,7 +333,7 @@ statements:
       - Trailing commas required in multi-line arrays/objects
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 31
@@ -342,7 +342,7 @@ statements:
       - Single quotes for strings
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 32
@@ -354,7 +354,7 @@ statements:
       Commit format: `<type>(<scope>): <subject>` in English. Types: feat, fix, refactor, chore, docs, test, style, perf. **NEVER add AI signatures** (Co-Authored-By, Generated with, etc.).
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 33
@@ -399,7 +399,7 @@ statements:
       > Skills are located in `.claude/skills/` and contain project conventions that apply to **all** agents and contributors. Every agent working in this repository must read and follow the relevant skill files when the task matches their scope.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 36
@@ -451,7 +451,7 @@ statements:
       All user-facing text must use i18n keys — never hardcode strings. Languages and modules are defined in `src/common/config/i18n-config.json`.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 41
@@ -461,5 +461,5 @@ statements:
       See the `i18n` skill (`.claude/skills/i18n/SKILL.md`) for complete workflow, key naming, and validation steps.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: intent
     confidence: high

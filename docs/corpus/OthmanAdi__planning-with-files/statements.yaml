@@ -22,7 +22,7 @@ statements:
       - **Author**: OthmanAdi only. NEVER add `Co-Authored-By:` trailers.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 3
@@ -31,7 +31,7 @@ statements:
       - **Format**: Conventional Commits — `fix:`, `feat:`, `release:`, `docs:` prefixes.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 4
@@ -40,7 +40,7 @@ statements:
       - **One squashed commit per release or PR merge.**
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -49,7 +49,7 @@ statements:
       - No `--no-verify`. No force push to master except tag ref updates.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 6
@@ -60,7 +60,7 @@ statements:
       ---
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 7
@@ -83,7 +83,7 @@ statements:
       12. `gh issue close N` if applicable.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 8
@@ -96,7 +96,7 @@ statements:
       All 19 files must be bumped to the same version string every release.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 9
@@ -126,7 +126,7 @@ statements:
       | `CITATION.cff` | Citation file |
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 10
@@ -137,7 +137,7 @@ statements:
       ---
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 11
@@ -163,7 +163,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 12
@@ -187,7 +187,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 13
@@ -206,7 +206,7 @@ statements:
       - Run through /humanizer before posting.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 14
@@ -222,7 +222,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 15
@@ -246,7 +246,7 @@ statements:
       - Thanks at the bottom.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 16
@@ -277,7 +277,7 @@ statements:
       - After every release: manually upload `clawhub-upload/SKILL.md` at clawhub.io.
     type: directive
     topic: DevOps
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 19
@@ -318,7 +318,7 @@ statements:
       - Do not add Co-Authored-By to any commit.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 23
@@ -327,7 +327,7 @@ statements:
       - Do not bump .continue or .gemini without explicit instruction.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 24
@@ -336,7 +336,7 @@ statements:
       - Do not edit `task_plan.md` or `DESIGN.md` directly (user-owned contracts).
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 25
@@ -345,7 +345,7 @@ statements:
       - Do not log subagent returns into `task_plan.md` — use `progress.md`.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 26
@@ -354,7 +354,7 @@ statements:
       - Do not use em-dashes in any user-facing prose.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 27
@@ -363,5 +363,5 @@ statements:
       - Do not skip ClawHub upload after a release.
     type: directive
     topic: DevOps
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high

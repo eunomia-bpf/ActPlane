@@ -92,7 +92,7 @@ statements:
       - CLI commands (`Server/src/cli/commands/`) also mirror these but are a separate implementation.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 7
@@ -103,7 +103,7 @@ statements:
       Avoid premature abstraction. Three similar lines of code is better than a helper that's used once. Only abstract when you have 3+ genuine use cases.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 8
@@ -114,7 +114,7 @@ statements:
       When removing functionality, delete it completely. No `_unused` renames, no `// removed` comments, no backwards-compatibility shims for internal code.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 9
@@ -125,7 +125,7 @@ statements:
       Every new feature needs tests. Run them before PRs.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 10
@@ -136,7 +136,7 @@ statements:
       Each MCP tool does one thing well. Resist the urge to add "convenient" parameters that bloat the API surface.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 11
@@ -147,7 +147,7 @@ statements:
       Keep them smart and focused rather than "read everything" type resources. Resources should be quick and LLM-friendly.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 12
@@ -268,7 +268,7 @@ statements:
       - Return `next_cursor` when more results exist
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 18
@@ -297,7 +297,7 @@ statements:
       When you touch a shim or anything else gated by `#if UNITY_*_OR_NEWER`, run `tools/check-unity-versions.sh` to compile-check across the CI matrix locally before committing — the matrix lives in `tools/unity-versions.json`.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 20
@@ -354,7 +354,7 @@ statements:
       5. Add Unity tests in `TestProjects/UnityMCPTests/Assets/Tests/`
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 23
@@ -374,7 +374,7 @@ statements:
       - Don't add features without tests
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 25
@@ -383,7 +383,7 @@ statements:
       - Don't create helper functions for one-time operations
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 26
@@ -392,7 +392,7 @@ statements:
       - Don't add error handling for scenarios that can't happen
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 27
@@ -401,7 +401,7 @@ statements:
       - Don't commit to `main` directly - branch off `beta` for PRs
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 28
@@ -410,5 +410,5 @@ statements:
       - Don't add docstrings/comments to code you didn't change
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high

@@ -21,7 +21,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -35,7 +35,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 4
@@ -47,7 +47,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -58,7 +58,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 6
@@ -72,7 +72,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 7
@@ -83,7 +83,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 8
@@ -94,7 +94,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 9
@@ -111,7 +111,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 10
@@ -130,7 +130,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 11
@@ -155,7 +155,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 13
@@ -167,7 +167,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 14
@@ -187,7 +187,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 15
@@ -198,7 +198,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 16

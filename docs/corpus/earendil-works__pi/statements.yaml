@@ -10,7 +10,7 @@ statements:
       - Keep answers short and concise
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 2
@@ -19,7 +19,7 @@ statements:
       - No emojis in commits, issues, PR comments, or code
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 3
@@ -28,7 +28,7 @@ statements:
       - No fluff or cheerful filler text (e.g., "Thanks @user" not "Thanks so much @user!")
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 4
@@ -37,7 +37,7 @@ statements:
       - Technical prose only, be direct
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 5
@@ -46,7 +46,7 @@ statements:
       - When the user asks a question, answer it first before making edits or running implementation commands.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 6
@@ -55,7 +55,7 @@ statements:
       - When responding to user feedback or an analysis, explicitly say whether you agree or disagree before saying what you changed.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 7
@@ -67,7 +67,7 @@ statements:
       - Read files in full before wide-ranging changes, before editing files you have not fully inspected, and when asked to investigate or audit. Do not rely on search snippets for broad changes.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 8
@@ -76,7 +76,7 @@ statements:
       - No `any` unless absolutely necessary.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 9
@@ -85,7 +85,7 @@ statements:
       - Inline single-line helpers that have only one call site.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 10
@@ -94,7 +94,7 @@ statements:
       - Check node_modules for external API types; don't guess.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 11
@@ -103,7 +103,7 @@ statements:
       - **No inline imports** (`await import()`, `import("pkg").Type`, dynamic type imports). Top-level imports only.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 12
@@ -112,7 +112,7 @@ statements:
       - Never remove or downgrade code to fix type errors from outdated deps; upgrade the dep instead.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 13
@@ -121,7 +121,7 @@ statements:
       - Use only erasable TypeScript syntax (Node strip-only mode) in code checked by the root config (`packages/*/src`, `packages/*/test`, `packages/coding-agent/examples`): no parameter properties, `enum`, `namespace`/`module`, `import =`, `export =`, or other constructs needing JS emit. Use explicit fields with constructor assignments.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 14
@@ -130,7 +130,7 @@ statements:
       - Always ask before removing functionality or code that appears intentional.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 15
@@ -139,7 +139,7 @@ statements:
       - Do not preserve backward compatibility unless the user asks for it.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 16
@@ -148,7 +148,7 @@ statements:
       - Never hardcode key checks (e.g. `matchesKey(keyData, "ctrl+x")`). Add defaults to `DEFAULT_EDITOR_KEYBINDINGS` or `DEFAULT_APP_KEYBINDINGS` so they stay configurable.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 17
@@ -157,7 +157,7 @@ statements:
       - Never modify `packages/ai/src/models.generated.ts` directly; update `packages/ai/scripts/generate-models.ts` instead.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 18
@@ -169,7 +169,7 @@ statements:
       - After code changes (not docs): `npm run check` (full output, no tail). Fix all errors, warnings, and infos before committing. Does not run tests.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 19
@@ -178,7 +178,7 @@ statements:
       - Never run `npm run build` or `npm test` unless requested by the user.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 20
@@ -187,7 +187,7 @@ statements:
       - Never run the full vitest suite directly: it includes e2e tests that activate when endpoint/auth env vars are present. For all non-e2e tests, run `./test.sh` from the repo root. Otherwise run specific tests from the package root: `node ../../node_modules/vitest/dist/cli.js --run test/specific.test.ts`.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 21
@@ -196,7 +196,7 @@ statements:
       - If you create or modify a test file, run it and iterate on test or implementation until it passes.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 22
@@ -205,7 +205,7 @@ statements:
       - For `packages/coding-agent/test/suite/`, use `test/suite/harness.ts` + the faux provider. No real provider APIs, keys, or paid tokens.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 23
@@ -214,7 +214,7 @@ statements:
       - Put issue-specific regressions under `packages/coding-agent/test/suite/regressions/` named `<issue-number>-<short-slug>.test.ts`.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 24
@@ -223,7 +223,7 @@ statements:
       - For ad-hoc scripts, `write` them to a temp file (e.g. `/tmp`), run, edit if needed, remove when done. Don't embed multi-line scripts in `bash` commands.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 25
@@ -232,7 +232,7 @@ statements:
       - Never commit unless the user asks.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 26
@@ -244,7 +244,7 @@ statements:
       - Treat npm dep and lockfile changes as reviewed code. Direct external deps stay pinned to exact versions.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 27
@@ -253,7 +253,7 @@ statements:
       - Hydrate/update locally with `npm install --ignore-scripts`; clean/CI-style with `npm ci --ignore-scripts`. Don't run lifecycle scripts unless the user asks.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 28
@@ -262,7 +262,7 @@ statements:
       - If dep metadata changes, refresh `package-lock.json` with `npm install --package-lock-only --ignore-scripts`.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 29
@@ -271,7 +271,7 @@ statements:
       - If `packages/coding-agent/npm-shrinkwrap.json` needs regen, run `node scripts/generate-coding-agent-shrinkwrap.mjs` (verify with `--check` or `npm run check`). New deps with lifecycle scripts require review and an explicit allowlist entry in that script; never add one silently.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 30
@@ -280,7 +280,7 @@ statements:
       - Pre-commit blocks lockfile commits unless `PI_ALLOW_LOCKFILE_CHANGE=1`. Don't bypass unless the user wants the lockfile change committed.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 31
@@ -304,7 +304,7 @@ statements:
       - Only commit files YOU changed in THIS session.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 33
@@ -313,7 +313,7 @@ statements:
       - Stage explicit paths (`git add <path1> <path2>`); never `git add -A` / `git add .`.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 34
@@ -322,7 +322,7 @@ statements:
       - Before committing, run `git status` and verify you are only staging your files.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 35
@@ -331,7 +331,7 @@ statements:
       - `packages/ai/src/models.generated.ts` may always be included alongside your files.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 36
@@ -343,7 +343,7 @@ statements:
       - `git reset --hard`, `git checkout .`, `git clean -fd`, `git stash`, `git add -A`, `git add .`, `git commit --no-verify`.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 37
@@ -355,7 +355,7 @@ statements:
       - Resolve conflicts only in files you modified.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 38
@@ -364,7 +364,7 @@ statements:
       - If a conflict is in a file you did not modify, abort and ask the user.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 39
@@ -373,7 +373,7 @@ statements:
       - Never force push.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 40
@@ -397,7 +397,7 @@ statements:
       - Add `pkg:*` labels for affected packages (`pkg:agent`, `pkg:ai`, `pkg:coding-agent`, `pkg:tui`); use all that apply.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 42
@@ -409,7 +409,7 @@ statements:
       - Write the comment to a temp file and post with `gh issue/pr comment --body-file` (never multi-line markdown via `--body`).
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 43
@@ -418,7 +418,7 @@ statements:
       - Keep comments concise, technical, in the user's tone.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 44
@@ -427,7 +427,7 @@ statements:
       - End every AI-posted comment with the AI-generated disclaimer line specified by the originating prompt (e.g. `This comment is AI-generated by `/wr``).
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 45
@@ -439,7 +439,7 @@ statements:
       - Include `fixes #<number>` or `closes #<number>` in the message so merging auto-closes the issue. For multiple issues, repeat the keyword per issue (`closes #1, closes #2`); a shared keyword (`closes #1, #2`) only closes the first.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 46
@@ -494,7 +494,7 @@ statements:
       - All new entries go under `## [Unreleased]`. Read the full section first and append to existing subsections; never duplicate them.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 50
@@ -503,7 +503,7 @@ statements:
       - Released version sections (e.g. `## [0.12.2]`) are immutable; never modify them.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 51
@@ -515,7 +515,7 @@ statements:
       - Internal (from issues): `Fixed foo bar ([#123](https://github.com/earendil-works/pi-mono/issues/123))`
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 52
@@ -524,7 +524,7 @@ statements:
       - External contributions: `Added feature X ([#456](https://github.com/earendil-works/pi-mono/pull/456) by [@username](https://github.com/username))`
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 53
@@ -586,7 +586,7 @@ statements:
 
     type: directive
     topic: DevOps
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 55
@@ -597,5 +597,5 @@ statements:
       If the user's instructions conflict with any rule in this document, ask for explicit confirmation before overriding. Only then execute their instructions.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high

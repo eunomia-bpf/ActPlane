@@ -23,7 +23,7 @@ statements:
       - Delegate specialized work to the most appropriate agent.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -32,7 +32,7 @@ statements:
       - Prefer evidence over assumptions: verify outcomes before final claims.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 4
@@ -41,7 +41,7 @@ statements:
       - Choose the lightest-weight path that preserves quality.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 5
@@ -52,7 +52,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 6
@@ -66,7 +66,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 7
@@ -79,7 +79,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 8
@@ -153,7 +153,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 13
@@ -163,7 +163,7 @@ statements:
       Broad requests: explore first, then plan. 2+ independent tasks in parallel. `run_in_background` for builds/tests.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 14
@@ -172,7 +172,7 @@ statements:
       Keep authoring and review as separate passes: writer pass creates or revises content, reviewer/verifier pass evaluates it later in a separate lane.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 15
@@ -181,7 +181,7 @@ statements:
       Never self-approve in the same active context; use `code-reviewer` or `verifier` for the approval pass.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 16
@@ -192,7 +192,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 17
@@ -230,7 +230,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 18
@@ -256,7 +256,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 20
@@ -281,5 +281,5 @@ statements:
       <!-- OMC:END -->
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high

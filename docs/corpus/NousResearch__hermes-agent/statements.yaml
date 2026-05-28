@@ -28,7 +28,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -272,7 +272,7 @@ statements:
       ---
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 11
@@ -426,7 +426,7 @@ statements:
       ---
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 17
@@ -457,7 +457,7 @@ statements:
       ---
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 18
@@ -475,7 +475,7 @@ statements:
          a version bump.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 19
@@ -516,7 +516,7 @@ statements:
       the env var in code (see `gateway_timeout`, `terminal.cwd` → `TERMINAL_CWD`).
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 20
@@ -815,7 +815,7 @@ statements:
          ```
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 25
@@ -837,7 +837,7 @@ statements:
          should not be the headline interaction surface in the prose.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 26
@@ -855,7 +855,7 @@ statements:
          genuinely platform-bound.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 27
@@ -870,7 +870,7 @@ statements:
          — credit the human, not the tool.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 28
@@ -887,7 +887,7 @@ statements:
          `## Prerequisites`.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 29
@@ -901,7 +901,7 @@ statements:
          skill directory.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 30
@@ -913,7 +913,7 @@ statements:
          `scripts/run_tests.sh tests/skills/test_<skill>_skill.py -q`.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 31
@@ -933,7 +933,7 @@ statements:
       ---
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 32
@@ -1160,7 +1160,7 @@ statements:
       invalidation. See `/skills install --now` for the canonical pattern.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 38
@@ -1254,7 +1254,7 @@ statements:
          of which one is active.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 41
@@ -1269,7 +1269,7 @@ statements:
       has its own `HERMES_HOME` directory. This was the source of 5 bugs fixed in PR #3575.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 42
@@ -1284,7 +1284,7 @@ statements:
       `hermes_cli/tools_config.py` for the canonical pattern.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 43
@@ -1295,7 +1295,7 @@ statements:
       Leaks as literal `?[K` text under `prompt_toolkit`'s `patch_stdout`. Use space-padding: `f"\r{line}{' ' * pad}"`.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 44
@@ -1317,7 +1317,7 @@ statements:
       Tool schema descriptions must not mention tools from other toolsets by name (e.g., `browser_navigate` saying "prefer web_search"). Those tools may be unavailable (missing API keys, disabled toolset), causing the model to hallucinate calls to non-existent tools. If a cross-reference is needed, add it dynamically in `get_tool_definitions()` in `model_tools.py` — see the `browser_navigate` / `execute_code` post-processing blocks for the pattern.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 46
@@ -1336,7 +1336,7 @@ statements:
       (which races session lifecycle).
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 47
@@ -1352,7 +1352,7 @@ statements:
       red flag.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 48
@@ -1365,7 +1365,7 @@ statements:
       with actual imports (not mocks) against a temp `HERMES_HOME`.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 49
@@ -1391,7 +1391,7 @@ statements:
       ---
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 50
@@ -1415,7 +1415,7 @@ statements:
       ```
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 51
@@ -1496,7 +1496,7 @@ statements:
       Always run the full suite before pushing changes.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 54
@@ -1553,5 +1553,5 @@ statements:
       them into invariants before re-requesting review.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high

@@ -35,7 +35,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 3
@@ -48,7 +48,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 4
@@ -64,7 +64,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 5
@@ -76,7 +76,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 6
@@ -87,7 +87,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 7
@@ -181,7 +181,7 @@ statements:
       - TypeScript, ESM only (`"type": "module"`)
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 12
@@ -190,7 +190,7 @@ statements:
       - No code comments explaining WHAT — use clear naming instead
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 13
@@ -199,7 +199,7 @@ statements:
       - Use `fingerprintId()` for content-addressable dedup, `generateId()` for unique IDs
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 14
@@ -208,7 +208,7 @@ statements:
       - Parallel operations where possible (`Promise.all` for independent kv writes/reads)
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 15
@@ -217,7 +217,7 @@ statements:
       - Input validation at system boundaries (MCP handlers, REST endpoints)
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 16
@@ -226,7 +226,7 @@ statements:
       - REST endpoints must whitelist fields — never pass raw request body to `sdk.trigger()`
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 17
@@ -235,7 +235,7 @@ statements:
       - Use `recordAudit()` for state-changing operations
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 18
@@ -245,7 +245,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 19
@@ -256,7 +256,7 @@ statements:
       - All tests must pass before PR: `npm test` (950+ tests)
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 20
@@ -265,7 +265,7 @@ statements:
       - Mock pattern: `vi.mock("iii-sdk")` with mock `sdk.trigger`, `kv.get/set/list`
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 21
@@ -274,7 +274,7 @@ statements:
       - Test files go in `test/` with `.test.ts` extension
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 22
@@ -284,7 +284,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 23

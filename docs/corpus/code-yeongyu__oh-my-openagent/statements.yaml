@@ -9,7 +9,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 2
@@ -461,7 +461,7 @@ statements:
 
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 33
@@ -473,7 +473,7 @@ statements:
       - **Runtime:** Bun only (1.3.12 in CI). Never npm/yarn/pnpm.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 34
@@ -482,7 +482,7 @@ statements:
       - **TypeScript:** strict mode, ESNext, bundler moduleResolution, `bun-types` (never `@types/node`).
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 35
@@ -491,7 +491,7 @@ statements:
       - **Tests:** Bun test (`bun:test`), co-located `*.test.ts`, given/when/then style — nested `describe` with `#given`/`#when`/`#then` prefixes, or inline `// given` / `// when` / `// then` comments. Never Arrange-Act-Assert comments.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 36
@@ -518,7 +518,7 @@ statements:
       - **Factory pattern:** `createXXX()` for all tools, hooks, agents.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 39
@@ -527,7 +527,7 @@ statements:
       - **File naming:** kebab-case for files and directories.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 40
@@ -536,7 +536,7 @@ statements:
       - **Module structure:** `index.ts` barrel exports, **no catch-all files** (`utils.ts`, `helpers.ts`, `service.ts` banned), 200 LOC soft limit per file.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 41
@@ -545,7 +545,7 @@ statements:
       - **Imports:** relative within a module, barrel imports across modules (`import { log } from "./shared"`). **No path aliases in `src/`** — never `@/`. `packages/web/` is the only exception: it uses `@/*` (Next.js convention) and has its own tsconfig.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 42
@@ -554,7 +554,7 @@ statements:
       - **Config format:** JSONC with comments + trailing commas, Zod v4 validation, snake_case keys.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 43
@@ -573,7 +573,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 45
@@ -585,7 +585,7 @@ statements:
       - Never `as any`, `@ts-ignore`, `@ts-expect-error`.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 46
@@ -594,7 +594,7 @@ statements:
       - Never suppress lint/type errors.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 47
@@ -603,7 +603,7 @@ statements:
       - Never add emojis to code/comments unless user explicitly asks.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 48
@@ -612,7 +612,7 @@ statements:
       - Never commit unless explicitly requested.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 49
@@ -621,7 +621,7 @@ statements:
       - Never run `bun publish` directly — use the GitHub Actions workflow.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 50
@@ -630,7 +630,7 @@ statements:
       - Never modify `package.json` `version` locally — handled by publish workflow.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 51
@@ -639,7 +639,7 @@ statements:
       - Never write to existing files without reading them first (`write-existing-file-guard`).
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 52
@@ -648,7 +648,7 @@ statements:
       - Never use `background_cancel(all=true)` — cancel by `taskId` individually.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 53
@@ -657,7 +657,7 @@ statements:
       - Never delete a failing test to make a build green. Fix the code.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 54
@@ -666,7 +666,7 @@ statements:
       - Never em dashes / en dashes / AI filler ("simply", "obviously", "clearly", "moreover", "furthermore") in generated content.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 55
@@ -675,7 +675,7 @@ statements:
       - Never create catch-all files (`utils.ts`, `helpers.ts`, `service.ts`).
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 56
@@ -684,7 +684,7 @@ statements:
       - Never empty catch blocks `catch(e) {}`.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 57
@@ -693,7 +693,7 @@ statements:
       - Never test with Arrange-Act-Assert comments — use given/when/then.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 58
@@ -702,7 +702,7 @@ statements:
       - Never dump business logic into `index.ts` — barrel exports only.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 59
@@ -712,7 +712,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 60
@@ -772,7 +772,7 @@ statements:
       - **PRs into `dev` MUST use merge commits.**
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 63
@@ -781,7 +781,7 @@ statements:
       - Use `gh pr merge <number> --merge --delete-branch` after CI, review-work, and Cubic pass.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 64
@@ -790,7 +790,7 @@ statements:
       - **NEVER squash merge or rebase merge** PRs in this repository, even if a generic workflow, skill, or GitHub default suggests it.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 65
@@ -800,7 +800,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 66

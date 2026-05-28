@@ -27,7 +27,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -41,7 +41,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 4
@@ -61,7 +61,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -71,7 +71,7 @@ statements:
       - `scp` - use `-o BatchMode=yes` for non-interactive
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 6
@@ -80,7 +80,7 @@ statements:
       - `ssh` - use `-o BatchMode=yes` to fail instead of prompting
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 7
@@ -89,7 +89,7 @@ statements:
       - `apt-get` - use `-y` flag
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 8
@@ -99,7 +99,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 9
@@ -129,7 +129,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 11
@@ -140,7 +140,7 @@ statements:
       - Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 12
@@ -149,7 +149,7 @@ statements:
       - Run `bd prime` for detailed command reference and session close protocol
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 13
@@ -159,7 +159,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 14
@@ -187,7 +187,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 15
@@ -197,7 +197,7 @@ statements:
       - Work is NOT complete until `git push` succeeds
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 16
@@ -206,7 +206,7 @@ statements:
       - NEVER stop before pushing - that leaves work stranded locally
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 17
@@ -215,7 +215,7 @@ statements:
       - NEVER say "ready to push when you are" - YOU must push
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 18
@@ -226,7 +226,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 19
@@ -243,7 +243,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 20
@@ -254,7 +254,7 @@ statements:
       - **Exploring code**: `semantic_search_nodes` or `query_graph` instead of Grep
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 21
@@ -263,7 +263,7 @@ statements:
       - **Understanding impact**: `get_impact_radius` instead of manually tracing imports
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 22
@@ -272,7 +272,7 @@ statements:
       - **Code review**: `detect_changes` + `get_review_context` instead of reading entire files
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 23
@@ -281,7 +281,7 @@ statements:
       - **Finding relationships**: `query_graph` with callers_of/callees_of/imports_of/tests_for
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 24
@@ -291,7 +291,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 25
@@ -301,7 +301,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 26
@@ -336,5 +336,5 @@ statements:
       4. Use `query_graph` pattern="tests_for" to check coverage.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high

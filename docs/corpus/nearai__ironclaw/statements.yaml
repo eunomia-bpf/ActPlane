@@ -31,7 +31,7 @@ statements:
 
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -147,7 +147,7 @@ statements:
       - Keep `src/main.rs` and `src/app.rs` orchestration-focused. Do not move module-owned logic into entrypoints.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 15
@@ -156,7 +156,7 @@ statements:
       - Module-specific initialization should live in the owning module behind a public factory/helper, not be reimplemented ad hoc.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 16
@@ -165,7 +165,7 @@ statements:
       - Keep feature-flag branching inside the module that owns the abstraction whenever possible.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 17
@@ -175,7 +175,7 @@ statements:
 
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 18
@@ -186,7 +186,7 @@ statements:
       - Avoid `.unwrap()` and `.expect()` in production; prefer proper error handling. They are fine in tests, and in production only for truly infallible invariants (e.g., literals/regexes) with a safety comment.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 19
@@ -195,7 +195,7 @@ statements:
       - Keep clippy clean with zero warnings.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 20
@@ -204,7 +204,7 @@ statements:
       - Prefer `crate::` imports for cross-module references.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 21
@@ -214,7 +214,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 22
@@ -225,7 +225,7 @@ statements:
       - New persistence behavior must support both PostgreSQL and libSQL.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 23
@@ -234,7 +234,7 @@ statements:
       - Add new DB operations to the shared DB trait first, then implement both backends.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 24
@@ -243,7 +243,7 @@ statements:
       - Treat bootstrap config, DB-backed settings, and encrypted secrets as distinct layers; do not collapse them casually.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 25
@@ -252,7 +252,7 @@ statements:
       - If onboarding or setup behavior changes, update `src/setup/README.md` in the same branch.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 26
@@ -262,7 +262,7 @@ statements:
 
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 27
@@ -273,7 +273,7 @@ statements:
       - Review any change touching listeners, routes, auth, secrets, sandboxing, approvals, or outbound HTTP with a security mindset.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 28
@@ -282,7 +282,7 @@ statements:
       - Do not weaken bearer-token auth, webhook auth, CORS/origin checks, body limits, rate limits, allowlists, or secret-handling guarantees.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 29
@@ -291,7 +291,7 @@ statements:
       - Treat Docker containers and external services as untrusted.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 30
@@ -309,7 +309,7 @@ statements:
       - Skills are selected deterministically. Tool approval and auth flows are special paths and must not be mixed into normal chat history carelessly.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 32
@@ -319,7 +319,7 @@ statements:
 
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 33
@@ -330,7 +330,7 @@ statements:
       - Use a built-in Rust tool for core internal capabilities tightly coupled to the runtime.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 34
@@ -339,7 +339,7 @@ statements:
       - Use WASM tools or WASM channels for sandboxed extensions and plugin-style integrations.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 35
@@ -348,7 +348,7 @@ statements:
       - Use MCP for external server integrations when the capability belongs outside the main binary.
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 36
@@ -358,7 +358,7 @@ statements:
 
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 37
@@ -369,7 +369,7 @@ statements:
       - If behavior changes, update the relevant docs/specs in the same branch.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 38
@@ -378,7 +378,7 @@ statements:
       - If you change implementation status for any feature tracked in `FEATURE_PARITY.md`, update that file in the same branch.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 39
@@ -387,7 +387,7 @@ statements:
       - Do not open a PR that changes feature behavior without checking `FEATURE_PARITY.md` for needed status updates (`❌`, `🚧`, `✅`, notes, and priorities).
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 40
@@ -396,7 +396,7 @@ statements:
       - Add the narrowest tests that validate the change: unit tests for local logic, integration tests for runtime/DB/routing behavior, and E2E or trace coverage for gateway, approvals, extensions, or other user-visible flows.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 41
@@ -406,7 +406,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 42
@@ -417,7 +417,7 @@ statements:
       - Keep changes scoped; avoid broad refactors unless the task truly requires them.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 43
@@ -426,7 +426,7 @@ statements:
       - Security, database schema, runtime, worker, CI, and secrets changes are high-risk. Call out rollback risks, compatibility concerns, and hidden side effects.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 44
@@ -435,7 +435,7 @@ statements:
       - Preserve existing defaults unless the task explicitly changes them.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 45
@@ -444,7 +444,7 @@ statements:
       - Avoid unrelated file churn and generated-file edits unless required.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 46
@@ -454,7 +454,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 47
@@ -465,7 +465,7 @@ statements:
       - Confirm whether behavior changes require updates to `FEATURE_PARITY.md`, specs, API docs, or `CHANGELOG.md`.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 48
@@ -474,7 +474,7 @@ statements:
       - Run the most targeted tests/checks that cover the change.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 49
@@ -483,7 +483,7 @@ statements:
       - Re-check security-sensitive paths when touching auth, secrets, network listeners, sandboxing, or approvals.
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 50
@@ -492,5 +492,5 @@ statements:
       - Keep the final diff scoped to the task.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high

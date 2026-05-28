@@ -19,7 +19,7 @@ statements:
 
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -336,7 +336,7 @@ statements:
       - When you make changes to MCP server, you need to ask the user to reload it before you test
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 22
@@ -345,7 +345,7 @@ statements:
       - When the user asks to review issues, you should use GH CLI to get the issue and all the comments
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 23
@@ -354,7 +354,7 @@ statements:
       - When the task can be divided into separated subtasks, you should spawn separate sub-agents to handle them in parallel
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 24
@@ -364,7 +364,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 25
@@ -374,7 +374,7 @@ statements:
       - Always run `npm run build` before testing changes
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 26
@@ -383,7 +383,7 @@ statements:
       - Use `npm run dev` to rebuild database after package updates
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 27
@@ -392,7 +392,7 @@ statements:
       - Check coverage with `npm run test:coverage`
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 28
@@ -402,7 +402,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 29
@@ -412,7 +412,7 @@ statements:
       - The MCP server needs to be reloaded in Claude Desktop after changes
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 30
@@ -421,7 +421,7 @@ statements:
       - HTTP mode requires proper CORS and auth token configuration
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 31
@@ -440,7 +440,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 33
@@ -450,7 +450,7 @@ statements:
       - Use `get_node_essentials()` instead of `get_node_info()` for faster responses
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 34
@@ -459,7 +459,7 @@ statements:
       - Batch validation operations when possible
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 35
@@ -479,7 +479,7 @@ statements:
       - Sub-agents are not allowed to spawn further sub-agents
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 37
@@ -489,7 +489,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 38
@@ -500,7 +500,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 39
@@ -510,7 +510,7 @@ statements:
       Do what has been asked; nothing more, nothing less.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 40
@@ -519,7 +519,7 @@ statements:
       NEVER create files unless they're absolutely necessary for achieving your goal.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 41
@@ -528,7 +528,7 @@ statements:
       ALWAYS prefer editing an existing file to creating a new one.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 42
@@ -537,7 +537,7 @@ statements:
       NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 43
@@ -546,7 +546,7 @@ statements:
       - When you make changes to MCP server, you need to ask the user to reload it before you test
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 44
@@ -555,7 +555,7 @@ statements:
       - When the user asks to review issues, you should use GH CLI to get the issue and all the comments
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 45
@@ -564,7 +564,7 @@ statements:
       - When the task can be divided into separated subtasks, you should spawn separate sub-agents to handle them in paralel
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 46
@@ -573,7 +573,7 @@ statements:
       - Use the best sub-agent for the task as per their descriptions
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 47
@@ -582,7 +582,7 @@ statements:
       - Do not use hyperbolic or dramatic language in comments and documentation
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 48
@@ -591,5 +591,5 @@ statements:
       - Add to every commit and PR: Concieved by Romuald Członkowski - and then link to www.aiadvisors.pl/en. Don't add it in conversations
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high

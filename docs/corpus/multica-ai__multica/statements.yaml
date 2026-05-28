@@ -21,7 +21,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -72,7 +72,7 @@ statements:
       - All Zustand stores live in `packages/core/` — never in `packages/views/` or app directories
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 7
@@ -82,7 +82,7 @@ statements:
 
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 8
@@ -93,7 +93,7 @@ statements:
       - `packages/core/` — zero react-dom, zero localStorage, zero process.env
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 9
@@ -102,7 +102,7 @@ statements:
       - `packages/ui/` — zero `@multica/core` imports
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 10
@@ -111,7 +111,7 @@ statements:
       - `packages/views/` — zero `next/*`, zero `react-router-dom`, use `NavigationAdapter` for routing
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 11
@@ -121,7 +121,7 @@ statements:
 
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 12
@@ -139,7 +139,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 13
@@ -148,5 +148,5 @@ statements:
       See CLAUDE.md for the complete command reference.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high

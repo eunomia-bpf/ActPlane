@@ -64,7 +64,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -79,7 +79,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 6
@@ -104,7 +104,7 @@ statements:
       - `npm run test -- --filter=...` — does NOT filter; runs the entire suite
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 8
@@ -114,7 +114,7 @@ statements:
         configs
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 9
@@ -124,7 +124,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 10
@@ -137,7 +137,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 11
@@ -174,7 +174,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 13
@@ -234,7 +234,7 @@ statements:
         between packages
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 18
@@ -253,7 +253,7 @@ statements:
       - **Commits**: Conventional Commits (e.g., `feat(cli): Add --json flag`)
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 20
@@ -286,7 +286,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 22
@@ -299,7 +299,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 23
@@ -312,7 +312,7 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 24
@@ -327,7 +327,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 25
@@ -341,7 +341,7 @@ statements:
         edit source code — only observe and report.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 26
@@ -352,7 +352,7 @@ statements:
         work or the behavior seems impossible.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 27
@@ -379,7 +379,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 29
@@ -389,7 +389,7 @@ statements:
         referencing file names or function names.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 30
@@ -400,7 +400,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 31

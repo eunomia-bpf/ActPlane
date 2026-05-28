@@ -28,7 +28,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -67,7 +67,7 @@ statements:
       - Python 3.10+ with type hints
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 6
@@ -76,7 +76,7 @@ statements:
       - Each channel is a single file in `channels/`, inherits from `BaseChannel`
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 7
@@ -85,7 +85,7 @@ statements:
       - Channel contract: must implement `can_handle(url)`, `read(url)`, `search(query)`, `check()` methods
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 8
@@ -94,7 +94,7 @@ statements:
       - Use `loguru` for logging, `rich` for CLI output
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 9
@@ -103,7 +103,7 @@ statements:
       - Commit format: `type(scope): message` (one commit = one thing)
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 10
@@ -114,7 +114,7 @@ statements:
       ## Rules
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 11
@@ -123,7 +123,7 @@ statements:
       - NEVER modify upstream open source projects' source code
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 12
@@ -132,7 +132,7 @@ statements:
       - Agent Reach is a "glue layer" — only route and call, don't reimagine
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 13
@@ -141,7 +141,7 @@ statements:
       - Version in THREE places must match: `pyproject.toml`, `__init__.py`, `tests/test_cli.py`
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: medium
 
   - id: 14
@@ -150,7 +150,7 @@ statements:
       - Always new branch for changes, PR to main, never push to main directly
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 15
@@ -159,7 +159,7 @@ statements:
       - Run `pytest tests/ -v` before committing — all tests must pass
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 16
@@ -168,7 +168,7 @@ statements:
       - Cookie-based auth (Twitter, XHS): use Cookie-Editor export method only, no QR scan
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 17
@@ -177,5 +177,5 @@ statements:
       - XHS login: Cookie-Editor browser export only (QR will hang)
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high

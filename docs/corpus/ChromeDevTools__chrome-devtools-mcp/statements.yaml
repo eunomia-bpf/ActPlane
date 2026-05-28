@@ -18,7 +18,7 @@ statements:
       - Use only scripts from `package.json` to run commands.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -27,7 +27,7 @@ statements:
       - Use `npm run build` to run tsc and test build.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 4
@@ -36,7 +36,7 @@ statements:
       - Use `npm run test` to build and run tests, run all tests to verify correctness.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 5
@@ -45,7 +45,7 @@ statements:
       - Use `npm run test path-to-test.ts` to build and run a single test file, for example, `npm run test tests/McpContext.test.ts`.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 6
@@ -54,7 +54,7 @@ statements:
       - Use `npm run format` to fix formatting and get linting errors.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 7
@@ -74,7 +74,7 @@ statements:
       - Do not use `any` type.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 9
@@ -83,7 +83,7 @@ statements:
       - Do not use `as` keyword for type casting.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 10
@@ -92,7 +92,7 @@ statements:
       - Do not use `!` operator for type assertion.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 11
@@ -101,7 +101,7 @@ statements:
       - Do not use `// @ts-ignore` comments.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 12
@@ -110,7 +110,7 @@ statements:
       - Do not use `// @ts-nocheck` comments.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 13
@@ -119,7 +119,7 @@ statements:
       - Do not use `// @ts-expect-error` comments.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 14
@@ -128,5 +128,5 @@ statements:
       - Prefer `for..of` instead of `forEach`.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high

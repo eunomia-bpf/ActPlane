@@ -55,7 +55,7 @@ statements:
       **YOU MUST follow this workflow for any task beyond simple fixes:**
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 5
@@ -71,7 +71,7 @@ statements:
       - Get explicit user approval before proceeding
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 6
@@ -87,7 +87,7 @@ statements:
       - Summarize findings rather than dumping file contents
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 7
@@ -107,7 +107,7 @@ statements:
       - Let the user decide - often breaking changes are acceptable and preferred over code duplication
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 8
@@ -123,7 +123,7 @@ statements:
       - Avoid over-engineering - solve the current problem, not hypothetical future ones
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 9
@@ -139,7 +139,7 @@ statements:
       4. Prepare a PR description following `.github/pull_request_template.md`
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 10
@@ -153,7 +153,7 @@ statements:
       **Tests are not optional. Fake tests are worse than no tests.**
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 11
@@ -163,7 +163,7 @@ statements:
       - Unit tests: Test actual logic, not mocked implementations
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 12
@@ -172,7 +172,7 @@ statements:
       - Integration tests: Test real component interactions
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 13
@@ -181,7 +181,7 @@ statements:
       - If you're mocking everything, you're testing nothing
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 14
@@ -191,7 +191,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 15
@@ -204,7 +204,7 @@ statements:
       After completing work, provide a PR description following this format:
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 16
@@ -241,7 +241,7 @@ statements:
       ```
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 17
@@ -304,7 +304,7 @@ statements:
       - Don't implement features without explicit approval
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 22
@@ -313,7 +313,7 @@ statements:
       - Don't add backward compatibility code without asking first
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 23
@@ -322,7 +322,7 @@ statements:
       - Don't create tests that only test mocks
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 24
@@ -331,7 +331,7 @@ statements:
       - Don't skip documentation updates
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 25
@@ -340,7 +340,7 @@ statements:
       - Don't make sweeping refactors alongside feature work
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 26
@@ -349,5 +349,5 @@ statements:
       - Don't guess at requirements - ask for clarification
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high

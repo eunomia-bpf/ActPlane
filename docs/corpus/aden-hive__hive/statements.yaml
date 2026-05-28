@@ -29,7 +29,7 @@ statements:
       - When working on a GitHub Issue or PR, print the full URL at the end of the task.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 4
@@ -38,7 +38,7 @@ statements:
       - When answering questions, respond with high-confidence answers only: verify in code; do not guess.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 5
@@ -47,7 +47,7 @@ statements:
       - Do not update dependencies casually. Version bumps, patched dependencies, overrides, or vendored dependency changes require explicit approval.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 6
@@ -56,7 +56,7 @@ statements:
       - Add brief comments for tricky logic. Keep files reasonably small when practical; split or refactor large files instead of growing them indefinitely.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 7
@@ -65,7 +65,7 @@ statements:
       - If shared guardrails are available locally, review them; otherwise follow this repo's guidance.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 8
@@ -75,7 +75,7 @@ statements:
       - Prefer `uv run` for scripts and tests, and `uv pip` for package operations.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 9
@@ -96,7 +96,7 @@ statements:
       - Do not create, apply, or drop `git stash` entries unless explicitly requested.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 11
@@ -105,7 +105,7 @@ statements:
       - Do not create, remove, or modify `git worktree` checkouts unless explicitly requested.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 12
@@ -114,7 +114,7 @@ statements:
       - Do not switch branches or check out a different branch unless explicitly requested.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 13
@@ -123,7 +123,7 @@ statements:
       - When the user says `push`, you may `git pull --rebase` to integrate latest changes, but never discard other in-progress work.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 14
@@ -132,7 +132,7 @@ statements:
       - When the user says `commit`, commit only your changes. When the user says `commit all`, commit everything in grouped chunks.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 15
@@ -142,7 +142,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 16
@@ -161,7 +161,7 @@ statements:
       - If staged and unstaged diffs are formatting-only, resolve them without asking.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 18
@@ -170,7 +170,7 @@ statements:
       - If a commit or push was already requested, include formatting-only follow-up changes in that same commit when practical.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 19
@@ -179,5 +179,5 @@ statements:
       - Only stop to ask for confirmation when changes are semantic and may alter behavior.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high

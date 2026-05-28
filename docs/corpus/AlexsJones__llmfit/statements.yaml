@@ -43,7 +43,7 @@ statements:
       - Build with `cargo build`. Run with `cargo run`.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 5
@@ -52,7 +52,7 @@ statements:
       - No nightly features required. Stable toolchain only.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 6
@@ -215,7 +215,7 @@ statements:
       The scraper has hardcoded fallback entries for gated models that require authentication.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 18
@@ -227,7 +227,7 @@ statements:
       - No `unsafe` code.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 19
@@ -236,7 +236,7 @@ statements:
       - No `.unwrap()` on user-facing paths. Use proper error handling or `expect()` with a descriptive message for internal invariants only.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 20
@@ -245,7 +245,7 @@ statements:
       - Fit levels are ordered: Perfect > Good > Marginal > TooTight. Do not add levels without updating `rank_models_by_fit()` sort logic.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 21
@@ -281,7 +281,7 @@ statements:
       - TUI rendering is stateless. `tui_ui::draw()` must not mutate `App`. Pass `&mut App` only for `TableState` widget requirements -- do not use it to change application state.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 25
@@ -290,7 +290,7 @@ statements:
       - Event handling in `tui_events.rs` is the sole place that mutates `App` in the TUI loop.
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 26
@@ -300,7 +300,7 @@ statements:
 
     type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 27
@@ -315,7 +315,7 @@ statements:
       5. Run `cargo build` to verify compilation.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 28
@@ -331,7 +331,7 @@ statements:
       5. Update the status bar help text in `draw_status_bar()`.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 29
@@ -345,7 +345,7 @@ statements:
       3. Use `display.rs` functions for output, or add new ones as needed.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 30
@@ -362,7 +362,7 @@ statements:
       - TUI is difficult to unit test. Keep rendering stateless and test the state mutations in `tui_app.rs` directly.
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 31
@@ -374,7 +374,7 @@ statements:
       - Prefer crates that are well-maintained and have minimal transitive dependencies.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 32
@@ -383,7 +383,7 @@ statements:
       - `sysinfo` is the system detection crate. Do not replace it with raw platform calls.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 33
@@ -392,7 +392,7 @@ statements:
       - `ratatui` + `crossterm` is the TUI stack. Do not mix in `termion` or `ncurses`.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 34
@@ -401,7 +401,7 @@ statements:
       - `clap` with derive feature for CLI parsing. Do not use manual arg parsing.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 35
@@ -410,7 +410,7 @@ statements:
       - The Python scraper uses only stdlib (`urllib`, `json`). Do not add pip dependencies.
     type: directive
     topic: Maintenance
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 36
@@ -448,7 +448,7 @@ statements:
       ```
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 37

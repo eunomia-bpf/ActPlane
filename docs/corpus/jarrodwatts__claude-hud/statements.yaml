@@ -30,7 +30,7 @@ statements:
       ```
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -224,7 +224,7 @@ statements:
       Note: `statusLine` is NOT a valid plugin.json field. It must be configured in settings.json after plugin installation. Updates are automatic - no need to re-run setup.
     type: directive
     topic: Configuration & Environment
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 15

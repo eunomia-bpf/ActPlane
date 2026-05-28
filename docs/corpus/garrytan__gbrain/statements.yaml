@@ -43,7 +43,7 @@ statements:
          (API keys, identity, cron, verification).
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 3
@@ -64,7 +64,7 @@ statements:
       5. [`./skills/RESOLVER.md`](./skills/RESOLVER.md) — skill dispatcher. Read before any task.
     type: directive
     topic: Documentation
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 4
@@ -204,7 +204,7 @@ statements:
       Ship via the `/ship` skill, not by hand.
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_cross_object
     confidence: high
 
   - id: 13
@@ -218,7 +218,7 @@ statements:
       use generic placeholders (`alice-example`, `acme-example`, `fund-a`).
     type: directive
     topic: Security
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 14
@@ -231,5 +231,5 @@ statements:
       publishing: `LLMS_REPO_BASE=https://raw.githubusercontent.com/your-org/your-fork/main bun run build:llms`.
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high

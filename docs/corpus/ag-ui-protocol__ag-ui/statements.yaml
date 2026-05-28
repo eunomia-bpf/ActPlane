@@ -11,7 +11,7 @@ statements:
       - When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 2
@@ -20,7 +20,7 @@ statements:
       - You have access to the Nx MCP server and its tools, use them to help the user
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 3
@@ -29,7 +29,7 @@ statements:
       - When answering questions about the repository, use the `nx_workspace` tool first to gain an understanding of the workspace architecture where applicable.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 4
@@ -38,7 +38,7 @@ statements:
       - When working in individual projects, use the `nx_project_details` mcp tool to analyze and understand the specific project structure and dependencies
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 5
@@ -47,7 +47,7 @@ statements:
       - For questions around nx configuration, best practices or if you're unsure, use the `nx_docs` tool to get relevant, up-to-date docs. Always use this instead of assuming things about nx configuration
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 6
@@ -56,7 +56,7 @@ statements:
       - If the user needs help with an Nx configuration or project graph error, use the `nx_workspace` tool to get any errors
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 7
@@ -67,5 +67,5 @@ statements:
       <!-- nx configuration end-->
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high

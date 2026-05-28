@@ -48,7 +48,7 @@ statements:
 
     type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 4
@@ -61,7 +61,7 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 5
@@ -74,7 +74,7 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 6
@@ -86,7 +86,7 @@ statements:
 
     type: directive
     topic: Development Process
-    enforceability: null
+    enforceability: behavior_linter
     confidence: high
 
   - id: 7
@@ -105,7 +105,7 @@ statements:
       - Prefer `--json` output and pass explicit notebook IDs instead of relying on `notebooklm use`.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: intent
     confidence: high
 
   - id: 9
@@ -114,7 +114,7 @@ statements:
       - Isolate concurrent runs with `NOTEBOOKLM_PROFILE=agent-<id>` so each agent gets its own context file under `~/.notebooklm/profiles/<name>/`. Fall back to `NOTEBOOKLM_HOME=/tmp/agent-<id>` only when separate home directories are required.
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
 
   - id: 10
@@ -123,5 +123,5 @@ statements:
       - In headless environments where Playwright login is impractical, authenticate with `notebooklm login --browser-cookies <browser>` (requires `pip install "notebooklm-py[cookies]"`).
     type: directive
     topic: AI Integration
-    enforceability: null
+    enforceability: behavior_per_event
     confidence: high
