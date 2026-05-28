@@ -7,26 +7,16 @@ source trees, package managers, and external APIs, autonomously writing code,
 running tests, and managing infrastructure across extended
 sessions~\cite{agentsight}.
 
-% ¶2: Agents are governed by behavioral contracts
-As agents gain autonomy, projects govern them with behavioral contracts that
-must hold across their entire execution. Maintainers encode these contracts in
-instruction files such as \texttt{CLAUDE.md} and \texttt{AGENTS.md}: do not
-push directly to \texttt{main}; run tests before committing; never expose
-secrets; use only a sanctioned review tool before destructive operations.
-These are not style preferences---they constrain how information flows through
-the agent's process tree, which files it may read before connecting to a
-network endpoint, and which tools must mediate a destructive action.
-
-% ¶2: Problem — LLM compliance is probabilistic, harness must be deterministic
-However, an LLM-based agent cannot deterministically follow any behavioral
-contract. Compliance is probabilistic: even a cooperative agent may violate a
-contract due to attention dilution in long contexts, ambiguous tool
-interactions, or reasoning shortcuts. The agent is not adversarial---it is
-\emph{cooperative but inherently probabilistic}. Deterministic enforcement
-therefore cannot live inside the model; it requires an external harness that
-makes declared contracts durable---surviving context loss, tool switching, and
-subprocess indirection---and that reminds the agent when a contract is about
-to be violated.
+% ¶2: Agents need harnesses to enforce behavioral contracts (consensus, state quickly)
+As agents gain autonomy, projects govern them with behavioral contracts---do
+not push directly to \texttt{main}; run tests before committing; never expose
+secrets---encoded in instruction files such as \texttt{CLAUDE.md} and
+\texttt{AGENTS.md}~\cite{chatlatanagulchai2025manifests,lulla2026agentsmd}.
+Because LLM compliance is inherently probabilistic, deterministic enforcement
+cannot live inside the model; it requires an external
+harness~\cite{langchain-harness,fowler-harness}. The question is not whether
+agents need harnesses, but where the harness should enforce and how it should
+feed back.
 
 % ¶3: Gap — single-level enforcement leaves an intent–behavior gap
 Existing agent harness enforcement operates at a single level, leaving an
