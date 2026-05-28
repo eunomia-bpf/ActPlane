@@ -210,7 +210,7 @@ statements:
       ## Common Gotchas
       - `openfang.exe` may be locked if daemon is running — use `--lib` flag or kill daemon first
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -219,7 +219,7 @@ statements:
     text: |
       - `PeerRegistry` is `Option<PeerRegistry>` on kernel but `Option<Arc<PeerRegistry>>` on `AppState` — wrap with `.as_ref().map(|r| Arc::new(r.clone()))`
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -228,7 +228,7 @@ statements:
     text: |
       - Config fields added to `KernelConfig` struct MUST also be added to the `Default` impl or build fails
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -237,7 +237,7 @@ statements:
     text: |
       - `AgentLoopResult` field is `.response` not `.response_text`
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -246,7 +246,7 @@ statements:
     text: |
       - CLI command to start daemon is `start` not `daemon`
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -255,6 +255,6 @@ statements:
     text: |
       - On Windows: use `taskkill //PID <pid> //F` (double slashes in MSYS2/Git Bash)
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high

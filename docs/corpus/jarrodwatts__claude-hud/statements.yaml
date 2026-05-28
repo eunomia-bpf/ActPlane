@@ -167,7 +167,7 @@ statements:
       Context █████░░░░░ 45% │ Usage ██░░░░░░░░ 25% (1h 30m / 5h)
       ```
     type: description
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -181,7 +181,7 @@ statements:
       - Todos line (`showTodos`): ▸ Fix authentication bug (2/5)
       - Environment line (`showConfigCounts`): 2 CLAUDE.md | 4 rules
     type: description
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -197,7 +197,7 @@ statements:
       | 70-85% | Yellow | Warning |
       | >85% | Red | Show token breakdown |
     type: description
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 

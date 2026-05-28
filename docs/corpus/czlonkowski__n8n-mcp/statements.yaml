@@ -449,7 +449,7 @@ statements:
       ### Performance Considerations
       - Use `get_node_essentials()` instead of `get_node_info()` for faster responses
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -458,7 +458,7 @@ statements:
     text: |
       - Batch validation operations when possible
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -468,7 +468,7 @@ statements:
       - The diff-based update system saves 80-90% tokens on workflow updates
 
     type: description
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 

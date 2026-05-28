@@ -103,7 +103,7 @@ statements:
       - **Debug:** [`docs/GBRAIN_VERIFY.md`](./docs/GBRAIN_VERIFY.md),
         [`docs/guides/minions-fix.md`](./docs/guides/minions-fix.md), `gbrain doctor --fix`.
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 

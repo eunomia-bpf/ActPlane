@@ -45,7 +45,7 @@ statements:
     text: |
       - **Project Scope** - Read [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md) before adding new feature surface area
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -54,7 +54,7 @@ statements:
     text: |
       - **Visual Design System** - Status icons, colors, and semantic styling for CLI output
     type: directive
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -87,7 +87,7 @@ statements:
       primitives and should not encode orchestration-layer policy, become a storage
       engine, or casually expand the database schema when metadata would work.
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -147,7 +147,7 @@ statements:
       - Status: `○ ◐ ● ✓ ❄`
       - Priority: `● P0` (filled circle with color)
     type: directive
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -383,7 +383,7 @@ statements:
 
       **IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -398,7 +398,7 @@ statements:
       - Agent-optimized: JSON output, ready work detection, discovered-from links
       - Prevents duplicate tracking systems and confusion
     type: description
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -414,7 +414,7 @@ statements:
       bd ready --json
       ```
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -432,7 +432,7 @@ statements:
       echo 'Description with `backticks` and "quotes"' | bd create "Title" --description=- --json
       ```
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -447,7 +447,7 @@ statements:
       bd update bd-42 --priority 1 --json
       ```
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -461,7 +461,7 @@ statements:
       bd close bd-42 --reason "Completed" --json
       ```
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -477,7 +477,7 @@ statements:
       - `epic` - Large feature with subtasks
       - `chore` - Maintenance (dependencies, tooling)
     type: description
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -493,7 +493,7 @@ statements:
       - `3` - Low (polish, optimization)
       - `4` - Backlog (future ideas)
     type: description
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -531,7 +531,7 @@ statements:
       - Use `bd dolt push`/`bd dolt pull` for remote sync
       - No manual export/import needed!
     type: description
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -543,7 +543,7 @@ statements:
 
       - ✅ Use bd for ALL task tracking
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -552,7 +552,7 @@ statements:
     text: |
       - ✅ Always use `--json` flag for programmatic use
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -561,7 +561,7 @@ statements:
     text: |
       - ✅ Link discovered work with `discovered-from` dependencies
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -570,7 +570,7 @@ statements:
     text: |
       - ✅ Check `bd ready` before asking "what should I work on?"
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -579,7 +579,7 @@ statements:
     text: |
       - ❌ Do NOT create markdown TODO lists
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -588,7 +588,7 @@ statements:
     text: |
       - ❌ Do NOT use external issue trackers
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -597,7 +597,7 @@ statements:
     text: |
       - ❌ Do NOT duplicate tracking systems
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 

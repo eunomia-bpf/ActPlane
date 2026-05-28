@@ -396,7 +396,7 @@ statements:
 
       - Add `pkg:*` labels for affected packages (`pkg:agent`, `pkg:ai`, `pkg:coding-agent`, `pkg:tui`); use all that apply.
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 

@@ -109,7 +109,7 @@ statements:
 
       - **Components**: `@arco-design/web-react` — no raw interactive HTML (`<button>`, `<input>`, `<select>`, etc.)
     type: directive
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -118,7 +118,7 @@ statements:
     text: |
       - **Icons**: `@icon-park/react`
     type: directive
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -130,7 +130,7 @@ statements:
 
       - Prefer **UnoCSS utility classes**; complex styles use **CSS Modules** (`ComponentName.module.css`)
     type: directive
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -139,7 +139,7 @@ statements:
     text: |
       - Colors must use **semantic tokens** from `uno.config.ts` or CSS variables — no hardcoded values
     type: directive
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -148,7 +148,7 @@ statements:
     text: |
       - Arco overrides go in the component's CSS Module via `:global()` — no global override files
     type: directive
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -157,7 +157,7 @@ statements:
     text: |
       - Global styles only in `src/renderer/styles/`
     type: directive
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -167,7 +167,7 @@ statements:
 
       See [docs/contributing/file-structure.md](docs/contributing/file-structure.md) for full CSS and UI library rules.
     type: description
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -450,7 +450,7 @@ statements:
 
       All user-facing text must use i18n keys — never hardcode strings. Languages and modules are defined in `src/common/config/i18n-config.json`.
     type: directive
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -460,6 +460,6 @@ statements:
 
       See the `i18n` skill (`.claude/skills/i18n/SKILL.md`) for complete workflow, key naming, and validation steps.
     type: directive
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high

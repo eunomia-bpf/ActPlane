@@ -111,7 +111,7 @@ statements:
       This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
 
     type: description
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -139,7 +139,7 @@ statements:
 
       - Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -148,7 +148,7 @@ statements:
     text: |
       - Run `bd prime` for detailed command reference and session close protocol
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -158,7 +158,7 @@ statements:
       - Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
 
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 

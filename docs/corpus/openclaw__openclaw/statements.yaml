@@ -328,7 +328,7 @@ statements:
       - Hot paths should carry prepared facts forward: provider id, model ref, channel id, target, capability family, attachment class. Do not rediscover with broad plugin/provider/channel/capability loaders.
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -338,7 +338,7 @@ statements:
       - Do not fix repeated request-time discovery with scattered caches. Move the canonical fact earlier; reuse prepared runtime objects; delete duplicate lookup branches.
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -388,7 +388,7 @@ statements:
       - Prompt cache: deterministic ordering for maps/sets/registries/plugin lists/files/network results before model/tool payloads. Preserve old transcript bytes when possible.
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 

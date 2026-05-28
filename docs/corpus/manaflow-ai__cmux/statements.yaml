@@ -386,7 +386,7 @@ statements:
       ```
 
     type: directive
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -397,7 +397,7 @@ statements:
       - Untagged Debug app: `/tmp/cmux-debug.log`
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -407,7 +407,7 @@ statements:
       - Tagged Debug app (`./scripts/reload.sh --tag <tag>`): `/tmp/cmux-debug-<tag>.log`
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -417,7 +417,7 @@ statements:
       - `reload.sh` writes the current path to `/tmp/cmux-last-debug-log-path`
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -427,7 +427,7 @@ statements:
       - `reload.sh` writes the selected dev CLI path to `/tmp/cmux-last-cli-path`
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -438,7 +438,7 @@ statements:
 
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -448,7 +448,7 @@ statements:
       - Implementation: `Packages/CMUXDebugLog/Sources/CMUXDebugLog/DebugEventLog.swift`
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -458,7 +458,7 @@ statements:
       - App shim: `Sources/App/DebugLogging.swift`
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -468,7 +468,7 @@ statements:
       - Free function `cmuxDebugLog("message")` — logs with timestamp and appends to file in real time from cmux code
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -478,7 +478,7 @@ statements:
       - The package implementation and app shim are `#if DEBUG`; all call sites must be wrapped in `#if DEBUG` / `#endif`
 
     type: directive
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -488,7 +488,7 @@ statements:
       - 500-entry ring buffer; `CMUXDebugLog.DebugEventLog.shared.dump()` writes full buffer to file
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -498,7 +498,7 @@ statements:
       - Key events logged in `AppDelegate.swift` (monitor, performKeyEquivalent)
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -508,7 +508,7 @@ statements:
       - Mouse/UI events logged inline in views (ContentView, BrowserPanelView, etc.)
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -518,7 +518,7 @@ statements:
       - Focus events: `focus.panel`, `focus.bonsplit`, `focus.firstResponder`, `focus.moveFocus`
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -529,7 +529,7 @@ statements:
 
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -602,7 +602,7 @@ statements:
 
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -612,7 +612,7 @@ statements:
       - **Debug > Debug Windows** contains panels for tuning layout, colors, and behavior. Entries are alphabetical with no dividers.
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -622,7 +622,7 @@ statements:
       - To add a debug toggle or visual option: create an `NSWindowController` subclass with a `shared` singleton, add it to the "Debug Windows" menu in `Sources/cmuxApp.swift`, and add a SwiftUI view with `@AppStorage` bindings for live changes.
 
     type: directive
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -633,7 +633,7 @@ statements:
 
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -664,7 +664,7 @@ statements:
       - Do not add an app-level display link or manual `ghostty_surface_draw` loop; rely on Ghostty wakeups/renderer to avoid typing lag.
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -674,7 +674,7 @@ statements:
       - **Typing-latency-sensitive paths** (read carefully before touching these areas):
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -684,7 +684,7 @@ statements:
         - `WindowTerminalHostView.hitTest()` in `TerminalWindowPortal.swift`: called on every event including keyboard. All divider/sidebar/drag routing is gated to pointer events only. Do not add work outside the `isPointerEvent` guard.
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -694,7 +694,7 @@ statements:
         - `TabItemView` in `ContentView.swift`: uses `Equatable` conformance + `.equatable()` to skip body re-evaluation during typing. Do not add `@EnvironmentObject`, `@ObservedObject` (besides `tab`), or `@Binding` properties without updating the `==` function. Do not remove `.equatable()` from the ForEach call site. Do not read `tabManager` or `notificationStore` in the body; use the precomputed `let` parameters instead.
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -704,7 +704,7 @@ statements:
         - `TerminalSurface.forceRefresh()` in `GhosttyTerminalView.swift`: called on every keystroke. Do not add allocations, file I/O, or formatting here.
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -754,7 +754,7 @@ statements:
       - **Snapshot boundary for list subtrees.** In any SwiftUI panel whose `body` contains a `LazyVStack` / `LazyHStack` / `List` / `ForEach` of rows, no view below that boundary may hold a reference to an `ObservableObject` / `@Observable` store (no `@ObservedObject`, `@EnvironmentObject`, `@StateObject`, `@Bindable`, or even a plain `let store: SomeStore` property). Rows and drop-gaps receive immutable value snapshots plus closure action bundles only. Violating this reintroduces the "orthogonal @Published change invalidates every row and thrashes `LazyLayoutViewCache`" class of 100% CPU spin loop that hit the Sessions panel and the workspace sidebar (https://github.com/manaflow-ai/cmux/issues/2586). Reference pattern: `IndexSectionActions` / `SectionGapActions` / `SessionSearchFn` in `Sources/SessionIndexView.swift`.
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -764,7 +764,7 @@ statements:
       - **No state mutation inside view-body computations.** A function called from `body` (directly or through a helper) must not write `@Published` state, schedule a `Task { @MainActor in store.x = … }`, or `DispatchQueue.main.async` a store write. That creates a re-render feedback loop and pegs the main thread (same root-cause family as the snapshot-boundary rule). State-changing work triggered by "new data appeared" belongs in a `reload()` completion, a `didSet`, or a property-observer — never in the projection that feeds `ForEach`.
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -882,7 +882,7 @@ statements:
         - Schedule minimal UI/model mutation with `DispatchQueue.main.async` only when needed.
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 

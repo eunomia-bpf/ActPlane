@@ -394,7 +394,7 @@ statements:
       ```
 
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 

@@ -457,7 +457,7 @@ statements:
       Note: container logs are lost after the container exits (`--rm` flag). If the agent silently failed inside the container, there's no persistent log to inspect.
 
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 

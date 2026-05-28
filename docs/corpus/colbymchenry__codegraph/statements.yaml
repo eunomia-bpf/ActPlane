@@ -478,7 +478,7 @@ statements:
     text: |
       - Known pre-existing Windows failure: `security.test.ts > Session marker symlink resistance > does not follow a pre-planted symlink` (symlink creation needs privileges on Windows). Unrelated to current work; don't let it mask new regressions.
     type: description
-    topic: Debugging
+    topic: Development Process
     enforceability: null
     confidence: high
 

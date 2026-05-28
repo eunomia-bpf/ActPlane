@@ -641,7 +641,7 @@ statements:
 
       ---
     type: description
-    topic: UI/UX
+    topic: Implementation Details
     enforceability: null
     confidence: high
 
@@ -1159,7 +1159,7 @@ statements:
       effect next session), with an opt-in `--now` flag for immediate
       invalidation. See `/skills install --now` for the canonical pattern.
     type: directive
-    topic: Performance
+    topic: Implementation Details
     enforceability: null
     confidence: high
 

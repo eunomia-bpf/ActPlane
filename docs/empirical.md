@@ -477,14 +477,17 @@ classified as part of a description or directive without a third category.
 rephrased as an imperative ("do X", "do not do X", "do X before Y"), it
 is a directive. Otherwise it is a description.
 
-**Axis 2: Topic category** (reused from Chatlatanagulchai et al. 2025b).
+**Axis 2: Topic category** (adapted from Chatlatanagulchai et al. 2025b).
 
-We adopt the 16-category topic scheme from the largest prior corpus study
-to enable direct comparison. The categories are: System Overview, AI
-Integration, Documentation, Architecture, Implementation Details, Build
-and Run, Testing, Configuration & Environment, DevOps, Development
-Process, Project Management, Maintenance, Debugging, Performance,
-Security, UI/UX. Definitions and examples follow Chatlatanagulchai et al.
+We start from the 16-category topic scheme of Chatlatanagulchai et al.
+(2025b) and collapse four sparse categories (each n < 30 at
+statement level) into their closest parent, yielding 12 analysis
+categories: Debugging and Project Management are merged into Development
+Process; Performance and UI/UX are merged into Implementation Details.
+The resulting 12 categories are: System Overview, AI Integration,
+Documentation, Architecture, Implementation Details, Build and Run,
+Testing, Configuration & Environment, DevOps, Development Process,
+Maintenance, Security. Definitions follow Chatlatanagulchai et al.
 (2025b); the full coding guide is in the replication package.
 
 Prior studies applied these categories at file level ("this file contains
@@ -602,30 +605,105 @@ falls below 0.6 for any dimension, we refine the coding guide and re-code.
 
 ### 5.1 RQ1: Content Types
 
-[TODO: Table showing desc vs directive counts and percentages, per-project
-distribution]
+Of the 2,152 statements extracted from 64 repositories, 1,361 (63.2%) are
+directives and 791 (36.8%) are descriptions. The per-repository directive
+fraction has a median of 69.6% and mean of 63.4%, indicating that the
+majority of instruction-file content is prescriptive rather than
+informational. One repository (HKUDS/DeepTutor) contains only descriptions
+(0% directives); at the other extreme, alibaba/OpenSandbox is 97%
+directives.
 
-### 5.2 RQ2: Directive Taxonomy
+| Metric | Value |
+|---|---|
+| Total statements | 2,152 |
+| Description | 791 (36.8%) |
+| Directive | 1,361 (63.2%) |
+| Statements per repo (median / mean) | 28 / 33.6 |
+| Directives per repo (median / mean) | 15 / 21.3 |
+| Directive fraction per repo (median) | 69.6% |
 
-[TODO: Table showing directive subtype distribution. Comparison with prior
-studies' topic-based categories — show how directives scatter across their
-categories]
+### 5.2 RQ2: Topic Distribution
+
+Table 2 shows the cross-tabulation of content type and topic category
+across the 12 analysis categories. The top three topics by statement
+count are Development Process (429, 19.9%), Implementation Details (393,
+18.3%), and Architecture (364, 16.9%).
+
+| Topic | Desc | Dir | Total | % | Dir% | Lines | L% |
+|---|---|---|---|---|---|---|---|
+| Development Process | 58 | 371 | 429 | 19.9% | 86.5% | 1,707 | 16.7% |
+| Implementation Details | 59 | 334 | 393 | 18.3% | 85.0% | 1,414 | 13.9% |
+| Architecture | 283 | 81 | 364 | 16.9% | 22.3% | 2,417 | 23.7% |
+| Build and Run | 84 | 124 | 208 | 9.7% | 59.6% | 1,407 | 13.8% |
+| AI Integration | 45 | 156 | 201 | 9.3% | 77.6% | 888 | 8.7% |
+| Testing | 50 | 139 | 189 | 8.8% | 73.5% | 861 | 8.4% |
+| System Overview | 84 | 0 | 84 | 3.9% | 0.0% | 391 | 3.8% |
+| Documentation | 29 | 49 | 78 | 3.6% | 62.8% | 246 | 2.4% |
+| Configuration & Environment | 45 | 22 | 67 | 3.1% | 32.8% | 326 | 3.2% |
+| Security | 18 | 37 | 55 | 2.6% | 67.3% | 180 | 1.8% |
+| DevOps | 29 | 14 | 43 | 2.0% | 32.6% | 178 | 1.7% |
+| Maintenance | 7 | 34 | 41 | 1.9% | 82.9% | 194 | 1.9% |
+| **Total** | **791** | **1,361** | **2,152** | **100%** | **63.2%** | **10,209** | **100%** |
+
+Figure 1 visualizes the distribution. The description/directive split
+varies sharply across topics. Development Process (86.5% directive) and
+Implementation Details (85.0% directive) are overwhelmingly prescriptive.
+System Overview is 100% description. Architecture is the most descriptive
+of the major topics (77.7% description), primarily because it contains
+directory listings, data-flow diagrams, and code-block descriptions of
+project structure.
+
+![Topic distribution](tmp/fig_topic_distribution.png)
+*Figure 1. (a) Statement count by topic, split by description vs.
+directive. (b) Directive ratio per topic; dashed line = overall average
+(63.2%). (c) Statement share vs. line share; Architecture occupies 23.7%
+of lines but only 16.9% of statements.*
+*(Script: `docs/tmp/fig_topic_distribution.py`)*
+
+**Comparison with prior studies.** Chatlatanagulchai et al. (2025b) report
+Build and Run as the most prevalent topic (77.1% of files). In our
+statement-level analysis, Build and Run ranks 4th (9.7% of statements).
+The discrepancy is explained by granularity: a file containing a single
+code block of build commands counts as "Build and Run" at file level but
+produces relatively few statements. Conversely, Development Process
+(17.5%) and Implementation Details (16.8%) dominate at statement level
+because their content consists of many short, independent directives.
+
+**Statement count vs. line count.** Architecture accounts for 16.9% of
+statements but 23.7% of lines, because architecture content tends to be
+long descriptive blocks (directory trees, data-flow explanations). In
+contrast, Implementation Details accounts for 16.8% of statements but
+only 12.1% of lines, because coding rules are typically one-line list items.
+This divergence illustrates why statement-level analysis reveals patterns
+that line-count or file-level studies miss.
 
 ### 5.3 RQ3: Directive Density
 
-[TODO: Histogram of directives per project. Median, mean, p25, p75. Comparison
-with prior studies' file-level prevalence numbers]
+The number of directives per repository ranges from 0 to 131 (median 15,
+mean 21.3). The top five repositories by directive count are:
+
+| Repository | Directives | Total | Dir% |
+|---|---|---|---|
+| openclaw/openclaw | 131 | 147 | 89% |
+| openai/codex | 76 | 85 | 89% |
+| manaflow-ai/cmux | 59 | 91 | 65% |
+| Kilo-Org/kilocode | 57 | 67 | 85% |
+| earendil-works/pi | 49 | 55 | 89% |
+
+The distribution is right-skewed: a small number of repositories contain
+a disproportionate fraction of all directives. The top 10 repositories
+(15.6% of the corpus) account for 38.6% of all directives.
 
 ### 5.4 RQ4: Enforceability
 
-[TODO: Table showing enforceability breakdown: intent, action, behavior
-(per-event), behavior (cross-object). Per directive subtype.]
+[TODO: Fill after enforceability annotation is complete. Table showing
+enforceability breakdown: intent, behavior_linter, behavior_per_event,
+behavior_cross_object. Per topic.]
 
 ### 5.5 RQ5: Enforcement Requirements
 
-[TODO: Contingency table of directive subtype × enforcement level. For each
-subtype, report the fraction at each level (intent, action, behavior
-per-event, behavior cross-object). This table directly maps the
+[TODO: Contingency table of topic × enforcement level. For each topic,
+report the fraction at each level. This table directly maps the
 intent/action/behavior framework to empirical data.]
 
 ---

@@ -192,7 +192,7 @@ statements:
     text: |
       - Do NOT assume generic-project conventions like `.worktrees/`, `tests/`, or mandatory branch setup unless the user explicitly requests them.
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
@@ -201,7 +201,7 @@ statements:
     text: |
       - On conflict with a generic coding skill, prioritize [`skills/ppt-master/SKILL.md`](skills/ppt-master/SKILL.md) inside this repository.
     type: directive
-    topic: Project Management
+    topic: Development Process
     enforceability: null
     confidence: high
 
