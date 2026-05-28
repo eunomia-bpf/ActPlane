@@ -1,13 +1,27 @@
-# ActPlane: OS-Enforce AI Agent Harnesses with eBPF
+# ActPlane: OS-Enforced AI Agent Harnesses with eBPF
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-ActPlane is an **OS-level harness for AI agents**. It lets you or AI agents write behavioral
-contracts for your agent in YAML, and enforces them deterministically at the OS
-level via eBPF, across every process, file access, and network connection, no
-matter how the agent gets there with scripts or commands. When a contract is violated, ActPlane blocks the action and feeds the reason back to the agent so it self-corrects.
+**Write behavioral contracts for your AI agent in YAML; observe and enforce them
+in the kernel with eBPF.** ActPlane sits below the tool layer, so a rule holds
+across every process, file access, and network connection the agent touches, no
+matter what tool, subprocess, or direct syscall it uses to get there.
+
+Each rule sets its own mode: **audit** (observe and notify agent), **block**
+(stop the action before it commits), or **kill** (terminate the process). In
+every mode the violation's reason is fed back to the agent as a reminder, so it
+can self-correct instead of just hitting a wall. Agents can write and validate
+ their own rules (`actplane check`).
 
 Prompt constraints are probabilistic. ActPlane is deterministic.
+
+**What you can express:**
+
+- **"No `codex` may run `git commit` or write outside `/src`"**: rules follow process lineage, any number of hops.
+- **"Never remove the build cache in makefile unless explicitly asked or debugging"**: bypass able with a specific argument, not just sandbox.
+- **"When changing `specs/*`, also update the server, SDK, and docs"**: ActPlane never blocks the edit, it notifies the agent that downstream outputs are now stale, and the `since` gate re-arms whenever the specs change.
+- **"Run  `make check` & `npm tests` before committing"**: causal ordering, not just per-operation checks.
+
 
 ## Quickstart
 
@@ -65,6 +79,8 @@ The key differences:
 
 - **OS-level coverage**: enforcement happens at the kernel, not the tool API. Bash, Python subprocess, direct SDK calls, all covered.
 - **Call-chain granularity**: rules follow process lineage, not just single operations. "Codex's entire subprocess tree cannot touch git" is one rule.
+- **Data-flow constraints**: rules express "data read from A must never flow to B", tracked across arbitrary fork/exec and file read/write edges, not just at a boundary.
+- **Causal ordering**: rules express "run tests before committing" via `since` clauses and gate invalidation, not just per-operation checks.
 - **Corrective feedback, not just blocking**: violations feed a human-readable reason back to the agent, so it can retry a different way. This is what makes it a harness, not a sandbox.
 - **Agent-maintained rules**: the rule language is designed so agents can write, validate (`actplane check`), and evolve their own contracts.
 
@@ -72,12 +88,8 @@ The key differences:
 
 A sandbox draws an isolation boundary: everything inside is allowed, everything
 outside is denied. That works for untrusted code, but agents need something
-richer.
-
-- **Data-flow constraints**: a sandbox only guards the boundary. A harness can express "data read from A must never flow to B", across arbitrary fork/exec chains.
-- **Causal ordering**: a sandbox cannot express "run tests before committing". A harness can, via `since` clauses and gate invalidation.
-- **Corrective feedback**: a sandbox returns EPERM and the agent is stuck. A harness returns a human-readable reason, so the agent retries a different way.
-- **Agent-authored rules**: a sandbox is imposed externally. A harness is collaborative: the agent writes, validates (`actplane check`), and evolves its own contracts.
+richer — the data-flow, causal-ordering, and corrective-feedback properties
+above are things no isolation boundary can express.
 
 Sandboxes answer "can this process access this resource?" A harness answers a
 broader set of questions: not just security ("secret data must not reach the

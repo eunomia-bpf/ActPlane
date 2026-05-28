@@ -1,0 +1,210 @@
+file: "heygen-com/hyperframes/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 4]
+    text: |
+      # Hyperframes
+
+      Open-source video rendering framework: write HTML, render video.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [4, 12]
+    text: |
+
+      ## Skills
+
+      This repo ships AI agent skills via [vercel-labs/skills](https://github.com/vercel-labs/skills). Install them before writing compositions — they encode framework-specific patterns that generic docs don't cover.
+
+      ```bash
+      npx skills add heygen-com/hyperframes
+      ```
+
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [12, 20]
+    text: |
+
+      ## Build & Test
+
+      ```bash
+      bun install     # Install dependencies (NOT pnpm — do not create pnpm-lock.yaml)
+      bun run build   # Build all packages
+      bun run test    # Run all tests
+      ```
+
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [20, 32]
+    text: |
+
+      ### Linting & Formatting
+
+      Uses **oxlint** and **oxfmt** (not eslint, not prettier, not biome).
+
+      ```bash
+      bunx oxlint <files>        # Lint
+      bunx oxfmt <files>         # Format
+      bunx oxfmt --check <files> # Check formatting (CI / pre-commit)
+      ```
+
+      Always lint and format changed files before committing. Lefthook pre-commit hooks enforce this automatically.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [32, 43]
+    text: |
+
+      ### Composition Validation
+
+      After creating or editing any `.html` composition:
+
+      ```bash
+      npx hyperframes lint       # Static HTML structure check
+      npx hyperframes validate   # Runtime check (headless Chrome — catches JS errors, missing assets)
+      ```
+
+      Both must pass before previewing or considering work complete.
+
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [43, 62]
+    text: |
+
+      ## Project Structure
+
+      ```
+      packages/
+        cli/                  → hyperframes CLI (create, preview, lint, render)
+        core/                 → Types, parsers, generators, linter, runtime, frame adapters
+        engine/               → Seekable page-to-video capture engine (Puppeteer + FFmpeg)
+        player/               → Embeddable <hyperframes-player> web component
+        producer/             → Full rendering pipeline (capture + encode + audio mix)
+        shader-transitions/   → WebGL shader transitions for compositions
+        studio/               → Browser-based composition editor UI
+      registry/
+        blocks/               → Installable sub-composition scenes (50+)
+        components/           → Installable effects and snippets
+        examples/             → Starter project templates
+      docs/                   → Mintlify documentation site (hyperframes.heygen.com)
+      skills/                 → AI agent skill definitions
+      ```
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [62, 63]
+    text: |
+
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [63, 64]
+    text: |
+      ## Key Conventions
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [64, 65]
+    text: |
+
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [65, 66]
+    text: |
+      - **Package manager**: bun (not pnpm, not npm for workspace operations)
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [66, 67]
+    text: |
+      - **Commit format**: Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`)
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [67, 68]
+    text: |
+      - **TypeScript**: Avoid `any` and `as T` assertions. Prefer type guards and narrowing.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [68, 69]
+    text: |
+      - **Compositions**: HTML files with `data-*` attributes. Clips need `class="clip"`. GSAP timelines must be paused and registered on `window.__timelines`.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [69, 70]
+    text: |
+      - **Frame Adapters**: Animation runtimes plug in via the seek-by-frame adapter pattern. GSAP is the primary adapter.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [70, 71]
+    text: |
+      - **Deterministic rendering**: No `Date.now()`, no unseeded `Math.random()`, no render-time network fetches.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [71, 76]
+    text: |
+
+      ## Documentation
+
+      - Docs: https://hyperframes.heygen.com/introduction
+      - Catalog (50+ blocks): https://hyperframes.heygen.com/catalog/blocks/data-chart
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high

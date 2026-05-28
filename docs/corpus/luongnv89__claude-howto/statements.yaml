@@ -1,0 +1,282 @@
+file: "luongnv89/claude-howto/CLAUDE.md"
+statements:
+  - id: 1
+    lines: [1, 6]
+    text: |
+      # CLAUDE.md
+
+      Tutorial repo. Output is markdown in numbered modules `01-` through `10-`, not an app. Scripts in `scripts/` exist only to validate docs and build the EPUB.
+
+      See also `.claude/CLAUDE.md` for stack/commands and `STYLE_GUIDE.md` for lesson structure.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [6, 26]
+    text: |
+
+      ## Critical commands
+
+      ```bash
+      # Quality gate (also runs on commit via pre-commit hooks)
+      pre-commit run --all-files
+
+      # Tests
+      pytest scripts/tests/ -v
+
+      # EPUB build (calls Kroki.io API to render Mermaid — needs network)
+      uv run scripts/build_epub.py
+
+      # Python tooling
+      ruff check scripts/ && ruff format scripts/
+      mypy scripts/ --ignore-missing-imports
+      bandit -c scripts/pyproject.toml -r scripts/ --exclude scripts/tests/
+      ```
+
+      Pre-commit runs 5 checks: markdown-lint, cross-references, mermaid-syntax, link-check, build-epub (on `.md` changes). All must pass.
+
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [26, 35]
+    text: |
+
+      ## Architecture map
+
+      - `01-` … `10-` — tutorial modules. **Numbered prefix = learning order**, not alphabetical. Do not reorganize.
+      - Each module: `README.md` + copy-paste templates (`.md`, `.json`, `.sh`).
+      - `scripts/` — utilities (EPUB builder, link/mermaid/cross-ref validators). Not the product.
+      - `02-memory/*.md` — CLAUDE.md templates users copy into their own projects. Don't confuse with this file.
+      - `openspec/` — spec-driven change proposals.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [35, 37]
+    text: |
+
+      ## Hard rules
+
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [37, 38]
+    text: |
+      - **YOU MUST NOT commit or push without explicit user request.**
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [38, 39]
+    text: |
+      - **YOU MUST NOT add `Co-Authored-By: Claude`** to any commit message.
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [39, 40]
+    text: |
+      - Always activate `.venv` before running Python scripts (check `venv/`, `.venv/`, `env/`).
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [40, 41]
+    text: |
+      - Internal links use **relative paths** (e.g. `01-slash-commands/README.md`); anchors use `#heading-name`.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [41, 42]
+    text: |
+      - Code fences **must** declare a language (`bash`, `python`, `json`, …) — the cross-reference check fails otherwise.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [42, 43]
+    text: |
+      - External URLs must be reachable and stable. No ephemeral links.
+    type: directive
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [43, 44]
+    text: |
+      - Mermaid diagrams must parse (validated pre-commit). Broken EPUB build is usually invalid Mermaid or no network to Kroki.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [44, 45]
+    text: |
+      - Commit format: `type(scope): subject` where `scope` matches the module folder (e.g. `feat(slash-commands):`, `docs(memory):`, `fix(README):`).
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [45, 47]
+    text: |
+      - Do not reorganize the `01-`–`10-` numbering. The order is the curriculum.
+
+    type: directive
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [47, 49]
+    text: |
+      ## Workflow preferences
+
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [49, 50]
+    text: |
+      - For lesson edits, follow `STYLE_GUIDE.md` for structure/naming/diagrams.
+    type: directive
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [50, 51]
+    text: |
+      - Small fixes → minimal diff. Don't rewrite a section to fix a typo.
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [51, 52]
+    text: |
+      - When adding a module page: README + templates first, then update root `README.md` index and `LEARNING-ROADMAP.md` if order/timing changes.
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [52, 53]
+    text: |
+      - Tutorial > library: prioritize clear explanations and copy-paste examples over reusable abstractions.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 19
+    lines: [53, 55]
+    text: |
+      - If a quality check fails, fix the underlying issue. Don't bypass with `--no-verify`.
+
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 20
+    lines: [55, 56]
+    text: |
+      ## Token Efficiency
+    type: description
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [56, 57]
+    text: |
+      - Never re-read files you just wrote or edited. You know the contents.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 22
+    lines: [57, 58]
+    text: |
+      - Never re-run commands to "verify" unless the outcome was uncertain.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 23
+    lines: [58, 59]
+    text: |
+      - Don't echo back large blocks of code or file contents unless asked.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 24
+    lines: [59, 60]
+    text: |
+      - Batch related edits into single operations. Don't make 5 edits when 1 handles it.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 25
+    lines: [60, 61]
+    text: |
+      - Skip confirmations like "I'll continue..." Just do it.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 26
+    lines: [61, 62]
+    text: |
+      - If a task needs 1 tool call, don't use 3. Plan before acting.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 27
+    lines: [62, 63]
+    text: |
+      - Do not summarize what you just did unless the result is ambiguous or you need additional input.
+    type: directive
+    topic: AI Integration
+    enforceability: null
+    confidence: high

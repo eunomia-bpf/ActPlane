@@ -1,0 +1,132 @@
+file: "ChromeDevTools/chrome-devtools-mcp/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 5]
+    text: |
+      This repository contains an MCP server and CLI for Chrome DevTools.
+
+      # Instructions
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [5, 6]
+    text: |
+      - Use only scripts from `package.json` to run commands.
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [6, 7]
+    text: |
+      - Use `npm run build` to run tsc and test build.
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [7, 8]
+    text: |
+      - Use `npm run test` to build and run tests, run all tests to verify correctness.
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [8, 9]
+    text: |
+      - Use `npm run test path-to-test.ts` to build and run a single test file, for example, `npm run test tests/McpContext.test.ts`.
+    type: directive
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [9, 10]
+    text: |
+      - Use `npm run format` to fix formatting and get linting errors.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [10, 13]
+    text: |
+
+      ## Rules for TypeScript
+
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [13, 14]
+    text: |
+      - Do not use `any` type.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [14, 15]
+    text: |
+      - Do not use `as` keyword for type casting.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [15, 16]
+    text: |
+      - Do not use `!` operator for type assertion.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [16, 17]
+    text: |
+      - Do not use `// @ts-ignore` comments.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [17, 18]
+    text: |
+      - Do not use `// @ts-nocheck` comments.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [18, 19]
+    text: |
+      - Do not use `// @ts-expect-error` comments.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [19, 20]
+    text: |
+      - Prefer `for..of` instead of `forEach`.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high

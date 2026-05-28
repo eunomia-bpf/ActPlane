@@ -1,0 +1,105 @@
+file: "xpzouying/xiaohongshu-mcp/CLAUDE.md"
+statements:
+  - id: 1
+    lines: [1, 4]
+    text: |
+      # Project Guidelines
+
+      ##  本地开发规范
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [4, 5]
+    text: |
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [5, 6]
+    text: |
+      - 要求每次修改完后,需要帮我格式化 Go 源码文件.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [6, 7]
+    text: |
+      - 测试过程中产生的脚本和build中间文件,如果没有必要,则删除.
+    type: directive
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [7, 8]
+    text: |
+      - 所有的feature变更,都需要使用分支进行开发.
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [8, 9]
+    text: |
+      - 在我未同意之前, 你不能推送到远程.
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [9, 10]
+    text: |
+      - 我需要: 1.本地 review; 2.远程 PR review.
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [10, 11]
+    text: |
+      - 不要过度设计, 保持代码的简洁和易读.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [11, 12]
+    text: |
+      - 使用中文注释，一定要简洁明了.专业名词可以用英文.
+    type: directive
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [12, 15]
+    text: |
+
+      ## PR Review 重点
+
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [15, 16]
+    text: |
+      - 重点：PR 代码中如果出现大量的 JS 注入的行为，要检查一下是否是必须的，如果可以用 Go 的 go-rod 替代的话，则直接评论需要用 go-rod 行为替代。
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high

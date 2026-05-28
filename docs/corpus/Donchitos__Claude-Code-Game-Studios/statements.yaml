@@ -1,21 +1,21 @@
 file: "Donchitos/Claude-Code-Game-Studios/CLAUDE.md"
 statements:
   - id: 1
-    lines: [1, 4]
+    lines: [1, 5]
     text: |
       # Claude Code Game Studios -- Game Studio Agent Architecture
 
       Indie game development managed through 49 coordinated Claude Code subagents.
       Each agent owns a specific domain, enforcing separation of concerns and quality.
+
     type: description
     topic: System Overview
     enforceability: null
     confidence: high
 
   - id: 2
-    lines: [5, 15]
+    lines: [5, 16]
     text: |
-
       ## Technology Stack
 
       - **Engine**: [CHOOSE: Godot 4 / Unity / Unreal Engine 5]
@@ -26,128 +26,139 @@ statements:
 
       > **Note**: Engine-specialist agents exist for Godot, Unity, and Unreal with
       > dedicated sub-specialists. Use the set matching your engine.
+
     type: description
     topic: Configuration & Environment
     enforceability: null
     confidence: high
 
   - id: 3
-    lines: [16, 19]
+    lines: [16, 20]
     text: |
-
       ## Project Structure
 
       @.claude/docs/directory-structure.md
+
     type: directive
     topic: Architecture
     enforceability: null
     confidence: high
 
   - id: 4
-    lines: [20, 23]
+    lines: [20, 24]
     text: |
-
       ## Engine Version Reference
 
       @docs/engine-reference/godot/VERSION.md
+
     type: directive
     topic: Documentation
     enforceability: null
     confidence: high
 
   - id: 5
-    lines: [24, 27]
+    lines: [24, 28]
     text: |
-
       ## Technical Preferences
 
       @.claude/docs/technical-preferences.md
+
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
   - id: 6
-    lines: [28, 31]
+    lines: [28, 32]
     text: |
-
       ## Coordination Rules
 
       @.claude/docs/coordination-rules.md
+
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
   - id: 7
-    lines: [32, 36]
+    lines: [32, 38]
     text: |
-
       ## Collaboration Protocol
 
       **User-driven collaboration, not autonomous execution.**
       Every task follows: **Question -> Options -> Decision -> Draft -> Approval**
+
+
     type: directive
     topic: AI Integration
     enforceability: null
     confidence: high
 
   - id: 8
-    lines: [37, 38]
+    lines: [38, 39]
     text: |
-
       - Agents MUST ask "May I write this to [filepath]?" before using Write/Edit tools
-      - Agents MUST show drafts or summaries before requesting approval
     type: directive
     topic: AI Integration
     enforceability: null
     confidence: high
 
   - id: 9
-    lines: [40, 40]
-    text: "- Multi-file changes require explicit approval for the full changeset"
+    lines: [39, 40]
+    text: |
+      - Agents MUST show drafts or summaries before requesting approval
     type: directive
-    topic: Development Process
+    topic: AI Integration
     enforceability: null
     confidence: high
 
   - id: 10
-    lines: [41, 41]
-    text: "- No commits without user instruction"
+    lines: [40, 41]
+    text: |
+      - Multi-file changes require explicit approval for the full changeset
     type: directive
     topic: Development Process
     enforceability: null
     confidence: high
 
   - id: 11
-    lines: [42, 46]
+    lines: [41, 43]
     text: |
+      - No commits without user instruction
 
+    type: directive
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [43, 48]
+    text: |
       See `docs/COLLABORATIVE-DESIGN-PRINCIPLE.md` for full protocol and examples.
 
       > **First session?** If the project has no engine configured and no game concept,
       > run `/start` to begin the guided onboarding flow.
+
     type: directive
     topic: AI Integration
     enforceability: null
     confidence: high
 
-  - id: 12
-    lines: [47, 50]
+  - id: 13
+    lines: [48, 52]
     text: |
-
       ## Coding Standards
 
       @.claude/docs/coding-standards.md
+
     type: directive
     topic: Implementation Details
     enforceability: null
     confidence: high
 
-  - id: 13
-    lines: [51, 55]
+  - id: 14
+    lines: [52, 55]
     text: |
-
       ## Context Management
 
       @.claude/docs/context-management.md
