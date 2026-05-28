@@ -8,11 +8,12 @@
 //! violation with the rule's corrective-feedback payload.
 
 use clap::{Parser, Subcommand};
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::process::{Child, Command};
 
@@ -130,6 +131,18 @@ struct Violation {
     killed: Option<bool>,
     #[allow(dead_code)]
     taint_label: u64,
+    #[allow(dead_code)]
+    matched_label: u64,
+    provenance: Option<ViolationProvenance>,
+}
+
+#[derive(Clone, serde::Deserialize)]
+struct ViolationProvenance {
+    label: u64,
+    timestamp_ns: u64,
+    pid: i32,
+    op: u32,
+    target: String,
 }
 
 #[tokio::main]
@@ -234,8 +247,19 @@ fn check_policy(cli: &Cli) -> Result<i32> {
     println!("✓ {}: {} rule(s) compile.\n", where_, compiled.meta.len());
     for (i, m) in compiled.meta.iter().enumerate() {
         let eff = format!("{:?}", m.effect).to_lowercase();
-        let ops = if m.ops.is_empty() { "—".into() } else { m.ops.join("/") };
-        println!("  {}. {} — deny {} → {} ({})", i + 1, m.name, ops, eff, m.reason);
+        let ops = if m.ops.is_empty() {
+            "—".into()
+        } else {
+            m.ops.join("/")
+        };
+        println!(
+            "  {}. {} — deny {} → {} ({})",
+            i + 1,
+            m.name,
+            ops,
+            eff,
+            m.reason
+        );
     }
     // Warnings: things that compile but won't enforce as the author likely expects.
     let lsm_bpf = std::fs::read_to_string("/sys/kernel/security/lsm")
@@ -260,7 +284,10 @@ fn check_policy(cli: &Cli) -> Result<i32> {
         if let Some(rest) = t.strip_prefix("deny connect endpoint") {
             if let Some(pat) = rest.split('"').nth(1) {
                 let ipish = pat == "*"
-                    || pat.trim_end_matches('.').split('.').all(|o| !o.is_empty() && o.chars().all(|c| c.is_ascii_digit()));
+                    || pat
+                        .trim_end_matches('.')
+                        .split('.')
+                        .all(|o| !o.is_empty() && o.chars().all(|c| c.is_ascii_digit()));
                 if !ipish {
                     warns.push(format!(
                         "connect endpoint \"{}\" looks like a hostname; the kernel matches \
@@ -280,7 +307,9 @@ fn check_policy(cli: &Cli) -> Result<i32> {
         }
     }
     if unsafe { libc::geteuid() } != 0 {
-        println!("\n(note: `check` needs no privileges; enforcing needs `sudo -E actplane run/watch`.)");
+        println!(
+            "\n(note: `check` needs no privileges; enforcing needs `sudo -E actplane run/watch`.)"
+        );
     }
     Ok(0)
 }
@@ -298,6 +327,7 @@ async fn watch_policy(cli: &Cli) -> Result<i32> {
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
     let blob = compiled.bytes;
     let meta = compiled.meta;
+    let labels = compiled.labels;
     let fb = feedback.feedback.clone();
     let stop_thread = stop.clone();
     let poller = std::thread::spawn(move || {
@@ -309,7 +339,9 @@ async fn watch_policy(cli: &Cli) -> Result<i32> {
             }
         };
         let _ = ready_tx.send(Ok(()));
-        let _ = loader.run(&stop_thread, |v| report(&meta, &to_violation(&v), Some(&fb)));
+        let _ = loader.run(&stop_thread, |v| {
+            report(&meta, &labels, &to_violation(&v), Some(&fb))
+        });
     });
 
     match ready_rx.recv() {
@@ -382,6 +414,7 @@ async fn run_command(cli: &Cli, cmd: &[String]) -> Result<i32> {
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
     let blob = compiled.bytes;
     let meta = compiled.meta;
+    let labels = compiled.labels;
     let fb = feedback.feedback.clone();
     let stop_thread = stop.clone();
     let poller = std::thread::spawn(move || {
@@ -397,7 +430,9 @@ async fn run_command(cli: &Cli, cmd: &[String]) -> Result<i32> {
             return;
         }
         let _ = ready_tx.send(Ok(()));
-        let _ = loader.run(&stop_thread, |v| report(&meta, &to_violation(&v), Some(&fb)));
+        let _ = loader.run(&stop_thread, |v| {
+            report(&meta, &labels, &to_violation(&v), Some(&fb))
+        });
     });
 
     match ready_rx.recv() {
@@ -451,6 +486,14 @@ fn to_violation(v: &actplane_bpf::Violation) -> Violation {
         blocked: Some(v.blocked),
         killed: Some(v.killed),
         taint_label: v.label,
+        matched_label: v.matched_label,
+        provenance: v.provenance.as_ref().map(|p| ViolationProvenance {
+            label: p.label,
+            timestamp_ns: p.timestamp_ns,
+            pid: p.pid,
+            op: p.op,
+            target: p.target.clone(),
+        }),
     }
 }
 
@@ -643,7 +686,12 @@ fn absolutize(path: &Path, base: &Path) -> PathBuf {
 
 /// Report a violation: a human one-liner to stdout, plus the structured
 /// corrective-feedback payload appended to the reason file.
-fn report(meta: &[dsl::RuleMeta], v: &Violation, feedback_file: Option<&Path>) {
+fn report(
+    meta: &[dsl::RuleMeta],
+    labels: &HashMap<String, u64>,
+    v: &Violation,
+    feedback_file: Option<&Path>,
+) {
     let verb = if v.killed.unwrap_or(false) {
         "KILLED"
     } else if v.blocked.unwrap_or(false) {
@@ -668,9 +716,29 @@ fn report(meta: &[dsl::RuleMeta], v: &Violation, feedback_file: Option<&Path>) {
     if !reason.is_empty() {
         println!("   reason: {}", reason);
     }
+    if let Some(p) = &v.provenance {
+        println!(
+            "   provenance: pid {} {} {} -> label {}",
+            p.pid,
+            kernel_op_name(p.op),
+            p.target,
+            label_name(labels, p.label)
+        );
+    }
 
     if let (Some(path), Some(m)) = (feedback_file, m) {
         let op = m.ops.first().map(|s| s.as_str()).unwrap_or("op");
+        let provenance = v.provenance.as_ref().map(|p| feedback::Provenance {
+            label: label_name(labels, p.label),
+            origin_pid: p.pid,
+            origin_op: kernel_op_name(p.op).to_string(),
+            origin_target: if p.target.is_empty() {
+                "<unknown>".to_string()
+            } else {
+                p.target.clone()
+            },
+            origin_timestamp_ns: p.timestamp_ns,
+        });
         let payload = feedback::format_payload(
             &m.name,
             op,
@@ -680,10 +748,28 @@ fn report(meta: &[dsl::RuleMeta], v: &Violation, feedback_file: Option<&Path>) {
             m.effect,
             v.blocked.unwrap_or(false),
             v.killed.unwrap_or(false),
+            provenance.as_ref(),
         );
         if let Err(e) = append_feedback(path, &payload) {
             eprintln!("ActPlane: writing feedback file {}: {}", path.display(), e);
         }
+    }
+}
+
+fn label_name(labels: &HashMap<String, u64>, label: u64) -> String {
+    labels
+        .iter()
+        .find_map(|(name, bit)| (*bit == label).then(|| name.clone()))
+        .unwrap_or_else(|| format!("0x{label:x}"))
+}
+
+fn kernel_op_name(op: u32) -> &'static str {
+    match op {
+        0 => "exec",
+        1 => "read",
+        2 => "write",
+        3 => "connect",
+        _ => "op",
     }
 }
 

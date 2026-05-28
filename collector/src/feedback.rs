@@ -11,6 +11,15 @@
 
 use crate::dsl::ast::Effect;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Provenance {
+    pub label: String,
+    pub origin_pid: i32,
+    pub origin_op: String,
+    pub origin_target: String,
+    pub origin_timestamp_ns: u64,
+}
+
 /// Build the model-facing corrective-feedback string (docs/feedback-design.md §6).
 /// `op`/`target` describe the blocked operation; the rest comes from the rule.
 pub fn format_payload(
@@ -22,6 +31,7 @@ pub fn format_payload(
     effect: Effect,
     blocked: bool,
     killed: bool,
+    provenance: Option<&Provenance>,
 ) -> String {
     let enforcement = if killed {
         "kill"
@@ -32,12 +42,14 @@ pub fn format_payload(
     } else {
         "report"
     };
+    let prov = provenance_line(provenance, op, target);
     let body = match (effect, enforcement) {
         (Effect::Audit, _) => {
             let rem = remediation.unwrap_or("后续请避免该操作");
             format!(
                 "[ActPlane] 操作「{op} {target}」触发了审计规则「{name}」（操作未被拦截）。\n\
                  - 原因：{reason}\n\
+                 {prov}\
                  - 建议：{rem}。"
             )
         }
@@ -49,6 +61,7 @@ pub fn format_payload(
                 "[ActPlane] 操作被规则「{name}」拒绝。\n\
                  - 目标操作：{op} {target}\n\
                  - 触发原因：{reason}\n\
+                 {prov}\
                  - BPF-LSM 已在内核提交前返回 EPERM；重试相同操作不会成功。\n\
                  - 如何继续：{rem}。"
             )
@@ -60,6 +73,7 @@ pub fn format_payload(
                 "[ActPlane] 规则「{name}」要求 block，但当前 backend 不支持 block。\n\
                  - 目标操作：{op} {target}\n\
                  - 触发原因：{reason}\n\
+                 {prov}\
                  - block 只由 BPF-LSM pre-op hook 实现；tracepoint backend 不支持 block，也不会把它降级成 audit 或 kill。\n\
                  - 如何继续：{rem}。"
             )
@@ -72,6 +86,7 @@ pub fn format_payload(
                 "[ActPlane] 操作被规则「{name}」终止。\n\
                  - 目标操作：{op} {target}\n\
                  - 触发原因：{reason}\n\
+                 {prov}\
                  - 该规则显式要求终止当前违规进程，重试相同操作不会成功。\n\
                  - 如何继续：{rem}。"
             )
@@ -96,6 +111,16 @@ pub fn format_payload(
     format!("{body}\n{tag}")
 }
 
+fn provenance_line(p: Option<&Provenance>, op: &str, target: &str) -> String {
+    match p {
+        Some(p) => format!(
+            "- 污点来源：PID {} 在内核时间戳 {} ns 通过「{} {}」获得 {} label；该 label 随进程状态传播到当前「{} {}」操作。\n",
+            p.origin_pid, p.origin_timestamp_ns, p.origin_op, p.origin_target, p.label, op, target
+        ),
+        None => String::new(),
+    }
+}
+
 fn json_str(s: &str) -> String {
     serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string())
 }
@@ -115,6 +140,7 @@ mod tests {
             Effect::Block,
             true,
             false,
+            None,
         );
         assert!(s.starts_with("[ActPlane]"));
         assert!(s.contains("\"enforcement\":\"block\""));
@@ -132,6 +158,7 @@ mod tests {
             Effect::Audit,
             false,
             false,
+            None,
         );
         assert!(s.contains("先跑 pytest"));
         assert!(s.contains("\"retry_useful\":false"));
@@ -148,9 +175,35 @@ mod tests {
             Effect::Block,
             false,
             false,
+            None,
         );
         assert!(s.contains("当前 backend 不支持 block"));
         assert!(s.contains("\"effect\":\"block\""));
         assert!(s.contains("\"enforcement\":\"unsupported\""));
+    }
+
+    #[test]
+    fn payload_includes_taint_provenance() {
+        let p = Provenance {
+            label: "SECRET".to_string(),
+            origin_pid: 1234,
+            origin_op: "read".to_string(),
+            origin_target: "/repo/.env".to_string(),
+            origin_timestamp_ns: 42,
+        };
+        let s = format_payload(
+            "no-secret-exfil",
+            "connect",
+            "1.2.3.4",
+            "secret data must not leave",
+            None,
+            Effect::Kill,
+            false,
+            true,
+            Some(&p),
+        );
+        assert!(s.contains("PID 1234"));
+        assert!(s.contains("通过「read /repo/.env」获得 SECRET label"));
+        assert!(s.contains("传播到当前「connect 1.2.3.4」操作"));
     }
 }

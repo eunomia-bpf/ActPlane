@@ -23,7 +23,8 @@ use aya::{Btf, Ebpf, EbpfLoader};
 // ---- prebuilt eBPF object, 8-byte aligned for aya's ELF parser ----
 #[repr(align(8))]
 struct Aligned<T: ?Sized>(T);
-static OBJECT: &Aligned<[u8]> = &Aligned(*include_bytes!(concat!(env!("OUT_DIR"), "/process.bpf.o")));
+static OBJECT: &Aligned<[u8]> =
+    &Aligned(*include_bytes!(concat!(env!("OUT_DIR"), "/process.bpf.o")));
 fn object_bytes() -> &'static [u8] {
     &OBJECT.0
 }
@@ -143,6 +144,23 @@ struct Event {
     taint_rule_id: u32,
     conn_ip: u32,
     taint_label: u64,
+    matched_label: u64,
+    prov_label: u64,
+    prov_timestamp_ns: u64,
+    prov_pid: i32,
+    prov_op: u32,
+    prov_ip: u32,
+    prov_target: [u8; FILENAME_LEN],
+}
+
+/// Provenance for the label that caused a policy violation.
+#[derive(Debug, Clone)]
+pub struct Provenance {
+    pub label: u64,
+    pub timestamp_ns: u64,
+    pub pid: i32,
+    pub op: u32,
+    pub target: String,
 }
 
 /// A policy violation reported by the kernel.
@@ -157,6 +175,8 @@ pub struct Violation {
     pub target: String, // exe/path, or "a.b.c.d" for connect
     pub rule_id: u32,
     pub label: u64,
+    pub matched_label: u64,
+    pub provenance: Option<Provenance>,
     pub timestamp_ns: u64,
 }
 
@@ -252,7 +272,8 @@ impl Loader {
         // bpf_loop callback once. Slots: 0=rules 1=sources 2=xforms 3=gates 4=invals.
         {
             let mut counts: Array<_, u32> = Array::try_from(
-                bpf.map_mut("ts_counts").ok_or_else(|| err("map ts_counts missing"))?,
+                bpf.map_mut("ts_counts")
+                    .ok_or_else(|| err("map ts_counts missing"))?,
             )
             .map_err(|e| err(format!("ts_counts: {e}")))?;
             let vals = [
@@ -308,15 +329,26 @@ impl Loader {
         }
         {
             let mut proc: HashMap<_, i32, ProcState> = HashMap::try_from(
-                self.bpf.map_mut("ts_proc").ok_or_else(|| err("ts_proc missing"))?,
+                self.bpf
+                    .map_mut("ts_proc")
+                    .ok_or_else(|| err("ts_proc missing"))?,
             )
             .map_err(|e| err(format!("ts_proc: {e}")))?;
-            proc.insert(pid, ProcState { labels: label, lin_gates: 0 }, 0)
-                .map_err(|e| err(format!("seed ts_proc: {e}")))?;
+            proc.insert(
+                pid,
+                ProcState {
+                    labels: label,
+                    lin_gates: 0,
+                },
+                0,
+            )
+            .map_err(|e| err(format!("seed ts_proc: {e}")))?;
         }
         {
             let mut root: HashMap<_, i32, i32> = HashMap::try_from(
-                self.bpf.map_mut("ts_root").ok_or_else(|| err("ts_root missing"))?,
+                self.bpf
+                    .map_mut("ts_root")
+                    .ok_or_else(|| err("ts_root missing"))?,
             )
             .map_err(|e| err(format!("ts_root: {e}")))?;
             root.insert(pid, pid, 0)
@@ -327,14 +359,16 @@ impl Loader {
 
     /// Poll the ring buffer until `stop` is set, delivering each violation.
     pub fn run(&mut self, stop: &AtomicBool, mut on: impl FnMut(Violation)) -> io::Result<()> {
-        let mut ring = RingBuf::try_from(
-            self.bpf.map_mut("rb").ok_or_else(|| err("rb missing"))?,
-        )
-        .map_err(|e| err(format!("rb: {e}")))?;
+        let mut ring = RingBuf::try_from(self.bpf.map_mut("rb").ok_or_else(|| err("rb missing"))?)
+            .map_err(|e| err(format!("rb: {e}")))?;
         let fd = ring.as_raw_fd();
 
         while !stop.load(Ordering::Relaxed) {
-            let mut pfd = libc::pollfd { fd, events: libc::POLLIN, revents: 0 };
+            let mut pfd = libc::pollfd {
+                fd,
+                events: libc::POLLIN,
+                revents: 0,
+            };
             let r = unsafe { libc::poll(&mut pfd, 1, 100) };
             if r < 0 {
                 let e = io::Error::last_os_error();
@@ -348,8 +382,7 @@ impl Loader {
                 if bytes.len() < std::mem::size_of::<Event>() {
                     continue;
                 }
-                let e: Event =
-                    unsafe { std::ptr::read_unaligned(bytes.as_ptr() as *const Event) };
+                let e: Event = unsafe { std::ptr::read_unaligned(bytes.as_ptr() as *const Event) };
                 if e.etype != EVENT_TYPE_TAINT_VIOLATION {
                     continue;
                 }
@@ -378,6 +411,29 @@ fn decode(e: &Event) -> Violation {
     } else {
         cstr(&e.filename)
     };
+    let provenance = if e.prov_label != 0 {
+        let target = if e.prov_ip != 0 {
+            let ip = e.prov_ip;
+            format!(
+                "{}.{}.{}.{}",
+                ip & 0xff,
+                (ip >> 8) & 0xff,
+                (ip >> 16) & 0xff,
+                (ip >> 24) & 0xff
+            )
+        } else {
+            cstr(&e.prov_target)
+        };
+        Some(Provenance {
+            label: e.prov_label,
+            timestamp_ns: e.prov_timestamp_ns,
+            pid: e.prov_pid,
+            op: e.prov_op,
+            target,
+        })
+    } else {
+        None
+    };
     Violation {
         effect: e.effect,
         blocked: e.blocked != 0,
@@ -388,6 +444,8 @@ fn decode(e: &Event) -> Violation {
         target,
         rule_id: e.taint_rule_id,
         label: e.taint_label,
+        matched_label: e.matched_label,
+        provenance,
         timestamp_ns: e.timestamp_ns,
     }
 }

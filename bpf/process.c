@@ -113,10 +113,14 @@ static int handle_event(void *ctx, void *data, size_t sz)
 	}
 	printf("{\"timestamp\":%llu,\"event\":\"TAINT_VIOLATION\",\"effect\":\"%s\","
 	       "\"blocked\":%s,\"killed\":%s,\"comm\":\"%s\",\"pid\":%d,\"ppid\":%d,"
-	       "\"target\":\"%s\",\"rule_id\":%u,\"taint_label\":%llu}\n",
+	       "\"target\":\"%s\",\"rule_id\":%u,\"taint_label\":%llu,"
+	       "\"matched_label\":%llu,\"provenance\":{\"label\":%llu,\"timestamp\":%llu,"
+	       "\"pid\":%d,\"op\":%u,\"ip\":%u,\"target\":\"%s\"}}\n",
 	       e->timestamp_ns, effect_name(e->effect), e->blocked ? "true" : "false",
 	       e->killed ? "true" : "false", e->comm, e->pid, e->ppid,
-	       target, e->taint_rule_id, e->taint_label);
+	       target, e->taint_rule_id, e->taint_label, e->matched_label,
+	       e->prov_label, e->prov_timestamp_ns, e->prov_pid, e->prov_op,
+	       e->prov_ip, e->prov_target);
 	fflush(stdout);
 	return 0;
 }

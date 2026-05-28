@@ -98,8 +98,41 @@ struct {
 } ts_openpend SEC(".maps");
 
 /* The one and only output channel. */
+static __always_inline void fill_violation_provenance(struct event *v, pid_t pid,
+						      __u64 matched_req)
+{
+	v->matched_label = 0;
+	v->prov_label = 0;
+	v->prov_timestamp_ns = 0;
+	v->prov_pid = 0;
+	v->prov_op = 0;
+	v->prov_ip = 0;
+	v->prov_target[0] = '\0';
+
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit = 1ULL << i;
+		if (!(matched_req & bit))
+			continue;
+		if (!v->matched_label)
+			v->matched_label = bit;
+		struct te_prov *p = te_lookup_proc_prov(pid, bit);
+		if (!p)
+			continue;
+		v->prov_label = p->label;
+		v->prov_timestamp_ns = p->timestamp_ns;
+		v->prov_pid = p->pid;
+		v->prov_op = p->op;
+		v->prov_ip = p->ip;
+		for (int j = 0; j < MAX_FILENAME_LEN; j++)
+			v->prov_target[j] = p->target[j];
+		v->prov_target[MAX_FILENAME_LEN - 1] = '\0';
+		return;
+	}
+}
+
 static __always_inline void emit_violation(pid_t pid, unsigned int rule_id,
 					   const char *target, u32 conn_ip,
+					   __u64 matched_req,
 					   unsigned int blocked,
 					   unsigned int killed,
 					   unsigned int effect)
@@ -118,6 +151,7 @@ static __always_inline void emit_violation(pid_t pid, unsigned int rule_id,
 	v->taint_rule_id = rule_id;
 	v->conn_ip = conn_ip;
 	v->taint_label = te_labels(pid);
+	fill_violation_provenance(v, pid, matched_req);
 	bpf_get_current_comm(&v->comm, sizeof(v->comm));
 	v->filename[0] = '\0';
 	if (target)
@@ -368,6 +402,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 	const char *display = ev->display ? ev->display : ev->target;
 	__u32 effect = TEFFECT_AUDIT;
 	__u32 action = TE_MODE_AUDIT;
+	__u64 matched_req = 0;
 	int rid = -1;
 	int candidate = -1;
 
@@ -387,6 +422,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		eval.argv_len = ev->argv_len;
 		rid = te_check_labels(&eval);
 		effect = eval.effect;
+		matched_req = eval.matched_req;
 	} else if (ev->obj_kind == TE_OBJ_FILE) {
 		eval.pid = ev->pid;
 		eval.labels = labels;
@@ -399,6 +435,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 			if (te_better_match(candidate, eval.effect, rid, effect)) {
 				rid = candidate;
 				effect = eval.effect;
+				matched_req = eval.matched_req;
 			}
 		}
 		if (ev->access & TE_ACCESS_WRITE) {
@@ -408,6 +445,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 			if (te_better_match(candidate, eval.effect, rid, effect)) {
 				rid = candidate;
 				effect = eval.effect;
+				matched_req = eval.matched_req;
 			}
 		}
 	} else if (ev->obj_kind == TE_OBJ_ENDPOINT) {
@@ -417,6 +455,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		eval.effect_mask = te_supported_effects(ev->mode);
 		rid = te_connect_check_labels(&eval, ev->ip);
 		effect = eval.effect;
+		matched_req = eval.matched_req;
 	}
 
 	if (rid >= 0) {
@@ -424,6 +463,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		if (action != TE_MODE_UNSUPPORTED)
 			emit_violation(ev->pid, rid, display,
 				       ev->obj_kind == TE_OBJ_ENDPOINT ? ev->ip : 0,
+				       matched_req,
 				       action == TE_MODE_BLOCK ||
 					       (action == TE_MODE_KILL && ev->mode == TE_MODE_BLOCK),
 				       action == TE_MODE_KILL, effect);
@@ -442,7 +482,10 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		if (ev->access & TE_ACCESS_WRITE)
 			te_write_flow(ev->pid, fid, ev->target);
 	} else if (ev->obj_kind == TE_OBJ_ENDPOINT) {
-		te_add_labels(ev->pid, te_endp_src_ip(ev->ip));
+		__u64 src_labels = te_endp_src_ip(ev->ip);
+		te_add_labels(ev->pid, src_labels);
+		if (src_labels)
+			te_record_proc_prov_mask(ev->pid, src_labels, TOP_CONNECT, 0, ev->ip);
 		te_connect_flow(ev->ip, ev->pid);
 	}
 

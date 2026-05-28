@@ -19,6 +19,24 @@ struct proc_state {
 	__u64 lin_gates; /* gate bits seen in this pid's ancestor chain (incl self) */
 };
 
+/* One causal origin for one label bit on one subject/object. This is intentionally
+ * compact: the enforcer keeps the source that introduced the label, then feedback
+ * combines it with the violating operation to describe the causal path. */
+struct te_prov {
+	__u64 label;
+	__u64 timestamp_ns;
+	pid_t pid;
+	__u32 op;
+	__u32 ip;
+	char target[MAX_FILENAME_LEN];
+};
+
+struct pid_label_id {
+	pid_t pid;
+	__u32 _pad;
+	__u64 label;
+};
+
 /* Per-session (keyed by root pid) gate + staleness state.
  *  - gate_bits: v1 latching "after exec X" bits (also used by `since_mask==0`).
  *  - epoch:     monotonic per-session event counter.
@@ -43,6 +61,10 @@ struct file_id {
 	__u32 dev;
 	__u32 _pad;
 };
+struct file_label_id {
+	struct file_id fid;
+	__u64 label;
+};
 /* ts_file value: taint labels (as before) plus the epoch of this object's last
  * observed write. last_write_epoch is infrastructure for staleness precision
  * (Layer B); Layer A only populates it for files that already carry labels. */
@@ -62,6 +84,7 @@ struct te_rule_eval {
 	unsigned int effect;
 	unsigned int effect_mask;
 	int matched_rule;       /* set by te_rule_effect on a hit */
+	__u64 matched_req;      /* required label mask for the matched compiled rule */
 };
 
 struct {
@@ -70,6 +93,13 @@ struct {
 	__type(key, pid_t);
 	__type(value, struct proc_state);
 } ts_proc SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 65536);
+	__type(key, struct pid_label_id);
+	__type(value, struct te_prov);
+} ts_proc_prov SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -103,6 +133,13 @@ struct {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 65536);
+	__type(key, struct file_label_id);
+	__type(value, struct te_prov);
+} ts_file_prov SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
 	__uint(max_entries, 16384);
 	__type(key, __u32); /* IPv4 (network order) */
 	__type(value, __u64);
@@ -131,6 +168,13 @@ struct {
 	__type(key, __u32);
 	__type(value, __u32);
 } ts_counts SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct te_prov);
+} ts_prov_tmp SEC(".maps");
 
 static __always_inline unsigned int te_count(__u32 slot)
 {
@@ -223,6 +267,106 @@ static __always_inline __u64 te_labels(pid_t pid)
 	struct proc_state *p = te_get(pid);
 	return p ? p->labels : 0;
 }
+
+static __always_inline void te_copy_target(char *dst, const char *src)
+{
+	if (!src) {
+		dst[0] = '\0';
+		return;
+	}
+	for (int i = 0; i < MAX_FILENAME_LEN; i++)
+		dst[i] = src[i];
+	dst[MAX_FILENAME_LEN - 1] = '\0';
+}
+
+static __always_inline struct te_prov *te_prov_tmp(void)
+{
+	__u32 k = 0;
+	return bpf_map_lookup_elem(&ts_prov_tmp, &k);
+}
+
+static __always_inline struct te_prov *te_lookup_proc_prov(pid_t pid, __u64 label)
+{
+	struct pid_label_id key = { .pid = pid, .label = label };
+	return bpf_map_lookup_elem(&ts_proc_prov, &key);
+}
+
+static __always_inline void te_record_proc_prov(pid_t pid, __u64 label,
+						unsigned int op, const char *target,
+						__u32 ip)
+{
+	if (!label)
+		return;
+	struct te_prov *p = te_prov_tmp();
+	if (!p)
+		return;
+	__builtin_memset(p, 0, sizeof(*p));
+	p->label = label;
+	p->timestamp_ns = bpf_ktime_get_ns();
+	p->pid = pid;
+	p->op = op;
+	p->ip = ip;
+	te_copy_target(p->target, target);
+	struct pid_label_id key = { .pid = pid, .label = label };
+	bpf_map_update_elem(&ts_proc_prov, &key, p, BPF_ANY);
+}
+
+static __always_inline void te_record_proc_prov_mask(pid_t pid, __u64 labels,
+						     unsigned int op,
+						     const char *target, __u32 ip)
+{
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit = 1ULL << i;
+		if (labels & bit)
+			te_record_proc_prov(pid, bit, op, target, ip);
+	}
+}
+
+static __always_inline void te_copy_proc_prov(pid_t from, pid_t to, __u64 labels)
+{
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit = 1ULL << i;
+		if (!(labels & bit))
+			continue;
+		struct te_prov *p = te_lookup_proc_prov(from, bit);
+		if (!p)
+			continue;
+		struct pid_label_id key = { .pid = to, .label = bit };
+		bpf_map_update_elem(&ts_proc_prov, &key, p, BPF_ANY);
+	}
+}
+
+static __always_inline void te_copy_file_prov_to_proc(pid_t pid, struct file_id *fid,
+						      __u64 labels)
+{
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit = 1ULL << i;
+		if (!(labels & bit))
+			continue;
+		struct file_label_id fk = { .fid = *fid, .label = bit };
+		struct te_prov *p = bpf_map_lookup_elem(&ts_file_prov, &fk);
+		if (!p)
+			continue;
+		struct pid_label_id pk = { .pid = pid, .label = bit };
+		bpf_map_update_elem(&ts_proc_prov, &pk, p, BPF_ANY);
+	}
+}
+
+static __always_inline void te_copy_proc_prov_to_file(pid_t pid, struct file_id *fid,
+						      __u64 labels)
+{
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit = 1ULL << i;
+		if (!(labels & bit))
+			continue;
+		struct te_prov *p = te_lookup_proc_prov(pid, bit);
+		if (!p)
+			continue;
+		struct file_label_id fk = { .fid = *fid, .label = bit };
+		bpf_map_update_elem(&ts_file_prov, &fk, p, BPF_ANY);
+	}
+}
+
 static __always_inline void te_add_labels(pid_t pid, __u64 add)
 {
 	struct proc_state *p = te_get(pid);
@@ -349,6 +493,8 @@ static __always_inline void te_fork(pid_t ppid, pid_t cpid)
 	if (pp)
 		ns = *pp;
 	bpf_map_update_elem(&ts_proc, &cpid, &ns, BPF_ANY);
+	if (ns.labels)
+		te_copy_proc_prov(ppid, cpid, ns.labels);
 	pid_t r = te_root(ppid);
 	bpf_map_update_elem(&ts_root, &cpid, &r, BPF_ANY);
 }
@@ -411,6 +557,8 @@ static __noinline void te_exec_update(pid_t pid, const char *comm)
 	ns.labels = (ns.labels | c.add) & ~c.del;
 	ns.lin_gates |= c.gbits;
 	bpf_map_update_elem(&ts_proc, &pid, &ns, BPF_ANY);
+	if (c.add)
+		te_record_proc_prov_mask(pid, c.add, TOP_EXEC, comm, 0);
 	/* session: latch gate bits + stamp their epoch, and stamp any exec-side
 	 * `since exec` invalidators that this exec matched (TOP_EXEC, on comm). */
 	__u64 ih = te_inval_hits(TOP_EXEC, comm);
@@ -499,6 +647,7 @@ static int te_conn_rule_cb(__u32 i, void *vc)
 	if (c->best_rule < 0 || r.effect > c->best_effect) {
 		c->best_rule = (int)r.rule_id;
 		c->best_effect = r.effect;
+		e->matched_req = r.req;
 		if (c->best_effect == TEFFECT_KILL)
 			return 1;
 	}
@@ -533,7 +682,14 @@ static __always_inline __u64 te_file_labels(struct file_id *fid, const char *pat
 /* read: proc absorbs file labels + file source; stamp `since read` invalidators. */
 static __always_inline void te_read(pid_t pid, struct file_id *fid, const char *path)
 {
-	te_add_labels(pid, te_file_labels(fid, path));
+	struct file_state *fs = bpf_map_lookup_elem(&ts_file, fid);
+	__u64 file_labels = fs ? fs->labels : 0;
+	__u64 src_labels = te_file_src(path);
+	te_add_labels(pid, file_labels | src_labels);
+	if (file_labels)
+		te_copy_file_prov_to_proc(pid, fid, file_labels);
+	if (src_labels)
+		te_record_proc_prov_mask(pid, src_labels, TOP_OPEN, path, 0);
 	__u64 ih = te_inval_hits(TOP_OPEN, path);
 	if (ih) {
 		pid_t r = te_root(pid);
@@ -565,6 +721,7 @@ static __always_inline void te_write_flow(pid_t pid, struct file_id *fid, const 
 			struct file_state ns = { .labels = pl, .last_write_epoch = ep };
 			bpf_map_update_elem(&ts_file, fid, &ns, BPF_ANY);
 		}
+		te_copy_proc_prov_to_file(pid, fid, pl);
 	}
 }
 /* connect egress: endpoint records proc labels. */
@@ -625,6 +782,7 @@ static __noinline int te_rule_effect(struct te_rule_eval *e, unsigned int idx)
 	if (te_cond_satisfied(&r, e->pid, e->target))
 		return -1;
 	e->matched_rule = (int)r.rule_id;
+	e->matched_req = r.req;
 	return (int)r.effect;
 }
 
@@ -675,6 +833,10 @@ static __always_inline void te_exit(pid_t pid)
 {
 	bpf_map_delete_elem(&ts_proc, &pid);
 	bpf_map_delete_elem(&ts_root, &pid);
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		struct pid_label_id key = { .pid = pid, .label = 1ULL << i };
+		bpf_map_delete_elem(&ts_proc_prov, &key);
+	}
 }
 
 #endif /* __TAINT_ENGINE_BPF_H */

@@ -21,10 +21,18 @@ fn effect_name(e: u32) -> &'static str {
 }
 
 fn print_violation(v: &Violation) {
+    let provenance = match &v.provenance {
+        Some(p) => format!(
+            "{{\"label\":{},\"timestamp\":{},\"pid\":{},\"op\":{},\"target\":\"{}\"}}",
+            p.label, p.timestamp_ns, p.pid, p.op, p.target
+        ),
+        None => "null".to_string(),
+    };
     println!(
         "{{\"timestamp\":{},\"event\":\"TAINT_VIOLATION\",\"effect\":\"{}\",\
 \"blocked\":{},\"killed\":{},\"comm\":\"{}\",\"pid\":{},\"ppid\":{},\
-\"target\":\"{}\",\"rule_id\":{},\"taint_label\":{}}}",
+\"target\":\"{}\",\"rule_id\":{},\"taint_label\":{},\"matched_label\":{},\
+\"provenance\":{}}}",
         v.timestamp_ns,
         effect_name(v.effect),
         v.blocked,
@@ -35,6 +43,8 @@ fn print_violation(v: &Violation) {
         v.target,
         v.rule_id,
         v.label,
+        v.matched_label,
+        provenance,
     );
     use std::io::Write;
     let _ = std::io::stdout().flush();
@@ -55,10 +65,16 @@ fn main() {
         match a.as_str() {
             "--config" | "-c" => config = args.next(),
             "--agent-pid" => {
-                agent_pid = args.next().and_then(|s| s.parse().ok()).unwrap_or_else(|| usage())
+                agent_pid = args
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or_else(|| usage())
             }
             "--agent-label" => {
-                agent_label = args.next().and_then(|s| parse_u64(&s)).unwrap_or_else(|| usage())
+                agent_label = args
+                    .next()
+                    .and_then(|s| parse_u64(&s))
+                    .unwrap_or_else(|| usage())
             }
             "-h" | "--help" => usage(),
             _ => usage(),
@@ -83,7 +99,11 @@ fn main() {
     };
     eprintln!(
         "ActPlane: {} mode ({})",
-        if loader.enforce_mode() { "enforce" } else { "tracepoint" },
+        if loader.enforce_mode() {
+            "enforce"
+        } else {
+            "tracepoint"
+        },
         if bpf_lsm_active() {
             "BPF LSM is active"
         } else {

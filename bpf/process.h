@@ -26,6 +26,13 @@ struct event {
 	unsigned int taint_rule_id;
 	unsigned int conn_ip;            /* connect: network-order IPv4 (0 otherwise) */
 	unsigned long long taint_label;
+	unsigned long long matched_label;
+	unsigned long long prov_label;
+	unsigned long long prov_timestamp_ns;
+	int prov_pid;
+	unsigned int prov_op;            /* enum taint_op that introduced prov_label */
+	unsigned int prov_ip;            /* endpoint provenance, network order */
+	char prov_target[MAX_FILENAME_LEN]; /* file/exec provenance target */
 };
 
 #endif /* __PROCESS_H */
