@@ -28,8 +28,8 @@ agent guardrails and kernel provenance/enforcement systems?
 
 \begin{table*}[t]
 \centering
-\caption{Planned evaluation matrix. Result fields remain \textsc{TBD}.}
-\Description{A table listing planned experiments and planned result fields.}
+\caption{Evaluation matrix.}
+\Description{A table listing experiments, methods, and primary metrics.}
 \begin{tabular}{p{0.12\textwidth}p{0.26\textwidth}p{0.26\textwidth}p{0.24\textwidth}}
 \toprule
 Experiment & Method & Primary metrics & Result status \\
@@ -85,8 +85,9 @@ reason and remediation through the feedback file and hook bridge.
 \end{itemize}
 
 The main comparison is C3 to C4: the net benefit of the corrective feedback
-loop. C1 to C2 estimates how often the prompt-only harness fails; C2 to C3
-separates observation from action failure.
+loop. The C1-to-C2 comparison measures the rate at which prompt-only
+constraints are violated; C2-to-C3 isolates the effect of action failure from
+observation alone.
 
 \subsection{Reproducibility}
 
@@ -109,17 +110,19 @@ provenance streams over processes, files, and sockets~\cite{pasquier2017camflow}
 
 CamQuery is the closest prior system~\cite{pasquier2018camquery}. It executes
 provenance queries inline in the kernel, propagates labels across process, file,
-and network edges, and can prevent policy violations. ActPlane does not claim
-that this mechanism is new. The difference is the domain and substrate:
-ActPlane targets cooperative AI agents, compiles an agent-oriented source/sink
-DSL to eBPF/BPF-LSM, and returns corrective feedback to the actor that violated
-the rule.
+and network edges, and can prevent policy violations. ActPlane shares this
+label-propagation model but differs in three respects: it targets cooperative
+AI agents rather than adversarial intrusions, compiles an agent-oriented
+source/sink DSL rather than general provenance queries, and returns corrective
+feedback to the actor rather than a silent denial. The implementation also
+differs: ActPlane uses the eBPF/BPF-LSM substrate rather than a kernel module.
 
 TaintDroid, Dytan, libdft, and Panorama established dynamic taint tracking at
 runtime, binary-instrumentation, or emulation layers~\cite{enck2010taintdroid,
-clause2007dytan,kemerlis2012libdft,yin2007panorama}. ActPlane uses a much
-coarser object-level taint. That coarseness is what allows kernel-wide coverage,
-but it creates an over-taint risk that must be measured.
+clause2007dytan,kemerlis2012libdft,yin2007panorama}. ActPlane operates at
+object granularity rather than byte granularity, trading precision for
+low-overhead whole-system coverage. Section~\ref{sec:evaluation} quantifies
+the resulting over-taint risk.
 
 \subsection{eBPF and LSM Enforcement}
 
@@ -158,14 +161,13 @@ which of those can be observed and enforced below the tool layer?
 
 \section{Conclusion}
 
-ActPlane moves agent harness enforcement below the tool layer. It compiles
+ActPlane extends agent harness enforcement to the OS level. It compiles
 agent-declared behavioral contracts into eBPF/BPF-LSM labeled information-flow
 rules, propagates labels across process, file, and endpoint objects, and
-returns kernel-detected violations as corrective feedback to the agent. Unlike
-a classic reference monitor that only denies, ActPlane targets cooperative
-agents: it provides audit-only guidance, harness-level termination, and
-remediation text that lets the agent complete the original task through an
-allowed path. The labeled information-flow mechanism is not new---ActPlane's
-contribution is unifying it with an agent-oriented contract language and a
-feedback loop on the modern eBPF/BPF-LSM substrate, bridging the
-intent--behavior gap that existing single-level harnesses leave open.
+returns kernel-detected violations as corrective feedback to the agent. By
+supporting audit, pre-operation denial, and harness-level termination with
+structured remediation, ActPlane enables cooperative agents to recover from
+violations rather than fail opaquely. ActPlane unifies labeled information-flow
+enforcement with an agent-oriented contract language and a feedback loop on
+the eBPF/BPF-LSM substrate, bridging the intent--behavior gap that
+single-level harnesses leave open.

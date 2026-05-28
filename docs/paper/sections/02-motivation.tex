@@ -1,6 +1,7 @@
-\section{Motivation and Requirements}
+\section{Background and Motivation}
+\label{sec:motivation}
 
-\subsection{Behavioral Contracts in the Wild}
+\subsection{Behavioral Contracts in Agent Instruction Files}
 
 We collected \texttt{CLAUDE.md} and \texttt{AGENTS.md} files from 50~popular
 open-source projects and extracted candidate behavioral rules. These files
@@ -20,15 +21,16 @@ full corpus and the filtered evaluation subset.
 \subsection{Why Tool-Layer Guards Are Insufficient}
 
 Agent frameworks and permission systems can intercept tool calls and apply
-deterministic policies~\cite{wang2025agentspec,shi2025progent}. This is useful,
-but it assumes that effects pass through the guarded tool boundary. A coding
-agent violates that assumption whenever it invokes a shell, starts a subprocess,
-loads a library, or talks to an external service from generated code. The same
+deterministic policies~\cite{wang2025agentspec,shi2025progent}. This approach
+is effective when all effects pass through the guarded tool boundary, but a
+coding agent violates that assumption whenever it invokes a shell, starts a
+subprocess, loads a library, or communicates with an external service from
+generated code. The same
 semantic action, for example invoking \texttt{git push --force}, can appear as a
 direct shell command, a nested \texttt{bash -c} string, a Python subprocess, or
 a helper binary. A tool-layer guard sees only the outer tool invocation.
 
-The OS sees the effect itself. Every exec, file open, unlink, rename, truncate,
+The kernel observes the effect directly. Every exec, file open, unlink, rename, truncate,
 and socket connect crosses a kernel boundary. If a policy is phrased over those
 effects and over the lineage of the agent process tree, then the policy applies
 regardless of the high-level route the agent selected.

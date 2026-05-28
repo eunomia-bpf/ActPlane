@@ -5,8 +5,8 @@
 
 ActPlane policies are object-level information-flow rules over three node
 types: processes, files, and endpoints. A process node represents a Linux task
-identified by pid and command identity. A file node is currently keyed by path.
-An endpoint node is currently keyed by IPv4 address. The model is intentionally
+identified by pid and command identity. A file node is keyed by path.
+An endpoint node is keyed by IPv4 address. The model is intentionally
 coarser than byte-level dynamic taint tracking~\cite{kemerlis2012libdft}; it
 trades precision for low-overhead whole-system coverage.
 
@@ -65,7 +65,7 @@ egress and one killing git execution by an agent.}
 Rules have explicit effects.
 
 \textbf{Audit.} The kernel reports the violation and allows the action to
-proceed. This is useful for soft workflow guidance and for measurement.
+proceed. Audit enables soft workflow guidance and measurement.
 
 \textbf{Block.} A BPF-LSM hook returns \texttt{-EPERM} before the operation is
 committed. \texttt{block} is not supported in tracepoint mode and is not
@@ -81,12 +81,12 @@ effect in the order \texttt{kill > block > audit}. Unsupported effects are
 ignored by that backend, so a tracepoint \texttt{audit} rule can still fire even
 when an unsupported \texttt{block} rule also matches.
 
-\subsubsection{Why This Is a Harness DSL}
+\subsubsection{Contract Language Scope}
 
-The language is deliberately not a general-purpose MAC policy. Its primitives
-map to agent workflows: ``after tests,'' ``through a review tool,'' ``data
-derived from untrusted input,'' and ``read-only sub-agent.'' The grammar is
-small because policy authors should be able to translate natural-language
+The language is not a general-purpose MAC policy. Its primitives
+map to agent workflow patterns: ``after tests,'' ``through a review tool,''
+``data derived from untrusted input,'' and ``read-only sub-agent.'' The grammar
+is deliberately small so that policy authors can translate natural-language
 instructions into a few recurring source/sink/gate shapes.
 
 \subsection{System Architecture}
@@ -172,14 +172,14 @@ new bytes from that file and returns them as additional context to compatible
 agents.
 
 The feedback path does not re-evaluate policy in userspace. The kernel is the
-authority for rule matches. Userspace only formats the reason so a cooperative
-agent can choose a different route.
+authority for rule matches. Userspace formats the reason so that the agent can select an
+alternative execution path.
 
 
 \section{Implementation}
 
 ActPlane is implemented as a Rust collector and an eBPF loader/program pair.
-The current codebase builds a single \texttt{actplane} binary that embeds the
+The system builds a single \texttt{actplane} binary that embeds the
 compiled loader, extracts it at runtime, compiles project policy YAML, and runs
 a target command under the policy harness.
 
@@ -208,12 +208,11 @@ verdict to return.
 
 \subsection{Current Limitations}
 
-The implementation deliberately exposes several limitations rather than hiding
-them behind ambiguous semantics.
+The implementation exposes several limitations rather than hiding them behind
+ambiguous semantics.
 
-\textbf{Path identity.} File labels are currently keyed by path hash. This is
-sufficient for the prototype but should move toward inode/device identity for a
-stronger claim.
+\textbf{Path identity.} File labels are keyed by path hash rather than
+inode/device pairs.
 
 \textbf{Endpoint identity.} Kernel connect matching is numeric IPv4. Hostname,
 DNS, SNI, and HTTP-layer policies require userspace assist or additional
