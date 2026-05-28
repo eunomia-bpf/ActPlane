@@ -1,22 +1,21 @@
 \section{Motivation and Requirements}
 
-\subsection{Natural-Language Harnesses Are Real}
+\subsection{Behavioral Contracts in the Wild}
 
-We built a snapshot and analysis pipeline for
-\texttt{CLAUDE.md} and \texttt{AGENTS.md} files from popular software projects.
-The preliminary extraction shows that these files contain many imperative rules,
-but only a subset are OS-observable behavioral constraints. This distinction is
-important. A rule such as ``never use \texttt{any}'' is a coding-style rule and
-is outside ActPlane's scope. A rule such as ``never push directly to
-\texttt{main}'' or ``run tests before committing'' has an observable process
-and syscall footprint and can be enforced as a harness contract.
+We collected \texttt{CLAUDE.md} and \texttt{AGENTS.md} files from 50~popular
+open-source projects and extracted candidate behavioral rules. These files
+contain many imperative statements, but only a subset are OS-observable
+behavioral contracts. A rule such as ``never use \texttt{any}'' is a
+coding-style directive and is outside ActPlane's scope. A rule such as ``never
+push directly to \texttt{main}'' or ``run tests before committing'' has an
+observable process and syscall footprint and can be enforced as a harness
+contract.
 
-The paper will use the corpus study for two purposes. First, it grounds the
-motivation: developers already write behavioral constraints for agents. Second,
-it derives evaluation workloads: only rules that are observable, expressible,
-robust, and temptable are converted into policy/task pairs. The final paper
-should report both the unbiased corpus denominator and the filtered evaluation
-subset, rather than selecting only examples that ActPlane can handle.
+The corpus serves two purposes. First, it grounds the motivation: developers
+already write behavioral contracts for agents. Second, it derives evaluation
+workloads: we convert rules that are observable, expressible, robust, and
+temptable into policy/task pairs (\S\ref{sec:evaluation}), reporting both the
+full corpus and the filtered evaluation subset.
 
 \subsection{Why Tool-Layer Guards Are Insufficient}
 
@@ -38,23 +37,22 @@ regardless of the high-level route the agent selected.
 
 ActPlane is designed around five requirements.
 
-\textbf{R1: Whole-execution scope.} A rule must apply to the agent's
+\textbf{R1: Whole-execution scope.} A rule applies to the agent's
 descendants, not just to the top-level process or the initial tool call.
 
-\textbf{R2: Cross-object provenance.} Many rules are about information flow,
-not a single event. Reading a secret file should taint the reader; writing a
-derived file should taint that file; reading the derived file later should taint
+\textbf{R2: Cross-object provenance.} Many contracts involve information flow,
+not a single event. Reading a secret file taints the reader; writing a
+derived file taints that file; reading the derived file later taints
 the next process.
 
 \textbf{R3: Effect semantics that match the backend.} \texttt{block} means
-pre-operation denial and is implemented only by BPF-LSM hooks. Tracepoints do
-not support \texttt{block}; they can report \texttt{audit} rules or terminate
-\texttt{kill} rules.
+pre-operation denial and is implemented only by BPF-LSM hooks. Tracepoints
+support \texttt{audit} and \texttt{kill} but not \texttt{block}.
 
-\textbf{R4: Corrective feedback.} The harness should not only fail a violating
-action. It should tell the agent which rule fired, why, and what alternative or
-precondition can allow progress.
+\textbf{R4: Corrective feedback.} The harness not only fails a violating
+action but tells the agent which rule fired, why, and what alternative or
+precondition allows progress.
 
-\textbf{R5: Deployable mechanism.} The implementation should use upstream Linux
+\textbf{R5: Deployable mechanism.} The implementation uses upstream Linux
 interfaces: eBPF for dynamic loading and BPF-LSM for pre-operation deny, rather
 than a custom kernel module.

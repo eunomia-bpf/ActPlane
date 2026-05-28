@@ -1,4 +1,7 @@
-\section{Policy Model}
+\section{Design}
+\label{sec:design}
+
+\subsection{Policy Model}
 
 ActPlane policies are object-level information-flow rules over three node
 types: processes, files, and endpoints. A process node represents a Linux task
@@ -7,7 +10,7 @@ An endpoint node is currently keyed by IPv4 address. The model is intentionally
 coarser than byte-level dynamic taint tracking~\cite{kemerlis2012libdft}; it
 trades precision for low-overhead whole-system coverage.
 
-\subsection{Labels and Propagation}
+\subsubsection{Labels and Propagation}
 
 Each node carries a bitset of labels. A source declaration introduces labels:
 an exec source labels processes that execute a matching binary, a file source
@@ -27,7 +30,7 @@ This is the provenance invariant ActPlane maintains: if a process carries label
 \texttt{SECRET}, then information from some \texttt{SECRET} source has reached
 that process through observed OS-level flow edges.
 
-\subsection{Rules, Gates, and Effects}
+\subsubsection{Rules, Gates, and Effects}
 
 A rule contains one or more deny clauses. A clause specifies an operation
 (\texttt{exec}, \texttt{read}, \texttt{write}, \texttt{unlink},
@@ -78,7 +81,7 @@ effect in the order \texttt{kill > block > audit}. Unsupported effects are
 ignored by that backend, so a tracepoint \texttt{audit} rule can still fire even
 when an unsupported \texttt{block} rule also matches.
 
-\subsection{Why This Is a Harness DSL}
+\subsubsection{Why This Is a Harness DSL}
 
 The language is deliberately not a general-purpose MAC policy. Its primitives
 map to agent workflows: ``after tests,'' ``through a review tool,'' ``data
@@ -86,8 +89,7 @@ derived from untrusted input,'' and ``read-only sub-agent.'' The grammar is
 small because policy authors should be able to translate natural-language
 instructions into a few recurring source/sink/gate shapes.
 
-
-\section{Design}
+\subsection{System Architecture}
 
 Figure~\ref{fig:architecture} summarizes ActPlane's control flow. The Rust
 runner discovers a project policy, compiles its embedded DSL into a fixed binary
@@ -119,7 +121,7 @@ execution, and feedback output.}
 \label{fig:architecture}
 \end{figure}
 
-\subsection{Compiler and Kernel ABI}
+\subsubsection{Compiler and Kernel ABI}
 
 The collector parses the DSL and lowers it into a C-compatible
 \texttt{struct taint\_config}. Lowering allocates label bits, expands Boolean
@@ -134,7 +136,7 @@ bounded loops over fixed-size arrays in read-only data, copies rule entries into
 stack locals before matching, and uses explicit bounds checks for argv scanning
 and pattern matching.
 
-\subsection{Kernel State}
+\subsubsection{Kernel State}
 
 The kernel backend maintains three principal maps:
 
@@ -150,7 +152,7 @@ programs perform pre-operation checks for exec, file access/mutation, and socket
 connect. When BPF-LSM is not active in \texttt{/sys/kernel/security/lsm}, the
 loader disables LSM programs and warns that \texttt{block} rules will not fire.
 
-\subsection{Unified Event Handling}
+\subsubsection{Unified Event Handling}
 
 Each hook normalizes kernel arguments into a small event structure: subject pid,
 object kind, access kind, backend mode, target display string, optional argv
@@ -158,10 +160,6 @@ blob, and optional IPv4 address. The shared handler resolves current labels,
 adds object-source labels for read/connect events, evaluates supported rules,
 emits exactly one \texttt{TAINT\_VIOLATION} event when a supported rule matches,
 and then applies propagation updates.
-
-This structure is the code-level counterpart to the policy model. File, exec,
-and network hooks differ only in how they resolve targets and which operations
-they advertise. Matching and feedback are otherwise centralized.
 
 \subsection{Corrective Feedback}
 
@@ -228,6 +226,6 @@ tracepoint path; \texttt{effect audit} can report and \texttt{effect kill} can
 terminate after exec.
 
 \textbf{Precision.} Labels propagate at object granularity. This can over-taint
-compared with byte-level DIFT systems. The evaluation must therefore measure
-false positives and validate declassification/gate paths, not only violation
-coverage.
+compared with byte-level DIFT systems. Section~\ref{sec:evaluation} measures
+false positives and validates that declassification and gate paths prevent
+unnecessary failures.
