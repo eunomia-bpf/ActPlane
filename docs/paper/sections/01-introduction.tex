@@ -7,14 +7,15 @@ source trees, package managers, and external APIs, autonomously writing code,
 running tests, and managing infrastructure across extended
 sessions~\cite{agentsight}.
 
-% ¶2: Agents need harnesses to enforce behavioral contracts (consensus, state quickly)
-As agents gain autonomy, projects govern them with behavioral contracts---do
-not push directly to \texttt{main}; run tests before committing; never expose
-secrets---encoded in instruction files such as \texttt{CLAUDE.md} and
-\texttt{AGENTS.md}~\cite{chatlatanagulchai2025manifests,lulla2026agentsmd}.
-Because LLM compliance is inherently probabilistic, deterministic enforcement
-cannot live inside the model; it requires an external
-harness~\cite{langchain-harness,fowler-harness}. The question is not whether
+% ¶2: Agents need deterministic harnesses to enforce behavioral contracts
+As agents gain autonomy, they need deterministic harnesses to enforce
+behavioral contracts. Projects already encode such contracts in instruction
+files such as \texttt{CLAUDE.md} and
+\texttt{AGENTS.md}~\cite{chatlatanagulchai2025manifests,lulla2026agentsmd}:
+do not push directly to \texttt{main}; run tests before committing; never
+expose secrets. Because LLM compliance is inherently probabilistic,
+enforcement cannot live inside the
+model~\cite{langchain-harness,fowler-harness}. The question is not whether
 agents need harnesses, but where the harness should enforce and how it should
 feed back.
 
@@ -33,7 +34,8 @@ helper. Intent-level enforcement (prompt instructions) is probabilistic---the
 agent may forget. Action-level enforcement (tool-call guards such as AgentSpec
 and Progent~\cite{wang2025agentspec,shi2025progent}) is deterministic but
 bypassable: it checks tool calls, not the OS behavior they produce.
-Behavior-level enforcement (syscall filters, sandboxes) is unbypassable but
+Behavior-level enforcement (syscall filters,
+sandboxes~\cite{pasquier2018camquery,ciliumtetragon}) is unbypassable but
 returns opaque \texttt{-EPERM} failures disconnected from intent. No single
 level bridges the gap.
 
@@ -53,31 +55,22 @@ information flow across process, file, and network boundaries.
 
 % ¶5: System — ActPlane bridges intent and behavior
 ActPlane bridges intent and behavior by compiling agent-declared contracts into
-OS-level labeled information-flow enforcement with corrective feedback. Agents
-and developers declare contracts in a compact DSL---voluntary confinement,
-analogous to \texttt{pledge()} in OpenBSD, where a program restricts its own
-capabilities. ActPlane compiles these declarations into labeled
-information-flow rules and loads them into an eBPF/BPF-LSM backend. Named
+OS-level labeled information-flow enforcement with corrective feedback. 
+Agents and developers declare behavioral
+contracts in a compact DSL---voluntary confinement, analogous to
+\texttt{pledge()} in OpenBSD, where a program restricts its own capabilities.
+ActPlane compiles these declarations into labeled information-flow rules and
+loads them into an eBPF/BPF-LSM backend. Named
 labels propagate across process, file, and network objects at kernel hooks,
 encoding execution history as checkable state: when a process reads a file
 labeled \texttt{SECRET}, the process acquires that label; when it forks, the
 child inherits it. When a labeled subject violates a rule, ActPlane returns
 corrective feedback to the agent---which contract was violated, why, and what
 alternative path satisfies it---not \texttt{Permission~denied} but a reminder
-of the agent's own declared intent.
-
-% ¶6: Positioning — not new mechanism, unification at OS level
-ActPlane is not a new enforcement mechanism but a unification at the OS level
-of capabilities previously split across layers. CamQuery showed that
-cross-channel label propagation and enforcement can be done in the
-kernel~\cite{pasquier2018camquery}; AgentSpec demonstrated corrective feedback
-for agents at the tool-call layer~\cite{wang2025agentspec}; FIDES and CaMeL
-let agents participate in their own governance through application-layer
-information-flow control~\cite{costa2025fides,debenedetti2025camel}. ActPlane
-brings these together on the modern eBPF/BPF-LSM substrate, where contracts
-survive context loss and cannot be bypassed below the tool API. It is not a
-replacement for the application-layer harness but a complement---the
-enforcement component that must reach below the tool API to the OS.
+of the agent's own declared intent. Unlike prior work that enforces at a
+single layer~(\S\ref{sec:related}), ActPlane unifies cross-object
+information-flow enforcement and corrective feedback at the OS level, where
+contracts survive context loss and cannot be bypassed below the tool API.
 
 % ¶7: Results (TBD — fill with headline numbers when available)
 % TODO: Add headline results here once evaluation is complete.
