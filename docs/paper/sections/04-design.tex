@@ -1,9 +1,11 @@
 \section{Design}
 \label{sec:design}
 
-ActPlane compiles behavioral contracts into labeled information-flow rules
-enforced at OS kernel hooks, and returns corrective feedback when a rule is
-violated. Figure~\ref{fig:architecture} summarizes the pipeline.
+ActPlane is a programmable OS-level control plane for agent harnesses. It
+compiles behavioral contracts into labeled information-flow rules at OS
+kernel hooks, observing and enforcing agent behavior and returning semantic
+feedback when a rule is violated. Figure~\ref{fig:architecture} summarizes
+the pipeline.
 
 \begin{figure}[t]
 \begin{verbatim}

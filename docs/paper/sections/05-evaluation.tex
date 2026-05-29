@@ -148,13 +148,14 @@ be enforced at the OS level?
 \section{Conclusion}
 \label{sec:conclusion}
 
-ActPlane extends agent harness enforcement to the OS level. It compiles
-agent-declared behavioral contracts into eBPF/BPF-LSM labeled
+ActPlane provides a programmable OS-level control plane for agent harnesses.
+It compiles agent-declared behavioral contracts into eBPF/BPF-LSM labeled
 information-flow rules, propagates labels across process, file, and endpoint
-objects at kernel hooks, and returns kernel-detected violations as corrective
+objects at kernel hooks, and returns kernel-detected violations as semantic
 feedback to the agent. By supporting audit, pre-operation denial, and
 harness-level termination with structured remediation, ActPlane enables
 agents to recover from contract violations rather than fail opaquely.
-ActPlane unifies labeled information-flow enforcement with an agent-oriented
-contract language and a feedback loop on the eBPF/BPF-LSM substrate,
-bridging the intent--behavior gap that single-level harnesses leave open.
+ActPlane unifies labeled information-flow observation and enforcement with
+an agent-oriented contract language and a feedback loop on the eBPF/BPF-LSM
+substrate, bridging the intent--behavior gap that single-level harnesses
+leave open.

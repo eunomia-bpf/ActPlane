@@ -51,9 +51,8 @@ harnesses~\cite{langchain-harness,fowler-harness} keep their enforcement and
 feedback components at the application layer, where they cannot connect behavior to intent.
 
 % ¶5: System — ActPlane bridges intent and behavior
-ActPlane bridges intent and behavior by compiling agent-declared contracts into
-OS-level labeled information-flow enforcement with corrective feedback. 
-Agents and developers declare behavioral
+ActPlane is a programmable OS-level control plane for agent harnesses that
+bridges intent and behavior. Agents and developers declare behavioral
 contracts in a compact DSL, a form of voluntary confinement analogous to
 \texttt{pledge()} in OpenBSD~\cite{openbsd-pledge}.
 ActPlane compiles these declarations into labeled information-flow rules and
@@ -65,8 +64,9 @@ child inherits it. When a labeled subject violates a rule, ActPlane returns
 corrective feedback to the agent, specifying which contract was violated, why,
 and what alternative path satisfies it. Unlike prior work that enforces at a
 single layer~(\S\ref{sec:related}), ActPlane unifies cross-object
-information-flow enforcement and corrective feedback at the OS level, where
-contracts survive context loss and cannot be bypassed below the tool API.
+information-flow observation and enforcement with semantic feedback at the
+OS level, where contracts survive context loss and cannot be bypassed below
+the tool API.
 
 % ¶7: Results — TODO: replace with headline numbers
 % ActPlane catches all five bypass paths that tool-layer guards miss,
@@ -82,10 +82,11 @@ with a corpus study of instruction files from 50~popular projects, showing
 that cross-object information-flow contracts are pervasive in real agent
 instruction files.
 
-\item It presents ActPlane, a system that compiles agent-declared behavioral
-contracts into eBPF/BPF-LSM labeled information-flow enforcement with
-corrective feedback, propagating labels across process, file, and network
-objects and reconnecting behavior-level violations to intent-level
+\item It presents ActPlane, a programmable OS-level control plane for agent
+harnesses that compiles agent-declared behavioral contracts into
+eBPF/BPF-LSM labeled information-flow rules, observing and enforcing agent
+behavior across process, file, and network boundaries and providing
+semantic feedback that reconnects behavior-level violations to intent-level
 remediation.
 
 \item It evaluates ActPlane on bypass coverage across five tool paths, agent
