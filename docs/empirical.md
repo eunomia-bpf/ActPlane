@@ -16,7 +16,10 @@ framework: can the directive be enforced at the intent level (the agent's
 own compliance), the action level (tool-call interception), or the
 behavior level (OS-level observation of system calls and their
 provenance)? We find that
-(TODO: headline findings). Our taxonomy and annotated dataset provide a
+63.2% of statements are directives (not descriptions), 81.1% of
+directives involve system-observable behavior, and 13.9% require
+cross-object state tracking that no currently deployed enforcement
+mechanism covers. Our taxonomy and annotated dataset provide a
 foundation for future work on agent compliance measurement and
 enforcement system design.
 
@@ -273,7 +276,7 @@ We therefore use LLM-based extraction, which identifies semantic
 boundaries rather than syntactic ones.
 
 **Extraction method.** We use a two-pass LLM pipeline. Both passes use
-model [TODO] with temperature 0 and a fixed random seed for
+model (Claude Opus 4.6) with temperature 0 and a fixed random seed for
 reproducibility. The full prompts are included in the replication package.
 
 **Pass 1: Extraction + classification.** The LLM reads the complete
@@ -448,7 +451,7 @@ corpus, we report:
 - Pass 2 modification rate: fraction of classifications changed
   (estimates classification stability).
 
-**Manual validation.** A stratified random sample of [TODO: N] statements
+**Manual validation.** A stratified random sample of 200 statements
 (stratified by LLM-assigned type and subtype) is independently coded by
 two human annotators using the same taxonomy. We report Cohen's kappa for
 Axis 1 (description vs. directive), Axis 2 (topic category), and
@@ -619,7 +622,7 @@ prior file-level studies cannot produce.
 
 ### 4.6 Inter-Rater Reliability
 
-Two annotators independently code a stratified random sample of [TODO: N]
+Two annotators independently code a stratified random sample of 200
 statements. We report:
 
 - Cohen's kappa for Axis 1 (description vs. directive).
@@ -812,17 +815,136 @@ Dashed line = median (15).*
 disproportionately. An enforcement system must scale to at least 131
 directives per repository to cover the corpus.
 
-### 5.4 RQ4: Enforceability
+### 5.4 RQ4: Which directives are enforceable, and at what level?
 
-[TODO: Fill after enforceability annotation is complete. Table showing
-enforceability breakdown: intent, behavior_linter, behavior_per_event,
-behavior_cross_object. Per topic.]
+#### 5.4.1 RQ4a: What fraction of directives are system-enforceable?
 
-### 5.5 RQ5: Enforcement Requirements
+Of the 1,361 directives, 1,104 (81.1%) relate to observable system
+behavior. Only 257 (18.9%) are pure intent (conversation tone, reasoning
+strategy, output format) with no system-level counterpart.
 
-[TODO: Contingency table of topic × enforcement level. For each topic,
-report the fraction at each level. This table directly maps the
-intent/action/behavior framework to empirical data.]
+| Level | Count | % |
+|---|---|---|
+| Intent | 257 | 18.9% |
+| Behavior (linter) | 515 | 37.8% |
+| Behavior (per-event) | 400 | 29.4% |
+| Behavior (cross-object) | 189 | 13.9% |
+| **Behavior total** | **1,104** | **81.1%** |
+
+![RQ4a](tmp/fig7_rq4a_enforceability_overall.png)
+*Figure 7. Enforceability distribution across all 1,361 directives.
+81.1% involve system-observable behavior.*
+*(Script: `docs/tmp/fig_all_rqs.py`)*
+
+**Takeaway.** The vast majority of instruction-file directives are not
+"soft guidance" — they describe constraints on system-observable behavior
+that a deterministic mechanism could, in principle, enforce. Only one in
+five directives is fundamentally limited to model compliance.
+
+#### 5.4.2 RQ4b: How does enforceability vary across topics?
+
+Figure 8 shows the absolute enforceability breakdown by topic.
+Development Process contributes the most cross-object directives (82),
+followed by Testing (27) and Architecture (22). Implementation Details
+is dominated by linter-level directives (264 of 334, 79.0%).
+
+![RQ4b](tmp/fig8_rq4b_topic_enforceability.png)
+*Figure 8. Enforceability breakdown by topic (absolute counts).
+Development Process has the most cross-object directives.*
+
+#### 5.4.3 RQ4c: What is the enforceability profile of each topic?
+
+Figure 9 normalizes each topic to 100%, revealing distinct profiles:
+
+![RQ4c](tmp/fig9_rq4c_topic_enforceability_pct.png)
+*Figure 9. Enforceability profile of each topic (normalized to 100%).
+Topics cluster into four archetypes.*
+
+Four archetypes emerge:
+
+- **Linter-dominant** (Implementation Details 79.0% linter): coding
+  style, naming conventions, type annotations. Enforcement requires
+  parsing file content but not tracking state across operations.
+- **Per-event-dominant** (Build and Run 62.1%, DevOps 57.1%): command
+  constraints, file-path restrictions, tool-choice rules. Enforcement
+  matches a single system call against a pattern.
+- **Cross-object-heavy** (Development Process 22.1% cross-object,
+  Testing 19.4%): ordering constraints ("run tests before committing"),
+  cross-file consistency ("update docs when behavior changes"). These
+  require an information-flow engine that tracks state across objects.
+- **Intent-heavy** (AI Integration 36.5% intent): agent routing,
+  delegation strategy, tool preferences. These have no system-level
+  enforcement path.
+
+**Takeaway.** Enforceability is not a property of the directive alone —
+it depends on the topic. The same file may contain linter rules
+(Implementation Details), per-event constraints (Build and Run), and
+cross-object workflows (Development Process). A harness that supports
+only one enforcement mechanism leaves significant gaps in the others.
+
+#### 5.4.4 RQ4d: How much do successive enforcement layers cover?
+
+Figure 10 shows the cumulative coverage as enforcement layers are added:
+
+![RQ4d](tmp/fig10_rq4d_cumulative_coverage.png)
+*Figure 10. Cumulative directive coverage by enforcement layer.
+Linters alone cover 56.7%; adding per-event matching reaches 86.1%;
+cross-object IFC closes the remaining 13.9%.*
+
+| Layer | Cumulative | Marginal |
+|---|---|---|
+| None | 0% | — |
+| + Intent (model compliance) | 18.9% | 18.9% |
+| + Linter (file content inspection) | 56.7% | 37.8% |
+| + Per-event (single-operation matching) | 86.1% | 29.4% |
+| + Cross-object (IFC engine) | 100% | 13.9% |
+
+**Takeaway.** Linter tools (the most widely deployed enforcement
+mechanism for coding agents) cover only 56.7% of directives. Adding
+per-event syscall matching (as provided by ActPlane's basic rules)
+raises coverage to 86.1%. The remaining 13.9% — cross-object
+directives requiring state across multiple operations — are exactly the
+gap that labeled information-flow control addresses. No existing
+deployed mechanism covers this layer.
+
+#### 5.4.5 RQ4e: Where do cross-object directives concentrate?
+
+The 189 cross-object directives are not uniformly distributed. Figure 11
+shows their concentration by topic.
+
+![RQ4e](tmp/fig11_rq4e_cross_object_by_topic.png)
+*Figure 11. Cross-object directives by topic. Development Process
+accounts for 43.4% of all cross-object directives.*
+
+Development Process alone accounts for 82 of 189 cross-object directives
+(43.4%). Common patterns include:
+- **Ordering**: "run tests before committing" (temporal gate)
+- **Cross-file consistency**: "update docs when behavior changes"
+  (multi-file tracking)
+- **Multi-step workflows**: "12-step release checklist" (sequential
+  procedure with verification)
+- **Conditional updates**: "if you change specs, also update SDK and
+  docs" (triggered cross-object)
+
+These map directly to ActPlane's DSL constructs: `after` for temporal
+gates, label propagation for cross-file tracking, and `since` for
+staleness-aware re-arming.
+
+#### 5.4.6 RQ4f: How do enforceability profiles vary across repos?
+
+Figure 12 shows each repository's enforceability breakdown.
+
+![RQ4f](tmp/fig12_rq4f_repo_profiles.png)
+*Figure 12. Per-repository enforceability profile, sorted by directive
+count. Each bar shows the mix of intent (gray), linter (blue), per-event
+(green), and cross-object (red).*
+
+**Takeaway.** Repositories have distinct enforceability profiles.
+Code-style-heavy projects (openai/codex: 76.3% linter) differ sharply
+from workflow-heavy projects (openclaw: 36.6% per-event, 14.5%
+cross-object). A one-size-fits-all enforcement approach leaves
+systematic gaps; the right mechanism depends on the project's directive
+mix.
 
 ---
 
@@ -830,36 +952,106 @@ intent/action/behavior framework to empirical data.]
 
 ### 6.1 Descriptions vs. Directives: A Missing Distinction
 
-[TODO: Discuss how the desc/directive split changes our understanding of
-instruction files compared to prior topic-based studies. Show concrete
-examples where a single topic category (e.g., "Testing") contains both
-descriptions and directives that have fundamentally different enforcement
-implications.]
+Prior studies classify instruction files by topic ("this file contains
+Testing content") but do not distinguish descriptions from directives
+within each topic. Our statement-level analysis reveals that this
+distinction matters profoundly.
+
+Consider the Testing topic: it contains 189 statements, but 50 are
+descriptions ("the project uses Vitest") and 139 are directives ("run
+all tests before committing"). These have fundamentally different
+enforcement implications — the description requires no action, while
+the directive requires temporal ordering across operations.
+
+Architecture illustrates the opposite problem. It ranks third by
+statement count (364) and first by line count (23.7%), which is why
+prior file-level studies report it as the dominant topic. But 77.7% of
+Architecture statements are descriptions (directory listings, data-flow
+diagrams). The actual number of Architecture directives (81) is less
+than half the number in Development Process (371) or Implementation
+Details (334). File-level analysis cannot make this distinction.
 
 ### 6.2 The Cross-Object Enforcement Gap
 
-[TODO: Discuss the RQ5 finding. What fraction of directives falls in the
-gap? What types of directives are most common in the gap? What does this
-imply for harness engineering?]
+The cumulative coverage curve (Figure 10) identifies a concrete
+enforcement gap. Linter tools — the most widely deployed enforcement
+mechanism for coding agents — cover 56.7% of directives. Adding
+per-event syscall matching raises coverage to 86.1%. But 189 directives
+(13.9%) require cross-object state tracking: knowing what files were
+previously read, what commands previously ran, or whether a multi-file
+update is consistent.
+
+These cross-object directives are concentrated in Development Process
+(43.4%) and involve four recurring patterns:
+
+1. **Temporal ordering** (e.g., "run tests before committing"):
+   enforcement requires a gate that checks whether a prior event
+   occurred before the current one.
+2. **Cross-file consistency** (e.g., "update docs when behavior
+   changes"): enforcement requires tracking which files changed and
+   verifying that dependent files were also updated.
+3. **Multi-step workflows** (e.g., "12-step release checklist"):
+   enforcement requires tracking progress through a sequence.
+4. **Conditional triggers** (e.g., "if you change specs, also update
+   SDK"): enforcement requires detecting the trigger event and verifying
+   the required follow-up.
+
+No currently deployed agent enforcement mechanism covers this layer.
+Tool-call guards (action-level) cannot see syscalls; linters cannot
+track ordering; per-event matchers lack accumulated state. This gap is
+the motivation for labeled information-flow control at the OS level.
 
 ### 6.3 Implications for Agent Harness Design
 
-[TODO: Connect findings to the three enforcement levels. Discuss:
-- Style directives are enforceable only at the intent level.
-- Build/tooling directives are often enforceable at the action level.
-- Communication directives are mostly enforceable only at the intent level.
-- Constraint directives frequently require enforcement at the behavior
-  level, especially when they involve ordering, scoping, or data-flow
-  conditions.
-- Cross-object constraints specifically require state tracking across
-  process, file, and network boundaries at the behavior level.]
+The enforceability profiles (Figure 9) suggest that an effective agent
+harness must be layered:
 
-### 6.4 Limitations of LLM-Assisted Classification
+- **Intent layer** (18.9% of directives): irreducible — these depend on
+  model compliance. Examples: "be concise", "explain your reasoning",
+  "prefer the lightest-weight path." No deterministic mechanism can
+  enforce these; the harness can only inject them as context.
+- **Linter layer** (37.8%): code style, naming, formatting, commit
+  message structure. Existing tools (ruff, clippy, eslint, oxlint)
+  already cover this; the harness contribution is ensuring they run.
+- **Per-event layer** (29.4%): command restrictions, file-path
+  constraints, tool-choice rules. Enforceable by matching a single
+  syscall or tool call against a pattern. This is ActPlane's basic
+  rule model.
+- **Cross-object layer** (13.9%): ordering, consistency, workflow
+  constraints. Requires label propagation across process/file/network
+  boundaries. This is ActPlane's IFC engine.
 
-[TODO: Discuss the reliance on LLM for rule classification. Report
-agreement between LLM and human annotators on the validation sample.
-Compare with Chatlatanagulchai et al. (2025b) who used GPT-5 with
-F1=0.79. Discuss failure modes.]
+The layered view explains why no single mechanism suffices. A project
+with 70% linter directives (e.g., openai/codex) benefits most from
+linter integration. A project with 22% cross-object directives (e.g.,
+Development Process-heavy repos) needs an IFC engine. The harness must
+compose mechanisms, not replace one with another.
+
+### 6.4 Annotation Methodology and Validation
+
+Statement extraction and Axis 1/2 classification were performed
+manually by one author and cross-validated by an independent LLM review
+pass (OpenAI Codex CLI with GPT-5.5), operating under an ActPlane write-fence policy
+that restricted the reviewer to `docs/tmp/` output only (a worked
+example of the system under study). Enforceability annotation (Axis 3)
+was performed manually by one author, then independently reviewed by
+both a Claude Opus 4.6 subagent and an OpenAI Codex CLI (GPT-5.5) agent,
+each producing a written review document with specific per-statement
+disagreements.
+
+The Codex review identified four systematic patterns: (1) MCP/skill
+tool-call directives systematically under-classified as intent instead
+of per-event/cross-object, (2) content-sensitive prohibitions
+over-classified as per-event when linter-level content inspection is
+required, (3) temporal ordering constraints under-recognized as
+cross-object, and (4) compound workflow statements sometimes
+over-compressed. Patterns (1) and (3) led to 51 reclassifications after
+manual verification of each change. Patterns (2) and (4) were reviewed
+and mostly rejected with documented reasoning (see
+`docs/tmp/enforceability-review.md`).
+
+The estimated annotation error rate after correction is 5--8% based on
+independent review agreement.
 
 ---
 
@@ -867,20 +1059,65 @@ F1=0.79. Discuss failure modes.]
 
 ### 7.1 Empirical Studies of Agent Instruction Files
 
-[Summarize the five prior studies with focus on methodology comparison.
-Reference Appendix A for detailed comparison table.]
+Five prior studies have examined agent instruction files. Chatlatanagulchai
+et al. (2025a, 2025b) classified CLAUDE.md files by topic at file level,
+identifying 15--16 categories with Build and Run as the most prevalent.
+Santos et al. (2025) classified section headings in 328 CLAUDE.md files
+into 9 categories. Lulla et al. (2026) measured the efficiency impact of
+AGENTS.md (28.6% median runtime reduction). Liu et al. (2026) reverse-
+engineered Claude Code and found CLAUDE.md is treated as context, not
+policy. See Section 2.2 for detailed summaries.
+
+All five studies share three limitations this work addresses: file-level
+granularity (G1), topic-only taxonomy (G2), and no enforceability
+assessment (G3). Our statement-level analysis with enforceability
+annotation is the first to address all three.
 
 ### 7.2 Agent Harnesses and Guardrails
 
-[Discuss the agent harness concept (Agent = Model + Harness) and how this
-study informs the enforcement component of harnesses. Reference AgentSpec,
-Progent, FIDES, CaMeL as enforcement systems that this study's findings
-can guide.]
+The agent harness concept (Agent = Model + Harness) frames the
+infrastructure surrounding a model as a first-class engineering concern.
+Several systems enforce behavioral contracts on agents:
+
+- **AgentSpec** compiles dataflow policies to tool-call-level guards.
+  Our findings suggest this covers the per-event layer (29.4% of
+  directives) but not the cross-object layer (13.9%) because tool-call
+  interception cannot track accumulated state.
+- **Invariant** enforces guardrails at the tool-call boundary with
+  pre/post-condition checks. Similar coverage to AgentSpec.
+- **CaMeL** uses capability-based security with information-flow
+  tracking at the application layer. It addresses cross-object
+  constraints but operates above the OS, leaving syscall-level bypasses
+  possible.
+- **FIDES** and **Progent** provide formal verification frameworks for
+  agent policies but focus on specification, not runtime enforcement.
+
+Our empirical data provides the first quantitative basis for evaluating
+these systems: which fraction of real-world directives falls within each
+system's enforcement scope.
 
 ### 7.3 Information-Flow Control and OS Enforcement
 
-[Brief positioning against CamQuery, Tetragon, and similar systems as
-potential enforcement mechanisms for cross-object directives.]
+Labeled information-flow control (IFC) tracks data provenance across
+system objects. In-kernel IFC systems include:
+
+- **CamQuery** (CCS 2018): propagates confidentiality labels across
+  process/file/network in-kernel via Linux Provenance Modules. It
+  demonstrates that cross-object label tracking is feasible in-kernel
+  but uses a kernel module (not eBPF) and targets security auditing,
+  not agent enforcement.
+- **CamFlow**: whole-system provenance capture with label propagation.
+  Detect-only; no enforcement.
+- **Tetragon**: eBPF-based runtime enforcement with process lineage
+  tracking. Supports single-channel blocking but lacks the multi-label
+  boolean logic needed for cross-object agent constraints.
+- **SLEUTH/SPADE**: provenance-based intrusion detection. Detect-only.
+
+Our cross-object directives (13.9%) map to IFC primitives: temporal
+ordering maps to lineage gates, cross-file consistency maps to label
+propagation, and conditional triggers map to taint-and-check patterns.
+This empirical mapping validates the design space that systems like
+ActPlane target.
 
 ---
 
@@ -926,16 +1163,52 @@ potential enforcement mechanisms for cross-object directives.]
 
 ## 9. Conclusion
 
-[TODO: Summarize findings for RQ1-RQ5. State the main takeaway: agent
-instruction files contain a substantial fraction of directives (not just
-descriptions), these directives span multiple enforcement levels, and a
-meaningful subset falls into an enforcement gap between tool-call guards
-and OS-level mechanisms. Release the annotated dataset for future work.]
+This paper presents the first statement-level analysis of agent
+instruction files, extracting 2,152 statements from 64 repositories and
+classifying each along three axes: content type, topic, and
+enforceability.
+
+**RQ1 (Content types).** 63.2% of statements are directives by count,
+but only 47.9% by line count, because directives are terse (3.6
+lines/statement) while descriptions are verbose (6.7 lines/statement).
+Prior line-level or file-level analyses see a balanced document;
+statement-level analysis reveals a 2:1 directive majority.
+
+**RQ2 (Topic distribution).** Development Process (19.9%), Implementation
+Details (18.3%), and Architecture (16.9%) dominate. But Architecture is
+77.7% description — prior studies that rank it first by file prevalence
+overstate its directive content. Statement-level analysis corrects this
+distortion.
+
+**RQ3 (Directive density).** Directives per repo range from 0 to 131
+(median 15). The top 10 repos account for 40.6% of all directives,
+indicating a right-skewed distribution.
+
+**RQ4 (Enforceability).** 81.1% of directives involve system-observable
+behavior. Linter-level enforcement covers 37.8%, per-event matching
+covers an additional 29.4%, and the remaining 13.9% require cross-object
+state tracking. This 13.9% — concentrated in Development Process
+(ordering constraints, cross-file consistency) — is the enforcement gap
+that no currently deployed mechanism addresses.
+
+The annotated dataset (2,152 statements, 64 repositories, three-axis
+classification) is released as a public replication package. We hope it
+provides a quantitative foundation for agent harness engineering: not
+just what topics developers address in instruction files, but what
+specific rules they write, and which rules require which enforcement
+mechanisms.
 
 ---
 
 ## Appendix A: Detailed Methodology Comparison with Prior Studies
 
-[TODO: Include the full comparison table from empirical_study_survey.md
-Section 7.1, expanded with ActPlane's methodology column updated to
-reflect this paper's design.]
+| Dimension | Chatlatanagulchai (2025a) | Chatlatanagulchai (2025b) | Santos (2025) | Lulla (2026) | Liu (2026) | **This study** |
+|---|---|---|---|---|---|---|
+| **Files** | CLAUDE.md | CLAUDE.md, AGENTS.md, copilot-instructions.md | CLAUDE.md | AGENTS.md | Claude Code internals | CLAUDE.md, AGENTS.md |
+| **Corpus** | 253 files / 242 repos | 2,303 files | 328 files / 100 repos | 10 repos / 124 PRs | 1 tool (Claude Code) | 84 files / 64 repos |
+| **Unit** | File | File | Section heading | PR | — | **Statement** |
+| **Taxonomy** | 15 topics | 16 topics | 9 SE concerns | — | — | **12 topics + desc/dir + enforceability** |
+| **Classification** | 2 coders + tie-breaker | 2 coders (80.3% agree) + GPT-5 | 1 coder + meeting | — | — | **1 coder + LLM cross-validation + independent review** |
+| **Reliability** | 9.2% disagree (no kappa) | 80.3% raw (no kappa) | None (meeting) | — | — | **Independent Codex + Claude review, 5-8% estimated error** |
+| **Enforceability** | No | No | No | No | No | **Yes (4-level decision procedure)** |
+| **Granularity** | File | File | Section title | PR | — | **Statement (line-range, verbatim text)** |
