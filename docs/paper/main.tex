@@ -25,24 +25,23 @@ leak secrets, run tests before committing, only write to tmp dir.
 Agents operate at three levels:
 \emph{intent} (semantic goals and reasoning), \emph{action} (tool calls),
 and \emph{behavior} (OS operations: file access, process execution). 
-An empirical study of popular projects shows that real contracts
-frequently involve system operations and create 
-cross-object information flow, 
-yet, existing agent
-harness enforcement operates at a single level, leaving an
+Our empirical study of 64 projects shows that while project harness
+instruction-file content is declared in natural language as intent, 63\% of 
+consists of behavioral contracts, 80\% of which involve system operations behavior
+, and 
+78\% of projects require cross-event state tracking.
+yet, existing agent harness enforcement leaving an
 \emph{intent--behavior gap}:
 intent-level prompts are forgettable and probabilistic;
 action-level guards check tool calls but miss effects that reach the OS through
-subprocesses or information flow; behavior-level enforcement (syscall
-filters, sandboxes) is unbypassable but returns failures disconnected
-from intent.
+subprocesses or information flow.
+behavior-level sandboxing is unbypassable but disconnected from intent
+making it unsuitable for harness enforcement.
 
-ActPlane provides enforcement for agent harnesses to bridge the 
-intent--behavior gap: allowing
-agents to transform semantic information flow
-into a declarative behavioral-contracts
-DSL; ActPlane enforces them through
-OS-level information-flow analysis and semantic feedback. 
+ActPlane provides agent harnesses to bridge the 
+intent--behavior gap: agents declare behavioral contracts
+as a DSL; ActPlane persist them as OS-level agent harnesses 
+enforcement them through in-kernel information-flow analysis and semantic feedback. 
 We implement ActPlane with eBPF 
 and evaluate on the contracts from the empirical study,
 showing that ActPlane can enforce complex contracts with low overhead and
