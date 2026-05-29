@@ -4,24 +4,106 @@ feedback:
   path: .actplane/last-violation.txt
 
 policy: |
-  label COMMAND
+  # ── ActPlane policy: secure agent development pipeline ──
+  #
+  # Demonstrates cross-event information-flow enforcement across process,
+  # file, and network boundaries.  Six rules track four label types through
+  # dataflow chains that span multiple processes and files:
+  #
+  #   .env ─read→ proc A ─write→ /tmp/out.json ─read→ uploader B ─connect→ DENIED
+  #   web  ─recv→ agent  ─write→ src/patch.py  ─read→ committer  ─push→   DENIED
+  #   edit src/** ──stale──→ test gate ──commit──→ DENIED  (until pytest re-runs)
+  #
+  # Labels:
+  #   AGENT    – the agent's process tree (inherited across fork/exec)
+  #   SECRET   – data derived from local secret files
+  #   UNTRUST  – data derived from untrusted external sources
+  #   REVIEWED – endorsement label added by the human-approve gate
 
-  source SECRET = file "**/.env"
-  source SECRET = file "**/.envrc"
-  source SECRET = file "**/id_rsa"
-  source SECRET = file "**/id_ed25519"
+  # ── Sources: label introduction ──
 
+  source AGENT   = exec "**/claude"
+  source AGENT   = exec "**/codex"
+
+  source SECRET  = file "**/.env"
+  source SECRET  = file "**/.envrc"
+  source SECRET  = file "**/id_rsa"
+  source SECRET  = file "**/id_ed25519"
+  source SECRET  = file "/etc/secrets/**"
+
+  source UNTRUST = endpoint "*"
+  source UNTRUST = file "**/downloads/**"
+
+  # ── Rules ──
+
+  # R1: Secret data must not leave the workspace (cross-process data flow).
+  #
+  # Dataflow chain: read(.env) → process acquires SECRET → write(/tmp/out.json)
+  # → file acquires SECRET → read(/tmp/out.json) by an unrelated uploader →
+  # uploader acquires SECRET → connect(*) DENIED.
+  # The chain spans three processes and two files; no single-event matcher
+  # can detect it.
   rule no-secret-egress:
-    deny connect endpoint "*" if SECRET
+    deny connect endpoint "*"        if SECRET
+    deny write   file "/shared/**"   if SECRET
     effect block
     reason "Data derived from local secrets must not leave the workspace."
-    remediation "Stop the network action and ask the user for an explicit safe handling path"
+    remediation "Run the data through the redaction tool, or ask the user."
 
-  # Forbid `git branch` and `git worktree` while allowing other git ops.
-  # effect=kill so it fires on kernels without BPF-LSM (block needs LSM active).
-  rule no-git-branch:
-    deny exec "**/git" @arg "branch"   if COMMAND
-    deny exec "**/git" @arg "worktree" if COMMAND
+  # R2: Tests must be fresh before commit (temporal ordering + staleness).
+  #
+  # Gate: after exec pytest.  Invalidators: write src/** or write tests/**.
+  # Trace: edit(src/foo.py) → gate goes stale → commit DENIED →
+  #        pytest → gate re-armed → commit OK.
+  rule test-before-commit:
+    deny exec "**/git" @arg "commit"
+      if AGENT  unless after exec "**/pytest" since write "src/**" or write "tests/**"
     effect kill
-    reason "This workspace forbids creating git branches or worktrees; other git operations (commit/add/status/log/push) are allowed."
-    remediation "Do not run `git branch` or `git worktree`; use other git commands, or ask the user to manage branches"
+    reason "Tests are stale — source was edited after the last test run."
+    remediation "Re-run pytest, then commit."
+
+  # R3: Untrusted-derived code needs review before publishing (boolean labels).
+  #
+  # Dataflow: endpoint(*) → process gets UNTRUST → write(src/) → file gets
+  # UNTRUST → read(src/) → committer gets UNTRUST → push DENIED.
+  # Endorsement: human-approve adds REVIEWED, satisfying `not REVIEWED`.
+  rule no-unreviewed-publish:
+    deny exec "**/git" @arg "push"   if UNTRUST and not REVIEWED
+    deny exec "**/deploy*"           if UNTRUST and not REVIEWED
+    effect kill
+    reason "Code derived from untrusted network input requires review before publishing."
+    remediation "Run the review/approval tool, then push."
+
+  # R4: Production database only through migration tool (mandatory mediation).
+  #
+  # Lineage gate: deny open unless the process (or an ancestor) exec'd migrate.
+  # Pure lineage — no label required.
+  rule mediate-proddb:
+    deny open file "**/prod.db"  unless lineage-includes exec "**/migrate"
+    effect block
+    reason "prod.db may only be accessed through the migration tool."
+    remediation "Use ./migrate to access prod.db."
+
+  # R5: Force-push needs a fresh, single-shot confirmation (re-arming gate).
+  #
+  # since exec "**/git" makes the gate go stale after ANY git invocation,
+  # so each force-push needs its own confirm immediately before.
+  rule confirm-force-push:
+    deny exec "**/git" @arg "--force"
+      if AGENT  unless after exec "**/confirm" since exec "**/git"
+    effect kill
+    reason "Each force-push needs its own fresh confirmation."
+    remediation "Run the confirm tool immediately before force-pushing."
+
+  # R6: No new branches or worktrees.
+  rule no-git-branch:
+    deny exec "**/git" @arg "branch"   if AGENT
+    deny exec "**/git" @arg "worktree" if AGENT
+    effect kill
+    reason "This workspace forbids creating git branches or worktrees."
+    remediation "Use other git commands, or ask the user to manage branches."
+
+  # ── Transforms: sanctioned paths through the dataflow graph ──
+
+  declassify SECRET by exec "**/redact"
+  endorse REVIEWED by exec "**/human-approve"
