@@ -3,25 +3,27 @@
 ## Abstract
 
 AI coding agents are increasingly governed by natural-language instruction
-files (CLAUDE.md, AGENTS.md). Prior empirical
-studies classify these files by topic (Architecture, Testing, Security) at
-file or section granularity, but do not distinguish descriptions from
-directives, do not extract individual rules, and do not assess
-enforceability. This paper presents the first statement-level analysis of
-agent instruction files. We extract individual statements from instruction
-files in N popular open-source projects, classify each statement along two
-axes (description vs. directive; directive subtype), and assess the
-enforceability of each directive using the intent/action/behavior
-framework: can the directive be enforced at the intent level (the agent's
-own compliance), the action level (tool-call interception), or the
-behavior level (OS-level observation of system calls and their
-provenance)? We find that
-63.2% of statements are directives (not descriptions), 81.1% of
-directives involve system-observable behavior, and 13.9% require
-cross-object state tracking that no currently deployed enforcement
-mechanism covers. Our taxonomy and annotated dataset provide a
-foundation for future work on agent compliance measurement and
-enforcement system design.
+files (CLAUDE.md, AGENTS.md). Prior empirical studies classify these files
+by topic at file or section granularity, but do not distinguish
+descriptions from directives and do not assess enforceability. We present
+the first statement-level analysis: 2,152 statements extracted from 64
+open-source repositories, each classified by content type (description
+vs. directive), topic (12 categories), and enforceability (4 levels).
+
+Three findings challenge prevailing assumptions. First, **63% of
+statements are directives**, not documentation — instruction files are
+predominantly behavioral contracts. Second, **81% of directives involve
+system-observable behavior**, yet the most widely deployed enforcement
+mechanism (linters) covers only 57%; adding per-event OS-level matching
+raises coverage to 86%. Third, **14% of directives require cross-object
+state tracking** (ordering constraints, cross-file consistency, multi-step
+workflows) that no currently deployed agent enforcement system addresses.
+At the repository level, **78% of projects contain at least one
+cross-object directive**, and **48% require all four enforcement layers**
+simultaneously. These cross-object directives concentrate in Development
+Process (43%) and map directly to information-flow control primitives.
+Our annotated dataset and three-axis taxonomy provide a quantitative
+foundation for agent harness engineering.
 
 ---
 
@@ -43,30 +45,44 @@ file level or section-heading level, asking "what topics does this file
 cover?" None extracts individual rules, distinguishes descriptions from
 directives, or assesses whether individual rules are machine-enforceable.
 
-This gap matters because the emerging field of agent harness
-engineering---the practice of building infrastructure to make agents
-reliable---requires knowing not just what topics developers address but
-what specific rules they write, how those rules distribute across projects,
-and which rules can be enforced by deterministic mechanisms at different
-layers of the system stack.
+This gap matters for two reasons. First, instruction files are not just
+documentation — we find that 63% of their content consists of directives
+(behavioral constraints), not descriptions. File-level studies that
+classify a file as "Architecture" cannot distinguish a file with 20
+architecture descriptions from one with 20 architecture directives.
+Second, the emerging field of agent harness engineering requires knowing
+not just what topics developers address but which specific rules they
+write and which can be enforced by deterministic mechanisms. We find that
+81% of directives involve system-observable behavior, but the most widely
+deployed enforcement mechanism (linters) covers only 57%. A further 14%
+require cross-object state tracking — ordering constraints, cross-file
+consistency checks, multi-step workflows — that no currently deployed
+agent enforcement system addresses. At the repository level, 78% of
+projects contain at least one such cross-object directive, 94% need
+per-event OS-level matching, and 48% require all four enforcement
+layers simultaneously.
 
-This paper addresses this gap with a statement-level analysis of agent
-instruction files. We make three contributions:
+This paper addresses these gaps with a statement-level analysis. We make
+three contributions:
 
 1. A **statement-level taxonomy** that classifies individual statements
-   extracted from instruction files along two axes: content type
-   (description vs. directive) and directive subtype (style, build,
-   constraint, communication).
+   extracted from instruction files along three axes: content type
+   (description vs. directive), topic (12 categories adapted from
+   Chatlatanagulchai et al.), and enforceability (intent, linter,
+   per-event, cross-object).
 
-2. A **statement-level corpus** of N statements extracted from instruction
-   files in M projects, annotated along the taxonomy and released as a
-   public dataset.
+2. A **statement-level corpus** of 2,152 statements extracted from
+   instruction files in 64 projects, annotated along all three axes and
+   released as a public dataset.
 
-3. An **enforceability analysis** using the intent/action/behavior
-   framework that assesses each directive at three levels (intent, action,
-   behavior), identifying the subset that requires cross-object state
-   tracking at the behavior level and cannot be enforced at the action
-   level alone.
+3. An **enforceability analysis** that identifies a concrete enforcement
+   gap: 14% of directives require cross-object state tracking at the
+   OS level, concentrated in Development Process (ordering constraints
+   like "run tests before committing") and Testing (cross-file
+   consistency like "update tests when behavior changes"). These
+   directives map directly to information-flow control primitives
+   (label propagation, temporal gates, staleness-aware re-arming),
+   providing empirical grounding for OS-level agent harness designs.
 
 ---
 
@@ -939,12 +955,63 @@ Figure 12 shows each repository's enforceability breakdown.
 count. Each bar shows the mix of intent (gray), linter (blue), per-event
 (green), and cross-object (red).*
 
-**Takeaway.** Repositories have distinct enforceability profiles.
-Code-style-heavy projects (openai/codex: 76.3% linter) differ sharply
-from workflow-heavy projects (openclaw: 36.6% per-event, 14.5%
-cross-object). A one-size-fits-all enforcement approach leaves
-systematic gaps; the right mechanism depends on the project's directive
-mix.
+At the repository level, 78% of projects (49/63) contain at least one
+cross-object directive, 94% (59/63) need per-event enforcement, and
+48% (30/63) require all four enforcement layers simultaneously.
+
+#### 5.4.7 RQ4g: What fraction of repos need each enforcement layer?
+
+Figure 13 shows the fraction of repositories that contain at least one
+directive at each enforcement level.
+
+![RQ4g](tmp/fig13_rq4g_repo_requirements.png)
+*Figure 13. Fraction of repos requiring each enforcement layer. 94%
+need per-event (eBPF/LSM), 78% need cross-object (IFC engine), 48%
+need all four layers simultaneously.*
+*(Script: `docs/tmp/fig_all_rqs.py`)*
+
+The enforcement layers differ not only in coverage but in **bypass
+resistance**. Figure 14 shows the layered architecture:
+
+![Enforcement layers](tmp/fig14_enforcement_layers.png)
+*Figure 14. Enforcement layers by mechanism, directive coverage, and
+bypass resistance. The dashed line separates tool-layer mechanisms
+(bypassable via direct syscall) from OS-enforced mechanisms (kernel
+layer, cannot bypass).*
+
+| Layer | Mechanism | Coverage | Bypassable? |
+|---|---|---|---|
+| Intent | Model compliance | 18.9% | N/A (no enforcement) |
+| Linter | eBPF write hook + userspace linter | 37.8% | **No** (kernel intercepts write, triggers linter) |
+| Per-event | eBPF/LSM hook | 29.4% | **No** (kernel intercepts every syscall) |
+| Cross-object | eBPF + IFC label propagation | 13.9% | **No** (kernel tracks state across objects) |
+
+All three behavior layers can be made un-bypassable by hooking at the
+kernel level via eBPF/LSM. The key insight is that even linter
+enforcement — traditionally a tool-layer mechanism that agents can
+bypass by writing files directly — becomes un-bypassable when the
+kernel intercepts every `write` syscall and triggers a userspace linter
+before the write completes. The three layers differ in complexity:
+
+- **Linter**: the kernel hooks `file_open(O_WRONLY)` and notifies a
+  userspace linter daemon that inspects the written content (code style,
+  naming, secret detection). The linter returns allow/deny.
+- **Per-event**: the kernel matches a single syscall against a pattern
+  (e.g., `deny write file "vendor/**"` requires only a `file_open`
+  hook with path matching). No userspace roundtrip needed.
+- **Cross-object**: the kernel maintains label state across operations
+  (e.g., `deny exec git @arg commit unless after exec pytest` tracks
+  whether pytest ran in this session). Label propagation across
+  fork/exec/read/write/connect.
+
+**Takeaway.** Cross-object enforcement is not a niche requirement — it
+affects 78% of repositories. Nearly half of all projects (48%) require
+all four enforcement layers simultaneously. Repositories have distinct
+enforceability profiles: code-style-heavy projects (openai/codex: 76.3%
+linter) differ sharply from workflow-heavy projects (openclaw: 36.6%
+per-event, 14.5% cross-object). A one-size-fits-all enforcement approach
+leaves systematic gaps; the right mechanism depends on the project's
+directive mix.
 
 ---
 
@@ -1187,9 +1254,12 @@ indicating a right-skewed distribution.
 **RQ4 (Enforceability).** 81.1% of directives involve system-observable
 behavior. Linter-level enforcement covers 37.8%, per-event matching
 covers an additional 29.4%, and the remaining 13.9% require cross-object
-state tracking. This 13.9% — concentrated in Development Process
-(ordering constraints, cross-file consistency) — is the enforcement gap
-that no currently deployed mechanism addresses.
+state tracking. Although 13.9% sounds modest at the directive level,
+78% of repositories contain at least one such directive, and 48% require
+all four enforcement layers simultaneously. This cross-object gap —
+concentrated in Development Process (ordering constraints, cross-file
+consistency) — is the enforcement gap that no currently deployed
+mechanism addresses.
 
 The annotated dataset (2,152 statements, 64 repositories, three-axis
 classification) is released as a public replication package. We hope it
