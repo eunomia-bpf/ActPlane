@@ -19,33 +19,31 @@
   \country{}}
 
 \begin{abstract}
-AI coding agents are emplowing
-behavioral contracts: do not leak secrets, run tests before committing, use
-only sanctioned tools. The Agents operate at three levels: intent (semantic goals and 
-reasoning), action (tool calls), and behavior 
-(operations: file access, process execution, network connections). 
- behavioral contracts that span all three levels, from
-conversational constraints to system constraints, However, 
-existing agent harness enforcement operates at a single level, 
-leaving an \emph{intent--behavior gap}:
+AI coding agents require harnesses to enforce behavioral contracts: do not
+leak secrets, run tests before committing, only write tmp dir.
+Agents operate at three levels:
+\emph{intent} (semantic goals and reasoning), \emph{action} (tool calls),
+and \emph{behavior} (OS operations: file access, process execution). 
+Enforcing the behavioral contracts requires coverage span all three levels, from
+conversational to system constraints. 
+An empirical study of popular projects shows that real contracts
+frequently involve cross-object information flow in the OS,
+yet, existing agent
+harness enforcement operates at a single level, leaving an
+\emph{intent--behavior gap}:
 intent-level prompts are forgettable and probabilistic;
 action-level guards check tool calls but miss effects that reach the OS through
-subprocesses or direct system interfaces; behavior-level enforcement (syscall
+subprocesses or information flow; behavior-level enforcement (syscall
 filters, sandboxes) is unbypassable but returns failures disconnected
-from intent. A corpus study of popular projects shows that real contracts
-frequently involve cross-object information flow in the OS, yet no existing harness
-enforces them across intent and behavior.
+from intent.
 
-ActPlane provides OS-level enforcement for agent harnesses. Agents and
-developers declare behavioral contracts in a labeled information-flow DSL;
-ActPlane compiles them into rules enforced by an eBPF/BPF-LSM backend. Named
-labels propagate across process, file, and network objects through transfer
-functions at kernel hooks, tracking which sources have influenced which
-subjects. When a violation
-is detected, ActPlane returns corrective feedback to the agent: which contract
-was violated, why, and what alternative path satisfies it.
-We evaluate ActPlane on bypass coverage across five tool paths, agent recovery
-rate under four feedback conditions, false positives, and per-event overhead.
+ActPlane provides enforcement for agent harnesses to bridge the 
+intent--behavior gap: agents transforming semantic info into
+ declarative behavioral 
+contracts DSL, ActPlane enforces them as
+OS-level information-flow analysis and semantic feedback. 
+We implement ActPlane with eBPF 
+and evaluate ActPlane on 
 \end{abstract}
 
 \begin{CCSXML}
