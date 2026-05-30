@@ -25,7 +25,7 @@ instructions are declared in natural language, 63\%
 consist of behavioral policies, 80\% of which involve system-level
 behavior, and 78\% of projects require cross-event state tracking.
 
-Yet existing agent harness operate at a single level, failed to connecting intent-level declarations to deterministic system-level policies: Prompt constraints and tool-call guardrails operate at probabilistic intent-level or lose track of system-level actions, while current OS-level enforcements expect pre-defined static
+Yet existing agent harness failed to connecting intent-level declarations to deterministic system-level policies, leaving a \emph{semantic gap}: Prompt constraints and tool-call guardrails operate at probabilistic intent-level or lose track of system-level actions, while current OS-level enforcements expect pre-defined static
 policy and return only system events without semantic context.
 
 ActPlane is a programmable OS-level control plane for agent harnesses that bridges
