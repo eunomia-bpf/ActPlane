@@ -85,7 +85,7 @@ A blunt "tainted ⇒ deny" is unusable (everything taints, all false-positives).
 ```
 rule NAME:
   EFFECT OP TARGET-PAT [ARGS…] if Φ [unless COND]
-  reason "..."
+  because "..."
 ```
 - `EFFECT` is the action verb that starts each clause: `notify`, `block`, or `kill`.
 - `OP` ∈ the operations above; `TARGET-PAT` matches the object.
@@ -198,10 +198,9 @@ Layer A's conservatism is often the correct default, and Layer B should be
 
 ```
 policy      := decl*
-decl        := label_decl | source_decl | sink_decl | xform_decl
-label_decl  := "label" IDENT
+decl        := source_decl | sink_decl | xform_decl
 source_decl := "source" IDENT "=" node_kind PATTERN          # node_kind: file|endpoint|exec
-sink_decl   := "rule" IDENT ":" clause+ ["reason" STRING]
+sink_decl   := "rule" IDENT ":" clause+ ["because" STRING]
 clause      := EFFECT OP target [STRING] ["if" expr] ["unless" cond]
 EFFECT      := "block" | "notify" | "kill"                    # default: block
 xform_decl  := ("declassify"|"endorse") IDENT "by" "exec" PATTERN
@@ -216,8 +215,8 @@ event_pat   := ("write"|"read"|"exec") PATTERN
 PATTERN, STRING := quoted string
 ```
 Each clause starts with the action verb (`notify`, `block`, or `kill`) — there is
-no separate `deny` keyword or `effect` line. `open` is sugar matching both `read`
-and `write`. An optional quoted string after the target pattern is a positional
+no separate `deny` keyword or `effect` line. `open` matches file-open operations
+(the kernel's `TOP_OPEN` hook). An optional quoted string after the target pattern is a positional
 argument (e.g. `exec "git" "push"` requires token `push` in argv). For exec
 targets, a pattern without `/` is treated as basename matching: `exec "git"` is
 equivalent to `exec "**/git"`.
@@ -228,7 +227,7 @@ your last edit to src". `EV` may be a `write`/`read`/`exec` pattern; multiple
 invalidators are joined with `or`.
 
 The effect is compiled into the kernel ABI and is the source of truth for what
-happens on a match. `reason` stays Rust-side and shapes the corrective-feedback
+happens on a match. `because` stays Rust-side and shapes the corrective-feedback
 payload shown to the agent. See
 [`feedback-design.md`](feedback-design.md) and [`../script/agent-feedback.md`](../script/agent-feedback.md).
 
@@ -246,7 +245,7 @@ source SECRET = file "/etc/secrets/**"
 rule sensitive-context-boundary:
   block connect endpoint "*"        if SECRET
   block write   file "/shared/**"   if SECRET
-  reason "sensitive task context must stay local unless redacted first"
+  because "sensitive task context must stay local unless redacted first"
 declassify SECRET by exec "**/redact"
 ```
 
@@ -258,7 +257,7 @@ source UNTRUST = file "**/downloads/**"
 rule no-injected-priv:
   block exec "git" "push"  if UNTRUST and not REVIEWED
   block exec "**/deploy*"  if UNTRUST and not REVIEWED
-  reason "privileged action is derived from untrusted task input; needs review"
+  because "privileged action is derived from untrusted task input; needs review"
 endorse REVIEWED by exec "**/human-approve"
 ```
 
@@ -267,7 +266,7 @@ endorse REVIEWED by exec "**/human-approve"
 ```
 rule mediate-proddb:
   block open file "**/prod.db"  unless lineage-includes exec "**/migrate"
-  reason "prod.db is reachable only through the migration tool"
+  because "prod.db is reachable only through the migration tool"
 ```
 
 ### E4 — Workspace policy (lineage-scoped writes)
@@ -277,7 +276,7 @@ source AGENT = exec "**/codex"
 rule confine-writes:
   block write  file "/**"  if AGENT  unless target "/work/**"
   block unlink file "/**"  if AGENT  unless target "/work/**"
-  reason "agent may only modify its workspace /work/**"
+  because "agent may only modify its workspace /work/**"
 ```
 
 ### E5 — Test-before-commit (temporal ordering, staleness-aware)
@@ -287,7 +286,7 @@ source AGENT = exec "**/codex"
 rule test-before-commit:
   block exec "git" "commit"
     if AGENT  unless after exec "**/pytest" since write "src/**" or write "tests/**"
-  reason "tests are stale — you edited code after the last passing run; re-run the test suite, then commit"
+  because "tests are stale — you edited code after the last passing run; re-run the test suite, then commit"
 ```
 
 ### E6 — Read-only sub-agent capability scoping
@@ -298,7 +297,7 @@ rule research-readonly:
   block write   file "/**"     if RESEARCH
   block connect endpoint "*"   if RESEARCH
   block exec    "git"          if RESEARCH
-  reason "research sub-agent is read-only; spawn an executor for changes"
+  because "research sub-agent is read-only; spawn an executor for changes"
 ```
 
 ### E7 — Transitive derived-data tracking (cross-process, cross-file)
@@ -324,7 +323,7 @@ rule research-readonly:
 source AGENT = exec "**/codex"
 rule no-git:
   block exec "git"  if AGENT
-  reason "this agent must not invoke git on any path"
+  because "this agent must not invoke git on any path"
 # three traces (tool / bash / python) all produce a rule match.
 ```
 
@@ -334,7 +333,7 @@ rule no-git:
 source CUSTOMER_DATA = file "/data/customers/**"
 rule customer-data-egress:
   block connect endpoint "*"               if CUSTOMER_DATA  unless target "10.0.0."
-  reason "customer-data task may only reach approved internal ranges"
+  because "customer-data task may only reach approved internal ranges"
 ```
 
 ### E11 — Destructive op requires a fresh confirmation gate
@@ -344,7 +343,7 @@ source AGENT = exec "**/codex"
 rule confirm-destructive:
   kill exec "git" "--force"  if AGENT  unless after exec "**/confirm" since exec "git"
   kill unlink file "/data/**"        if AGENT  unless after exec "**/confirm"
-  reason "each force-push needs a fresh confirm; a stale confirm doesn't count"
+  because "each force-push needs a fresh confirm; a stale confirm doesn't count"
 ```
 
 ### E12 — Task non-interference / separation (multi-label sets)
@@ -354,7 +353,7 @@ source TASK_A = exec "**/task-a"
 source TASK_B = exec "**/task-b"
 rule no-cross-task-commit:
   block exec "git" "commit"  if TASK_A and TASK_B
-  reason "a commit must not mix data from task A and task B"
+  because "a commit must not mix data from task A and task B"
 ```
 
 ### E13 — Migration-check must be fresh w.r.t. the migrations on disk
@@ -364,7 +363,7 @@ source AGENT = exec "**/codex"
 rule migrate-checked:
   block write file "**/prod.db"
     if AGENT  unless after exec "**/migrate-check" since write "migrations/**"
-  reason "prod.db write needs a migration-check that saw the current migrations"
+  because "prod.db write needs a migration-check that saw the current migrations"
 ```
 
 ---

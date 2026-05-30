@@ -188,7 +188,7 @@ rule test-before-commit:
     if AGENT
     unless after exec "**/pytest" since write "src/**" or write "tests/**"
   effect block
-  reason "tests are stale — you edited code after the last passing run"
+  because "tests are stale — you edited code after the last passing run"
   remediation "re-run the test suite, then commit"
 ```
 v1 let `edit → test → edit → commit` through. v2 blocks it: the second edit
@@ -202,7 +202,7 @@ rule confirm-destructive:
     if AGENT
     unless after exec "**/confirm" since exec "**/git"
   effect kill
-  reason "each force-push needs a fresh confirm; a stale confirm doesn't count"
+  because "each force-push needs a fresh confirm; a stale confirm doesn't count"
 ```
 v1's `after exec confirm` armed one confirm to authorize every later force-push.
 v2 makes confirmation **single-shot**: any later `git` invocation makes the
@@ -216,7 +216,7 @@ rule migrate-checked:
     if AGENT
     unless after exec "**/migrate-check" since write "migrations/**"
   effect block
-  reason "prod.db write needs a migration-check that saw the current migrations"
+  because "prod.db write needs a migration-check that saw the current migrations"
 ```
 Pure v2: the check must be fresh w.r.t. the migrations actually on disk.
 

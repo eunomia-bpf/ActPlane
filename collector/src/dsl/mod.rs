@@ -30,7 +30,7 @@ mod tests {
             rule no-exfil:
               block connect endpoint "*"      if SECRET
               block write   file "/shared/**" if SECRET
-              reason "secret data must not leave the host"
+              because "secret data must not leave the host"
             declassify SECRET by exec "**/redact"
         "#);
         assert_eq!(c.reasons.len(), 1);
@@ -45,7 +45,7 @@ mod tests {
             rule no-injected-priv:
               block exec "git" "push" if UNTRUST and not REVIEWED
               block exec "**/deploy*"         if UNTRUST and not REVIEWED
-              reason "untrusted input must not drive privileged actions"
+              because "untrusted input must not drive privileged actions"
             endorse REVIEWED by exec "**/human-approve"
         "#);
         assert_eq!(c.reasons.len(), 1);
@@ -56,7 +56,7 @@ mod tests {
         ok(r#"
             rule mediate-proddb:
               block open file "**/prod.db" unless lineage-includes exec "**/migrate"
-              reason "prod.db only via the migration tool"
+              because "prod.db only via the migration tool"
         "#);
     }
 
@@ -67,7 +67,7 @@ mod tests {
             rule confine-writes:
               block write  file "/**" if AGENT unless target "/work/**"
               block unlink file "/**" if AGENT unless target "/work/**"
-              reason "agent may only modify /work"
+              because "agent may only modify /work"
         "#);
     }
 
@@ -77,7 +77,7 @@ mod tests {
             source AGENT = exec "**/codex"
             rule test-before-commit:
               block exec "git" "commit" if AGENT unless after exec "**/pytest"
-              reason "run tests before committing"
+              because "run tests before committing"
         "#);
     }
 
@@ -90,7 +90,7 @@ mod tests {
               block exec "git" "commit"
                 if AGENT
                 unless after exec "**/pytest" since write "src/**" or write "tests/**"
-              reason "tests are stale — you edited code after the last run"
+              because "tests are stale — you edited code after the last run"
         "#);
         assert_eq!(c.reasons.len(), 1);
     }
@@ -104,7 +104,7 @@ mod tests {
               block exec "git" "--force"
                 if AGENT
                 unless after exec "**/confirm" since exec "git"
-              reason "each force-push needs a fresh confirm"
+              because "each force-push needs a fresh confirm"
         "#);
     }
 
@@ -117,7 +117,7 @@ mod tests {
               block write file "**/prod.db"
                 if AGENT
                 unless after exec "**/migrate-check" since write "migrations/**"
-              reason "migration-check must have seen the current migrations"
+              because "migration-check must have seen the current migrations"
         "#);
     }
 
@@ -125,15 +125,15 @@ mod tests {
     fn since_without_clause_is_v1_latching() {
         // `after` with no `since` must still compile (v1 semantics, since_mask=0)
         // and produce the same fixed-size blob as a since-bearing policy.
-        let v1 = ok("rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\"\n  reason \"x\"\n");
-        let v2 = ok("rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\" since write \"src/**\"\n  reason \"x\"\n");
+        let v1 = ok("rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\"\n  because \"x\"\n");
+        let v2 = ok("rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\" since write \"src/**\"\n  because \"x\"\n");
         assert_eq!(v1.bytes.len(), v2.bytes.len());
     }
 
     #[test]
     fn since_bad_invalidator_op_is_rejected() {
         assert!(compile_str(
-            "rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\" since connect \"*\"\n  reason \"x\"\n"
+            "rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\" since connect \"*\"\n  because \"x\"\n"
         )
         .is_err());
     }
@@ -146,7 +146,7 @@ mod tests {
               block write   file "/**"   if RESEARCH
               block connect endpoint "*" if RESEARCH
               block exec    "git"        if RESEARCH
-              reason "research sub-agent is read-only"
+              because "research sub-agent is read-only"
         "#);
     }
 
@@ -157,7 +157,7 @@ mod tests {
             source SECRET = file "**/.env"
             rule no-exfil:
               block connect endpoint "*" if SECRET
-              reason "no exfil"
+              because "no exfil"
             declassify SECRET by exec "**/redact"
         "#);
     }
@@ -168,7 +168,7 @@ mod tests {
             source AGENT = exec "**/codex"
             rule no-git:
               block exec "git" if AGENT
-              reason "no git on any path"
+              because "no git on any path"
         "#);
     }
 
@@ -178,7 +178,7 @@ mod tests {
             source PII = file "/data/customers/**"
             rule pii-egress:
               block connect endpoint "*" if PII unless target "*.internal"
-              reason "PII only to internal"
+              because "PII only to internal"
         "#);
     }
 
@@ -189,7 +189,7 @@ mod tests {
             rule confirm-destructive:
               block exec "git" "--force" if AGENT unless after exec "**/confirm"
               block unlink file "/data/**"    if AGENT unless after exec "**/confirm"
-              reason "destructive needs confirm"
+              because "destructive needs confirm"
         "#);
     }
 
@@ -200,7 +200,7 @@ mod tests {
             source TASK_B = exec "**/task-b"
             rule no-cross-task-commit:
               block exec "git" "commit" if TASK_A and TASK_B
-              reason "no cross-task commit"
+              because "no cross-task commit"
         "#);
         assert_eq!(c.reasons.len(), 1);
     }
@@ -208,8 +208,8 @@ mod tests {
     #[test]
     fn dnf_or_splits_into_multiple_rules() {
         // `if A or B` must compile to 2 kernel rules sharing one rule_id
-        let a = compile_str("rule r:\n  block exec \"x\" if A\n  reason \"z\"\n").unwrap();
-        let b = compile_str("rule r:\n  block exec \"x\" if A or B\n  reason \"z\"\n").unwrap();
+        let a = compile_str("rule r:\n  block exec \"x\" if A\n  because \"z\"\n").unwrap();
+        let b = compile_str("rule r:\n  block exec \"x\" if A or B\n  because \"z\"\n").unwrap();
         assert!(b.bytes.len() == a.bytes.len()); // fixed-size config
         assert_eq!(b.reasons.len(), 1);
     }
@@ -217,30 +217,37 @@ mod tests {
     #[test]
     fn config_blob_is_fixed_size() {
         // every policy produces the same fixed-size struct taint_config blob
-        let a = ok("rule r:\n  block exec \"git\" if A\n  reason \"x\"\n");
+        let a = ok("rule r:\n  block exec \"git\" if A\n  because \"x\"\n");
         let b = ok(
-            "source S = file \"/x/**\"\nrule r:\n  block open file \"/y/**\" if S\n  reason \"x\"\n",
+            "source S = file \"/x/**\"\nrule r:\n  block open file \"/y/**\" if S\n  because \"x\"\n",
         );
         assert_eq!(a.bytes.len(), b.bytes.len());
     }
 
     #[test]
     fn rule_effect_is_metadata_and_kernel_config() {
-        let c = ok("rule r:\n  kill exec \"git\"\n  reason \"x\"\n");
+        let c = ok("rule r:\n  kill exec \"git\"\n  because \"x\"\n");
         assert_eq!(c.meta[0].effect, ast::Effect::Kill);
         assert!(c.bytes.len() > 0);
     }
 
     #[test]
-    fn declared_labels_are_allocated_for_runner_seeding() {
-        let c = ok("label AGENT\nrule r:\n  block exec \"git\" if AGENT\n  reason \"x\"\n");
+    fn source_labels_are_allocated_for_runner_seeding() {
+        let c = ok("source AGENT = exec \"**/claude\"\nrule r:\n  block exec \"git\" if AGENT\n  because \"x\"\n");
         assert!(c.labels.contains_key("AGENT"));
+    }
+
+    #[test]
+    fn old_label_keyword_is_rejected() {
+        assert!(
+            compile_str("label AGENT\nrule r:\n  block exec \"git\" if AGENT\n  because \"x\"\n").is_err()
+        );
     }
 
     #[test]
     fn old_deny_keyword_is_rejected() {
         assert!(
-            compile_str("rule r:\n  deny exec \"git\"\n  reason \"x\"\n").is_err()
+            compile_str("rule r:\n  deny exec \"git\"\n  because \"x\"\n").is_err()
         );
     }
 
@@ -248,15 +255,15 @@ mod tests {
     fn implicit_basename_matching() {
         // `exec "git"` should be equivalent to `exec "**/git"` — both produce
         // the same compiled output.
-        let a = ok("rule r:\n  block exec \"git\" if A\n  reason \"x\"\n");
-        let b = ok("rule r:\n  block exec \"**/git\" if A\n  reason \"x\"\n");
+        let a = ok("rule r:\n  block exec \"git\" if A\n  because \"x\"\n");
+        let b = ok("rule r:\n  block exec \"**/git\" if A\n  because \"x\"\n");
         assert_eq!(a.bytes, b.bytes);
     }
 
     #[test]
     fn positional_args_work() {
         // positional args (no @arg keyword) should compile successfully
-        let c = ok("rule r:\n  kill exec \"git\" \"commit\" if A\n  reason \"x\"\n");
+        let c = ok("rule r:\n  kill exec \"git\" \"commit\" if A\n  because \"x\"\n");
         assert_eq!(c.meta[0].effect, ast::Effect::Kill);
     }
 
@@ -268,7 +275,7 @@ mod tests {
             rule mixed:
               notify exec "git" if A
               kill exec "make" if A
-              reason "mixed effects"
+              because "mixed effects"
         "#);
         assert_eq!(c.meta[0].effect, ast::Effect::Kill);
     }

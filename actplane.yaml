@@ -46,7 +46,7 @@ policy: |
   rule no-secret-egress:
     block connect endpoint "*"        if SECRET
     block write   file "/shared/**"   if SECRET
-    reason "Data derived from local secrets must not leave the workspace. Run the data through the redaction tool, or ask the user."
+    because "Data derived from local secrets must not leave the workspace. Run the data through the redaction tool, or ask the user."
 
   # R2: Tests must be fresh before commit (temporal ordering + staleness).
   #
@@ -56,7 +56,7 @@ policy: |
   rule test-before-commit:
     kill exec "git" "commit"
       if AGENT  unless after exec "**/pytest" since write "src/**" or write "tests/**"
-    reason "Tests are stale — source was edited after the last test run. Re-run pytest, then commit."
+    because "Tests are stale — source was edited after the last test run. Re-run pytest, then commit."
 
   # R3: Untrusted-derived code needs review before publishing (boolean labels).
   #
@@ -66,7 +66,7 @@ policy: |
   rule no-unreviewed-publish:
     kill exec "git" "push"   if UNTRUST and not REVIEWED
     kill exec "**/deploy*"           if UNTRUST and not REVIEWED
-    reason "Code derived from untrusted network input requires review before publishing. Run the review/approval tool, then push."
+    because "Code derived from untrusted network input requires review before publishing. Run the review/approval tool, then push."
 
   # R4: Production database only through migration tool (mandatory mediation).
   #
@@ -74,7 +74,7 @@ policy: |
   # Pure lineage — no label required.
   rule mediate-proddb:
     block open file "**/prod.db"  unless lineage-includes exec "**/migrate"
-    reason "prod.db may only be accessed through the migration tool. Use ./migrate to access prod.db."
+    because "prod.db may only be accessed through the migration tool. Use ./migrate to access prod.db."
 
   # R5: Force-push needs a fresh, single-shot confirmation (re-arming gate).
   #
@@ -83,13 +83,13 @@ policy: |
   rule confirm-force-push:
     kill exec "git" "--force"
       if AGENT  unless after exec "**/confirm" since exec "git"
-    reason "Each force-push needs its own fresh confirmation. Run the confirm tool immediately before force-pushing."
+    because "Each force-push needs its own fresh confirmation. Run the confirm tool immediately before force-pushing."
 
   # R6: No new branches or worktrees.
   rule no-git-branch:
     kill exec "git" "branch"   if AGENT
     kill exec "git" "worktree" if AGENT
-    reason "This workspace forbids creating git branches or worktrees. Use other git commands, or ask the user to manage branches."
+    because "This workspace forbids creating git branches or worktrees. Use other git commands, or ask the user to manage branches."
 
   # ── Transforms: sanctioned paths through the dataflow graph ──
 

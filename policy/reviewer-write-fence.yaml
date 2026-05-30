@@ -4,8 +4,6 @@ feedback:
   path: .actplane/last-violation.txt
 
 policy: |
-  label COMMAND
-
   source COMMAND = exec "**"
 
   rule reviewer-write-fence:
@@ -15,9 +13,9 @@ policy: |
     kill write file "actplane.yaml" if COMMAND
     kill write file "CLAUDE.md" if COMMAND
     kill write file ".claude/**" if COMMAND
-    reason "Reviewer agent may only write to docs/tmp/. Write your output to docs/tmp/ instead."
+    because "Reviewer agent may only write to docs/tmp/. Write your output to docs/tmp/ instead."
 
   rule no-git-branch:
     kill exec "git" "branch"   if COMMAND
     kill exec "git" "worktree" if COMMAND
-    reason "This workspace forbids creating git branches or worktrees. Do not run git branch or git worktree."
+    because "This workspace forbids creating git branches or worktrees. Do not run git branch or git worktree."

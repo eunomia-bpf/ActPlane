@@ -254,8 +254,7 @@ pub fn parse(src: &str) -> Result<Policy, String> {
         };
         match kw.as_str() {
             "label" => {
-                p.next();
-                pol.labels.push(p.word()?);
+                return Err("the `label` keyword has been removed; use `source` instead (e.g. `source AGENT = exec \"**/your-agent\"`)".into());
             }
             "source" => {
                 p.next();
@@ -298,7 +297,7 @@ pub fn parse(src: &str) -> Result<Policy, String> {
                     if let Some(Tok::Word(w)) = p.peek() {
                         if P::clause_effect(w).is_some() {
                             clauses.push(p.clause()?);
-                        } else if w == "reason" {
+                        } else if w == "because" {
                             p.next();
                             reason = p.string()?;
                         } else {

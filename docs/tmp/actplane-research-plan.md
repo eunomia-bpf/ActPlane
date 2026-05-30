@@ -253,7 +253,7 @@ rule "codex-no-git" {
   deny   exec    path ~ "**/git"         // sink：带 codex 的进程不许 exec git
   deny   connect host = "api.github.com"
   deny   write   path ~ "/etc/**"
-  reason "Codex 不允许碰 git / 改 /etc / 连 github"
+  because "Codex 不允许碰 git / 改 /etc / 连 github"
 }
 
 rule "secret-no-exfil" {
@@ -261,7 +261,7 @@ rule "secret-no-exfil" {
   taint  file path ~ "/etc/secrets/**"   // source：读这些文件的进程被染 secret
   deny   connect host ~ "*"              // 带 secret 的进程不许联网
   deny   write   path ~ "/tmp/**"        // 也不许写 /tmp
-  reason "密钥数据不得外泄"
+  because "密钥数据不得外泄"
 }
 ```
 

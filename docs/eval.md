@@ -154,7 +154,7 @@ docs/corpus-evaluated/{repo}/{statement_id}/
     rule tests-before-commit:
       kill exec "git" "commit"
         if AGENT unless after exec "**/go" "test"
-      reason "Tests must pass before committing."
+      because "Tests must pass before committing."
 - statement_id: 37
   text: "Version in THREE places must match"
   enforceability: cross_event
@@ -614,7 +614,7 @@ policies a project owner would reasonably set. Examples:
 | Data science | "don't delete the dataset", "run validation before reporting results" |
 | General | "don't rm -rf /", "don't modify files outside the work directory" |
 
-Each rule includes a `reason` string (with remediation guidance) for the
+Each rule includes a `because` string (with remediation guidance) for the
 feedback channel.
 
 #### Experimental Conditions

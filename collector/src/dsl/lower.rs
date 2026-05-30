@@ -296,7 +296,7 @@ fn op_lowers(op: Op) -> Result<&'static [u8], String> {
     match op {
         Op::Exec => Ok(&[OP_EXEC]),
         Op::Read => Ok(&[OP_OPEN]),
-        Op::Open => Ok(&[OP_OPEN, OP_WRITE]),
+        Op::Open => Ok(&[OP_OPEN]),
         Op::Write | Op::Unlink => Ok(&[OP_WRITE]),
         Op::Connect => Ok(&[OP_CONNECT]),
         Op::Recv => Err("recv is a source, not a sink op".into()),
@@ -367,9 +367,9 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
     let mut meta: Vec<RuleMeta> = Vec::new();
     let mut xforms: Vec<CXform> = Vec::new();
 
-    for label in &pol.labels {
-        ctx.label_bit(label)?;
-    }
+    // Labels are now only introduced through `source` declarations.
+    // The `label` keyword has been removed; bare labels in pol.labels
+    // are no longer produced by the parser.
 
     for s in &pol.sources {
         let bit = ctx.label_bit(&s.label)?;

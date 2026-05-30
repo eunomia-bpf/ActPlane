@@ -85,16 +85,16 @@ optional condition (target allow-list, lineage gate, or temporal after-gate).
 
 \begin{figure}[t]
 \begin{verbatim}
-label AGENT
+source AGENT = exec "**/claude"
 source SECRET = file "**/.env"
 
 rule no-secret-egress:
   block connect endpoint "*" if SECRET
-  reason "secret-derived data must stay local; run the redactor first"
+  because "secret-derived data must stay local; run the redactor first"
 
 rule no-agent-git:
   kill exec "git" if AGENT
-  reason "agent must not invoke git directly"
+  because "agent must not invoke git directly"
 \end{verbatim}
 \caption{Two ActPlane policy rules. The first uses BPF-LSM pre-operation
 denial; the second uses harness-level termination. Exec target patterns

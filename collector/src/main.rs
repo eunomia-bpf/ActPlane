@@ -41,7 +41,7 @@ const HOOK_MAX_CHARS: usize = 8000;
       # get started: write a starter policy, then validate it (no sudo needed)\n  \
       actplane init  &&  actplane check\n\n  \
       # enforce a one-line policy around a command (needs sudo for the eBPF load)\n  \
-      sudo -E actplane --rule 'label COMMAND\n                       rule no-git-branch:\n                         kill exec \"git\" \"branch\" if COMMAND\n                         reason \"create a branch via the host, not the agent\"' run claude -p '...'\n\n  \
+      sudo -E actplane --rule 'source COMMAND = exec \"**\"\n                       rule no-git-branch:\n                         kill exec \"git\" \"branch\" if COMMAND\n                         because \"create a branch via the host, not the agent\"' run claude -p '...'\n\n  \
       # use a project policy file (auto-discovered as ./actplane.yaml upward)\n  \
       sudo -E actplane run <your agent command>\n\n  \
       # just compile/validate a policy (no privileges needed)\n  \
@@ -188,15 +188,14 @@ const STARTER_POLICY: &str = r#"# ActPlane project policy. Constraints are enfor
 # Enforce around an agent:  sudo -E actplane run <your agent command>
 # DSL reference: docs/rule-language.md
 policy: |
-  # `label COMMAND` marks the process tree launched by `actplane run`.
-  # (legacy `label AGENT` is accepted for backward compatibility.)
-  label COMMAND
+  # `source COMMAND` marks the process tree launched by `actplane run`.
+  source COMMAND = exec "**"
 
   # 1) The command must not create git branches/worktrees (do it yourself on the host).
   rule no-git-branch:
     kill exec "git" "branch"   if COMMAND
     kill exec "git" "worktree" if COMMAND
-    reason "create branches/worktrees on the host, not via the agent"
+    because "create branches/worktrees on the host, not via the agent"
 
   # 2) Secrets must not leave the host. Reading a secret file taints the process;
   #    a tainted process may not open an outbound connection (redact to clear it).
@@ -204,13 +203,13 @@ policy: |
   source SECRET = file "**/secrets/**"
   rule no-secret-exfil:
     kill connect endpoint "*" if SECRET
-    reason "data derived from local secrets must not leave the host; redact first"
+    because "data derived from local secrets must not leave the host; redact first"
   declassify SECRET by exec "**/redact"
 
   # 3) No commit before the tests have run in this session.
   rule test-before-commit:
     kill exec "git" "commit" if COMMAND unless after exec "**/pytest"
-    reason "run the tests before committing"
+    because "run the tests before committing"
 "#;
 
 fn init_policy(force: bool) -> Result<i32> {
@@ -962,7 +961,7 @@ mod tests {
         let err = serde_yaml::from_str::<FileConfig>(
             r#"
 policy: |
-  label AGENT
+  source AGENT = exec "**/claude"
 fallback:
   kill_on_violation: true
 "#,

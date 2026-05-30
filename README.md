@@ -1,13 +1,12 @@
-# ActPlane: Programmable OS-Level Control Plane for Agent Harnesses with eBPF
+# ActPlane: eBPF-Based Policy Engine for AI Agent Harnesses
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-**Define information flow behavioral policy for your AI agent in DSL; `observe` and `enforce` them
-in the kernel with eBPF.** 
+**Runtime `observability` and `enforcement` for AI agent harnesses: declare information-flow policies in a compact DSL, ActPlane enforces them at the kernel level.**
 
 ActPlane sits below the tool layer, so a rule holds information-flow constraints
 across every process, file access, and network connection the agent touches, no
-matter what tool, subprocess, or direct syscall it uses to get there.
+matter what tool, subprocess, or script it uses to get there.
 
 Each rule sets its own mode: **notify** (observe and notify agent), **block**
 (stop the action before it commits), or **kill** (terminate the process). In
@@ -119,7 +118,7 @@ constraints follow derived data across processes and files.
 # actplane.yaml
 version: 1
 policy: |
-  label AGENT
+  source AGENT = exec "**/claude"
 
   # Track when protocol schema files are modified
   source SCHEMA_CHANGED = file "src/protocol/**/*.proto"
@@ -127,17 +126,17 @@ policy: |
   rule no-git-branch:
     kill exec "git" "branch"   if AGENT
     kill exec "git" "worktree" if AGENT
-    reason "This workspace forbids creating git branches or worktrees. Use other git commands, or ask the user to manage branches."
+    because "This workspace forbids creating git branches or worktrees. Use other git commands, or ask the user to manage branches."
 
   rule regenerate-after-schema:
     notify exec "git" "commit"
       if SCHEMA_CHANGED unless after exec "**/protoc" since write "src/protocol/**"
-    reason "Protocol schema changed — generated code may be stale. Run `make proto` to regenerate, then commit."
+    because "Protocol schema changed — generated code may be stale. Run `make proto` to regenerate, then commit."
 
   rule test-before-commit:
     block exec "git" "commit"
       if AGENT unless after exec "**/pnpm" "test" since write "src/**"
-    reason "Source files changed since last test run. Run `pnpm test:changed`, then commit."
+    because "Source files changed since last test run. Run `pnpm test:changed`, then commit."
 ```
 
 Three rules, three effects, three patterns:
