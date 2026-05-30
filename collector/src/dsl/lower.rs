@@ -29,6 +29,7 @@ const OP_EXEC: u8 = 0;
 const OP_OPEN: u8 = 1;
 const OP_WRITE: u8 = 2;
 const OP_CONNECT: u8 = 3;
+const OP_RECV: u8 = 4;
 const C_NONE: u8 = 0;
 const C_LINEAGE: u8 = 1;
 const C_AFTER: u8 = 2;
@@ -299,7 +300,7 @@ fn op_lowers(op: Op) -> Result<&'static [u8], String> {
         Op::Open => Ok(&[OP_OPEN]),
         Op::Write | Op::Unlink => Ok(&[OP_WRITE]),
         Op::Connect => Ok(&[OP_CONNECT]),
-        Op::Recv => Err("recv is a source, not a sink op".into()),
+        Op::Recv => Ok(&[OP_RECV]),
     }
 }
 

@@ -99,6 +99,7 @@ enum taint_op {
 	TOP_OPEN    = 1, /* open/read path */
 	TOP_WRITE   = 2, /* write/unlink/rename path (mutation) */
 	TOP_CONNECT = 3, /* connect host/ip */
+	TOP_RECV    = 4, /* recv from endpoint (data ingress) */
 };
 
 /* unless-condition kinds */

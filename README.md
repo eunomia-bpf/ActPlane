@@ -14,7 +14,7 @@ every mode the rule match's reason is fed back to the agent as a reminder, so it
 can self-correct instead of just hitting a wall. Agents can write and validate
  their own rules (`actplane check`).
 
-Prompt constraints are probabilistic. ActPlane is deterministic.
+Prompt constraints and model guardrails are probabilistic. ActPlane is deterministic.
 
 **What you can express:**
 
