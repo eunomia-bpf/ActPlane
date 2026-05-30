@@ -445,6 +445,7 @@ Measure ActPlane's per-event latency for 5 syscall types
 | AP-1 | 1 rule, 2 sources |
 | AP-10 | 10 rules, 5 sources |
 | AP-32 | 32 rules, 16 sources, 8 transforms |
+| AP-100 | 100 rules, 32 sources, 16 transforms (stress) |
 | Tetragon | Tetragon TracingPolicy with equivalent per-event rules |
 
 Each configuration x each syscall type = 100K iterations.
@@ -459,20 +460,27 @@ Custom C benchmark (or `bpf_prog_test_run`):
 - write: measure `write(fd, buf, 4096)` latency
 - connect: measure `connect(127.0.0.1:discard)` latency
 
-### 8.2 Macrobenchmarks (End-to-End Agent Task Overhead)
+### 8.2 Macrobenchmarks (Agent Trace Replay)
 
-Select 5 agent tasks (from SWE-bench-lite or manually designed), run each
-3 times under:
+Record agent traces from N Terminal-Bench tasks (selecting tasks with
+diverse syscall profiles: compilation-heavy, I/O-heavy, network-heavy).
+Each trace captures the sequence of tool actions (shell commands, file
+operations) the agent performed during a baseline (no-ActPlane) run.
+
+Replay each trace deterministically under four configurations:
 - No ActPlane
-- ActPlane (6 rules, current actplane.yaml)
-- ActPlane (32 rules, stress configuration)
+- ActPlane (6 rules)
+- ActPlane (32 rules)
+- ActPlane (100 rules, stress configuration)
 
-Measure wall-clock time and syscall count.
+Replaying a fixed trace eliminates LLM inference variance and isolates
+ActPlane's overhead. Each configuration x each trace is repeated 3+
+times. Report wall-clock time and syscall count.
 
 ### 8.3 Memory Overhead
 
 Measure BPF map memory consumption as a function of:
-- Rule count (1, 10, 32)
+- Rule count (1, 10, 32, 100)
 - Active process count (10, 100, 1000)
 - Labeled file count (10, 100, 1000)
 
@@ -480,18 +488,18 @@ Measure BPF map memory consumption as a function of:
 
 **Table 6: Per-syscall latency (us)**
 
-| Syscall | Baseline | AP-1 | AP-10 | AP-32 | Tetragon | Overhead (AP-32) |
-|---|---|---|---|---|---|---|
-| fork p50 | | | | | | |
-| fork p99 | | | | | | |
-| exec p50 | | | | | | |
-| exec p99 | | | | | | |
-| open p50 | | | | | | |
-| open p99 | | | | | | |
-| write p50 | | | | | | |
-| write p99 | | | | | | |
-| connect p50 | | | | | | |
-| connect p99 | | | | | | |
+| Syscall | Baseline | AP-1 | AP-10 | AP-32 | AP-100 | Tetragon | Overhead (AP-100) |
+|---|---|---|---|---|---|---|---|
+| fork p50 | | | | | | | |
+| fork p99 | | | | | | | |
+| exec p50 | | | | | | | |
+| exec p99 | | | | | | | |
+| open p50 | | | | | | | |
+| open p99 | | | | | | | |
+| write p50 | | | | | | | |
+| write p99 | | | | | | | |
+| connect p50 | | | | | | | |
+| connect p99 | | | | | | | |
 
 **Figure 4: Per-syscall overhead bar chart** — baseline vs AP-32 latency
 per syscall type
@@ -499,23 +507,23 @@ per syscall type
 **Figure 5: Overhead vs rule count** — x-axis rule count, y-axis latency,
 one line per syscall type
 
-**Table 7: End-to-end agent task overhead**
+**Table 7: Agent trace replay overhead (Terminal-Bench tasks)**
 
-| Task | No AP (s) | AP-6 (s) | AP-32 (s) | Overhead % |
-|---|---|---|---|---|
-| task-1 | | | | |
-| task-2 | | | | |
-| task-3 | | | | |
-| task-4 | | | | |
-| task-5 | | | | |
+| Trace | Syscall profile | No AP (s) | AP-6 (s) | AP-32 (s) | AP-100 (s) | Overhead % (AP-100) |
+|---|---|---|---|---|---|---|
+| trace-1 | compilation-heavy | | | | | |
+| trace-2 | I/O-heavy | | | | | |
+| trace-3 | network-heavy | | | | | |
+| trace-4 | mixed | | | | | |
+| trace-5 | mixed | | | | | |
 
 **Table 8: BPF map memory**
 
-| Metric | AP-1 | AP-10 | AP-32 |
-|---|---|---|---|
-| rodata config (KB) | | | |
-| ts_proc map (KB @ 100 procs) | | | |
-| ts_file map (KB @ 100 files) | | | |
+| Metric | AP-1 | AP-10 | AP-32 | AP-100 |
+|---|---|---|---|---|
+| rodata config (KB) | | | | |
+| ts_proc map (KB @ 100 procs) | | | | |
+| ts_file map (KB @ 100 files) | | | | |
 | Total | | | |
 
 ---
@@ -693,15 +701,16 @@ corresponding repo directory structures
 
 ### Phase 4: Performance Measurement (RQ4)
 
-**Input**: microbenchmark harness + agent tasks
+**Input**: microbenchmark harness + Terminal-Bench agent traces
 **Steps**:
 1. Write per-syscall benchmark (C program, 100K iterations)
-2. Run under each rule-count configuration
+2. Run under each rule-count configuration (AP-1, AP-10, AP-32, AP-100)
 3. Set up Tetragon comparison configuration
-4. Measure agent task wall-clock time
-5. Read BPF map memory consumption
+4. Record agent traces from N Terminal-Bench tasks (baseline runs)
+5. Replay traces under each configuration, measure wall-clock time
+6. Read BPF map memory consumption
 
-**Effort**: ~2 days
+**Effort**: ~3 days
 **Produces**: Table 6, Table 7, Table 8, Figure 4, Figure 5
 
 ### Phase 5: Terminal-Bench Feedback Evaluation (RQ5)
