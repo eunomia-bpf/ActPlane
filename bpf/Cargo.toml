@@ -1,6 +1,6 @@
 [package]
 name = "ebpf-ifc-engine"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 description = "eBPF information-flow control engine for Linux — kernel-level label propagation and policy rule matching across process, file, and network boundaries. Used by ActPlane for AI agent harness enforcement."
 license = "MIT"
