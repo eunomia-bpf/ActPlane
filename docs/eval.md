@@ -107,10 +107,10 @@ docs/corpus/{repo}/
   meta.json              # existing: repo metadata
   statements.yaml        # existing: extracted statements
   CLAUDE.md / AGENTS.md  # existing: raw instruction files
-  expressible.yaml       # NEW (RQ1): human expressibility labels
-  agent_rules.yaml       # NEW (RQ2): agent-generated DSL rules
+  agent_rules.yaml       # NEW (RQ2): agent-generated DSL rules (may be wrong)
 
 docs/corpus-evaluated/{repo}/
+  expressible.yaml       # NEW (RQ1): human expressibility labels (ground truth)
   agent_rules.yaml       # NEW (RQ2 eval): copy of agent_rules.yaml,
                          #   human-corrected (wrong rules fixed)
 
@@ -406,8 +406,7 @@ For each rule, an LLM agent generates:
 Each trace is output in two formats:
 - **Tool-call list** (for tool-layer baselines): `[{tool: "run_command", input: "cat .env"}, ...]`
 - **Executable script** (for kernel-level baselines): shell commands
-  that produce the corresponding syscalls, prefixed by the skeleton
-  setup script.
+  that produce the corresponding syscalls (run from inside `env/`).
 
 Example for "never expose secrets to the network" (from repo X):
 
@@ -444,7 +443,7 @@ Total: ~N rules × 2 traces = ~2N test cases (expected ~800).
 #### Step 4: Execute
 
 For each rule × each trace:
-1. Run skeleton setup script to create directory structure
+1. `cd` into `env/` directory
 2. Run executable script under `sudo actplane run -- bash trace.sh`
    → record ActPlane violations
 3. Run same script under per-event eBPF baseline → record violations
@@ -723,7 +722,7 @@ correctness (RQ2)
 **Input**: all RQ2 TP rules (~400 expected) + source repo metadata
 **Steps**:
 1. For each TP rule, LLM agent generates:
-   (a) directory skeleton setup script (mkdir + touch for path patterns)
+   (a) directory skeleton (`env/` with repo layout committed in-tree)
    (b) violation trace (5-15 tool calls with noise)
    (c) compliant trace (correct path, should not trigger)
    Output in tool-call list + executable script formats
