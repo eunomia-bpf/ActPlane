@@ -128,7 +128,7 @@ docs/corpus-evaluated/{repo}/{statement_id}/
 
 #### File Formats
 
-**expressible.yaml** (RQ1, human-filled, one per repo):
+**expressible.yaml** (RQ1, human-filled, in `corpus-evaluated/{repo}/`):
 ```yaml
 - statement_id: 36
   text: "Tests must pass before committing: go test ./..."
@@ -143,7 +143,7 @@ docs/corpus-evaluated/{repo}/{statement_id}/
   reason: "requires cross-file content comparison"
 ```
 
-**agent_rules.yaml** (RQ2, agent-filled, one per repo):
+**agent_rules.yaml** (RQ2, agent-filled, in `corpus/{repo}/`):
 ```yaml
 - statement_id: 36
   text: "Tests must pass before committing: go test ./..."
@@ -189,9 +189,10 @@ stays identical.
 
 A script extracts all `per_event` and `cross_event` statements from
 `docs/corpus/*/statements.yaml` and generates skeleton
-`expressible.yaml` and `agent_rules.yaml` files in each repo
-directory (fields pre-filled from statements.yaml, `expressible`
-and `rule` left blank).
+`expressible.yaml` (in `corpus-evaluated/{repo}/`) and
+`agent_rules.yaml` (in `corpus/{repo}/`) files for each repo
+(fields pre-filled from statements.yaml, `expressible` and `rule`
+left blank).
 
 #### Step 2: Agent Translation (RQ2)
 
@@ -202,10 +203,11 @@ agent does **not** see `expressible.yaml`.
 #### Step 3: Human Review (RQ1 + RQ2)
 
 One author:
-1. Fills `expressible.yaml` — marks each directive as expressible or
-   not (RQ1). Can reference agent output as a starting point but the
-   judgment is independent.
-2. Copies all `agent_rules.yaml` to `docs/corpus-evaluated/{repo}/`.
+1. Fills `expressible.yaml` in `docs/corpus-evaluated/{repo}/` —
+   marks each directive as expressible or not (RQ1). Can reference
+   agent output as a starting point but the judgment is independent.
+2. Copies all `agent_rules.yaml` from `docs/corpus/{repo}/` to
+   `docs/corpus-evaluated/{repo}/`.
    Reviews each rule; corrects incorrect ones in place (RQ2).
 
 #### Step 4: Compute RQ1 + RQ2
@@ -218,7 +220,7 @@ A script diffs `docs/corpus/*/agent_rules.yaml` against
   (agent missed, human filled)
 
 RQ1 numbers come from counting `expressible: true/false` across
-all `expressible.yaml` files.
+all `docs/corpus-evaluated/*/expressible.yaml` files.
 
 #### Step 5: Generate RQ3 Traces
 
