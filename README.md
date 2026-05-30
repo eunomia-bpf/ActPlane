@@ -18,7 +18,7 @@ Prompt constraints and model guardrails are probabilistic. ActPlane is determini
 
 **What you can express:**
 
-- **"No `codex` may run `git push` or write outside `/src`"**: fine-grand sandboxing rules follow process lineage, no bypass via bash scripts or python.
+- **"No `codex` may run `git push` or write outside `/src`"**: fine-grained sandboxing rules follow process lineage, no bypass via bash scripts or python.
 - **"Never remove the build cache in makefile unless explicitly asked or debugging"**: bypassable with a specific argument when necessary, not just sandbox.
 - **"When changing `specs/*`, also update the server, SDK, and docs"**: ActPlane never blocks the edit, it notifies the agent that downstream outputs are now stale.
 - **"Run  `make check` & `npm tests` before committing"**: causal ordering, not just per-operation checks.
@@ -118,7 +118,7 @@ constraints follow derived data across processes and files.
 # actplane.yaml
 version: 1
 policy: |
-  source AGENT = exec "**/claude"
+  source AGENT = exec "claude"
 
   # Track when protocol schema files are modified
   source SCHEMA_CHANGED = file "src/protocol/**/*.proto"
@@ -130,12 +130,12 @@ policy: |
 
   rule regenerate-after-schema:
     notify exec "git" "commit"
-      if SCHEMA_CHANGED unless after exec "**/protoc" since write "src/protocol/**"
+      if SCHEMA_CHANGED unless after exec "protoc" since write "src/protocol/**"
     because "Protocol schema changed — generated code may be stale. Run `make proto` to regenerate, then commit."
 
   rule test-before-commit:
     block exec "git" "commit"
-      if AGENT unless after exec "**/pnpm" "test" since write "src/**"
+      if AGENT unless after exec "pnpm" "test" since write "src/**"
     because "Source files changed since last test run. Run `pnpm test:changed`, then commit."
 ```
 
