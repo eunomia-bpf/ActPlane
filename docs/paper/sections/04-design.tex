@@ -76,11 +76,12 @@ has reached $p$ through observed OS-level flow edges.
 
 \subsubsection{Rules and Effects}
 
-A rule contains one or more \emph{deny} clauses. Each clause specifies an
+A rule contains one or more clauses. Each clause starts with an action verb
+(\texttt{notify}, \texttt{block}, or \texttt{kill}) followed by an
 operation (\texttt{exec}, \texttt{read}, \texttt{write}, \texttt{unlink},
-\texttt{connect}, or \texttt{open}), a target pattern, a Boolean expression
-over required and forbidden labels, and an optional condition (target
-allow-list, lineage gate, or temporal after-gate).
+\texttt{connect}, or \texttt{open}), a target pattern, optional positional
+arguments, a Boolean expression over required and forbidden labels, and an
+optional condition (target allow-list, lineage gate, or temporal after-gate).
 
 \begin{figure}[t]
 \begin{verbatim}
@@ -88,23 +89,21 @@ label AGENT
 source SECRET = file "**/.env"
 
 rule no-secret-egress:
-  deny connect endpoint "*" if SECRET
-  effect block
-  reason "secret-derived data must stay local"
-  remediation "run the redactor first"
+  block connect endpoint "*" if SECRET
+  reason "secret-derived data must stay local; run the redactor first"
 
 rule no-agent-git:
-  deny exec "**/git" if AGENT
-  effect kill
+  kill exec "git" if AGENT
   reason "agent must not invoke git directly"
 \end{verbatim}
 \caption{Two ActPlane policy rules. The first uses BPF-LSM pre-operation
-denial; the second uses harness-level termination.}
+denial; the second uses harness-level termination. Exec target patterns
+without \texttt{/} are implicitly basename-matched.}
 \Description{Code listing of two ActPlane rules.}
 \label{fig:policy-example}
 \end{figure}
 
-Each rule declares an explicit effect that determines how the kernel
+Each clause declares its own effect that determines how the kernel
 responds to a match.
 
 \textbf{Notify}: the kernel emits a match event and allows the operation
@@ -138,9 +137,9 @@ The Rust compiler parses the DSL and lowers it into a C-compatible
 \texttt{struct taint\_config}. Lowering allocates label bits, expands Boolean
 expressions into required and forbidden bitmasks, lowers glob patterns into
 exact, prefix, suffix, or wildcard match kinds, and compiles IPv4 patterns
-into network/mask pairs. Human-readable rule names, reasons, and remediation
-strings remain in Rust metadata; the kernel receives only fixed-size rule
-tables and emits integer rule identifiers.
+into network/mask pairs. Human-readable rule names and reason strings
+(including remediation guidance) remain in Rust metadata; the kernel receives
+only fixed-size rule tables and emits integer rule identifiers.
 
 This split keeps the eBPF program verifier-friendly. The kernel program
 iterates over fixed-size arrays in read-only data using bounded loops, copies
@@ -171,7 +170,7 @@ post-operation file and connect events. BPF-LSM programs attach to
 active, the loader uses tracepoint mode and disables block-effect rules.
 In tracepoint mode, hooks fire after the operation commits; a
 \texttt{connect} tracepoint observes an already-established connection.
-This is why \texttt{effect block} requires BPF-LSM: only LSM hooks
+This is why \texttt{block} requires BPF-LSM: only LSM hooks
 provide a pre-operation verdict. Tracepoint mode supports \texttt{notify}
 (post-operation observation) and \texttt{kill} (post-operation task
 termination).
@@ -196,7 +195,7 @@ then applies propagation updates.
 The kernel match event contains the rule identifier, effect, target
 string, pid, and flags indicating whether the operation was blocked or the
 task was killed. The Rust runner maps the rule identifier to the
-corresponding rule name, reason, and remediation string, then appends a
+corresponding rule name and reason string, then appends a
 structured payload to \texttt{.actplane/last-violation.txt}.
 
 Agent integration uses a post-tool hook. The \texttt{actplane feedback-hook}
@@ -250,7 +249,7 @@ file to carry different labels under different paths.
 Hostname, DNS, SNI, and HTTP-layer matching require userspace resolution or
 additional instrumentation.
 
-\textbf{Argument predicates.} The \texttt{@arg} predicate inspects
+\textbf{Argument predicates.} Positional argument predicates inspect
 arguments after exec via the tracepoint argument buffer. Pre-operation
 blocking of argument predicates requires an argument cache before
 \texttt{bprm\_check\_security}, which is not yet implemented.

@@ -32,12 +32,13 @@ fork → child inherits; exec → source/xform/gate applied to the process; read
 labels flow into the process; write → process labels flow into the file; connect →
 process labels flow to the endpoint. LSM hooks can deny before commit (`block`);
 tracepoints do not support `block`; they can report `notify` rules and terminate
-only rules that explicitly use `effect kill`. Sinks (`deny exec/open/write/connect`) match
-on a label mask (`req` AND / `forbid` NOT, DNF-expanded by the compiler) plus the
-target pattern, optional `@arg` match, and an optional condition (`lineage-includes`,
-`after`, target scope). Each rule carries an explicit effect (`notify`, `block`,
-or `kill`). On a match the rule's `rule_id`, `effect`, `blocked`, and `killed`
-flags are emitted; the compiler keeps the reason strings. Full semantics:
+only rules that explicitly use `kill`. Sinks (`notify`/`block`/`kill` followed by
+`exec`/`open`/`write`/`connect`) match on a label mask (`req` AND / `forbid` NOT,
+DNF-expanded by the compiler) plus the target pattern, optional positional argument
+match, and an optional condition (`lineage-includes`, `after`, target scope). Each
+clause declares its own effect (`notify`, `block`, or `kill`). On a match the
+rule's `rule_id`, `effect`, `blocked`, and `killed` flags are emitted; the compiler
+keeps the reason strings. Full semantics:
 [`../docs/rule-language.md`](../docs/rule-language.md).
 
 ### eBPF verifier notes (why the code looks the way it does)

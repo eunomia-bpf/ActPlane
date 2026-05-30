@@ -338,7 +338,6 @@ fn lower_effect(effect: Effect) -> u8 {
 pub struct RuleMeta {
     pub name: String,
     pub reason: String,
-    pub remediation: Option<String>,
     pub effect: Effect,
     /// Operations the rule denies (e.g. "exec", "write"), de-duplicated.
     pub ops: Vec<String>,
@@ -420,8 +419,7 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
         meta.push(RuleMeta {
             name: rule.name.clone(),
             reason: rule.reason.clone(),
-            remediation: rule.remediation.clone(),
-            effect: rule.effect,
+            effect: rule.effect(),
             ops,
         });
         for cl in &rule.clauses {
@@ -478,7 +476,7 @@ pub fn compile(pol: &Policy) -> Result<Compiled, String> {
                         cond_kind: ck,
                         cond_neg: cneg,
                         cond_match: cm,
-                        effect: lower_effect(rule.effect),
+                        effect: lower_effect(cl.effect),
                         target: [0; PAT],
                         arg: [0; ARG],
                         cond_pat: [0; PAT],

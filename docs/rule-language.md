@@ -9,7 +9,7 @@
 > - **Kernel engine** `bpf/taint.h` + `taint_engine.bpf.h` + `process.bpf.c`: object+subject sources, boolean masks, declassify/endorse, lineage/after/target conditions, the `since` epoch engine (§1.9), object identity by `(dev,inode)` (§1.10), process+file+endpoint data-flow propagation (fork/exec/read/write/connect), exact/prefix/suffix/any matching, numeric IPv4 connect. It uses LSM hooks for exec, file access/mutation, and connect blocking when `bpf` LSM is active; otherwise tracepoints support `notify` reporting and explicit `kill` termination. `block` is LSM-only. Matching predicates have 30 unit tests (`test_taint.c`).
 > - **Loader** `bpf/process.c` installs the compiled config, checks BPF LSM availability, and reports only `TAINT_VIOLATION` with `effect`, `blocked`, and `killed` fields.
 >
-> Current limitations: `@arg` exec predicates are handled after exec unless an argv cache is added before `bprm_check_security`; `effect block` on such predicates is unsupported because `block` belongs to LSM pre-op hooks, while `effect notify` reports and `effect kill` terminates the matching task after exec in tracepoint mode. Endpoint host globs require userspace DNS/SNI support because kernel connect matching is numeric IPv4. File identity uses real `(dev,inode)` in LSM mode and falls back to `(0, fnv1a(path))` in tracepoint mode (§1.10). The eager per-gate consumption set (Layer B, §1.10) is the remaining precision step and is deliberately deferred. The corrective-feedback loop is wired up through `actplane run`: rule matches the eBPF/LSM enforcer produces are formatted into `.actplane/last-violation.txt`, and the agent hook forwards that payload (see [`feedback-design.md`](feedback-design.md), [`../script/agent-feedback.md`](../script/agent-feedback.md)); the agent eval across the four conditions (C1–C4) remains.
+> Current limitations: Positional argument predicates are handled after exec unless an argv cache is added before `bprm_check_security`; `block` on such predicates is unsupported because `block` belongs to LSM pre-op hooks, while `notify` reports and `kill` terminates the matching task after exec in tracepoint mode. Endpoint host globs require userspace DNS/SNI support because kernel connect matching is numeric IPv4. File identity uses real `(dev,inode)` in LSM mode and falls back to `(0, fnv1a(path))` in tracepoint mode (§1.10). The eager per-gate consumption set (Layer B, §1.10) is the remaining precision step and is deliberately deferred. The corrective-feedback loop is wired up through `actplane run`: rule matches the eBPF/LSM enforcer produces are formatted into `.actplane/last-violation.txt`, and the agent hook forwards that payload (see [`feedback-design.md`](feedback-design.md), [`../script/agent-feedback.md`](../script/agent-feedback.md)); the agent eval across the four conditions (C1–C4) remains.
 
 ### Enforcement Semantics
 
@@ -84,18 +84,21 @@ A blunt "tainted ⇒ deny" is unusable (everything taints, all false-positives).
 ### 1.7 Sinks (the rules)
 ```
 rule NAME:
-  deny OP TARGET-PAT if Φ [unless COND]   reason "..."
+  EFFECT OP TARGET-PAT [ARGS…] if Φ [unless COND]
+  reason "..."
 ```
+- `EFFECT` is the action verb that starts each clause: `notify`, `block`, or `kill`.
 - `OP` ∈ the operations above; `TARGET-PAT` matches the object.
+- `ARGS` (optional): additional quoted strings after the target pattern are positional arguments (e.g. `exec "git" "commit"` matches git with argv containing "commit").
 - `Φ` is a boolean over labels of the **subject**: `L`, `not L`, `Φ and Φ`, `Φ or Φ`, `true`.
-- `COND` (optional) relaxes the deny:
+- `COND` (optional) relaxes the rule:
   - `target PAT` — only when the object also matches PAT (positive scope), or `target not PAT` (allow-listed region).
   - `lineage-includes exec G` — **mandatory mediation**: allowed iff an ancestor (incl. self) exec'd `G`.
   - `after exec G [since EV…]` — **temporal**: allowed iff `exec G` happened earlier in this process's lineage. Plain `after` is *latching* (satisfied once `G` ever ran). The optional `since EV…` tail makes the gate go **stale** when a later invalidating event `EV` occurs (§1.9).
 
-**Rule match**: event `op(s, o)` matches rule `deny op pat if Φ unless cond` iff
+**Rule match**: event `op(s, o)` matches clause `EFFECT op pat if Φ unless cond` iff
 `match(o, pat) ∧ Φ(σ(s)) ∧ ¬cond(s, o, history)`.
-Each rule has an explicit `effect`:
+Each clause declares its own effect:
 
 - `block` (default): deny at the BPF-LSM hook. It is unsupported in tracepoint mode.
 - `notify`: report only; the operation proceeds.
@@ -103,8 +106,10 @@ Each rule has an explicit `effect`:
 
 If multiple clauses/rules match the same event, the kernel chooses the strongest effect: `kill > block > notify`.
 
+**Implicit basename matching**: if an exec target pattern contains no `/`, it is treated as a basename match. `exec "git"` is equivalent to `exec "**/git"` — it matches `/usr/bin/git`, `/opt/bin/git`, etc. Patterns containing `/` (like `exec "/usr/bin/git"` or `exec "**/deploy*"`) are used as-is.
+
 ### 1.8 Pattern matching
-`PAT` is a glob over the relevant attribute: process `exe`/`comm`/`arg`, file `path`, endpoint `host`. `**` = any path span, `*` = one segment / any chars, exact otherwise. Endpoint host supports `*` suffix/prefix wildcards.
+`PAT` is a glob over the relevant attribute: process `exe`/`comm`/`arg`, file `path`, endpoint `host`. `**` = any path span, `*` = one segment / any chars, exact otherwise. Endpoint host supports `*` suffix/prefix wildcards. For exec targets, a pattern without `/` is implicitly treated as a basename match (see §1.7).
 
 ### 1.9 Staleness (`since`): gates that re-arm when their inputs change
 
@@ -197,12 +202,11 @@ decl        := label_decl | source_decl | sink_decl | xform_decl
 label_decl  := "label" IDENT
 source_decl := "source" IDENT "=" node_kind PATTERN          # node_kind: file|endpoint|exec
 sink_decl   := "rule" IDENT ":" clause+ ["reason" STRING]
-                                        ["remediation" STRING] ["effect" EFFECT]
-clause      := "deny" OP target ["if" expr] ["unless" cond]
+clause      := EFFECT OP target [STRING] ["if" expr] ["unless" cond]
 EFFECT      := "block" | "notify" | "kill"                    # default: block
 xform_decl  := ("declassify"|"endorse") IDENT "by" "exec" PATTERN
 OP          := "exec"|"read"|"write"|"unlink"|"connect"|"recv"|"open"
-target      := ("file"|"endpoint"|"exec") PATTERN [ "@arg" STRING ]
+target      := ("file"|"endpoint"|"exec") PATTERN
 expr        := term (("and"|"or") term)*
 term        := ["not"] IDENT | "true"
 cond        := "target" ["not"] PATTERN
@@ -211,18 +215,21 @@ cond        := "target" ["not"] PATTERN
 event_pat   := ("write"|"read"|"exec") PATTERN
 PATTERN, STRING := quoted string
 ```
-(`open` is sugar matching both `read` and `write`; `@arg "x"` additionally requires token `x` in argv — for `git push` etc.)
+Each clause starts with the action verb (`notify`, `block`, or `kill`) — there is
+no separate `deny` keyword or `effect` line. `open` is sugar matching both `read`
+and `write`. An optional quoted string after the target pattern is a positional
+argument (e.g. `exec "git" "push"` requires token `push` in argv). For exec
+targets, a pattern without `/` is treated as basename matching: `exec "git"` is
+equivalent to `exec "**/git"`.
 
 The `since EV…` tail on `after` is the staleness primitive defined in §1.9:
 `after exec "**/pytest" since write "src/**"` means "tests must have run *after*
 your last edit to src". `EV` may be a `write`/`read`/`exec` pattern; multiple
 invalidators are joined with `or`.
 
-`effect` is compiled into the kernel ABI and is the source of truth for what
-happens on a match. `reason` and `remediation` stay Rust-side and shape the
-corrective-feedback payload shown to the agent. Use only
-`effect block|notify|kill`; the old `enforce`/`action` aliases have been removed.
-See
+The effect is compiled into the kernel ABI and is the source of truth for what
+happens on a match. `reason` stays Rust-side and shapes the corrective-feedback
+payload shown to the agent. See
 [`feedback-design.md`](feedback-design.md) and [`../script/agent-feedback.md`](../script/agent-feedback.md).
 
 ---
@@ -237,8 +244,8 @@ See
 source SECRET = file "**/.env"
 source SECRET = file "/etc/secrets/**"
 rule sensitive-context-boundary:
-  deny connect endpoint "*"        if SECRET
-  deny write   file "/shared/**"   if SECRET
+  block connect endpoint "*"        if SECRET
+  block write   file "/shared/**"   if SECRET
   reason "sensitive task context must stay local unless redacted first"
 declassify SECRET by exec "**/redact"
 ```
@@ -249,8 +256,8 @@ declassify SECRET by exec "**/redact"
 source UNTRUST = endpoint "*"
 source UNTRUST = file "**/downloads/**"
 rule no-injected-priv:
-  deny exec "**/git" @arg "push"  if UNTRUST and not REVIEWED
-  deny exec "**/deploy*"          if UNTRUST and not REVIEWED
+  block exec "git" "push"  if UNTRUST and not REVIEWED
+  block exec "**/deploy*"  if UNTRUST and not REVIEWED
   reason "privileged action is derived from untrusted task input; needs review"
 endorse REVIEWED by exec "**/human-approve"
 ```
@@ -259,7 +266,7 @@ endorse REVIEWED by exec "**/human-approve"
 **Scenario**: the production DB file may only be touched by the approved migration tool, never opened ad-hoc by the agent. **Why**: encode "the only sanctioned path", not just "who". Pure lineage gate, no label.
 ```
 rule mediate-proddb:
-  deny open file "**/prod.db"  unless lineage-includes exec "**/migrate"
+  block open file "**/prod.db"  unless lineage-includes exec "**/migrate"
   reason "prod.db is reachable only through the migration tool"
 ```
 
@@ -268,8 +275,8 @@ rule mediate-proddb:
 ```
 source AGENT = exec "**/codex"
 rule confine-writes:
-  deny write  file "/**"  if AGENT  unless target "/work/**"
-  deny unlink file "/**"  if AGENT  unless target "/work/**"
+  block write  file "/**"  if AGENT  unless target "/work/**"
+  block unlink file "/**"  if AGENT  unless target "/work/**"
   reason "agent may only modify its workspace /work/**"
 ```
 
@@ -278,10 +285,9 @@ rule confine-writes:
 ```
 source AGENT = exec "**/codex"
 rule test-before-commit:
-  deny exec "**/git" @arg "commit"
+  block exec "git" "commit"
     if AGENT  unless after exec "**/pytest" since write "src/**" or write "tests/**"
-  reason "tests are stale — you edited code after the last passing run"
-  remediation "re-run the test suite, then commit"
+  reason "tests are stale — you edited code after the last passing run; re-run the test suite, then commit"
 ```
 
 ### E6 — Read-only sub-agent capability scoping
@@ -289,9 +295,9 @@ rule test-before-commit:
 ```
 source RESEARCH = exec "**/research-agent"
 rule research-readonly:
-  deny write   file "/**"     if RESEARCH
-  deny connect endpoint "*"   if RESEARCH
-  deny exec    "**/git"       if RESEARCH
+  block write   file "/**"     if RESEARCH
+  block connect endpoint "*"   if RESEARCH
+  block exec    "git"          if RESEARCH
   reason "research sub-agent is read-only; spawn an executor for changes"
 ```
 
@@ -317,7 +323,7 @@ rule research-readonly:
 ```
 source AGENT = exec "**/codex"
 rule no-git:
-  deny exec "**/git"  if AGENT
+  block exec "git"  if AGENT
   reason "this agent must not invoke git on any path"
 # three traces (tool / bash / python) all produce a rule match.
 ```
@@ -327,19 +333,18 @@ rule no-git:
 ```
 source CUSTOMER_DATA = file "/data/customers/**"
 rule customer-data-egress:
-  deny connect endpoint "*"               if CUSTOMER_DATA  unless target "10.0.0."
+  block connect endpoint "*"               if CUSTOMER_DATA  unless target "10.0.0."
   reason "customer-data task may only reach approved internal ranges"
 ```
 
 ### E11 — Destructive op requires a fresh confirmation gate
-**Scenario**: the agent attempts `git push --force` or deletes under `/data` without a confirmation step. **Why**: gate irreversible actions behind an explicit confirmation the harness can observe. A latching `after exec "**/confirm"` would arm one confirm to authorize every later force-push; `since exec "**/git"` makes confirmation single-shot — any later `git` invocation makes the confirm stale again (§1.9).
+**Scenario**: the agent attempts `git push --force` or deletes under `/data` without a confirmation step. **Why**: gate irreversible actions behind an explicit confirmation the harness can observe. A latching `after exec "**/confirm"` would arm one confirm to authorize every later force-push; `since exec "git"` makes confirmation single-shot — any later `git` invocation makes the confirm stale again (§1.9).
 ```
 source AGENT = exec "**/codex"
 rule confirm-destructive:
-  deny exec "**/git" @arg "--force"  if AGENT  unless after exec "**/confirm" since exec "**/git"
-  deny unlink file "/data/**"        if AGENT  unless after exec "**/confirm"
+  kill exec "git" "--force"  if AGENT  unless after exec "**/confirm" since exec "git"
+  kill unlink file "/data/**"        if AGENT  unless after exec "**/confirm"
   reason "each force-push needs a fresh confirm; a stale confirm doesn't count"
-  effect kill
 ```
 
 ### E12 — Task non-interference / separation (multi-label sets)
@@ -348,7 +353,7 @@ rule confirm-destructive:
 source TASK_A = exec "**/task-a"
 source TASK_B = exec "**/task-b"
 rule no-cross-task-commit:
-  deny exec "**/git" @arg "commit"  if TASK_A and TASK_B
+  block exec "git" "commit"  if TASK_A and TASK_B
   reason "a commit must not mix data from task A and task B"
 ```
 
@@ -357,10 +362,9 @@ rule no-cross-task-commit:
 ```
 source AGENT = exec "**/codex"
 rule migrate-checked:
-  deny write file "**/prod.db"
+  block write file "**/prod.db"
     if AGENT  unless after exec "**/migrate-check" since write "migrations/**"
   reason "prod.db write needs a migration-check that saw the current migrations"
-  effect block
 ```
 
 ---
@@ -394,7 +398,7 @@ Lineage attributes (`gates`, ancestry, and the per-lineage epoch counters of §1
 
 Two-tier (per §10.4): a userspace Rust **compiler** lowers the DSL to a flat kernel config; the **kernel** propagates taint and evaluates rules, emitting only rule matches.
 
-- **`collector/src/dsl/`** — `ast.rs`, `parse.rs` (DSL → AST, incl. the optional `since` tail on `after`), `lower.rs` (AST → `struct taint_config` bytes: label/gate bit allocation, boolean→`req`/`forbid` via DNF, glob→exact/prefix/suffix/any, IPv4→net/mask, and gate+`since` → epoch-slot indices with `taint_rule.{gate_idx,since_mask}` + `taint_config.invals`). `mod.rs::compile_str`. Tests compile E1–E13 and rule effects. `main.rs` loads `actplane.yaml`, compiles its `policy: |` DSL block, spawns the loader, and prints rule matches with their reason (the feedback payload).
+- **`collector/src/dsl/`** — `ast.rs`, `parse.rs` (DSL → AST, incl. the optional `since` tail on `after` and implicit basename matching for exec targets), `lower.rs` (AST → `struct taint_config` bytes: label/gate bit allocation, boolean→`req`/`forbid` via DNF, glob→exact/prefix/suffix/any, IPv4→net/mask, and gate+`since` → epoch-slot indices with `taint_rule.{gate_idx,since_mask}` + `taint_config.invals`). `mod.rs::compile_str`. Tests compile E1–E13 and rule effects. `main.rs` loads `actplane.yaml`, compiles its `policy: |` DSL block, spawns the loader, and prints rule matches with their reason (the feedback payload).
 - **`bpf/taint.h`** — the rule ABI (`taint_source`/`taint_rule`/`taint_xform`/`taint_gate`/`taint_inval`/`taint_config`) + libc-free matching predicates (`taint_streq`/`prefix`/`suffix`/`any`, `mask_ok`, `arg_match`), 30 unit tests in `test_taint.c`.
 - **`bpf/taint_engine.bpf.h`** — label maps (proc/file/endpoint) + lineage/session gates + per-session epochs (`te_sess`, `te_tick`/`te_stamp`, `te_inval_hits`, `te_after_satisfied`) for §1.9 staleness + `file_id`/`file_state` object identity (§1.10) + propagation + `te_check`/`te_connect_check` (bpf2bpf subprograms; pattern reads via local copies, IPv4 matched numerically — both chosen to satisfy the verifier).
 - **`bpf/process.bpf.c`** — fork/exec/exit/open/mutate/connect hooks; one emitter (`emit_violation`). **`bpf/process.c`** — installs config, reports rule matches.

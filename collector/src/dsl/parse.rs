@@ -125,9 +125,15 @@ impl P {
         } else {
             return Err("expected node kind in target".into());
         };
-        let pattern = self.string()?;
-        let arg = if self.is_word("@arg") {
-            self.word()?;
+        let mut pattern = self.string()?;
+        // Implicit basename matching: if the pattern contains no '/', treat it
+        // as a basename match by prepending "**/".
+        if kind == Kind::Exec && !pattern.contains('/') {
+            pattern = format!("**/{}", pattern);
+        }
+        // Positional arguments: additional quoted strings after the target
+        // pattern are treated as arguments (replaces the old `@arg` syntax).
+        let arg = if matches!(self.peek(), Some(Tok::Str(_))) {
             Some(self.string()?)
         } else {
             None
@@ -202,8 +208,18 @@ impl P {
             _ => Err(format!("unknown unless cond '{}'", w)),
         }
     }
+    fn clause_effect(w: &str) -> Option<Effect> {
+        match w {
+            "notify" => Some(Effect::Notify),
+            "block" => Some(Effect::Block),
+            "kill" => Some(Effect::Kill),
+            _ => None,
+        }
+    }
     fn clause(&mut self) -> Result<Clause, String> {
-        self.eat("deny")?;
+        let verb = self.word()?;
+        let effect = P::clause_effect(&verb)
+            .ok_or_else(|| format!("expected 'notify', 'block', or 'kill', got '{}'", verb))?;
         let op = P::op(&self.word()?)?;
         let target = self.target(op)?;
         let when = if self.is_word("if") {
@@ -223,6 +239,7 @@ impl P {
             target,
             when,
             unless,
+            effect,
         })
     }
 }
@@ -277,25 +294,16 @@ pub fn parse(src: &str) -> Result<Policy, String> {
                 }
                 let mut clauses = Vec::new();
                 let mut reason = String::new();
-                let mut remediation = None;
-                let mut effect = Effect::default();
                 loop {
-                    if p.is_word("deny") {
-                        clauses.push(p.clause()?);
-                    } else if p.is_word("reason") {
-                        p.next();
-                        reason = p.string()?;
-                    } else if p.is_word("remediation") {
-                        p.next();
-                        remediation = Some(p.string()?);
-                    } else if p.is_word("effect") {
-                        p.next();
-                        effect = match p.word()?.as_str() {
-                            "notify" => Effect::Notify,
-                            "block" => Effect::Block,
-                            "kill" => Effect::Kill,
-                            o => return Err(format!("unknown rule effect '{}'", o)),
-                        };
+                    if let Some(Tok::Word(w)) = p.peek() {
+                        if P::clause_effect(w).is_some() {
+                            clauses.push(p.clause()?);
+                        } else if w == "reason" {
+                            p.next();
+                            reason = p.string()?;
+                        } else {
+                            break;
+                        }
                     } else {
                         break;
                     }
@@ -304,8 +312,6 @@ pub fn parse(src: &str) -> Result<Policy, String> {
                     name,
                     clauses,
                     reason,
-                    remediation,
-                    effect,
                 });
             }
             other => return Err(format!("unknown declaration '{}'", other)),

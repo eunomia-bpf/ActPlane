@@ -26,9 +26,8 @@ cases:
     policy: |-
       source SECRET = file "**/sec.env"
       rule no-exfil:
-        deny connect endpoint "*" if SECRET
+        kill connect endpoint "*" if SECRET
         reason "secret data must not leave the host; redact first"
-        effect kill
       declassify SECRET by exec "**/redact"
     trigger: |-
       read x < ${D}/sec.env; timeout 1 bash -c 'exec 3<>/dev/tcp/1.1.1.1/80'; ${D}/redact -c 'timeout 1 bash -c "exec 4<>/dev/tcp/1.1.1.2/80"'
@@ -42,9 +41,8 @@ cases:
     policy: |-
       source UNTRUST = file "${D}/downloads/**"
       rule no-injected-priv:
-        deny exec "**/git" @arg "push" if UNTRUST and not REVIEWED
+        kill exec "git" "push" if UNTRUST and not REVIEWED
         reason "action derived from untrusted input; needs human review"
-        effect kill
       endorse REVIEWED by exec "**/human-approve"
     trigger: |-
       ${D}/codex -c 'read x < ${D}/downloads/inj; ${D}/git push'; ${D}/codex -c 'read x < ${D}/downloads/inj; ${D}/human-approve -c "${D}/git push"'
@@ -55,9 +53,8 @@ cases:
   - name: "E3  mandatory mediation (lineage)"
     policy: |-
       rule mediate-proddb:
-        deny open file "**/prod.db" unless lineage-includes exec "**/migrate"
+        kill open file "**/prod.db" unless lineage-includes exec "**/migrate"
         reason "prod.db is reachable only through the migration tool"
-        effect kill
     trigger: |-
       ${D}/codex -c 'cat ${D}/data/prod.db'; ${D}/migrate -c 'cat ${D}/data/prod.db'
     expect:
@@ -70,9 +67,8 @@ cases:
     policy: |-
       source AGENT = exec "**/codex"
       rule confine-writes:
-        deny unlink file "${D}/**" if AGENT unless target "${D}/work/**"
+        kill unlink file "${D}/**" if AGENT unless target "${D}/work/**"
         reason "agent may only modify its workspace work/**"
-        effect kill
     trigger: |-
       ${D}/codex -c 'rm -f ${D}/outside.txt'; ${D}/codex -c 'rm -f ${D}/work/in.txt'
     expect:
@@ -83,9 +79,8 @@ cases:
     policy: |-
       source AGENT = exec "**/codex"
       rule test-before-commit:
-        deny exec "**/git" @arg "commit" if AGENT unless after exec "**/pytest"
+        kill exec "git" "commit" if AGENT unless after exec "**/pytest"
         reason "run the test suite before committing"
-        effect kill
     trigger: |-
       ${D}/codex -c '${D}/git commit'; ${D}/codex -c '${D}/pytest -c true; ${D}/git commit'
     expect:
@@ -96,9 +91,8 @@ cases:
     policy: |-
       source RESEARCH = exec "**/research-agent"
       rule research-readonly:
-        deny exec "**/git" if RESEARCH
+        kill exec "git" if RESEARCH
         reason "research sub-agent is read-only; spawn an executor for changes"
-        effect kill
     trigger: |-
       ${D}/research-agent -c '${D}/git status'
     expect:
@@ -108,9 +102,8 @@ cases:
     policy: |-
       source SECRET = file "**/sec.env"
       rule no-exfil:
-        deny connect endpoint "*" if SECRET
+        kill connect endpoint "*" if SECRET
         reason "secret data must not leave the host; redact first"
-        effect kill
     trigger: |-
       ${D}/codex -c 'read x < ${D}/sec.env; echo derived > ${D}/data/out.json'; sleep 0.3; /bin/bash -c 'read y < ${D}/data/out.json; timeout 1 bash -c "exec 3<>/dev/tcp/3.3.3.3/80"'
     expect:
@@ -120,9 +113,8 @@ cases:
     policy: |-
       source AGENT = exec "**/codex"
       rule no-git:
-        deny exec "**/git" if AGENT
+        kill exec "git" if AGENT
         reason "this agent must not invoke git on any path"
-        effect kill
     trigger: |-
       ${D}/codex -c '${D}/git status'; /bin/bash -c '${D}/git status'
     expect:
@@ -134,9 +126,8 @@ cases:
     policy: |-
       source PII = file "${D}/customers/**"
       rule pii-egress:
-        deny connect endpoint "*" if PII unless target "127."
+        kill connect endpoint "*" if PII unless target "127."
         reason "PII-handling process may only reach internal endpoints"
-        effect kill
     trigger: |-
       ${D}/codex -c 'read x < ${D}/customers/rec; timeout 1 bash -c "exec 3<>/dev/tcp/8.8.8.8/80"; timeout 1 bash -c "exec 4<>/dev/tcp/127.0.0.1/80"'
     expect:
@@ -147,9 +138,8 @@ cases:
     policy: |-
       source AGENT = exec "**/codex"
       rule confirm-destructive:
-        deny exec "**/git" @arg "--force" if AGENT unless lineage-includes exec "**/confirm"
+        kill exec "git" "--force" if AGENT unless lineage-includes exec "**/confirm"
         reason "destructive action needs an explicit confirm step in its lineage"
-        effect kill
     trigger: |-
       ${D}/codex -c '${D}/git --force'; ${D}/codex -c '${D}/confirm -c "${D}/git --force"'
     expect:
@@ -161,9 +151,8 @@ cases:
       source TASK_A = exec "**/task-a"
       source TASK_B = exec "**/task-b"
       rule no-cross-task-commit:
-        deny exec "**/git" @arg "commit" if TASK_A and TASK_B
+        kill exec "git" "commit" if TASK_A and TASK_B
         reason "a commit must not mix data from task A and task B"
-        effect kill
     trigger: |-
       ${D}/task-a -c '${D}/task-b -c "${D}/git commit"'; ${D}/task-a -c '${D}/git commit'
     expect:
@@ -179,11 +168,10 @@ cases:
     policy: |-
       source AGENT = exec "**/codex"
       rule test-before-commit:
-        deny exec "**/git" @arg "commit"
+        kill exec "git" "commit"
           if AGENT
           unless after exec "**/pytest" since write "${D}/work/**"
         reason "tests are stale — you edited code after the last run"
-        effect kill
     trigger: |-
       ${D}/codex -c '${D}/pytest -c true; ${D}/git commit'; ${D}/codex -c '${D}/pytest -c true; echo x > ${D}/work/foo; ${D}/git commit'
     expect:

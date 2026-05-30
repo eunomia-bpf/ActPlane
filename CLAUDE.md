@@ -27,7 +27,7 @@ operations are allowed** (`git commit`, `git add`, `git status`, `git log`, `git
 …). If you think a different branch is needed, ask the user instead of creating one.
 
 `git branch` and `git worktree` are also enforced below the tool layer by ActPlane
-itself (`actplane.yaml`, rule `no-git-branch`, `@arg "branch"`/`@arg "worktree"`): they
+itself (`actplane.yaml`, rule `no-git-branch`, `kill exec "git" "branch"`/`kill exec "git" "worktree"`): they
 are killed whether invoked via a tool call, `bash -c`, or a subprocess — a worked
 example of a real corpus-derived guardrail in the taint DSL.
 
@@ -109,7 +109,7 @@ Each node carries a `u64` label mask. Sources add labels (exec comm / file path 
 endpoint IP). Propagation: fork→inherit, exec→apply source/xform/gate, read→file
 labels into proc, write→proc labels into file, connect→proc labels to endpoint.
 Sinks match a label mask (`req` AND / `forbid` NOT, DNF-expanded) + target pattern
-+ optional `@arg` + optional condition (lineage-includes / after / target-scope).
++ optional positional argument + optional condition (lineage-includes / after / target-scope).
 Full semantics and 12 examples: `docs/rule-language.md`.
 
 ## Critical: the Rust↔C ABI

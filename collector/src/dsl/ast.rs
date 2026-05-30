@@ -59,18 +59,22 @@ pub struct Clause {
     pub target: Target,
     pub when: Expr,
     pub unless: Option<Cond>,
+    /// Effect declared by the action verb that starts the clause
+    /// (`notify`/`block`/`kill`).
+    pub effect: Effect,
 }
 
 /// Rule result. This is compiled into the kernel rule table and is the source
 /// of truth for what happens when the rule matches.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
 pub enum Effect {
     /// Report only (notify the agent); the operation proceeds.
-    Notify,
+    Notify = 0,
     /// Hard block (LSM -EPERM) when BPF LSM is available.
-    Block,
+    Block = 1,
     /// Send SIGKILL to the current task.
-    Kill,
+    Kill = 2,
 }
 
 impl Default for Effect {
@@ -84,10 +88,13 @@ pub struct Rule {
     pub name: String,
     pub clauses: Vec<Clause>,
     pub reason: String,
-    /// Optional actionable next step shown to the agent (docs/feedback-design.md §6).
-    pub remediation: Option<String>,
-    /// Action taken when this rule matches (default Block).
-    pub effect: Effect,
+}
+
+impl Rule {
+    /// The strongest effect across all clauses (kill > block > notify).
+    pub fn effect(&self) -> Effect {
+        self.clauses.iter().map(|cl| cl.effect).max().unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

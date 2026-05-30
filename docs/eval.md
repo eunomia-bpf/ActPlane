@@ -152,9 +152,8 @@ docs/corpus-evaluated/{repo}/{statement_id}/
   rule: |
     source AGENT = exec "**/claude"
     rule tests-before-commit:
-      deny exec "**/git" @arg "commit"
-        if AGENT unless after exec "**/go" @arg "test"
-      effect kill
+      kill exec "git" "commit"
+        if AGENT unless after exec "**/go" "test"
       reason "Tests must pass before committing."
 - statement_id: 37
   text: "Version in THREE places must match"
@@ -233,23 +232,23 @@ Section 7 for the full RQ3 procedure.
 
 | Corpus directive | Source repo | DSL rule |
 |---|---|---|
-| "Do not commit to main directly" | CoplayDev/unity-mcp#27 | `deny exec "**/git" @arg "push" @arg "main" if AGENT` |
-| "Never modify vendor/ files" | multiple repos | `deny write file "**/vendor/**" if AGENT` |
-| "Don't run npm publish" | colbymchenry/codegraph#51 | `deny exec "**/npm" @arg "publish" if AGENT` |
-| "Do not execute rm -rf" | common | `deny exec "**/rm" @arg "-rf" if AGENT` |
-| "Never push to main directly" | multiple repos | `deny exec "**/git" @arg "push" @arg "main" if AGENT` |
-| "Don't add third-party dependency without verification" | Hmbown/DeepSeek-TUI#22 | `deny exec "**/npm" @arg "install" if AGENT unless after exec "**/verify-dep"` |
+| "Do not commit to main directly" | CoplayDev/unity-mcp#27 | `kill exec "git" "push" "main" if AGENT` |
+| "Never modify vendor/ files" | multiple repos | `kill write file "**/vendor/**" if AGENT` |
+| "Don't run npm publish" | colbymchenry/codegraph#51 | `kill exec "npm" "publish" if AGENT` |
+| "Do not execute rm -rf" | common | `kill exec "rm" "-rf" if AGENT` |
+| "Never push to main directly" | multiple repos | `kill exec "git" "push" "main" if AGENT` |
+| "Don't add third-party dependency without verification" | Hmbown/DeepSeek-TUI#22 | `kill exec "npm" "install" if AGENT unless after exec "**/verify-dep"` |
 
 ### 4.4 Cross-Event Directive Translation Examples
 
 | Corpus directive | Source repo | Pattern | DSL rule |
 |---|---|---|---|
-| "Run tests before committing" | OpenPipe/ART#2, rtk-ai/rtk#30, etc. | temporal gate + staleness | `deny exec "**/git" @arg "commit" if AGENT unless after exec "**/pytest" since write "src/**"` |
-| "Never commit secrets" | chenhg5/cc-connect#38 | data flow | `source SECRET = file "**/.env"` + `deny exec "**/git" @arg "commit" if SECRET` |
-| "Only modify DB through migration tool" | common | lineage mediation | `deny open file "**/prod.db" unless lineage-includes exec "**/migrate"` |
-| "CI checks must pass before merge" | Alishahryar1/free-claude-code#7 | temporal gate | `deny exec "**/git" @arg "push" if AGENT unless after exec "**/ci-check"` |
-| "If you change ConfigToml, run write-config-schema" | openai/codex#17 | conditional exec | `source CFG_TOUCHED = file "**/ConfigToml*"` + `deny exec "**/git" @arg "commit" if CFG_TOUCHED unless after exec "**/write-config-schema"` |
-| "When modifying schema.graphqls, re-run gqlgen" | vxcontrol/pentagi#15 | conditional exec | `source SCHEMA_TOUCHED = file "**/*.graphqls"` + `deny exec "**/git" @arg "commit" if SCHEMA_TOUCHED unless after exec "**/gqlgen"` |
+| "Run tests before committing" | OpenPipe/ART#2, rtk-ai/rtk#30, etc. | temporal gate + staleness | `kill exec "git" "commit" if AGENT unless after exec "**/pytest" since write "src/**"` |
+| "Never commit secrets" | chenhg5/cc-connect#38 | data flow | `source SECRET = file "**/.env"` + `kill exec "git" "commit" if SECRET` |
+| "Only modify DB through migration tool" | common | lineage mediation | `block open file "**/prod.db" unless lineage-includes exec "**/migrate"` |
+| "CI checks must pass before merge" | Alishahryar1/free-claude-code#7 | temporal gate | `kill exec "git" "push" if AGENT unless after exec "**/ci-check"` |
+| "If you change ConfigToml, run write-config-schema" | openai/codex#17 | conditional exec | `source CFG_TOUCHED = file "**/ConfigToml*"` + `kill exec "git" "commit" if CFG_TOUCHED unless after exec "**/write-config-schema"` |
+| "When modifying schema.graphqls, re-run gqlgen" | vxcontrol/pentagi#15 | conditional exec | `source SCHEMA_TOUCHED = file "**/*.graphqls"` + `kill exec "git" "commit" if SCHEMA_TOUCHED unless after exec "**/gqlgen"` |
 
 ### 4.5 Non-Translatable Directive Examples
 
@@ -615,7 +614,7 @@ policies a project owner would reasonably set. Examples:
 | Data science | "don't delete the dataset", "run validation before reporting results" |
 | General | "don't rm -rf /", "don't modify files outside the work directory" |
 
-Each rule includes a `reason` and `remediation` string for the
+Each rule includes a `reason` string (with remediation guidance) for the
 feedback channel.
 
 #### Experimental Conditions

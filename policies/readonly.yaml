@@ -7,8 +7,6 @@ policy: |
   label AGENT
 
   rule readonly-subagent:
-    deny write file "/home/yunwei37/workspace/ActPlane/**" if AGENT
-    deny connect endpoint "*" if AGENT
-    effect kill
-    reason "This subagent policy is read-only for the ActPlane workspace and does not allow network access."
-    remediation "Return findings only; ask the parent agent to make edits or run networked commands"
+    kill write file "/home/yunwei37/workspace/ActPlane/**" if AGENT
+    kill connect endpoint "*" if AGENT
+    reason "This subagent policy is read-only for the ActPlane workspace and does not allow network access. Return findings only; ask the parent agent to make edits or run networked commands."

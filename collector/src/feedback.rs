@@ -27,7 +27,6 @@ pub fn format_payload(
     op: &str,
     target: &str,
     reason: &str,
-    remediation: Option<&str>,
     effect: Effect,
     blocked: bool,
     killed: bool,
@@ -45,50 +44,41 @@ pub fn format_payload(
     let prov = provenance_line(provenance, op, target);
     let body = match (effect, enforcement) {
         (Effect::Notify, _) => {
-            let rem = remediation.unwrap_or("后续请避免该操作");
             format!(
                 "[ActPlane] 操作「{op} {target}」触发了通知规则「{name}」（操作未被拦截）。\n\
                  - 原因：{reason}\n\
                  {prov}\
-                 - 建议：{rem}。"
+                 - 建议：后续请避免该操作。"
             )
         }
         (Effect::Block, "block") => {
-            let rem = remediation.unwrap_or(
-                "请改用不触发该约束的等价方式完成任务；若确无替代路径，请向用户说明并确认",
-            );
             format!(
                 "[ActPlane] 操作被规则「{name}」拒绝。\n\
                  - 目标操作：{op} {target}\n\
                  - 触发原因：{reason}\n\
                  {prov}\
                  - BPF-LSM 已在内核提交前返回 EPERM；重试相同操作不会成功。\n\
-                 - 如何继续：{rem}。"
+                 - 如何继续：请改用不触发该约束的等价方式完成任务；若确无替代路径，请向用户说明并确认。"
             )
         }
         (Effect::Block, _) => {
-            let rem = remediation
-                .unwrap_or("启用 BPF-LSM，或把这条规则显式改成 effect notify / effect kill");
             format!(
                 "[ActPlane] 规则「{name}」要求 block，但当前 backend 不支持 block。\n\
                  - 目标操作：{op} {target}\n\
                  - 触发原因：{reason}\n\
                  {prov}\
                  - block 只由 BPF-LSM pre-op hook 实现；tracepoint backend 不支持 block，也不会把它降级成 notify 或 kill。\n\
-                 - 如何继续：{rem}。"
+                 - 如何继续：启用 BPF-LSM，或把这条规则改成 notify / kill。"
             )
         }
         (Effect::Kill, _) => {
-            let rem = remediation.unwrap_or(
-                "请停止该路径，改用不触发该约束的等价方式；若确无替代路径，请向用户说明并确认",
-            );
             format!(
                 "[ActPlane] 操作被规则「{name}」终止。\n\
                  - 目标操作：{op} {target}\n\
                  - 触发原因：{reason}\n\
                  {prov}\
                  - 该规则显式要求终止当前违规进程，重试相同操作不会成功。\n\
-                 - 如何继续：{rem}。"
+                 - 如何继续：请停止该路径，改用不触发该约束的等价方式；若确无替代路径，请向用户说明并确认。"
             )
         }
     };
@@ -136,7 +126,6 @@ mod tests {
             "exec",
             "git",
             "no git allowed",
-            None,
             Effect::Block,
             true,
             false,
@@ -153,14 +142,13 @@ mod tests {
             "t",
             "exec",
             "git",
-            "run tests",
-            Some("先跑 pytest"),
+            "run tests first",
             Effect::Notify,
             false,
             false,
             None,
         );
-        assert!(s.contains("先跑 pytest"));
+        assert!(s.contains("run tests first"));
         assert!(s.contains("\"retry_useful\":false"));
     }
 
@@ -171,7 +159,6 @@ mod tests {
             "exec",
             "git",
             "no git allowed",
-            None,
             Effect::Block,
             false,
             false,
@@ -196,7 +183,6 @@ mod tests {
             "connect",
             "1.2.3.4",
             "secret data must not leave",
-            None,
             Effect::Kill,
             false,
             true,

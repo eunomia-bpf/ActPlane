@@ -125,30 +125,24 @@ policy: |
   source SCHEMA_CHANGED = file "src/protocol/**/*.proto"
 
   rule no-git-branch:
-    deny exec "**/git" @arg "branch"   if AGENT
-    deny exec "**/git" @arg "worktree" if AGENT
-    effect kill
-    reason "This workspace forbids creating git branches or worktrees."
-    remediation "Use other git commands, or ask the user to manage branches."
+    kill exec "git" "branch"   if AGENT
+    kill exec "git" "worktree" if AGENT
+    reason "This workspace forbids creating git branches or worktrees. Use other git commands, or ask the user to manage branches."
 
   rule regenerate-after-schema:
-    deny exec "**/git" @arg "commit"
+    notify exec "git" "commit"
       if SCHEMA_CHANGED unless after exec "**/protoc" since write "src/protocol/**"
-    effect notify
-    reason "Protocol schema changed — generated code may be stale."
-    remediation "Run `make proto` to regenerate, then commit."
+    reason "Protocol schema changed — generated code may be stale. Run `make proto` to regenerate, then commit."
 
   rule test-before-commit:
-    deny exec "**/git" @arg "commit"
-      if AGENT unless after exec "**/pnpm" @arg "test" since write "src/**"
-    effect block
-    reason "Source files changed since last test run."
-    remediation "Run `pnpm test:changed`, then commit."
+    block exec "git" "commit"
+      if AGENT unless after exec "**/pnpm" "test" since write "src/**"
+    reason "Source files changed since last test run. Run `pnpm test:changed`, then commit."
 ```
 
 Three rules, three effects, three patterns:
 
-- **`no-git-branch`** (kill): per-event deny — anything in the agent's
+- **`no-git-branch`** (kill): per-event rule — anything in the agent's
   process tree that tries `git branch` is terminated immediately.
 - **`regenerate-after-schema`** (notify): cross-event conditional — if
   the agent modified a `.proto` file, ActPlane reminds it to run `protoc`

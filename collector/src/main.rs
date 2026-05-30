@@ -41,7 +41,7 @@ const HOOK_MAX_CHARS: usize = 8000;
       # get started: write a starter policy, then validate it (no sudo needed)\n  \
       actplane init  &&  actplane check\n\n  \
       # enforce a one-line policy around a command (needs sudo for the eBPF load)\n  \
-      sudo -E actplane --rule 'label COMMAND\n                       rule no-git-branch:\n                         deny exec \"**/git\" @arg \"branch\" if COMMAND\n                         effect kill\n                         reason \"create a branch via the host, not the agent\"' run claude -p '...'\n\n  \
+      sudo -E actplane --rule 'label COMMAND\n                       rule no-git-branch:\n                         kill exec \"git\" \"branch\" if COMMAND\n                         reason \"create a branch via the host, not the agent\"' run claude -p '...'\n\n  \
       # use a project policy file (auto-discovered as ./actplane.yaml upward)\n  \
       sudo -E actplane run <your agent command>\n\n  \
       # just compile/validate a policy (no privileges needed)\n  \
@@ -194,9 +194,8 @@ policy: |
 
   # 1) The command must not create git branches/worktrees (do it yourself on the host).
   rule no-git-branch:
-    deny exec "**/git" @arg "branch"   if COMMAND
-    deny exec "**/git" @arg "worktree" if COMMAND
-    effect kill
+    kill exec "git" "branch"   if COMMAND
+    kill exec "git" "worktree" if COMMAND
     reason "create branches/worktrees on the host, not via the agent"
 
   # 2) Secrets must not leave the host. Reading a secret file taints the process;
@@ -204,15 +203,13 @@ policy: |
   source SECRET = file "**/.env"
   source SECRET = file "**/secrets/**"
   rule no-secret-exfil:
-    deny connect endpoint "*" if SECRET
-    effect kill
+    kill connect endpoint "*" if SECRET
     reason "data derived from local secrets must not leave the host; redact first"
   declassify SECRET by exec "**/redact"
 
   # 3) No commit before the tests have run in this session.
   rule test-before-commit:
-    deny exec "**/git" @arg "commit" if COMMAND unless after exec "**/pytest"
-    effect kill
+    kill exec "git" "commit" if COMMAND unless after exec "**/pytest"
     reason "run the tests before committing"
 "#;
 
@@ -257,11 +254,11 @@ fn check_policy(cli: &Cli) -> Result<i32> {
             m.ops.join("/")
         };
         println!(
-            "  {}. {} — deny {} → {} ({})",
+            "  {}. {} — {} {} ({})",
             i + 1,
             m.name,
-            ops,
             eff,
+            ops,
             m.reason
         );
     }
@@ -277,15 +274,19 @@ fn check_policy(cli: &Cli) -> Result<i32> {
             .any(|m| format!("{:?}", m.effect).eq_ignore_ascii_case("block"))
     {
         warns.push(
-            "`effect block` needs BPF-LSM (not active here: /sys/kernel/security/lsm has no `bpf`); \
-             those rules will report (notify) but not deny. Use `effect kill` to terminate."
+            "`block` rules need BPF-LSM (not active here: /sys/kernel/security/lsm has no `bpf`); \
+             those rules will report (notify) but not deny. Use `kill` instead to terminate."
                 .into(),
         );
     }
     // hostname (non-IP) connect targets are not enforced numerically in-kernel.
     for line in loaded.config.policy.lines() {
         let t = line.trim();
-        if let Some(rest) = t.strip_prefix("deny connect endpoint") {
+        // Match any action verb (notify/block/kill) before "connect endpoint"
+        let rest_opt = t.strip_prefix("notify connect endpoint")
+            .or_else(|| t.strip_prefix("block connect endpoint"))
+            .or_else(|| t.strip_prefix("kill connect endpoint"));
+        if let Some(rest) = rest_opt {
             if let Some(pat) = rest.split('"').nth(1) {
                 let ipish = pat == "*"
                     || pat
@@ -782,7 +783,6 @@ fn report(
             op,
             &v.target,
             &m.reason,
-            m.remediation.as_deref(),
             m.effect,
             v.blocked.unwrap_or(false),
             v.killed.unwrap_or(false),

@@ -4,7 +4,5 @@ feedback:
 policy: |
   label AGENT
   rule no-new-branch:
-    deny exec "**/git" @arg "checkout" if AGENT
-    effect kill
-    reason "This workspace forbids switching/creating git branches (git checkout); work on the current branch."
-    remediation "Do not run git checkout; make your change on the current branch."
+    kill exec "git" "checkout" if AGENT
+    reason "This workspace forbids switching/creating git branches (git checkout); work on the current branch. Do not run git checkout; make your change on the current branch."

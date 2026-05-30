@@ -28,8 +28,8 @@ mod tests {
             source SECRET = file "**/.env"
             source SECRET = file "/etc/secrets/**"
             rule no-exfil:
-              deny connect endpoint "*"      if SECRET
-              deny write   file "/shared/**" if SECRET
+              block connect endpoint "*"      if SECRET
+              block write   file "/shared/**" if SECRET
               reason "secret data must not leave the host"
             declassify SECRET by exec "**/redact"
         "#);
@@ -43,8 +43,8 @@ mod tests {
             source UNTRUST = endpoint "*"
             source UNTRUST = file "**/downloads/**"
             rule no-injected-priv:
-              deny exec "**/git" @arg "push" if UNTRUST and not REVIEWED
-              deny exec "**/deploy*"         if UNTRUST and not REVIEWED
+              block exec "git" "push" if UNTRUST and not REVIEWED
+              block exec "**/deploy*"         if UNTRUST and not REVIEWED
               reason "untrusted input must not drive privileged actions"
             endorse REVIEWED by exec "**/human-approve"
         "#);
@@ -55,7 +55,7 @@ mod tests {
     fn e3_mandatory_mediation() {
         ok(r#"
             rule mediate-proddb:
-              deny open file "**/prod.db" unless lineage-includes exec "**/migrate"
+              block open file "**/prod.db" unless lineage-includes exec "**/migrate"
               reason "prod.db only via the migration tool"
         "#);
     }
@@ -65,8 +65,8 @@ mod tests {
         ok(r#"
             source AGENT = exec "**/codex"
             rule confine-writes:
-              deny write  file "/**" if AGENT unless target "/work/**"
-              deny unlink file "/**" if AGENT unless target "/work/**"
+              block write  file "/**" if AGENT unless target "/work/**"
+              block unlink file "/**" if AGENT unless target "/work/**"
               reason "agent may only modify /work"
         "#);
     }
@@ -76,7 +76,7 @@ mod tests {
         ok(r#"
             source AGENT = exec "**/codex"
             rule test-before-commit:
-              deny exec "**/git" @arg "commit" if AGENT unless after exec "**/pytest"
+              block exec "git" "commit" if AGENT unless after exec "**/pytest"
               reason "run tests before committing"
         "#);
     }
@@ -87,7 +87,7 @@ mod tests {
         let c = ok(r#"
             source AGENT = exec "**/codex"
             rule test-before-commit:
-              deny exec "**/git" @arg "commit"
+              block exec "git" "commit"
                 if AGENT
                 unless after exec "**/pytest" since write "src/**" or write "tests/**"
               reason "tests are stale — you edited code after the last run"
@@ -101,9 +101,9 @@ mod tests {
         ok(r#"
             source AGENT = exec "**/codex"
             rule confirm-destructive:
-              deny exec "**/git" @arg "--force"
+              block exec "git" "--force"
                 if AGENT
-                unless after exec "**/confirm" since exec "**/git"
+                unless after exec "**/confirm" since exec "git"
               reason "each force-push needs a fresh confirm"
         "#);
     }
@@ -114,7 +114,7 @@ mod tests {
         ok(r#"
             source AGENT = exec "**/codex"
             rule migrate-checked:
-              deny write file "**/prod.db"
+              block write file "**/prod.db"
                 if AGENT
                 unless after exec "**/migrate-check" since write "migrations/**"
               reason "migration-check must have seen the current migrations"
@@ -125,15 +125,15 @@ mod tests {
     fn since_without_clause_is_v1_latching() {
         // `after` with no `since` must still compile (v1 semantics, since_mask=0)
         // and produce the same fixed-size blob as a since-bearing policy.
-        let v1 = ok("rule r:\n  deny exec \"git\" if A unless after exec \"pytest\"\n  reason \"x\"\n");
-        let v2 = ok("rule r:\n  deny exec \"git\" if A unless after exec \"pytest\" since write \"src/**\"\n  reason \"x\"\n");
+        let v1 = ok("rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\"\n  reason \"x\"\n");
+        let v2 = ok("rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\" since write \"src/**\"\n  reason \"x\"\n");
         assert_eq!(v1.bytes.len(), v2.bytes.len());
     }
 
     #[test]
     fn since_bad_invalidator_op_is_rejected() {
         assert!(compile_str(
-            "rule r:\n  deny exec \"git\" if A unless after exec \"pytest\" since connect \"*\"\n  reason \"x\"\n"
+            "rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\" since connect \"*\"\n  reason \"x\"\n"
         )
         .is_err());
     }
@@ -143,9 +143,9 @@ mod tests {
         ok(r#"
             source RESEARCH = exec "**/research-agent"
             rule research-readonly:
-              deny write   file "/**"   if RESEARCH
-              deny connect endpoint "*" if RESEARCH
-              deny exec    "**/git"     if RESEARCH
+              block write   file "/**"   if RESEARCH
+              block connect endpoint "*" if RESEARCH
+              block exec    "git"        if RESEARCH
               reason "research sub-agent is read-only"
         "#);
     }
@@ -156,7 +156,7 @@ mod tests {
         ok(r#"
             source SECRET = file "**/.env"
             rule no-exfil:
-              deny connect endpoint "*" if SECRET
+              block connect endpoint "*" if SECRET
               reason "no exfil"
             declassify SECRET by exec "**/redact"
         "#);
@@ -167,7 +167,7 @@ mod tests {
         ok(r#"
             source AGENT = exec "**/codex"
             rule no-git:
-              deny exec "**/git" if AGENT
+              block exec "git" if AGENT
               reason "no git on any path"
         "#);
     }
@@ -177,7 +177,7 @@ mod tests {
         ok(r#"
             source PII = file "/data/customers/**"
             rule pii-egress:
-              deny connect endpoint "*" if PII unless target "*.internal"
+              block connect endpoint "*" if PII unless target "*.internal"
               reason "PII only to internal"
         "#);
     }
@@ -187,8 +187,8 @@ mod tests {
         ok(r#"
             source AGENT = exec "**/codex"
             rule confirm-destructive:
-              deny exec "**/git" @arg "--force" if AGENT unless after exec "**/confirm"
-              deny unlink file "/data/**"        if AGENT unless after exec "**/confirm"
+              block exec "git" "--force" if AGENT unless after exec "**/confirm"
+              block unlink file "/data/**"    if AGENT unless after exec "**/confirm"
               reason "destructive needs confirm"
         "#);
     }
@@ -199,7 +199,7 @@ mod tests {
             source TASK_A = exec "**/task-a"
             source TASK_B = exec "**/task-b"
             rule no-cross-task-commit:
-              deny exec "**/git" @arg "commit" if TASK_A and TASK_B
+              block exec "git" "commit" if TASK_A and TASK_B
               reason "no cross-task commit"
         "#);
         assert_eq!(c.reasons.len(), 1);
@@ -208,8 +208,8 @@ mod tests {
     #[test]
     fn dnf_or_splits_into_multiple_rules() {
         // `if A or B` must compile to 2 kernel rules sharing one rule_id
-        let a = compile_str("rule r:\n  deny exec \"x\" if A\n  reason \"z\"\n").unwrap();
-        let b = compile_str("rule r:\n  deny exec \"x\" if A or B\n  reason \"z\"\n").unwrap();
+        let a = compile_str("rule r:\n  block exec \"x\" if A\n  reason \"z\"\n").unwrap();
+        let b = compile_str("rule r:\n  block exec \"x\" if A or B\n  reason \"z\"\n").unwrap();
         assert!(b.bytes.len() == a.bytes.len()); // fixed-size config
         assert_eq!(b.reasons.len(), 1);
     }
@@ -217,30 +217,59 @@ mod tests {
     #[test]
     fn config_blob_is_fixed_size() {
         // every policy produces the same fixed-size struct taint_config blob
-        let a = ok("rule r:\n  deny exec \"git\" if A\n  reason \"x\"\n");
+        let a = ok("rule r:\n  block exec \"git\" if A\n  reason \"x\"\n");
         let b = ok(
-            "source S = file \"/x/**\"\nrule r:\n  deny open file \"/y/**\" if S\n  reason \"x\"\n",
+            "source S = file \"/x/**\"\nrule r:\n  block open file \"/y/**\" if S\n  reason \"x\"\n",
         );
         assert_eq!(a.bytes.len(), b.bytes.len());
     }
 
     #[test]
     fn rule_effect_is_metadata_and_kernel_config() {
-        let c = ok("rule r:\n  deny exec \"git\"\n  reason \"x\"\n  effect kill\n");
+        let c = ok("rule r:\n  kill exec \"git\"\n  reason \"x\"\n");
         assert_eq!(c.meta[0].effect, ast::Effect::Kill);
         assert!(c.bytes.len() > 0);
     }
 
     #[test]
     fn declared_labels_are_allocated_for_runner_seeding() {
-        let c = ok("label AGENT\nrule r:\n  deny exec \"git\" if AGENT\n  reason \"x\"\n");
+        let c = ok("label AGENT\nrule r:\n  block exec \"git\" if AGENT\n  reason \"x\"\n");
         assert!(c.labels.contains_key("AGENT"));
     }
 
     #[test]
-    fn old_effect_aliases_are_rejected() {
+    fn old_deny_keyword_is_rejected() {
         assert!(
-            compile_str("rule r:\n  deny exec \"git\"\n  reason \"x\"\n  enforce warn\n").is_err()
+            compile_str("rule r:\n  deny exec \"git\"\n  reason \"x\"\n").is_err()
         );
+    }
+
+    #[test]
+    fn implicit_basename_matching() {
+        // `exec "git"` should be equivalent to `exec "**/git"` — both produce
+        // the same compiled output.
+        let a = ok("rule r:\n  block exec \"git\" if A\n  reason \"x\"\n");
+        let b = ok("rule r:\n  block exec \"**/git\" if A\n  reason \"x\"\n");
+        assert_eq!(a.bytes, b.bytes);
+    }
+
+    #[test]
+    fn positional_args_work() {
+        // positional args (no @arg keyword) should compile successfully
+        let c = ok("rule r:\n  kill exec \"git\" \"commit\" if A\n  reason \"x\"\n");
+        assert_eq!(c.meta[0].effect, ast::Effect::Kill);
+    }
+
+    #[test]
+    fn multi_verb_rule_strongest_effect() {
+        // When clauses have different effects, the rule's meta should
+        // report the strongest effect.
+        let c = ok(r#"
+            rule mixed:
+              notify exec "git" if A
+              kill exec "make" if A
+              reason "mixed effects"
+        "#);
+        assert_eq!(c.meta[0].effect, ast::Effect::Kill);
     }
 }

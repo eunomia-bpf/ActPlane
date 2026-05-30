@@ -1005,10 +1005,10 @@ before the write completes. The three layers differ in complexity:
   userspace linter daemon that inspects the written content (code style,
   naming, secret detection). The linter returns allow/deny.
 - **Per-event**: the kernel matches a single syscall against a pattern
-  (e.g., `deny write file "vendor/**"` requires only a `file_open`
+  (e.g., `block write file "vendor/**"` requires only a `file_open`
   hook with path matching). No userspace roundtrip needed.
 - **Cross-event**: the kernel maintains label state across operations
-  (e.g., `deny exec git @arg commit unless after exec pytest` tracks
+  (e.g., `block exec "git" "commit" unless after exec "pytest"` tracks
   whether pytest ran in this session). Label propagation across
   fork/exec/read/write/connect.
 
