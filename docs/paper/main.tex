@@ -27,8 +27,8 @@ behavior, and 78\% of projects require cross-event state tracking.
 
 Yet existing agent harnesses fail to connect intent-level declarations to deterministic system-level policies, leaving a \emph{semantic gap}: prompt constraints and tool-call guardrails operate at the probabilistic intent level or lose track of system-level actions, while current OS-level enforcement expects pre-defined static
 policy and returns only system events without semantic context. To address this, the policy engine should be exposed as a programmable interface that allows agents
-to become the control plane of their own system-level actions.
-We realize this in ActPlane, which allows agents and developers to declare cross-event behavior as labeled information-flow control (IFC) policies that observe and enforce the agents' actions across process, file, and network boundaries with semantic feedback.
+to become the control plane of their own system-level actions, and dynamically adapt them.
+We realize this in ActPlane, which allows agents to declare cross-event behavior as labeled information-flow control (IFC) policies that observe and enforce the agents' actions across process, file, and network boundaries with semantic feedback.
 We implement ActPlane with eBPF and evaluate on the policies from the
 empirical study, showing that ActPlane can enforce complex cross-event
 policies with low overhead and provides actionable feedback to agents.
