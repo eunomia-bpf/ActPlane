@@ -30,7 +30,7 @@ policy and returns only system events without semantic context.
 
 To address this, the policy engine should be exposed as a programmable interface that allows agents
 to become the control plane of their own system-level actions.
-We realize this in ActPlane, in which agents and developers declare behavioral policies in a compact DSL; ActPlane compiles them into in-kernel labeled information-flow rules that observe and enforce agent behavior across process, file, and network boundaries and provide semantic feedback.
+We realize this in ActPlane, which allows agents and developers to declare behavioral labeled information-flow control (IFC) policies that observe and enforce agent behavior across process, file, and network boundaries with semantic feedback.
 We implement ActPlane with eBPF and evaluate on the policies from the
 empirical study, showing that ActPlane can enforce complex cross-event
 policies with low overhead and provides actionable feedback to agents.

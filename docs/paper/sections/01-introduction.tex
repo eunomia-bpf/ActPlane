@@ -45,42 +45,18 @@ the constraints governing its own system-level actions.
 Our insight is that the policy engine should be exposed as a
 programmable interface that lets agents become the control plane of
 their own system-level actions.
-Real behavioral policies frequently require cross-event information-flow
-tracking that no single enforcement level provides. A rule like ``never
-expose secrets to the network'' is not a predicate on one system call; it
-requires knowing that the current process previously read a secret file and
-now attempts a network connection. A rule like ``run tests before
-committing'' requires knowing that a test process executed before a commit
-process in the same session. A corpus study of instruction files from
-50~popular projects confirms that such cross-event, cross-temporal policies
-are pervasive, yet today's agent
-harnesses~\cite{langchain-harness,fowler-harness} keep their enforcement and
-feedback components at the application layer, where they cannot connect behavior to intent.
 
-% ¶5: System — ActPlane bridges intent and behavior
-ActPlane is a programmable OS-level control plane for agent harnesses that
-bridges the semantic gap. It exposes a compact DSL through which agents
-and developers declare and evolve behavioral policies.
-ActPlane compiles these declarations into labeled information-flow rules and
-loads them into an eBPF/BPF-LSM backend. Named
+% ¶5: System — ActPlane
+ActPlane is such an interface. Agents and developers declare behavioral
+policies in a compact DSL; ActPlane compiles them into labeled
+information-flow rules and loads them into an eBPF/BPF-LSM backend. Named
 labels propagate across process, file, and network objects at kernel hooks,
 encoding execution history as checkable state: when a process reads a file
 labeled \texttt{SECRET}, the process acquires that label; when it forks, the
 child inherits it. When a labeled subject matches a rule, ActPlane returns
-semantic feedback to the agent, specifying which rule condition was matched, why,
-and what alternative path satisfies it. 
-ActPlane serves as the control plane for the harness: it compiles
-intent-level policies into behavior-level rules (the policy path) and
-translates behavior-level rule matches back into intent-level feedback (the
-feedback path); the eBPF kernel hooks form the data plane. Each rule
-independently selects notify (observe and notify), block (pre-operation
-denial), or kill (post-operation termination).
-
-Unlike prior work that enforces at a single
-layer~(\S\ref{sec:related}), ActPlane unifies cross-event
-information-flow observation and enforcement with semantic feedback at the
-OS level, where policies survive context loss and cannot be bypassed below
-the tool API.
+semantic feedback---which rule was matched, why, and what alternative path
+satisfies it. Each rule independently selects notify (observe), block
+(pre-operation denial), or kill (post-operation termination).
 
 % ¶7: Results — TODO: replace with headline numbers
 % ActPlane catches all five bypass paths that tool-layer guards miss,
