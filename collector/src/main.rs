@@ -25,7 +25,7 @@ use std::os::unix::process::ExitStatusExt;
 mod dsl;
 mod feedback;
 
-use actplane_bpf::Loader;
+use ebpf_ifc_engine::Loader;
 
 type AnyError = Box<dyn std::error::Error + Send + Sync>;
 type Result<T> = std::result::Result<T, AnyError>;
@@ -505,7 +505,7 @@ async fn run_command(cli: &Cli, cmd: &[String]) -> Result<i32> {
 }
 
 /// Map the eBPF crate's violation into the collector's reporting struct.
-fn to_violation(v: &actplane_bpf::Violation) -> Violation {
+fn to_violation(v: &ebpf_ifc_engine::Violation) -> Violation {
     Violation {
         pid: v.pid,
         ppid: v.ppid,

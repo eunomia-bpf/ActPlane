@@ -1,13 +1,15 @@
 [package]
-name = "actplane-bpf"
+name = "ebpf-ifc-engine"
 version = "0.1.0"
 edition = "2021"
-description = "ActPlane eBPF loader: loads the prebuilt CO-RE object with aya, no clang/libbpf at runtime."
+description = "eBPF information-flow control engine for Linux — kernel-level label propagation and policy rule matching across process, file, and network boundaries. Used by ActPlane for AI agent harness enforcement."
 license = "MIT"
 repository = "https://github.com/eunomia-bpf/ActPlane"
+keywords = ["ebpf", "information-flow-control", "policy-engine", "bpf-lsm", "linux"]
+categories = ["os::linux-apis"]
 
 [lib]
-name = "actplane_bpf"
+name = "ebpf_ifc_engine"
 path = "src/lib.rs"
 
 [[bin]]

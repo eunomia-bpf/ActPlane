@@ -96,17 +96,17 @@ jobs:
           echo "Bumped $pkg: $CURRENT -> $NEW_VERSION"
           cd ..
         done
-        # Update actplane's dependency on actplane-bpf to match new version
+        # Update actplane's dependency on ebpf-ifc-engine to match new version
         cd collector
-        sed -i "s/actplane-bpf = { version = \"[^\"]*\"/actplane-bpf = { version = \"$bpf_VERSION\"/" Cargo.toml
+        sed -i "s/ebpf-ifc-engine = { version = \"[^\"]*\"/ebpf-ifc-engine = { version = \"$bpf_VERSION\"/" Cargo.toml
         cd ..
 
-    - name: Publish actplane-bpf first
+    - name: Publish ebpf-ifc-engine first
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       run: |
         cd bpf
-        cargo publish --allow-dirty || echo "actplane-bpf publish skipped (may already be at this version)"
+        cargo publish --allow-dirty || echo "ebpf-ifc-engine publish skipped (may already be at this version)"
         sleep 15  # wait for crates.io index to update
 
     - name: Publish actplane
@@ -121,5 +121,5 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add bpf/Cargo.toml collector/Cargo.toml
-        git commit -m "chore: bump actplane-bpf to ${{ env.bpf_VERSION }}, actplane to ${{ env.collector_VERSION }} [skip ci]"
+        git commit -m "chore: bump ebpf-ifc-engine to ${{ env.bpf_VERSION }}, actplane to ${{ env.collector_VERSION }} [skip ci]"
         git push

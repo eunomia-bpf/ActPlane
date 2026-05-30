@@ -2,14 +2,14 @@
 // Copyright (c) 2026 eunomia-bpf org.
 //
 // Drop-in replacement for the C `process` loader, built on the aya-based
-// actplane_bpf crate. Same flags and same TAINT_VIOLATION JSON on stdout, so
+// ebpf_ifc_engine crate. Same flags and same TAINT_VIOLATION JSON on stdout, so
 // the collector can call this (or the library directly) instead of spawning the
 // C binary. The C `process` loader is kept for now.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use actplane_bpf::{bpf_lsm_active, Loader, Violation};
+use ebpf_ifc_engine::{bpf_lsm_active, Loader, Violation};
 
 fn effect_name(e: u32) -> &'static str {
     match e {

@@ -197,7 +197,7 @@ actplane.yaml ─▶ collector (Rust) ─▶ .rodata config ─▶ eBPF kernel e
   evaluates compiled rules, emits only match events.
 - **Collector** (`actplane`): discovers `actplane.yaml`, compiles the DSL to the
   kernel config, and loads the prebuilt eBPF object in-process via
-  [`actplane-bpf`](bpf/) (aya) — no libbpf/clang at runtime — seeds the target
+  [`ebpf-ifc-engine`](bpf/) (aya) — no libbpf/clang at runtime — seeds the target
   process lineage, and reports rule matches with policy reasons.
 
 ## Build from source
@@ -214,7 +214,7 @@ Editing the kernel eBPF (`bpf/*.bpf.c`) requires the BPF toolchain
 refresh the committed object with:
 
 ```bash
-ACTPLANE_REBUILD_BPF=1 cargo build -p actplane-bpf   # regenerates bpf/prebuilt/process.bpf.o
+ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine   # regenerates bpf/prebuilt/process.bpf.o
 ```
 
 Run the tests:

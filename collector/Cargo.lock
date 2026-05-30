@@ -6,8 +6,8 @@ version = 4
 name = "actplane"
 version = "0.1.0"
 dependencies = [
- "actplane-bpf",
  "clap",
+ "ebpf-ifc-engine",
  "env_logger",
  "libc",
  "serde",
@@ -15,14 +15,6 @@ dependencies = [
  "serde_yaml",
  "tempfile",
  "tokio",
-]
-
-[[package]]
-name = "actplane-bpf"
-version = "0.1.0"
-dependencies = [
- "aya",
- "libc",
 ]
 
 [[package]]
@@ -237,6 +229,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9481c1c90cbf2ac953f07c8d4a58aa3945c425b7185c9154d67a65e4230da511"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "ebpf-ifc-engine"
+version = "0.1.0"
+dependencies = [
+ "aya",
+ "libc",
 ]
 
 [[package]]

@@ -1,70 +1,119 @@
-# ActPlane eBPF programs
+# ebpf-ifc-engine
 
-The kernel half of ActPlane. The **taint enforcer** is the heart of the system;
-the other programs are retained capture tools.
+**eBPF information-flow control engine for Linux.**
 
-## Build & test
+Kernel-level label propagation and policy rule matching across process,
+file, and network boundaries. Loads prebuilt CO-RE eBPF programs via
+[aya](https://aya-rs.dev/) — no clang or libbpf required at runtime.
+[ActPlane](https://github.com/eunomia-bpf/ActPlane) uses this engine
+for AI agent harness enforcement.
 
-```bash
-make            # builds all APPS (sslsniff browsertrace stdiocap process test_taint)
-make test       # runs the C unit tests (test_taint)
-make debug      # AddressSanitizer build of the userspace loaders
+## How it works
+
+Each node (process, file, network endpoint) carries a 64-bit label
+bitmask. Labels propagate through fixed transfer functions at kernel
+hooks:
+
+| Hook | Propagation |
+|------|------------|
+| fork | child inherits parent labels |
+| exec | process acquires source labels matching the binary |
+| read/open | process acquires file labels |
+| write | file acquires process labels |
+| connect | endpoint acquires process labels |
+
+Rules check accumulated labels at each hook. When a rule matches, the
+engine emits a match event with one of three effects:
+
+- **notify** — observe and report (operation proceeds)
+- **block** — BPF-LSM returns `-EPERM` (pre-operation denial)
+- **kill** — `SIGKILL` the matching task
+
+## Kernel state
+
+Five BPF hash maps track label state:
+
+| Map | Key | Value |
+|-----|-----|-------|
+| `ts_proc` | pid | label bitmask + lineage gates |
+| `ts_root` | root pid | temporal gate state |
+| `ts_sess` | session id | temporal gate state |
+| `ts_file` | path hash (FNV-1a) | label bitmask |
+| `ts_endp` | IPv4 address | label bitmask |
+
+## Usage as a library
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+ebpf-ifc-engine = "0.1"
 ```
 
-eBPF programs use the CO-RE pattern with an architecture-specific `vmlinux.h` from
-`vmlinux/`. Each emits JSON to stdout and debug info to stderr.
+```rust
+use ebpf_ifc_engine::{ActplaneBpf, Config};
 
-## The taint enforcer (`process`)
+// Load a compiled policy config
+let config: Vec<u8> = std::fs::read("policy.bin")?;
+let mut engine = ActplaneBpf::new()?;
+engine.load(&config)?;
 
-| File | Role |
-|------|------|
-| `taint.h` | The rule **ABI** + matching predicates, shared with the Rust compiler. Defines `struct taint_source / taint_rule / taint_xform / taint_gate / taint_config`, the `taint_match`/`taint_src_kind`/`taint_op`/`taint_cond` enums, and the matchers (`taint_streq`, `taint_prefix`, `taint_suffix`, `taint_match`, `taint_mask_ok`, `taint_arg_match`). |
-| `taint_engine.bpf.h` | The engine state + helpers. Maps: `ts_proc` (pid → labels + lineage gates), `ts_root`, `ts_sess` (session gates), `ts_file` (fnv1a(path) → labels), `ts_endp` (IPv4 → labels). Rodata rule tables (filled by the loader). `te_*` propagation/eval functions. |
-| `process.bpf.c` | The hooks: tracepoints maintain lineage and support `notify`/`kill`; BPF LSM hooks (`bprm_check_security`, `file_open`, `file_permission`, `file_truncate`, `path_truncate`, `path_unlink`, `path_rename`, `socket_connect`) implement `block` with `-EPERM`. The **only** output is `emit_violation()`. |
-| `process.c` | Userspace loader. `--config <blob>` reads a `struct taint_config` into the BPF rodata, detects whether `bpf` LSM is active, disables LSM programs in tracepoint mode, and prints each `TAINT_VIOLATION` as NDJSON (formatting `conn_ip` for connect rules). |
-| `test_taint.c` | Unit tests for the matching predicates. |
+// Read match events
+for event in engine.events() {
+    println!("rule {} matched on pid {}", event.rule_id, event.pid);
+}
+```
 
-### Taint model (summary)
+(Note: the API shown above is illustrative. See the source for the
+actual interface.)
 
-Each node (process / file / endpoint) carries a `u64` label bitmask. Sources add
-labels (`exec` comm match, `file` path match, `endpoint` IP match). Propagation:
-fork → child inherits; exec → source/xform/gate applied to the process; read → file
-labels flow into the process; write → process labels flow into the file; connect →
-process labels flow to the endpoint. LSM hooks can deny before commit (`block`);
-tracepoints do not support `block`; they can report `notify` rules and terminate
-only rules that explicitly use `kill`. Sinks (`notify`/`block`/`kill` followed by
-`exec`/`open`/`write`/`connect`) match on a label mask (`req` AND / `forbid` NOT,
-DNF-expanded by the compiler) plus the target pattern, optional positional argument
-match, and an optional condition (`lineage-includes`, `after`, target scope). Each
-clause declares its own effect (`notify`, `block`, or `kill`). On a match the
-rule's `rule_id`, `effect`, `blocked`, and `killed` flags are emitted; the compiler
-keeps the reason strings. Full semantics:
-[`../docs/rule-language.md`](../docs/rule-language.md).
+## Usage as standalone loader
 
-### eBPF verifier notes (why the code looks the way it does)
+```bash
+cargo install ebpf-ifc-engine
+sudo actplane-loader --config policy.bin
+```
 
-- **Subprograms for stack room.** `te_check` / `te_exec_update` / `te_file_src` /
-  `te_endp_src_ip` / `te_connect_check` are `__noinline` so each gets its own 512 B
-  frame. `te_check_labels` takes one context pointer (BPF subprogram scalar args
-  are limited) and writes the matched rule effect back into that context.
-- **Copy rodata before matching.** Each loop copies `struct taint_rule r =
-  taint_rules[i]` into a non-volatile local; matchers take `const char *` (not
-  `const volatile char *`). Direct volatile rodata reads inside the matchers
-  mis-evaluate EXACT/PREFIX/SUFFIX.
-- **Explicit bound guards, not index masking.** `if (idx < N)` instead of
-  `idx & (N-1)` — masking lets clang fold `ptr + idx` into `ptr | idx`, which the
-  verifier rejects ("bitwise operator |= on pointer prohibited").
-- **Buffers ≥ pattern length.** `comm` and the IP string buffer are
-  `TAINT_PAT_LEN` so matchers never read out of bounds.
-- **Numeric IPv4 for connect.** The compiler lowers host/IP patterns to net+mask;
-  the kernel does `(ip & mask) == net`, avoiding in-kernel string formatting (which
-  triggered the pointer-OR rejection). The loader formats the IP for display.
+The loader attaches eBPF programs, reads the policy config into rodata,
+and prints match events as NDJSON to stdout.
 
-## Retained capture programs
+## Building the eBPF programs
 
-- `sslsniff` — hooks `SSL_read`/`SSL_write` via uprobes to capture plaintext TLS.
-- `stdiocap` — captures process stdio.
-- `browsertrace` — browser-side tracing.
+The prebuilt CO-RE object ships in `prebuilt/process.bpf.o`. To rebuild:
 
-These are kept as data sources / building blocks; the enforcer (`process`) is the
-component the collector drives.
+```bash
+# Requires: clang, llvm, libelf-dev, zlib1g-dev
+cd bpf && make
+```
+
+Or via cargo:
+
+```bash
+ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine
+```
+
+## Binary config format
+
+The engine reads a `taint_config` struct as read-only BPF data. The
+struct layout is defined in `taint.h` and mirrored byte-for-byte in
+Rust (`lower.rs`). It contains:
+
+- Up to 32 sources (label introduction rules)
+- Up to 32 rules (label-matching deny clauses)
+- Up to 16 transforms (declassify/endorse gates)
+- Up to 16 temporal gates
+
+## Requirements
+
+- Linux kernel 5.8+ with BTF (`/sys/kernel/btf/vmlinux`)
+- Root or `CAP_BPF` + `CAP_SYS_ADMIN`
+- BPF-LSM active for `block` effect (`bpf` in `/sys/kernel/security/lsm`)
+
+## Used by
+
+- [ActPlane](https://github.com/eunomia-bpf/ActPlane) — programmable
+  OS-level policy engine for AI agent harnesses
+
+## License
+
+MIT
