@@ -144,8 +144,8 @@ fn install_signal_handler(stop: Arc<AtomicBool>) {
         STOP.store(true, Ordering::SeqCst);
     }
     unsafe {
-        libc::signal(libc::SIGINT, handler as usize);
-        libc::signal(libc::SIGTERM, handler as usize);
+        libc::signal(libc::SIGINT, handler as *const () as usize);
+        libc::signal(libc::SIGTERM, handler as *const () as usize);
     }
     // Bridge the static flag to the caller's flag on a tiny watcher thread.
     std::thread::spawn(move || {
