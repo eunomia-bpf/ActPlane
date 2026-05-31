@@ -123,7 +123,7 @@ total, `--depth=1`). They are gitignored via
 Trace format and generation procedure are defined in RQ1 (§5.2) and
 RQ2 (§6.2).
 
-### 4.4 Per-Event Directive Translation Examples
+### 4.3 Per-Event Directive Translation Examples
 
 | Corpus directive | Source repo | DSL rule |
 |---|---|---|
@@ -134,7 +134,7 @@ RQ2 (§6.2).
 | "Never push to main directly" | multiple repos | `kill exec "git" "push" "main" if AGENT` |
 | "Don't add third-party dependency without verification" | Hmbown/DeepSeek-TUI#22 | `kill exec "npm" "install" if AGENT unless after exec "**/verify-dep"` |
 
-### 4.5 Cross-Event Directive Translation Examples
+### 4.4 Cross-Event Directive Translation Examples
 
 | Corpus directive | Source repo | Pattern | DSL rule |
 |---|---|---|---|
@@ -144,16 +144,6 @@ RQ2 (§6.2).
 | "CI checks must pass before merge" | Alishahryar1/free-claude-code#7 | temporal gate | `kill exec "git" "push" if AGENT unless after exec "**/ci-check"` |
 | "If you change ConfigToml, run write-config-schema" | openai/codex#17 | conditional exec | `source CFG_TOUCHED = file "**/ConfigToml*"` + `kill exec "git" "commit" if CFG_TOUCHED unless after exec "**/write-config-schema"` |
 | "When modifying schema.graphqls, re-run gqlgen" | vxcontrol/pentagi#15 | conditional exec | `source SCHEMA_TOUCHED = file "**/*.graphqls"` + `kill exec "git" "commit" if SCHEMA_TOUCHED unless after exec "**/gqlgen"` |
-
-### 4.6 Non-Translatable Directive Examples
-
-| Directive | Reason |
-|---|---|
-| "Version in THREE places must match" | Requires cross-file content comparison |
-| "Keep Rust and TS wire renames aligned" | Requires content-level consistency checking |
-| "Upload to ClawHub after release" | External system not observable at kernel level |
-| "Always read a file before editing it" | Requires `after read` gate (DSL only has `after exec`) |
-| "Search before asking user" | Agent internal reasoning layer |
 
 ---
 
@@ -661,25 +651,26 @@ Each task is run under three conditions, each repeated N times
 | Condition | Rule application | Feedback | What it tests |
 |---|---|---|---|
 | **B1: baseline** | No ActPlane | None | Weak model's raw capability |
-| **B2: rules only** | ActPlane (notify/block/kill) | None (bare error or silent notify) | Does rule application alone help? |
-| **B3: rules + feedback** | ActPlane (notify/block/kill) | Remediation string injected into agent context, **3 rounds** | Does semantic feedback help? Does adaptation improve over rounds? |
+| **B2: ActPlane** | ActPlane (notify/block/kill) | Semantic feedback, **3 rounds** | Total system value + adaptation |
 
-B3 runs 3 rounds:
+B2 runs 3 rounds:
 - **Round 1**: strong model generates initial rules → run tasks
 - **Round 2**: strong model sees Round 1 rule matches → refines rules → run again
 - **Round 3**: same refinement from Round 2 results
 
 The task agent is a weaker open-source model (model TBD — e.g., a
 small Llama or Qwen variant) that is more likely to trigger
-rule matches, providing clearer signal for the feedback comparison.
+rule matches, providing clearer signal.
+
+Note: the feedback-vs-no-feedback comparison (semantic feedback vs bare
+-EPERM) is already covered in RQ2 via the Kernel IFC vs ActPlane
+baseline.
 
 #### Key Comparisons
 
-- **B1 vs B3**: total system value — does ActPlane (rules from strong
+- **B1 vs B2**: total system value — does ActPlane (rules from strong
   model + harness + feedback) uplift a weak model?
-- **B2 vs B3**: marginal value of feedback — does telling the agent
-  *why* help it recover, vs a bare error?
-- **B3 Round 1 vs Round 3**: adaptation value — does rule refinement
+- **B2 Round 1 vs Round 3**: adaptation value — does rule refinement
   across rounds improve outcomes? (proves "adapt" claim in abstract)
 
 ### 8.4 Metrics
@@ -687,7 +678,7 @@ rule matches, providing clearer signal for the feedback comparison.
 | Metric | Definition |
 |---|---|
 | Task completion rate | Fraction of tasks where the test script passes (Terminal-Bench's native metric) |
-| Match count per task | Number of ActPlane rule matches per task (B2 and B3 only) |
+| Match count per task | Number of ActPlane rule matches per task (B2 only) |
 | Guided completion rate | Fraction of rule matches after which the agent completes the task |
 | Repeat match rate | Fraction of tasks where the same rule fires more than once |
 | Rules triggered rate | Fraction of tasks where at least one rule fires (measures rule relevance) |
@@ -699,14 +690,12 @@ rule matches, providing clearer signal for the feedback comparison.
 | Condition | Tasks | Completion rate | Mean matches/task | Guided completion rate |
 |---|---|---|---|---|
 | B1: baseline | 89 | | | — |
-| B2: rules only | 89 | | | |
-| B3 Round 1 | 89 | | | |
-| B3 Round 2 | 89 | | | |
-| B3 Round 3 | 89 | | | |
+| B2 Round 1 | 89 | | | |
+| B2 Round 2 | 89 | | | |
+| B2 Round 3 | 89 | | | |
 
-**Table 10: Per-Task Detail** — for tasks where B2 and B3 differ,
-show the rule that fired, the match event, and whether the agent
-completed the task (B2 vs B3)
+**Table 10: Per-Task Detail** — for tasks where B2 Round 1 and Round 3
+differ, show the rule that fired and how refinement changed the outcome
 
 **Figure 6: Completion rate comparison** — grouped bar chart across
 the three conditions
@@ -717,140 +706,3 @@ showing per-task guided completion with vs without feedback
 **Statistical analysis.** Report bootstrap 95% CI for completion-rate
 differences (B1 vs B3, B2 vs B3), paired permutation test for
 significance, and Cohen's d for effect size.
-
----
-
-## 9. Summary of Figures and Tables
-
-### Tables (8)
-
-| # | Content | RQ |
-|---|---|---|
-| T1 | End-to-end FP/FN by enforcement level | RQ1 |
-| T2 | End-to-end FP/FN by context requirement | RQ1 |
-| T3 | Directive compliance by system and path (direct vs bypass) | RQ2 |
-| T4 | Directive compliance by system and enforcement level | RQ2 |
-| T5 | Per-syscall latency (5 syscalls × 5 configurations) | RQ3 |
-| T6 | End-to-end agent task overhead | RQ3 |
-| T7 | BPF map memory consumption | RQ3 |
-| T8 | Terminal-Bench results by condition (B1/B2/B3 × 3 rounds) | RQ4 |
-
-### Figures (6)
-
-| # | Content | RQ |
-|---|---|---|
-| F1 | End-to-end FP/FN rate by context requirement | RQ1 |
-| F2 | Directive compliance by system × enforcement level × path | RQ2 |
-| F3 | Per-syscall overhead (bar chart, baseline vs AP) | RQ3 |
-| F4 | Overhead vs rule count (line chart) | RQ3 |
-| F5 | Terminal-Bench completion rate (grouped bar, B1/B2/B3) | RQ4 |
-| F6 | Guided completion rate B2 vs B3 (bar chart or scatter) | RQ4 |
-
----
-
-## 10. Implementation Plan
-
-### Phase 1: End-to-End Evaluation (RQ1)
-
-**Input**: 580 OS-level directives (391 per-event + 189 cross-event)
-**Steps**:
-1. Implement minimal agent (trace replay + LLM decision step, ~100 lines)
-2. Agent translates all 580 directives → 580 DSL rules
-3. For each rule, generate 2 scenarios (setup script + prompt +
-   ground truth): 1 violation, 1 compliant
-4. Run minimal agent under ActPlane for each scenario
-5. Judge: compare agent's final action against ground truth
-6. Compute end-to-end FP/FN by enforcement level and context requirement
-7. Human spot-check ~50 ground-truth labels
-**Output**: end-to-end FP/FN by level and context; TP set for RQ2
-**Effort**: ~5 days (setup 2d + 1,160 agent runs ~10h + analysis 1d)
-**Produces**: Table 1, Table 2, Figure 1
-
-### Phase 2: System Coverage Comparison (RQ2)
-
-**Input**: RQ1 TP rules + RQ1 violation scenarios
-**Steps**:
-1. For each RQ1 TP violation scenario, programmatically generate 3
-   bypass variants (bash -c, subprocess, compiled binary)
-2. Run all traces (direct + 3 bypass) through 6 systems (§3.3):
-   scripted, no agent needed (detection is deterministic)
-3. Compute detection rate per system, by enforcement level and path
-**Output**: comparative detection rates
-**Effort**: ~2 days
-**Produces**: Table 3, Table 4, Figure 2
-
-### Phase 3: Performance Measurement (RQ3)
-
-**Input**: microbenchmark harness + Terminal-Bench agent traces
-**Steps**:
-1. Write per-syscall benchmark (C program, 100K iterations)
-2. Run under each rule-count configuration (AP-1, AP-10, AP-32, AP-100)
-3. Set up Tetragon comparison configuration
-4. Record agent traces from N Terminal-Bench tasks (baseline runs)
-5. Replay traces under each configuration, measure wall-clock time
-6. Read BPF map memory consumption
-
-**Effort**: ~3 days
-**Produces**: Table 6, Table 7, Table 8, Figure 4, Figure 5
-
-### Phase 4: Terminal-Bench Feedback Evaluation (RQ4)
-
-**Input**: 89 Terminal-Bench tasks, strong model for rule generation,
-weak open-source model for task execution
-**Steps**:
-1. Set up Terminal-Bench Docker environment and agent harness
-2. For each task, have the strong model generate ActPlane DSL rules
-   from the task description + environment + test script
-3. Run weak model on all 89 tasks under three conditions:
-   - B1: no ActPlane (baseline)
-   - B2: ActPlane rules only (no feedback)
-   - B3: ActPlane rules + feedback, 3 rounds (Round 2-3: strong model
-     refines rules based on prior round's rule matches)
-4. Each condition × N trials (N ≥ 3) for statistical reliability
-5. Record: task completion (pass/fail via Terminal-Bench test script),
-   match count, guided completion events, repeat matches
-6. Compute completion rate, guided completion rate, and match metrics
-   per condition and per round (B3)
-7. Report bootstrap 95% CI for completion-rate differences (B1 vs B3,
-   B2 vs B3, B3 Round 1 vs Round 3), paired permutation test, Cohen's d
-
-**Effort**: ~7 days (setup 2d + runs 3d (3 rounds) + analysis 2d)
-**Produces**: Table 9, Table 10, Figure 6, Figure 7
-
-### Total: ~14 days
-
----
-
-## 11. Relationship to the Empirical Study
-
-```
-Empirical Study (docs/empirical.md)
-  |
-  |  provides 1,361-directive corpus
-  |  provides enforcement-level classification
-  |  provides cross-event pattern analysis
-  |
-  v
-System Paper Evaluation (this document)
-  |
-  |-- RQ1: pipeline correctness (580 × 2 scenarios, minimal agent, by context level)
-  |-- RQ2: architecture comparison (RQ1 TP rules × 6 systems × 4 paths, scripted)
-  |-- RQ3: overhead (microbenchmarks + trace replay)
-  +-- RQ4: feedback + adapt (Terminal-Bench, 89 tasks × 3 conditions × 3 rounds)
-```
-
-The empirical study answers "what do developers write";
-the system evaluation answers "how much can ActPlane observe and apply,
-how correctly, and at what cost."
-
----
-
-## 12. Mapping to Paper Sections
-
-| Paper section | Content | Source |
-|---|---|---|
-| 5.1 Experimental Setup | Platform, baselines, rule set | This document, Sections 3 and 4 |
-| 5.2 End-to-End Correctness (RQ1) | 580 × 2 scenarios, agent final action | This document, Section 5 |
-| 5.3 Coverage Comparison (RQ2) | All rules × 6 systems × (direct + bypass) | This document, Section 6 |
-| 5.4 Overhead (RQ3) | Microbenchmarks + macrobenchmarks | This document, Section 7 |
-| 5.5 Feedback Effectiveness (RQ4) | Terminal-Bench 89 tasks × 3 conditions | This document, Section 8 |
