@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-**Runtime `observability` and `enforcement` for AI agent harnesses: declare information-flow policies in a compact DSL, ActPlane enforces them at the kernel level.**
+**Runtime `observability` and `enforcement` for AI agent harnesses and sandboxing: declare information-flow policies in a compact DSL, ActPlane enforces them at the kernel level.**
 
 ActPlane sits below the tool layer, so a rule holds information-flow constraints
 across every process, file access, and network connection the agent touches, no
