@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "actplane": {
+      "type": "stdio",
+      "command": "./collector/target/release/actplane",
+      "args": ["mcp"]
+    }
+  }
+}

@@ -44,7 +44,8 @@ their own system-level actions.
 
 % ¶5: System — ActPlane
 ActPlane is such an interface. Agents and developers declare behavioral
-policies in a compact DSL; ActPlane compiles them into labeled
+policies in a compact DSL that agents themselves can generate from
+natural-language directives; ActPlane compiles them into labeled
 information-flow rules and loads them into an eBPF/BPF-LSM backend. Named
 labels propagate across process, file, and network objects at kernel hooks,
 encoding execution history as checkable state: when a process reads a file
@@ -75,7 +76,8 @@ file, and network boundaries, and returns semantic feedback that reconnects
 rule matches to intent-level remediation.
 
 \item It evaluates ActPlane on DSL expressiveness over 580 OS-level
-directives from the empirical study, agent translation correctness,
-system correctness across bypass paths, per-event overhead, and
+directives from the empirical study, demonstrates that an LLM agent can
+translate natural-language directives into correct DSL rules, and
+measures system correctness across bypass paths, per-event overhead, and
 feedback effectiveness on Terminal-Bench tasks.
 \end{enumerate}

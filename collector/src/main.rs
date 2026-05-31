@@ -24,6 +24,7 @@ use std::os::unix::process::ExitStatusExt;
 
 mod dsl;
 mod feedback;
+mod mcp;
 
 use ebpf_ifc_engine::Loader;
 
@@ -92,6 +93,8 @@ enum Commands {
     Watch,
     /// Hook adapter: forward new feedback-file bytes as agent additionalContext.
     FeedbackHook,
+    /// Run as an MCP (Model Context Protocol) server over stdio.
+    Mcp,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -161,6 +164,10 @@ async fn main() -> Result<()> {
         Commands::Watch => watch_policy(&cli).await?,
         Commands::FeedbackHook => {
             feedback_hook().await?;
+            0
+        }
+        Commands::Mcp => {
+            mcp::run_mcp_server().await?;
             0
         }
     };
