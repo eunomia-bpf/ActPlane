@@ -78,7 +78,7 @@ statements:
     type: directive
     topic: Build and Run
     enforceability: per_event
-    context_required: none
+    context_required: task
     confidence: high
 
   - id: 9

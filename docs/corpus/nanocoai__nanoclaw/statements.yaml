@@ -420,7 +420,7 @@ statements:
     type: directive
     topic: Build and Run
     enforceability: per_event
-    context_required: none
+    context_required: project
     confidence: high
 
   - id: 21

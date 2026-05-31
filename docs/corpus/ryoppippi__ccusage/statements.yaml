@@ -90,7 +90,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
-    context_required: project
+    context_required: task
     confidence: high
 
   - id: 7

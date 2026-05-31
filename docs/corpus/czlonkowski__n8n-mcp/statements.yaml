@@ -532,7 +532,7 @@ statements:
     type: directive
     topic: Maintenance
     enforceability: per_event
-    context_required: none
+    context_required: task
     confidence: high
 
   - id: 41
