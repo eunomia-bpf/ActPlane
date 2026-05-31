@@ -426,7 +426,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
-    context_required: none
+    context_required: project
     confidence: high
 
   - id: 35

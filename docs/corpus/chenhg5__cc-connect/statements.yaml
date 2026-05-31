@@ -271,7 +271,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
-    context_required: none
+    context_required: project
     confidence: high
 
   - id: 18

@@ -323,7 +323,7 @@ statements:
     type: directive
     topic: Security
     enforceability: per_event
-    context_required: none
+    context_required: project
     confidence: high
 
   - id: 19

@@ -879,7 +879,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
-    context_required: none
+    context_required: project
     confidence: high
 
   - id: 28
@@ -1373,7 +1373,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: cross_event
-    context_required: none
+    context_required: project
     confidence: high
 
   - id: 48

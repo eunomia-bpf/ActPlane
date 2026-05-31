@@ -320,7 +320,7 @@ statements:
     type: directive
     topic: Build and Run
     enforceability: cross_event
-    context_required: project
+    context_required: task
     confidence: high
 
   - id: 27
@@ -893,7 +893,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: cross_event
-    context_required: none
+    context_required: project
     confidence: high
 
   - id: 72

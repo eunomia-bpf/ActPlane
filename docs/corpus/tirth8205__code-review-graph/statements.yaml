@@ -198,7 +198,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: cross_event
-    context_required: project
+    context_required: task
     confidence: high
 
   - id: 15
@@ -209,7 +209,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
-    context_required: none
+    context_required: task
     confidence: high
 
   - id: 16
@@ -219,7 +219,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
-    context_required: none
+    context_required: task
     confidence: high
 
   - id: 17

@@ -518,7 +518,7 @@ statements:
     type: directive
     topic: Documentation
     enforceability: content
-    context_required: project
+    context_required: task
     confidence: high
 
   - id: 48
@@ -576,7 +576,7 @@ statements:
     type: directive
     topic: DevOps
     enforceability: per_event
-    context_required: task
+    context_required: none
     confidence: high
 
   - id: 52

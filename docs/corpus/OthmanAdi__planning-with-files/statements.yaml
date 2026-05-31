@@ -33,7 +33,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
-    context_required: project
+    context_required: none
     confidence: high
 
   - id: 4
@@ -146,7 +146,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
-    context_required: project
+    context_required: task
     confidence: high
 
   - id: 11

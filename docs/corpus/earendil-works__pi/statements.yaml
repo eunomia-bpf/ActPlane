@@ -119,7 +119,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: per_event
-    context_required: task
+    context_required: project
     confidence: high
 
   - id: 13
@@ -461,7 +461,7 @@ statements:
     type: directive
     topic: AI Integration
     enforceability: content
-    context_required: none
+    context_required: task
     confidence: high
 
   - id: 45
