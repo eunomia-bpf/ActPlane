@@ -68,6 +68,7 @@ statements:
     type: directive
     topic: Build and Run
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 6
@@ -236,6 +237,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 22
@@ -321,6 +323,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 31
@@ -333,6 +336,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 32
@@ -345,6 +349,7 @@ statements:
     type: directive
     topic: Documentation
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 33
@@ -394,6 +399,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 38
@@ -416,6 +422,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 40
@@ -429,6 +436,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 41
@@ -453,6 +461,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 43
@@ -509,6 +518,7 @@ statements:
     type: directive
     topic: Documentation
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 48
@@ -566,6 +576,7 @@ statements:
     type: directive
     topic: DevOps
     enforceability: per_event
+    context_required: task
     confidence: high
 
   - id: 52
@@ -578,6 +589,7 @@ statements:
     type: directive
     topic: Maintenance
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 53
@@ -587,6 +599,7 @@ statements:
     type: directive
     topic: Maintenance
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 54

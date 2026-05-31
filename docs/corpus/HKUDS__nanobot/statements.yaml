@@ -50,6 +50,7 @@ statements:
     type: directive
     topic: Build and Run
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 4
@@ -322,6 +323,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 29
@@ -332,6 +334,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 30
@@ -342,6 +345,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 31
@@ -353,6 +357,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 32

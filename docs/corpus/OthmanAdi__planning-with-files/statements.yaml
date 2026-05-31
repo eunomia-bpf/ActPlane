@@ -23,6 +23,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 3
@@ -32,6 +33,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 4
@@ -41,6 +43,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 5
@@ -50,6 +53,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: none
     confidence: high
 
   - id: 6
@@ -61,6 +65,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 7
@@ -84,6 +89,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 8
@@ -97,6 +103,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 9
@@ -127,6 +134,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 10
@@ -138,6 +146,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 11
@@ -164,6 +173,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 12
@@ -188,6 +198,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 13
@@ -207,6 +218,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 14
@@ -223,6 +235,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 15
@@ -247,6 +260,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 16
@@ -278,6 +292,7 @@ statements:
     type: directive
     topic: DevOps
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 19
@@ -319,6 +334,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 23
@@ -328,6 +344,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: task
     confidence: high
 
   - id: 24
@@ -337,6 +354,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 25
@@ -346,6 +364,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 26
@@ -355,6 +374,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 27
@@ -364,4 +384,5 @@ statements:
     type: directive
     topic: DevOps
     enforceability: cross_event
+    context_required: project
     confidence: high

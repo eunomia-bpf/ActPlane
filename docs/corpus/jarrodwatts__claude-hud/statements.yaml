@@ -31,6 +31,7 @@ statements:
     type: directive
     topic: Build and Run
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 3
@@ -225,6 +226,7 @@ statements:
     type: directive
     topic: Configuration & Environment
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 15

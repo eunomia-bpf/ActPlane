@@ -42,6 +42,7 @@ statements:
     type: directive
     topic: AI Integration
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 3
@@ -79,6 +80,7 @@ statements:
     type: directive
     topic: Maintenance
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 6
@@ -88,6 +90,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 7
@@ -97,6 +100,7 @@ statements:
     type: directive
     topic: Build and Run
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 8
@@ -115,6 +119,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 10
@@ -124,6 +129,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 11
@@ -133,6 +139,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 12
@@ -142,6 +149,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 13
@@ -151,6 +159,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: task
     confidence: high
 
   - id: 14
@@ -160,6 +169,7 @@ statements:
     type: directive
     topic: AI Integration
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 15
@@ -169,4 +179,5 @@ statements:
     type: directive
     topic: AI Integration
     enforceability: per_event
+    context_required: task
     confidence: high

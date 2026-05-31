@@ -387,6 +387,17 @@ statement. A validation script (`validate.py`) checks line-range
 coverage (no gaps, no overlaps) and text fidelity (content matches source
 after stripping whitespace) for every `statements.yaml` file.
 
+**No batch or pattern-based annotation.** All classification — including
+Axis 3 (enforcement level) and Axis 4 (context requirement) — must be
+performed by reading each directive individually and applying the
+decision procedure. Regular expressions, keyword matching, or other
+pattern-based heuristics must not be used to assign labels in bulk.
+The decision procedure requires semantic judgment (e.g., whether
+"upstream source" maps to a concrete path requires understanding the
+project, not matching a regex). The LLM agent prompt explicitly
+instructs the model to read each statement, reason about it, and
+assign the label; batch shortcuts are prohibited.
+
 **Granularity rules.**
 
 - *Default: one line, one statement.* When source lines are

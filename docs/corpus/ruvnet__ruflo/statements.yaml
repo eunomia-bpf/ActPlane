@@ -41,6 +41,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 3
@@ -524,6 +525,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: none
     confidence: high
 
   - id: 28
@@ -533,6 +535,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: none
     confidence: high
 
   - id: 29
@@ -542,6 +545,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 30
@@ -551,6 +555,7 @@ statements:
     type: directive
     topic: Security
     enforceability: per_event
+    context_required: none
     confidence: high
 
   - id: 31
@@ -560,6 +565,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: cross_event
+    context_required: none
     confidence: high
 
   - id: 32
@@ -952,6 +958,7 @@ statements:
     type: directive
     topic: AI Integration
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 55
@@ -985,6 +992,7 @@ statements:
     type: directive
     topic: AI Integration
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 57
@@ -1023,6 +1031,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 59

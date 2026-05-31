@@ -73,6 +73,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 7
@@ -83,6 +84,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 8
@@ -94,6 +96,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 9
@@ -103,6 +106,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 10
@@ -112,6 +116,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 11
@@ -122,6 +127,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 12
@@ -140,6 +146,7 @@ statements:
     type: directive
     topic: Build and Run
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 13

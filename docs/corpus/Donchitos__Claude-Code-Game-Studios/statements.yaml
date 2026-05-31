@@ -101,6 +101,7 @@ statements:
     type: directive
     topic: AI Integration
     enforceability: per_event
+    context_required: task
     confidence: high
 
   - id: 9
@@ -119,6 +120,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 11
@@ -129,6 +131,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: task
     confidence: high
 
   - id: 12

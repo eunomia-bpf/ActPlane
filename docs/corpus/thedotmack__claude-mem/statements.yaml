@@ -238,6 +238,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 17
@@ -251,6 +252,7 @@ statements:
     type: directive
     topic: Maintenance
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 18
@@ -260,6 +262,7 @@ statements:
     type: directive
     topic: Maintenance
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 19
@@ -269,6 +272,7 @@ statements:
     type: directive
     topic: Maintenance
     enforceability: per_event
+    context_required: none
     confidence: high
 
   - id: 20
@@ -278,6 +282,7 @@ statements:
     type: directive
     topic: Maintenance
     enforceability: per_event
+    context_required: none
     confidence: high
 
   - id: 21
@@ -287,6 +292,7 @@ statements:
     type: directive
     topic: Maintenance
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 22
@@ -296,4 +302,5 @@ statements:
     type: directive
     topic: Maintenance
     enforceability: cross_event
+    context_required: none
     confidence: high

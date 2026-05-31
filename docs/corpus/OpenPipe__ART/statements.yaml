@@ -14,6 +14,7 @@ statements:
     type: directive
     topic: Build and Run
     enforceability: per_event
+    context_required: none
     confidence: high
 
   - id: 2
@@ -27,6 +28,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 3
@@ -56,6 +58,7 @@ statements:
     type: directive
     topic: Documentation
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 5
@@ -71,6 +74,7 @@ statements:
     type: directive
     topic: Documentation
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 6
@@ -83,4 +87,5 @@ statements:
     type: directive
     topic: Documentation
     enforceability: content
+    context_required: project
     confidence: high

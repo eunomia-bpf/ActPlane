@@ -49,6 +49,7 @@ statements:
     type: directive
     topic: AI Integration
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 4
@@ -61,6 +62,7 @@ statements:
     type: directive
     topic: AI Integration
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 5
@@ -114,6 +116,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 9
@@ -123,6 +126,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 10
@@ -132,6 +136,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 11
@@ -141,6 +146,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 12
@@ -150,6 +156,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 13
@@ -162,6 +169,7 @@ statements:
     type: directive
     topic: Documentation
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 14
@@ -171,6 +179,7 @@ statements:
     type: directive
     topic: Documentation
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 15
@@ -180,6 +189,7 @@ statements:
     type: directive
     topic: Security
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 16
@@ -189,6 +199,7 @@ statements:
     type: directive
     topic: Security
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 17
@@ -198,6 +209,7 @@ statements:
     type: directive
     topic: Security
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 18
@@ -254,6 +266,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 22
@@ -263,6 +276,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 23
@@ -272,6 +286,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 24
@@ -281,6 +296,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 25
@@ -290,6 +306,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 26
@@ -307,6 +324,7 @@ statements:
     type: directive
     topic: Architecture
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 27
@@ -316,6 +334,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 28
@@ -325,6 +344,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 29
@@ -366,6 +386,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 31
@@ -380,6 +401,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 32
@@ -460,6 +482,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 37
@@ -469,6 +492,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 38
@@ -478,6 +502,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 39
@@ -497,6 +522,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 40
@@ -585,6 +611,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 47
@@ -594,6 +621,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 48
@@ -603,6 +631,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 49
@@ -612,6 +641,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 50

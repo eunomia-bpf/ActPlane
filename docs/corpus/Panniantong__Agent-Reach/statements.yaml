@@ -29,6 +29,7 @@ statements:
     type: directive
     topic: Build and Run
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 3
@@ -68,6 +69,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 6
@@ -77,6 +79,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 7
@@ -86,6 +89,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 8
@@ -95,6 +99,7 @@ statements:
     type: directive
     topic: Implementation Details
     enforceability: content
+    context_required: project
     confidence: high
 
   - id: 9
@@ -104,6 +109,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: content
+    context_required: none
     confidence: high
 
   - id: 10
@@ -115,6 +121,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 11
@@ -124,6 +131,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 12
@@ -142,6 +150,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: cross_event
+    context_required: project
     confidence: medium
 
   - id: 14
@@ -151,6 +160,7 @@ statements:
     type: directive
     topic: Development Process
     enforceability: per_event
+    context_required: none
     confidence: high
 
   - id: 15
@@ -160,6 +170,7 @@ statements:
     type: directive
     topic: Testing
     enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 16
@@ -169,6 +180,7 @@ statements:
     type: directive
     topic: Configuration & Environment
     enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 17
@@ -178,4 +190,5 @@ statements:
     type: directive
     topic: Configuration & Environment
     enforceability: per_event
+    context_required: project
     confidence: high
