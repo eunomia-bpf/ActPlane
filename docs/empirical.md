@@ -358,7 +358,7 @@ statements:
     type: directive
     topic: Security
     enforceability: cross_event
-    context_required: none     # ".env" / credentials patterns are universal
+    context_required: project   # "secrets" / "credentials" unresolved — which files?
     confidence: high
 
   - id: 4
@@ -571,56 +571,52 @@ by enforcement complexity.*
 
 Each system-level directive (content, per-event, or cross-event) is
 classified by what additional context an enforcement mechanism needs
-beyond the raw system event to evaluate the rule.
+beyond the directive text itself to evaluate the rule.
 
 | Level | Definition | Example (from corpus) |
 |---|---|---|
-| **None** | The rule is self-contained: it can be evaluated from the system event alone without any project- or task-specific knowledge. | "Do not execute `rm -rf`." / "Do not create git worktree." / "Never pipe a remote script into a shell (`curl ... \| bash`)" (BerriAI/litellm) |
-| **Project context** | The rule requires static knowledge about the project — its structure, conventions, tool names, or file layout — to translate the natural-language directive into a concrete system-level pattern. An agent can derive this context by reading the repository. | "Run the full test suite before committing." (test suite = `pnpm test:changed`? `pytest`? `bun test`? — varies by project) / "Never modify upstream source code." (upstream = which paths? `vendor/`? `lib/`?) / "Run linting before push." (linter = ruff? eslint? clippy?) |
-| **Task context** | The rule requires dynamic knowledge about the current task or session — what the user asked, whether approval was granted, what the agent is trying to accomplish — that cannot be derived from the repository alone. | "Protocol version bumps: explicit owner confirmation only; never automatic" (openclaw — needs user approval per task) / "Do not delete/rename unexpected files; ask if blocking" (openclaw — depends on what's "unexpected" for this task) / "Do not update dependencies without approval" (netdata — session-level approval gate) / "Assistants must not create git worktrees on their own. Create a git worktree only when the user explicitly asks for it or approves it" (netdata — user intent per session) |
+| **None** | The directive text is self-contained: all commands, paths, patterns, or constraints needed to write the enforcement rule are explicit in the text. No external lookup required. | "Do not execute `rm -rf`." / "Do not create git worktree." / "Never run `bun publish` directly." (command is explicit) / "NEVER squash merge or rebase merge PRs." (merge strategy is explicit) / "Prefer `const` over `let`." |
+| **Project context** | The directive contains an unresolved reference that must be looked up in the repository before the rule can be enforced. An agent can derive this context by reading the repository. | "Run the full test suite before committing." (test suite = `pnpm test:changed`? `pytest`? `bun test`? — must read repo) / "Never modify upstream source code." (upstream = which paths? `vendor/`? `lib/`? — must read repo) / "Run linting before push." (linter = ruff? eslint? clippy? — must read repo) |
+| **Task context** | The directive depends on information that changes per invocation — the current user request, whether approval was granted, what the agent is trying to accomplish — and cannot be resolved from the repository alone. | "Do not update dependencies without approval." (was approval given this session?) / "Keep changes focused." (focused on what? depends on current task) / "Do not delete/rename unexpected files; ask if blocking." (what is "unexpected"? depends on current task) / "Unless explicitly requested, prefer stacked commits over amend." (was it requested?) |
+
+The classification is about **information completeness**, not about
+whether the rule is universal or project-specific. A directive that
+names a project-specific command verbatim ("never run `bun publish`
+directly") is **none** because the enforcement pattern (`bun publish`)
+is already explicit in the text. A directive that uses a universal
+concept but leaves a parameter unresolved ("run the test suite before
+committing") is **project** because "test suite" must be resolved to a
+concrete command by reading the repository.
 
 **Decision procedure for Axis 4.** The classification follows a
-waterfall analogous to Figure 0: each directive enters at Q1 and exits
-at the first level whose predicate it satisfies (Figure 0b).
+waterfall analogous to Figure 0 (Figure 0b).
 
 ```
 System-level directive
   │
   ▼
 ┌─────────────────────────────────────┐
-│ Q1: Can the rule be expressed as a  │
-│ fixed pattern over system events    │
-│ without any project- or task-       │
-│ specific knowledge?                 │
+│ Q1: Does the directive text contain │
+│ all information needed to write the │
+│ enforcement rule?                   │
 └──────────┬──────────────────────────┘
            │
       Yes ─┼──► none
-           │    "Do not run rm -rf." / "Prefer const over let."
+           │
       No   │
            ▼
 ┌─────────────────────────────────────┐
-│ Q2: Can the rule be expressed after │
-│ reading the repository structure,   │
-│ instruction files, and conventions? │
+│ Q2: Can the missing information be  │
+│ resolved by reading the repository? │
 └──────────┬──────────────────────────┘
            │
       Yes ─┼──► project context
-           │    "Run the full test suite before committing."
-      No   │    (test suite = pytest? jest? bun test?)
-           ▼
-┌─────────────────────────────────────┐
-│ Q3: Does the rule depend on the     │
-│ current user request, session       │
-│ state, or task intent?              │
-└──────────┬──────────────────────────┘
            │
-      Yes ─┼──► task context
-                "Do not update dependencies without approval."
-                "Keep changes focused." (focused on what?)
+      No   │
+           ▼
+           ──► task context
 ```
-*Figure 0b. Context-requirement waterfall. Each system-level directive
-exits at the first matching level; the three levels are mutually
-exclusive and ordered by dynamism.*
+*Figure 0b. Context-requirement waterfall.*
 
 **Compound context.** A directive that requires both project and task
 context is classified by the strongest (most dynamic) requirement.
@@ -629,8 +625,21 @@ project context (which files exist) and task context (what is the
 current task); it is classified as **task context** because the task
 dependency is the binding constraint.
 
-Three clarifications for borderline cases:
+Four clarifications for borderline cases:
 
+- *Explicit project-specific patterns are none.* A directive that
+  spells out a project-specific command, path, or name verbatim is
+  **none**, not project. "Never run `bun publish` directly" is none
+  because `bun publish` is already the concrete enforcement pattern.
+  "Run the test suite before committing" is project because "test
+  suite" must be resolved. The test is whether the directive text
+  itself is sufficient, not whether the rule is universal.
+- *Unresolved domain concepts are project.* A directive like "never
+  commit secrets or credentials" is **project**, not none: "secrets"
+  and "credentials" are unresolved — which files or patterns constitute
+  secrets depends on the project. By contrast, "never commit `.env`,
+  `id_rsa`, or files matching `**/credentials/**`" is **none** because
+  the patterns are explicit.
 - *Approval gates.* Directives containing "unless explicitly
   requested/asked/approved/instructed", "without user approval", or
   "only when the user asks" are **task context**: they gate on a
@@ -639,13 +648,19 @@ Three clarifications for borderline cases:
   needed", "keep changes focused", "do not touch unrelated code", or
   "do not make unnecessary changes" are **task context**: what counts
   as "needed", "focused", "related", or "necessary" depends on what the
-  user asked the agent to do in the current session, not on the
-  repository structure. Note: universal coding idioms that use
-  similar language ("avoid explicit type annotations unless necessary
-  for exports") are **none** — "necessary" has a well-defined meaning
-  in the language community independent of the task.
+  user asked the agent to do in the current session. Note: coding
+  idioms that use similar language ("avoid explicit type annotations
+  unless necessary for exports") are **none** — "necessary" has a
+  well-defined meaning in the language community independent of the
+  task.
 
-The three levels are ordered by dynamism: none is static, project context changes per-repository but is stable within a session, task context changes per-invocation. This directly informs the policy lifecycle: none → hardcoded rules; project context → agent generates rules by reading the repo (ActPlane RQ2); task context → agent must generate or adapt rules per task at runtime (the "control plane" argument).
+The three levels are ordered by dynamism: none is static, project
+context changes per-repository but is stable within a session, task
+context changes per-invocation. This directly informs the policy
+lifecycle: none → hardcoded rules; project context → agent generates
+rules by reading the repo (ActPlane RQ2); task context → agent must
+generate or adapt rules per task at runtime (the "control plane"
+argument).
 
 ### 4.4 Enforcement-Level Assessment
 
@@ -727,18 +742,22 @@ text to final labels.
 | "The backend uses Express with TypeScript." | Description | Architecture | — | — | Factual; no imperative. |
 | "Always explain your reasoning before making changes." | Directive | AI Integration | Semantic-only | — | Purely agent-user communication. |
 | "Be concise in responses." | Directive | AI Integration | Semantic-only | — | Purely output style. |
-| "Report the full URL at end of task." | Directive | AI Integration | Semantic-only | — | Purely output format. |
 | "Prefer `const` over `let`." | Directive | Implementation Details | Content | None | `const`/`let` is explicit in the directive. |
-| "Use type hints for all function signatures." | Directive | Implementation Details | Content | None | "type hints" is explicit; no project lookup needed. |
-| "Commit format: `type(scope): message`" | Directive | Development Process | Content | None | Format is explicit in the directive. |
-| "Do not execute `rm -rf`." | Directive | Development Process | Per-event | None | Universal; no project context needed. |
-| "Do not create git worktree." | Directive | Development Process | Per-event | None | Universal exec match. |
-| "Never push to main directly." | Directive | Development Process | Per-event | None | "main" is literal in the directive; translates directly to `git push ... main`. |
-| "Never modify upstream source code." | Directive | Development Process | Per-event | Project | "upstream" = `vendor/` paths, repo-specific. |
-| "Do not update dependencies without approval." | Directive | Maintenance | Per-event | Task | "approval" = user said OK in this session. |
-| "Run the full test suite before committing." | Directive | Testing | Cross-event | Project | "test suite" = pytest/jest/go test, project-specific. |
-| "Never commit secrets or credentials." | Directive | Security | Cross-event | None | `.env` / credential patterns are universal. |
-| "Only modify DB through the migration tool." | Directive | Development Process | Cross-event | Project | DB path + migration tool name are project-specific. |
+| "Do not execute `rm -rf`." | Directive | Development Process | Per-event | None | Command pattern is explicit. |
+| "Do not create git worktree." | Directive | Development Process | Per-event | None | Command pattern is explicit. |
+| "Never push to main directly." | Directive | Development Process | Per-event | None | "main" is literal; enforcement pattern is explicit. |
+| "Never run `bun publish` directly." | Directive | Development Process | Per-event | None | Project-specific command, but spelled out verbatim — enforcement pattern is self-contained. |
+| "NEVER squash merge or rebase merge PRs." | Directive | Development Process | Per-event | None | Merge strategy is explicit (`--squash`, `--rebase`); no lookup needed. |
+| "Author: OthmanAdi only. NEVER add `Co-Authored-By:` trailers." | Directive | Development Process | Content | None | Author name and trailer pattern are explicit in the directive text. |
+| "Never modify upstream source code." | Directive | Development Process | Per-event | Project | "upstream" is unresolved — which paths? `vendor/`? `lib/`? Must read repo. |
+| "Run the full test suite before committing." | Directive | Testing | Cross-event | Project | "test suite" is unresolved — pytest? jest? bun test? Must read repo. |
+| "Run linting before push." | Directive | Development Process | Cross-event | Project | "linting" is unresolved — ruff? eslint? clippy? Must read repo. |
+| "Only modify DB through the migration tool." | Directive | Development Process | Cross-event | Project | DB path + migration tool name are unresolved; must read repo. |
+| "Do not update dependencies without approval." | Directive | Maintenance | Per-event | Task | "approval" = user said OK in this session; per-invocation. |
+| "Keep changes focused." | Directive | Development Process | Per-event | Task | "focused" on what? Depends on current task. |
+| "Unless explicitly requested, prefer stacked commits over amend." | Directive | Development Process | Per-event | Task | "explicitly requested" = per-session user intent. |
+| "Never commit secrets or credentials." | Directive | Security | Cross-event | Project | "secrets" and "credentials" are unresolved — which files/patterns? `.env`? `id_rsa`? Must know the project's secret layout. |
+| "Never commit `.env`, `id_rsa`, or files matching `**/credentials/**`." | Directive | Security | Cross-event | None | Patterns are explicit in the directive text; no lookup needed. |
 
 Edge cases:
 
