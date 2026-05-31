@@ -55,7 +55,7 @@ The agent receives this reason through its hook integration, understands the
 constraint, and takes a different path to complete the task.
 
 **Requirements:** Linux kernel 5.8+ with BTF (`/sys/kernel/btf/vmlinux`). `run`
-and `watch` load the eBPF enforcer, so they need root (or `CAP_BPF` +
+and `watch` load the eBPF engine, so they need root (or `CAP_BPF` +
 `CAP_SYS_ADMIN`); ActPlane drops the target command back to your user. With
 BPF-LSM enabled, rules can `block` before the action commits; otherwise they
 `notify` (report) or `kill`.

@@ -8,8 +8,8 @@ access to shells, source trees, package managers, and external APIs,
 autonomously writing code, running tests, and managing infrastructure across
 extended sessions.
 
-% ¶2: Agents need deterministic harnesses to enforce behavioral policies
-As agents gain autonomy, they require harnesses to enforce behavioral
+% ¶2: Agents need deterministic harnesses to apply behavioral policies
+As agents gain autonomy, they require harnesses to apply behavioral
 policies. Projects encode such policies in instruction files such
 as \texttt{CLAUDE.md} and
 \texttt{AGENTS.md}~\cite{chatlatanagulchai2025manifests,lulla2026agentsmd}.
@@ -18,7 +18,7 @@ that 63\% are behavioral directives, 80\% of which involve system-level
 behavior, and 78\% of projects require cross-event state tracking
 (\S\ref{sec:empirical}).
 Because LLM compliance is inherently
-probabilistic~\cite{liu2024lost}, enforcement cannot reside inside the
+probabilistic~\cite{liu2024lost}, policy cannot reside inside the
 model~\cite{langchain-harness,fowler-harness}.
 
 % ¶3: Gap — semantic gap between intent and system actions
@@ -29,12 +29,12 @@ Intent-level guards~\cite{wang2025agentspec,shi2025progent} lose coverage
 when agents shell out or spawn subprocesses:
 the same \texttt{git~push} can be reached through a tool call, a
 \texttt{bash~-c} string, or a compiled binary.
-OS-level enforcement~\cite{ciliumtetragon,flume,pasquier2018camquery} is
+OS-level policy~\cite{ciliumtetragon,flume,pasquier2018camquery} is
 unbypassable but requires policies to be statically pre-written
 by an administrator external to the agent,
 and returns opaque errors with no connection to declared intent.
 The agent---the entity that knows its own goals and must recover from
-enforcement---has no programmatic interface to define or evolve
+policy decisions---has no programmatic interface to define or evolve
 the constraints governing its own system-level actions.
 
 % ¶4: Insight — programmable interface, agent as control plane

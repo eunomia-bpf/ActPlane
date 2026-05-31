@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-ActPlane is an **OS-enforced harness for AI agents**. It compiles a policy DSL
-to an in-kernel eBPF enforcer that performs **labeled information-flow control**
+ActPlane is an **OS-level harness for AI agents**. It compiles a policy DSL
+to an in-kernel eBPF engine that performs **labeled information-flow control**
 across process / file / network edges and reports **only** rule matches —
-each with a human-readable reason (the corrective-feedback payload). It enforces
-below the tool layer (at the syscall boundary), so constraints hold across any
+each with a human-readable reason (the corrective-feedback payload). It applies
+policies below the tool layer (at the syscall boundary), so constraints hold across any
 tool, subprocess, or direct syscall the agent uses. (The mechanism is a labeled,
 runtime form of information-flow control — unlike classic taint analysis, which
 is single-bit, usually offline, and aimed at finding vulnerabilities. Code-level
@@ -17,16 +17,16 @@ implementation name.)
 
 The repo descends from AgentSight (an eBPF observability framework); the SSL/HTTP
 analyzer chain, runners, web server, and frontend were removed. What remains is the
-labeled information-flow enforcer plus a minimal Rust compiler/driver.
+labeled information-flow engine plus a minimal Rust compiler/driver.
 
-## Agent behavioral constraints (ActPlane-enforced)
+## Agent behavioral constraints (ActPlane-applied)
 
 When acting as an agent in this repo, **do not run `git branch` or `git worktree`** —
 the user does not want new branches or worktrees created right now. **Other git
 operations are allowed** (`git commit`, `git add`, `git status`, `git log`, `git push`,
 …). If you think a different branch is needed, ask the user instead of creating one.
 
-`git branch` and `git worktree` are also enforced below the tool layer by ActPlane
+`git branch` and `git worktree` are also applied below the tool layer by ActPlane
 itself (`actplane.yaml`, rule `no-git-branch`, `kill exec "git" "branch"`/`kill exec "git" "worktree"`): they
 are killed whether invoked via a tool call, `bash -c`, or a subprocess — a worked
 example of a real corpus-derived guardrail in the taint DSL.
@@ -36,7 +36,7 @@ example of a real corpus-derived guardrail in the taint DSL.
 ```bash
 make                                    # build bpf/ then collector/
 make test                               # bpf C unit tests + collector Rust tests
-sudo bash test/e2e_examples.sh          # live enforcement of all 12 examples (E1–E12)
+sudo bash test/e2e_examples.sh          # live policy match of all 12 examples (E1–E12)
 
 # individual components
 make -C bpf                             # eBPF programs + loaders
@@ -51,13 +51,13 @@ make -C bpf debug                       # AddressSanitizer build of the loaders
 ## Running
 
 ```bash
-# compile + enforce a policy
+# compile + apply a policy
 sudo ./collector/target/release/actplane policy.dsl
 
 # compile only -> kernel config blob
 ./collector/target/release/actplane policy.dsl --out policy.bin
 
-# run the kernel enforcer directly against a compiled blob
+# run the kernel engine directly against a compiled blob
 sudo ./bpf/process --config policy.bin
 ```
 
