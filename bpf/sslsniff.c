@@ -512,7 +512,8 @@ char *find_library_path(const char *libname) {
 		// Extract the path from the ldconfig output
 		char *start = strrchr(path, '>');
 		if (start && *(start + 1) == ' ') {
-			memmove(path, start + 2, strlen(start + 2) + 1);
+			size_t avail = (size_t)(path + sizeof(path) - (start + 2));
+			memmove(path, start + 2, strnlen(start + 2, avail) + 1);
 			char *end = strchr(path, '\n');
 			if (end) {
 				*end = '\0';  // Null-terminate the path
