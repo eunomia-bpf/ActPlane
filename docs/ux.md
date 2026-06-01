@@ -105,6 +105,7 @@ CLI:
 
 ```text
 actplane compile policy.yaml --out policy.ir
+actplane --domain review compile --out review.ir
 actplane run --policy policy.yaml -- <cmd>
 actplane apply --domain <id> --policy policy.yaml
 actplane exec --domain <id> -- <cmd>

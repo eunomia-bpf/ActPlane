@@ -17,7 +17,7 @@ pub fn compile_str(src: &str) -> Result<Compiled, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::FileConfig;
+    use crate::config::{FileConfig, LoadedPolicy, policy_source};
     use std::path::{Path, PathBuf};
     use std::time::Instant;
 
@@ -45,7 +45,14 @@ mod tests {
                     .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
                 let cfg: FileConfig = serde_yaml::from_str(&src)
                     .unwrap_or_else(|e| panic!("parse {}: {e}", path.display()));
-                (path, cfg.policy)
+                let loaded = LoadedPolicy {
+                    config: cfg,
+                    root: PathBuf::new(),
+                    path: None,
+                };
+                let policy = policy_source(&loaded, None)
+                    .unwrap_or_else(|e| panic!("resolve {}: {e}", path.display()));
+                (path, policy)
             })
             .collect()
     }

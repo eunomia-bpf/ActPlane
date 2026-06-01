@@ -17,30 +17,60 @@
 #include "capability.bpf.h"
 
 /* BPF implementation of taint_contains (substring search via bpf_loop).
- * Defined here because taint.h is shared with non-BPF test code. */
+ * The outer scan runs through bpf_loop so the callback is verified ONCE (not
+ * TAINT_PAT_LEN times).  Inside, TE_COPY fetches the candidate window through
+ * the bounded helper read — never a direct variable-offset stack dereference. */
 #ifdef __BPF__
-struct taint_contains_ctx {
+struct __taint_contains_ctx {
 	const char *text;
 	const char *pat;
+	int pn;
+	int max_pos;
 	int found;
 };
 
 static long __taint_contains_cb(__u32 idx, void *_ctx)
 {
-	struct taint_contains_ctx *c = _ctx;
+	struct __taint_contains_ctx *c = _ctx;
 	if (c->found)
 		return 1;
-	if (idx >= TAINT_PAT_LEN)
+	if (idx > (unsigned int)c->max_pos)
 		return 1;
-	if (taint_prefix(c->text + idx, c->pat))
+
+	char window[TAINT_SUF_MAX] = {};
+	TE_COPY(window, TAINT_SUF_MAX, c->text + idx);
+	char p[TAINT_SUF_MAX] = {};
+	TE_COPY(p, TAINT_SUF_MAX, c->pat);
+
+	long diff = 0;
+	TAINT_UNROLL
+	for (int j = 0; j < TAINT_SUF_MAX; j++) {
+		long jm = -(long)(j < c->pn);
+		diff |= jm & (unsigned char)(window[j] ^ p[j]);
+	}
+	if (diff == 0)
 		c->found = 1;
 	return 0;
 }
 
 static __noinline int taint_contains(const char *text, const char *pat)
 {
-	struct taint_contains_ctx c = {
-		.text = text, .pat = pat, .found = 0
+	int tn = 0, pn = 0;
+	long tlive = 1, plive = 1;
+
+	TAINT_UNROLL
+	for (int i = 0; i < TAINT_PAT_LEN; i++) {
+		tlive &= te_nzmask((unsigned char)text[i]) & 1;
+		tn += (int)tlive;
+		plive &= te_nzmask((unsigned char)pat[i]) & 1;
+		pn += (int)plive;
+	}
+	if (pn == 0 || pn > tn || pn > TAINT_SUF_MAX)
+		return 0;
+
+	struct __taint_contains_ctx c = {
+		.text = text, .pat = pat,
+		.pn = pn, .max_pos = tn - pn, .found = 0
 	};
 	bpf_loop(TAINT_PAT_LEN, __taint_contains_cb, &c, 0);
 	return c.found;

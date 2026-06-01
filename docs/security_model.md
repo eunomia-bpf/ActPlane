@@ -409,6 +409,11 @@ label_mask
 Implemented today:
 
 ```text
+rule catalog in policy YAML
+domain bindings in policy YAML
+default_domain / --domain selection
+locked/default binding resolution at compile time
+disable inherited default bindings at compile time
 user ringbuf request path
 domain-like state map
 pid-to-domain-like binding
@@ -419,11 +424,11 @@ monotonic labels/restrictions/gates/scope update
 Still needed to fully implement this model:
 
 ```text
-domain naming in public API
-rule catalog and stable rule IDs
-domain binding table
-locked/default binding metadata
-disabled-default rule set
+domain naming in low-level BPF ABI
+stable rule IDs / content hashes
+runtime domain binding table
+runtime locked/default binding metadata
+runtime disabled-default rule set
 delta admission for bind/disable
 runtime add-rule IR maps
 dynamic child-domain creation

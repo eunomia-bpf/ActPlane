@@ -1,14 +1,15 @@
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
-use crate::config::{feedback_paths, load_policy};
+use crate::config::{feedback_paths, load_policy, policy_source};
 use crate::runtime::{have_bpf_caps, passwordless_sudo_available};
 use crate::setup::{codex_hook_has_actplane_command, project_mcp_auto_attach_ok};
 use crate::{Cli, Result, dsl};
 
 pub(crate) fn check_policy(cli: &Cli) -> Result<i32> {
     let loaded = load_policy(cli)?;
-    let compiled = match dsl::compile_str(&loaded.config.policy) {
+    let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let compiled = match dsl::compile_str(&policy) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("✗ policy does not compile: {}", e);
@@ -44,7 +45,7 @@ pub(crate) fn check_policy(cli: &Cli) -> Result<i32> {
                 .into(),
         );
     }
-    for line in loaded.config.policy.lines() {
+    for line in policy.lines() {
         let t = line.trim();
         let rest_opt = t
             .strip_prefix("notify connect endpoint")
@@ -96,7 +97,8 @@ pub(crate) fn doctor(cli: &Cli) -> Result<i32> {
                 .as_ref()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "--rule".into());
-            match dsl::compile_str(&loaded.config.policy) {
+            let policy = policy_source(&loaded, cli.domain.as_deref())?;
+            match dsl::compile_str(&policy) {
                 Ok(compiled) => {
                     println!("✓ policy: {} ({} rule(s))", where_, compiled.meta.len());
                     let feedback = feedback_paths(&loaded);

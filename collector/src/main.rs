@@ -46,6 +46,9 @@ pub(crate) struct Cli {
     /// Inline policy DSL used instead of a YAML file.
     #[arg(long, global = true, conflicts_with = "policy")]
     pub(crate) rule: Option<String>,
+    /// Domain to compile/run from a policy file with `domains:`.
+    #[arg(long, global = true, conflicts_with = "rule")]
+    pub(crate) domain: Option<String>,
     /// Run the target command as root. By default sudo-launched ActPlane drops
     /// the target back to SUDO_UID/SUDO_GID.
     #[arg(long, global = true)]
@@ -133,7 +136,8 @@ async fn main() -> Result<()> {
 
 async fn compile_policy(cli: &Cli, out: &Path) -> Result<i32> {
     let loaded = config::load_policy(cli)?;
-    let compiled = dsl::compile_str(&loaded.config.policy)?;
+    let policy = config::policy_source(&loaded, cli.domain.as_deref())?;
+    let compiled = dsl::compile_str(&policy)?;
     std::fs::write(out, &compiled.bytes)?;
     eprintln!(
         "ActPlane: compiled {} rule(s) to {}",

@@ -12,7 +12,7 @@ use std::os::unix::ffi::OsStrExt;
 #[cfg(unix)]
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 
-use crate::config::{FeedbackPaths, feedback_paths, load_policy};
+use crate::config::{FeedbackPaths, feedback_paths, load_policy, policy_source};
 use crate::report::{append_violation_feedback, report, to_violation};
 use crate::{Cli, Result, dsl};
 
@@ -21,7 +21,8 @@ const ATTACH_PID_ENV: &str = "ACTPLANE_ATTACH_PID";
 pub(crate) async fn watch_policy(cli: &Cli) -> Result<i32> {
     require_bpf_caps_or_elevate(cli.internal_elevated)?;
     let loaded = load_policy(cli)?;
-    let compiled = dsl::compile_str(&loaded.config.policy)?;
+    let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let compiled = dsl::compile_str(&policy)?;
     let feedback = feedback_paths(&loaded);
     prepare_feedback_files(&feedback, target_user(cli.run_as_root))?;
 
@@ -94,7 +95,8 @@ pub(crate) fn start_mcp_auto_attach(cli: &Cli) -> Result<AttachGuard> {
     )?;
 
     let loaded = load_policy(cli)?;
-    let compiled = dsl::compile_str(&loaded.config.policy)?;
+    let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let compiled = dsl::compile_str(&policy)?;
     let agent_label = runner_label(&compiled)?;
     let feedback = feedback_paths(&loaded);
     prepare_feedback_files(&feedback, target_user(cli.run_as_root))?;
@@ -234,7 +236,8 @@ fn require_bpf_caps_or_elevate_with_env(
 pub(crate) async fn run_command(cli: &Cli, cmd: &[String]) -> Result<i32> {
     require_bpf_caps_or_elevate(cli.internal_elevated)?;
     let loaded = load_policy(cli)?;
-    let compiled = dsl::compile_str(&loaded.config.policy)?;
+    let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let compiled = dsl::compile_str(&policy)?;
     let agent_label = runner_label(&compiled)?;
     let feedback = feedback_paths(&loaded);
     let target_owner = target_user(cli.run_as_root);
