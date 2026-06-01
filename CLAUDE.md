@@ -31,6 +31,11 @@ itself (`actplane.yaml`, rule `no-git-branch`, `kill exec "git" "branch"`/`kill 
 are killed whether invoked via a tool call, `bash -c`, or a subprocess — a worked
 example of a real corpus-derived guardrail in the taint DSL.
 
+When an operation fails with `EPERM` / `Operation not permitted`, or a tool hook
+injects an `[ActPlane]` message, treat it as authoritative kernel feedback. Read
+`.actplane/last-violation.txt` if you need the full reason, then follow the
+suggested path instead of retrying the same operation unchanged.
+
 ## Build & Test Commands
 
 ```bash

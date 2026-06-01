@@ -31,6 +31,9 @@ sudo -E actplane --policy policies/readonly.yaml run claude -p "review"
 
 ### Codex
 
+本仓库已带 `.codex/hooks.json`;本地开发时只要先构建 collector, Codex 就会在
+每次工具调用后自动运行 `./collector/target/release/actplane feedback-hook`。
+
 Codex CLI 支持 `PostToolUse` hook。把下面内容写入 `.codex/hooks.json`
 或 `~/.codex/hooks.json`,并替换 `actplane` 的绝对路径。
 
@@ -57,6 +60,21 @@ Codex CLI 支持 `PostToolUse` hook。把下面内容写入 `.codex/hooks.json`
 收到内核已经判定好的纠偏理由。
 交互式 Codex 需要先用 `/hooks` review/trust 这条 hook;一次性自动化可加
 `--dangerously-bypass-hook-trust`。
+
+### MCP autostart
+
+ActPlane 的 MCP server 暴露两个 resource:
+
+- `actplane:///policy`: 当前 `actplane.yaml` 的编译/校验结果。
+- `actplane:///feedback`: 最新 `.actplane/last-violation.txt` 纠偏反馈。
+
+Codex 可用下面命令注册一次,之后进入 Codex session 时会自动启动:
+
+```bash
+codex mcp add actplane \
+  --env ACTPLANE_PROJECT_DIR=/abs/ActPlane \
+  -- /abs/ActPlane/collector/target/release/actplane mcp
+```
 
 ### Claude Code
 

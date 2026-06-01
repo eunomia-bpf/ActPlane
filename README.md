@@ -158,6 +158,10 @@ worked examples.
 
 ActPlane feeds rule-match reasons back to agents via their hook systems.
 
+This repo includes a ready-to-use Codex hook at `.codex/hooks.json`. It runs
+`./collector/target/release/actplane feedback-hook` after each tool call and
+injects any new `.actplane/last-violation.txt` content into the next model turn.
+
 **Claude Code** (`.claude/settings.local.json`):
 
 ```json
@@ -182,6 +186,20 @@ ActPlane feeds rule-match reasons back to agents via their hook systems.
 The adapter forwards new rule matches as hook context. The kernel remains the sole
 authority for observation and enforcement. See [`script/CLAUDE.snippet.md`](script/CLAUDE.snippet.md)
 for the agent instruction snippet.
+
+ActPlane also ships an MCP server:
+
+```bash
+actplane mcp
+```
+
+It exposes `actplane:///policy` for live policy validation and
+`actplane:///feedback` for the latest corrective feedback. To have Codex start it
+automatically, register the stdio server once:
+
+```bash
+codex mcp add actplane --env ACTPLANE_PROJECT_DIR=/path/to/repo -- /path/to/actplane mcp
+```
 
 ## How it works
 

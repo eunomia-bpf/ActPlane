@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./collector/target/release/actplane feedback-hook",
+            "statusMessage": "Checking ActPlane feedback"
+          }
+        ]
+      }
+    ]
+  }
+}
