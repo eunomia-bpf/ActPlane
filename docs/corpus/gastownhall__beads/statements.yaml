@@ -46,7 +46,8 @@ statements:
       - **Project Scope** - Read [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md) before adding new feature surface area
     type: directive
     topic: Development Process
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 5
@@ -64,7 +65,8 @@ statements:
       - **Contributor Protection** - Read [CONTRIBUTING.md](CONTRIBUTING.md) before handling external PRs
     type: directive
     topic: Development Process
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 7
@@ -73,7 +75,8 @@ statements:
       - **Maintainer PR Guidelines** - Read [PR_MAINTAINER_GUIDELINES.md](PR_MAINTAINER_GUIDELINES.md) before triaging, landing, or closing PRs
     type: directive
     topic: Development Process
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 8

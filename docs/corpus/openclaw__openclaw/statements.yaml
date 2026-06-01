@@ -44,7 +44,8 @@ statements:
 
     type: directive
     topic: Documentation
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 5
@@ -65,7 +66,8 @@ statements:
 
     type: directive
     topic: Implementation Details
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 7

@@ -173,9 +173,10 @@ statements:
       ### Hook Scripts
       Hook scripts in `src/hooks/` are standalone Node.js scripts (no iii-sdk import). They read JSON from stdin, make HTTP calls to the REST API, and exit. Always use `try/catch` with `AbortSignal.timeout()` for best-effort calls.
 
-    type: description
+    type: directive
     topic: Implementation Details
-    enforceability: null
+    enforceability: content
+    context_required: project
     confidence: high
 
   - id: 11

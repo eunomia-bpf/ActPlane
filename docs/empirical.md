@@ -14,25 +14,29 @@ context requirement (none, project context, or task context).
 
 Four findings emerge in a layered progression. First, **instruction
 files are behavioral policies, not documentation**: 63% of statements
-are directives, though this majority is in
-visible at line level (48%)
+are directives, though this majority is invisible at line level (48%)
 because directives are terse (3.6 lines) while descriptions are verbose
-(6.7 lines). Second, **file-level topic analysis systematically
+(6.8 lines). Second, **file-level topic analysis systematically
 distorts the picture**: Architecture ranks first by file prevalence in
-prior studies but is 78% description; the true directive-dense topics
+prior studies but is 77% description; the true directive-dense topics
 are Development Process (87% directive) and Implementation Details
-(85%). Third, **81% of directives involve system behavior**,
+(85%). Third, **83% of directives involve system behavior**,
 but they require different enforcement mechanisms: content-level
 inspection (38%), per-event OS matching (29%), and cross-event state
-tracking (14%). Fourth, **the enforcement gap is wider than the
-directive-level percentages suggest**: 94% of repositories need
-per-event OS enforcement, 78% need cross-event information-flow
-tracking, and 48% need all four enforcement layers simultaneously.
+tracking (16%). Fourth, **the enforcement gap is wider than the
+directive-level percentages suggest**: 90% of repositories need
+per-event OS enforcement, 81% need cross-event information-flow
+tracking, and 43% need all four enforcement layers simultaneously.
+Fifth, **most system-level rules are not self-contained**: 74% require
+additional context — project structure (64%) or current task intent
+(9%) — before they can be translated into concrete enforcement rules,
+quantifying the need for an agent-programmable policy interface.
 
-Our annotated dataset and three-axis taxonomy provide a quantitative
+Our annotated dataset and four-axis taxonomy provide a quantitative
 foundation for agent harness engineering — not just what topics
-developers address, but what specific rules they write and which
-mechanisms each rule requires.
+developers address, but what specific rules they write, which
+mechanisms each rule requires, and what context must be supplied to
+make each rule enforceable.
 
 ---
 
@@ -789,9 +793,9 @@ Estimated annotation error rate after correction is 5–8%.
 
 #### 5.1.1 RQ1a: By statement count
 
-Of the 2,152 statements extracted from 64 repositories, 1,361 (63.2%) are
-directives and 791 (36.8%) are descriptions. The per-repository directive
-fraction has a median of 69.6% and mean of 63.4%, indicating that the
+Of the 2,152 statements extracted from 64 repositories, 1,366 (63.5%) are
+directives and 786 (36.5%) are descriptions. The per-repository directive
+fraction has a median of 70.0% and mean of 63.5%, indicating that the
 majority of instruction-file content is directive rather than
 informational. One repository (HKUDS/DeepTutor) contains only descriptions
 (0% directives); at the other extreme, alibaba/OpenSandbox is 97%
@@ -800,11 +804,11 @@ directives.
 | Metric | Value |
 |---|---|
 | Total statements | 2,152 |
-| Description | 791 (36.8%) |
-| Directive | 1,361 (63.2%) |
-| Statements per repo (median / mean) | 28 / 33.6 |
+| Description | 786 (36.5%) |
+| Directive | 1,366 (63.5%) |
+| Statements per repo (median / mean) | 29 / 33.6 |
 | Directives per repo (median / mean) | 15 / 21.3 |
-| Directive fraction per repo (median) | 69.6% |
+| Directive fraction per repo (median) | 70.0% |
 
 Figure 1 shows the per-repository directive fraction sorted from lowest
 to highest. The median is 69.6%, and 75% of repositories have a directive
@@ -819,18 +823,18 @@ median (69.6%).*
 #### 5.1.2 RQ1b: By line count
 
 The same question measured by source lines yields a different answer.
-Of the 10,209 lines covered by the corpus, 4,890 (47.9%) belong to
-directive statements and 5,319 (52.1%) belong to descriptions. The
-per-repository median drops to 55.4%.
+Of the 10,209 lines covered by the corpus, 4,903 (48.0%) belong to
+directive statements and 5,306 (52.0%) belong to descriptions. The
+per-repository median drops to 56.7%.
 
 | Metric | By statements | By lines |
 |---|---|---|
-| Directive | 1,361 (63.2%) | 4,890 (47.9%) |
-| Description | 791 (36.8%) | 5,319 (52.1%) |
-| Per-repo median | 69.6% | 55.4% |
+| Directive | 1,366 (63.5%) | 4,903 (48.0%) |
+| Description | 786 (36.5%) | 5,306 (52.0%) |
+| Per-repo median | 70.0% | 56.7% |
 
-The 15.3 percentage-point gap arises because directives are terse (average
-3.6 lines per statement) while descriptions are verbose (average 6.7
+The 13.3 percentage-point gap arises because directives are terse (average
+3.6 lines per statement) while descriptions are verbose (average 6.8
 lines). A typical directive is a one-line list item ("Never push to
 main"); a typical description is a multi-line directory listing or
 code block.
@@ -870,10 +874,10 @@ are overwhelmingly directive, while System Overview (0%) and Architecture
 
 | Topic | Desc | Dir | Total | % | Dir% | Lines | L% |
 |---|---|---|---|---|---|---|---|
-| Development Process | 58 | 371 | 429 | 19.9% | 86.5% | 1,707 | 16.7% |
-| Implementation Details | 59 | 334 | 393 | 18.3% | 85.0% | 1,414 | 13.9% |
-| Architecture | 283 | 81 | 364 | 16.9% | 22.3% | 2,417 | 23.7% |
-| Build and Run | 84 | 124 | 208 | 9.7% | 59.6% | 1,407 | 13.8% |
+| Development Process | 57 | 371 | 428 | 19.9% | 86.7% | 1,706 | 16.7% |
+| Implementation Details | 58 | 335 | 393 | 18.3% | 85.2% | 1,414 | 13.9% |
+| Architecture | 281 | 84 | 365 | 17.0% | 23.0% | 2,418 | 23.7% |
+| Build and Run | 83 | 125 | 208 | 9.7% | 60.1% | 1,407 | 13.8% |
 | AI Integration | 45 | 156 | 201 | 9.3% | 77.6% | 888 | 8.7% |
 | Testing | 50 | 139 | 189 | 8.8% | 73.5% | 861 | 8.4% |
 | System Overview | 84 | 0 | 84 | 3.9% | 0.0% | 391 | 3.8% |
@@ -882,7 +886,7 @@ are overwhelmingly directive, while System Overview (0%) and Architecture
 | Security | 18 | 37 | 55 | 2.6% | 67.3% | 180 | 1.8% |
 | DevOps | 29 | 14 | 43 | 2.0% | 32.6% | 178 | 1.7% |
 | Maintenance | 7 | 34 | 41 | 1.9% | 82.9% | 194 | 1.9% |
-| **Total** | **791** | **1,361** | **2,152** | **100%** | **63.2%** | **10,209** | **100%** |
+| **Total** | **786** | **1,366** | **2,152** | **100%** | **63.5%** | **10,209** | **100%** |
 
 ![RQ2b](tmp/fig3_rq2b_directive_ratio.png)
 *Figure 3. Directive ratio per topic, sorted. Red > 70%, yellow 40--70%,
@@ -967,17 +971,17 @@ directives per repository to cover the corpus.
 
 #### 5.4.1 RQ4a: What fraction of directives are system-enforceable?
 
-Of the 1,361 directives, 1,096 (80.5%) relate to observable system
-behavior. Only 265 (19.5%) are semantic-only (reasoning strategy,
+Of the 1,366 directives, 1,129 (82.7%) relate to observable system
+behavior. Only 237 (17.3%) are semantic-only (reasoning strategy,
 communication style, output format) with no system-level counterpart.
 
 | Level | Count | % |
 |---|---|---|
-| Semantic-only | 265 | 19.5% |
-| Content | 516 | 37.9% |
-| Per-event | 391 | 28.7% |
-| Cross-event | 189 | 13.9% |
-| **System-enforceable total** | **1,096** | **80.5%** |
+| Semantic-only | 237 | 17.3% |
+| Content | 522 | 38.2% |
+| Per-event | 392 | 28.7% |
+| Cross-event | 215 | 15.7% |
+| **System-enforceable total** | **1,129** | **82.7%** |
 
 ![RQ4a](tmp/fig7_rq4a_enforceability_overall.png)
 *Figure 7. Enforcement-level distribution across all 1,361 directives.
@@ -1042,30 +1046,30 @@ cross-event IFC closes the remaining 13.9%.*
 | Layer | Cumulative | Marginal |
 |---|---|---|
 | None | 0% | — |
-| + Semantic-only (model compliance) | 19.5% | 19.5% |
-| + Content (file content inspection) | 57.4% | 37.9% |
-| + Per-event (single-operation matching) | 86.1% | 28.7% |
-| + Cross-event (IFC engine) | 100% | 13.9% |
+| + Semantic-only (model compliance) | 17.3% | 17.3% |
+| + Content (file content inspection) | 55.6% | 38.2% |
+| + Per-event (single-operation matching) | 84.3% | 28.7% |
+| + Cross-event (IFC engine) | 100% | 15.7% |
 
 **Takeaway.** Linter tools (the most widely deployed enforcement
-mechanism for coding agents) cover only 57.4% of directives. Adding
+mechanism for coding agents) cover only 55.6% of directives. Adding
 per-event syscall matching (as provided by ActPlane's basic rules)
-raises coverage to 86.1%. The remaining 13.9% — cross-event
+raises coverage to 84.3%. The remaining 15.7% — cross-event
 directives requiring state across multiple operations — are exactly the
 gap that labeled information-flow control addresses. No existing
 deployed mechanism covers this layer.
 
 #### 5.4.5 RQ4e: Where do cross-event directives concentrate?
 
-The 189 cross-event directives are not uniformly distributed. Figure 11
+The 215 cross-event directives are not uniformly distributed. Figure 11
 shows their concentration by topic.
 
 ![RQ4e](tmp/fig11_rq4e_cross_event_by_topic.png)
 *Figure 11. Cross-object directives by topic. Development Process
 accounts for 43.4% of all cross-event directives.*
 
-Development Process alone accounts for 82 of 189 cross-event directives
-(43.4%). Common patterns include:
+Development Process alone accounts for 85 of 215 cross-event directives
+(39.5%). Common patterns include:
 - **Ordering**: "run tests before committing" (temporal gate)
 - **Cross-file consistency**: "update docs when behavior changes"
   (multi-file tracking)
@@ -1087,9 +1091,9 @@ Figure 12 shows each repository's enforceability breakdown.
 count. Each bar shows the mix of semantic-only (gray), content (blue),
 per-event (green), and cross-event (red).*
 
-At the repository level, 78% of projects (49/63) contain at least one
-cross-event directive, 94% (59/63) need per-event enforcement, and
-48% (30/63) require all four enforcement layers simultaneously.
+At the repository level, 81% of projects (51/63) contain at least one
+cross-event directive, 90% (57/63) need per-event enforcement, and
+43% (27/63) require all four enforcement layers simultaneously.
 
 #### 5.4.7 RQ4g: What fraction of repos need each enforcement layer?
 
@@ -1149,21 +1153,21 @@ directive mix.
 
 #### 5.5.1 RQ6a: Overall context distribution
 
-Of the 1,096 system-level directives, 298 (27.2%) are self-contained
-(none), 718 (65.5%) require project context, and 80 (7.3%) require task
-context. In total, 72.8% of system-level directives cannot be enforced
+Of the 1,129 system-level directives, 298 (26.4%) are self-contained
+(none), 725 (64.2%) require project context, and 106 (9.4%) require task
+context. In total, 73.6% of system-level directives cannot be enforced
 from the directive text alone — they require additional information
 from the repository or the current session.
 
 | Context | Count | % |
 |---|---|---|
-| None | 298 | 27.2% |
-| Project | 718 | 65.5% |
-| Task | 80 | 7.3% |
+| None | 298 | 26.4% |
+| Project | 725 | 64.2% |
+| Task | 106 | 9.4% |
 
 ![RQ6a](tmp/fig15_rq6a_context_overall.png)
-*Figure 15. Context requirement distribution across all 1,096
-system-level directives. 72.8% need additional context to enforce.*
+*Figure 15. Context requirement distribution across all 1,129
+system-level directives. 73.6% need additional context to enforce.*
 *(Script: `docs/tmp/fig_all_rqs.py`)*
 
 #### 5.5.2 RQ6b: Context requirement by enforcement level
@@ -1172,39 +1176,41 @@ Context requirement varies sharply across enforcement levels:
 
 | | None | Project | Task | Total |
 |---|---|---|---|---|
-| **Content** | 222 (43.0%) | 288 (55.8%) | 6 (1.2%) | 516 |
-| **Per-event** | 66 (16.9%) | 267 (68.3%) | 58 (14.8%) | 391 |
-| **Cross-event** | 10 (5.3%) | 163 (86.2%) | 16 (8.5%) | 189 |
+| **Content** | 222 (42.5%) | 293 (56.1%) | 7 (1.3%) | 522 |
+| **Per-event** | 66 (16.8%) | 267 (68.1%) | 59 (15.1%) | 392 |
+| **Cross-event** | 10 (4.7%) | 165 (76.7%) | 40 (18.6%) | 215 |
 
 ![RQ6b](tmp/fig16_rq6b_context_by_enforcement.png)
 *Figure 16. Context requirement by enforcement level (normalized).
 Cross-event directives are the most context-dependent (94.7% need
 project or task context).*
 
-Content directives are the most likely to be self-contained (43.0%
+Content directives are the most likely to be self-contained (42.5%
 none) because coding style rules often spell out the exact pattern
 ("prefer `const` over `let`"). Cross-event directives are the most
-context-dependent: 86.2% need project context and 5.3% need task
+context-dependent: 76.7% need project context and 18.6% need task
 context, because temporal ordering and data-flow constraints almost
 always reference project-specific tools and workflows ("run tests
 before committing" — which test command?).
 
-Task context concentrates in per-event directives (58/80 = 72.5%),
-primarily approval gates ("do not commit without user approval") and
-scope-relative constraints ("keep changes focused").
+Task context concentrates in per-event directives (59/106 = 55.7%)
+and cross-event directives (40/106 = 37.7%). Per-event task directives
+are primarily approval gates ("do not commit without user approval"),
+while cross-event task directives are primarily "read X before Y"
+ordering constraints where the trigger is task-dependent.
 
 #### 5.5.3 RQ6c: Context requirement by topic
 
 ![RQ6c](tmp/fig17_rq6c_context_by_topic.png)
 *Figure 17. Context requirement by topic (normalized).*
 
-**Takeaway.** The majority of system-level directives (72.8%) are not
+**Takeaway.** The majority of system-level directives (73.6%) are not
 self-contained — they require the enforcement mechanism to read the
-repository (65.5%) or know the current task (7.3%) before the directive
+repository (64.2%) or know the current task (9.4%) before the directive
 can be translated into a concrete rule. This quantifies the need for
 an agent-programmable policy interface: the agent must read the repo
 and understand the task to generate enforcement rules. Hardcoded rules
-cover only 27.2% of system-level directives.
+cover only 26.4% of system-level directives.
 
 ---
 
@@ -1235,9 +1241,9 @@ Details (334). File-level analysis cannot make this distinction.
 
 The cumulative coverage curve (Figure 10) identifies a concrete
 enforcement gap. Linter tools — the most widely deployed enforcement
-mechanism for coding agents — cover 57.4% of directives. Adding
-per-event syscall matching raises coverage to 86.1%. But 189 directives
-(13.9%) require cross-event state tracking: knowing what files were
+mechanism for coding agents — cover 55.6% of directives. Adding
+per-event syscall matching raises coverage to 84.3%. But 215 directives
+(15.7%) require cross-event state tracking: knowing what files were
 previously read, what commands previously ran, or whether a multi-file
 update is consistent.
 
@@ -1266,19 +1272,19 @@ the motivation for labeled information-flow control at the OS level.
 The enforceability profiles (Figure 9) suggest that an effective agent
 harness must be layered:
 
-- **Semantic-only layer** (19.5% of directives): irreducible — these
+- **Semantic-only layer** (17.3% of directives): irreducible — these
   depend on model compliance. Examples: "be concise", "explain your
   reasoning", "prefer the lightest-weight path." No deterministic
   mechanism can enforce these; the harness can only inject them as
   context.
-- **Content layer** (37.9%): code style, naming, formatting, commit
+- **Content layer** (38.2%): code style, naming, formatting, commit
   message structure. Existing tools (ruff, clippy, eslint, oxlint)
   already cover this; the harness contribution is ensuring they run.
 - **Per-event layer** (28.7%): command restrictions, file-path
   constraints, tool-choice rules. Enforceable by matching a single
   syscall or tool call against a pattern. This is ActPlane's basic
   rule model.
-- **Cross-event layer** (13.9%): ordering, consistency, workflow
+- **Cross-event layer** (15.7%): ordering, consistency, workflow
   constraints. Requires label propagation across process/file/network
   boundaries. This is ActPlane's IFC engine.
 
@@ -1445,11 +1451,11 @@ distortion.
 (median 15). The top 10 repos account for 40.6% of all directives,
 indicating a right-skewed distribution.
 
-**RQ4 (Enforcement level).** 80.5% of directives involve system-observable
-behavior. Content-level enforcement covers 37.9%, per-event matching
-covers an additional 28.7%, and the remaining 13.9% require cross-event
-state tracking. Although 13.9% sounds modest at the directive level,
-78% of repositories contain at least one such directive, and 48% require
+**RQ4 (Enforcement level).** 82.7% of directives involve system-observable
+behavior. Content-level enforcement covers 38.2%, per-event matching
+covers an additional 28.7%, and the remaining 15.7% require cross-event
+state tracking. Although 15.7% sounds modest at the directive level,
+81% of repositories contain at least one such directive, and 43% require
 all four enforcement layers simultaneously. This cross-event gap —
 concentrated in Development Process (ordering constraints, cross-file
 consistency) — is the enforcement gap that no currently deployed

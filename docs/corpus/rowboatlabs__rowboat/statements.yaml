@@ -232,7 +232,8 @@ statements:
 
     type: directive
     topic: Documentation
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 15

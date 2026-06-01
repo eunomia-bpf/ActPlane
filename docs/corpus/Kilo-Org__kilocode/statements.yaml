@@ -114,7 +114,7 @@ statements:
       - **CLI build artifact size check**: after `bun run script/build.ts --single --skip-install` in `packages/opencode/`, use `du -h dist/*/*/bin/kilo` (scoped package output lives under `dist/@kilocode/`)
     type: directive
     topic: Build and Run
-    enforceability: per_event
+    enforceability: cross_event
     context_required: project
     confidence: high
 
@@ -272,7 +272,8 @@ statements:
       - When a task primarily touches `packages/kilo-jetbrains/`, read `packages/kilo-jetbrains/AGENTS.md` before planning or editing. It covers split-mode architecture, IntelliJ source lookup, threading fundamentals, UI guidelines, and session component architecture.
     type: directive
     topic: AI Integration
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 28

@@ -164,7 +164,8 @@ statements:
       Security-sensitive code paths require extra test coverage.
     type: directive
     topic: Testing
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 11

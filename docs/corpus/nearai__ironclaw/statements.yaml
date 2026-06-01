@@ -22,6 +22,7 @@ statements:
       - `src/agent/CLAUDE.md`
       - `src/channels/web/CLAUDE.md`
       - `src/db/CLAUDE.md`
+
       - `crates/ironclaw_llm/CLAUDE.md`
       - `src/setup/README.md`
       - `src/tools/README.md`
@@ -31,7 +32,8 @@ statements:
 
     type: directive
     topic: Documentation
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 3

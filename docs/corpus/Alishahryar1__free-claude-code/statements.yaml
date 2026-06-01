@@ -8,7 +8,8 @@ statements:
       > This file is identical to CLAUDE.md. Keep them in sync.
     type: directive
     topic: Documentation
-    enforceability: semantic_only
+    enforceability: content
+    context_required: project
     confidence: high
 
   - id: 2
@@ -59,7 +60,8 @@ statements:
       - Read `.env.example` for environment variables.
     type: directive
     topic: Configuration & Environment
-    enforceability: semantic_only
+    enforceability: per_event
+    context_required: project
     confidence: high
 
   - id: 7

@@ -74,7 +74,8 @@ statements:
       Before changing runtime code, exported APIs, external configuration, persisted schemas, wire protocols, or other user-facing behavior, use `$implementation-strategy` to decide the compatibility boundary and implementation shape. Judge breaking changes against the latest release tag, not unreleased branch-local churn. Interfaces introduced or changed after the latest release tag may be rewritten without compatibility shims unless they define a released or explicitly supported durable external state boundary, or the user explicitly asks for a migration path. Unreleased persisted formats on `main` may be renumbered or squashed before release when intermediate snapshots are intentionally unsupported.
     type: directive
     topic: AI Integration
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 6
@@ -88,7 +89,8 @@ statements:
       Skip `$pr-draft-summary` only for trivial or conversation-only tasks, repo-meta/doc-only tasks without behavior impact, or when the user explicitly says not to include the PR draft block.
     type: directive
     topic: AI Integration
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 7

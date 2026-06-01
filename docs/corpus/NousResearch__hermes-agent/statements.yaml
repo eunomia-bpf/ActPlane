@@ -370,9 +370,10 @@ statements:
       **Structured React UI around the TUI is allowed when it is not a second chat surface.** Sidebar widgets, inspectors, summaries, status panels, and similar supporting views (e.g. `ChatSidebar`, `ModelPickerDialog`, `ToolCall`) are fine when they complement the embedded TUI rather than replacing the transcript / composer / terminal. Keep their state independent of the PTY child's session and surface their failures non-destructively so the terminal pane keeps working unimpaired.
 
       ---
-    type: description
+    type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: content
+    context_required: project
     confidence: high
 
   - id: 16
@@ -428,7 +429,8 @@ statements:
       ---
     type: directive
     topic: Development Process
-    enforceability: semantic_only
+    enforceability: content
+    context_required: task
     confidence: high
 
   - id: 17
@@ -1386,7 +1388,8 @@ statements:
       with actual imports (not mocks) against a temp `HERMES_HOME`.
     type: directive
     topic: Testing
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 49

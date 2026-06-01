@@ -233,9 +233,10 @@ statements:
     lines: [120, 121]
     text: |
       - Config fields added to `KernelConfig` struct MUST also be added to the `Default` impl or build fails
-    type: description
-    topic: Development Process
-    enforceability: null
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
     confidence: high
 
   - id: 15

@@ -42,7 +42,8 @@ statements:
       - For `server/**`, or lifecycle server behavior, sandbox creation flow, or user-visible server config, read `server/AGENTS.md`.
     type: directive
     topic: AI Integration
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 4
@@ -51,7 +52,8 @@ statements:
       - For `sdks/**`, or SDK generation, handwritten adapters, or cross-language SDK alignment, read `sdks/AGENTS.md`.
     type: directive
     topic: AI Integration
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 5
@@ -60,7 +62,8 @@ statements:
       - For `specs/**`, or API contract, schema, or example changes, read `specs/AGENTS.md`.
     type: directive
     topic: AI Integration
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 6
@@ -69,7 +72,8 @@ statements:
       - For `kubernetes/**`, or CRDs, controller behavior, task execution, Helm/Kustomize deployment, pool scheduling, pause/resume snapshots, or Kind e2e tests, read `kubernetes/AGENTS.md`.
     type: directive
     topic: AI Integration
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 7
@@ -78,7 +82,8 @@ statements:
       - For cross-cutting changes spanning spec, server, and SDKs, start with `specs/AGENTS.md` and then read affected consumer guides.
     type: directive
     topic: AI Integration
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 8

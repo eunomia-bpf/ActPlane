@@ -58,7 +58,8 @@ statements:
 
     type: directive
     topic: AI Integration
-    enforceability: semantic_only
+    enforceability: cross_event
+    context_required: task
     confidence: high
 
   - id: 4

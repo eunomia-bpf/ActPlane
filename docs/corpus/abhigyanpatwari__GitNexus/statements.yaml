@@ -102,9 +102,10 @@ statements:
     lines: [42, 43]
     text: |
       - **Call-resolution DAG (legacy path):** See ARCHITECTURE.md § Call-Resolution DAG. Typed 6-stage DAG inside the `parse` phase; language-specific behavior behind `inferImplicitReceiver` / `selectDispatch` hooks on `LanguageProvider`. Shared code in `gitnexus/src/core/ingestion/` must not name languages. Types: `gitnexus/src/core/ingestion/call-types.ts`.
-    type: description
+    type: directive
     topic: Architecture
-    enforceability: null
+    enforceability: content
+    context_required: project
     confidence: high
 
   - id: 9

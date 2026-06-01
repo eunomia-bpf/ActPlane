@@ -128,7 +128,8 @@ statements:
 
     type: directive
     topic: Testing
-    enforceability: semantic_only
+    enforceability: per_event
+    context_required: task
     confidence: high
 
   - id: 10

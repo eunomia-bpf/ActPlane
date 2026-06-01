@@ -87,9 +87,10 @@ statements:
     text: |
       Note: `tests/conftest.py` checks that `skill_seekers` is importable and calls `sys.exit(1)` if not. Always install in editable mode first.
 
-    type: description
+    type: directive
     topic: Build and Run
-    enforceability: null
+    enforceability: cross_event
+    context_required: project
     confidence: high
 
   - id: 8
