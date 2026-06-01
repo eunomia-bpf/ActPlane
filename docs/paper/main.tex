@@ -19,28 +19,29 @@
   \country{}}
 
 \begin{abstract}
-AI coding agents require harnesses to apply behavioral policies 
+AI coding agents require harnesses to apply behavioral policies
 for effective and safe operation: e.g. do not leak secrets, run tests before committing.
 Our empirical study of 64 projects shows that while project harness
 instructions are declared in natural language, 64\%
-consist of behavioral policies, 83\% of which involve system-level
-behavior, and 81\% of projects require cross-event state tracking;
-while 74\% of system-level rules require intent-level project or
-task context to evaluate.
+consist of behavioral policies.
 
 Yet existing agent harnesses fail to connect intent-level declarations
 to deterministic system-level policies, leaving a \emph{semantic gap}.
-Prompt constraints operate at the probabilistic intent level, tool-call
-guardrails lose track of system-level actions, while current OS-level
+While 83\% of directives involve system-level behavior,
+prompt constraints operate at the probabilistic intent level.
+81\% of projects require cross-event state tracking, but tool-call
+guardrails lose track of system-level actions.
+74\% of system-level rules require intent-level project or
+task context to evaluate, while current OS-level
 mechanisms expect pre-defined static
-policy and return only system events without semantic context. To
-address this, we argue the policy engine should be exposed as a 
+policy and return only system events without semantic context.
+To address this, we argue the policy engine should be exposed as a
 programmable interface, allowing agents
-to dynamically define and adapt their policy 
-for their own system-level actions 
+to dynamically define and adapt their policy
+for their own system-level actions
 based on their intent context.
-We realize this in ActPlane, which allows agents to declare cross-event 
-behavior as labeled information-flow control (IFC) policies that 
+We realize this in ActPlane, which allows agents to declare cross-event
+behavior as labeled information-flow control (IFC) policies under  that
 observe and enforce the agents' actions across process, file, and
 network boundaries with semantic feedback.
 We implement ActPlane with eBPF and evaluate on 607 policies from the

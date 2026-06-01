@@ -501,6 +501,81 @@ agent semantic gap, but observe-only).
 
 ---
 
+## 8. Agent Safety Benchmarks
+
+Benchmarks for evaluating AI agent safety and behavioral compliance. Most target a different
+threat model from ActPlane (prompt injection or inherent agent unsafety, vs. enforcement of
+project-defined behavioral policies), but they define the evaluation landscape ActPlane is
+positioned against.
+
+**AgentDojo** (Debenedetti et al., NeurIPS 2024 D&B; `agentdojo.pdf`;
+[github](https://github.com/ethz-spylab/agentdojo)). The de facto standard benchmark for
+agent safety papers. 97 user tasks across themed suites (Workspace, Slack, Banking, Travel),
+629 security test cases created by combining tasks with injection scenarios. Metrics are
+programmatic (state-inspection functions): utility rate (task completed) and attack success
+rate (injected goal achieved). Jointly measures utility and security so defenses that kill
+utility are penalized.
+*vs ActPlane:* **Different threat model.** AgentDojo tests resistance to *prompt injection
+attacks* — adversarial inputs embedded in tool responses. ActPlane enforces *behavioral policy
+compliance* (project-defined workflow rules like "run tests before committing"). The two are
+complementary but not substitutable: an agent can pass AgentDojo (no injection succeeds) while
+violating every ActPlane rule (never runs tests, pushes to main, deletes vendor/). No
+OS-level behavioral-policy benchmark exists in AgentDojo.
+
+**OpenAgentSafety** (Vijayvargiya et al., ICLR 2026; `openagentsafety.pdf`;
+[github](https://github.com/Open-Agent-Safety/OpenAgentSafety)). 350+ tasks across 8 risk
+categories (security compromise, data loss, privacy breach, unsafe code execution, financial
+loss, malicious content, legal violations, harmful decisions). Built on OpenHands; agents run
+in Docker containers with real tools (bash, file system, GitLab, OwnCloud). Evaluation:
+rule-based (Python `eval.py` per task, checks final environment state, binary safe/unsafe) +
+LLM-as-Judge (GPT-4.1 scores trajectories). 49–73% unsafe rate across 7 frontier models.
+*vs ActPlane:* Closer to ActPlane's domain — agents interact with real file systems and bash.
+But the threat model is different: OA-Safety tests whether *the agent itself* is unsafe
+(inherent model behavior), while ActPlane tests whether *an enforcement mechanism* prevents
+policy violations. Only ~30–40% of OA-Safety's risk categories are OS-level enforceable (data
+loss, code execution, some security compromise); the rest (financial loss, malicious content,
+legal violations, harmful decisions) are semantic-layer and outside ActPlane's scope. Using
+OA-Safety directly would show ActPlane covering only a subset, which misrepresents its design
+intent. The evaluation approach (rule-based environment-state checks) is transferable.
+
+**ODCV-Bench** (McGill, Dec 2025; arXiv 2512.20798; `odcv-bench.pdf`;
+[github](https://github.com/McGill-DMaS/ODCV-Bench)). 40 multi-step scenarios across 6
+domains (Healthcare, Finance, Logistics, etc.) in persistent Docker bash environments. Tests
+whether agents violate behavioral constraints under KPI pressure. Two variants: "mandated"
+(explicit instructions to violate) vs "incentivized" (KPI pressure only). Scoring: 0–5 rubric
+(0=legitimate, 3=loophole exploitation, 5=systemic fraud); 4 independent LLM judges, median
+aggregation, Krippendorff's α = 0.81.
+*vs ActPlane:* Tests agent constraint compliance under pressure — thematically close. But
+constraints are defined in natural language (system prompts), evaluation is purely post-hoc
+(LLM judges score trajectories after execution), and there is **no runtime enforcement hook**.
+Agents execute freely; the benchmark only *measures* violations, not *prevents* them.
+ActPlane's contribution (runtime kernel-level enforcement + feedback) cannot be tested in
+ODCV-Bench's framework without modification. However, the "with vs without ActPlane" unsafe
+score comparison could be a supplementary experiment.
+
+**Claw-Eval** (Apr 2026; arXiv). 300 tasks, 2,159 fine-grained rubric items, 14 frontier
+models. Three dimensions: Completion, Safety, Robustness. Hybrid grader uses deterministic
+matching on tool-call parameters; finds trajectory-opaque eval misses 44% of safety violations.
+*vs ActPlane:* Demonstrates need for trajectory-level (not just outcome) safety eval. Focused
+on service orchestration/dialogue, not CLI/coding policy enforcement.
+
+**Agent-SafetyBench** (Zhang et al., Dec 2024; arXiv). 349 environments, 2,000 test cases, 8
+risk categories, 10 failure modes. Best model (Claude-3-Opus) scores only 59.8% safe.
+*vs ActPlane:* Broad tool-use safety benchmark, not CLI-specific. Measures agent behavior
+without enforcement.
+
+**Why ActPlane uses its own corpus.** No existing benchmark tests OS-level behavioral policy
+enforcement for coding agents. AgentDojo tests injection resistance; OpenAgentSafety and
+ODCV-Bench test inherent agent unsafety; neither provides runtime enforcement hooks or
+project-defined workflow policies (the "run tests before committing" class of rules that
+ActPlane targets). ActPlane's evaluation uses 580 policies extracted from 64 real agent
+projects — the first corpus of OS-level behavioral directives — plus Terminal-Bench (89 tasks)
+as an external capability benchmark. This combination tests the specific claim (kernel
+enforcement + feedback improves policy compliance) that no existing benchmark is designed to
+measure.
+
+---
+
 ### Web sources
 
 - eBPF for AI-agent enforcement (what kernel-level catches/misses): https://www.armosec.io/blog/ebpf-based-ai-agent-enforcement/
