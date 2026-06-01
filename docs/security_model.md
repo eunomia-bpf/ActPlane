@@ -1,18 +1,27 @@
 # Security Model
 
-ActPlane's reusable engine should be described as:
+ActPlane's reusable engine has two layers:
 
 ```text
-IFC core: object + label + event + rule
-Runtime policy: domain + delta + authority
+IFC core:       object + label + event + rule
+Runtime policy: domain + binding + delta + authority
 ```
 
 Agent, subagent, MCP, hooks, prompts, and workspaces are integrations above this
 model. They are not part of the engine security model.
 
-## Domain
+## Core Entities
 
-A domain is the runtime policy boundary for a process tree.
+An IFC rule is pure system policy:
+
+```text
+rule = condition + effect + reason
+```
+
+It does not say whether it is mandatory for child domains. That is a runtime
+domain decision.
+
+A domain is the runtime policy boundary for a process tree:
 
 ```text
 pid -> domain
@@ -20,98 +29,316 @@ domain -> effective policy
 event(pid) checks only pid's domain
 ```
 
-If a rule is added to domain `review`, it affects processes bound to `review`.
-It does not affect unrelated domains.
-
 Files, sockets, and stdio are not domains. They are IFC objects that carry
 labels and participate in flow rules.
 
-## Rules
-
-A rule has:
+A binding attaches a rule to a domain:
 
 ```text
-condition
-effect
-reason
-lock mode
+binding = domain + rule + mode
 ```
 
-Effects are normal IFC effects:
+Binding modes:
 
 ```text
-notify
-block
-kill
+locked   -> child domain cannot disable this binding
+default  -> child domain may disable this binding for itself
 ```
 
-Lock mode is the layered-policy part:
+So "locked/default" belongs to the domain binding, not to the rule definition.
+
+## Two Logical YAMLs
+
+It is useful to keep two logical files, even if a CLI later allows them in one
+physical YAML.
+
+Rule catalog:
+
+```yaml
+version: 1
+
+rules:
+  no-git-branch:
+    ifc: |
+      rule no-git-branch:
+        kill exec "git" "branch"
+        because "do not create git branches"
+
+  no-network:
+    ifc: |
+      rule no-network:
+        kill connect any
+        because "network is disabled by default"
+
+  readonly:
+    ifc: |
+      rule readonly:
+        kill write file any
+        because "this domain is read-only"
+```
+
+Domain policy:
+
+```yaml
+version: 1
+
+domains:
+  session:
+    bind:
+      - rule: no-git-branch
+        mode: locked
+      - rule: no-network
+        mode: default
+```
+
+The same rule can be bound differently by different domains:
+
+```yaml
+domains:
+  review:
+    parent: session
+    bind:
+      - rule: readonly
+        mode: locked
+
+  build:
+    parent: session
+    bind:
+      - rule: readonly
+        mode: default
+```
+
+## Effective Policy
+
+For a domain `D`:
 
 ```text
-locked    -> child domain cannot disable this rule
-unlocked  -> child domain may disable this rule for itself
+locked(D)  = locked(parent(D)) + local_locked(D)
+default(D) = default(parent(D)) - disabled_defaults(D) + local_default(D)
+policy(D)  = locked(D) + default(D)
 ```
 
-This means parent domains can publish default block/kill policies without making
-all of them mandatory.
+Only locked policy is a security invariant:
+
+```text
+locked(child) >= locked(parent)
+```
+
+Here `>=` means "at least as restrictive", not "more privileges".
+
+Default policy is a template:
+
+```text
+default(parent)
+```
+
+Child domains may keep it, disable it, or replace it with stricter local policy.
 
 ## Child Updates
 
-A child domain may update its own policy if its authority allows it.
+A child domain may update its own domain policy if its authority allows it.
 
 Allowed updates:
 
 ```text
-add stricter rules
+add local default bindings
+add local locked bindings
+disable inherited default bindings
 add labels
 add gates
 narrow scope
-disable unlocked parent rules
 create child domains with no more authority than delegated
 ```
 
 Rejected updates:
 
 ```text
-disable locked parent rules
+disable inherited locked bindings
 modify parent domain state
 modify sibling domain state
-remove inherited locked rules
+remove inherited locked bindings
 widen scope
 remove labels or gates
 increase delegated authority
+mutate an existing locked rule definition
 ```
 
-The important distinction:
+## Examples
+
+### 1. Default Block That Child Disables
+
+Parent domain:
+
+```yaml
+domains:
+  session:
+    bind:
+      - rule: no-git-branch
+        mode: locked
+      - rule: no-network
+        mode: default
+```
+
+Child domain:
+
+```yaml
+domains:
+  review:
+    parent: session
+    disable:
+      - no-network
+```
+
+Result:
 
 ```text
-locked parent policy    = security invariant
-unlocked parent policy  = default policy
+review still enforces no-git-branch
+review does not enforce no-network
+session and sibling domains are unchanged
 ```
 
-Only locked policy participates in the non-bypass security invariant.
+Trying to disable `no-git-branch` is rejected because its inherited binding is
+locked.
 
-## Invariant
+### 2. Child Adds a Locked Rule for Its Own Children
 
-For any child domain:
+Child domain:
+
+```yaml
+domains:
+  review:
+    parent: session
+    bind:
+      - rule: readonly
+        mode: locked
+```
+
+Grandchild domain:
+
+```yaml
+domains:
+  review-helper:
+    parent: review
+    disable:
+      - readonly
+```
+
+Result:
 
 ```text
-locked_policy(child) >= locked_policy(parent)
+review-helper cannot disable readonly
+readonly was locked by review, so it is mandatory below review
+session policy is unchanged
 ```
 
-Here `>=` means "at least as restrictive", not "more privileges".
+This lets a child domain define stricter policy for its descendants without
+modifying the parent.
 
-Unlocked rules are different:
+### 3. Child Adds a Default Rule for Its Own Children
+
+Child domain:
+
+```yaml
+domains:
+  build:
+    parent: session
+    bind:
+      - rule: no-network
+        mode: default
+```
+
+Grandchild domain:
+
+```yaml
+domains:
+  build-fetch:
+    parent: build
+    disable:
+      - no-network
+```
+
+Result:
 
 ```text
-unlocked_policy(parent)
+build enforces no-network by default
+build-fetch may disable no-network
+locked rules inherited from session still apply
 ```
 
-is a default template. The child may keep it or disable it.
+### 4. Runtime Rule Addition
+
+Rules can be added at runtime if they are submitted as compiled policy deltas.
+The kernel should not parse YAML or DSL in the admission path.
+
+CLI shape:
+
+```bash
+actplane rule compile rules/no-curl.yaml --out no-curl.ir
+actplane domain bind review --rule-ir no-curl.ir --mode default
+```
+
+Semantics:
+
+```text
+userspace compiles rule DSL -> rule IR
+userspace submits add-rule delta
+kernel checks authority
+kernel installs rule into review's effective policy
+```
+
+A domain can also bind an existing catalog rule at runtime:
+
+```bash
+actplane domain bind review --rule no-network --mode locked
+```
+
+This is allowed only if the caller has authority to update `review`.
+
+### 5. Runtime Disable of Default Policy
+
+CLI shape:
+
+```bash
+actplane domain disable review no-network
+```
+
+Admission checks:
+
+```text
+caller can update review
+no-network is inherited as default, not locked
+review's effective locked policy remains unchanged
+```
+
+Rejected case:
+
+```bash
+actplane domain disable review no-git-branch
+```
+
+Reason:
+
+```text
+no-git-branch is inherited as locked
+```
 
 ## Runtime Delta Admission
 
-User space does not directly mutate effective policy state. It submits a delta:
+User space does not directly mutate effective policy state. It submits deltas.
+
+Useful delta classes:
+
+```text
+create_domain
+bind_rule
+add_rule_ir
+disable_default_rule
+add_label
+add_gate
+narrow_scope
+```
+
+A delta contains only precompiled IDs and masks:
 
 ```text
 caller_pid
@@ -121,10 +348,12 @@ add_label_mask
 add_restrict_mask
 add_gate_mask
 new_scope_id
-disable_unlocked_rule_ids
+bind_rule_ids
+bind_modes
+disable_default_rule_ids
 ```
 
-The kernel admits the delta only if:
+The kernel admits a delta only if:
 
 ```text
 caller_pid is bound to a domain
@@ -132,65 +361,32 @@ caller may affect the target domain
 caller has the required authority bits
 scope only narrows
 labels/gates/restrictions only add
-disabled rules are unlocked
-locked parent rules remain effective
+disabled rules are inherited as default
+locked parent bindings remain effective
+new locked bindings do not weaken inherited locked policy
 ```
 
 Accepted deltas are merged into the domain's already-computed effective state.
-The syscall fast path should not walk a domain tree.
+The syscall fast path should not walk the domain tree.
 
-## Example
+## Rule Identity
 
-Parent policy:
-
-```yaml
-rules:
-  - name: no-git-branch
-    locked: true
-    ifc: |
-      rule no-git-branch:
-        kill exec "git" "branch"
-        because "do not create git branches"
-
-  - name: no-network
-    locked: false
-    ifc: |
-      rule no-network:
-        kill connect any
-        because "network is disabled by default"
-```
-
-Child domain:
-
-```yaml
-domain:
-  id: review
-  parent: session
-  disable:
-    - no-network
-```
-
-Result:
+Runtime-added rules should be content-addressed or versioned:
 
 ```text
-no-git-branch remains enforced
-no-network is disabled only for review
-session and sibling domains are unchanged
+rule_id = hash(compiled_rule_ir)
 ```
 
-If the child tries:
+This prevents a child from changing the meaning of an inherited locked rule by
+reusing its name with different contents.
 
-```yaml
-disable:
-  - no-git-branch
-```
-
-the kernel rejects the delta because `no-git-branch` is locked.
+Names such as `no-network` are user-facing aliases. Kernel admission should use
+stable IDs or hashes.
 
 ## Current Implementation Mapping
 
-The current low-level ABI still uses `target_id` in some structs. In the security
-model, that id is a domain id:
+The current low-level ABI still uses `target_id` in some structs. In this model,
+that id is a domain id:
 
 ```text
 cap_task[pid] -> domain id
@@ -210,12 +406,26 @@ gate_mask
 label_mask
 ```
 
+Implemented today:
+
+```text
+user ringbuf request path
+domain-like state map
+pid-to-domain-like binding
+mask-based authority checks
+monotonic labels/restrictions/gates/scope update
+```
+
 Still needed to fully implement this model:
 
 ```text
-rule lock metadata
-domain disabled-rule set
-delta admission for disabling unlocked rules
+domain naming in public API
+rule catalog and stable rule IDs
+domain binding table
+locked/default binding metadata
+disabled-default rule set
+delta admission for bind/disable
+runtime add-rule IR maps
 dynamic child-domain creation
-tests for locked versus unlocked parent rules
+tests for locked versus default bindings
 ```
