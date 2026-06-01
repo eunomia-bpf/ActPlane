@@ -195,7 +195,7 @@ rules:
 - `frontend/` 整个删除（taint 工具是 CLI/NDJSON，无 web UI）。
 - `docs/` 仅保留本研究计划。
 
-eBPF 程序（`sslsniff`/`stdiocap`/`browsertrace`/`process_new`）按约定**保留功能**，只是 Rust 侧不再消费它们。
+旧 AgentSight demo 程序（`sslsniff`/`stdiocap`/`browsertrace`/`process_new`）已从 ActPlane 主线移除；`bpf/` 只保留 IFC engine、loader 和谓词单测。
 
 ### 9.6 验证
 

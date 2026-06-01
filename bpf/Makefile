@@ -31,7 +31,7 @@ CFLAGS += $(ASAN_FLAGS)
 ALL_LDFLAGS += $(ASAN_FLAGS)
 endif
 
-APPS = sslsniff browsertrace stdiocap process test_taint # minimal minimal_legacy uprobe kprobe fentry usdt sockfilter tc ksyscall
+APPS = process test_taint
 
 # All test programs (no BPF skeleton needed)
 TEST_APPS = test_taint
@@ -85,10 +85,6 @@ all: $(APPS)
 debug:
 	$(MAKE) ASAN=1 all
 
-.PHONY: sslsniff-debug
-sslsniff-debug:
-	$(MAKE) ASAN=1 sslsniff
-
 .PHONY: clean
 clean:
 	$(call msg,CLEAN)
@@ -98,27 +94,15 @@ clean:
 help:
 	@echo "Available targets:"
 	@echo "  all          - Build all applications"
-	@echo "  sslsniff     - Build sslsniff only"
-	@echo "  browsertrace - Build browsertrace only"
-	@echo "  stdiocap     - Build stdiocap only"
 	@echo "  process      - Build process tracer only"
 	@echo "  test         - Build and run tests"
 	@echo "  debug        - Build all applications with AddressSanitizer"
-	@echo "  sslsniff-debug - Build sslsniff with AddressSanitizer"
 	@echo "  clean        - Clean build artifacts"
-	@echo ""
-	@echo "Build with AddressSanitizer manually:"
-	@echo "  make ASAN=1 sslsniff"
 
 .PHONY: test
 test: test_taint
 	@echo "Running ActPlane taint tests..."
 	@./test_taint
-
-.PHONY: integration-test
-integration-test: process
-	@echo "Running integration tests (requires sudo)..."
-	@sudo python3 tests/test_integration.py
 
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
 	$(call msg,MKDIR,$@)

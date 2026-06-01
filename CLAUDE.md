@@ -127,7 +127,7 @@ directly into the BPF rodata. Any change to `taint.h` MUST be mirrored in
 
 ## eBPF verifier gotchas (see bpf/README.md for detail)
 
-- Mark deep helpers `__noinline` (own stack frame); `te_check` takes ≤ 5 args.
+- Mark deep helpers `__noinline` (own stack frame); keep `te_check_labels` small.
 - Copy each rodata rule into a non-volatile local before matching; matchers take
   `const char *`, not `const volatile char *`.
 - Use explicit `if (idx < N)` bound guards, never `idx & (N-1)` (pointer-OR reject).
@@ -146,7 +146,7 @@ directly into the BPF rodata. Any change to `taint.h` MUST be mirrored in
 ### Adding a kernel hook
 
 1. Add a `SEC("tp/...")` handler in `process.bpf.c`.
-2. Call the appropriate `te_*` propagation helper, then `te_check`.
+2. Call the appropriate `te_*` propagation helper, then `te_check_labels`.
 3. Emit only via `emit_violation()`.
 
 ## Running Codex CLI

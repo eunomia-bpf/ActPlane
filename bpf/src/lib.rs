@@ -20,6 +20,8 @@ use aya::maps::{Array, HashMap, RingBuf};
 use aya::programs::{Lsm, TracePoint};
 use aya::{Btf, Ebpf, EbpfLoader};
 
+pub mod capability;
+
 // ---- prebuilt eBPF object, 8-byte aligned for aya's ELF parser ----
 #[repr(align(8))]
 struct Aligned<T: ?Sized>(T);
@@ -279,8 +281,8 @@ impl Loader {
             }
         }
 
-        let has_connect = (0..cfg.n_rules as usize)
-            .any(|i| cfg.rules.get(i).map_or(false, |r| r.op == 3));
+        let has_connect =
+            (0..cfg.n_rules as usize).any(|i| cfg.rules.get(i).map_or(false, |r| r.op == 3));
 
         // Attach tracepoints (always) then LSM programs (only with BPF LSM).
         for (name, cat, event) in TRACEPOINTS {

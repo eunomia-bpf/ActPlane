@@ -254,8 +254,6 @@ struct te_event {
 	__u32 mode;
 	const char *target;
 	const char *display;
-	const char *argv;
-	int argv_len;
 	__u32 ip;
 };
 
@@ -409,7 +407,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 	if (ev->obj_kind == TE_OBJ_FILE && (ev->access & TE_ACCESS_READ))
 		labels |= te_file_labels(fid, ev->target);
 	if (ev->obj_kind == TE_OBJ_ENDPOINT && (ev->access & TE_ACCESS_CONNECT))
-		labels |= te_endp_src_ip(ev->ip);
+		labels |= te_update_add(TOP_CONNECT, 0, ev->ip);
 
 	if (ev->obj_kind == TE_OBJ_EXEC) {
 		eval.pid = ev->pid;
@@ -418,8 +416,6 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		eval.effect_mask = te_supported_effects(ev->mode);
 		eval.op = TOP_EXEC;
 		eval.target = ev->target;
-		eval.argv = ev->argv;
-		eval.argv_len = ev->argv_len;
 		rid = te_check_labels(&eval);
 		effect = eval.effect;
 		matched_req = eval.matched_req;
@@ -484,7 +480,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		if (ev->access & TE_ACCESS_WRITE)
 			te_write_flow(ev->pid, fid, ev->target);
 	} else if (ev->obj_kind == TE_OBJ_ENDPOINT) {
-		__u64 src_labels = te_endp_src_ip(ev->ip);
+		__u64 src_labels = te_update_add(TOP_CONNECT, 0, ev->ip);
 		te_add_labels(ev->pid, src_labels);
 		if (src_labels)
 			te_record_proc_prov_mask(ev->pid, src_labels, TOP_CONNECT, 0, ev->ip);
@@ -546,8 +542,7 @@ static __always_inline int te_handle_net(__u32 ref_kind, const void *a,
 }
 
 static __always_inline int te_handle_exec(__u32 ref_kind, const void *a,
-					  const void *b, const char *argv,
-					  int argv_len, __u32 mode)
+					  const void *b, __u32 mode)
 {
 	char match[TAINT_TEXT_BUF] = {}; /* >= PAT_LEN+SUF_MAX for suffix tail copy */
 	char display[MAX_FILENAME_LEN] = {};
@@ -578,15 +573,13 @@ static __always_inline int te_handle_exec(__u32 ref_kind, const void *a,
 	ev.mode = mode;
 	ev.target = target;
 	ev.display = shown;
-	ev.argv = argv;
-	ev.argv_len = argv_len;
 	return te_handle_event(&ev, 0);
 }
 
 SEC("lsm/bprm_check_security")
 int BPF_PROG(enforce_bprm_check_security, struct linux_binprm *bprm)
 {
-	return te_handle_exec(TE_REF_BPRM, bprm, 0, 0, 0, TE_MODE_BLOCK);
+	return te_handle_exec(TE_REF_BPRM, bprm, 0, TE_MODE_BLOCK);
 }
 
 SEC("lsm/file_open")
@@ -664,7 +657,6 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 	char fname[MAX_FILENAME_LEN] = {};
 	unsigned fname_off;
 	int alen = 0;
-	char *slots = 0;
 
 	bpf_get_current_comm(&comm, TASK_COMM_LEN);
 	te_exec_update(pid, comm);
@@ -683,12 +675,11 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 		if (len > 0 && bpf_probe_read_user(as->blob, len, (void *)a0) == 0)
 			alen = (int)len;
 		te_tokenize_args_eng(alen);
-		slots = as->slots;
 	}
 
 	fname_off = ctx->__data_loc_filename & 0xFFFF;
 	bpf_probe_read_str(fname, sizeof(fname), (void *)ctx + fname_off);
-	te_handle_exec(TE_REF_STRINGS, comm, fname, slots, alen, te_tracepoint_mode());
+	te_handle_exec(TE_REF_STRINGS, comm, fname, te_tracepoint_mode());
 	return 0;
 }
 

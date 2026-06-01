@@ -79,8 +79,6 @@ struct te_rule_eval {
 	__u64 labels;
 	unsigned int op;
 	const char *target;
-	const char *argv;
-	int argv_len;
 	__u32 ip;
 	unsigned int effect;
 	unsigned int effect_mask;
@@ -596,16 +594,9 @@ static __noinline void te_exec_update(pid_t pid, const char *comm)
 	}
 }
 
-static __noinline __u64 te_file_src(const char *path)
+static __noinline __u64 te_update_add(unsigned int op, const char *target, __u32 ip)
 {
-	struct te_update_ctx c = { .op = TOP_OPEN, .target = path };
-
-	te_collect_updates(&c);
-	return c.add;
-}
-static __noinline __u64 te_endp_src_ip(__u32 ip)
-{
-	struct te_update_ctx c = { .op = TOP_CONNECT, .ip = ip };
+	struct te_update_ctx c = { .op = op, .target = target, .ip = ip };
 
 	te_collect_updates(&c);
 	return c.add;
@@ -615,7 +606,7 @@ static __always_inline __u64 te_file_labels(struct file_id *fid, const char *pat
 {
 	struct file_state *fs = bpf_map_lookup_elem(&ts_file, fid);
 
-	return (fs ? fs->labels : 0) | te_file_src(path);
+	return (fs ? fs->labels : 0) | te_update_add(TOP_OPEN, path, 0);
 }
 
 /* read: proc absorbs file labels + file source; stamp `since read` invalidators. */
@@ -728,8 +719,7 @@ static __noinline int te_rule_effect(struct te_rule_eval *e, unsigned int idx)
 	}
 	if (e->op == TOP_EXEC && r.arg[0] != '\0') {
 		/* Match against the pre-tokenized arg slots. Re-look-up the per-CPU
-		 * scratch here so the verifier keeps the map_value bound (a pointer
-		 * carried via e->argv would be treated as unbounded). */
+		 * scratch here so the verifier keeps the map_value bound. */
 		struct te_argslots *a = te_argslots_buf();
 		if (!a || !taint_arg_match(a->slots, r.arg))
 			return -1;
@@ -768,20 +758,6 @@ static __noinline int te_check_labels(struct te_rule_eval *e)
 	if (c.best_rule >= 0)
 		e->effect = c.best_effect;
 	return c.best_rule;
-}
-
-static __always_inline int te_check(pid_t pid, unsigned int op, const char *target,
-				    const char *argv, int argv_len)
-{
-	struct te_rule_eval e = {
-		.pid = pid,
-		.labels = te_labels(pid),
-		.op = op,
-		.target = target,
-		.argv = argv,
-		.argv_len = argv_len,
-	};
-	return te_check_labels(&e);
 }
 
 static __always_inline void te_exit(pid_t pid)

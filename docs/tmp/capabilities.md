@@ -110,13 +110,28 @@ src = principal_state[requester]
 dst = principal_state[target_principal]
 
 1. target is self, child, or descendant according to affect_scope_mask
-2. required_cap_mask is a subset of src.update_cap_mask
+2. required_cap_mask plus capability classes implied by non-empty delta fields
+   is a subset of src.update_cap_mask
 3. add_restrict_mask only adds restriction bits
 4. add_label_mask is a subset of src.allowed_label_mask
 5. require_gate_mask only adds gate requirements
 6. new_scope_id is unset or is a subset of dst.scope_id
 7. request never clears bits, deletes rules, downgrades effects, or widens scope
 8. accepted delta is applied to dst effective state
+
+The kernel must not trust `required_cap_mask` as the only authority
+description. It should derive at least the generic capability class from the
+request body itself:
+
+```text
+add_restrict_mask != 0 -> CAP_ADD_RESTRICTION
+add_label_mask    != 0 -> CAP_ADD_LABEL
+require_gate_mask != 0 -> CAP_REQUIRE_GATE
+new_scope_id      != 0 -> CAP_NARROW_SCOPE
+```
+
+`required_cap_mask` can add more specific authority bits, but it cannot remove
+the implied checks.
 ```
 
 Apply is monotonic:

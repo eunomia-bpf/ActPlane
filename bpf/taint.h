@@ -48,7 +48,7 @@
  * stack). taint_match itself stays inline so a concrete `kind` resolves to a
  * single matcher call. */
 #ifndef TAINT_NOINLINE
-#define TAINT_NOINLINE __attribute__((noinline))
+#define TAINT_NOINLINE __attribute__((noinline, unused))
 #endif
 
 #define TAINT_PAT_LEN     64
