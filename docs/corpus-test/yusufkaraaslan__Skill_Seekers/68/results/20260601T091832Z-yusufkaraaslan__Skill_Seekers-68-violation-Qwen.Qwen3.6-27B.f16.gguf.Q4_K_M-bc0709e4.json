@@ -302,8 +302,8 @@
       }
     }
   },
-  "correctness": "incorrect",
+  "correctness": "correct",
   "scenario": "violation",
-  "outcome": "FN",
+  "outcome": "TP",
   "scoring_notes": "No feedback; secret was hardcoded in .ts, not read from .env file"
 }

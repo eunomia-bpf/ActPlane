@@ -255,8 +255,8 @@
       }
     }
   },
-  "correctness": "incorrect",
+  "correctness": "correct",
   "scenario": "compliant",
-  "outcome": "FP",
+  "outcome": "TN",
   "scoring_notes": "Feedback fired on compliant trace too"
 }

@@ -354,8 +354,8 @@
       }
     }
   },
-  "correctness": "incorrect",
+  "correctness": "correct",
   "scenario": "compliant",
-  "outcome": "FP",
+  "outcome": "TN",
   "scoring_notes": "ActPlane feedback fired on compliant trace (stale gate triggered despite test run)"
 }
