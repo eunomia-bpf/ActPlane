@@ -165,7 +165,10 @@ pub(crate) fn policy_source(loaded: &LoadedPolicy, domain: Option<&str>) -> Resu
     Ok(resolve_policy(loaded, domain)?.source)
 }
 
-pub(crate) fn resolve_policy(loaded: &LoadedPolicy, domain: Option<&str>) -> Result<ResolvedPolicy> {
+pub(crate) fn resolve_policy(
+    loaded: &LoadedPolicy,
+    domain: Option<&str>,
+) -> Result<ResolvedPolicy> {
     if let Some(policy) = &loaded.config.policy {
         if domain.is_some() {
             return Err("`--domain` requires a policy file with `rules:` and `domains:`".into());
@@ -394,6 +397,7 @@ pub(crate) fn absolutize(path: &Path, base: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn policy_yaml_rejects_removed_fallback_config() {
@@ -523,5 +527,136 @@ domains:
         );
         let err = policy_source(&loaded, Some("a")).unwrap_err();
         assert!(err.to_string().contains("cycle"));
+    }
+
+    #[test]
+    fn domain_selection_errors_show_available_domains() {
+        let loaded = load(
+            r#"
+rules:
+  r:
+    ifc: |
+      rule r:
+        kill exec "git"
+        because "x"
+domains:
+  alpha:
+    bind:
+      - rule: r
+        mode: default
+  beta:
+    bind:
+      - rule: r
+        mode: default
+"#,
+        );
+        let err = policy_source(&loaded, None).unwrap_err();
+        assert!(err.to_string().contains("alpha, beta"));
+        assert!(err.to_string().contains("--domain"));
+
+        let err = policy_source(&loaded, Some("missing")).unwrap_err();
+        assert!(err.to_string().contains("available: alpha, beta"));
+    }
+
+    #[test]
+    fn domain_summaries_include_effective_bindings() {
+        let loaded = load(
+            r#"
+default_domain: review
+rules:
+  locked:
+    ifc: |
+      rule locked:
+        kill exec "git"
+        because "locked"
+  defaulted:
+    ifc: |
+      rule defaulted:
+        kill exec "curl"
+        because "defaulted"
+  readonly:
+    ifc: |
+      rule readonly:
+        kill write file "/**"
+        because "readonly"
+domains:
+  session:
+    bind:
+      - rule: locked
+        mode: locked
+      - rule: defaulted
+        mode: default
+  review:
+    parent: session
+    disable:
+      - defaulted
+    bind:
+      - rule: readonly
+        mode: locked
+"#,
+        );
+        let resolved = resolve_policy(&loaded, None).unwrap();
+        let selected = resolved.domain.unwrap();
+        assert_eq!(selected.name, "review");
+        assert_eq!(selected.locked, vec!["locked", "readonly"]);
+        assert!(selected.defaults.is_empty());
+
+        let summaries = domain_summaries(&loaded.config).unwrap();
+        assert_eq!(summaries.len(), 2);
+        assert!(summaries.iter().any(|d| d.name == "session"));
+        assert!(summaries.iter().any(|d| d.name == "review"));
+    }
+
+    #[test]
+    fn invalid_policy_corpus_is_rejected() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("test/policies/invalid");
+        let mut paths: Vec<PathBuf> = fs::read_dir(&dir)
+            .unwrap_or_else(|e| panic!("read {}: {e}", dir.display()))
+            .map(|ent| ent.expect("invalid policy dir entry").path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "yaml"))
+            .collect();
+        paths.sort();
+        assert!(
+            paths.len() >= 7,
+            "expected invalid policy corpus files in {}",
+            dir.display()
+        );
+
+        for path in paths {
+            let src = fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+            let rejected = match serde_yaml::from_str::<FileConfig>(&src) {
+                Err(e) => e.to_string(),
+                Ok(config) => {
+                    let loaded = LoadedPolicy {
+                        config,
+                        root: PathBuf::new(),
+                        path: Some(path.clone()),
+                    };
+                    if let Err(e) = validate_policy_shape(&loaded.config, &path) {
+                        e.to_string()
+                    } else {
+                        let mut errors = Vec::new();
+                        if let Err(e) = policy_source(&loaded, None) {
+                            errors.push(e.to_string());
+                        }
+                        for domain in loaded.config.domains.keys() {
+                            if let Err(e) = policy_source(&loaded, Some(domain)) {
+                                errors.push(e.to_string());
+                            }
+                        }
+                        if errors.is_empty() {
+                            panic!("{} should be rejected", path.display());
+                        }
+                        errors.join("; ")
+                    }
+                }
+            };
+            assert!(
+                !rejected.trim().is_empty(),
+                "{} rejection should explain why",
+                path.display()
+            );
+        }
     }
 }

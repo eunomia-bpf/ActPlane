@@ -531,8 +531,8 @@ Directive
       Yes  │
            ▼
 ┌─────────────────────────────────────┐
-│ Q2: Requires file content           │
-│     inspection?                     │
+│ Q2: Requires static file content    │
+│     inspection or system events?    │
 │ (code style / naming / format)      │
 └──────────┬──────────────────────────┘
            │
@@ -542,7 +542,7 @@ Directive
            ▼
 ┌─────────────────────────────────────┐
 │ Q3: Decidable from a single         │
-│     system operation?               │
+│     system operation or multiple?   │
 │ (one execve / open / connect)       │
 └──────────┬──────────────────────────┘
            │
@@ -552,11 +552,11 @@ Directive
            ▼
 ┌─────────────────────────────────────┐
 │ Q4: Requires state across           │
-│     multiple operations?            │
+│     multiple operations             │
 │ (history / lineage / ordering)      │
 └──────────┬──────────────────────────┘
            │
-      Yes ─┼──► cross-event
+           ┼──► cross-event
                 "Run tests before committing."
                 "Process that read .env must not connect."
 ```

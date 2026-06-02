@@ -104,14 +104,27 @@ security model that id is a domain id.
 CLI:
 
 ```text
-actplane compile policy.yaml --out policy.ir
+actplane init
+actplane check
+actplane domains
+actplane --domain review check
 actplane --domain review compile --out review.ir
-actplane run --policy policy.yaml -- <cmd>
+sudo -E actplane --domain review run -- <cmd>
 actplane apply --domain <id> --policy policy.yaml
-actplane exec --domain <id> -- <cmd>
 actplane events
 actplane doctor
 ```
+
+The CLI should always tell the user which domain was selected:
+
+```text
+domain: review
+parent: session
+locked: no-git-branch, readonly
+default: none
+```
+
+That makes the runtime choice visible before anything needs privileges.
 
 Library:
 

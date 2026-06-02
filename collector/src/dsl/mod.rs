@@ -300,6 +300,48 @@ mod tests {
     }
 
     #[test]
+    fn domain_policy_corpus_all_domains_compile() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("test/policies");
+        let mut checked = 0usize;
+        for ent in std::fs::read_dir(&dir).unwrap_or_else(|e| panic!("read {}: {e}", dir.display()))
+        {
+            let path = ent.expect("policy dir entry").path();
+            if !path.extension().is_some_and(|ext| ext == "yaml") {
+                continue;
+            }
+            let src = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+            let cfg: FileConfig = serde_yaml::from_str(&src)
+                .unwrap_or_else(|e| panic!("parse {}: {e}", path.display()));
+            if cfg.domains.is_empty() {
+                continue;
+            }
+            for domain in cfg.domains.keys() {
+                let loaded = LoadedPolicy {
+                    config: serde_yaml::from_str(&src)
+                        .unwrap_or_else(|e| panic!("parse {}: {e}", path.display())),
+                    root: PathBuf::new(),
+                    path: Some(path.clone()),
+                };
+                let policy = policy_source(&loaded, Some(domain)).unwrap_or_else(|e| {
+                    panic!("resolve {} domain {}: {e}", path.display(), domain)
+                });
+                let compiled = compile_str(&policy).unwrap_or_else(|e| {
+                    panic!("compile {} domain {}: {e}", path.display(), domain)
+                });
+                assert!(
+                    !compiled.meta.is_empty(),
+                    "{} domain {} should contain at least one rule",
+                    path.display(),
+                    domain
+                );
+                checked += 1;
+            }
+        }
+        assert!(checked >= 8, "expected domain policies in corpus");
+    }
+
+    #[test]
     #[ignore = "run collector/test/policy-corpus.sh for the release microbench"]
     fn policy_corpus_compile_perf() {
         let policies = corpus_policy_sources();

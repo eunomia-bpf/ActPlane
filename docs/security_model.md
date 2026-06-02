@@ -67,13 +67,13 @@ rules:
   no-network:
     ifc: |
       rule no-network:
-        kill connect any
+        block connect any
         because "network is disabled by default"
 
   readonly:
     ifc: |
       rule readonly:
-        kill write file any
+        block write file any
         because "this domain is read-only"
 ```
 
@@ -412,8 +412,13 @@ Implemented today:
 rule catalog in policy YAML
 domain bindings in policy YAML
 default_domain / --domain selection
+actplane domains effective-policy view
+actplane check/compile selected-domain summary
+starter actplane.yaml generated in domain schema
 locked/default binding resolution at compile time
 disable inherited default bindings at compile time
+valid and invalid domain policy corpus tests
+CLI UX tests for domain selection/errors
 user ringbuf request path
 domain-like state map
 pid-to-domain-like binding
@@ -432,5 +437,4 @@ runtime disabled-default rule set
 delta admission for bind/disable
 runtime add-rule IR maps
 dynamic child-domain creation
-tests for locked versus default bindings
 ```

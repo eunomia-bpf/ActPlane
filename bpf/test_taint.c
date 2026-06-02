@@ -59,6 +59,11 @@ static void test_match(void)
 	check(p_match(TAINT_MATCH_SUFFIX, "/home/u/app.py", ".env") == 0, "match: suffix miss");
 	check(p_match(TAINT_MATCH_SUFFIX, "api.internal", ".internal") == 1, "match: host suffix");
 	check(p_match(TAINT_MATCH_ANY, "literally anything", "") == 1, "match: any");
+	check(p_match(TAINT_MATCH_CONTAINS, "/home/u/server/app/f", "/server/") == 1, "match: contains hit");
+	check(p_match(TAINT_MATCH_CONTAINS, "/home/u/client/app/f", "/server/") == 0, "match: contains miss");
+	check(p_match(TAINT_MATCH_CONTAINS, "/server/start", "/server/") == 1, "match: contains at start");
+	check(p_match(TAINT_MATCH_CONTAINS, "/x/server/", "/server/") == 1, "match: contains at end");
+	check(p_match(TAINT_MATCH_CONTAINS, "server", "/server/") == 0, "match: contains no slashes");
 }
 
 static void test_mask(void)

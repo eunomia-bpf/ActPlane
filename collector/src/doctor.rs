@@ -1,15 +1,15 @@
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
-use crate::config::{feedback_paths, load_policy, policy_source};
+use crate::config::{domain_summaries, feedback_paths, load_policy, resolve_policy};
 use crate::runtime::{have_bpf_caps, passwordless_sudo_available};
 use crate::setup::{codex_hook_has_actplane_command, project_mcp_auto_attach_ok};
 use crate::{Cli, Result, dsl};
 
 pub(crate) fn check_policy(cli: &Cli) -> Result<i32> {
     let loaded = load_policy(cli)?;
-    let policy = policy_source(&loaded, cli.domain.as_deref())?;
-    let compiled = match dsl::compile_str(&policy) {
+    let resolved = resolve_policy(&loaded, cli.domain.as_deref())?;
+    let compiled = match dsl::compile_str(&resolved.source) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("✗ policy does not compile: {}", e);
@@ -22,6 +22,14 @@ pub(crate) fn check_policy(cli: &Cli) -> Result<i32> {
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| "--rule".into());
     println!("✓ {}: {} rule(s) compile.\n", where_, compiled.meta.len());
+    if let Some(domain) = &resolved.domain {
+        println!("domain: {}", domain.name);
+        if let Some(parent) = &domain.parent {
+            println!("parent: {}", parent);
+        }
+        println!("locked: {}", format_rule_list(&domain.locked));
+        println!("default: {}\n", format_rule_list(&domain.defaults));
+    }
     for (i, m) in compiled.meta.iter().enumerate() {
         let eff = format!("{:?}", m.effect).to_lowercase();
         let ops = if m.ops.is_empty() {
@@ -45,7 +53,7 @@ pub(crate) fn check_policy(cli: &Cli) -> Result<i32> {
                 .into(),
         );
     }
-    for line in policy.lines() {
+    for line in resolved.source.lines() {
         let t = line.trim();
         let rest_opt = t
             .strip_prefix("notify connect endpoint")
@@ -97,10 +105,19 @@ pub(crate) fn doctor(cli: &Cli) -> Result<i32> {
                 .as_ref()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "--rule".into());
-            let policy = policy_source(&loaded, cli.domain.as_deref())?;
-            match dsl::compile_str(&policy) {
+            let resolved = resolve_policy(&loaded, cli.domain.as_deref())?;
+            match dsl::compile_str(&resolved.source) {
                 Ok(compiled) => {
-                    println!("✓ policy: {} ({} rule(s))", where_, compiled.meta.len());
+                    if let Some(domain) = &resolved.domain {
+                        println!(
+                            "✓ policy: {} domain `{}` ({} rule(s))",
+                            where_,
+                            domain.name,
+                            compiled.meta.len()
+                        );
+                    } else {
+                        println!("✓ policy: {} ({} rule(s))", where_, compiled.meta.len());
+                    }
                     let feedback = feedback_paths(&loaded);
                     println!("✓ feedback file: {}", feedback.feedback.display());
                 }
@@ -162,6 +179,52 @@ pub(crate) fn doctor(cli: &Cli) -> Result<i32> {
     } else {
         println!("\n✗ setup has {} problem(s).", problems);
         Ok(1)
+    }
+}
+
+pub(crate) fn list_domains(cli: &Cli) -> Result<i32> {
+    let loaded = load_policy(cli)?;
+    let where_ = loaded
+        .path
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "--rule".into());
+    if loaded.config.policy.is_some() {
+        println!(
+            "{} uses legacy `policy: |`; no domains are defined.",
+            where_
+        );
+        return Ok(0);
+    }
+
+    let selected = resolve_policy(&loaded, cli.domain.as_deref())?
+        .domain
+        .map(|d| d.name);
+    println!("Domains in {}", where_);
+    for domain in domain_summaries(&loaded.config)? {
+        let mark = if Some(domain.name.as_str()) == selected.as_deref() {
+            "*"
+        } else {
+            " "
+        };
+        println!("{} {}", mark, domain.name);
+        if let Some(parent) = &domain.parent {
+            println!("    parent: {}", parent);
+        }
+        if !domain.disabled.is_empty() {
+            println!("    disables: {}", format_rule_list(&domain.disabled));
+        }
+        println!("    locked: {}", format_rule_list(&domain.locked));
+        println!("    default: {}", format_rule_list(&domain.defaults));
+    }
+    Ok(0)
+}
+
+fn format_rule_list(rules: &[String]) -> String {
+    if rules.is_empty() {
+        "none".into()
+    } else {
+        rules.join(", ")
     }
 }
 

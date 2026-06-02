@@ -89,6 +89,8 @@ enum Commands {
     Check,
     /// Diagnose policy discovery, kernel support, feedback hooks, and MCP setup.
     Doctor,
+    /// List policy domains and their effective locked/default rules.
+    Domains,
     /// Load the policy and report violations without starting a child command.
     Watch,
     /// Hook adapter: forward new feedback-file bytes as agent additionalContext.
@@ -113,6 +115,7 @@ async fn main() -> Result<()> {
         Commands::Setup { force } => setup::setup_project(*force)?,
         Commands::Check => doctor::check_policy(&cli)?,
         Commands::Doctor => doctor::doctor(&cli)?,
+        Commands::Domains => doctor::list_domains(&cli)?,
         Commands::Watch => runtime::watch_policy(&cli).await?,
         Commands::FeedbackHook => {
             hook::feedback_hook().await?;
@@ -136,13 +139,29 @@ async fn main() -> Result<()> {
 
 async fn compile_policy(cli: &Cli, out: &Path) -> Result<i32> {
     let loaded = config::load_policy(cli)?;
-    let policy = config::policy_source(&loaded, cli.domain.as_deref())?;
-    let compiled = dsl::compile_str(&policy)?;
+    let resolved = config::resolve_policy(&loaded, cli.domain.as_deref())?;
+    let compiled = dsl::compile_str(&resolved.source)?;
     std::fs::write(out, &compiled.bytes)?;
+    if let Some(domain) = &resolved.domain {
+        eprintln!(
+            "ActPlane: domain `{}` (locked: {}; default: {})",
+            domain.name,
+            format_rule_list(&domain.locked),
+            format_rule_list(&domain.defaults)
+        );
+    }
     eprintln!(
         "ActPlane: compiled {} rule(s) to {}",
         compiled.reasons.len(),
         out.display()
     );
     Ok(0)
+}
+
+fn format_rule_list(rules: &[String]) -> String {
+    if rules.is_empty() {
+        "none".into()
+    } else {
+        rules.join(", ")
+    }
 }

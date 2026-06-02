@@ -49,29 +49,58 @@ const STARTER_POLICY: &str = r#"# ActPlane project policy. Constraints are appli
 # Validate any time with:  actplane check
 # Apply around an agent:  sudo -E actplane run <your agent command>
 # DSL reference: docs/rule-language.md
-policy: |
-  # `source COMMAND` marks the process tree launched by `actplane run`.
-  source COMMAND = exec "**"
+version: 1
+default_domain: session
 
-  # 1) The command must not create git branches/worktrees (do it yourself on the host).
-  rule no-git-branch:
-    kill exec "git" "branch"   if COMMAND
-    kill exec "git" "worktree" if COMMAND
-    because "create branches/worktrees on the host, not via the agent"
+rules:
+  no-git-branch:
+    ifc: |
+      source COMMAND = exec "**"
+      rule no-git-branch:
+        kill exec "git" "branch"   if COMMAND
+        kill exec "git" "worktree" if COMMAND
+        because "create branches/worktrees on the host, not via the agent"
 
-  # 2) Secrets must not leave the host. Reading a secret file taints the process;
-  #    a tainted process may not open an outbound connection (redact to clear it).
-  source SECRET = file "**/.env"
-  source SECRET = file "**/secrets/**"
-  rule no-secret-exfil:
-    kill connect endpoint "*" if SECRET
-    because "data derived from local secrets must not leave the host; redact first"
-  declassify SECRET by exec "**/redact"
+  no-secret-exfil:
+    ifc: |
+      source SECRET = file "**/.env"
+      source SECRET = file "**/secrets/**"
+      rule no-secret-exfil:
+        kill connect endpoint "*" if SECRET
+        because "data derived from local secrets must not leave the host; redact first"
+      declassify SECRET by exec "**/redact"
 
-  # 3) No commit before the tests have run in this session.
-  rule test-before-commit:
-    kill exec "git" "commit" if COMMAND unless after exec "**/pytest"
-    because "run the tests before committing"
+  test-before-commit:
+    ifc: |
+      source COMMAND = exec "**"
+      rule test-before-commit:
+        kill exec "git" "commit" if COMMAND unless after exec "**/pytest"
+        because "run the tests before committing"
+
+  readonly-review:
+    ifc: |
+      source COMMAND = exec "**"
+      rule readonly-review:
+        kill write file "/**" if COMMAND
+        because "review domains are read-only"
+
+domains:
+  session:
+    bind:
+      - rule: no-git-branch
+        mode: locked
+      - rule: no-secret-exfil
+        mode: locked
+      - rule: test-before-commit
+        mode: default
+
+  review:
+    parent: session
+    disable:
+      - test-before-commit
+    bind:
+      - rule: readonly-review
+        mode: locked
 "#;
 
 pub(crate) fn init_policy(force: bool) -> Result<i32> {
@@ -267,6 +296,9 @@ pub(crate) fn project_mcp_auto_attach_ok(src: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{FileConfig, LoadedPolicy, policy_source};
+    use crate::dsl;
+    use std::path::PathBuf;
 
     #[test]
     fn codex_hook_detection_parses_nested_json() {
@@ -310,5 +342,29 @@ mod tests {
         assert!(!project_mcp_auto_attach_ok(
             r#"{"mcpServers":{"actplane":{"command":"actplane","args":["--auto-attach-parent","mcp"]}}}"#
         ));
+    }
+
+    #[test]
+    fn starter_policy_uses_domain_schema_and_compiles() {
+        let config: FileConfig = serde_yaml::from_str(STARTER_POLICY).unwrap();
+        assert!(config.policy.is_none());
+        assert!(config.domains.contains_key("session"));
+        assert!(config.domains.contains_key("review"));
+        let loaded = LoadedPolicy {
+            config,
+            root: PathBuf::new(),
+            path: None,
+        };
+        let session = policy_source(&loaded, Some("session")).unwrap();
+        assert!(session.contains("no-git-branch"));
+        assert!(session.contains("test-before-commit"));
+        assert!(!session.contains("readonly-review"));
+        dsl::compile_str(&session).unwrap();
+
+        let review = policy_source(&loaded, Some("review")).unwrap();
+        assert!(review.contains("no-git-branch"));
+        assert!(!review.contains("test-before-commit"));
+        assert!(review.contains("readonly-review"));
+        dsl::compile_str(&review).unwrap();
     }
 }

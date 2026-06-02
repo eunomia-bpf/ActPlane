@@ -26,7 +26,8 @@ instructions are declared in natural language, 64\%
 consist of behavioral policies.
 
 Yet existing agent harnesses fail to connect intent-level declarations
-to deterministic system-level policies, leaving a \emph{semantic gap}.
+to deterministic system-level policies, leaving a \emph{semantic gap} and
+making it difficult to ensure compliance or follow rules.
 While 83\% of directives involve system-level behavior,
 prompt constraints operate at the probabilistic intent level.
 81\% of projects require cross-event state tracking, but tool-call
@@ -35,13 +36,15 @@ guardrails lose track of system-level actions.
 task context to evaluate, while current OS-level
 mechanisms expect pre-defined static
 policy and return only system events without semantic context.
+
 To address this, we argue the policy engine should be exposed as a
 programmable interface, allowing agents
 to dynamically define and adapt their policy
 for their own system-level actions
 based on their intent context.
 We realize this in ActPlane, which allows agents to declare cross-event
-behavior as labeled information-flow control (IFC) policies under a layered policy model,
+behavior as labeled information-flow control (IFC) policies under 
+a layered policy model,
 observing and enforcing the agents' actions across process, file, and
 network boundaries with semantic feedback.
 We implement ActPlane with eBPF and evaluate on 607 policies from the
