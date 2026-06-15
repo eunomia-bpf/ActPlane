@@ -1,8 +1,0 @@
-✓ /home/yunwei37/workspace/ActPlane/docs/eval_runs/policy_revision/20260609T-rq1-fn-llamacpp/policies/NVIDIA__NemoClaw/19/rule.yaml: 2 rule(s) compile.
-
-  1. add-tests-for-cli-commands — notify exec (When adding or modifying CLI commands in src/lib/, you must also add corresponding tests in test/)
-  2. block-opaque-fixture-commits — block exec (Executing arbitrary shell scripts is blocked to prevent opaque fixtures from committing CLI changes without tests.)
-
-✓ no warnings.
-
-(note: `check` needs no privileges; applying policies needs `sudo -E actplane run/watch`.)

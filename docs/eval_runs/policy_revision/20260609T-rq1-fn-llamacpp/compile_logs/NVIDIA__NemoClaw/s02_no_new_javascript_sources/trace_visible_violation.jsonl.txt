@@ -1,7 +1,0 @@
-✓ /home/yunwei37/workspace/ActPlane/docs/eval_runs/policy_revision/20260609T-rq1-fn-llamacpp/policies/NVIDIA__NemoClaw/s02_no_new_javascript_sources/rule.yaml: 1 rule(s) compile.
-
-  1. s02_no_new_javascript_sources — kill write (All new source files must be TypeScript. Do not add new .js files to the project.)
-
-✓ no warnings.
-
-(note: `check` needs no privileges; applying policies needs `sudo -E actplane run/watch`.)

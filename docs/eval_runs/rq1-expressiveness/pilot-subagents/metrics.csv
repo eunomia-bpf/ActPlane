@@ -1,7 +1,0 @@
-uid,repo,statement_id,enforceability,status,final_reason,attempts,retry_count,nl_tokens,dsl_tokens,compression_ratio_dsl_over_nl,binary_size,translator_total_tokens,duration_s,policy_path
-AlexsJones__llmfit::4,AlexsJones/llmfit,4,per_event,compiled,compiled,1,0,15,127,8.466666666666667,63496,,,
-AlexsJones__llmfit::5,AlexsJones/llmfit,5,per_event,compiled,compiled,1,0,10,164,16.4,63496,,,
-AlexsJones__llmfit::17,AlexsJones/llmfit,17,per_event,compiled,compiled,1,0,43,112,2.604651162790698,63496,,,
-AlexsJones__llmfit::27,AlexsJones/llmfit,27,cross_event,compiled,compiled,1,0,97,186,1.9175257731958764,63496,,,
-AlexsJones__llmfit::28,AlexsJones/llmfit,28,cross_event,compiled,compiled,1,0,88,195,2.215909090909091,63496,,,
-AlexsJones__llmfit::29,AlexsJones/llmfit,29,cross_event,compiled,compiled,1,0,63,154,2.4444444444444446,63496,,,

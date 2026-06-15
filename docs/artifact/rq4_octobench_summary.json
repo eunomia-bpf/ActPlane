@@ -1,0 +1,33 @@
+{
+  "rq": "RQ4",
+  "name": "OctoBench real-world coding tasks",
+  "status": "summary_plus_inputs",
+  "selected_tasks": 21,
+  "dsl_rules": 61,
+  "runtime_deltas": 110,
+  "conditions": {
+    "baseline": {
+      "official_reward": 0.80
+    },
+    "claude_code_hooks": {
+      "official_reward": 0.81
+    },
+    "actplane": {
+      "official_reward": 0.84
+    }
+  },
+  "reported_deltas": {
+    "actplane_minus_baseline_points": 0.04,
+    "actplane_minus_hooks_points": 0.03,
+    "user_query_reward_gain_points": 9.9,
+    "implementation_test_reward_gain_points": 9.7,
+    "compliance_reward_gain_points": 2.8
+  },
+  "artifact_sources": [
+    "docs/OctoBench/README.md",
+    "docs/OctoBench/data/selected_cases_21.ids",
+    "docs/OctoBench/data/selected_cases_21.jsonl",
+    "docs/OctoBench/policies/actplane-feedback/"
+  ],
+  "note": "The artifact branch keeps selected task manifests and policies. Full OctoBench run directories are generated under ignored results/ paths and are not tracked."
+}

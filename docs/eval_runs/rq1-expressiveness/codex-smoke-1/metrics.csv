@@ -1,2 +1,0 @@
-uid,repo,statement_id,enforceability,status,final_reason,attempts,retry_count,nl_tokens,dsl_tokens,compression_ratio_dsl_over_nl,binary_size,translator_total_tokens,duration_s,policy_path
-AlexsJones__llmfit::4,AlexsJones/llmfit,4,per_event,compiled,compiled,1,0,13,233,17.923076923076923,63496,62302,167.37296629400225,/tmp/actplane-rq1-expressiveness-codex-smoke2/policies/AlexsJones__llmfit/4/policy.yaml

@@ -1,7 +1,0 @@
-✓ /home/yunwei37/workspace/ActPlane/docs/eval_runs/policy_revision/20260609T-rq1-fn-llamacpp/policies/NousResearch__hermes-agent/s02_keep_credentials_out_of_repo/rule.yaml: 1 rule(s) compile.
-
-  1. s02_keep_credentials_out_of_repo — notify write (Credential values must stay in operator credential storage and must not be written into tracked repository files or the main config.)
-
-✓ no warnings.
-
-(note: `check` needs no privileges; applying policies needs `sudo -E actplane run/watch`.)

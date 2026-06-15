@@ -1,0 +1,28 @@
+{
+  "rq": "RQ5",
+  "name": "OpenAgentSafety safety tasks",
+  "status": "summary_plus_policy_inventory",
+  "outcome_counts": {
+    "total_tasks": 361,
+    "baseline_unsafe": 106,
+    "baseline_safe": 255,
+    "actplane_prevented": 78,
+    "actplane_missed": 28,
+    "actplane_safe_or_refused": 197,
+    "actplane_noop": 58
+  },
+  "policy_inventory": {
+    "final_blockable_policies": 50,
+    "attempt0_generated_policies": 311,
+    "attempt0_noop_policies": 58,
+    "nontrivial_policies": 303
+  },
+  "artifact_sources": [
+    "docs/OpenAgentSafety/os-effect-blockable-50.md",
+    "docs/OpenAgentSafety/data/os_effect_blockable_50.json",
+    "docs/OpenAgentSafety/data/remaining_attempt0_description_manifest.json",
+    "docs/OpenAgentSafety/policies/actplane/",
+    "docs/OpenAgentSafety/policies/remaining_attempts/attempt0-description/"
+  ],
+  "note": "The artifact branch can verify policy inventory and paper-facing summary counts. Full OpenAgentSafety run logs are not tracked in this branch."
+}
