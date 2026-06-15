@@ -1,6 +1,0 @@
-{
-  "error": "actplane run failed (rc=1)",
-  "stdout": "",
-  "stderr": "Error: \"load engine: enforce_bprm_check_security.load: the BPF_PROG_LOAD syscall failed. Verifier output: combined stack size of 2 calls is 560. Too large\\nverification time 186011 usec\\nstack depth 320+232+24+0+224+0+0+0+0+0+0+8\\nprocessed 90584 insns (limit 1000000) max_states_per_insn 18 total_states 1684 peak_states 323 mark_read 82\\n\"\n",
-  "compliant": false
-}

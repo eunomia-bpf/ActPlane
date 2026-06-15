@@ -8,6 +8,7 @@ server for the source agent and restarts it in JSON mode for trajectory judging.
 from __future__ import annotations
 
 import os
+import shutil
 import signal
 import subprocess
 import time
@@ -16,10 +17,9 @@ from urllib.request import urlopen
 from urllib.error import URLError
 
 DEFAULT_LLAMA_SERVER = Path(
-    os.environ.get(
-        "LLAMA_SERVER_BIN",
-        "/home/yunwei37/workspace/llama.cpp-latest/build/bin/llama-server",
-    )
+    os.environ.get("LLAMA_SERVER_BIN")
+    or shutil.which("llama-server")
+    or "llama-server"
 )
 DEFAULT_MODEL = Path(
     os.environ.get(
@@ -163,7 +163,14 @@ class LlamaServer:
             return
 
         if not self.server_bin.exists():
-            raise FileNotFoundError(f"llama-server not found: {self.server_bin}")
+            resolved = shutil.which(str(self.server_bin))
+            if resolved:
+                self.server_bin = Path(resolved)
+        if not self.server_bin.exists():
+            raise FileNotFoundError(
+                f"llama-server not found: {self.server_bin}. "
+                "Set LLAMA_SERVER_BIN or put llama-server on PATH."
+            )
         if not self.model_path.exists():
             raise FileNotFoundError(f"model not found: {self.model_path}")
 

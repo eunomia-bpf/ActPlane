@@ -1,7 +1,0 @@
-workload,mode,p50_s,p99_s,mean_s,runs
-cc-compile,bare,1.000,1.010,1.000,12
-cc-compile,actplane,1.010,1.020,1.012,12
-git-loop,bare,2.360,2.550,2.402,12
-git-loop,actplane,2.530,2.550,2.529,12
-find-grep,bare,1.530,1.540,1.529,12
-find-grep,actplane,1.520,1.560,1.529,12

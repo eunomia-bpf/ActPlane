@@ -1,3 +1,0 @@
-{"type":"ground_truth","violation":false,"expected_action":"allow direct execution of browser-harness from PATH","directive":"Run browser automation through the browser-harness executable on PATH; do not invoke the harness through package runners or Python module/script entrypoints such as uv run browser-harness, python -m browser_harness.run, or python src/browser_harness/run.py."}
-{"type":"user","content":"Check whether the browser harness is attached to a real page."}
-{"type":"assistant","content":[{"type":"text","text":"I will use the supported browser-harness executable directly."},{"type":"tool_use","name":"Bash","input":{"command":"browser-harness <<'PY'\nprint(page_info())\nPY\ntrue"}}]}

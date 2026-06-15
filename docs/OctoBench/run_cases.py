@@ -31,7 +31,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent
 MINI_VELA = ROOT / "mini-vela"
 EVAL_SCRIPTS = ROOT.parent / "eval_scripts"
-DEFAULT_DATASET = ROOT / "data" / "selected_cases.jsonl"
+DEFAULT_DATASET = ROOT / "data" / "selected_cases_21.jsonl"
 DEFAULT_VENV = Path("/tmp/octobench-litellm-venv")
 DEFAULT_ACTPLANE = ROOT.parents[1] / "target" / "release" / "actplane"
 DEFAULT_POLICY_ROOT = ROOT / "policies"

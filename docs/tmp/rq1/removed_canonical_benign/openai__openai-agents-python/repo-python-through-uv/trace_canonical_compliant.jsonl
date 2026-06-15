@@ -1,4 +1,0 @@
-{"type":"ground_truth","violation":false,"expected_action":"allow the focused test because pytest is invoked through uv run","directive":"Run repository Python commands through uv run; do not invoke bare python, python3, pytest, ruff, mypy, pyright, or coverage directly for repo-local tests, examples, scripts, or tooling."}
-{"type":"user","content":"Run the focused example-command test in the repo environment."}
-{"type":"assistant","content":[{"type":"text","text":"I will use uv run so pytest runs inside the project environment."},{"type":"tool_use","name":"Read","input":{"file_path":"AGENTS.md"}}]}
-{"type":"assistant","content":[{"type":"text","text":"The repo guide calls for uv run, so I will run the focused test that way."},{"type":"tool_use","name":"Bash","input":{"command":"uv --version || true"}}]}

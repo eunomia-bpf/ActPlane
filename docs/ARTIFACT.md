@@ -84,9 +84,8 @@ Keep out of `master`:
   historical tuning runs outside the retained paper draft and `docs/tmp/`
   working-note areas.
 
-`docs/tmp/` is retained as a working note area. Files in `docs/tmp/` are not
-paper-facing artifact results unless they are explicitly promoted by this file
-or by the artifact-ready README.
+`docs/tmp/` is retained only on the product branch as a working note area. It is
+not part of the reviewer-facing `artifact-ready` branch.
 
 ## Benchmark Scripts Kept Under Docs
 
@@ -138,10 +137,11 @@ make -C docs rq5
 make -C docs artifact-check
 ```
 
-The default `rq*` targets verify frozen summaries and manifests. They do not
-regenerate policies. Rerun targets are separate and may require local model
-weights, Docker, benchmark images, and a kernel configuration that supports the
-ActPlane eBPF hooks.
+The default `rq*` targets verify frozen summaries, manifests, selected raw
+results, and policies. They do not regenerate policies and they do not require
+submodules, Docker, or local model weights. Rerun targets are separate and may
+require local model weights, Docker, benchmark images, and a kernel
+configuration that supports the ActPlane eBPF hooks.
 
 Do not keep in `artifact-ready`:
 
@@ -152,33 +152,38 @@ Do not keep in `artifact-ready`:
 - Docker runtime workspaces or mount directories.
 - result directories that are not cited or explicitly marked as historical.
 
-## Canonical Result Candidates
+## Canonical Artifact Inputs
 
-Before cleanup, these were the main candidate result directories worth
-preserving or summarizing in `artifact-ready`:
+These are the paper-facing inputs and summaries preserved on `artifact-ready`:
 
 | Claim area | Candidate path | Notes |
 | --- | --- | --- |
 | RQ1 expressiveness | `docs/eval_runs/rq1-expressiveness/full-607-subagents/` | Full 607-directive compile result. |
-| RQ2 compliance, primary Qwen setting | `docs/tmp/rq1/latest_existing_stats/current_latest_stats_20260607T191939Z.txt` and `docs/eval_runs/full/20260607_current_full_after_trace_harness_fix/` | Primary 190-trace table. The FIDES/tool-ifc row is read from the current-full selected runner list. |
+| RQ2 compliance, primary Qwen setting | `docs/artifact/rq2-qwen-primary/selected_runner_results.txt` and `docs/artifact/rq2-qwen-primary/results/` | Primary 190-trace table across five systems, recomputed from selected raw result/judge files. |
 | RQ2 compliance, DeepSeek replication | `docs/eval_runs/full/deepseek_rq1_20260607T193612Z_v4_pro/` | 190 trace-conditioned replication across five systems. |
 | RQ2 one-shot FN repair | `docs/eval_runs/policy_revision/20260609T-rq1-fn-llamacpp-grouped/` | Reruns the 28 ActPlane FN traces and records a 26/28 strict lower-bound recovery. |
 | Performance microbench | `docs/rq2-performance/results/rq2-micro-2026-06-02T-osdi/` | Small aggregate and metadata files. Metadata records a dirty git tree, so rerun on a clean commit if this becomes the final paper artifact. |
 | Performance macrobench | `docs/rq2-performance/results/rq2-macro-2026-06-02T-osdi-v2/` | Small aggregate and metadata files. Metadata records a dirty git tree, so rerun on a clean commit if this becomes the final paper artifact. |
-| RQ4 OctoBench | `docs/OctoBench/data/selected_cases_21.*`, `docs/OctoBench/policies/actplane-feedback/`, `docs/artifact/rq4_octobench_summary.json` | Verifies the selected 21 tasks, 61 DSL rules, and paper-facing reward summary. Full generated run directories are not tracked. |
-| RQ5 OpenAgentSafety | `docs/OpenAgentSafety/data/remaining_attempt0_description_manifest.json`, `docs/OpenAgentSafety/policies/`, `docs/artifact/rq5_openagentsafety_summary.json` | Verifies policy inventory and paper-facing summary counts. Full generated run logs are not tracked. |
+| RQ4 OctoBench | `docs/OctoBench/data/selected_cases_21.*`, `docs/OctoBench/data/policy_manifest.jsonl`, `docs/OctoBench/policies/actplane-feedback/`, `docs/artifact/rq4_octobench_ledger.json`, `docs/artifact/rq4_octobench_summary.json` | Verifies the selected 21 tasks, 61 DSL rules, task/policy ledger, and paper-facing reward summary. Full generated run directories are not tracked. |
+| RQ5 OpenAgentSafety | `docs/OpenAgentSafety/data/os_effect_blockable_50.json`, `docs/OpenAgentSafety/data/remaining_attempt0_description_manifest.json`, `docs/OpenAgentSafety/policies/`, `docs/artifact/rq5_openagentsafety_ledger.json`, `docs/artifact/rq5_openagentsafety_summary.json` | Verifies task/policy ledger, policy inventory, and paper-facing summary counts. Full generated run logs are not tracked. |
 
 Any other result directory should be treated as historical until explicitly
-promoted in the artifact README.
+promoted in this file or in the benchmark-local README.
 
 ## Known Artifact Limits
 
-The RQ4 and RQ5 targets are summary-and-manifest checks, not full reruns. Their
-full benchmark outputs were written under ignored `results/` directories during
-experimentation and are not part of the tracked artifact-ready branch. The raw
-backup branch preserves tracked historical notes and manifests, but it does not
-replace a clean final rerun if the paper needs fully audit-grade raw logs for
-these two RQs.
+The RQ3 performance result directories preserve their original 2026-06-02
+metadata. Those metadata files record the pre-cleanup script path
+`docs/corpus-test/perf/` and a dirty git status from the experiment host. The
+current rerun entrypoint is `make -C docs rq3-rerun`, which uses
+`docs/rq2-performance/` and will generate fresh metadata.
+
+The RQ4 and RQ5 targets are summary, manifest, and task/policy ledger checks,
+not full reruns. Their full benchmark outputs were written under ignored
+`results/` directories during experimentation and are not part of the tracked
+artifact-ready branch. The raw backup branch preserves tracked historical notes
+and manifests, but it does not replace a clean final rerun if the paper needs
+fully audit-grade raw logs for these two RQs.
 
 The current RQ5 figure script uses `197` safe/refused ActPlane outcomes so the
 stacked counts sum to 361 tasks. If prose elsewhere states a different safe

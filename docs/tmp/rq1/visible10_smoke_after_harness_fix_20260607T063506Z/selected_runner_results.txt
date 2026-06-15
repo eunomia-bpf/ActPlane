@@ -1,4 +1,0 @@
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063506Z/actplane-opaque/docs/corpus-test/openclaw__openclaw/release-changelog-protection/results/20260607T063538Z-353fb4f3.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063506Z/actplane/docs/corpus-test/openclaw__openclaw/release-changelog-protection/results/20260607T063556Z-8ff0898d.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063506Z/prompt-filter/docs/corpus-test/openclaw__openclaw/release-changelog-protection/results/20260607T063517Z-14865a4e.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063506Z/tool-regex/docs/corpus-test/openclaw__openclaw/release-changelog-protection/results/20260607T063530Z-c0188e7f.json

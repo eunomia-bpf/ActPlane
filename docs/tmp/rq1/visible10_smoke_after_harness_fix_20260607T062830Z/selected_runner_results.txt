@@ -1,4 +1,0 @@
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T062830Z/actplane-opaque/docs/corpus-test/google__adk-python/generated-agentconfig-schema/results/20260607T062933Z-3ca4d8b8.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T062830Z/actplane/docs/corpus-test/google__adk-python/generated-agentconfig-schema/results/20260607T062952Z-921c667a.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T062830Z/prompt-filter/docs/corpus-test/google__adk-python/generated-agentconfig-schema/results/20260607T062913Z-8b506fd3.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T062830Z/tool-regex/docs/corpus-test/google__adk-python/generated-agentconfig-schema/results/20260607T062924Z-3d64ad72.json

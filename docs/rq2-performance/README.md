@@ -45,7 +45,7 @@ Run this on an otherwise idle machine, pin to an isolated CPU, keep the CPU
 governor fixed, and preserve the generated summary results:
 
 ```bash
-python3 docs/corpus-test/perf/run_perf.py \
+python3 docs/rq2-performance/run_perf.py \
   --build-actplane \
   --configs baseline,ap-1,ap-10,ap-32,ap-100 \
   --ops open,write,connect,fork,exec \
@@ -56,13 +56,13 @@ python3 docs/corpus-test/perf/run_perf.py \
 For a quick local sanity check without eBPF privileges:
 
 ```bash
-python3 docs/corpus-test/perf/run_perf.py --smoke --baseline-only
+python3 docs/rq2-performance/run_perf.py --smoke --baseline-only
 ```
 
 For macro workloads:
 
 ```bash
-python3 docs/corpus-test/perf/run_macro.py \
+python3 docs/rq2-performance/run_macro.py \
   --configs baseline,ap-32,ap-100 \
   --workloads stressng-open,stressng-fork,stressng-exec,stressng-hdd,stressng-mixed,collector-release-build \
   --repeats 3
@@ -72,35 +72,35 @@ For the RQ2 paper figures:
 
 ```bash
 # 1. Syscall microbenchmarks.
-python3 docs/corpus-test/perf/run_perf.py \
+python3 docs/rq2-performance/run_perf.py \
   --build-actplane \
   --configs baseline,ap-1,ap-10,ap-32,ap-100 \
   --ops open,write,connect,fork,exec \
   --repeats 7 \
   --cpu 2 \
-  --output-dir docs/corpus-test/perf/results/rq2-micro
+  --output-dir docs/rq2-performance/results/rq3-micro-rerun
 
 # 2. Agent trace replay + Linux build macrobenchmarks.
-python3 docs/corpus-test/perf/run_macro.py \
+python3 docs/rq2-performance/run_macro.py \
   --configs baseline,ap-32,ap-100 \
   --workloads agent-trace,linux-build \
   --repeats 3 \
   --timeout-s 9000 \
-  --linux-source docs/corpus-test/perf/tmp/linux-src-clean \
+  --linux-source docs/rq2-performance/tmp/linux-src-clean \
   --linux-target vmlinux \
   --linux-jobs 24 \
-  --output-dir docs/corpus-test/perf/results/rq2-macro
+  --output-dir docs/rq2-performance/results/rq3-macro-rerun
 
 # 3. Figures.
-python3 docs/corpus-test/perf/plot_rq2.py \
-  --micro-dir docs/corpus-test/perf/results/rq2-micro \
-  --macro-dir docs/corpus-test/perf/results/rq2-macro \
-  --out-dir docs/tmp/rq2-overhead-figures
+python3 docs/rq2-performance/plot_rq2.py \
+  --micro-dir docs/rq2-performance/results/rq3-micro-rerun \
+  --macro-dir docs/rq2-performance/results/rq3-macro-rerun \
+  --out-dir docs/rq2-performance/results/rq3-figures
 ```
 
 ## Output
 
-Each run creates `docs/corpus-test/perf/results/<timestamp>/` with:
+Each run creates `docs/rq2-performance/results/<timestamp>/` with:
 
 - `metadata.json`: hardware, kernel, git revision, active LSMs, command line
 - `policies/*.yaml`: exact generated policies used for AP configurations
@@ -114,6 +114,11 @@ of the checked-in summary artifact. Per-run command lines, exit status,
 `/usr/bin/time -v` resource fields, and benchmark summaries are extracted into
 `runs.csv` / `runs.jsonl`. If bootstrap confidence intervals are needed, rerun
 the microbenchmarks with `--raw-samples` and archive those samples separately.
+
+The checked-in 2026-06-02 result files were generated before the performance
+scripts moved from `docs/corpus-test/perf/` to `docs/rq2-performance/`. Their
+metadata preserves those original command lines. Use the commands above, or
+`make -C docs rq3-rerun`, for current-path reruns.
 
 ## OSDI-Style Reporting Notes
 

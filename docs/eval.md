@@ -190,13 +190,15 @@ docs/corpus-test/{repo}/                # RQ2: policy compliance (sampled)
     trace_visible_violation.jsonl       # visible violation split across tool events
     trace_script_visible_violation.jsonl # write script, later execute it
     trace_opaque_fixture_violation.jsonl # neutral helper, runtime side effect
-    results/                            # one record per run/system/trace variant
-      {run_id}.json                     # includes system, trace_variant, replay
-                                        # context, LLM response, correctness=null
+
+docs/artifact/rq2-qwen-primary/         # RQ2 primary selected result artifact
+  selected_runner_results.txt           # 950 selected runner rows
+  results/                              # 950 runner JSON + 950 judge JSON
 
 docs/OctoBench/                         # RQ4: OctoBench policy-compliance eval
-  data/selected_cases_20.jsonl          # selected OS-observable cases
-  policies/{actplane,tool-regex}/       # case-specific enforcement policies
+  data/selected_cases_21.jsonl          # selected OS-observable cases
+  data/policy_manifest.jsonl            # selected case to policy mapping
+  policies/{actplane-feedback,tool-regex}/ # case-specific enforcement policies
   run_cases.py                          # AI agent benchmark runner
   evaluate_with_llama.py                # official-checklist evaluation helper
 
@@ -533,19 +535,10 @@ judging. The runner prints the metric as
 | actplane | 144/190 (75.8%) | 86 | 58 | 18 | 28 | 190 |
 | actplane-opaque | 102/190 (53.7%) | 27 | 75 | 1 | 87 | 190 |
 
-Historical six-family local-judge snapshot, from the full run
-`docs/eval_runs/full/20260607_current_full_after_trace_harness_fix`.
-This run used the earlier manifest-listed 228 traces, produced 912 runner
-results, and judged all 912 cells with the local llama.cpp trajectory judge.
-Keep it as an audit artifact only; do not use it as the current paper-facing
-RQ2 result.
-
-| system | DCR | TP | TN | FP | FN | judged |
-|---|---:|---:|---:|---:|---:|---:|
-| prompt-filter | 120/228 (52.6%) | 41 | 79 | 35 | 73 | 228 |
-| tool-regex | 120/228 (52.6%) | 37 | 83 | 31 | 77 | 228 |
-| actplane | 172/228 (75.4%) | 85 | 87 | 27 | 29 | 228 |
-| actplane-opaque | 140/228 (61.4%) | 29 | 111 | 3 | 85 | 228 |
+An earlier six-family 228-trace local-judge snapshot existed during pipeline
+development. It is historical only and was moved out of `artifact-ready`; use
+the raw backup branch listed in `docs/ARTIFACT.md` for forensic inspection.
+Do not use that snapshot as the current paper-facing RQ2 result.
 
 For the paper, the RQ2 main text should report the 190-trace result as one
 grouped overall DCR bar chart plus one primary confusion-matrix table. The bar

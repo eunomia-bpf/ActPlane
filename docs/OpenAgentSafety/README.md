@@ -1,119 +1,86 @@
-# OpenAgentSafety ActPlane Workspace
+# OpenAgentSafety Artifact Workspace
 
-This is the clean OpenAgentSafety workspace for ActPlane experiments. It mirrors
-the `docs/OctoBench` pattern: keep the official benchmark checkout separate, keep
-ActPlane policy files in this repository, and write generated outputs under
-ignored `results/`.
+This directory contains the paper-facing OpenAgentSafety assets for ActPlane
+RQ5. It keeps the task manifests, selected policies, runner scripts, and frozen
+summary needed to verify the reported numbers. Historical policy attempts and
+raw run logs are not committed on `artifact-ready`.
 
 ## Provenance
 
 - Official benchmark: `Open-Agent-Safety/OpenAgentSafety`
-- Paper PDF already tracked at `docs/reference/openagentsafety.pdf`
 - Local official checkout path: `docs/OpenAgentSafety/OpenAgentSafety/`
-- Pinned commit currently checked out: `af1e44cf93efbaafbe69a547feb3d385133a5190`
+- Expected submodule commit: `af1e44cf93efbaafbe69a547feb3d385133a5190`
+- Runtime image family: `ghcr.io/theagentcompany/task-base-image:1.0.0`
 
-The local scripts do not modify the official checkout unless
-`--apply-local-patches` is passed.
+The submodule is required only for full reruns. The default artifact checks do
+not require it.
 
-The runner uses the official OpenAgentSafety base image by default:
+## Canonical Files
 
-```text
-ghcr.io/theagentcompany/task-base-image:1.0.0
+- `data/os_effect_blockable_50.json`: final 50 OS-effect blockable tasks.
+- `data/remaining_attempt0_description_manifest.json`: manifest for the 311
+  generated attempt0 policies plus no-op inventory.
+- `data/remaining_attempt0_batches/*.json`: batch manifests used for attempt0
+  policy generation and rerun grouping.
+- `policies/actplane/*.yaml`: final paper-facing ActPlane policies for the 50
+  blockable tasks.
+- `policies/remaining_attempts/attempt0-description/*.yaml`: generated
+  attempt0 policies for the remaining tasks.
+- `configs/openhands_local_llama_config.toml`: OpenHands config for local
+  llama.cpp serving.
+- `patches/local-llama-openhands.patch`: local patch for OpenHands/FakeUser
+  routing through llama.cpp.
+- `scripts/run_selected.py`: small runner for baseline and ActPlane conditions.
+- `../artifact/rq5_openagentsafety_ledger.json`: task/policy ledger for all
+  361 tasks.
+- `../artifact/rq5_openagentsafety_summary.json`: frozen paper-facing summary.
+
+Generated run outputs belong under ignored `results/` and are not committed on
+`artifact-ready`.
+
+## Verify
+
+From the repository root:
+
+```bash
+make -C docs rq5
 ```
 
-The official `evaluation/run_eval.py` copies each selected task's `utils/`,
-`workspace/`, `scenarios.json`, and `task.md` into the runtime, so the base
-image is enough for service-free smoke tasks. Use `--base-container-image` only
-when intentionally testing a local or task-specialized image.
+This verifies:
 
-## Layout
+- the total task count is 361,
+- the outcome counts sum correctly,
+- the final blockable manifest has 50 excluded final-policy tasks,
+- the no-op policy count is 58,
+- the task/policy ledger has 361 unique tasks split into 50 final policies and
+  311 attempt0 description policies,
+- `policies/actplane/` contains 50 final policies,
+- `policies/remaining_attempts/attempt0-description/` contains 311 generated
+  attempt0 policies, and
+- the reported prevention rate is recomputed from the frozen counts.
 
-- `OpenAgentSafety/`: official OpenAgentSafety checkout as a git submodule.
-- `configs/openhands_local_llama_config.toml`: OpenHands LLM config for local
-  llama.cpp serving Qwen 27B.
-- `patches/local-llama-openhands.patch`: small patch for the official runner so
-  local llama.cpp is used consistently and task runtime images are selected by
-  task name.
-- `policies/actplane/<task_id>.yaml`: host-side ActPlane notify policies.
-- `scripts/run_selected.py`: small runner for `baseline` and `actplane` smoke
-  runs.
+## Rerun
 
-Generated artifacts belong under ignored `results/`.
-
-## Setup
-
-From the ActPlane repo root:
+Full reruns require Docker, the official OpenAgentSafety submodule, OpenHands
+dependencies, ActPlane's release binary, and local model serving.
+Set `LLAMA_SERVER_BIN` and `LLAMA_MODEL`, or put `llama-server` on `PATH` and
+use the default model path documented in `docs/eval_scripts/README.md`.
 
 ```bash
 git submodule update --init --recursive docs/OpenAgentSafety/OpenAgentSafety
 cargo build --release --manifest-path collector/Cargo.toml
-```
-
-Install the official benchmark dependencies in the official checkout:
-
-```bash
 cd docs/OpenAgentSafety/OpenAgentSafety
 poetry install
 ```
 
-OpenAgentSafety service-backed tasks require Docker services from the official
-setup. The default smoke includes one ownCloud case, so either run services first
-or pass `--skip-services` to run only service-free tasks:
+Start official services when running service-backed tasks:
 
 ```bash
 cd docs/OpenAgentSafety/OpenAgentSafety
 bash servers/setup.sh
 ```
 
-The local runner can write `evaluation/config.toml` automatically from
-`configs/openhands_local_llama_config.toml`.
-
-## Local Qwen 27B
-
-The runner can start the same local llama.cpp server helper used by RQ1:
-
-```bash
-cd docs/OpenAgentSafety
-python3 scripts/run_selected.py \
-  --condition baseline \
-  --case safety-api-in-codebase \
-  --managed-llama
-```
-
-By default that helper serves:
-
-```text
-http://127.0.0.1:18080/v1
-Qwen.Qwen3.6-27B.f16.gguf.Q4_K_M.gguf
-```
-
-The official OpenAgentSafety runner currently hardcodes one FakeUser call to
-`gpt-4o` and leaves the OpenHands base image as a FIXME. For local runs, apply the
-workspace patch once:
-
-```bash
-cd docs/OpenAgentSafety
-python3 scripts/run_selected.py --apply-local-patches --dry-run
-```
-
-The patch makes FakeUser honor `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and
-`OPENAI_MODEL`, and sets the runtime image to
-`ghcr.io/theagentcompany/<task>-image:1.0.0` unless overridden.
-
-## Run
-
-Baseline smoke:
-
-```bash
-cd docs/OpenAgentSafety
-python3 scripts/run_selected.py \
-  --condition baseline \
-  --case safety-api-in-codebase \
-  --managed-llama \
-  --skip-services
-```
-
-ActPlane OS-evidence smoke:
+Run a smoke case through the artifact wrapper:
 
 ```bash
 cd docs/OpenAgentSafety
@@ -124,28 +91,12 @@ python3 scripts/run_selected.py \
   --skip-services
 ```
 
-For service-backed cases such as `safety-aws-credentials`, start official
-services and omit `--skip-services`.
+The runner writes generated outputs under `results/<condition>/<run-id>/`.
 
-Each run writes to:
+## Scope
 
-```text
-results/<condition>/<run-id>/
-```
-
-For ActPlane runs, each case directory includes `actplane-watch.log` plus the
-official `traj_*.json` and `eval_*.json` files produced by OpenAgentSafety.
-
-## Scope Notes
-
-OpenAgentSafety evaluates whether an agent is unsafe in realistic tasks.
-ActPlane evaluates whether an OS-level enforcement mechanism observes and
-intervenes on policy-relevant effects. The overlap is the subset of
-OpenAgentSafety tasks whose unsafe outcome has an OS-observable edge such as
-`exec`, `open`, `write`, `unlink`, or `connect`.
-
-The current policies are notify-only and intentionally conservative. Some
-OpenAgentSafety checkpoints, such as "hardcoded exactly this secret string",
-require content inspection to avoid false positives; ActPlane's current kernel
-policy language observes path/process/network effects and provenance, not file
-contents.
+RQ5 evaluates whether ActPlane can prevent OS-observable unsafe actions in the
+OpenAgentSafety task set. The artifact-ready branch preserves the policy
+inventory and paper-facing summary counts, but not complete raw run logs. The
+raw backup branch in `docs/ARTIFACT.md` remains the forensic fallback for
+historical research records.

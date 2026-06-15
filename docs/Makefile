@@ -9,7 +9,7 @@ help:
 	@echo "  make rq3            Verify frozen RQ3 performance summary"
 	@echo "  make rq4            Verify frozen RQ4 OctoBench summary and manifests"
 	@echo "  make rq5            Verify frozen RQ5 OpenAgentSafety summary and manifests"
-	@echo "  make artifact-check Verify rq1 through rq5"
+	@echo "  make artifact-check Verify rq1 through rq5 and artifact hygiene"
 	@echo "  make rq1-rerun      Re-run RQ1 from the artifact-ready branch"
 	@echo "  make rq2-rerun      Re-run RQ2 through run_eval.py; the runner manages llama.cpp"
 	@echo "  make rq3-rerun      Re-run RQ3 performance benchmarks"

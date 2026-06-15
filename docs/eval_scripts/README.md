@@ -154,11 +154,13 @@ with the result table.
 ## Model Backend
 
 Default runs use local llama.cpp for both the source agent and the trajectory
-judge. `docs/eval_scripts/llama_server.py` defaults to GPU `CUDA0`,
-`n_ctx=192000`, `-ngl all`, no explicit llama.cpp `--parallel`, no explicit
-`--fit`, and `--reasoning off --reasoning-format none` for both the source
-agent and judge. Judge mode additionally adds `--json-schema {}`. Judge files
-are written under `trajectory_judges_llama_cpp_guardrail_response`.
+judge. `docs/eval_scripts/llama_server.py` reads `LLAMA_SERVER_BIN` or resolves
+`llama-server` from `PATH`, and reads `LLAMA_MODEL` for the GGUF model path. It
+defaults to GPU `CUDA0`, `n_ctx=192000`, `-ngl all`, no explicit llama.cpp
+`--parallel`, no explicit `--fit`, and
+`--reasoning off --reasoning-format none` for both the source agent and judge.
+Judge mode additionally adds `--json-schema {}`. Judge files are written under
+`trajectory_judges_llama_cpp_guardrail_response`.
 
 For reproducibility, `run_eval.py` refuses to silently reuse an externally
 managed `llama-server`. If the port remains occupied after the restart attempt,

@@ -1,4 +1,0 @@
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063015Z/actplane-opaque/docs/corpus-test/openai__codex/generated-typescript-protocol/results/20260607T063151Z-39886cf4.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063015Z/actplane/docs/corpus-test/openai__codex/generated-typescript-protocol/results/20260607T063202Z-3a5dc826.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063015Z/prompt-filter/docs/corpus-test/openai__codex/generated-typescript-protocol/results/20260607T063056Z-0d9aad4b.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063015Z/tool-regex/docs/corpus-test/openai__codex/generated-typescript-protocol/results/20260607T063142Z-86eed8e8.json
