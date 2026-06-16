@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "actplane"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "actplane-ifc-compiler",
  "actplane-runtime",
@@ -21,7 +21,7 @@ dependencies = [
 
 [[package]]
 name = "actplane-ifc-compiler"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "serde",
  "serde_yaml",
@@ -29,7 +29,7 @@ dependencies = [
 
 [[package]]
 name = "actplane-runtime"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "actplane-ifc-compiler",
  "ebpf-ifc-engine",
@@ -346,7 +346,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "ebpf-ifc-engine"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "aya",
  "libbpf-sys",
