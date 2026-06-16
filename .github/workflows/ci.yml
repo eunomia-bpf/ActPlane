@@ -48,9 +48,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     if: github.event_name != 'push' || (!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]'))
-    env:
-      PRIV_CARGO_HOME: ${{ runner.temp }}/actplane-root-cargo
-      PRIV_TARGET_DIR: ${{ runner.temp }}/actplane-root-target
 
     steps:
       - name: Checkout code
@@ -82,7 +79,7 @@ jobs:
         run: make -C bpf
 
       - name: Prepare isolated privileged Cargo dirs
-        run: mkdir -p "$PRIV_CARGO_HOME" "$PRIV_TARGET_DIR"
+        run: mkdir -p "$RUNNER_TEMP/actplane-root-cargo" "$RUNNER_TEMP/actplane-root-target"
 
       - name: Run ignored ebpf-ifc-engine live tests
         timeout-minutes: 35
@@ -90,9 +87,9 @@ jobs:
           sudo -E env \
             "HOME=$HOME" \
             "PATH=$PATH" \
-            "CARGO_HOME=$PRIV_CARGO_HOME" \
+            "CARGO_HOME=$RUNNER_TEMP/actplane-root-cargo" \
             "RUSTUP_HOME=$HOME/.rustup" \
-            "CARGO_TARGET_DIR=$PRIV_TARGET_DIR" \
+            "CARGO_TARGET_DIR=$RUNNER_TEMP/actplane-root-target" \
             cargo test --locked -p ebpf-ifc-engine --lib -- --ignored --test-threads=1 --nocapture
 
       - name: Run privileged CLI/MCP live tests
@@ -101,16 +98,16 @@ jobs:
           sudo -E env \
             "HOME=$HOME" \
             "PATH=$PATH" \
-            "CARGO_HOME=$PRIV_CARGO_HOME" \
+            "CARGO_HOME=$RUNNER_TEMP/actplane-root-cargo" \
             "RUSTUP_HOME=$HOME/.rustup" \
-            "CARGO_TARGET_DIR=$PRIV_TARGET_DIR" \
+            "CARGO_TARGET_DIR=$RUNNER_TEMP/actplane-root-target" \
             cargo test --locked -p actplane --test mcp_protocol -- --ignored --test-threads=1 --nocapture
           sudo -E env \
             "HOME=$HOME" \
             "PATH=$PATH" \
-            "CARGO_HOME=$PRIV_CARGO_HOME" \
+            "CARGO_HOME=$RUNNER_TEMP/actplane-root-cargo" \
             "RUSTUP_HOME=$HOME/.rustup" \
-            "CARGO_TARGET_DIR=$PRIV_TARGET_DIR" \
+            "CARGO_TARGET_DIR=$RUNNER_TEMP/actplane-root-target" \
             cargo test --locked -p actplane --test watch_control -- --ignored --test-threads=1 --nocapture
 
       - name: Run live policy examples
@@ -119,10 +116,10 @@ jobs:
           sudo -E env \
             "HOME=$HOME" \
             "PATH=$PATH" \
-            "CARGO_HOME=$PRIV_CARGO_HOME" \
+            "CARGO_HOME=$RUNNER_TEMP/actplane-root-cargo" \
             "RUSTUP_HOME=$HOME/.rustup" \
-            "CARGO_TARGET_DIR=$PRIV_TARGET_DIR" \
-            "ACTPLANE_BIN=$PRIV_TARGET_DIR/release/actplane" \
+            "CARGO_TARGET_DIR=$RUNNER_TEMP/actplane-root-target" \
+            "ACTPLANE_BIN=$RUNNER_TEMP/actplane-root-target/release/actplane" \
             bash script/e2e_examples.sh
 
   publish:
