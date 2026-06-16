@@ -15,7 +15,7 @@ ACT="${ACTPLANE_BIN:-$ROOT/target/release/actplane}"
 PROC="$ROOT/bpf/process"
 CASES="${1:-$ROOT/test/e2e_cases.yaml}"
 export D=/tmp/ape
-READY_TRIES=600  # 600 * 0.025s = 15s for BPF load+attach on slower kernels
+READY_TRIES=2400 # 2400 * 0.025s = 60s for BPF load+attach on slow CI kernels
 RUN_TRIES=500    # 500 * 0.01s = 5s trigger window after the loader is ready
 
 [ -f "$CASES" ] || { echo "cases file not found: $CASES" >&2; exit 2; }
