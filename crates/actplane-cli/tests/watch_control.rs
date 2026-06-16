@@ -208,7 +208,7 @@ policy: |
     let terminate = actplane_output(
         &policy,
         tmp.path(),
-        &["control", "terminate-child", "--child-id", "550010"],
+        &["control", "stop", "--child-id", "550010"],
     );
     assert!(
         terminate.contains("child domain 550010") || terminate.contains("already exited"),
@@ -234,12 +234,11 @@ test "$rc" -ne 0
             && nested_logs.contains("not trusted parent domain"),
         "bound child-domain peer was not rejected as expected: {nested_logs}"
     );
-    let children = actplane_output(&policy, tmp.path(), &["control", "list-children"]);
-    let children_json: serde_json::Value =
-        serde_json::from_str(&children).expect("list-children JSON");
+    let children = actplane_output(&policy, tmp.path(), &["control", "children"]);
+    let children_json: serde_json::Value = serde_json::from_str(&children).expect("children JSON");
     let created_nested_child = children_json
         .as_array()
-        .expect("list-children array")
+        .expect("children array")
         .iter()
         .any(|child| child["child_id"].as_u64() == Some(550012));
     assert!(
