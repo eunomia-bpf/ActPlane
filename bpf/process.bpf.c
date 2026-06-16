@@ -2688,7 +2688,7 @@ static __noinline void te_handle_scm_rights(pid_t pid, __u64 msg_ptr)
 	}
 }
 
-static __always_inline int handle_io_exit(long ret)
+static __always_inline int handle_io_exit_read(long ret)
 {
 	__u64 tid = bpf_get_current_pid_tgid();
 	pid_t pid = tid >> 32;
@@ -2702,12 +2702,69 @@ static __always_inline int handle_io_exit(long ret)
 	}
 	if (ret > 0 && te_pid_active(pid)) {
 		int fd = p->fd;
-		__u32 access = p->access;
+		struct fd_ref *ref = te_lookup_fd(pid, fd);
+		__u32 *peer_ip = 0;
+
+		if (ref && (policy_features & TE_POLICY_FILE_FLOW))
+			te_read(pid, &ref->fid, ref->path);
+		if (policy_features & TE_POLICY_RECV)
+			peer_ip = te_lookup_sockfd(pid, fd);
+		if (peer_ip) {
+			te_handle_net_ip(*peer_ip, TE_ACCESS_RECV,
+					 te_tracepoint_mode());
+		}
+	}
+	bpf_map_delete_elem(&ts_iopend, &tid);
+	return 0;
+}
+
+static __always_inline int handle_io_exit_write(long ret)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	pid_t pid = tid >> 32;
+	struct io_pend *p = bpf_map_lookup_elem(&ts_iopend, &tid);
+
+	if (!p)
+		return 0;
+	if (enforce_mode) {
+		bpf_map_delete_elem(&ts_iopend, &tid);
+		return 0;
+	}
+	if (ret > 0 && te_pid_active(pid)) {
+		int fd = p->fd;
+		struct fd_ref *ref = te_lookup_fd(pid, fd);
+		__u32 *peer_ip = 0;
+
+		if (ref && (policy_features & TE_POLICY_FILE_FLOW))
+			te_write_flow(pid, &ref->fid, ref->path);
+		if (policy_features & TE_POLICY_FILE_FLOW)
+			peer_ip = te_lookup_sockfd(pid, fd);
+		if (peer_ip)
+			te_connect_flow(*peer_ip, pid);
+	}
+	bpf_map_delete_elem(&ts_iopend, &tid);
+	return 0;
+}
+
+static __always_inline int handle_io_exit_addr(long ret, __u32 access)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	pid_t pid = tid >> 32;
+	struct io_pend *p = bpf_map_lookup_elem(&ts_iopend, &tid);
+
+	if (!p)
+		return 0;
+	if (enforce_mode) {
+		bpf_map_delete_elem(&ts_iopend, &tid);
+		return 0;
+	}
+	if (ret > 0 && te_pid_active(pid)) {
+		int fd = p->fd;
 		__u64 addr_ptr = p->addr_ptr;
 		__u32 addr_kind = p->addr_kind;
 		int addr_len = p->addr_len;
 		struct fd_ref *ref = te_lookup_fd(pid, fd);
-		__u32 *peer_ip;
+		__u32 *peer_ip = 0;
 
 		if (ref && (policy_features & TE_POLICY_FILE_FLOW)) {
 			if (access & TE_ACCESS_READ)
@@ -2716,9 +2773,12 @@ static __always_inline int handle_io_exit(long ret)
 				te_write_flow(pid, &ref->fid, ref->path);
 		}
 		if ((access & TE_ACCESS_READ) &&
+		    (policy_features & TE_POLICY_FILE_FLOW) &&
 		    addr_kind == TE_IO_ADDR_USER_MSGHDR)
 			te_handle_scm_rights(pid, addr_ptr);
-		peer_ip = te_lookup_sockfd(pid, fd);
+		if (((access & TE_ACCESS_READ) && (policy_features & TE_POLICY_RECV)) ||
+		    ((access & TE_ACCESS_WRITE) && (policy_features & TE_POLICY_FILE_FLOW)))
+			peer_ip = te_lookup_sockfd(pid, fd);
 		if (peer_ip) {
 			if (access & TE_ACCESS_READ)
 				te_handle_net_ip(*peer_ip, TE_ACCESS_RECV,
@@ -2731,13 +2791,16 @@ static __always_inline int handle_io_exit(long ret)
 
 			if (te_resolve_io_sockaddr(addr_kind, addr_ptr, &ip) ==
 			    0) {
-				if (access & TE_ACCESS_READ)
+				if ((access & TE_ACCESS_READ) &&
+				    (policy_features & TE_POLICY_RECV))
 					te_handle_net_ip(ip, TE_ACCESS_RECV,
 							 te_tracepoint_mode());
-				if (access & TE_ACCESS_WRITE)
+				if ((access & TE_ACCESS_WRITE) &&
+				    (policy_features & TE_POLICY_CONNECT))
 					te_handle_net_ip(ip, TE_ACCESS_CONNECT,
 							 te_tracepoint_mode());
-			} else if (scratch && (access & TE_ACCESS_WRITE)) {
+			} else if (scratch && (access & TE_ACCESS_WRITE) &&
+				   (policy_features & TE_POLICY_FILE_FLOW)) {
 				__builtin_memset(scratch, 0, sizeof(*scratch));
 				if (te_resolve_io_unix_sockaddr(
 					    addr_kind, addr_ptr, addr_len,
@@ -2921,7 +2984,7 @@ int trace_read(struct trace_event_raw_sys_enter *ctx)
 SEC("tp/syscalls/sys_exit_read")
 int trace_read_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_io_exit(ctx->ret);
+	return handle_io_exit_read(ctx->ret);
 }
 
 SEC("tp/syscalls/sys_enter_write")
@@ -2933,7 +2996,7 @@ int trace_write(struct trace_event_raw_sys_enter *ctx)
 SEC("tp/syscalls/sys_exit_write")
 int trace_write_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_io_exit(ctx->ret);
+	return handle_io_exit_write(ctx->ret);
 }
 
 SEC("tp/syscalls/sys_enter_mmap")
@@ -2996,7 +3059,7 @@ int trace_sendto(struct trace_event_raw_sys_enter *ctx)
 SEC("tp/syscalls/sys_exit_sendto")
 int trace_sendto_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_io_exit(ctx->ret);
+	return handle_io_exit_addr(ctx->ret, TE_ACCESS_WRITE);
 }
 
 SEC("tp/syscalls/sys_enter_recvfrom")
@@ -3010,7 +3073,7 @@ int trace_recvfrom(struct trace_event_raw_sys_enter *ctx)
 SEC("tp/syscalls/sys_exit_recvfrom")
 int trace_recvfrom_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_io_exit(ctx->ret);
+	return handle_io_exit_addr(ctx->ret, TE_ACCESS_READ);
 }
 
 SEC("tp/syscalls/sys_enter_sendmsg")
@@ -3024,7 +3087,7 @@ int trace_sendmsg(struct trace_event_raw_sys_enter *ctx)
 SEC("tp/syscalls/sys_exit_sendmsg")
 int trace_sendmsg_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_io_exit(ctx->ret);
+	return handle_io_exit_addr(ctx->ret, TE_ACCESS_WRITE);
 }
 
 SEC("tp/syscalls/sys_enter_recvmsg")
@@ -3038,7 +3101,7 @@ int trace_recvmsg(struct trace_event_raw_sys_enter *ctx)
 SEC("tp/syscalls/sys_exit_recvmsg")
 int trace_recvmsg_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_io_exit(ctx->ret);
+	return handle_io_exit_addr(ctx->ret, TE_ACCESS_READ);
 }
 
 static __always_inline int stash_dup(int oldfd)
