@@ -214,19 +214,23 @@ start twice.
 ## How it works
 
 ```
-actplane.yaml ─▶ collector (Rust) ─▶ .rodata config ─▶ eBPF kernel engine
- policy: |        parse + lower DSL    (set_global)      propagate labels,
-                                                          match rules,
- matches ◀─────── ring buffer (in-process, via aya) ◀─── emit on match only
+actplane.yaml ─▶ policy compiler ─▶ runtime/control ─▶ eBPF kernel engine
+ policy: |        parse + lower DSL   load + seed       propagate labels,
+                                      domains           match rules,
+ matches ◀─────── feedback/report ◀── ring buffer ◀──── emit on match only
 ```
 
 - **Kernel** (`bpf/`): hooks `fork / exec / exit / open / unlink / rename / connect`,
   keeps a per-node label set (process / file / endpoint), propagates labels,
   evaluates compiled rules, emits only match events.
-- **Collector** (`actplane`): discovers `actplane.yaml`, compiles the DSL to the
-  kernel config, and loads the prebuilt eBPF object in-process via
+- **Policy compiler** (`crates/actplane-ifc-compiler/`): parses the ActPlane IFC
+  policy language and lowers it to the fixed kernel config ABI.
+- **Runtime library** (`crates/actplane-runtime/`): resolves `actplane.yaml`,
+  loads the prebuilt eBPF object in-process via
   [`ebpf-ifc-engine`](bpf/) (aya) — no libbpf/clang at runtime — seeds the target
   process lineage, and reports rule matches with policy reasons.
+- **CLI frontend** (`crates/actplane-cli/`): provides the `actplane` command,
+  project setup, policy review, MCP, and command dispatch.
 
 ## Build from source
 
@@ -234,7 +238,8 @@ actplane.yaml ─▶ collector (Rust) ─▶ .rodata config ─▶ eBPF kernel e
 
 ```bash
 git clone --recurse-submodules https://github.com/eunomia-bpf/ActPlane
-cd ActPlane/collector && cargo build --release   # uses the prebuilt eBPF object
+cd ActPlane
+cargo build --release -p actplane
 ```
 
 Editing the kernel eBPF (`bpf/*.bpf.c`) requires the BPF toolchain
@@ -248,7 +253,7 @@ ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine   # regenerates bpf/prebui
 Run the tests:
 
 ```bash
-make test                          # bpf C unit tests + collector Rust unit tests
+make test                          # bpf C unit tests + Rust workspace unit tests
 sudo bash script/e2e_examples.sh   # live E1–E12 enforcement
 ```
 

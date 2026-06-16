@@ -7,13 +7,13 @@ use crate::{dsl, feedback};
 use serde_json::json;
 
 #[derive(Clone)]
-pub(crate) struct RuleFeedbackContext {
-    pub(crate) meta: dsl::RuleMeta,
-    pub(crate) labels: HashMap<String, u64>,
+pub struct RuleFeedbackContext {
+    pub meta: dsl::RuleMeta,
+    pub labels: HashMap<String, u64>,
 }
 
 #[derive(serde::Deserialize)]
-pub(crate) struct Violation {
+pub struct Violation {
     pid: i32,
     ppid: i32,
     comm: String,
@@ -39,7 +39,7 @@ pub(crate) struct Violation {
 }
 
 impl Violation {
-    pub(crate) fn rule_id(&self) -> usize {
+    pub fn rule_id(&self) -> usize {
         self.rule_id
     }
 }
@@ -54,7 +54,7 @@ struct ViolationProvenance {
 }
 
 /// Map the eBPF crate's violation into the collector's reporting struct.
-pub(crate) fn to_violation(v: &ebpf_ifc_engine::Violation) -> Violation {
+pub fn to_violation(v: &ebpf_ifc_engine::Violation) -> Violation {
     Violation {
         pid: v.pid,
         ppid: v.ppid,
@@ -90,7 +90,7 @@ pub(crate) fn to_violation(v: &ebpf_ifc_engine::Violation) -> Violation {
 
 /// Report a violation: a human one-liner to stdout, plus the structured
 /// corrective-feedback payload appended to the reason file.
-pub(crate) fn report(
+pub fn report(
     meta: &[dsl::RuleMeta],
     labels: &HashMap<String, u64>,
     v: &Violation,
@@ -104,7 +104,7 @@ pub(crate) fn report(
     report_with_context(ctx.as_ref(), v, feedback_file, event_file);
 }
 
-pub(crate) fn contexts_from_compiled(compiled: &dsl::Compiled) -> Vec<RuleFeedbackContext> {
+pub fn contexts_from_compiled(compiled: &dsl::Compiled) -> Vec<RuleFeedbackContext> {
     compiled
         .meta
         .iter()
@@ -116,7 +116,7 @@ pub(crate) fn contexts_from_compiled(compiled: &dsl::Compiled) -> Vec<RuleFeedba
         .collect()
 }
 
-pub(crate) fn report_with_context(
+pub fn report_with_context(
     ctx: Option<&RuleFeedbackContext>,
     v: &Violation,
     feedback_file: Option<&Path>,
@@ -165,7 +165,7 @@ pub(crate) fn report_with_context(
     }
 }
 
-pub(crate) fn append_violation_feedback_context(
+pub fn append_violation_feedback_context(
     ctx: Option<&RuleFeedbackContext>,
     v: &Violation,
     path: &Path,
@@ -203,7 +203,7 @@ pub(crate) fn append_violation_feedback_context(
     }
 }
 
-pub(crate) fn append_violation_event_context(
+pub fn append_violation_event_context(
     ctx: Option<&RuleFeedbackContext>,
     v: &Violation,
     path: &Path,

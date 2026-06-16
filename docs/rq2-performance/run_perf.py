@@ -131,7 +131,7 @@ def build_benchmark(bench_bin: Path) -> None:
 
 def build_actplane() -> None:
     run_checked(
-        ["cargo", "build", "--release", "--manifest-path", str(ROOT / "collector/Cargo.toml")],
+        ["cargo", "build", "--release", "-p", "actplane"],
         cwd=ROOT,
         timeout=1200,
     )

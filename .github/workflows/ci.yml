@@ -2,9 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [ "master", "main" ]
   pull_request:
-    branches: [ "master", "main" ]
+    branches: ["master", "main"]
   workflow_dispatch:
 
 jobs:
@@ -14,42 +13,35 @@ jobs:
     if: github.event_name != 'push' || (!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]'))
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-      with:
-        submodules: 'recursive'
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: "recursive"
 
-    - name: Setup Rust
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        toolchain: stable
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          libelf1 libelf-dev zlib1g-dev libclang-dev \
-          make git clang llvm pkg-config build-essential
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libelf1 libelf-dev zlib1g-dev libclang-dev \
+            make git clang llvm pkg-config build-essential
 
-    - name: Build BPF C programs
-      run: |
-        cd bpf
-        make
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
 
-    - name: Run C unit tests
-      run: |
-        cd bpf
-        make test
+      - name: Build BPF C programs
+        run: make -C bpf
 
-    - name: Build Rust collector
-      run: |
-        cd collector
-        cargo build --verbose
+      - name: Check Rust workspace
+        run: cargo check --workspace --locked
 
-    - name: Run Rust tests
-      run: |
-        cd collector
-        cargo test --verbose
+      - name: Run tests
+        run: make test
 
   publish:
     name: Publish to crates.io
@@ -61,141 +53,138 @@ jobs:
       cancel-in-progress: false
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-      with:
-        submodules: 'recursive'
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: "recursive"
+          fetch-depth: 0
 
-    - name: Setup Rust
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        toolchain: stable
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends \
-          libelf1 libelf-dev zlib1g-dev libclang-dev \
-          make git clang llvm pkg-config build-essential
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libelf1 libelf-dev zlib1g-dev libclang-dev \
+            make git clang llvm pkg-config build-essential
 
-    - name: Build BPF C programs
-      run: |
-        cd bpf
-        make
+      - name: Build BPF C programs
+        run: make -C bpf
 
-    - name: Resolve crate publish state
-      run: |
-        python3 - <<'PY'
-        import json
-        import re
-        import urllib.request
-        from pathlib import Path
+      - name: Resolve crate publish state
+        run: |
+          python3 - <<'PY'
+          import json
+          import re
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
 
-        UA = "ActPlane CI publish version check"
+          UA = "ActPlane CI publish version check"
+          CRATES = [
+              ("ebpf-ifc-engine", "BPF", Path("bpf/Cargo.toml"), []),
+              ("actplane-ifc-compiler", "IFC_COMPILER", Path("crates/actplane-ifc-compiler/Cargo.toml"), []),
+              ("actplane-runtime", "RUNTIME", Path("crates/actplane-runtime/Cargo.toml"), ["actplane-ifc-compiler", "ebpf-ifc-engine"]),
+              ("actplane", "ACTPLANE", Path("crates/actplane-cli/Cargo.toml"), ["actplane-ifc-compiler", "actplane-runtime", "ebpf-ifc-engine"]),
+          ]
 
-        def first_package_version(path: str) -> str:
-            text = Path(path).read_text()
-            match = re.search(r'(?m)^version = "([^"]+)"', text)
-            if not match:
-                raise SystemExit(f"no package version in {path}")
-            return match.group(1)
+          def manifest_text(path: Path) -> str:
+              return path.read_text(encoding="utf-8")
 
-        def collector_engine_dep_version() -> str:
-            text = Path("collector/Cargo.toml").read_text()
-            match = re.search(r'ebpf-ifc-engine = \{ version = "([^"]+)"', text)
-            if not match:
-                raise SystemExit("collector/Cargo.toml has no ebpf-ifc-engine version")
-            return match.group(1)
+          def package_version(path: Path) -> str:
+              match = re.search(r'(?m)^version = "([^"]+)"', manifest_text(path))
+              if not match:
+                  raise SystemExit(f"no package version in {path}")
+              return match.group(1)
 
-        def published_versions(crate: str) -> set[str]:
-            req = urllib.request.Request(
-                f"https://crates.io/api/v1/crates/{crate}/versions",
-                headers={"User-Agent": UA},
-            )
-            with urllib.request.urlopen(req, timeout=30) as response:
-                data = json.load(response)
-            return {v["num"] for v in data["versions"]}
+          def dependency_version(path: Path, crate: str) -> str:
+              pattern = rf'(?m)^{re.escape(crate)} = \{{[^}}]*version = "([^"]+)"'
+              match = re.search(pattern, manifest_text(path))
+              if not match:
+                  raise SystemExit(f"{path} has no versioned dependency on {crate}")
+              return match.group(1)
 
-        bpf_version = first_package_version("bpf/Cargo.toml")
-        collector_version = first_package_version("collector/Cargo.toml")
-        dep_version = collector_engine_dep_version()
+          def published_versions(crate: str) -> set[str]:
+              req = urllib.request.Request(
+                  f"https://crates.io/api/v1/crates/{crate}/versions",
+                  headers={"User-Agent": UA},
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      data = json.load(response)
+              except urllib.error.HTTPError as exc:
+                  if exc.code == 404:
+                      return set()
+                  raise
+              return {v["num"] for v in data["versions"]}
 
-        if bpf_version != collector_version:
-            raise SystemExit(
-                f"crate versions must match: ebpf-ifc-engine={bpf_version}, "
-                f"actplane={collector_version}"
-            )
-        if dep_version != bpf_version:
-            raise SystemExit(
-                f"collector dependency version must match bpf crate: "
-                f"dep={dep_version}, bpf={bpf_version}"
-            )
+          versions = {crate: package_version(path) for crate, _, path, _ in CRATES}
+          expected = versions["ebpf-ifc-engine"]
+          for crate, version in versions.items():
+              if version != expected:
+                  raise SystemExit(f"crate versions must match: ebpf-ifc-engine={expected}, {crate}={version}")
 
-        bpf_published = bpf_version in published_versions("ebpf-ifc-engine")
-        collector_published = collector_version in published_versions("actplane")
+          for crate, _, path, deps in CRATES:
+              for dep in deps:
+                  dep_version = dependency_version(path, dep)
+                  if dep_version != versions[dep]:
+                      raise SystemExit(f"{path} dependency {dep} version {dep_version} does not match {versions[dep]}")
 
-        if bpf_published:
-            print(f"ebpf-ifc-engine {bpf_version} is already published")
-        else:
-            print(f"ebpf-ifc-engine {bpf_version} is not published yet")
-        if collector_published:
-            print(f"actplane {collector_version} is already published; nothing to publish")
-        else:
-            print(f"actplane {collector_version} is not published yet")
+          with open(Path.cwd() / "publish_versions.env", "w", encoding="utf-8") as out:
+              for crate, env_name, _, _ in CRATES:
+                  version = versions[crate]
+                  published = version in published_versions(crate)
+                  action = "already published" if published else "not published yet"
+                  print(f"{crate} {version} is {action}")
+                  out.write(f"{env_name}_VERSION={version}\n")
+                  out.write(f"PUBLISH_{env_name}={str(not published).lower()}\n")
+          PY
+          cat publish_versions.env >> "$GITHUB_ENV"
 
-        with open(Path.cwd() / "publish_versions.env", "w") as out:
-            out.write(f"BPF_VERSION={bpf_version}\n")
-            out.write(f"ACTPLANE_VERSION={collector_version}\n")
-            out.write(f"BPF_PUBLISHED={str(bpf_published).lower()}\n")
-            out.write(f"ACTPLANE_PUBLISHED={str(collector_published).lower()}\n")
-        PY
-        cat publish_versions.env >> "$GITHUB_ENV"
+      - name: Publish ebpf-ifc-engine
+        if: env.PUBLISH_BPF == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --allow-dirty --manifest-path bpf/Cargo.toml
 
-    - name: Publish ebpf-ifc-engine first
-      if: env.ACTPLANE_PUBLISHED != 'true' && env.BPF_PUBLISHED != 'true'
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: |
-        cd bpf
-        cargo publish --allow-dirty
+      - name: Wait for ebpf-ifc-engine index
+        if: env.PUBLISH_BPF == 'true'
+        env:
+          CRATE_NAME: ebpf-ifc-engine
+          CRATE_VERSION: ${{ env.BPF_VERSION }}
+        run: .github/workflows/wait-for-crate.sh
 
-    - name: Wait for crates.io index
-      if: env.ACTPLANE_PUBLISHED != 'true'
-      run: |
-        echo "Waiting for ebpf-ifc-engine ${{ env.BPF_VERSION }} to appear in crates.io index..."
-        found=0
-        for i in $(seq 1 12); do
-          sleep 10
-          if python3 - <<'PY'
-        import json
-        import os
-        import urllib.request
+      - name: Publish actplane-ifc-compiler
+        if: env.PUBLISH_IFC_COMPILER == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --allow-dirty --manifest-path crates/actplane-ifc-compiler/Cargo.toml
 
-        req = urllib.request.Request(
-            "https://crates.io/api/v1/crates/ebpf-ifc-engine/versions",
-            headers={"User-Agent": "ActPlane CI publish version check"},
-        )
-        with urllib.request.urlopen(req, timeout=30) as response:
-            versions = {v["num"] for v in json.load(response)["versions"]}
-        raise SystemExit(0 if os.environ["BPF_VERSION"] in versions else 1)
-        PY
-          then
-            echo "Found after $((i * 10))s"
-            found=1
-            break
-          fi
-          echo "Attempt $i/12..."
-        done
-        if [ "$found" -ne 1 ]; then
-          echo "ebpf-ifc-engine ${{ env.BPF_VERSION }} did not appear in crates.io index"
-          exit 1
-        fi
+      - name: Wait for actplane-ifc-compiler index
+        if: env.PUBLISH_IFC_COMPILER == 'true'
+        env:
+          CRATE_NAME: actplane-ifc-compiler
+          CRATE_VERSION: ${{ env.IFC_COMPILER_VERSION }}
+        run: .github/workflows/wait-for-crate.sh
 
-    - name: Publish actplane
-      if: env.ACTPLANE_PUBLISHED != 'true'
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: |
-        cd collector
-        cargo publish --allow-dirty
+      - name: Publish actplane-runtime
+        if: env.PUBLISH_RUNTIME == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --allow-dirty --manifest-path crates/actplane-runtime/Cargo.toml
+
+      - name: Wait for actplane-runtime index
+        if: env.PUBLISH_RUNTIME == 'true'
+        env:
+          CRATE_NAME: actplane-runtime
+          CRATE_VERSION: ${{ env.RUNTIME_VERSION }}
+        run: .github/workflows/wait-for-crate.sh
+
+      - name: Publish actplane
+        if: env.PUBLISH_ACTPLANE == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --allow-dirty --manifest-path crates/actplane-cli/Cargo.toml

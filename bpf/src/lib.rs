@@ -2527,8 +2527,13 @@ mod tests {
         set_cstr(&mut cfg.rules[0].arg, "commit");
 
         assert_eq!(config_features(&cfg) & FEAT_BLOCK_EXEC, 0);
-        validate_supported_features(&cfg, 0, "runtime policy delta")
-            .expect("argv-sensitive block exec is unsupported and should not reserve bprm hook");
+        assert_ne!(config_features(&cfg) & FEAT_EXEC_ARGS, 0);
+        let err = validate_supported_features(&cfg, 0, "runtime policy delta")
+            .expect_err("argv-sensitive exec matching requires argv-token hook budget");
+        assert!(err.to_string().contains("exec argv-token hooks"), "{err}");
+        assert!(!err.to_string().contains("exec block hooks"), "{err}");
+        validate_supported_features(&cfg, FEAT_EXEC_ARGS, "runtime policy delta")
+            .expect("argv-token budget admits argv-sensitive exec rule without bprm block budget");
     }
 
     #[test]

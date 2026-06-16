@@ -327,7 +327,7 @@ def locate_actplane(explicit: str | None) -> Path:
     candidates = []
     if explicit:
         candidates.append(Path(explicit))
-    candidates.extend([ROOT / "target" / "release" / "actplane", ROOT / "collector" / "target" / "release" / "actplane"])
+    candidates.append(ROOT / "target" / "release" / "actplane")
     for candidate in candidates:
         if candidate.exists() and os.access(candidate, os.X_OK):
             return candidate

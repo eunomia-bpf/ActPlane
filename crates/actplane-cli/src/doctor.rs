@@ -12,10 +12,11 @@ use crate::config::{
 use crate::dsl::ast::{Clause, Cond, Effect, Expr, Kind, Op, Policy, Source};
 use crate::runtime::{have_bpf_caps, passwordless_sudo_available};
 use crate::setup::{codex_hook_has_actplane_command, project_mcp_auto_attach_ok};
-use crate::{Cli, Result, dsl};
+use crate::{Result, dsl};
+use actplane_runtime::PolicyInput;
 
 pub(crate) fn check_policy(
-    cli: &Cli,
+    cli: &PolicyInput,
     json_output: bool,
     explain_output: bool,
     report_out: Option<&Path>,
@@ -177,7 +178,7 @@ pub(crate) struct RolloutArtifacts {
 
 #[allow(dead_code)]
 pub(crate) fn render_rollout_artifacts(
-    cli: &Cli,
+    cli: &PolicyInput,
     event_paths: &[PathBuf],
     annotation_paths: &[PathBuf],
 ) -> Result<RolloutArtifacts> {
@@ -1234,7 +1235,7 @@ fn dsl_literal(value: &str) -> String {
     value.replace(['\n', '\r'], " ").replace('"', "'")
 }
 
-fn policy_ref_for_cli(cli: &Cli) -> String {
+fn policy_ref_for_cli(cli: &PolicyInput) -> String {
     cli.policy
         .as_ref()
         .map(|p| p.display().to_string())
@@ -2199,7 +2200,7 @@ fn endpoint_pattern_is_numeric_ipv4(pat: &str) -> bool {
     (1..=4).contains(&count)
 }
 
-pub(crate) fn doctor(cli: &Cli) -> Result<i32> {
+pub(crate) fn doctor(cli: &PolicyInput) -> Result<i32> {
     println!("ActPlane doctor\n");
     let mut problems = 0;
 
@@ -2291,7 +2292,7 @@ pub(crate) fn doctor(cli: &Cli) -> Result<i32> {
     }
 }
 
-pub(crate) fn list_domains(cli: &Cli) -> Result<i32> {
+pub(crate) fn list_domains(cli: &PolicyInput) -> Result<i32> {
     let loaded = load_policy(cli)?;
     let where_ = loaded
         .path

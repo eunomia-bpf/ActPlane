@@ -60,7 +60,7 @@ use the default model path documented in `docs/eval_scripts/README.md`.
 
 ```bash
 git submodule update --init --recursive docs/OctoBench/mini-vela
-cargo build --release --manifest-path collector/Cargo.toml
+cargo build --release -p actplane
 cd docs/OctoBench
 python3 run_cases.py --condition baseline --managed-llama
 python3 run_cases.py --condition tool-regex --managed-llama

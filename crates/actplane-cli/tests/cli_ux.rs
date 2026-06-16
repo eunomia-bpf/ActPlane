@@ -13,7 +13,11 @@ fn actplane() -> &'static str {
 }
 
 fn fixture(name: &str) -> String {
-    format!("{}/test/policies/{}", env!("CARGO_MANIFEST_DIR"), name)
+    format!(
+        "{}/../../test/policies/{}",
+        env!("CARGO_MANIFEST_DIR"),
+        name
+    )
 }
 
 fn run(args: &[&str]) -> Output {

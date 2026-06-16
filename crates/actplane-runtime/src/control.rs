@@ -15,17 +15,17 @@ use crate::{Result, audit};
 const CONTROL_STATE_FILE: &str = ".actplane/control.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ControlState {
-    pub(crate) schema: String,
-    pub(crate) pid: i32,
-    pub(crate) proc_start_time: Option<u64>,
-    pub(crate) socket_path: PathBuf,
-    pub(crate) project_dir: PathBuf,
-    pub(crate) parent_pid: i32,
-    pub(crate) parent_domain_id: u32,
+pub struct ControlState {
+    pub schema: String,
+    pub pid: i32,
+    pub proc_start_time: Option<u64>,
+    pub socket_path: PathBuf,
+    pub project_dir: PathBuf,
+    pub parent_pid: i32,
+    pub parent_domain_id: u32,
 }
 
-pub(crate) struct LocalControlGuard {
+pub struct LocalControlGuard {
     stop: Arc<AtomicBool>,
     thread: Option<std::thread::JoinHandle<()>>,
     socket_path: PathBuf,
@@ -33,13 +33,13 @@ pub(crate) struct LocalControlGuard {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct PeerCred {
-    pub(crate) pid: i32,
+pub struct PeerCred {
+    pub pid: i32,
     #[allow(dead_code)]
-    pub(crate) uid: u32,
+    pub uid: u32,
     #[allow(dead_code)]
-    pub(crate) gid: u32,
-    pub(crate) identity: audit::ProcessIdentity,
+    pub gid: u32,
+    pub identity: audit::ProcessIdentity,
 }
 
 impl Drop for LocalControlGuard {
@@ -60,18 +60,18 @@ impl Drop for LocalControlGuard {
     }
 }
 
-pub(crate) fn state_path(project_dir: &Path) -> PathBuf {
+pub fn state_path(project_dir: &Path) -> PathBuf {
     project_dir.join(CONTROL_STATE_FILE)
 }
 
-pub(crate) fn read_state(project_dir: &Path) -> Result<ControlState> {
+pub fn read_state(project_dir: &Path) -> Result<ControlState> {
     let path = state_path(project_dir);
     let text =
         std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
     serde_json::from_str(&text).map_err(|e| format!("parse {}: {e}", path.display()).into())
 }
 
-pub(crate) fn start_server<F>(
+pub fn start_server<F>(
     project_dir: &Path,
     parent_pid: i32,
     parent_domain_id: u32,
@@ -142,7 +142,7 @@ where
     })
 }
 
-pub(crate) fn send_request(project_dir: &Path, request: Value) -> Result<Value> {
+pub fn send_request(project_dir: &Path, request: Value) -> Result<Value> {
     let path = state_path(project_dir);
     let state = read_state(project_dir)?;
     if !control_process_matches(&state) {

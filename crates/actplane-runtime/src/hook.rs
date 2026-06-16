@@ -20,7 +20,7 @@ struct HookSelection {
     state: PathBuf,
 }
 
-pub(crate) async fn feedback_hook() -> Result<()> {
+pub async fn feedback_hook() -> Result<()> {
     let data: serde_json::Value = match serde_json::from_str(&read_stdin()?) {
         Ok(v) => v,
         Err(_) => serde_json::Value::Object(Default::default()),
@@ -65,7 +65,7 @@ pub(crate) async fn feedback_hook() -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn write_hook_state(state: &Path, feedback: &Path, root_pid: i32) -> Result<()> {
+pub fn write_hook_state(state: &Path, feedback: &Path, root_pid: i32) -> Result<()> {
     if let Some(parent) = state.parent() {
         std::fs::create_dir_all(parent)?;
     }

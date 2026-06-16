@@ -1,16 +1,18 @@
-# ActPlane build. The Rust collector embeds the compiled bpf/process binary
-# (include_bytes!), so eBPF must build before the Rust binary.
+# ActPlane build. The Rust CLI links the eBPF engine crate, so eBPF must build
+# before the Rust binary.
 build: build-bpf build-rust
 
 build-bpf:
 	make -C bpf
 
 build-rust: build-bpf
-	cd collector && cargo build --release
+	cargo build --release -p actplane
 
 clean:
 	make -C bpf clean
-	cd collector && cargo clean
+	cargo clean -p actplane-ifc-compiler
+	cargo clean -p actplane-runtime
+	cargo clean -p actplane
 
 install:
 	sudo apt update
@@ -26,6 +28,6 @@ install:
 
 test:
 	make -C bpf test
-	cd collector && cargo test
+	cargo test --workspace
 
 .PHONY: build build-bpf build-rust clean install test

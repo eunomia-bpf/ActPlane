@@ -6,9 +6,33 @@ version = 4
 name = "actplane"
 version = "0.1.7"
 dependencies = [
+ "actplane-ifc-compiler",
+ "actplane-runtime",
  "clap",
  "ebpf-ifc-engine",
  "env_logger",
+ "libc",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "actplane-ifc-compiler"
+version = "0.1.7"
+dependencies = [
+ "serde",
+ "serde_yaml",
+]
+
+[[package]]
+name = "actplane-runtime"
+version = "0.1.7"
+dependencies = [
+ "actplane-ifc-compiler",
+ "ebpf-ifc-engine",
  "libc",
  "rmcp",
  "serde",

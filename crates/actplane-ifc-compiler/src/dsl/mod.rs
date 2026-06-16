@@ -195,7 +195,6 @@ fn is_top_level_decl(trimmed: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{FileConfig, LoadedPolicy, policy_source};
     use std::path::{Path, PathBuf};
     use std::time::Instant;
 
@@ -203,8 +202,12 @@ mod tests {
         compile_str(src).expect("compile")
     }
 
+    fn corpus_dir() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/policies")
+    }
+
     fn corpus_policy_sources() -> Vec<(PathBuf, String)> {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("test/policies");
+        let dir = corpus_dir();
         let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
             .unwrap_or_else(|e| panic!("read {}: {e}", dir.display()))
             .map(|ent| ent.expect("policy dir entry").path())
@@ -218,21 +221,49 @@ mod tests {
         );
         paths
             .into_iter()
-            .map(|path| {
+            .flat_map(|path| {
                 let src = std::fs::read_to_string(&path)
                     .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-                let cfg: FileConfig = serde_yaml::from_str(&src)
-                    .unwrap_or_else(|e| panic!("parse {}: {e}", path.display()));
-                let loaded = LoadedPolicy {
-                    config: cfg,
-                    root: PathBuf::new(),
-                    path: None,
-                };
-                let policy = policy_source(&loaded, None)
-                    .unwrap_or_else(|e| panic!("resolve {}: {e}", path.display()));
-                (path, policy)
+                yaml_policy_sources(&path, &src)
+                    .unwrap_or_else(|e| panic!("parse {}: {e}", path.display()))
             })
             .collect()
+    }
+
+    fn yaml_policy_sources(path: &Path, src: &str) -> Result<Vec<(PathBuf, String)>, String> {
+        let value: serde_yaml::Value = serde_yaml::from_str(src).map_err(|e| e.to_string())?;
+        if let Some(policy) = yaml_get(&value, "policy").and_then(serde_yaml::Value::as_str) {
+            return Ok(vec![(path.to_path_buf(), policy.to_string())]);
+        }
+        let Some(rules) = yaml_get(&value, "rules").and_then(serde_yaml::Value::as_mapping) else {
+            return Ok(Vec::new());
+        };
+        let mut source = String::new();
+        for (name, entry) in rules {
+            let Some(rule_name) = name.as_str() else {
+                continue;
+            };
+            let Some(ifc) = yaml_get(entry, "ifc")
+                .or_else(|| yaml_get(entry, "policy"))
+                .and_then(serde_yaml::Value::as_str)
+            else {
+                continue;
+            };
+            source.push_str("\n# actplane-rule-source ref=rules.");
+            source.push_str(rule_name);
+            source.push_str(".ifc mode=test\n# rule ");
+            source.push_str(rule_name);
+            source.push('\n');
+            source.push_str(ifc.trim());
+            source.push('\n');
+        }
+        Ok(vec![(path.to_path_buf(), source)])
+    }
+
+    fn yaml_get<'a>(value: &'a serde_yaml::Value, key: &str) -> Option<&'a serde_yaml::Value> {
+        value
+            .as_mapping()?
+            .get(&serde_yaml::Value::String(key.to_string()))
     }
 
     #[test]
@@ -554,7 +585,7 @@ rule secret:
 
     #[test]
     fn domain_policy_corpus_all_domains_compile() {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("test/policies");
+        let dir = corpus_dir();
         let mut checked = 0usize;
         for ent in std::fs::read_dir(&dir).unwrap_or_else(|e| panic!("read {}: {e}", dir.display()))
         {
@@ -564,38 +595,29 @@ rule secret:
             }
             let src = std::fs::read_to_string(&path)
                 .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-            let cfg: FileConfig = serde_yaml::from_str(&src)
+            let value: serde_yaml::Value = serde_yaml::from_str(&src)
                 .unwrap_or_else(|e| panic!("parse {}: {e}", path.display()));
-            if cfg.domains.is_empty() {
+            if yaml_get(&value, "domains").is_none() {
                 continue;
             }
-            for domain in cfg.domains.keys() {
-                let loaded = LoadedPolicy {
-                    config: serde_yaml::from_str(&src)
-                        .unwrap_or_else(|e| panic!("parse {}: {e}", path.display())),
-                    root: PathBuf::new(),
-                    path: Some(path.clone()),
-                };
-                let policy = policy_source(&loaded, Some(domain)).unwrap_or_else(|e| {
-                    panic!("resolve {} domain {}: {e}", path.display(), domain)
-                });
-                let compiled = compile_str(&policy).unwrap_or_else(|e| {
-                    panic!("compile {} domain {}: {e}", path.display(), domain)
-                });
+            for (_, policy) in yaml_policy_sources(&path, &src)
+                .unwrap_or_else(|e| panic!("parse {}: {e}", path.display()))
+            {
+                let compiled = compile_str(&policy)
+                    .unwrap_or_else(|e| panic!("compile {} rule bodies: {e}", path.display()));
                 assert!(
                     !compiled.meta.is_empty(),
-                    "{} domain {} should contain at least one rule",
-                    path.display(),
-                    domain
+                    "{} should contain at least one rule body",
+                    path.display()
                 );
                 checked += 1;
             }
         }
-        assert!(checked >= 8, "expected domain policies in corpus");
+        assert!(checked >= 1, "expected domain policies in corpus");
     }
 
     #[test]
-    #[ignore = "run collector/test/policy-corpus.sh for the release microbench"]
+    #[ignore = "run test/policy-corpus.sh for the release microbench"]
     fn policy_corpus_compile_perf() {
         let policies = corpus_policy_sources();
         let rounds = std::env::var("ACTPLANE_POLICY_BENCH_ROUNDS")

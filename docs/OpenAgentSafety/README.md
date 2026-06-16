@@ -68,7 +68,7 @@ use the default model path documented in `docs/eval_scripts/README.md`.
 
 ```bash
 git submodule update --init --recursive docs/OpenAgentSafety/OpenAgentSafety
-cargo build --release --manifest-path collector/Cargo.toml
+cargo build --release -p actplane
 cd docs/OpenAgentSafety/OpenAgentSafety
 poetry install
 ```

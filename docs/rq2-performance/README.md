@@ -64,7 +64,7 @@ For macro workloads:
 ```bash
 python3 docs/rq2-performance/run_macro.py \
   --configs baseline,ap-32,ap-100 \
-  --workloads stressng-open,stressng-fork,stressng-exec,stressng-hdd,stressng-mixed,collector-release-build \
+  --workloads stressng-open,stressng-fork,stressng-exec,stressng-hdd,stressng-mixed,actplane-release-build \
   --repeats 3
 ```
 

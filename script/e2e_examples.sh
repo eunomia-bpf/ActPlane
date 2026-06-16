@@ -1,6 +1,6 @@
 #!/bin/bash
 # ActPlane end-to-end example driver. The test cases (E1–E12 from
-# docs/taint-dsl.md) live in collector/test/e2e_cases.yaml; this script is only the
+# docs/taint-dsl.md) live in test/e2e_cases.yaml; this script is only the
 # driver: it seeds fixtures, then for each case compiles the case's DSL policy,
 # runs the real eBPF enforcer, fires the trigger, and checks the expected
 # violation fires (and the allowed/declassified case is suppressed). Run as root:
@@ -13,7 +13,7 @@ set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACT="${ACTPLANE_BIN:-$ROOT/target/release/actplane}"
 PROC="$ROOT/bpf/process"
-CASES="${1:-$ROOT/collector/test/e2e_cases.yaml}"
+CASES="${1:-$ROOT/test/e2e_cases.yaml}"
 export D=/tmp/ape
 READY_TRIES=600  # 600 * 0.025s = 15s for BPF load+attach on slower kernels
 RUN_TRIES=500    # 500 * 0.01s = 5s trigger window after the loader is ready
@@ -25,7 +25,7 @@ if [ "${ACTPLANE_SKIP_BUILD:-0}" != "1" ]; then
   make -C "$ROOT/bpf" process >/dev/null || { echo "make -C bpf process failed" >&2; exit 2; }
   cargo build --locked -p actplane --release >/dev/null || { echo "cargo build -p actplane --release failed" >&2; exit 2; }
 fi
-[ -x "$ACT" ]   || { echo "build the collector first ('cargo build --release -p actplane') or set ACTPLANE_BIN: $ACT missing" >&2; exit 2; }
+[ -x "$ACT" ]   || { echo "build ActPlane first ('cargo build --release -p actplane') or set ACTPLANE_BIN: $ACT missing" >&2; exit 2; }
 [ -x "$PROC" ]  || { echo "build bpf first: $PROC missing" >&2; exit 2; }
 
 # --- fixtures --------------------------------------------------------------

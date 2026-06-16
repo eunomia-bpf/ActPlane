@@ -12,19 +12,13 @@ use clap::{Args, Parser, Subcommand};
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
-mod audit;
-mod config;
-mod control;
 mod doctor;
-mod dsl;
-mod feedback;
-mod hook;
-mod mcp;
-mod report;
-mod runtime;
 mod setup;
 mod template_generate;
 mod templates;
+
+pub use actplane_ifc_compiler as dsl;
+pub use actplane_runtime::{audit, config, control, hook, mcp, runtime};
 
 type AnyError = Box<dyn std::error::Error + Send + Sync>;
 type Result<T> = std::result::Result<T, AnyError>;
@@ -352,15 +346,17 @@ async fn main() -> Result<()> {
         Commands::Run(args) => run_command(&cli, args).await?,
         Commands::Compile(args) => compile_policy(&cli, args).await?,
         Commands::Init(args) => init_command(args)?,
-        Commands::Doctor => doctor::doctor(&cli)?,
-        Commands::Watch(args) => runtime::watch_policy(&cli, args.parent_domain).await?,
+        Commands::Doctor => doctor::doctor(&policy_input(&cli))?,
+        Commands::Watch(args) => {
+            runtime::watch_policy(&policy_input(&cli), args.parent_domain).await?
+        }
         Commands::FeedbackHook => {
             hook::feedback_hook().await?;
             0
         }
         Commands::Mcp { auto_attach_parent } => {
             let attach = if *auto_attach_parent {
-                Some(runtime::start_mcp_auto_attach(&cli)?)
+                Some(runtime::start_mcp_auto_attach(&policy_input(&cli))?)
             } else {
                 None
             };
@@ -378,6 +374,7 @@ async fn main() -> Result<()> {
 }
 
 async fn run_command(cli: &Cli, args: &RunArgs) -> Result<i32> {
+    let policy = policy_input(cli);
     let child_mode = args.child_id.is_some()
         || args.scope_id != 0
         || !args.deltas.is_empty()
@@ -396,7 +393,7 @@ async fn run_command(cli: &Cli, args: &RunArgs) -> Result<i32> {
             &args.generated_by,
         );
         return runtime::run_child_command(
-            cli,
+            &policy,
             args.child_id,
             args.scope_id,
             &args.deltas,
@@ -406,7 +403,17 @@ async fn run_command(cli: &Cli, args: &RunArgs) -> Result<i32> {
         )
         .await;
     }
-    runtime::run_command(cli, &args.cmd, args.parent_domain).await
+    runtime::run_command(&policy, &args.cmd, args.parent_domain).await
+}
+
+fn policy_input(cli: &Cli) -> actplane_runtime::PolicyInput {
+    actplane_runtime::PolicyInput {
+        policy: cli.policy.clone(),
+        rule: cli.rule.clone(),
+        domain: cli.domain.clone(),
+        run_as_root: cli.run_as_root,
+        internal_elevated: cli.internal_elevated,
+    }
 }
 
 fn init_command(args: &InitArgs) -> Result<i32> {
@@ -912,11 +919,11 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
         return Err("--report-out requires --json or --explain".into());
     }
     if args.domains {
-        return doctor::list_domains(cli);
+        return doctor::list_domains(&policy_input(cli));
     }
     if args.json || args.explain {
         return doctor::check_policy(
-            cli,
+            &policy_input(cli),
             args.json,
             args.explain,
             args.report_out.as_deref(),
@@ -924,10 +931,11 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
         );
     }
     let Some(out) = &args.out else {
-        return doctor::check_policy(cli, false, false, None, false);
+        return doctor::check_policy(&policy_input(cli), false, false, None, false);
     };
-    let loaded = config::load_policy(cli)?;
-    let resolved = config::resolve_policy(&loaded, cli.domain.as_deref())?;
+    let policy = policy_input(cli);
+    let loaded = config::load_policy(&policy)?;
+    let resolved = config::resolve_policy(&loaded, policy.domain.as_deref())?;
     let compiled = dsl::compile_str(&resolved.source)?;
     write_binary_output_file(out, &compiled.bytes, args.force)?;
     if let Some(domain) = &resolved.domain {

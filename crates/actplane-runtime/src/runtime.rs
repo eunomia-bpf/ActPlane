@@ -26,11 +26,11 @@ use crate::config::{
 };
 use crate::hook::write_hook_state;
 use crate::report::{self, report, to_violation};
-use crate::{Cli, Result, audit, dsl};
+use crate::{PolicyInput, Result, audit, dsl};
 
 const ATTACH_PID_ENV: &str = "ACTPLANE_ATTACH_PID";
 
-pub(crate) async fn watch_policy(cli: &Cli, parent_domain: bool) -> Result<i32> {
+pub async fn watch_policy(cli: &PolicyInput, parent_domain: bool) -> Result<i32> {
     let attach_pid = attach_pid_from_env_or_parent();
     if attach_pid <= 1 {
         return Err(format!("invalid parent pid for watch attach: {attach_pid}").into());
@@ -178,21 +178,21 @@ pub(crate) async fn watch_policy(cli: &Cli, parent_domain: bool) -> Result<i32> 
     Ok(0)
 }
 
-pub(crate) struct AttachGuard {
+pub struct AttachGuard {
     stop: Arc<AtomicBool>,
     thread: Option<std::thread::JoinHandle<()>>,
     control: Option<Arc<EngineControl>>,
 }
 
-pub(crate) struct EngineControl {
-    pub(crate) reload_handle: Arc<ReloadHandle>,
-    pub(crate) domain_handle: Arc<DomainHandle>,
+pub struct EngineControl {
+    pub reload_handle: Arc<ReloadHandle>,
+    pub domain_handle: Arc<DomainHandle>,
     catalog: Arc<RuntimePolicyCatalog>,
     mutation_lock: Mutex<()>,
     audit_path: PathBuf,
     approval_policy: RwLock<RuntimeApprovalPolicy>,
-    pub(crate) parent_pid: i32,
-    pub(crate) parent_domain_id: u32,
+    pub parent_pid: i32,
+    pub parent_domain_id: u32,
     submitter_pid: i32,
 }
 
@@ -212,11 +212,11 @@ struct PolicyDeltaOutcome {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub(crate) struct PolicyAuditMeta {
-    pub(crate) policy_ref: Option<String>,
-    pub(crate) approved_by: Option<String>,
-    pub(crate) approval_ref: Option<String>,
-    pub(crate) generated_by: Option<String>,
+pub struct PolicyAuditMeta {
+    pub policy_ref: Option<String>,
+    pub approved_by: Option<String>,
+    pub approval_ref: Option<String>,
+    pub generated_by: Option<String>,
 }
 
 #[derive(Clone, Default)]
@@ -370,7 +370,7 @@ impl RuntimePolicyCatalog {
 }
 
 impl EngineControl {
-    pub(crate) fn reload_policy(
+    pub fn reload_policy(
         &self,
         compiled: &dsl::Compiled,
         policy_source: &str,
@@ -429,7 +429,7 @@ impl EngineControl {
         }
     }
 
-    pub(crate) fn bind_child_domain(&self, spec: ebpf_ifc_engine::ChildDomainSpec) -> Result<()> {
+    pub fn bind_child_domain(&self, spec: ebpf_ifc_engine::ChildDomainSpec) -> Result<()> {
         let outcome = self.domain_handle.bind_child_domain(spec);
         match outcome {
             Ok(()) => {
@@ -467,15 +467,15 @@ impl EngineControl {
         }
     }
 
-    pub(crate) fn submitter_pid(&self) -> i32 {
+    pub fn submitter_pid(&self) -> i32 {
         self.submitter_pid
     }
 
-    pub(crate) fn parent_domain_allows_runtime_mutation(&self) -> bool {
+    pub fn parent_domain_allows_runtime_mutation(&self) -> bool {
         self.parent_domain_id != GLOBAL_ACTIVE_DOMAIN_ID
     }
 
-    pub(crate) fn parent_domain_mutation_error(&self, operation: &str) -> String {
+    pub fn parent_domain_mutation_error(&self, operation: &str) -> String {
         format!(
             "{operation} is unavailable in --parent-domain mode; start watch without \
              --parent-domain, or use mcp --auto-attach-parent, to create an authority-bearing \
@@ -483,7 +483,7 @@ impl EngineControl {
         )
     }
 
-    pub(crate) fn ensure_parent_or_external_control_actor(&self, actor_pid: i32) -> Result<()> {
+    pub fn ensure_parent_or_external_control_actor(&self, actor_pid: i32) -> Result<()> {
         // Local control supervisor operations are a trusted repo-local admin
         // path. If a peer is already inside this engine, it must be the parent
         // domain; unbound CLI peers are allowed so operators can manage a watch
@@ -499,7 +499,7 @@ impl EngineControl {
         }
     }
 
-    pub(crate) fn append_policy_delta_dsl_with_audit(
+    pub fn append_policy_delta_dsl_with_audit(
         &self,
         target_id: u32,
         dsl_src: &str,
@@ -513,7 +513,7 @@ impl EngineControl {
         )
     }
 
-    pub(crate) fn append_policy_delta_dsl_for_actor_with_audit(
+    pub fn append_policy_delta_dsl_for_actor_with_audit(
         &self,
         actor_pid: i32,
         target_id: u32,
@@ -525,7 +525,7 @@ impl EngineControl {
         )
     }
 
-    pub(crate) fn append_policy_delta_dsl_for_actor_with_identity_and_audit(
+    pub fn append_policy_delta_dsl_for_actor_with_identity_and_audit(
         &self,
         actor_pid: i32,
         actor_identity: Option<audit::ProcessIdentity>,
@@ -645,7 +645,7 @@ impl EngineControl {
         audit::append(&self.audit_path, record)
     }
 
-    pub(crate) fn audit_child_launch(
+    pub fn audit_child_launch(
         &self,
         pid: i32,
         child_id: u32,
@@ -669,7 +669,7 @@ impl EngineControl {
         self.audit(record)
     }
 
-    pub(crate) fn audit_child_restart(
+    pub fn audit_child_restart(
         &self,
         old_child_id: u32,
         new_pid: i32,
@@ -697,7 +697,7 @@ impl EngineControl {
         self.audit(record)
     }
 
-    pub(crate) fn audit_child_adoption(
+    pub fn audit_child_adoption(
         &self,
         pid: i32,
         child_id: u32,
@@ -901,7 +901,7 @@ fn kind_name(kind: dsl::ast::Kind) -> &'static str {
 }
 
 impl AttachGuard {
-    pub(crate) fn engine_control(&self) -> Option<Arc<EngineControl>> {
+    pub fn engine_control(&self) -> Option<Arc<EngineControl>> {
         self.control.clone()
     }
 }
@@ -915,7 +915,7 @@ impl Drop for AttachGuard {
     }
 }
 
-pub(crate) fn start_mcp_auto_attach(cli: &Cli) -> Result<AttachGuard> {
+pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let attach_pid = attach_pid_from_env_or_parent();
     if attach_pid <= 1 {
         return Err(format!("invalid parent pid for auto-attach: {attach_pid}").into());
@@ -1056,7 +1056,7 @@ fn watch_project_dir(loaded: &crate::config::LoadedPolicy) -> PathBuf {
 }
 
 /// Check whether we have BPF capabilities (root or CAP_BPF + CAP_SYS_ADMIN).
-pub(crate) fn have_bpf_caps() -> bool {
+pub fn have_bpf_caps() -> bool {
     if unsafe { libc::geteuid() } == 0 {
         return true;
     }
@@ -1072,7 +1072,7 @@ pub(crate) fn have_bpf_caps() -> bool {
     has(39) && has(21)
 }
 
-pub(crate) fn passwordless_sudo_available() -> bool {
+pub fn passwordless_sudo_available() -> bool {
     std::process::Command::new("sudo")
         .args(["-n", "true"])
         .stdout(std::process::Stdio::null())
@@ -1132,7 +1132,7 @@ fn require_bpf_caps_or_elevate_with_env(
     }
 }
 
-pub(crate) async fn run_command(cli: &Cli, cmd: &[String], parent_domain: bool) -> Result<i32> {
+pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool) -> Result<i32> {
     require_bpf_caps_or_elevate(cli.internal_elevated)?;
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
@@ -1231,8 +1231,8 @@ pub(crate) async fn run_command(cli: &Cli, cmd: &[String], parent_domain: bool) 
     Ok(exit_code(status))
 }
 
-pub(crate) async fn run_child_command(
-    cli: &Cli,
+pub async fn run_child_command(
+    cli: &PolicyInput,
     child_id: Option<u32>,
     scope_id: u32,
     delta_paths: &[PathBuf],

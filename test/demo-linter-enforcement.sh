@@ -22,8 +22,8 @@
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ACTPLANE="$REPO_ROOT/collector/target/release/actplane"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ACTPLANE="$REPO_ROOT/target/release/actplane"
 LINTER="$SCRIPT_DIR/linter-check.sh"
 TESTDIR=$(mktemp -d /tmp/actplane-linter-demo.XXXX)
 

@@ -26,7 +26,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[3]
 PERF_DIR = Path(__file__).resolve().parent
-DEFAULT_ACTPLANE = ROOT / "collector" / "target" / "release" / "actplane"
+DEFAULT_ACTPLANE = ROOT / "target" / "release" / "actplane"
 
 
 @dataclass(frozen=True)
@@ -89,7 +89,7 @@ def run(
 
 def build_actplane() -> None:
     proc = run(
-        ["cargo", "build", "--release", "--manifest-path", str(ROOT / "collector/Cargo.toml")],
+        ["cargo", "build", "--release", "-p", "actplane"],
         cwd=ROOT,
         timeout=1200,
     )
@@ -261,14 +261,14 @@ def available_workloads(out_dir: Path) -> dict[str, Workload]:
             ],
             cwd=stress_tmp,
         ),
-        "collector-cargo-test": Workload(
-            "collector-cargo-test",
-            ["cargo", "test", "--manifest-path", str(ROOT / "collector/Cargo.toml")],
+        "actplane-cargo-test": Workload(
+            "actplane-cargo-test",
+            ["cargo", "test", "-p", "actplane"],
             cwd=ROOT,
         ),
-        "collector-release-build": Workload(
-            "collector-release-build",
-            ["cargo", "build", "--release", "--manifest-path", str(ROOT / "collector/Cargo.toml")],
+        "actplane-release-build": Workload(
+            "actplane-release-build",
+            ["cargo", "build", "--release", "-p", "actplane"],
             cwd=ROOT,
         ),
     }
@@ -354,7 +354,7 @@ def run_one(
     argv = list(workload.argv)
     if workload.name.startswith("stressng"):
         env.setdefault("TMPDIR", str(work_cwd))
-    if workload.name.startswith("collector-"):
+    if workload.name.startswith("actplane-"):
         cargo_target = out_dir / "cargo-targets" / workload.name / config / f"r{repeat}"
         env["CARGO_TARGET_DIR"] = str(cargo_target)
     linux_build_dir: Path | None = None
@@ -478,7 +478,7 @@ def main() -> int:
     parser.add_argument("--actplane", type=Path, default=DEFAULT_ACTPLANE)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--configs", default="baseline,ap-32,ap-100")
-    parser.add_argument("--workloads", default="stressng-open,stressng-fork,stressng-exec,stressng-hdd,stressng-mixed,collector-cargo-test,collector-release-build")
+    parser.add_argument("--workloads", default="stressng-open,stressng-fork,stressng-exec,stressng-hdd,stressng-mixed,actplane-cargo-test,actplane-release-build")
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--timeout-s", type=int, default=1800)
     parser.add_argument("--build-actplane", action="store_true")
@@ -514,7 +514,7 @@ def main() -> int:
     workloads = available_workloads(out_dir)
     names = parse_csv_arg(args.workloads)
     if args.skip_cargo_workloads:
-        names = [n for n in names if not n.startswith("collector-")]
+        names = [n for n in names if not n.startswith("actplane-")]
     for name in names:
         if name not in workloads:
             raise SystemExit(f"unknown workload: {name}")

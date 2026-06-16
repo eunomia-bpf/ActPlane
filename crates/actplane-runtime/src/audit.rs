@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 
 use crate::Result;
 
-pub(crate) fn policy_hash(src: &str) -> String {
+pub fn policy_hash(src: &str) -> String {
     let mut h = 0xcbf29ce484222325u64;
     for b in src.as_bytes() {
         h ^= u64::from(*b);
@@ -16,18 +16,18 @@ pub(crate) fn policy_hash(src: &str) -> String {
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub(crate) struct ProcessIdentity {
-    pub(crate) pid: i32,
-    pub(crate) proc_start_time: Option<u64>,
-    pub(crate) stable_id: String,
-    pub(crate) uid: Option<u32>,
-    pub(crate) gid: Option<u32>,
-    pub(crate) comm: Option<String>,
-    pub(crate) exe: Option<String>,
+pub struct ProcessIdentity {
+    pub pid: i32,
+    pub proc_start_time: Option<u64>,
+    pub stable_id: String,
+    pub uid: Option<u32>,
+    pub gid: Option<u32>,
+    pub comm: Option<String>,
+    pub exe: Option<String>,
 }
 
 impl ProcessIdentity {
-    pub(crate) fn capture(pid: i32, uid: Option<u32>, gid: Option<u32>) -> Self {
+    pub fn capture(pid: i32, uid: Option<u32>, gid: Option<u32>) -> Self {
         let start_time = proc_start_time_for_pid(pid);
         let (status_uid, status_gid) = proc_status_uid_gid(pid);
         Self {
@@ -41,7 +41,7 @@ impl ProcessIdentity {
         }
     }
 
-    pub(crate) fn to_json(&self) -> Value {
+    pub fn to_json(&self) -> Value {
         json!(self)
     }
 }
@@ -92,11 +92,11 @@ fn proc_exe(pid: i32) -> Option<String> {
         .map(|p| p.display().to_string())
 }
 
-pub(crate) fn append(path: &Path, mut record: Value) -> Result<()> {
+pub fn append(path: &Path, mut record: Value) -> Result<()> {
     append_with_schema(path, "actplane.audit.v1", &mut record)
 }
 
-pub(crate) fn append_with_schema(path: &Path, schema: &str, record: &mut Value) -> Result<()> {
+pub fn append_with_schema(path: &Path, schema: &str, record: &mut Value) -> Result<()> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())

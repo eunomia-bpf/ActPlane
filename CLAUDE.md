@@ -39,16 +39,17 @@ suggested path instead of retrying the same operation unchanged.
 ## Build & Test Commands
 
 ```bash
-make                                    # build bpf/ then collector/
-make test                               # bpf C unit tests + collector Rust tests
-sudo bash test/e2e_examples.sh          # live policy match of all 12 examples (E1–E12)
+make                                    # build bpf/ then the ActPlane CLI
+make test                               # bpf C unit tests + Rust workspace tests
+sudo bash script/e2e_examples.sh        # live policy match of all 12 examples (E1–E12)
 
 # individual components
 make -C bpf                             # eBPF programs + loaders
 make -C bpf test                        # C unit tests (test_taint)
-cd collector && cargo build --release   # Rust compiler/driver (-> target/release/actplane)
-cd collector && cargo test              # DSL compiler tests
-cd collector && cargo test <name>       # a single test
+cargo build --release -p actplane       # Rust CLI (-> target/release/actplane)
+cargo test -p actplane-ifc-compiler     # policy compiler tests
+cargo test -p actplane-runtime          # runtime/control tests
+cargo test -p actplane <name>           # a single CLI test/filter
 
 make -C bpf debug                       # AddressSanitizer build of the loaders
 ```
@@ -57,10 +58,10 @@ make -C bpf debug                       # AddressSanitizer build of the loaders
 
 ```bash
 # compile + apply a policy
-sudo ./collector/target/release/actplane policy.dsl
+sudo ./target/release/actplane --rule "$(cat policy.dsl)" run <cmd>
 
 # compile only -> kernel config blob
-./collector/target/release/actplane policy.dsl --out policy.bin
+./target/release/actplane --rule "$(cat policy.dsl)" compile --out policy.bin
 
 # run the kernel engine directly against a compiled blob
 sudo ./bpf/process --config policy.bin
@@ -72,9 +73,9 @@ developed on 6.15).
 ## Architecture
 
 ```
-policy.dsl ─▶ collector (Rust) ─▶ struct taint_config ─▶ eBPF engine ─▶ TAINT_VIOLATION (+reason)
-              parse + lower          (rodata blob)         propagate,
-                                                           match, detect
+policy.dsl ─▶ actplane-ifc-compiler ─▶ struct taint_config ─▶ eBPF engine ─▶ TAINT_VIOLATION (+reason)
+              parse + lower             (rodata blob)        propagate,
+                                                               match, detect
 ```
 
 ### Kernel (`bpf/`)
@@ -93,20 +94,14 @@ policy.dsl ─▶ collector (Rust) ─▶ struct taint_config ─▶ eBPF engine
 - `process.c` — loader: `--config` reads the blob into rodata, attaches, prints
   `TAINT_VIOLATION` as NDJSON.
 
-### Collector (`collector/src/`)
+### Rust crates (`crates/`)
 
-- `main.rs` — driver: read policy → `dsl::compile_str` → temp blob → spawn loader →
-  parse `Violation` lines → `report()` with the reason. `--feedback-file` appends
-  the §6 corrective-feedback payload for each kernel-detected violation (channel
-  a1 reason file the agent reads on EPERM).
-- `feedback.rs` — `format_payload`: turns a kernel-detected violation (rule meta +
-  target) into the model-facing §6 corrective-feedback string. No userspace
-  re-detection — the kernel is the sole detector. Agent integration: `script/agent-feedback.md`.
-- `dsl/` — `ast.rs`, `parse.rs` (lexer + recursive-descent), `lower.rs` (`#[repr(C)]`
-  mirrors of the C structs + `compile()`: bit allocation, `dnf()` label-expr
-  expansion, glob lowering), `mod.rs` (`compile_str` + tests E1–E12).
-- `binary_extractor.rs` — embeds `bpf/process` via `include_bytes!`, extracts at
-  runtime so `actplane` is self-contained.
+- `actplane-ifc-compiler` — DSL AST/parser/lowerer. It emits the fixed kernel
+  config blob and compile metadata, but does not load eBPF or manage processes.
+- `actplane-runtime` — policy-file resolution, runtime domains, engine loading,
+  local control, MCP integration, corrective feedback, and reporting.
+- `actplane-cli` — the `actplane` binary, clap command surface, init/doctor
+  UX, templates, and project integration setup.
 
 ### Labeled information-flow model
 
@@ -119,7 +114,7 @@ Full semantics and 12 examples: `docs/rule-language.md`.
 
 ## Critical: the Rust↔C ABI
 
-`collector/src/dsl/lower.rs`'s `#[repr(C)]` structs are **byte-identical** to the C
+`crates/actplane-ifc-compiler/src/dsl/lower.rs`'s `#[repr(C)]` structs are **byte-identical** to the C
 structs in `bpf/taint.h`. The blob is serialized with `from_raw_parts` and read
 directly into the BPF rodata. Any change to `taint.h` MUST be mirrored in
 `lower.rs` (and vice versa). The `fixed-size` test in `dsl/mod.rs` guards total

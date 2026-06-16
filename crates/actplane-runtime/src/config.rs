@@ -1,92 +1,92 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::{Cli, Result};
+use crate::{PolicyInput, Result};
 
 const DEFAULT_POLICY_FILES: &[&str] = &["actplane.yaml", ".actplane/policy.yaml"];
-pub(crate) const DEFAULT_FEEDBACK_FILE: &str = ".actplane/last-violation.txt";
-pub(crate) const DEFAULT_HOOK_STATE_FILE: &str = ".actplane/feedback-hook.state.json";
-pub(crate) const DEFAULT_AUDIT_FILE: &str = ".actplane/audit.jsonl";
-pub(crate) const DEFAULT_EVENTS_FILE: &str = ".actplane/events.jsonl";
+pub const DEFAULT_FEEDBACK_FILE: &str = ".actplane/last-violation.txt";
+pub const DEFAULT_HOOK_STATE_FILE: &str = ".actplane/feedback-hook.state.json";
+pub const DEFAULT_AUDIT_FILE: &str = ".actplane/audit.jsonl";
+pub const DEFAULT_EVENTS_FILE: &str = ".actplane/events.jsonl";
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct FileConfig {
+pub struct FileConfig {
     #[serde(default, rename = "version")]
     _version: Option<u32>,
     #[serde(default)]
-    pub(crate) policy: Option<String>,
+    pub policy: Option<String>,
     #[serde(default)]
-    pub(crate) rules: BTreeMap<String, RuleEntry>,
+    pub rules: BTreeMap<String, RuleEntry>,
     #[serde(default)]
-    pub(crate) domains: BTreeMap<String, DomainEntry>,
+    pub domains: BTreeMap<String, DomainEntry>,
     #[serde(default)]
-    pub(crate) default_domain: Option<String>,
+    pub default_domain: Option<String>,
     #[serde(default)]
-    pub(crate) runtime: RuntimeConfig,
+    pub runtime: RuntimeConfig,
     #[serde(default)]
     feedback: FeedbackConfig,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct RuleEntry {
+pub struct RuleEntry {
     #[serde(default)]
-    pub(crate) ifc: Option<String>,
+    pub ifc: Option<String>,
     #[serde(default)]
-    pub(crate) policy: Option<String>,
+    pub policy: Option<String>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct DomainEntry {
+pub struct DomainEntry {
     #[serde(default)]
-    pub(crate) parent: Option<String>,
+    pub parent: Option<String>,
     #[serde(default)]
-    pub(crate) bind: Vec<RuleBinding>,
+    pub bind: Vec<RuleBinding>,
     #[serde(default)]
-    pub(crate) disable: Vec<String>,
+    pub disable: Vec<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct RuleBinding {
-    pub(crate) rule: String,
-    pub(crate) mode: BindingMode,
+pub struct RuleBinding {
+    pub rule: String,
+    pub mode: BindingMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum BindingMode {
+pub enum BindingMode {
     Locked,
     Default,
 }
 
 #[derive(Debug, Default, Clone, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct RuntimeConfig {
+pub struct RuntimeConfig {
     #[serde(default)]
-    pub(crate) approval: RuntimeApprovalConfig,
+    pub approval: RuntimeApprovalConfig,
 }
 
 #[derive(Debug, Default, Clone, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct RuntimeApprovalConfig {
+pub struct RuntimeApprovalConfig {
     #[serde(default)]
-    pub(crate) append_delta: AppendDeltaApprovalConfig,
+    pub append_delta: AppendDeltaApprovalConfig,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct AppendDeltaApprovalConfig {
+pub struct AppendDeltaApprovalConfig {
     #[serde(default)]
-    pub(crate) required: bool,
+    pub required: bool,
     #[serde(default)]
-    pub(crate) require_approval_ref: bool,
+    pub require_approval_ref: bool,
     #[serde(default)]
-    pub(crate) require_generated_by: bool,
+    pub require_generated_by: bool,
     #[serde(default)]
-    pub(crate) allowed_approvers: Vec<String>,
+    pub allowed_approvers: Vec<String>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -96,36 +96,36 @@ struct FeedbackConfig {
     events: Option<PathBuf>,
 }
 
-pub(crate) struct LoadedPolicy {
-    pub(crate) config: FileConfig,
-    pub(crate) root: PathBuf,
-    pub(crate) path: Option<PathBuf>,
+pub struct LoadedPolicy {
+    pub config: FileConfig,
+    pub root: PathBuf,
+    pub path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct DomainSummary {
-    pub(crate) name: String,
-    pub(crate) parent: Option<String>,
-    pub(crate) disabled: Vec<String>,
-    pub(crate) locked: Vec<String>,
-    pub(crate) defaults: Vec<String>,
+pub struct DomainSummary {
+    pub name: String,
+    pub parent: Option<String>,
+    pub disabled: Vec<String>,
+    pub locked: Vec<String>,
+    pub defaults: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ResolvedPolicy {
-    pub(crate) source: String,
-    pub(crate) domain: Option<DomainSummary>,
+pub struct ResolvedPolicy {
+    pub source: String,
+    pub domain: Option<DomainSummary>,
 }
 
 #[derive(Clone)]
-pub(crate) struct FeedbackPaths {
-    pub(crate) feedback: PathBuf,
-    pub(crate) state: PathBuf,
-    pub(crate) audit: PathBuf,
-    pub(crate) events: PathBuf,
+pub struct FeedbackPaths {
+    pub feedback: PathBuf,
+    pub state: PathBuf,
+    pub audit: PathBuf,
+    pub events: PathBuf,
 }
 
-pub(crate) fn load_policy(cli: &Cli) -> Result<LoadedPolicy> {
+pub fn load_policy(cli: &PolicyInput) -> Result<LoadedPolicy> {
     if let Some(rule) = &cli.rule {
         return Ok(LoadedPolicy {
             config: FileConfig {
@@ -149,11 +149,7 @@ pub(crate) fn load_policy(cli: &Cli) -> Result<LoadedPolicy> {
     Ok(loaded)
 }
 
-pub(crate) fn load_policy_path(
-    path: &Path,
-    explicit_policy: bool,
-    cwd: &Path,
-) -> Result<LoadedPolicy> {
+pub fn load_policy_path(path: &Path, explicit_policy: bool, cwd: &Path) -> Result<LoadedPolicy> {
     if path.extension().is_some_and(|ext| ext == "dsl") {
         return Err(format!(
             "{} is a raw DSL file; policy files must be YAML with `policy: |`. Use `--rule` for one-off inline DSL.",
@@ -222,14 +218,11 @@ fn validate_runtime_config(config: &FileConfig, path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn policy_source(loaded: &LoadedPolicy, domain: Option<&str>) -> Result<String> {
+pub fn policy_source(loaded: &LoadedPolicy, domain: Option<&str>) -> Result<String> {
     Ok(resolve_policy(loaded, domain)?.source)
 }
 
-pub(crate) fn resolve_policy(
-    loaded: &LoadedPolicy,
-    domain: Option<&str>,
-) -> Result<ResolvedPolicy> {
+pub fn resolve_policy(loaded: &LoadedPolicy, domain: Option<&str>) -> Result<ResolvedPolicy> {
     if let Some(policy) = &loaded.config.policy {
         if domain.is_some() {
             return Err("`--domain` requires a policy file with `rules:` and `domains:`".into());
@@ -347,7 +340,7 @@ fn resolve_domain(config: &FileConfig, domain: &str) -> Result<ResolvedDomain> {
     resolve_domain_inner(config, domain, &mut visiting)
 }
 
-pub(crate) fn domain_summaries(config: &FileConfig) -> Result<Vec<DomainSummary>> {
+pub fn domain_summaries(config: &FileConfig) -> Result<Vec<DomainSummary>> {
     let mut out = Vec::new();
     for domain in config.domains.keys() {
         let resolved = resolve_domain(config, domain)?;
@@ -427,7 +420,7 @@ fn resolve_domain_inner(
     Ok(resolved)
 }
 
-pub(crate) fn discover_policy(start: &Path) -> Option<PathBuf> {
+pub fn discover_policy(start: &Path) -> Option<PathBuf> {
     let mut dir = Some(start);
     while let Some(d) = dir {
         for name in DEFAULT_POLICY_FILES {
@@ -441,7 +434,7 @@ pub(crate) fn discover_policy(start: &Path) -> Option<PathBuf> {
     None
 }
 
-pub(crate) fn feedback_paths(loaded: &LoadedPolicy) -> FeedbackPaths {
+pub fn feedback_paths(loaded: &LoadedPolicy) -> FeedbackPaths {
     let feedback = loaded
         .config
         .feedback
@@ -485,7 +478,7 @@ pub(crate) fn feedback_paths(loaded: &LoadedPolicy) -> FeedbackPaths {
     }
 }
 
-pub(crate) fn absolutize(path: &Path, base: &Path) -> PathBuf {
+pub fn absolutize(path: &Path, base: &Path) -> PathBuf {
     if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -808,7 +801,7 @@ domains:
 
     #[test]
     fn invalid_policy_corpus_is_rejected() {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("test/policies/invalid");
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test/policies/invalid");
         let mut paths: Vec<PathBuf> = fs::read_dir(&dir)
             .unwrap_or_else(|e| panic!("read {}: {e}", dir.display()))
             .map(|ent| ent.expect("invalid policy dir entry").path())

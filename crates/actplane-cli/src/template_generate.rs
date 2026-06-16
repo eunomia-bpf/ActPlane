@@ -357,8 +357,8 @@ fn infer_changed_paths(root: &Path) -> String {
     for rel in [
         "src/**",
         "tests/**",
-        "collector/src/**",
-        "collector/tests/**",
+        "crates/**/src/**",
+        "crates/**/tests/**",
         "bpf/src/**",
         "bpf/tests/**",
         "cmd/**",
@@ -492,8 +492,7 @@ fn has_source_tree(root: &Path) -> bool {
     [
         "src",
         "tests",
-        "collector/src",
-        "collector/tests",
+        "crates",
         "bpf/src",
         "bpf/tests",
         "cmd",

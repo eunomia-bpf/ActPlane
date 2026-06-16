@@ -87,7 +87,7 @@ struct RestartSettings {
     backoff_ms: u64,
 }
 
-pub(crate) struct ActPlaneControlGuard {
+pub struct ActPlaneControlGuard {
     _control: local_control::LocalControlGuard,
     _supervisor: SupervisorGuard,
 }
@@ -2650,7 +2650,7 @@ pub async fn run_mcp_server_with_control(
     Ok(())
 }
 
-pub(crate) fn start_local_control_server(
+pub fn start_local_control_server(
     control: Arc<EngineControl>,
     project_dir: PathBuf,
 ) -> crate::Result<ActPlaneControlGuard> {
