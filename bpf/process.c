@@ -177,8 +177,7 @@ static unsigned int config_features(const struct taint_config *cfg)
 				features |= TE_POLICY_BLOCK_CONNECT;
 		}
 		if (cfg->rules[i].op == TOP_OPEN) {
-			features |= TE_POLICY_FILE_FLOW |
-				    TE_POLICY_OPEN_RULES |
+			features |= TE_POLICY_OPEN_RULES |
 				    path_match_features(cfg->rules[i].match);
 			if (cfg->rules[i].cond_kind == TCOND_TARGET)
 				features |= path_match_features(cfg->rules[i].cond_match);
@@ -293,6 +292,7 @@ static int tracepoint_autoload_needed(const char *name, unsigned int features,
 		"trace_mremap_exit", "trace_munmap", "trace_munmap_exit",
 	};
 	bool file_flow = features & TE_POLICY_FILE_FLOW;
+	bool open_rules = features & TE_POLICY_OPEN_RULES;
 	bool connect = features & TE_POLICY_CONNECT;
 	bool recv = features & TE_POLICY_RECV;
 	bool exec_args = features & TE_POLICY_EXEC_ARGS;
@@ -304,7 +304,7 @@ static int tracepoint_autoload_needed(const char *name, unsigned int features,
 	if (strcmp(name, "handle_exec_args") == 0)
 		return exec_args;
 	if (name_in(name, file_open, sizeof(file_open) / sizeof(file_open[0])))
-		return file_flow;
+		return file_flow || open_rules;
 	if (name_in(name, file_write_path,
 		    sizeof(file_write_path) / sizeof(file_write_path[0])))
 		return file_write;

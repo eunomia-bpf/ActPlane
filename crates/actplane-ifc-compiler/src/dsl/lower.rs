@@ -22,7 +22,7 @@ const M_PREFIX: u8 = 1;
 const M_SUFFIX: u8 = 2;
 const M_ANY: u8 = 3;
 const M_CONTAINS: u8 = 4;
-const MAX_CONTAINS_LITERAL: usize = 24; // mirrors TAINT_SUF_MAX in bpf/taint.h
+const MAX_CONTAINS_LITERAL: usize = 16; // mirrors TAINT_SUF_MAX in bpf/taint.h
 const OP_EXEC: u8 = 0;
 const OP_OPEN: u8 = 1;
 const OP_WRITE: u8 = 2;
@@ -164,7 +164,10 @@ fn lower_path(pat: &str) -> (u8, String) {
     }
     if let Some(inner) = pat.strip_prefix("**/") {
         if let Some(suffix) = inner.strip_prefix('*') {
-            return (M_CONTAINS, shorten_contains_literal(suffix));
+            return (M_SUFFIX, suffix.to_string());
+        }
+        if !inner.contains('*') {
+            return (M_SUFFIX, format!("/{inner}"));
         }
         return (M_CONTAINS, shorten_contains_literal(inner));
     }
@@ -228,29 +231,30 @@ mod tests {
         );
         assert_eq!(
             lower_path("src/google/adk/agents/config_schemas/AgentConfig.json"),
-            (M_CONTAINS, "agents/config_schemas/".into())
+            (M_CONTAINS, "config_schemas/".into())
         );
         assert_eq!(
             lower_path("ui/src/i18n/locales/en.ts"),
-            (M_CONTAINS, "src/i18n/locales/en.ts".into())
+            (M_CONTAINS, "locales/en.ts".into())
         );
         assert_eq!(
             lower_path("codex-rs/app-server-protocol/schema/typescript/v2/**"),
-            (M_CONTAINS, "schema/typescript/v2/".into())
+            (M_CONTAINS, "typescript/v2/".into())
         );
         assert_eq!(
             lower_path("packages/oh-my-opencode-*/bin/**"),
-            (M_CONTAINS, "packages/oh-my-opencode-".into())
+            (M_CONTAINS, "oh-my-opencode-".into())
         );
         assert_eq!(
             lower_path("src/browser_harness/**"),
-            (M_CONTAINS, "src/browser_harness/".into())
+            (M_CONTAINS, "browser_harness/".into())
         );
         assert_eq!(
             lower_path("ui/src/i18n/locales/*.ts"),
-            (M_CONTAINS, "ui/src/i18n/locales/".into())
+            (M_CONTAINS, "i18n/locales/".into())
         );
-        assert_eq!(lower_path("**/*.js"), (M_CONTAINS, ".js".into()));
+        assert_eq!(lower_path("**/*.js"), (M_SUFFIX, ".js".into()));
+        assert_eq!(lower_path("**/sec.env"), (M_SUFFIX, "/sec.env".into()));
         assert_eq!(lower_path("**/*"), (M_ANY, String::new()));
     }
 

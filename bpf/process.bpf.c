@@ -1334,7 +1334,9 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 	int rid = -1;
 	int candidate = -1;
 
-	if (ev->obj_kind == TE_OBJ_FILE && (ev->access & TE_ACCESS_READ)) {
+	if (ev->obj_kind == TE_OBJ_FILE &&
+	    (policy_features & TE_POLICY_FILE_FLOW) &&
+	    (ev->access & TE_ACCESS_READ)) {
 		global_labels |= te_file_stored_labels_domain(fid, ev->pid, 0);
 		current_labels |= te_file_stored_labels_domain(fid, ev->pid, current_domain_id);
 	}
@@ -1438,7 +1440,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		}
 	}
 
-	if (ev->obj_kind == TE_OBJ_FILE) {
+	if (ev->obj_kind == TE_OBJ_FILE && (policy_features & TE_POLICY_FILE_FLOW)) {
 		if (ev->access & TE_ACCESS_READ)
 			te_read(ev->pid, fid, ev->target);
 		if (ev->access & TE_ACCESS_WRITE)
@@ -1471,7 +1473,7 @@ static __always_inline int te_handle_file_event(pid_t pid, const char *target,
 	int rid = -1;
 	int candidate = -1;
 
-	if (access & TE_ACCESS_READ) {
+	if ((policy_features & TE_POLICY_FILE_FLOW) && (access & TE_ACCESS_READ)) {
 		global_labels |= te_file_stored_labels_domain(fid, pid, 0);
 		current_labels |= te_file_stored_labels_domain(fid, pid, current_domain_id);
 	}
@@ -1526,9 +1528,9 @@ static __always_inline int te_handle_file_event(pid_t pid, const char *target,
 		}
 	}
 
-	if (access & TE_ACCESS_READ)
+	if ((policy_features & TE_POLICY_FILE_FLOW) && (access & TE_ACCESS_READ))
 		te_read(pid, fid, target);
-	if (access & TE_ACCESS_WRITE)
+	if ((policy_features & TE_POLICY_FILE_FLOW) && (access & TE_ACCESS_WRITE))
 		te_write_flow(pid, fid, target);
 	return 0;
 }
@@ -2707,7 +2709,7 @@ static __always_inline int handle_io_exit(long ret)
 		struct fd_ref *ref = te_lookup_fd(pid, fd);
 		__u32 *peer_ip;
 
-		if (ref) {
+		if (ref && (policy_features & TE_POLICY_FILE_FLOW)) {
 			if (access & TE_ACCESS_READ)
 				te_read(pid, &ref->fid, ref->path);
 			if (access & TE_ACCESS_WRITE)

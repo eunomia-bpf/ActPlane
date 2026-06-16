@@ -968,6 +968,10 @@ impl HookBudget {
         self.features & FEAT_FILE_FLOW != 0
     }
 
+    fn has_open_rules(self) -> bool {
+        self.features & FEAT_OPEN_RULES != 0
+    }
+
     fn has_file_write(self) -> bool {
         self.file_write
     }
@@ -990,7 +994,7 @@ fn tracepoint_needed(spec: &TracepointSpec, budget: HookBudget) -> bool {
         TracepointNeed::Core => true,
         TracepointNeed::CoreExec => !budget.has_exec_args(),
         TracepointNeed::ExecArgs => budget.has_exec_args(),
-        TracepointNeed::FileOpen => budget.has_file_flow(),
+        TracepointNeed::FileOpen => budget.has_file_flow() || budget.has_open_rules(),
         TracepointNeed::FileWritePath => budget.has_file_write(),
         TracepointNeed::FdFlow => {
             budget.has_file_flow() || budget.has_connect() || budget.has_recv()
@@ -1126,7 +1130,7 @@ fn config_features(cfg: &CConfig) -> u32 {
             }
         }
         if r.op == OP_OPEN {
-            features |= FEAT_FILE_FLOW | FEAT_OPEN_RULES | path_match_features(r.m);
+            features |= FEAT_OPEN_RULES | path_match_features(r.m);
             if r.cond_kind == C_TARGET {
                 features |= path_match_features(r.cond_match);
             }

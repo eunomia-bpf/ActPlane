@@ -108,7 +108,7 @@ run_case() {
   local d="$1" name policy trig setup tfile tpid loader
   name="$(get "$d/name")"; policy="$(get "$d/policy")"; trig="$(get "$d/trigger")"
   { echo "policy: |"; printf '%s\n' "$policy" | sed 's/^/  /'; } > "$D/p.yaml"
-  if ! "$ACT" --policy "$D/p.yaml" compile --out "$D/c.bin" >"$D/cc.txt" 2>&1; then
+  if ! "$ACT" --policy "$D/p.yaml" compile --out "$D/c.bin" --force >"$D/cc.txt" 2>&1; then
     echo "✗ $name  (compile error)"; sed 's/^/    /' "$D/cc.txt"; fail=$((fail+1)); return
   fi
   [ -f "$d/setup" ] && bash -c "$(get "$d/setup")" >/dev/null 2>&1

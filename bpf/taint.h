@@ -52,7 +52,7 @@
 #endif
 
 #define TAINT_PAT_LEN     64
-#define TAINT_SUF_MAX     24   /* max suffix-match length (dotfiles/host suffixes are short) */
+#define TAINT_SUF_MAX     16   /* max suffix/contains literal length; keeps path hooks verifier-cheap */
 /* Text/path buffers feeding the matchers are over-allocated by TAINT_SUF_MAX so
  * taint_suffix's constant-size aligned-tail copy at any off < TAINT_PAT_LEN stays
  * in bounds. */
