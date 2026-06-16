@@ -487,7 +487,7 @@ fn poll_child_logs(
             cwd,
             &[
                 "control",
-                "read-logs",
+                "logs",
                 "--child-id",
                 &child_id.to_string(),
                 "--stream",
