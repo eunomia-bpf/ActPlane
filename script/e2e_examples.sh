@@ -22,7 +22,7 @@ RUN_TRIES=500    # 500 * 0.01s = 5s trigger window after the loader is ready
 # Always (re)build fresh binaries so this suite can never run stale ABI mirrors.
 # Set ACTPLANE_SKIP_BUILD=1 to skip (e.g. when the caller just built).
 if [ "${ACTPLANE_SKIP_BUILD:-0}" != "1" ]; then
-  make -C "$ROOT/bpf" process >/dev/null || { echo "make -C bpf process failed" >&2; exit 2; }
+  make -B -C "$ROOT/bpf" process >/dev/null || { echo "make -C bpf process failed" >&2; exit 2; }
   cargo build --locked -p actplane --release >/dev/null || { echo "cargo build -p actplane --release failed" >&2; exit 2; }
 fi
 [ -x "$ACT" ]   || { echo "build ActPlane first ('cargo build --release -p actplane') or set ACTPLANE_BIN: $ACT missing" >&2; exit 2; }

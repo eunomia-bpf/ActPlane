@@ -285,17 +285,16 @@ static __always_inline int taint_match(unsigned int kind, const char *text,
 	}
 }
 
-/* Exec-side patterns are matched against comm/basename and the compiler only
- * lowers them to exact, prefix, or any. Keep suffix out of exec verifier paths:
- * taint_suffix is intentionally more expensive because it supports path/host
- * suffix globs for dotfiles and internal domains. */
+/* Exec-side patterns are normally matched against comm/basename. Tracepoint
+ * exec may pass the full filename path on kernels where comm is only the
+ * interpreter name, so exact exec patterns also accept a filename suffix. */
 static __always_inline int taint_exec_match(unsigned int kind, const char *text,
 					    const char *pat)
 {
 	switch (kind) {
 	case TAINT_MATCH_PREFIX: return taint_prefix(text, pat);
 	case TAINT_MATCH_ANY:    return 1;
-	default:                 return taint_streq(text, pat);
+	default:                 return taint_streq(text, pat) || taint_suffix(text, pat);
 	}
 }
 

@@ -243,8 +243,9 @@ struct te_rule_eval {
 	__u64 global_labels;
 	__u64 current_labels;
 	unsigned int op;
-	const char *target;
-	struct file_id *fid;
+	char target[MAX_FILENAME_LEN];
+	struct file_id fid;
+	__u32 has_fid;
 	__u32 ip;
 	__u32 current_domain_id;
 	__u32 include_file_labels;
@@ -255,6 +256,23 @@ struct te_rule_eval {
 	__u64 matched_req;      /* required label mask for the matched compiled rule */
 	__u64 matched_labels;   /* domain-specific labels used by the matched rule */
 };
+
+struct eval_scratch {
+	struct te_rule_eval eval;
+};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct eval_scratch);
+} ts_eval_scratch SEC(".maps");
+
+static __always_inline struct eval_scratch *eval_scratch_buf(void)
+{
+	__u32 key = 0;
+
+	return bpf_map_lookup_elem(&ts_eval_scratch, &key);
+}
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -1539,8 +1557,8 @@ static __noinline int te_rule_effect(struct te_rule_eval *e, unsigned int idx)
 		labels = e->current_labels;
 	else
 		labels = te_labels_for_domain(e->pid, rp->domain_id);
-	if (e->include_file_labels && e->fid)
-		labels |= te_file_stored_labels_domain(e->fid, e->pid, rp->domain_id);
+	if (e->include_file_labels && e->has_fid)
+		labels |= te_file_stored_labels_domain(&e->fid, e->pid, rp->domain_id);
 	if (!taint_mask_ok(labels, rp->req, rp->forbid))
 		return -1;
 	if (e->op == TOP_CONNECT || e->op == TOP_RECV) {
@@ -1598,8 +1616,8 @@ static __noinline int te_rule_effect_no_args(struct te_rule_eval *e,
 		labels = e->current_labels;
 	else
 		labels = te_labels_for_domain(e->pid, rp->domain_id);
-	if (e->include_file_labels && e->fid)
-		labels |= te_file_stored_labels_domain(e->fid, e->pid, rp->domain_id);
+	if (e->include_file_labels && e->has_fid)
+		labels |= te_file_stored_labels_domain(&e->fid, e->pid, rp->domain_id);
 	if (!taint_mask_ok(labels, rp->req, rp->forbid))
 		return -1;
 	if (e->op == TOP_EXEC) {
@@ -1620,25 +1638,32 @@ static __noinline int te_rule_effect_no_args(struct te_rule_eval *e,
 }
 
 struct te_rule_ctx {
-	struct te_rule_eval *e;
 	unsigned int best_effect;
 	int best_rule;
 	__u32 best_domain_id;
 	__u64 best_req;
 	__u64 best_labels;
 };
+
 static int te_rule_cb(__u32 i, void *vc)
 {
 	struct te_rule_ctx *c = vc;
-	int eff = te_rule_effect(c->e, i);
+	struct eval_scratch *scratch = eval_scratch_buf();
+	struct te_rule_eval *e;
+	int eff;
+
+	if (!scratch)
+		return 1;
+	e = &scratch->eval;
+	eff = te_rule_effect(e, i);
 	if (eff < 0)
 		return 0;
 	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
-		c->best_rule = c->e->matched_rule;
+		c->best_rule = e->matched_rule;
 		c->best_effect = (unsigned int)eff;
-		c->best_domain_id = c->e->matched_domain_id;
-		c->best_req = c->e->matched_req;
-		c->best_labels = c->e->matched_labels;
+		c->best_domain_id = e->matched_domain_id;
+		c->best_req = e->matched_req;
+		c->best_labels = e->matched_labels;
 		if (c->best_effect == TEFFECT_KILL)
 			return 1;
 	}
@@ -1648,15 +1673,22 @@ static int te_rule_cb(__u32 i, void *vc)
 static int te_rule_no_args_cb(__u32 i, void *vc)
 {
 	struct te_rule_ctx *c = vc;
-	int eff = te_rule_effect_no_args(c->e, i);
+	struct eval_scratch *scratch = eval_scratch_buf();
+	struct te_rule_eval *e;
+	int eff;
+
+	if (!scratch)
+		return 1;
+	e = &scratch->eval;
+	eff = te_rule_effect_no_args(e, i);
 	if (eff < 0)
 		return 0;
 	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
-		c->best_rule = c->e->matched_rule;
+		c->best_rule = e->matched_rule;
 		c->best_effect = (unsigned int)eff;
-		c->best_domain_id = c->e->matched_domain_id;
-		c->best_req = c->e->matched_req;
-		c->best_labels = c->e->matched_labels;
+		c->best_domain_id = e->matched_domain_id;
+		c->best_req = e->matched_req;
+		c->best_labels = e->matched_labels;
 		if (c->best_effect == TEFFECT_KILL)
 			return 1;
 	}
@@ -1669,7 +1701,12 @@ static int te_rule_no_args_cb(__u32 i, void *vc)
  * which (with the branchless matchers) lets 100+ rules load in one program. */
 static __noinline int te_check_labels(struct te_rule_eval *e)
 {
-	struct te_rule_ctx c = { .e = e, .best_effect = TEFFECT_NOTIFY, .best_rule = -1 };
+	struct eval_scratch *scratch = eval_scratch_buf();
+	struct te_rule_ctx c = { .best_effect = TEFFECT_NOTIFY, .best_rule = -1 };
+
+	if (!scratch)
+		return -1;
+	scratch->eval = *e;
 	bpf_loop(te_count(0), te_rule_cb, &c, 0);
 	if (c.best_rule >= 0) {
 		e->effect = c.best_effect;
@@ -1683,7 +1720,12 @@ static __noinline int te_check_labels(struct te_rule_eval *e)
 
 static __noinline int te_check_labels_no_args(struct te_rule_eval *e)
 {
-	struct te_rule_ctx c = { .e = e, .best_effect = TEFFECT_NOTIFY, .best_rule = -1 };
+	struct eval_scratch *scratch = eval_scratch_buf();
+	struct te_rule_ctx c = { .best_effect = TEFFECT_NOTIFY, .best_rule = -1 };
+
+	if (!scratch)
+		return -1;
+	scratch->eval = *e;
 	bpf_loop(te_count(0), te_rule_no_args_cb, &c, 0);
 	if (c.best_rule >= 0) {
 		e->effect = c.best_effect;
