@@ -287,11 +287,11 @@ Implemented today:
 ```text
 rule catalog in policy YAML
 domain bindings in policy YAML
-default_domain / --domain selection
-actplane domains effective-policy view
-actplane check/compile selected-domain summary
-starter actplane.yaml generated in domain schema
-binding resolution at compile time
+domain selection for policies that use domains
+actplane compile --domains effective-policy view
+actplane compile selected-domain summary and --json/--explain reports
+starter actplane.yaml generated as a flat policy
+binding resolution at compile time for domain policies
 valid and invalid domain policy corpus tests
 CLI UX tests for domain selection/errors
 user ringbuf request path

@@ -105,13 +105,13 @@ CLI:
 
 ```text
 actplane init
-actplane check
-actplane domains
-actplane --domain review check
+actplane compile --json
+actplane compile --domains
+actplane --domain review compile --explain
 actplane --domain review compile --out review.ir
 sudo -E actplane --domain review run -- <cmd>
-actplane apply --domain <id> --policy policy.yaml
-actplane events
+actplane control status
+actplane control delta add --target-id <id> --delta policy.dsl
 actplane doctor
 ```
 
