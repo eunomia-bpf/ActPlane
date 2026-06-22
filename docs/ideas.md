@@ -418,7 +418,7 @@ ActPlane 相对于第三梯队的增量：时序门、语义反馈、machine-wri
 
 这不是 ActPlane 的 thesis 核心（core thesis 是 semantic gap），但它 motivate 了：
 - DSL 设计为 machine-writable（LLM/agent 可以生成策略）
-- `actplane check`（机器生成的策略需要 safety net）
+- `actplane compile --explain`（机器生成的策略需要 safety net）
 - notify 模式（先观测再执行，渐进式部署）
 
 在 intro 中，policy paralysis 放在 gap analysis（¶3）里作为 OS 层方案的共同缺陷：

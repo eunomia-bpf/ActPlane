@@ -200,7 +200,7 @@ maintained.
 
 For emergent behavior, the DSL is declarative, fixed-structure, and
 finite-grammar—designed for LLM generation as much as human authorship.
-`actplane check` provides compile-time verification (syntax, label
+`actplane compile --explain` provides compile-time verification (syntax, label
 consistency, contradiction detection) without requiring root privileges,
 serving as a safety net for machine-generated policies. Each rule
 independently selects one of three enforcement modes: notify (observe and

@@ -27,7 +27,8 @@ Agent integration layer
 
 2. Setup should be path-stable.
    Project integrations should call `actplane` from `PATH`, not a local build
-   artifact. Users should be able to run `actplane setup`, then start `codex`.
+   artifact. Users should be able to run `actplane init --all`, then start
+   `codex`.
 
 3. Feedback must be actionable.
    A blocked or killed action should tell the agent what happened, which rule
@@ -56,14 +57,14 @@ ActPlane commands should fall into clear lifecycle categories.
 These commands run, print an answer, and exit.
 
 ```bash
-actplane check
+actplane compile --explain
 actplane doctor
-actplane explain last
-actplane status
+cat .actplane/last-violation.txt
+actplane control status
 ```
 
-`check` validates policy without privileges. It compiles the DSL, summarizes
-rules, prints a backend support matrix, and reports static warnings such as
+`compile --explain` validates policy without privileges. It compiles the DSL,
+summarizes rules, prints a backend support matrix, and reports static warnings such as
 unsupported `block` behavior without BPF-LSM, unsupported `notify/kill recv`,
 argv-sensitive `block exec`, or hostname endpoint patterns that cannot match
 in-kernel IPv4.
@@ -292,8 +293,8 @@ outside the protected agent scope.
 
 Recommended order:
 
-1. Keep `setup`, `doctor`, MCP auto-attach, and feedback reliable.
-2. Add `actplane status` and `actplane explain last`.
+1. Keep `init --all`, `doctor`, MCP auto-attach, and feedback reliable.
+2. Keep `actplane control status` and `.actplane/last-violation.txt` stable.
 3. Add built-in control-plane self-protection.
 4. Add policy layer metadata and effective policy hashes.
 5. Add `actplane delegate` for subagent contracts.

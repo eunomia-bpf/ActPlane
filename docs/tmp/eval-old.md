@@ -206,7 +206,7 @@ The LLM agent reads each directive along with:
 
 and fills the `rule:` field in `docs/corpus/{repo}/agent_rules.yaml`.
 The agent does **not** see `expressible.yaml`. Rules are validated
-with `actplane check`.
+with `actplane compile --explain`.
 
 See `docs/eval_translate_prompt.md` for the full agent prompt.
 

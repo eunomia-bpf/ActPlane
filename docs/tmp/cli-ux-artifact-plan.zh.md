@@ -39,7 +39,7 @@ actplane control
 actplane doctor
 ```
 
-不保留 `actplane templates` 顶层命令。内置模板可以作为 `init` 的内部能力存在，但不应该暴露成独立产品入口。
+模板通过 `actplane init --template` 和 `actplane init --generate` 暴露。内置模板是 `init` 的内部能力，不是独立产品入口。
 
 ### init
 
@@ -92,9 +92,9 @@ actplane compile --domains
 - `--json` 输出机器可读 compile report，给 CI 或上层工具消费。
 - `--explain` 输出人可读 review artifact。
 - `--report-out FILE` 把 `--json` 或 `--explain` 的报告写入文件。
-- `--domains` 合并现在独立的 `domains` 命令，展示各 policy domain 的有效 policy rules。
+- `--domains` 提供 domain inspection，展示各 policy domain 的有效 policy rules。
 
-这里保留的是 `check` 的能力，不保留 `check` 这个顶层命令。这样用户只需要理解一个 policy preparation 命令：`compile`。它可以只验证，可以输出 review，也可以产出真正加载到 kernel 的 blob。
+这里保留的是静态 review 能力，不保留 `check` 这个顶层命令。这样用户只需要理解一个 policy preparation 命令：`compile`。它可以只验证，可以输出 review，也可以产出真正加载到 kernel 的 blob。
 
 ### run
 
@@ -210,7 +210,7 @@ actplane doctor
 
 ### 内置模板
 
-不设置 `actplane templates` 顶层命令。模板是 bootstrap 的输入，不是独立用户工作流。
+模板通过 `actplane init` 暴露。模板是 bootstrap 的输入，不是独立用户工作流。
 
 推荐暴露方式：
 

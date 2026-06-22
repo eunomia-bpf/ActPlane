@@ -112,8 +112,7 @@ runtime/强制层,而 scaffold 的定义停在 L1、不覆盖 OS,会把论点框
 ### 1.1 问题:约束在错误的层次上是可绕过的
 
 当前主流的 agent 行为约束是**散文式提示**(`CLAUDE.md` / `AGENTS.md`):这是**概率性
-harness**——长上下文会稀释 attention,agent 会**遗忘或即兴改道**(`docs/actplane-research-plan.md`
-§1)。把它升级为**确定性强制**有四个候选层次,可绕过性递减:
+harness**——长上下文会稀释 attention,agent 会**遗忘或即兴改道**。把它升级为**确定性强制**有四个候选层次,可绕过性递减:
 
 ```
 强制层次              典型系统                              能否被 agent 改道绕过?
@@ -346,7 +345,7 @@ ActPlane 的差异化卖点之一是**把内核违规理由回灌 agent 让其�
 - **PALADIN** (arXiv 2509.25238, 2025) —— 在 5 万+ 失败-恢复轨迹上训练自纠 agent;推理时检测执行
   错误、从 55+ 失败范例库检索最相似案例并执行对应恢复动作。报告**工具失败恢复率 32.76% → 89.68%**。
   *关联 ActPlane:* 强证据——**定向 remediation** 把恢复率从 ~33% 拉到 ~90%,远胜泛泛报错。
-  ActPlane 的反馈模板(`feedback-design.md` §6:被拦操作/原因/"OS 层硬约束重试无用"/可执行替代)
+  ActPlane 的反馈模板(`docs/feedback-design.md`:被拦操作/原因/"OS 层硬约束重试无用"/可执行替代)
   正是"定向修复信号"。
 - **AgentDebug** (OpenReview PFR4E8583W) —— 定向反馈使任务成功率**相对最高 +26%**。
 - **Where LLM Agents Fail and How They Learn From Failures** (arXiv 2509.25370, 2025) —— 失败归因
@@ -380,7 +379,7 @@ ActPlane 的差异化卖点之一是**把内核违规理由回灌 agent 让其�
   不会去 raw syscall。** 因此 ActPlane **不能**直接用 AgentDojo 证明其"工具层之下"卖点,需要自建
   **跨路径覆盖**评测(见下)。
 
-### 6.2 ActPlane 应采用的评测维度(综合 `feedback-design.md` §8、`agent-policy-survey.md`)
+### 6.2 ActPlane 应采用的评测维度(综合 `docs/feedback-design.md` 与 `agent-policy-survey.md`)
 
 1. **跨路径覆盖(卖点的硬证据)**:同一规则在 *工具调用* / `bash -c` / `python -c subprocess` /
    直接 syscall 四条路径上是否都被拦+反馈。直接对比 **L1 hook 通道(只覆盖第一条)** vs
@@ -390,8 +389,7 @@ ActPlane 的差异化卖点之一是**把内核违规理由回灌 agent 让其�
    C4 block + 语义纠偏。C1–C2 隔离"强制净效果",C3–C4 隔离"**纠偏反馈净贡献**"。
 3. **任务完成率 + 重复违规率 + 纠正迭代数**:C4 应 完成率 > C3、重复违规 < C3(参照 §5 基线:
    +26% 相对、33%→90%)。
-4. **过度阻断 / 误报率**:harness 的误报比 prompt 更糟,与命中率同等重要(`actplane-research-plan.md`
-   §7)。
+4. **过度阻断 / 误报率**:harness 的误报比 prompt 更糟,与命中率同等重要。
 5. **系统开销**:标签传播 + LSM 检查的 ns 级开销;hook 适配器延迟(对照 L1 guardrail 250–500ms
    p99 预算)。
 
@@ -551,6 +549,6 @@ agent IFC 工作(CaMeL/FIDES)报 **AgentDojo 攻击成功率 + 效用**,但**默
 
 **ActPlane 内部交叉引用**
 - `docs/related_work.md`(逐条注释相关工作 + 原始对比表 + gap 综合)
-- `docs/actplane-research-plan.md`(claims、威胁模型、§9.7 缺口)
-- `docs/taint-dsl.md`、`docs/feedback-design.md`(能力与纠偏反馈设计)
+- `docs/rule-language.md`(policy semantics and enforcement coverage)
+- `docs/feedback-design.md`(纠偏反馈设计)
 - `docs/agent-policy-survey.md`(评测 workload 来源)

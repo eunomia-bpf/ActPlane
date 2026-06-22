@@ -49,7 +49,7 @@ ActPlane 需要知道“谁在运行”，而不仅仅是“哪个 PID 在运行
 
 ```bash
 actplane run -- codex
-actplane status
+actplane control status
 ```
 
 用户看到的不是“启动了一个进程”，而是“启动了一个受控 agent session”。
@@ -240,17 +240,15 @@ delegation policy，但不能放宽上层 policy。
 
 ```bash
 actplane init
-actplane setup
+actplane init --all
 actplane run -- <agent>
-actplane status
+actplane control status
 actplane doctor
-actplane check
-actplane explain last
-actplane delegate --name <id> -- <subagent>
-actplane approve <gate>
-actplane audit show
-actplane audit export
-actplane test-policy
+actplane compile --explain
+actplane compile --json
+actplane control launch-child -- <subagent>
+actplane control delta add --target-id <id> --delta policy.dsl
+cat .actplane/last-violation.txt
 ```
 
 MCP 保持 resource-first:

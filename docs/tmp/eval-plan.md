@@ -5,7 +5,7 @@
 > 本文把 ActPlane 的 claim 拆成 6 组实验(E1–E6),每组标注:对应 claim、baseline、
 > 指标、统计方法、为什么 OSDI 需要它。
 >
-> 上游依据:`actplane-research-plan.md` §6(novelty/baseline)、`feedback-design.md` §8
+> 上游依据:`docs/rule-language.md`、`docs/feedback-design.md`
 > (四条件 C1–C4 + 假设 H1–H4)、`agent-policy-survey.md` §5/§7(D1–D7 编码、κ、四条件)、
 > `docs/corpus/` 与 `docs/tmp/corpus-analysis.md`(144 仓真实语料)。E1–E12 见 `taint-dsl.md`。
 
@@ -84,7 +84,7 @@
 
 ## 3. E2 — 纠偏反馈闭环（★核心,RQ2,最贵）
 
-**方法**：`feedback-design.md §8` 的**四条件对照**,Claude Code 与 Codex 各跑:
+**方法**：围绕 ActPlane corrective feedback 做**四条件对照**,Claude Code 与 Codex 各跑:
 
 | 条件 | 强制 | 反馈 | 隔离的变量 |
 |---|---|---|---|
@@ -100,7 +100,7 @@
 - **重复违规次数 / 纠正迭代数**（C4 < C3）
 - token / 轮次成本（反馈不应爆轮次）
 
-**消融**（C4 内部）：纯禁令 vs §6 带 remediation vs gate 档「先满足条件再重试」——验证 `feedback-design §6.3` 各原则贡献。
+**消融**（C4 内部）：纯禁令 vs 带 remediation vs gate 档「先满足条件再重试」——验证反馈 payload 各原则贡献。
 
 **统计严谨性（OSDI 必须，且最易被挑）**：
 - 每个 (场景 × 条件 × agent) 重复 **N ≥ 20–30 次**(agent 有随机性)。
