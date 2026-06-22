@@ -10,7 +10,7 @@ ActPlane uses three long-lived artifact refs:
 
 | Ref | Purpose | Contents |
 | --- | --- | --- |
-| `master` | Open-source product branch | ActPlane source, product docs, tests, this artifact index, and minimal benchmark scripts under `docs/`. It should not contain raw experiment outputs, tuning logs, Docker workspaces, or paper-only datasets. |
+| `master` | Open-source product branch | ActPlane source, product docs, tests, this artifact index, curated empirical-study summaries, and minimal benchmark scripts under `docs/`. It should not contain raw experiment outputs, tuning logs, Docker workspaces, or paper-only datasets. |
 | `artifact-ready` | Reviewer-facing paper artifact | Reproducible scripts, frozen inputs, selected policies, canonical summaries, and the smallest result files needed to verify paper claims. This branch should exclude scratch runs and raw logs unless the artifact README explicitly marks them as required. |
 | `backup/2026-06-14-master` | Raw historical backup | Full historical docs, experiments, intermediate runs, raw data, and local research records as they existed before cleanup. Use this branch for forensic recovery, not for paper claims. |
 
@@ -66,6 +66,8 @@ Keep in `master`:
 - Product documentation.
 - Paper draft and paper-writing assets under `docs/papers/`.
 - `docs/ARTIFACT.md`.
+- Curated empirical-study summaries and aggregate artifacts under
+  `docs/empirical-study/`.
 - Minimal benchmark scripts under `docs/`, currently `docs/rq2-performance/`.
 - Benchmark READMEs and `.gitignore` files that explain how to regenerate
   results.
@@ -84,8 +86,8 @@ Keep out of `master`:
   benchmark fixture areas.
 - `docs/tmp/`
 
-Historical working notes and scratch outputs live on the raw backup ref listed
-above, not on `master`.
+Historical working notes, raw corpus workspaces, and scratch outputs live on the
+raw backup ref listed above, not on `master`.
 
 ## Benchmark Scripts Kept Under Docs
 
