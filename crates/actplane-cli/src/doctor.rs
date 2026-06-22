@@ -1345,14 +1345,6 @@ fn render_check_explain(
                 format_domain_policy_rules(domain)
             )
             .unwrap();
-            if !domain.disabled.is_empty() {
-                writeln!(
-                    &mut out,
-                    "disabled defaults: {}",
-                    format_rule_list(&domain.disabled)
-                )
-                .unwrap();
-            }
         }
         None => writeln!(&mut out, "domain: none (flat policy)").unwrap(),
     }
