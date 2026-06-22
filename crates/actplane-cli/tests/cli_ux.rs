@@ -82,8 +82,7 @@ fn compile_default_prints_domain_summary() {
     let stdout = stdout(&output);
     assert!(stdout.contains("domain: review"));
     assert!(stdout.contains("parent: session"));
-    assert!(stdout.contains("locked: no-git-branch, readonly"));
-    assert!(stdout.contains("default: none"));
+    assert!(stdout.contains("policy: no-git-branch, readonly"));
     assert!(!stdout.contains("no-network —"));
 }
 
@@ -191,9 +190,8 @@ fn compile_domains_lists_effective_bindings() {
     let stdout = stdout(&output);
     assert!(stdout.contains("* review"));
     assert!(stdout.contains("  session"));
-    assert!(stdout.contains("disables: no-network"));
-    assert!(stdout.contains("locked: no-git-branch, readonly"));
-    assert!(stdout.contains("default: no-network"));
+    assert!(stdout.contains("policy: no-git-branch, no-network"));
+    assert!(stdout.contains("policy: no-git-branch, readonly"));
 }
 
 #[test]
@@ -214,7 +212,7 @@ fn compile_writes_kernel_blob() {
     assert!(out.is_file());
     let stderr = stderr(&output);
     assert!(stderr.contains("domain `review`"));
-    assert!(stderr.contains("locked: no-git-branch, readonly"));
+    assert!(stderr.contains("policy: no-git-branch, readonly"));
     assert!(stderr.contains("compiled 2 rule(s)"));
 }
 

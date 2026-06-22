@@ -11,9 +11,7 @@
 >
 > Both pass the kernel verifier and load live. Covered by `dsl/mod.rs`
 > (E5′/E11′/E13 + reject tests) and the live `E5b … goes stale (since)` e2e
-> case; all of E1–E12 still pass in tracepoint mode (no regression). Layer B
-> (per-gate consumption set) is the remaining precision step — see §4, and note
-> it is deliberately deferred / opt-in.
+> case; all of E1–E12 pass in tracepoint mode.
 
 > v2 is a **superset** of v1 ([`taint-dsl.md`](taint-dsl.md)). Every v1 policy
 > compiles and runs unchanged. v2 adds exactly **one new core primitive** plus

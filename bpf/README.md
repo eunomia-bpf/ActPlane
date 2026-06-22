@@ -33,7 +33,9 @@ engine emits a match event with one of three effects:
 The loader attaches hooks according to the compiled policy budget. The default
 exec tracepoint path matches executable identity without reading argv. Policies
 with exec argv-token predicates load the separate post-exec argv hook, so common
-policies do not pay the verifier/runtime cost of argv tokenization.
+policies do not pay the verifier/runtime cost of argv tokenization. Because argv
+tokens are observed after exec today, argv-sensitive exec rules should use
+`notify` or `kill`; they are not pre-exec `block` rules.
 
 When BPF-LSM is active, the loader can also mark its own control pid as
 protected. Runtime-domain subjects, including uid 0 subjects, cannot signal or
@@ -43,47 +45,59 @@ remain ordinary host administrators and can still stop or unload the engine.
 
 ## Kernel state
 
-Five BPF hash maps track label state:
+The engine uses separate maps for policy tables, process/domain state,
+object labels, provenance, fd tracking, runtime control, and event output. The
+most important maps are:
 
-| Map | Key | Value |
-|-----|-----|-------|
-| `ts_proc` | pid | label bitmask + lineage gates |
-| `ts_root` | root pid | temporal gate state |
-| `ts_sess` | session id | temporal gate state |
-| `ts_file` | path hash (FNV-1a) | label bitmask |
-| `ts_endp` | IPv4 address | label bitmask |
+| Map | Purpose |
+|-----|---------|
+| `ts_updates`, `ts_rules`, `ts_counts` | Hot-reloadable compiled policy tables and active loop counts |
+| `ts_proc`, `ts_proc_domains` | Global and runtime-domain process label state |
+| `ts_root`, `ts_sess`, `ts_sess_zero` | Lineage roots and temporal gate/staleness epochs |
+| `ts_file`, `ts_endp` | Per-domain file and IPv4 endpoint labels |
+| `ts_file_prov`, `ts_endp_prov`, `ts_proc_prov` | Label provenance for corrective feedback |
+| `cap_req`, `cap_state`, `cap_task`, `cap_policy` | Runtime domain and append/reload admission state |
+| `ts_fd`, `ts_fileptr`, `ts_sockfd`, `ts_mmap` | Tracepoint fallback fd, socket, and mmap tracking |
+| `rb` | `TAINT_VIOLATION` ring buffer |
+
+File identities are real `(dev,inode)` when hooks can recover a `struct file`.
+Tracepoint-only path references fall back to a domain-scoped FNV-1a path id.
 
 ## Usage as a library
+
+The supported product entrypoint is the `actplane` CLI. The `ebpf-ifc-engine`
+crate is the lower-level loader used by the CLI and runtime, and its API follows
+the kernel ABI more closely.
 
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ebpf-ifc-engine = "0.1"
+ebpf-ifc-engine = { path = "bpf" }
 ```
 
 ```rust
-use ebpf_ifc_engine::{ActplaneBpf, Config};
+use std::sync::atomic::AtomicBool;
+
+use ebpf_ifc_engine::Loader;
 
 // Load a compiled policy config
 let config: Vec<u8> = std::fs::read("policy.bin")?;
-let mut engine = ActplaneBpf::new()?;
-engine.load(&config)?;
+let mut loader = Loader::load(&config)?;
+loader.seed_label(std::process::id() as i32, 1)?;
 
 // Read match events
-for event in engine.events() {
+let stop = AtomicBool::new(false);
+loader.run(&stop, |event| {
     println!("rule {} matched on pid {}", event.rule_id, event.pid);
-}
+})?;
 ```
-
-(Note: the API shown above is illustrative. See the source for the
-actual interface.)
 
 ## Usage as standalone loader
 
 ```bash
-cargo install ebpf-ifc-engine
-sudo actplane-loader --config policy.bin
+cargo build -p ebpf-ifc-engine --bin actplane-loader
+sudo ./target/debug/actplane-loader --config policy.bin
 ```
 
 The loader attaches eBPF programs, reads the policy config into rodata,
@@ -106,14 +120,18 @@ ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine
 
 ## Binary config format
 
-The engine reads a `taint_config` struct as read-only BPF data. The
-struct layout is defined in `taint.h` and mirrored byte-for-byte in
-Rust (`lower.rs`). It contains:
+The compiler writes a fixed-size `taint_config` blob. The struct layout is
+defined in `taint.h` and mirrored byte-for-byte in Rust (`lower.rs`). It
+contains:
 
-- Up to 32 sources (label introduction rules)
-- Up to 32 rules (label-matching deny clauses)
-- Up to 16 transforms (declassify/endorse gates)
-- Up to 16 temporal gates
+- `n_updates` plus up to 320 `taint_update` entries. Updates cover sources,
+  declassify/endorse transforms, temporal gates, and `since` invalidators.
+- `n_rules` plus up to 128 `taint_rule` entries. Boolean `or` clauses are
+  lowered into multiple kernel rules.
+
+The loader copies those entries into writable BPF array maps so runtime reloads
+and append-only policy deltas can update the active policy without rebuilding
+the eBPF object.
 
 ## Requirements
 

@@ -120,8 +120,8 @@ The CLI should always tell the user which domain was selected:
 ```text
 domain: review
 parent: session
-locked: no-git-branch, readonly
-default: none
+policy: no-git-branch, readonly
+local additions: none
 ```
 
 That makes the runtime choice visible before anything needs privileges.

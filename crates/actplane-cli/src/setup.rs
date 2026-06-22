@@ -50,57 +50,25 @@ const STARTER_POLICY: &str = r#"# ActPlane project policy. Constraints are appli
 # Apply around an agent:  sudo -E actplane run <your agent command>
 # DSL reference: docs/rule-language.md
 version: 1
-default_domain: session
+policy: |
+  source COMMAND = exec "**"
+  source SECRET = file "**/.env"
+  source SECRET = file "**/secrets/**"
 
-rules:
-  no-git-branch:
-    ifc: |
-      source COMMAND = exec "**"
-      rule no-git-branch:
-        kill exec "git" "branch"   if COMMAND
-        kill exec "git" "worktree" if COMMAND
-        because "create branches/worktrees on the host, not via the agent"
+  rule no-git-branch:
+    kill exec "git" "branch"   if COMMAND
+    kill exec "git" "worktree" if COMMAND
+    because "create branches/worktrees on the host, not via the agent"
 
-  no-secret-exfil:
-    ifc: |
-      source SECRET = file "**/.env"
-      source SECRET = file "**/secrets/**"
-      rule no-secret-exfil:
-        kill connect endpoint "*" if SECRET
-        because "data derived from local secrets must not leave the host; redact first"
-      declassify SECRET by exec "**/redact"
+  rule no-secret-exfil:
+    kill connect endpoint "*" if SECRET
+    because "data derived from local secrets must not leave the host; redact first"
 
-  test-before-commit:
-    ifc: |
-      source COMMAND = exec "**"
-      rule test-before-commit:
-        kill exec "git" "commit" if COMMAND unless after exec "**/pytest"
-        because "run the tests before committing"
+  declassify SECRET by exec "**/redact"
 
-  readonly-review:
-    ifc: |
-      source COMMAND = exec "**"
-      rule readonly-review:
-        kill write file "/**" if COMMAND
-        because "review domains are read-only"
-
-domains:
-  session:
-    bind:
-      - rule: no-git-branch
-        mode: locked
-      - rule: no-secret-exfil
-        mode: locked
-      - rule: test-before-commit
-        mode: default
-
-  review:
-    parent: session
-    disable:
-      - test-before-commit
-    bind:
-      - rule: readonly-review
-        mode: locked
+  rule test-before-commit:
+    kill exec "git" "commit" if COMMAND unless after exec "**/pytest"
+    because "run the tests before committing"
 "#;
 
 pub(crate) fn starter_policy() -> &'static str {

@@ -91,7 +91,7 @@ or by the artifact-ready README.
 ## Benchmark Scripts Kept Under Docs
 
 Performance benchmark scripts should stay under `docs/`, not at repository root.
-The current planned product-facing path is:
+The product-facing path is:
 
 ```text
 docs/rq2-performance/

@@ -92,7 +92,7 @@ actplane compile --domains
 - `--json` 输出机器可读 compile report，给 CI 或上层工具消费。
 - `--explain` 输出人可读 review artifact。
 - `--report-out FILE` 把 `--json` 或 `--explain` 的报告写入文件。
-- `--domains` 合并现在独立的 `domains` 命令，展示各 policy domain 的有效 locked/default rules。
+- `--domains` 合并现在独立的 `domains` 命令，展示各 policy domain 的有效 policy rules。
 
 这里保留的是 `check` 的能力，不保留 `check` 这个顶层命令。这样用户只需要理解一个 policy preparation 命令：`compile`。它可以只验证，可以输出 review，也可以产出真正加载到 kernel 的 blob。
 

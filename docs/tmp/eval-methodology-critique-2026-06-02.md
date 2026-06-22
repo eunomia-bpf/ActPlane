@@ -321,7 +321,7 @@ of running our own experiment. See baseline-violation-rates.md.
 Threat model is "cooperative-but-forgetful." No test of adversarial
 bypass attempts (agent deliberately trying to circumvent ActPlane).
 This is fine for the claimed threat model but should be stated as
-a limitation / future work.
+part of the stated evaluation scope.
 
 ### 8.4 Notify mode not evaluated
 
