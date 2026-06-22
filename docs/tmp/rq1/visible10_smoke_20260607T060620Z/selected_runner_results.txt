@@ -1,4 +1,0 @@
-docs/tmp/rq1/visible10_smoke_20260607T060620Z/actplane-opaque/docs/corpus-test/openai__codex/generated-typescript-protocol/results/20260607T060725Z-a0c539b9.json
-docs/tmp/rq1/visible10_smoke_20260607T060620Z/actplane/docs/corpus-test/openai__codex/generated-typescript-protocol/results/20260607T060735Z-c405dc9b.json
-docs/tmp/rq1/visible10_smoke_20260607T060620Z/prompt-filter/docs/corpus-test/openai__codex/generated-typescript-protocol/results/20260607T060650Z-38ff1671.json
-docs/tmp/rq1/visible10_smoke_20260607T060620Z/tool-regex/docs/corpus-test/openai__codex/generated-typescript-protocol/results/20260607T060715Z-db50dafa.json

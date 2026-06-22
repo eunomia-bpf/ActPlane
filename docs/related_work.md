@@ -362,8 +362,8 @@ cross-channel data-flow policy.
 
 ## 7. Empirical Studies of Agent Instruction Files (CLAUDE.md / AGENTS.md)
 
-ActPlane's empirical motivation comes from a corpus of real `CLAUDE.md` / `AGENTS.md` files
-(`docs/corpus/`, analysis in `docs/tmp/corpus-analysis.md`). A small but fast-growing 2025–26 line of
+ActPlane's empirical motivation comes from a corpus of real `CLAUDE.md` / `AGENTS.md` files,
+with raw corpus material kept on the artifact/backup refs rather than the product branch. A small but fast-growing 2025–26 line of
 work studies these files directly — but along **orthogonal axes** to ActPlane: they characterize
 *what developers write* (content taxonomy), *how it is structured/maintained*, and *whether it
 helps task performance*. **None asks which instructions are behavioral/flow constraints, nor

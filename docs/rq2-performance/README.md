@@ -98,7 +98,7 @@ python3 docs/rq2-performance/run_macro.py \
 python3 docs/rq2-performance/plot_rq2.py \
   --micro-dir docs/rq2-performance/results/rq2-micro \
   --macro-dir docs/rq2-performance/results/rq2-macro \
-  --out-dir docs/tmp/rq2-overhead-figures
+  --out-dir docs/rq2-performance/tmp/rq2-overhead-figures
 ```
 
 ## Output

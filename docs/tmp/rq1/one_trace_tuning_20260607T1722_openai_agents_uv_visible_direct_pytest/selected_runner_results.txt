@@ -1,4 +1,0 @@
-docs/tmp/rq1/one_trace_tuning_20260607T1722_openai_agents_uv_visible_direct_pytest/actplane-opaque/docs/corpus-test/openai__openai-agents-python/repo-python-through-uv/results/20260607T145243Z-90ffc35b.json
-docs/tmp/rq1/one_trace_tuning_20260607T1722_openai_agents_uv_visible_direct_pytest/actplane/docs/corpus-test/openai__openai-agents-python/repo-python-through-uv/results/20260607T145226Z-65a4803b.json
-docs/tmp/rq1/one_trace_tuning_20260607T1722_openai_agents_uv_visible_direct_pytest/prompt-filter/docs/corpus-test/openai__openai-agents-python/repo-python-through-uv/results/20260607T145153Z-47e4edb4.json
-docs/tmp/rq1/one_trace_tuning_20260607T1722_openai_agents_uv_visible_direct_pytest/tool-regex/docs/corpus-test/openai__openai-agents-python/repo-python-through-uv/results/20260607T145204Z-772ec53a.json

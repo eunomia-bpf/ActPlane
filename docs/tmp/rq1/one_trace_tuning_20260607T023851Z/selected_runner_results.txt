@@ -1,4 +1,0 @@
-docs/tmp/rq1/one_trace_tuning_20260607T023851Z/actplane-opaque/docs/corpus-test/alibaba__OpenSandbox/kubernetes_apis_make_manifests_generate/results/20260607T023917Z-7addabe6.json
-docs/tmp/rq1/one_trace_tuning_20260607T023851Z/actplane/docs/corpus-test/alibaba__OpenSandbox/kubernetes_apis_make_manifests_generate/results/20260607T023927Z-3ed2a876.json
-docs/tmp/rq1/one_trace_tuning_20260607T023851Z/prompt-filter/docs/corpus-test/alibaba__OpenSandbox/kubernetes_apis_make_manifests_generate/results/20260607T023904Z-f39b63ad.json
-docs/tmp/rq1/one_trace_tuning_20260607T023851Z/tool-regex/docs/corpus-test/alibaba__OpenSandbox/kubernetes_apis_make_manifests_generate/results/20260607T023909Z-5ef4ba69.json

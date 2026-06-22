@@ -1,4 +1,0 @@
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063726Z/actplane-opaque/docs/corpus-test/ruvnet__ruflo/read-before-edit/results/20260607T063803Z-0c236d3f.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063726Z/actplane/docs/corpus-test/ruvnet__ruflo/read-before-edit/results/20260607T063812Z-fe0dd775.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063726Z/prompt-filter/docs/corpus-test/ruvnet__ruflo/read-before-edit/results/20260607T063752Z-a0819e12.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063726Z/tool-regex/docs/corpus-test/ruvnet__ruflo/read-before-edit/results/20260607T063756Z-1fdae0b7.json

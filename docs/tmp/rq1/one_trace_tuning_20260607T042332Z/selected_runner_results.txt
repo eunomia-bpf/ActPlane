@@ -1,4 +1,0 @@
-docs/tmp/rq1/one_trace_tuning_20260607T042332Z/actplane-opaque/docs/corpus-test/ruvnet__ruflo/no-root-workfiles/results/20260607T042405Z-7cd8760d.json
-docs/tmp/rq1/one_trace_tuning_20260607T042332Z/actplane/docs/corpus-test/ruvnet__ruflo/no-root-workfiles/results/20260607T042418Z-7d7048a9.json
-docs/tmp/rq1/one_trace_tuning_20260607T042332Z/prompt-filter/docs/corpus-test/ruvnet__ruflo/no-root-workfiles/results/20260607T042349Z-432b5e8d.json
-docs/tmp/rq1/one_trace_tuning_20260607T042332Z/tool-regex/docs/corpus-test/ruvnet__ruflo/no-root-workfiles/results/20260607T042358Z-49d6eaba.json
