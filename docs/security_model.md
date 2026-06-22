@@ -142,7 +142,7 @@ widen scope
 remove labels or gates
 increase delegated authority
 mutate an existing rule definition
-enable hook classes that were not reserved when the engine loaded
+enable hook classes or path-matcher classes that were not reserved when the engine loaded
 ```
 
 ## Examples

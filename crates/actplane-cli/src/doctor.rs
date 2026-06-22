@@ -1302,7 +1302,7 @@ fn render_check_json(
             "force_tracepoint": force_tracepoint,
         },
         "matrix_scope": "static_initial_policy_host_support",
-        "matrix_note": "This reports static host/backend support for the selected initial policy. Runtime hook budgets can reject later deltas that require hook classes not enabled when the engine was loaded.",
+        "matrix_note": "This reports static host/backend support for the selected initial policy. Runtime budgets can reject later deltas that require hook classes or path matcher classes not enabled when the engine was loaded.",
         "environment": {
             "ACTPLANE_FORCE_TRACEPOINT": std::env::var("ACTPLANE_FORCE_TRACEPOINT").ok(),
             "ACTPLANE_HOOK_PROFILE": std::env::var("ACTPLANE_HOOK_PROFILE").ok(),
@@ -1382,7 +1382,7 @@ fn render_check_explain(
     }
     writeln!(
         &mut out,
-        "  - hook budget: policy-budgeted attach; runtime deltas cannot add hook classes after load"
+        "  - feature budget: policy-budgeted attach; runtime deltas cannot add hook classes or path contains/suffix matcher classes after load"
     )
     .unwrap();
     writeln!(

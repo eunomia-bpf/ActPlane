@@ -310,26 +310,19 @@ mod tests {
     }
 
     #[test]
-    fn starter_policy_uses_domain_schema_and_compiles() {
+    fn starter_policy_uses_flat_policy_and_compiles() {
         let config: FileConfig = serde_yaml::from_str(STARTER_POLICY).unwrap();
-        assert!(config.policy.is_none());
-        assert!(config.domains.contains_key("session"));
-        assert!(config.domains.contains_key("review"));
+        assert!(config.policy.is_some());
+        assert!(config.domains.is_empty());
         let loaded = LoadedPolicy {
             config,
             root: PathBuf::new(),
             path: None,
         };
-        let session = policy_source(&loaded, Some("session")).unwrap();
-        assert!(session.contains("no-git-branch"));
-        assert!(session.contains("test-before-commit"));
-        assert!(!session.contains("readonly-review"));
-        dsl::compile_str(&session).unwrap();
-
-        let review = policy_source(&loaded, Some("review")).unwrap();
-        assert!(review.contains("no-git-branch"));
-        assert!(!review.contains("test-before-commit"));
-        assert!(review.contains("readonly-review"));
-        dsl::compile_str(&review).unwrap();
+        let policy = policy_source(&loaded, None).unwrap();
+        assert!(policy.contains("no-git-branch"));
+        assert!(policy.contains("no-secret-exfil"));
+        assert!(policy.contains("test-before-commit"));
+        dsl::compile_str(&policy).unwrap();
     }
 }
