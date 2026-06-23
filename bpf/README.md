@@ -30,17 +30,20 @@ engine emits a match event with one of three effects:
 - **block** — BPF-LSM returns `-EPERM` (pre-operation denial)
 - **kill** — `SIGKILL` the matching task
 
-The loader attaches hooks according to the compiled policy budget. The default
-exec tracepoint path matches executable identity without reading argv. Policies
-with exec argv-token predicates load the separate post-exec argv hook, so common
-policies do not pay the verifier/runtime cost of argv tokenization. Because argv
-tokens are observed after exec today, argv-sensitive exec rules should use
-`notify` or `kill`; they are not pre-exec `block` rules.
+The loader attaches hooks according to the loaded engine profile. Process
+lifecycle and the argv-capable exec tracepoint are always attached. Exec scanning
+is split across tail-call stages, so exact exec policies do not force the
+verifier through prefix and conditioned-rule scanners in the same program.
+Because argv tokens are observed after exec, argv-sensitive exec rules should
+use `notify` or `kill`; they are not pre-exec `block` rules.
 
 When BPF-LSM is active, the loader can also mark its own control pid as
 protected. Runtime-domain subjects, including uid 0 subjects, cannot signal or
-ptrace that protected pid, and they cannot use the `bpf()` syscall to manage
-BPF programs, maps, or links. Processes outside any ActPlane runtime domain
+ptrace that protected pid, and they cannot use the `bpf()` syscall to create,
+load, attach, pin, or fetch BPF programs, maps, or links. Lookup, update,
+delete, and fd-info operations on already-held map fds remain available for
+ActPlane's runtime control path.
+Processes outside any ActPlane runtime domain
 remain ordinary host administrators and can still stop or unload the engine.
 
 ## Kernel state

@@ -154,8 +154,6 @@ static unsigned int config_features(const struct taint_config *cfg)
 	unsigned int features = 0;
 
 	for (unsigned int i = 0; i < cfg->n_updates && i < MAX_TAINT_UPDATES; i++) {
-		if (cfg->updates[i].op == TOP_EXEC && cfg->updates[i].arg[0] != '\0')
-			features |= TE_POLICY_EXEC_ARGS;
 		if (cfg->updates[i].op == TOP_OPEN || cfg->updates[i].op == TOP_WRITE)
 			features |= TE_POLICY_FILE_FLOW |
 				    path_match_features(cfg->updates[i].match);
@@ -165,8 +163,6 @@ static unsigned int config_features(const struct taint_config *cfg)
 			features |= TE_POLICY_RECV;
 	}
 	for (unsigned int i = 0; i < cfg->n_rules && i < MAX_TAINT_RULES; i++) {
-		if (cfg->rules[i].op == TOP_EXEC && cfg->rules[i].arg[0] != '\0')
-			features |= TE_POLICY_EXEC_ARGS;
 		if (cfg->rules[i].effect == TEFFECT_BLOCK) {
 			if (cfg->rules[i].op == TOP_EXEC && cfg->rules[i].arg[0] == '\0')
 				features |= TE_POLICY_BLOCK_EXEC;
@@ -233,8 +229,7 @@ static unsigned int all_hook_features(void)
 	       TE_POLICY_FILE_FLOW |
 	       TE_POLICY_BLOCK_EXEC |
 	       TE_POLICY_BLOCK_FILE |
-	       TE_POLICY_BLOCK_CONNECT |
-	       TE_POLICY_EXEC_ARGS;
+	       TE_POLICY_BLOCK_CONNECT;
 }
 
 static bool name_in(const char *name, const char *const *items, size_t n)
@@ -295,14 +290,13 @@ static int tracepoint_autoload_needed(const char *name, unsigned int features,
 	bool open_rules = features & TE_POLICY_OPEN_RULES;
 	bool connect = features & TE_POLICY_CONNECT;
 	bool recv = features & TE_POLICY_RECV;
-	bool exec_args = features & TE_POLICY_EXEC_ARGS;
 
 	if (name_in(name, core, sizeof(core) / sizeof(core[0])))
 		return 1;
 	if (strcmp(name, "handle_exec") == 0)
-		return !exec_args;
+		return 0;
 	if (strcmp(name, "handle_exec_args") == 0)
-		return exec_args;
+		return 1;
 	if (name_in(name, file_open, sizeof(file_open) / sizeof(file_open[0])))
 		return file_flow || open_rules;
 	if (name_in(name, file_write_path,
@@ -336,6 +330,39 @@ static void configure_tracepoint_autoload(struct process_bpf *skel,
 		if (needed >= 0)
 			bpf_program__set_autoload(prog, needed);
 	}
+}
+
+static void configure_exec_tail_programs(struct process_bpf *skel)
+{
+	bpf_program__set_autoattach(skel->progs.exec_tp_update_simple, false);
+	bpf_program__set_autoattach(skel->progs.exec_tp_update_prefix, false);
+	bpf_program__set_autoattach(skel->progs.exec_tp_rule_simple, false);
+	bpf_program__set_autoattach(skel->progs.exec_tp_rule_complex, false);
+}
+
+static int install_exec_tail_programs(struct process_bpf *skel)
+{
+	struct {
+		__u32 idx;
+		struct bpf_program *prog;
+	} entries[] = {
+		{ 0, skel->progs.exec_tp_update_simple },
+		{ 1, skel->progs.exec_tp_update_prefix },
+		{ 2, skel->progs.exec_tp_rule_simple },
+		{ 3, skel->progs.exec_tp_rule_complex },
+	};
+	int map_fd = bpf_map__fd(skel->maps.exec_tail);
+
+	for (size_t i = 0; i < sizeof(entries) / sizeof(entries[0]); i++) {
+		int prog_fd = bpf_program__fd(entries[i].prog);
+		if (prog_fd < 0 ||
+		    bpf_map_update_elem(map_fd, &entries[i].idx, &prog_fd, BPF_ANY) < 0) {
+			fprintf(stderr, "failed to install exec tail program %u: %s\n",
+				entries[i].idx, strerror(errno));
+			return -1;
+		}
+	}
+	return 0;
 }
 
 static int validate_config(const struct taint_config *cfg)
@@ -600,6 +627,7 @@ int main(int argc, char **argv)
 		recv_flow = true;
 	}
 	configure_tracepoint_autoload(skel, features, file_write, advanced_hooks);
+	configure_exec_tail_programs(skel);
 	if (!enforce || !block_exec)
 		bpf_program__set_autoload(skel->progs.enforce_bprm_check_security, false);
 	if (!enforce || !block_file) {
@@ -645,6 +673,7 @@ int main(int argc, char **argv)
 
 	err = process_bpf__load(skel);
 	if (err) { fprintf(stderr, "Failed to load BPF skeleton\n"); goto cleanup; }
+	if (install_exec_tail_programs(skel)) { err = -1; goto cleanup; }
 
 	/* Populate writable array maps for updates and rules. */
 	{

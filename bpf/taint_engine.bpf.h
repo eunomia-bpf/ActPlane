@@ -252,6 +252,7 @@ struct te_rule_eval {
 	unsigned int effect;
 	unsigned int effect_mask;
 	int matched_rule;       /* set by te_rule_effect on a hit */
+	int matched_index;      /* table index used for same-effect tie-breaking */
 	__u64 matched_req;      /* required label mask for the matched compiled rule */
 	__u64 matched_labels;   /* domain-specific labels used by the matched rule */
 };
@@ -970,6 +971,17 @@ struct te_update_ctx {
 	__u64 invals;
 };
 
+static __always_inline int te_exec_simple_match(unsigned int kind,
+						const char *text,
+						const char *pat)
+{
+	if (kind == TAINT_MATCH_ANY)
+		return 1;
+	if (kind != TAINT_MATCH_EXACT)
+		return 0;
+	return taint_streq(text, pat);
+}
+
 static int te_update_cb(__u32 i, void *vc)
 {
 	struct te_update_ctx *c = vc;
@@ -995,6 +1007,70 @@ static int te_update_cb(__u32 i, void *vc)
 		return 0;
 	/* For exec updates with an arg constraint, also check argv tokens. */
 	if (u.op == TOP_EXEC && u.arg[0] != '\0') {
+		struct te_argslots *a = te_argslots_buf();
+		if (!a || !taint_arg_match(a->slots, u.arg))
+			return 0;
+	}
+	c->add |= u.add;
+	c->del |= u.del;
+	if (u.gate_exit_code == TAINT_GATE_IMMEDIATE)
+		c->gates |= u.gates;
+	else
+		c->exit_gates |= u.gates;
+	c->invals |= u.invals;
+	return 0;
+}
+
+static int te_exec_update_simple_cb(__u32 i, void *vc)
+{
+	struct te_update_ctx *c = vc;
+
+	if (i >= MAX_TAINT_UPDATES)
+		return 1;
+	struct taint_update *up = bpf_map_lookup_elem(&ts_updates, &i);
+	if (!up)
+		return 1;
+	struct taint_update u = *up;
+	if (u.op != TOP_EXEC)
+		return 0;
+	if (u.domain_id != c->domain_id)
+		return 0;
+	if (!te_exec_simple_match(u.match, c->target, u.target))
+		return 0;
+	if (u.arg[0] != '\0') {
+		struct te_argslots *a = te_argslots_buf();
+		if (!a || !taint_arg_match(a->slots, u.arg))
+			return 0;
+	}
+	c->add |= u.add;
+	c->del |= u.del;
+	if (u.gate_exit_code == TAINT_GATE_IMMEDIATE)
+		c->gates |= u.gates;
+	else
+		c->exit_gates |= u.gates;
+	c->invals |= u.invals;
+	return 0;
+}
+
+static int te_exec_update_prefix_cb(__u32 i, void *vc)
+{
+	struct te_update_ctx *c = vc;
+
+	if (i >= MAX_TAINT_UPDATES)
+		return 1;
+	struct taint_update *up = bpf_map_lookup_elem(&ts_updates, &i);
+	if (!up)
+		return 1;
+	struct taint_update u = *up;
+	if (u.op != TOP_EXEC)
+		return 0;
+	if (u.domain_id != c->domain_id)
+		return 0;
+	if (u.match == TAINT_MATCH_EXACT || u.match == TAINT_MATCH_ANY)
+		return 0;
+	if (!taint_exec_match(u.match, c->target, u.target))
+		return 0;
+	if (u.arg[0] != '\0') {
 		struct te_argslots *a = te_argslots_buf();
 		if (!a || !taint_arg_match(a->slots, u.arg))
 			return 0;
@@ -1562,6 +1638,108 @@ static __noinline int te_rule_effect(struct te_rule_eval *e, unsigned int idx)
 	if (te_cond_satisfied(rp, e))
 		return -1;
 	e->matched_rule = (int)rp->rule_id;
+	e->matched_index = (int)idx;
+	e->matched_domain_id = rp->domain_id;
+	e->matched_req = rp->req;
+	e->matched_labels = labels & rp->req;
+	return (int)rp->effect;
+}
+
+static __noinline int te_rule_effect_exec_simple(struct te_rule_eval *e,
+						 unsigned int idx)
+{
+	if (idx >= MAX_TAINT_RULES)
+		return -1;
+	__u32 key = idx;
+	struct taint_rule *rp = bpf_map_lookup_elem(&ts_rules, &key);
+	if (!rp)
+		return -1;
+
+	if (!cap_policy_rule_bound(rp->domain_id, idx))
+		return -1;
+	if (rp->op != TOP_EXEC)
+		return -1;
+	if (rp->cond_kind != TCOND_NONE)
+		return -1;
+	if (rp->domain_id != 0 && rp->domain_id != e->current_domain_id &&
+	    !cap_domain_matches_pid(e->pid, rp->domain_id))
+		return -1;
+	if (e->effect_mask) {
+		if (rp->effect > TEFFECT_KILL)
+			return -1;
+		if (!(e->effect_mask & (1U << rp->effect)))
+			return -1;
+	}
+	__u64 labels = 0;
+	if (rp->domain_id == 0)
+		labels = e->global_labels;
+	else if (rp->domain_id == e->current_domain_id)
+		labels = e->current_labels;
+	else
+		labels = te_labels_for_domain(e->pid, rp->domain_id);
+	if (!taint_mask_ok(labels, rp->req, rp->forbid))
+		return -1;
+	if (!te_exec_simple_match(rp->match, e->target, rp->target))
+		return -1;
+	if (rp->arg[0] != '\0') {
+		struct te_argslots *a = te_argslots_buf();
+		if (!a || !taint_arg_match(a->slots, rp->arg))
+			return -1;
+	}
+	e->matched_rule = (int)rp->rule_id;
+	e->matched_index = (int)idx;
+	e->matched_domain_id = rp->domain_id;
+	e->matched_req = rp->req;
+	e->matched_labels = labels & rp->req;
+	return (int)rp->effect;
+}
+
+static __noinline int te_rule_effect_exec_complex(struct te_rule_eval *e,
+						  unsigned int idx)
+{
+	if (idx >= MAX_TAINT_RULES)
+		return -1;
+	__u32 key = idx;
+	struct taint_rule *rp = bpf_map_lookup_elem(&ts_rules, &key);
+	if (!rp)
+		return -1;
+
+	if (!cap_policy_rule_bound(rp->domain_id, idx))
+		return -1;
+	if (rp->op != TOP_EXEC)
+		return -1;
+	if ((rp->match == TAINT_MATCH_EXACT || rp->match == TAINT_MATCH_ANY) &&
+	    rp->cond_kind == TCOND_NONE)
+		return -1;
+	if (rp->domain_id != 0 && rp->domain_id != e->current_domain_id &&
+	    !cap_domain_matches_pid(e->pid, rp->domain_id))
+		return -1;
+	if (e->effect_mask) {
+		if (rp->effect > TEFFECT_KILL)
+			return -1;
+		if (!(e->effect_mask & (1U << rp->effect)))
+			return -1;
+	}
+	__u64 labels = 0;
+	if (rp->domain_id == 0)
+		labels = e->global_labels;
+	else if (rp->domain_id == e->current_domain_id)
+		labels = e->current_labels;
+	else
+		labels = te_labels_for_domain(e->pid, rp->domain_id);
+	if (!taint_mask_ok(labels, rp->req, rp->forbid))
+		return -1;
+	if (!taint_exec_match(rp->match, e->target, rp->target))
+		return -1;
+	if (rp->arg[0] != '\0') {
+		struct te_argslots *a = te_argslots_buf();
+		if (!a || !taint_arg_match(a->slots, rp->arg))
+			return -1;
+	}
+	if (te_cond_satisfied(rp, e))
+		return -1;
+	e->matched_rule = (int)rp->rule_id;
+	e->matched_index = (int)idx;
 	e->matched_domain_id = rp->domain_id;
 	e->matched_req = rp->req;
 	e->matched_labels = labels & rp->req;
@@ -1613,6 +1791,7 @@ static __noinline int te_rule_effect_no_args(struct te_rule_eval *e,
 	if (te_cond_satisfied(rp, e))
 		return -1;
 	e->matched_rule = (int)rp->rule_id;
+	e->matched_index = (int)idx;
 	e->matched_domain_id = rp->domain_id;
 	e->matched_req = rp->req;
 	e->matched_labels = labels & rp->req;
@@ -1623,6 +1802,7 @@ struct te_rule_ctx {
 	struct te_rule_eval *e;
 	unsigned int best_effect;
 	int best_rule;
+	int best_idx;
 	__u32 best_domain_id;
 	__u64 best_req;
 	__u64 best_labels;
@@ -1635,6 +1815,7 @@ static int te_rule_cb(__u32 i, void *vc)
 		return 0;
 	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
 		c->best_rule = c->e->matched_rule;
+		c->best_idx = c->e->matched_index;
 		c->best_effect = (unsigned int)eff;
 		c->best_domain_id = c->e->matched_domain_id;
 		c->best_req = c->e->matched_req;
@@ -1653,6 +1834,45 @@ static int te_rule_no_args_cb(__u32 i, void *vc)
 		return 0;
 	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
 		c->best_rule = c->e->matched_rule;
+		c->best_idx = c->e->matched_index;
+		c->best_effect = (unsigned int)eff;
+		c->best_domain_id = c->e->matched_domain_id;
+		c->best_req = c->e->matched_req;
+		c->best_labels = c->e->matched_labels;
+		if (c->best_effect == TEFFECT_KILL)
+			return 1;
+	}
+	return 0;
+}
+
+static int te_rule_exec_simple_cb(__u32 i, void *vc)
+{
+	struct te_rule_ctx *c = vc;
+	int eff = te_rule_effect_exec_simple(c->e, i);
+	if (eff < 0)
+		return 0;
+	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
+		c->best_rule = c->e->matched_rule;
+		c->best_idx = c->e->matched_index;
+		c->best_effect = (unsigned int)eff;
+		c->best_domain_id = c->e->matched_domain_id;
+		c->best_req = c->e->matched_req;
+		c->best_labels = c->e->matched_labels;
+		if (c->best_effect == TEFFECT_KILL)
+			return 1;
+	}
+	return 0;
+}
+
+static int te_rule_exec_complex_cb(__u32 i, void *vc)
+{
+	struct te_rule_ctx *c = vc;
+	int eff = te_rule_effect_exec_complex(c->e, i);
+	if (eff < 0)
+		return 0;
+	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
+		c->best_rule = c->e->matched_rule;
+		c->best_idx = c->e->matched_index;
 		c->best_effect = (unsigned int)eff;
 		c->best_domain_id = c->e->matched_domain_id;
 		c->best_req = c->e->matched_req;
@@ -1669,11 +1889,57 @@ static int te_rule_no_args_cb(__u32 i, void *vc)
  * which (with the branchless matchers) lets 100+ rules load in one program. */
 static __noinline int te_check_labels(struct te_rule_eval *e)
 {
-	struct te_rule_ctx c = { .e = e, .best_effect = TEFFECT_NOTIFY, .best_rule = -1 };
+	struct te_rule_ctx c = {
+		.e = e,
+		.best_effect = TEFFECT_NOTIFY,
+		.best_rule = -1,
+		.best_idx = -1,
+	};
 	bpf_loop(te_count(0), te_rule_cb, &c, 0);
 	if (c.best_rule >= 0) {
 		e->effect = c.best_effect;
 		e->matched_rule = c.best_rule;
+		e->matched_index = c.best_idx;
+		e->matched_domain_id = c.best_domain_id;
+		e->matched_req = c.best_req;
+		e->matched_labels = c.best_labels;
+	}
+	return c.best_rule;
+}
+
+static __noinline int te_check_exec_simple(struct te_rule_eval *e)
+{
+	struct te_rule_ctx c = {
+		.e = e,
+		.best_effect = TEFFECT_NOTIFY,
+		.best_rule = -1,
+		.best_idx = -1,
+	};
+	bpf_loop(te_count(0), te_rule_exec_simple_cb, &c, 0);
+	if (c.best_rule >= 0) {
+		e->effect = c.best_effect;
+		e->matched_rule = c.best_rule;
+		e->matched_index = c.best_idx;
+		e->matched_domain_id = c.best_domain_id;
+		e->matched_req = c.best_req;
+		e->matched_labels = c.best_labels;
+	}
+	return c.best_rule;
+}
+
+static __noinline int te_check_exec_complex(struct te_rule_eval *e)
+{
+	struct te_rule_ctx c = {
+		.e = e,
+		.best_effect = TEFFECT_NOTIFY,
+		.best_rule = -1,
+		.best_idx = -1,
+	};
+	bpf_loop(te_count(0), te_rule_exec_complex_cb, &c, 0);
+	if (c.best_rule >= 0) {
+		e->effect = c.best_effect;
+		e->matched_rule = c.best_rule;
+		e->matched_index = c.best_idx;
 		e->matched_domain_id = c.best_domain_id;
 		e->matched_req = c.best_req;
 		e->matched_labels = c.best_labels;
@@ -1683,11 +1949,17 @@ static __noinline int te_check_labels(struct te_rule_eval *e)
 
 static __noinline int te_check_labels_no_args(struct te_rule_eval *e)
 {
-	struct te_rule_ctx c = { .e = e, .best_effect = TEFFECT_NOTIFY, .best_rule = -1 };
+	struct te_rule_ctx c = {
+		.e = e,
+		.best_effect = TEFFECT_NOTIFY,
+		.best_rule = -1,
+		.best_idx = -1,
+	};
 	bpf_loop(te_count(0), te_rule_no_args_cb, &c, 0);
 	if (c.best_rule >= 0) {
 		e->effect = c.best_effect;
 		e->matched_rule = c.best_rule;
+		e->matched_index = c.best_idx;
 		e->matched_domain_id = c.best_domain_id;
 		e->matched_req = c.best_req;
 		e->matched_labels = c.best_labels;

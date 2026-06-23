@@ -106,7 +106,7 @@ rule host-connect:
 
     assert_eq!(value["schema"], "actplane.compile.v1");
     assert_eq!(value["ok"], true);
-    assert_eq!(value["matrix_scope"], "static_initial_policy_host_support");
+    assert_eq!(value["matrix_scope"], "static_policy_host_support");
     assert_eq!(value["rule_count"], 2);
     assert_eq!(value["backend_support"]["sources"][0]["label"], "NET");
     assert_eq!(value["backend_support"]["sources"][0]["supported"], false);
@@ -159,7 +159,7 @@ rule no-network:
     let artifact = fs::read_to_string(&out).unwrap();
     assert!(artifact.contains("ActPlane policy review"));
     assert!(artifact.contains("rule no-network"));
-    assert!(artifact.contains("review scope: selected initial policy"));
+    assert!(artifact.contains("review scope: selected policy"));
 }
 
 #[test]

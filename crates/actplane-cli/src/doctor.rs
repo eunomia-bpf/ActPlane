@@ -325,7 +325,7 @@ fn render_rollout_plan(
     .unwrap();
     writeln!(
         &mut out,
-        "  4. Fail closed only after proving the policy and hook budget on the deployment host."
+        "  4. Fail closed only after proving the policy and hook profile on the deployment host."
     )
     .unwrap();
 
@@ -1024,7 +1024,7 @@ fn rollout_recommendation(
                 (
                     observe,
                     "eligible for block after observe period and false-positive review".into(),
-                    "block denies before syscall commit only on hosts with matching BPF-LSM and hook budget".into(),
+                    "block denies before syscall commit only on hosts with matching BPF-LSM and hook profile".into(),
                 )
             } else {
                 (
@@ -1301,8 +1301,8 @@ fn render_check_json(
             "bpf_lsm_active": lsm_bpf,
             "force_tracepoint": force_tracepoint,
         },
-        "matrix_scope": "static_initial_policy_host_support",
-        "matrix_note": "This reports static host/backend support for the selected initial policy. Runtime budgets can reject later deltas that require hook classes or path matcher classes not enabled when the engine was loaded.",
+        "matrix_scope": "static_policy_host_support",
+        "matrix_note": "This reports static host/backend support for the selected policy. Runtime delta admission can reject later deltas that require hook classes or path matcher classes not enabled when the engine was loaded.",
         "environment": {
             "ACTPLANE_FORCE_TRACEPOINT": std::env::var("ACTPLANE_FORCE_TRACEPOINT").ok(),
             "ACTPLANE_HOOK_PROFILE": std::env::var("ACTPLANE_HOOK_PROFILE").ok(),
@@ -1382,12 +1382,12 @@ fn render_check_explain(
     }
     writeln!(
         &mut out,
-        "  - feature budget: policy-budgeted attach; runtime deltas cannot add hook classes or path contains/suffix matcher classes after load"
+        "  - engine profile: policy-selected attach set; runtime deltas cannot add hook classes or path contains/suffix matcher classes after load"
     )
     .unwrap();
     writeln!(
         &mut out,
-        "  - review scope: selected initial policy and current host support, not a live loaded-engine guarantee"
+        "  - review scope: selected policy and current host support, not a live loaded-engine guarantee"
     )
     .unwrap();
 
@@ -1424,7 +1424,7 @@ fn render_check_explain(
     }
     writeln!(
         &mut out,
-        "  - coverage note: ordinary flows are hook-budgeted; advanced mmap/mprotect, SCM_RIGHTS, Unix-socket IPC, pipe/socketpair, sendfile, copy_file_range, and splice coverage requires advanced hooks or the full hook profile"
+        "  - coverage note: ordinary flows use the loaded hook profile; advanced mmap/mprotect, SCM_RIGHTS, Unix-socket IPC, pipe/socketpair, sendfile, copy_file_range, and splice coverage requires advanced hooks or the full hook profile"
     )
     .unwrap();
     writeln!(

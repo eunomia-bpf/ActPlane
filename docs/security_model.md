@@ -193,7 +193,7 @@ Semantics:
 ```text
 userspace compiles rule DSL -> fixed taint_config entries
 userspace submits append-rule/update delta over cap_req
-kernel checks caller authority, target domain, feature budget, and monotonicity
+kernel checks caller authority, target domain, loaded engine profile, and monotonicity
 kernel installs accepted entries into the target domain's effective policy mask
 ```
 
@@ -239,7 +239,7 @@ caller has the required authority bits
 scope only narrows
 labels/gates/restrictions only add
 new bindings do not weaken inherited policy
-compiled entries fit the feature budget enabled at engine load
+compiled entries fit the hook and matcher classes enabled in the loaded engine profile
 ```
 
 Accepted deltas are merged into the domain's already-computed effective state.

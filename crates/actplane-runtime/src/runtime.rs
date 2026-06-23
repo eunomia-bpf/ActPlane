@@ -29,6 +29,7 @@ use crate::report::{self, report, to_violation};
 use crate::{PolicyInput, Result, audit, dsl};
 
 const ATTACH_PID_ENV: &str = "ACTPLANE_ATTACH_PID";
+const CLOEXEC_FALLBACK_FD_LIMIT: i32 = 1024;
 
 pub async fn watch_policy(cli: &PolicyInput, parent_domain: bool) -> Result<i32> {
     let attach_pid = attach_pid_from_env_or_parent();
@@ -1545,6 +1546,43 @@ fn chown_path(path: &Path, uid: libc::uid_t, gid: libc::gid_t) -> std::io::Resul
     }
 }
 
+#[cfg(unix)]
+pub(crate) fn mark_non_stdio_fds_cloexec() -> std::io::Result<()> {
+    #[cfg(target_os = "linux")]
+    {
+        let rc = unsafe {
+            libc::syscall(
+                libc::SYS_close_range,
+                3u32,
+                !0u32,
+                libc::CLOSE_RANGE_CLOEXEC,
+            )
+        };
+        if rc == 0 {
+            return Ok(());
+        }
+        let e = std::io::Error::last_os_error();
+        if !matches!(e.raw_os_error(), Some(libc::ENOSYS | libc::EINVAL)) {
+            return Err(e);
+        }
+    }
+
+    for fd in 3..CLOEXEC_FALLBACK_FD_LIMIT {
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+        if flags < 0 {
+            let e = std::io::Error::last_os_error();
+            if e.raw_os_error() != Some(libc::EBADF) {
+                return Err(e);
+            }
+            continue;
+        }
+        if unsafe { libc::fcntl(fd, libc::F_SETFD, flags | libc::FD_CLOEXEC) } < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+    }
+    Ok(())
+}
+
 fn spawn_stopped_target(
     cmd: &[String],
     feedback: &FeedbackPaths,
@@ -1572,6 +1610,7 @@ fn spawn_stopped_target(
 
     unsafe {
         target.pre_exec(move || {
+            mark_non_stdio_fds_cloexec()?;
             if new_process_group && libc::setpgid(0, 0) != 0 {
                 return Err(std::io::Error::last_os_error());
             }

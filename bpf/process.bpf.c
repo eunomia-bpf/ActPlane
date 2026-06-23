@@ -401,6 +401,46 @@ struct {
 	__type(value, struct exec_scratch);
 } ts_exec_scratch SEC(".maps");
 
+enum exec_tail_slot {
+	EXEC_TAIL_UPDATE_SIMPLE = 0,
+	EXEC_TAIL_UPDATE_PREFIX = 1,
+	EXEC_TAIL_RULE_SIMPLE = 2,
+	EXEC_TAIL_RULE_COMPLEX = 3,
+	EXEC_TAIL_MAX = 4,
+};
+
+struct exec_pipe_state {
+	pid_t pid;
+	__u32 mode;
+	__u32 n_domains;
+	__u32 domain_ids[CAP_DOMAIN_DEPTH];
+	__u64 add[CAP_DOMAIN_DEPTH];
+	__u64 del[CAP_DOMAIN_DEPTH];
+	__u64 gates[CAP_DOMAIN_DEPTH];
+	__u64 exit_gates[CAP_DOMAIN_DEPTH];
+	__u64 invals[CAP_DOMAIN_DEPTH];
+	int best_rule;
+	int best_index;
+	__u32 best_effect;
+	__u32 best_domain_id;
+	__u64 best_req;
+	__u64 best_labels;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__uint(max_entries, EXEC_TAIL_MAX);
+	__type(key, __u32);
+	__type(value, __u32);
+} exec_tail SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct exec_pipe_state);
+} ts_exec_pipe SEC(".maps");
+
 struct file_scratch {
 	char path[MAX_FILENAME_LEN];
 	struct file_id fid;
@@ -417,6 +457,13 @@ static __always_inline struct exec_scratch *exec_scratch_buf(void)
 	__u32 key = 0;
 
 	return bpf_map_lookup_elem(&ts_exec_scratch, &key);
+}
+
+static __always_inline struct exec_pipe_state *exec_pipe_buf(void)
+{
+	__u32 key = 0;
+
+	return bpf_map_lookup_elem(&ts_exec_pipe, &key);
 }
 
 static __always_inline struct file_scratch *file_scratch_buf(void)
@@ -1006,46 +1053,97 @@ static __always_inline int file_basename(struct file *file, char *path,
 static __always_inline int path_to_str(const struct path *src, char *path,
 				       int path_sz)
 {
-	if (bpf_d_path((struct path *)src, path, path_sz) > 0)
-		return 0;
+	int n = bpf_d_path((struct path *)src, path, path_sz);
+	if (n > 0)
+		return n;
 	return -1;
 }
 
-static __always_inline void append_dentry_name(char *path, struct dentry *dentry)
+static __always_inline int copy_dentry_name_at(char *path, __u32 dst_off,
+					       const unsigned char *name)
 {
-	char name_buf[TAINT_PAT_LEN] = {};
-	const unsigned char *name = BPF_CORE_READ(dentry, d_name.name);
-	int off = 0;
-
-	if (!name || bpf_probe_read_kernel_str(name_buf, sizeof(name_buf), name) < 0)
-		return;
-	for (int i = 0; i < MAX_FILENAME_LEN; i++) {
-		if (path[i] == '\0') {
-			off = i;
-			break;
-		}
+	if (dst_off <= 63) {
+		if (bpf_probe_read_kernel_str(path + dst_off, 64, name) < 0)
+			return -1;
+		return 0;
 	}
-	if (off <= 0 || off >= MAX_FILENAME_LEN - 1)
-		return;
-	if (path[off - 1] != '/')
-		path[off++] = '/';
-	for (int j = 0; j < TAINT_PAT_LEN; j++) {
-		if (off + j >= MAX_FILENAME_LEN)
-			break;
-		path[off + j] = name_buf[j];
-		if (name_buf[j] == '\0')
-			break;
+	if (dst_off <= 95) {
+		if (bpf_probe_read_kernel_str(path + dst_off, 32, name) < 0)
+			return -1;
+		return 0;
 	}
-	path[MAX_FILENAME_LEN - 1] = '\0';
+	if (dst_off <= 111) {
+		if (bpf_probe_read_kernel_str(path + dst_off, 16, name) < 0)
+			return -1;
+		return 0;
+	}
+	if (dst_off <= 119) {
+		if (bpf_probe_read_kernel_str(path + dst_off, 8, name) < 0)
+			return -1;
+		return 0;
+	}
+	if (dst_off <= 123) {
+		if (bpf_probe_read_kernel_str(path + dst_off, 4, name) < 0)
+			return -1;
+		return 0;
+	}
+	if (dst_off <= 125) {
+		if (bpf_probe_read_kernel_str(path + dst_off, 2, name) < 0)
+			return -1;
+		return 0;
+	}
+	return -1;
 }
 
-static __always_inline int path_dentry_to_str(const struct path *dir,
-					      struct dentry *dentry,
-					      char *path, int path_sz)
+static __noinline int append_dentry_name(char *path, struct dentry *dentry,
+					 int path_len)
 {
-	if (path_to_str(dir, path, path_sz) < 0)
+	const unsigned char *name = BPF_CORE_READ(dentry, d_name.name);
+	__u32 off;
+	__u32 prev;
+	__u32 dst_off;
+
+	if (!name)
 		return -1;
-	append_dentry_name(path, dentry);
+	if (path_len <= 1 || path_len > MAX_FILENAME_LEN)
+		return -1;
+	off = (__u32)path_len - 1;
+	if (off >= MAX_FILENAME_LEN - 1)
+		return -1;
+	prev = off - 1;
+	barrier_var(prev);
+	if (prev >= MAX_FILENAME_LEN)
+		return -1;
+	if (path[prev] != '/') {
+		dst_off = off;
+		barrier_var(dst_off);
+		dst_off &= 0x7f;
+		if (dst_off >= MAX_FILENAME_LEN - 1)
+			return -1;
+		path[dst_off] = '/';
+		off = dst_off + 1;
+	}
+	dst_off = off;
+	barrier_var(dst_off);
+	dst_off &= 0x7f;
+	if (dst_off >= MAX_FILENAME_LEN)
+		return -1;
+	if (copy_dentry_name_at(path, dst_off, name) < 0)
+		return -1;
+	path[MAX_FILENAME_LEN - 1] = '\0';
+	return 0;
+}
+
+static __noinline int path_dentry_to_str(const struct path *dir,
+					 struct dentry *dentry,
+					 char *path, int path_sz)
+{
+	int n = path_to_str(dir, path, path_sz);
+
+	if (n < 0)
+		return -1;
+	if (append_dentry_name(path, dentry, n) < 0)
+		return -1;
 	return 0;
 }
 
@@ -1147,6 +1245,169 @@ static __always_inline __u32 te_supported_effects(__u32 backend_mode)
 	if (backend_mode == TE_MODE_BLOCK)
 		return (1U << TEFFECT_BLOCK);
 	return (1U << TEFFECT_NOTIFY) | (1U << TEFFECT_KILL);
+}
+
+static __always_inline int exec_pipe_init(pid_t pid, __u32 mode)
+{
+	struct exec_pipe_state *s = exec_pipe_buf();
+
+	if (!s)
+		return -1;
+	__builtin_memset(s, 0, sizeof(*s));
+	s->pid = pid;
+	s->mode = mode;
+	s->best_rule = -1;
+	s->best_index = -1;
+	s->best_effect = TEFFECT_NOTIFY;
+	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
+		__u32 domain_id = te_domain_for_depth(pid, i);
+		if (i > 0 && !domain_id)
+			break;
+		s->domain_ids[i] = domain_id;
+		s->n_domains = i + 1;
+	}
+	return 0;
+}
+
+static __always_inline void exec_pipe_collect_updates(__u32 prefix)
+{
+	struct exec_pipe_state *s = exec_pipe_buf();
+	struct exec_scratch *scratch = exec_scratch_buf();
+
+	if (!s || !scratch)
+		return;
+	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
+		if (i >= s->n_domains)
+			break;
+		__u32 domain_id = s->domain_ids[i];
+		if (!cap_domain_matches_pid(s->pid, domain_id))
+			continue;
+		struct te_update_ctx c = {
+			.pid = s->pid,
+			.domain_id = domain_id,
+			.op = TOP_EXEC,
+			.target = scratch->match,
+		};
+		if (prefix)
+			bpf_loop(te_count(1), te_exec_update_prefix_cb, &c, 0);
+		else
+			bpf_loop(te_count(1), te_exec_update_simple_cb, &c, 0);
+		s->add[i] |= c.add;
+		s->del[i] |= c.del;
+		s->gates[i] |= c.gates;
+		s->exit_gates[i] |= c.exit_gates;
+		s->invals[i] |= c.invals;
+	}
+}
+
+static __always_inline void exec_pipe_apply_updates(void)
+{
+	struct exec_pipe_state *s = exec_pipe_buf();
+	struct exec_scratch *scratch = exec_scratch_buf();
+
+	if (!s || !scratch)
+		return;
+	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
+		if (i >= s->n_domains)
+			break;
+		__u32 domain_id = s->domain_ids[i];
+		if (!te_pid_active(s->pid) || !cap_domain_matches_pid(s->pid, domain_id))
+			continue;
+
+		struct proc_state *p = te_get_domain(s->pid, domain_id);
+		struct proc_state ns = {};
+		if (p)
+			ns = *p;
+		ns.labels = (ns.labels | s->add[i]) & ~s->del[i];
+		ns.lin_gates |= s->gates[i];
+		te_store_proc_domain(s->pid, domain_id, &ns);
+		if (s->add[i])
+			te_record_proc_prov_mask(s->pid, domain_id, s->add[i],
+						 TOP_EXEC, scratch->match, 0);
+		if (s->gates[i] || s->exit_gates[i] || s->invals[i]) {
+			pid_t r = te_root(s->pid);
+			__u32 ep = te_tick(r, domain_id);
+			if (s->gates[i] || s->invals[i])
+				te_stamp(r, domain_id, ep, s->gates[i], s->invals[i]);
+			struct pid_domain_id key = {};
+			te_pid_domain_key(s->pid, domain_id, &key);
+			if (s->exit_gates[i]) {
+				struct te_exit_gate_pending pending = {
+					.gates = s->exit_gates[i],
+					.epoch = ep,
+				};
+				bpf_map_update_elem(&ts_exit_gates, &key, &pending, BPF_ANY);
+			} else {
+				bpf_map_delete_elem(&ts_exit_gates, &key);
+			}
+		} else {
+			struct pid_domain_id key = {};
+			te_pid_domain_key(s->pid, domain_id, &key);
+			bpf_map_delete_elem(&ts_exit_gates, &key);
+		}
+	}
+}
+
+static __always_inline void exec_pipe_merge_rule(struct exec_pipe_state *s,
+						 struct te_rule_eval *eval,
+						 int rid)
+{
+	if (!s || rid < 0)
+		return;
+	if (s->best_rule < 0 || eval->effect > s->best_effect ||
+	    (eval->effect == s->best_effect && eval->matched_index >= 0 &&
+	     (s->best_index < 0 || eval->matched_index < s->best_index))) {
+		s->best_rule = rid;
+		s->best_index = eval->matched_index;
+		s->best_effect = eval->effect;
+		s->best_domain_id = eval->matched_domain_id;
+		s->best_req = eval->matched_req;
+		s->best_labels = eval->matched_labels;
+	}
+}
+
+static __always_inline void exec_pipe_scan_rules(__u32 complex)
+{
+	struct exec_pipe_state *s = exec_pipe_buf();
+	struct exec_scratch *scratch = exec_scratch_buf();
+
+	if (!s || !scratch)
+		return;
+	if (s->best_effect == TEFFECT_KILL)
+		return;
+	__u32 current_domain_id = cap_domain_for_pid(s->pid);
+	struct te_rule_eval eval = {
+		.pid = s->pid,
+		.global_labels = te_labels_for_domain(s->pid, 0),
+		.current_labels = te_labels_for_domain(s->pid, current_domain_id),
+		.op = TOP_EXEC,
+		.target = scratch->match,
+		.current_domain_id = current_domain_id,
+		.effect = TEFFECT_BLOCK,
+		.effect_mask = te_supported_effects(s->mode),
+	};
+	int rid = complex ? te_check_exec_complex(&eval) :
+			    te_check_exec_simple(&eval);
+	exec_pipe_merge_rule(s, &eval, rid);
+}
+
+static __always_inline void exec_pipe_finish(void)
+{
+	struct exec_pipe_state *s = exec_pipe_buf();
+	struct exec_scratch *scratch = exec_scratch_buf();
+
+	if (!s || !scratch || s->best_rule < 0)
+		return;
+	__u32 action = te_effect_mode(s->mode, s->best_effect);
+	if (action != TE_MODE_UNSUPPORTED)
+		emit_violation(s->pid, s->best_rule, scratch->display, 0,
+			       TE_OBJ_EXEC, 0, s->best_domain_id,
+			       s->best_labels, TOP_EXEC,
+			       action == TE_MODE_BLOCK ||
+				       (action == TE_MODE_KILL && s->mode == TE_MODE_BLOCK),
+			       action == TE_MODE_KILL, s->best_effect);
+	if (action == TE_MODE_KILL)
+		bpf_send_signal(SIGKILL);
 }
 
 static __always_inline int te_better_match(int candidate_rule, __u32 candidate_effect,
@@ -2034,13 +2295,24 @@ int BPF_PROG(enforce_bpf_syscall, int cmd, union bpf_attr *attr,
 {
 	pid_t caller = bpf_get_current_pid_tgid() >> 32;
 
-	(void)cmd;
 	(void)attr;
 	(void)size;
 	(void)privileged;
 	if (!te_pid_active(caller))
 		return 0;
-	return -EPERM;
+	/* Runtime policy deltas and domain binding operate on already-held
+	 * ActPlane map fds. Keep the required map operations available while
+	 * still denying object creation, program load, attach, pin/get, and link
+	 * commands from managed processes. */
+	switch (cmd) {
+	case BPF_MAP_LOOKUP_ELEM:
+	case BPF_MAP_UPDATE_ELEM:
+	case BPF_MAP_DELETE_ELEM:
+	case BPF_OBJ_GET_INFO_BY_FD:
+		return 0;
+	default:
+		return -EPERM;
+	}
 }
 
 SEC("tp/sched/sched_process_fork")
@@ -2091,28 +2363,64 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 	__builtin_memset(scratch, 0, sizeof(*scratch));
 
 	bpf_get_current_comm(&scratch->match, TASK_COMM_LEN);
-	te_exec_update(pid, scratch->match);
+	__builtin_memcpy(scratch->display, scratch->match, TASK_COMM_LEN);
 
 	/* read argv blob (NUL-separated) into per-CPU scratch, then tokenize into
 	 * fixed slots there for @arg matching. */
 	struct te_argslots *as = te_argslots_buf();
 	if (as) {
 		struct mm_struct *mm = BPF_CORE_READ(task, mm);
-		unsigned long a0 = BPF_CORE_READ(mm, arg_start);
-		unsigned long a1 = BPF_CORE_READ(mm, arg_end);
-		unsigned long len = a1 - a0;
-		if (len > TAINT_ARGV_CAP - 1)
-			len = TAINT_ARGV_CAP - 1;
 		__builtin_memset(as, 0, sizeof(*as));
-		if (len > 0 && bpf_probe_read_user(as->blob, len, (void *)a0) == 0)
-			alen = (int)len;
+		if (mm) {
+			unsigned long a0 = BPF_CORE_READ(mm, arg_start);
+			unsigned long a1 = BPF_CORE_READ(mm, arg_end);
+			unsigned long len = a1 - a0;
+			if (len > TAINT_ARGV_CAP - 1)
+				len = TAINT_ARGV_CAP - 1;
+			if (len > 0 && bpf_probe_read_user(as->blob, len, (void *)a0) == 0)
+				alen = (int)len;
+		}
 		te_tokenize_args_eng(alen);
 	}
 
 	fname_off = ctx->__data_loc_filename & 0xFFFF;
 	bpf_probe_read_str(scratch->display, sizeof(scratch->display), (void *)ctx + fname_off);
-	te_handle_exec_event_with_args(pid, scratch->match, scratch->display,
-				       te_tracepoint_mode());
+	if (exec_pipe_init(pid, te_tracepoint_mode()) == 0)
+		bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_UPDATE_SIMPLE);
+	return 0;
+}
+
+SEC("tp/sched/sched_process_exec")
+int exec_tp_update_simple(struct trace_event_raw_sched_process_exec *ctx)
+{
+	exec_pipe_collect_updates(0);
+	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_UPDATE_PREFIX);
+	return 0;
+}
+
+SEC("tp/sched/sched_process_exec")
+int exec_tp_update_prefix(struct trace_event_raw_sched_process_exec *ctx)
+{
+	exec_pipe_collect_updates(1);
+	exec_pipe_apply_updates();
+	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_RULE_SIMPLE);
+	return 0;
+}
+
+SEC("tp/sched/sched_process_exec")
+int exec_tp_rule_simple(struct trace_event_raw_sched_process_exec *ctx)
+{
+	exec_pipe_scan_rules(0);
+	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_RULE_COMPLEX);
+	return 0;
+}
+
+SEC("tp/sched/sched_process_exec")
+int exec_tp_rule_complex(struct trace_event_raw_sched_process_exec *ctx)
+{
+	(void)ctx;
+	exec_pipe_scan_rules(1);
+	exec_pipe_finish();
 	return 0;
 }
 

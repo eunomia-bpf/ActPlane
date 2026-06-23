@@ -16,8 +16,8 @@ use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
-use aya::maps::{Array, HashMap, Map, MapData, MapError, RingBuf};
-use aya::programs::{Lsm, TracePoint};
+use aya::maps::{Array, HashMap, Map, MapData, MapError, ProgramArray, RingBuf};
+use aya::programs::{Lsm, ProgramFd, TracePoint};
 use aya::{Btf, Ebpf, EbpfLoader};
 
 pub mod capability;
@@ -65,7 +65,6 @@ const FEAT_FILE_FLOW: u32 = 1 << 6;
 const FEAT_BLOCK_EXEC: u32 = 1 << 7;
 const FEAT_BLOCK_FILE: u32 = 1 << 8;
 const FEAT_BLOCK_CONNECT: u32 = 1 << 9;
-const FEAT_EXEC_ARGS: u32 = 1 << 10;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -309,12 +308,16 @@ pub struct DomainHandle {
     ts_root_fd: OwnedFd,
 }
 
-fn dup_owned_fd(fd: &OwnedFd) -> io::Result<OwnedFd> {
-    let dup = unsafe { libc::dup(fd.as_raw_fd()) };
+fn dup_cloexec_fd(fd: std::os::fd::RawFd) -> io::Result<OwnedFd> {
+    let dup = unsafe { libc::fcntl(fd, libc::F_DUPFD_CLOEXEC, 0) };
     if dup < 0 {
         return Err(io::Error::last_os_error());
     }
     Ok(unsafe { OwnedFd::from_raw_fd(dup) })
+}
+
+fn dup_owned_fd(fd: &OwnedFd) -> io::Result<OwnedFd> {
+    dup_cloexec_fd(fd.as_raw_fd())
 }
 
 fn dup_hash_map_fd(bpf: &Ebpf, name: &str) -> io::Result<OwnedFd> {
@@ -325,11 +328,7 @@ fn dup_hash_map_fd(bpf: &Ebpf, name: &str) -> io::Result<OwnedFd> {
         Map::HashMap(data) | Map::LruHashMap(data) => data,
         _ => return Err(err(format!("{name} is not a hash map"))),
     };
-    let dup = unsafe { libc::dup(data.fd().as_fd().as_raw_fd()) };
-    if dup < 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(unsafe { OwnedFd::from_raw_fd(dup) })
+    dup_cloexec_fd(data.fd().as_fd().as_raw_fd())
 }
 
 fn dup_array_map_fd(bpf: &Ebpf, name: &str) -> io::Result<OwnedFd> {
@@ -340,11 +339,7 @@ fn dup_array_map_fd(bpf: &Ebpf, name: &str) -> io::Result<OwnedFd> {
         Map::Array(data) => data,
         _ => return Err(err(format!("{name} is not an array map"))),
     };
-    let dup = unsafe { libc::dup(data.fd().as_fd().as_raw_fd()) };
-    if dup < 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(unsafe { OwnedFd::from_raw_fd(dup) })
+    dup_cloexec_fd(data.fd().as_fd().as_raw_fd())
 }
 
 fn hash_map_from_fd<K: aya::Pod, V: aya::Pod>(fd: &OwnedFd) -> io::Result<HashMap<MapData, K, V>> {
@@ -445,7 +440,7 @@ struct TracepointSpec {
 }
 
 /// Tracepoint programs. The loader attaches only the subset required by the
-/// initial hook budget instead of attaching the entire object by default.
+/// loaded hook set instead of attaching the entire object by default.
 const TRACEPOINTS: &[TracepointSpec] = &[
     TracepointSpec {
         name: "handle_fork",
@@ -863,6 +858,13 @@ const TRACEPOINTS: &[TracepointSpec] = &[
     },
 ];
 
+const EXEC_TAIL_PROGS: &[(u32, &str)] = &[
+    (0, "exec_tp_update_simple"),
+    (1, "exec_tp_update_prefix"),
+    (2, "exec_tp_rule_simple"),
+    (3, "exec_tp_rule_complex"),
+];
+
 /// LSM programs: (fn name, hook). Attached only when BPF LSM is active.
 const LSM_PROGS: &[(&str, &str)] = &[
     ("enforce_bprm_check_security", "bprm_check_security"),
@@ -886,8 +888,7 @@ const ALL_HOOK_FEATURES: u32 = FEAT_CONNECT
     | FEAT_FILE_FLOW
     | FEAT_BLOCK_EXEC
     | FEAT_BLOCK_FILE
-    | FEAT_BLOCK_CONNECT
-    | FEAT_EXEC_ARGS;
+    | FEAT_BLOCK_CONNECT;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum HookProfile {
@@ -983,17 +984,13 @@ impl HookBudget {
     fn has_recv(self) -> bool {
         self.features & FEAT_RECV != 0
     }
-
-    fn has_exec_args(self) -> bool {
-        self.features & FEAT_EXEC_ARGS != 0
-    }
 }
 
 fn tracepoint_needed(spec: &TracepointSpec, budget: HookBudget) -> bool {
     match spec.need {
         TracepointNeed::Core => true,
-        TracepointNeed::CoreExec => !budget.has_exec_args(),
-        TracepointNeed::ExecArgs => budget.has_exec_args(),
+        TracepointNeed::CoreExec => false,
+        TracepointNeed::ExecArgs => true,
         TracepointNeed::FileOpen => budget.has_file_flow() || budget.has_open_rules(),
         TracepointNeed::FileWritePath => budget.has_file_write(),
         TracepointNeed::FdFlow => {
@@ -1038,6 +1035,37 @@ fn lsm_needed(
         | "enforce_path_rename" => block_file,
         _ => false,
     }
+}
+
+fn load_exec_tail_programs(bpf: &mut Ebpf) -> io::Result<()> {
+    let mut fds: Vec<(u32, ProgramFd)> = Vec::new();
+
+    for (idx, name) in EXEC_TAIL_PROGS {
+        let p: &mut TracePoint = bpf
+            .program_mut(name)
+            .ok_or_else(|| err(format!("program {name} missing")))?
+            .try_into()
+            .map_err(|e| err(format!("{name} not a tracepoint: {e}")))?;
+        p.load().map_err(|e| err(format!("{name}.load: {e}")))?;
+        let fd = p
+            .fd()
+            .map_err(|e| err(format!("{name}.fd: {e}")))?
+            .try_clone()
+            .map_err(|e| err(format!("{name}.fd clone: {e}")))?;
+        fds.push((*idx, fd));
+    }
+
+    let mut exec_tail: ProgramArray<_> = ProgramArray::try_from(
+        bpf.map_mut("exec_tail")
+            .ok_or_else(|| err("map exec_tail missing"))?,
+    )
+    .map_err(|e| err(format!("exec_tail: {e}")))?;
+    for (idx, fd) in fds {
+        exec_tail
+            .set(idx, &fd, 0)
+            .map_err(|e| err(format!("exec_tail[{idx}]: {e}")))?;
+    }
+    Ok(())
 }
 
 /// True if `bpf` appears in the active LSM list (enables pre-op `block`).
@@ -1100,9 +1128,6 @@ fn config_features(cfg: &CConfig) -> u32 {
         .iter()
         .take((cfg.n_updates as usize).min(MAX_UPDATES))
     {
-        if u.op == OP_EXEC && u.arg[0] != 0 {
-            features |= FEAT_EXEC_ARGS;
-        }
         if u.op == OP_OPEN || u.op == OP_WRITE {
             features |= FEAT_FILE_FLOW;
             features |= path_match_features(u.m);
@@ -1115,9 +1140,6 @@ fn config_features(cfg: &CConfig) -> u32 {
         }
     }
     for r in cfg.rules.iter().take((cfg.n_rules as usize).min(MAX_RULES)) {
-        if r.op == OP_EXEC && r.arg[0] != 0 {
-            features |= FEAT_EXEC_ARGS;
-        }
         if r.effect == EFFECT_BLOCK {
             if r.op == OP_EXEC && r.arg[0] == 0 {
                 features |= FEAT_BLOCK_EXEC;
@@ -1204,12 +1226,9 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
     if missing & FEAT_BLOCK_CONNECT != 0 {
         names.push("connect block hooks");
     }
-    if missing & FEAT_EXEC_ARGS != 0 {
-        names.push("exec argv-token hooks");
-    }
     let mut hints = Vec::new();
     hints.push(
-        "runtime reload/delta cannot attach new hooks or enable new matcher classes after load; restart the engine with the needed budget",
+        "runtime reload/delta cannot attach new hooks or enable new matcher classes after load; restart the engine with a profile or policy that enables them",
     );
     if missing
         & (FEAT_FILE_FLOW
@@ -1217,8 +1236,7 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
             | FEAT_RECV
             | FEAT_BLOCK_EXEC
             | FEAT_BLOCK_FILE
-            | FEAT_BLOCK_CONNECT
-            | FEAT_EXEC_ARGS)
+            | FEAT_BLOCK_CONNECT)
         != 0
     {
         hints.push(
@@ -1227,19 +1245,16 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
     }
     if missing & (FEAT_OPEN_RULES | FEAT_WRITE_RULES | FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX) != 0 {
         hints.push(
-            "file sink rule classes and path contains/suffix matcher classes must appear in the initial policy; hook-profile reservation does not enable them by itself",
+            "file sink rule classes and path contains/suffix matcher classes must be enabled by the policy used to load the engine; hook-profile reservation does not enable them by itself",
         );
     }
     if missing & (FEAT_BLOCK_EXEC | FEAT_BLOCK_FILE | FEAT_BLOCK_CONNECT) != 0 {
         hints.push(
-            "block deltas require matching BPF-LSM hooks reserved at startup and an active bpf LSM; argv-token block exec is not a pre-exec block",
+            "block deltas require matching BPF-LSM hooks in the loaded engine profile and an active bpf LSM; argv-token block exec is not a pre-exec block",
         );
     }
-    if missing & FEAT_EXEC_ARGS != 0 {
-        hints.push("argv-token exec deltas require the argv exec hook reserved at startup");
-    }
     if missing & (FEAT_CONNECT | FEAT_RECV) != 0 {
-        hints.push("network deltas require network hook budget at startup");
+        hints.push("network deltas require network hooks in the loaded engine profile");
     }
     format!(
         "{context} requires features not enabled when the eBPF engine was loaded: {}. {}. needed=0x{needed:x}, supported=0x{supported:x}, missing=0x{missing:x}",
@@ -1280,9 +1295,9 @@ impl Loader {
         Self::load_with_hook_reserve(config_blob, HookReserve::default())
     }
 
-    /// Load the engine while reserving a bounded hook budget for later runtime
-    /// deltas. This does not enable file sink rule matching or expensive path
-    /// matchers unless the initial policy already requires them.
+    /// Load the engine with an explicit hook profile for later runtime deltas.
+    /// This does not enable file sink rule matching or expensive path matchers
+    /// unless the policy used to load the engine requires them.
     pub fn load_with_hook_reserve(
         config_blob: &[u8],
         hook_reserve: HookReserve,
@@ -1340,7 +1355,9 @@ impl Loader {
         let has_block_file = hook_budget.features & FEAT_BLOCK_FILE != 0;
         let has_block_connect = hook_budget.features & FEAT_BLOCK_CONNECT != 0;
 
-        // Attach only the tracepoints required by this hook budget, then LSM
+        load_exec_tail_programs(&mut bpf)?;
+
+        // Attach only the tracepoints required by this loaded hook set, then LSM
         // programs only when BPF LSM is active.
         for spec in TRACEPOINTS {
             if !tracepoint_needed(spec, hook_budget) {
@@ -1421,12 +1438,9 @@ impl Loader {
             _ => return Err(err("cap_req is not a user ringbuf map")),
         };
         let raw = map_data.fd().as_fd().as_raw_fd();
-        let dup = unsafe { libc::dup(raw) };
-        if dup < 0 {
-            return Err(io::Error::last_os_error());
-        }
+        let dup = dup_cloexec_fd(raw)?;
         Ok(ReloadHandle {
-            cap_req_fd: unsafe { OwnedFd::from_raw_fd(dup) },
+            cap_req_fd: dup,
             cap_task_fd: dup_hash_map_fd(&self.bpf, "cap_task")?,
             cap_state_fd: dup_hash_map_fd(&self.bpf, "cap_state")?,
             cap_policy_fd: dup_hash_map_fd(&self.bpf, "cap_policy")?,
@@ -1538,6 +1552,17 @@ impl Loader {
             return Err(err("pid and target id must both be set"));
         }
         {
+            let mut states: HashMap<_, u32, CapState> = HashMap::try_from(
+                self.bpf
+                    .map_mut("cap_state")
+                    .ok_or_else(|| err("cap_state missing"))?,
+            )
+            .map_err(|e| err(format!("cap_state: {e}")))?;
+            states
+                .insert(target_id, state, 0)
+                .map_err(|e| err(format!("seed cap_state: {e}")))?;
+        }
+        {
             let mut proc: HashMap<_, PidDomainKey, ProcState> = HashMap::try_from(
                 self.bpf
                     .map_mut("ts_proc_domains")
@@ -1567,17 +1592,6 @@ impl Loader {
             pid_map
                 .insert(pid, target_id, 0)
                 .map_err(|e| err(format!("seed cap_task: {e}")))?;
-        }
-        {
-            let mut states: HashMap<_, u32, CapState> = HashMap::try_from(
-                self.bpf
-                    .map_mut("cap_state")
-                    .ok_or_else(|| err("cap_state missing"))?,
-            )
-            .map_err(|e| err(format!("cap_state: {e}")))?;
-            states
-                .insert(target_id, state, 0)
-                .map_err(|e| err(format!("seed cap_state: {e}")))?;
         }
         Ok(())
     }
@@ -2294,6 +2308,21 @@ mod tests {
     }
 
     #[test]
+    fn duplicated_control_fds_are_close_on_exec() {
+        let file = std::fs::File::open("/dev/null").expect("open /dev/null");
+        let owned: OwnedFd = file.into();
+        let dup = dup_owned_fd(&owned).expect("dup cloexec fd");
+
+        let flags = unsafe { libc::fcntl(dup.as_raw_fd(), libc::F_GETFD) };
+        assert!(flags >= 0, "F_GETFD failed: {}", io::Error::last_os_error());
+        assert_ne!(
+            flags & libc::FD_CLOEXEC,
+            0,
+            "duplicated control fd must not leak across exec"
+        );
+    }
+
+    #[test]
     fn object_is_aligned_elf() {
         let b = object_bytes();
         assert_eq!(b.as_ptr() as usize % 8, 0, "object must be 8-aligned");
@@ -2345,6 +2374,11 @@ mod tests {
             b"ts_rules".as_slice(),
             b"ts_proc_domains".as_slice(),
             b"ts_exit_gates".as_slice(),
+            b"exec_tail".as_slice(),
+            b"exec_tp_update_simple".as_slice(),
+            b"exec_tp_update_prefix".as_slice(),
+            b"exec_tp_rule_simple".as_slice(),
+            b"exec_tp_rule_complex".as_slice(),
         ] {
             assert!(
                 b.windows(name.len()).any(|w| w == name),
@@ -2369,7 +2403,8 @@ mod tests {
             advanced_tracepoints: false,
         };
         assert!(tracepoint_needed(spec("handle_fork"), empty));
-        assert!(tracepoint_needed(spec("handle_exec"), empty));
+        assert!(!tracepoint_needed(spec("handle_exec"), empty));
+        assert!(tracepoint_needed(spec("handle_exec_args"), empty));
         assert!(tracepoint_needed(spec("handle_exit"), empty));
         assert!(tracepoint_needed(spec("cap_drain_tick"), empty));
         assert!(!tracepoint_needed(spec("trace_openat"), empty));
@@ -2484,14 +2519,14 @@ mod tests {
     }
 
     #[test]
-    fn block_delta_requires_matching_lsm_hook_budget() {
+    fn block_delta_requires_matching_lsm_hook_profile() {
         let mut cfg: CConfig = unsafe { std::mem::zeroed() };
         cfg.n_rules = 1;
         cfg.rules[0].op = OP_EXEC;
         cfg.rules[0].effect = EFFECT_BLOCK;
 
         let err = validate_supported_features(&cfg, 0, "runtime policy delta")
-            .expect_err("block exec should require bprm hook budget");
+            .expect_err("block exec should require bprm hook profile");
         assert!(err.to_string().contains("exec block hooks"), "{err}");
         assert!(
             err.to_string()
@@ -2508,7 +2543,7 @@ mod tests {
     }
 
     #[test]
-    fn path_matcher_delta_error_explains_initial_policy_requirement() {
+    fn path_matcher_delta_error_explains_loaded_policy_requirement() {
         let mut cfg: CConfig = unsafe { std::mem::zeroed() };
         cfg.n_rules = 1;
         cfg.rules[0].op = OP_OPEN;
@@ -2518,12 +2553,15 @@ mod tests {
             .expect_err("path contains should require initial matcher support");
         let text = err.to_string();
         assert!(text.contains("path contains matches"), "{text}");
-        assert!(text.contains("must appear in the initial policy"), "{text}");
+        assert!(
+            text.contains("must be enabled by the policy used to load the engine"),
+            "{text}"
+        );
         assert!(text.contains("missing=0x"), "{text}");
     }
 
     #[test]
-    fn argv_sensitive_block_exec_does_not_request_lsm_hook_budget() {
+    fn argv_sensitive_exec_delta_uses_always_on_exec_tracepoint() {
         let mut cfg: CConfig = unsafe { std::mem::zeroed() };
         cfg.n_rules = 1;
         cfg.rules[0].op = OP_EXEC;
@@ -2531,13 +2569,8 @@ mod tests {
         set_cstr(&mut cfg.rules[0].arg, "commit");
 
         assert_eq!(config_features(&cfg) & FEAT_BLOCK_EXEC, 0);
-        assert_ne!(config_features(&cfg) & FEAT_EXEC_ARGS, 0);
-        let err = validate_supported_features(&cfg, 0, "runtime policy delta")
-            .expect_err("argv-sensitive exec matching requires argv-token hook budget");
-        assert!(err.to_string().contains("exec argv-token hooks"), "{err}");
-        assert!(!err.to_string().contains("exec block hooks"), "{err}");
-        validate_supported_features(&cfg, FEAT_EXEC_ARGS, "runtime policy delta")
-            .expect("argv-token budget admits argv-sensitive exec rule without bprm block budget");
+        validate_supported_features(&cfg, 0, "runtime policy delta")
+            .expect("argv-sensitive exec matching is handled by the always-on exec tracepoint");
     }
 
     #[test]
@@ -2822,10 +2855,15 @@ mod tests {
         config_blob(&cfg)
     }
 
-    fn block_write_exact_paths_config_blob(paths: &[String], label: u64) -> Vec<u8> {
-        assert!(paths.len() <= MAX_RULES);
+    fn block_write_paths_and_prefix_config_blob(
+        paths: &[String],
+        prefix: &str,
+        label: u64,
+    ) -> Vec<u8> {
+        assert!(paths.len() < MAX_RULES);
+        assert!(prefix.len() < PAT, "test prefix too long for CRule");
         let mut cfg: CConfig = unsafe { std::mem::zeroed() };
-        cfg.n_rules = paths.len() as u32;
+        cfg.n_rules = paths.len() as u32 + 1;
         for (idx, path) in paths.iter().enumerate() {
             assert!(path.len() < PAT, "test write path too long for CRule");
             cfg.rules[idx].op = OP_WRITE;
@@ -2835,6 +2873,13 @@ mod tests {
             cfg.rules[idx].req = label;
             set_cstr(&mut cfg.rules[idx].target, path);
         }
+        let prefix_idx = paths.len();
+        cfg.rules[prefix_idx].op = OP_WRITE;
+        cfg.rules[prefix_idx].m = 1; // TAINT_MATCH_PREFIX
+        cfg.rules[prefix_idx].effect = EFFECT_BLOCK;
+        cfg.rules[prefix_idx].rule_id = prefix_idx as u32;
+        cfg.rules[prefix_idx].req = label;
+        set_cstr(&mut cfg.rules[prefix_idx].target, prefix);
         config_blob(&cfg)
     }
 
@@ -3375,16 +3420,26 @@ os.execv({hit:?}, [{hit:?}])
         let truncate_path = tmp.join("protected-truncate");
         let rename_old_path = tmp.join("protected-rename-old");
         let rename_new_path = tmp.join("protected-rename-new");
+        let long_dir = tmp.join("parent-name-longer-than-sixty-three-bytes-for-dentry-append");
+        let long_unlink_path = long_dir.join("ap-longhook");
+        assert!(
+            long_dir.to_string_lossy().len() > 63,
+            "test parent path must cross the dentry append offset bucket"
+        );
+        std::fs::create_dir_all(&long_dir).expect("create long parent dir");
         std::fs::write(&unlink_path, "keep unlink\n").expect("write unlink file");
         std::fs::write(&truncate_path, "keep truncate\n").expect("write truncate file");
         std::fs::write(&rename_old_path, "keep rename\n").expect("write rename file");
+        std::fs::write(&long_unlink_path, "keep long unlink\n").expect("write long unlink file");
 
         let protected = vec![
             unlink_path.to_string_lossy().to_string(),
             truncate_path.to_string_lossy().to_string(),
             rename_old_path.to_string_lossy().to_string(),
+            long_unlink_path.to_string_lossy().to_string(),
         ];
-        let policy = block_write_exact_paths_config_blob(&protected, label);
+        let long_prefix: String = protected[3].chars().take(PAT - 1).collect();
+        let policy = block_write_paths_and_prefix_config_blob(&protected[..3], &long_prefix, label);
         let mut loader = Loader::load(&policy).expect("load eBPF engine");
         assert!(
             loader.enforce_mode(),
@@ -3426,8 +3481,16 @@ os.execv({hit:?}, [{hit:?}])
         assert!(rename_old_path.is_file(), "blocked rename removed old path");
         assert!(!rename_new_path.exists(), "blocked rename created new path");
 
+        let long_unlink_err =
+            std::fs::remove_file(&long_unlink_path).expect_err("long unlink should be blocked");
+        assert_eq!(long_unlink_err.raw_os_error(), Some(libc::EPERM));
+        assert!(
+            long_unlink_path.is_file(),
+            "blocked long-parent unlink removed the file"
+        );
+
         let mut seen = Vec::new();
-        for _ in 0..3 {
+        for _ in 0..4 {
             let v = rx
                 .recv_timeout(std::time::Duration::from_secs(2))
                 .expect("blocked write violation event");
