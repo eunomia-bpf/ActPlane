@@ -66,8 +66,8 @@ static void test_match(void)
 	check(p_match(TAINT_MATCH_CONTAINS, "/x/server/", "/server/") == 1, "match: contains at end");
 	check(p_match(TAINT_MATCH_CONTAINS, "server", "/server/") == 0, "match: contains no slashes");
 	check(p_exec_match(TAINT_MATCH_EXACT, "git", "git") == 1, "exec match: comm exact hit");
-	check(p_exec_match(TAINT_MATCH_EXACT, "/tmp/ape/redact", "redact") == 1, "exec match: full path basename hit");
-	check(p_exec_match(TAINT_MATCH_EXACT, "/tmp/ape/git", "git") == 1, "exec match: full path git hit");
+	check(p_exec_match(TAINT_MATCH_EXACT, "redact", "redact") == 1, "exec match: argv0 exact hit");
+	check(p_exec_match(TAINT_MATCH_EXACT, "/tmp/ape/git", "git") == 0, "exec match: full path is not exact");
 }
 
 static void test_mask(void)

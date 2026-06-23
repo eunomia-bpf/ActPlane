@@ -2107,6 +2107,7 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 	struct exec_scratch *scratch = exec_scratch_buf();
+	const char *target;
 	unsigned fname_off;
 
 	if (!te_pid_active(pid))
@@ -2118,16 +2119,12 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 	fname_off = ctx->__data_loc_filename & 0xFFFF;
 	if (bpf_probe_read_str(scratch->display, sizeof(scratch->display),
 			       (void *)ctx + fname_off) > 0) {
-		te_exec_update_no_args(pid, scratch->display);
-		te_handle_exec(TE_REF_STRINGS, scratch->display,
-			       scratch->display, te_tracepoint_mode());
+		target = scratch->display;
 	} else {
 		bpf_get_current_comm(&scratch->match, TASK_COMM_LEN);
 		__builtin_memcpy(scratch->display, scratch->match,
 				 sizeof(scratch->match));
-		te_exec_update_no_args(pid, scratch->match);
-		te_handle_exec(TE_REF_STRINGS, scratch->match,
-			       scratch->display, te_tracepoint_mode());
+		target = scratch->match;
 	}
 
 	struct te_argslots *as = te_argslots_buf();
@@ -2137,9 +2134,16 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 
 		__builtin_memset(as->blob, 0, sizeof(as->blob));
 		if (a0 && bpf_probe_read_user_str(as->blob, TAINT_PAT_LEN,
-						  (void *)a0) > 0)
+						  (void *)a0) > 0) {
 			te_exec_update_no_args(pid, as->blob);
+			te_handle_exec(TE_REF_STRINGS, as->blob,
+				       scratch->display, te_tracepoint_mode());
+			return 0;
+		}
 	}
+	te_exec_update_no_args(pid, target);
+	te_handle_exec(TE_REF_STRINGS, target, scratch->display,
+		       te_tracepoint_mode());
 	return 0;
 }
 
@@ -2149,6 +2153,7 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 	struct exec_scratch *scratch = exec_scratch_buf();
+	const char *target;
 	unsigned fname_off;
 	int alen = 0;
 
@@ -2161,12 +2166,12 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 	fname_off = ctx->__data_loc_filename & 0xFFFF;
 	if (bpf_probe_read_str(scratch->display, sizeof(scratch->display),
 			       (void *)ctx + fname_off) > 0) {
-		te_exec_update(pid, scratch->display);
+		target = scratch->display;
 	} else {
 		bpf_get_current_comm(&scratch->match, TASK_COMM_LEN);
 		__builtin_memcpy(scratch->display, scratch->match,
 				 sizeof(scratch->match));
-		te_exec_update(pid, scratch->match);
+		target = scratch->match;
 	}
 
 	/* read argv blob (NUL-separated) into per-CPU scratch, then tokenize into
@@ -2183,11 +2188,14 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 		if (len > 0 && bpf_probe_read_user(as->blob, len, (void *)a0) == 0)
 			alen = (int)len;
 		te_tokenize_args_eng(alen);
-		if (alen > 0)
-			te_exec_update(pid, as->blob);
+		if (a0 && bpf_probe_read_user_str(scratch->match,
+						  TAINT_TEXT_BUF,
+						  (void *)a0) > 0)
+			target = scratch->match;
 	}
 
-	te_handle_exec_event_with_args(pid, scratch->display, scratch->display,
+	te_exec_update(pid, target);
+	te_handle_exec_event_with_args(pid, target, scratch->display,
 				       te_tracepoint_mode());
 	return 0;
 }
