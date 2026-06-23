@@ -82,8 +82,7 @@ fn compile_default_prints_domain_summary() {
     let stdout = stdout(&output);
     assert!(stdout.contains("domain: review"));
     assert!(stdout.contains("parent: session"));
-    assert!(stdout.contains("locked: no-git-branch, readonly"));
-    assert!(stdout.contains("default: none"));
+    assert!(stdout.contains("policy: no-git-branch, readonly"));
     assert!(!stdout.contains("no-network —"));
 }
 
@@ -107,7 +106,7 @@ rule host-connect:
 
     assert_eq!(value["schema"], "actplane.compile.v1");
     assert_eq!(value["ok"], true);
-    assert_eq!(value["matrix_scope"], "static_initial_policy_host_support");
+    assert_eq!(value["matrix_scope"], "static_policy_host_support");
     assert_eq!(value["rule_count"], 2);
     assert_eq!(value["backend_support"]["sources"][0]["label"], "NET");
     assert_eq!(value["backend_support"]["sources"][0]["supported"], false);
@@ -160,7 +159,7 @@ rule no-network:
     let artifact = fs::read_to_string(&out).unwrap();
     assert!(artifact.contains("ActPlane policy review"));
     assert!(artifact.contains("rule no-network"));
-    assert!(artifact.contains("review scope: selected initial policy"));
+    assert!(artifact.contains("review scope: selected policy"));
 }
 
 #[test]
@@ -191,9 +190,8 @@ fn compile_domains_lists_effective_bindings() {
     let stdout = stdout(&output);
     assert!(stdout.contains("* review"));
     assert!(stdout.contains("  session"));
-    assert!(stdout.contains("disables: no-network"));
-    assert!(stdout.contains("locked: no-git-branch, readonly"));
-    assert!(stdout.contains("default: no-network"));
+    assert!(stdout.contains("policy: no-git-branch, no-network"));
+    assert!(stdout.contains("policy: no-git-branch, readonly"));
 }
 
 #[test]
@@ -214,7 +212,7 @@ fn compile_writes_kernel_blob() {
     assert!(out.is_file());
     let stderr = stderr(&output);
     assert!(stderr.contains("domain `review`"));
-    assert!(stderr.contains("locked: no-git-branch, readonly"));
+    assert!(stderr.contains("policy: no-git-branch, readonly"));
     assert!(stderr.contains("compiled 2 rule(s)"));
 }
 

@@ -14,7 +14,7 @@ fn actplane() -> &'static str {
 
 struct McpProcess {
     child: Child,
-    stdin: ChildStdin,
+    stdin: Option<ChildStdin>,
     rx: mpsc::Receiver<Value>,
     stderr_rx: mpsc::Receiver<String>,
 }
@@ -111,16 +111,17 @@ impl McpProcess {
         });
         Self {
             child,
-            stdin,
+            stdin: Some(stdin),
             rx,
             stderr_rx,
         }
     }
 
     fn send(&mut self, value: Value) {
-        serde_json::to_writer(&mut self.stdin, &value).expect("write request");
-        writeln!(&mut self.stdin).expect("write newline");
-        self.stdin.flush().expect("flush request");
+        let stdin = self.stdin.as_mut().expect("mcp stdin open");
+        serde_json::to_writer(&mut *stdin, &value).expect("write request");
+        writeln!(stdin).expect("write newline");
+        stdin.flush().expect("flush request");
     }
 
     fn response(&self, id: i64) -> Value {
@@ -154,6 +155,7 @@ impl McpProcess {
 
 impl Drop for McpProcess {
     fn drop(&mut self) {
+        drop(self.stdin.take());
         #[cfg(unix)]
         {
             let _ = unsafe { libc::kill(-(self.child.id() as i32), libc::SIGKILL) };

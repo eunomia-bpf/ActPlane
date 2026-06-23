@@ -1,4 +1,0 @@
-docs/tmp/rq1/one_trace_tuning_20260607T015433Z/actplane-opaque/docs/corpus-test/NousResearch__hermes-agent/s01_use_test_wrapper/results/20260607T015511Z-be2ffdcc.json
-docs/tmp/rq1/one_trace_tuning_20260607T015433Z/actplane/docs/corpus-test/NousResearch__hermes-agent/s01_use_test_wrapper/results/20260607T015530Z-2af9f3bc.json
-docs/tmp/rq1/one_trace_tuning_20260607T015433Z/prompt-filter/docs/corpus-test/NousResearch__hermes-agent/s01_use_test_wrapper/results/20260607T015451Z-db1c8234.json
-docs/tmp/rq1/one_trace_tuning_20260607T015433Z/tool-regex/docs/corpus-test/NousResearch__hermes-agent/s01_use_test_wrapper/results/20260607T015503Z-a01f555b.json

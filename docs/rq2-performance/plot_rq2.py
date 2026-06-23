@@ -156,7 +156,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--micro-dir", type=Path, required=True)
     parser.add_argument("--macro-dir", type=Path, required=True)
-    parser.add_argument("--out-dir", type=Path, default=Path("docs/tmp/rq2-figures"))
+    parser.add_argument("--out-dir", type=Path, default=Path("docs/rq2-performance/tmp/rq2-figures"))
     args = parser.parse_args()
 
     summary = {

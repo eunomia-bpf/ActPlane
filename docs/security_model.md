@@ -10,6 +10,11 @@ Runtime policy: domain + binding + delta + authority
 Agent, subagent, MCP, hooks, prompts, and workspaces are integrations above this
 model. They are not part of the engine security model.
 
+This is the security model implemented by the current ActPlane engine. Policies
+compile to a fixed kernel ABI, the eBPF/BPF-LSM engine evaluates them below the
+tool layer, and the runtime records the policy provenance needed to audit each
+decision.
+
 ## Core Entities
 
 An IFC rule is pure system policy:
@@ -137,6 +142,7 @@ widen scope
 remove labels or gates
 increase delegated authority
 mutate an existing rule definition
+enable hook classes or path-matcher classes that were not reserved when the engine loaded
 ```
 
 ## Examples
@@ -174,35 +180,31 @@ review-helper cannot remove any of these rules
 Rules can be added at runtime if they are submitted as compiled policy deltas.
 The kernel should not parse YAML or DSL in the admission path.
 
-CLI shape:
+Current CLI shape:
 
 ```bash
-actplane rule compile rules/no-curl.yaml --out no-curl.ir
-actplane domain bind review --rule-ir no-curl.ir
+actplane control bind-child --pid 1234 --child-id 1234
+actplane control delta add --domain-id 1234 --delta rules/no-curl.dsl
+actplane control launch-child --delta rules/no-curl.dsl -- codex --cd /work
 ```
 
 Semantics:
 
 ```text
-userspace compiles rule DSL -> rule IR
-userspace submits add-rule delta
-kernel checks authority
-kernel installs rule into review's effective policy
+userspace compiles rule DSL -> fixed taint_config entries
+userspace submits append-rule/update delta over cap_req
+kernel checks caller authority, target domain, loaded engine profile, and monotonicity
+kernel installs accepted entries into the target domain's effective policy mask
 ```
 
-A domain can also bind an existing catalog rule at runtime:
-
-```bash
-actplane domain bind review --rule no-network
-```
-
-This is allowed only if the caller has authority to update `review`.
+MCP exposes the same path as `bind_child_domain`, `launch_child`, and
+`append_policy_delta`. The kernel does not parse YAML or DSL.
 
 ## Runtime Delta Admission
 
 User space does not directly mutate effective policy state. It submits deltas.
 
-Useful delta classes:
+Delta classes:
 
 ```text
 create_domain
@@ -211,6 +213,8 @@ add_rule_ir
 add_label
 add_gate
 narrow_scope
+append compiled update
+append compiled rule
 ```
 
 A delta contains only precompiled IDs and masks:
@@ -223,7 +227,7 @@ add_label_mask
 add_restrict_mask
 add_gate_mask
 new_scope_id
-bind_rule_ids
+compiled update/rule entries
 ```
 
 The kernel admits a delta only if:
@@ -235,6 +239,7 @@ caller has the required authority bits
 scope only narrows
 labels/gates/restrictions only add
 new bindings do not weaken inherited policy
+compiled entries fit the hook and matcher classes enabled in the loaded engine profile
 ```
 
 Accepted deltas are merged into the domain's already-computed effective state.
@@ -242,17 +247,17 @@ The syscall fast path should not walk the domain tree.
 
 ## Rule Identity
 
-Runtime-added rules should be content-addressed or versioned:
+Runtime-added rules are tracked by the compiled rule metadata and audit hash:
 
 ```text
-rule_id = hash(compiled_rule_ir)
+rule_id = lowered kernel rule id
+source_hash = hash(rule source text)
+clause_hash = hash(lowered clause text)
 ```
 
-This prevents a child from changing the meaning of an inherited rule by
-reusing its name with different contents.
-
-Names such as `no-network` are user-facing aliases. Kernel admission should use
-stable IDs or hashes.
+Names such as `no-network` are user-facing aliases. Kernel events use numeric
+lowered `rule_id` values. Userspace audit records bind those ids back to source
+and clause hashes so policy deltas remain attributable.
 
 ## Current Implementation Mapping
 
@@ -282,27 +287,20 @@ Implemented today:
 ```text
 rule catalog in policy YAML
 domain bindings in policy YAML
-default_domain / --domain selection
-actplane domains effective-policy view
-actplane check/compile selected-domain summary
-starter actplane.yaml generated in domain schema
-binding resolution at compile time
+domain selection for policies that use domains
+actplane compile --domains effective-policy view
+actplane compile selected-domain summary and --json/--explain reports
+starter actplane.yaml generated as a flat policy
+binding resolution at compile time for domain policies
 valid and invalid domain policy corpus tests
 CLI UX tests for domain selection/errors
 user ringbuf request path
-domain-like state map
-pid-to-domain-like binding
+cap_state runtime domain map
+cap_task pid-to-domain binding
+cap_policy per-domain rule mask
 mask-based authority checks
 monotonic labels/restrictions/gates/scope update
-```
-
-Still needed to fully implement this model:
-
-```text
-domain naming in low-level BPF ABI
-stable rule IDs / content hashes
-runtime domain binding table
-delta admission for bind
-runtime add-rule IR maps
-dynamic child-domain creation
+runtime bind-child and launch-child control paths
+append-only compiled update/rule deltas
+static metadata approval gate for append_policy_delta
 ```

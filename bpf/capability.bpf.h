@@ -40,7 +40,6 @@
 #define TE_POLICY_BLOCK_EXEC    (1U << 7)
 #define TE_POLICY_BLOCK_FILE    (1U << 8)
 #define TE_POLICY_BLOCK_CONNECT (1U << 9)
-#define TE_POLICY_EXEC_ARGS     (1U << 10)
 #endif
 
 struct cap_state {
@@ -258,9 +257,6 @@ static __always_inline void cap_policy_clear_domain(__u32 domain_id)
 
 static __always_inline int cap_update_supported(const struct taint_update *u)
 {
-	if (u->op == TOP_EXEC && u->arg[0] != '\0' &&
-	    !(policy_features & TE_POLICY_EXEC_ARGS))
-		return 0;
 	if (u->op == TOP_OPEN || u->op == TOP_WRITE) {
 		if (!(policy_features & TE_POLICY_FILE_FLOW))
 			return 0;
@@ -275,11 +271,8 @@ static __always_inline int cap_update_supported(const struct taint_update *u)
 
 static __always_inline int cap_rule_supported(const struct taint_rule *r)
 {
-	if (r->op == TOP_EXEC && r->arg[0] != '\0' &&
-	    !(policy_features & TE_POLICY_EXEC_ARGS))
-		return 0;
 	if (r->effect == TEFFECT_BLOCK) {
-		if (r->op == TOP_EXEC &&
+		if (r->op == TOP_EXEC && r->arg[0] == '\0' &&
 		    !(policy_features & TE_POLICY_BLOCK_EXEC))
 			return 0;
 		if ((r->op == TOP_OPEN || r->op == TOP_WRITE) &&

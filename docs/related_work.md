@@ -362,12 +362,14 @@ cross-channel data-flow policy.
 
 ## 7. Empirical Studies of Agent Instruction Files (CLAUDE.md / AGENTS.md)
 
-ActPlane's empirical motivation comes from a corpus of real `CLAUDE.md` / `AGENTS.md` files
-(`docs/corpus/`, analysis in `docs/tmp/corpus-analysis.md`). A small but fast-growing 2025–26 line of
-work studies these files directly — but along **orthogonal axes** to ActPlane: they characterize
-*what developers write* (content taxonomy), *how it is structured/maintained*, and *whether it
-helps task performance*. **None asks which instructions are behavioral/flow constraints, nor
-whether any are enforceable below the tool layer** — the question ActPlane is built around.
+ActPlane's empirical motivation comes from a corpus of real `CLAUDE.md` / `AGENTS.md` files.
+The product branch keeps the curated summary and aggregate artifacts in
+`docs/empirical-study/`; raw corpus material stays on the artifact/backup refs. A small but
+fast-growing 2025–26 line of work studies these files directly, but along **orthogonal axes** to
+ActPlane: they characterize *what developers write* (content taxonomy), *how it is
+structured/maintained*, and *whether it helps task performance*. **None asks which instructions
+are behavioral/flow constraints, nor whether any are enforceable below the tool layer** — the
+question ActPlane is built around.
 
 **Chatlatanagulchai et al.** ("On the Use of Agentic Coding Manifests," arXiv 2509.14744, 2025;
 `claude-manifests-empirical.pdf`) give the first taxonomy: 253 CLAUDE.md / 242 repos, a 15-label
@@ -385,13 +387,14 @@ co-occurrence, finding architecture-centric patterns.
 is about the *product's* security** (vulnerabilities, secure-coding best practices), **not about
 constraining the agent's behavior**, and their taxonomies have no "behavioral guardrail vs style"
 or **enforceability** dimension. ActPlane's lens — *which instructions are information-flow /
-behavioral invariants, and which are enforceable at the syscall layer* (`docs/agent-policy-survey.md`
-D1/D5) — cross-cuts their categories: what ActPlane counts as an enforceable constraint is scattered
-across their Development-Process, Testing, and Security buckets. Our corpus figure (≈70% of repos
-carry ≥1 ActPlane-relevant behavioral constraint) is therefore **not** comparable to their "Security
+behavioral invariants, and which are enforceable at the syscall layer* — cross-cuts their
+categories: what ActPlane counts as an enforceable constraint is scattered across their
+Development-Process, Testing, and Security buckets. The curated ActPlane corpus summary
+(`docs/empirical-study/`) reports that ≈70% of repos
+carry ≥1 ActPlane-relevant constraint) is therefore **not** comparable to their "Security
 %" and must not be read as such. (ii) These studies resolve inter-annotator disagreement by
-consensus **without reporting κ**; our survey's double-coding with a reported κ is a reliability
-improvement we can claim.
+consensus **without reporting κ**; ActPlane instead makes enforceability a first-class axis in
+the curated ruleset and keeps the aggregate extraction artifacts available for audit.
 
 On the **effectiveness** question (orthogonal to enforcement, but useful background on whether these
 files are worth maintaining), **Lulla et al.** ("On the Impact of AGENTS.md Files on the Efficiency
@@ -503,9 +506,9 @@ agent semantic gap, but observe-only).
 
 ## 8. Agent Safety Benchmarks
 
-Benchmarks for evaluating AI agent safety and behavioral compliance. Most target a different
+Benchmarks for evaluating AI agent safety and compliance. Most target a different
 threat model from ActPlane (prompt injection or inherent agent unsafety, vs. enforcement of
-project-defined behavioral policies), but they define the evaluation landscape ActPlane is
+project-defined policies), but they define the evaluation landscape ActPlane is
 positioned against.
 
 **AgentDojo** (Debenedetti et al., NeurIPS 2024 D&B; `agentdojo.pdf`;
@@ -516,11 +519,11 @@ programmatic (state-inspection functions): utility rate (task completed) and att
 rate (injected goal achieved). Jointly measures utility and security so defenses that kill
 utility are penalized.
 *vs ActPlane:* **Different threat model.** AgentDojo tests resistance to *prompt injection
-attacks* — adversarial inputs embedded in tool responses. ActPlane enforces *behavioral policy
+attacks* — adversarial inputs embedded in tool responses. ActPlane enforces *policy
 compliance* (project-defined workflow rules like "run tests before committing"). The two are
 complementary but not substitutable: an agent can pass AgentDojo (no injection succeeds) while
 violating every ActPlane rule (never runs tests, pushes to main, deletes vendor/). No
-OS-level behavioral-policy benchmark exists in AgentDojo.
+OS-level policy benchmark exists in AgentDojo.
 
 **OpenAgentSafety** (Vijayvargiya et al., ICLR 2026; `openagentsafety.pdf`;
 [github](https://github.com/Open-Agent-Safety/OpenAgentSafety)). 350+ tasks across 8 risk
@@ -564,12 +567,12 @@ risk categories, 10 failure modes. Best model (Claude-3-Opus) scores only 59.8% 
 *vs ActPlane:* Broad tool-use safety benchmark, not CLI-specific. Measures agent behavior
 without enforcement.
 
-**Why ActPlane uses its own corpus.** No existing benchmark tests OS-level behavioral policy
+**Why ActPlane uses its own corpus.** No existing benchmark tests OS-level policy
 enforcement for coding agents. AgentDojo tests injection resistance; OpenAgentSafety and
 ODCV-Bench test inherent agent unsafety; neither provides runtime enforcement hooks or
 project-defined workflow policies (the "run tests before committing" class of rules that
 ActPlane targets). ActPlane's evaluation uses 580 policies extracted from 64 real agent
-projects — the first corpus of OS-level behavioral directives — plus Terminal-Bench (89 tasks)
+projects — the first corpus of OS-level policies — plus Terminal-Bench (89 tasks)
 as an external capability benchmark. This combination tests the specific claim (kernel
 enforcement + feedback improves policy compliance) that no existing benchmark is designed to
 measure.

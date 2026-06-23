@@ -1,4 +1,0 @@
-docs/tmp/rq1/one_trace_tuning_20260607T1702_adk_schema_script_direct_path/actplane-opaque/docs/corpus-test/google__adk-python/generated-agentconfig-schema/results/20260607T144632Z-22cd0fa3.json
-docs/tmp/rq1/one_trace_tuning_20260607T1702_adk_schema_script_direct_path/actplane/docs/corpus-test/google__adk-python/generated-agentconfig-schema/results/20260607T144617Z-5cc44dbf.json
-docs/tmp/rq1/one_trace_tuning_20260607T1702_adk_schema_script_direct_path/prompt-filter/docs/corpus-test/google__adk-python/generated-agentconfig-schema/results/20260607T144553Z-e1e38e9a.json
-docs/tmp/rq1/one_trace_tuning_20260607T1702_adk_schema_script_direct_path/tool-regex/docs/corpus-test/google__adk-python/generated-agentconfig-schema/results/20260607T144559Z-7f3cd338.json

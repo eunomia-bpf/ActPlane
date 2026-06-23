@@ -10,7 +10,7 @@ ActPlane uses three long-lived artifact refs:
 
 | Ref | Purpose | Contents |
 | --- | --- | --- |
-| `master` | Open-source product branch | ActPlane source, product docs, tests, this artifact index, and minimal benchmark scripts under `docs/`. It should not contain raw experiment outputs, tuning logs, Docker workspaces, or paper-only datasets. |
+| `master` | Open-source product branch | ActPlane source, product docs, tests, this artifact index, curated empirical-study summaries, and minimal benchmark scripts under `docs/`. It should not contain raw experiment outputs, tuning logs, Docker workspaces, or paper-only datasets. |
 | `artifact-ready` | Reviewer-facing paper artifact | Reproducible scripts, frozen inputs, selected policies, canonical summaries, and the smallest result files needed to verify paper claims. This branch should exclude scratch runs and raw logs unless the artifact README explicitly marks them as required. |
 | `backup/2026-06-14-master` | Raw historical backup | Full historical docs, experiments, intermediate runs, raw data, and local research records as they existed before cleanup. Use this branch for forensic recovery, not for paper claims. |
 
@@ -65,8 +65,9 @@ Keep in `master`:
 - ActPlane source code and tests.
 - Product documentation.
 - Paper draft and paper-writing assets under `docs/papers/`.
-- Working research notes under `docs/tmp/`.
 - `docs/ARTIFACT.md`.
+- Curated empirical-study summaries and aggregate artifacts under
+  `docs/empirical-study/`.
 - Minimal benchmark scripts under `docs/`, currently `docs/rq2-performance/`.
 - Benchmark READMEs and `.gitignore` files that explain how to regenerate
   results.
@@ -81,17 +82,17 @@ Keep out of `master`:
 - `docs/OctoBench/`
 - `docs/OpenAgentSafety/`
 - Raw logs, Docker mounts, generated workspaces, model server logs, and
-  historical tuning runs outside the retained paper draft and `docs/tmp/`
-  working-note areas.
+  historical tuning runs outside the retained paper draft and documented
+  benchmark fixture areas.
+- `docs/tmp/`
 
-`docs/tmp/` is retained as a working note area. Files in `docs/tmp/` are not
-paper-facing artifact results unless they are explicitly promoted by this file
-or by the artifact-ready README.
+Historical working notes, raw corpus workspaces, and scratch outputs live on the
+raw backup ref listed above, not on `master`.
 
 ## Benchmark Scripts Kept Under Docs
 
 Performance benchmark scripts should stay under `docs/`, not at repository root.
-The current planned product-facing path is:
+The product-facing path is:
 
 ```text
 docs/rq2-performance/
@@ -143,7 +144,7 @@ preserving or summarizing in `artifact-ready`:
 
 | Claim area | Candidate path | Notes |
 | --- | --- | --- |
-| RQ1 expressiveness | `docs/eval_runs/rq1-expressiveness/full-607-subagents/` | Full 607-directive compile result. |
+| RQ1 expressiveness | `docs/eval_runs/rq1-expressiveness/full-607-subagents/` | Full 607-policy compile result. |
 | RQ2 compliance | `docs/eval_runs/full/deepseek_rq1_20260607T193612Z_v4_pro/` | 190 trace-conditioned decisions across five systems. |
 | Performance microbench | `docs/rq2-performance/results/rq2-micro-2026-06-02T-osdi/` | Small aggregate and metadata files. Metadata records a dirty git tree, so rerun on a clean commit if this becomes the final paper artifact. |
 | Performance macrobench | `docs/rq2-performance/results/rq2-macro-2026-06-02T-osdi-v2/` | Small aggregate and metadata files. Metadata records a dirty git tree, so rerun on a clean commit if this becomes the final paper artifact. |

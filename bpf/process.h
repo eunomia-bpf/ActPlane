@@ -16,7 +16,6 @@
 #define TE_POLICY_BLOCK_EXEC    (1U << 7)
 #define TE_POLICY_BLOCK_FILE    (1U << 8)
 #define TE_POLICY_BLOCK_CONNECT (1U << 9)
-#define TE_POLICY_EXEC_ARGS     (1U << 10)
 
 #include "taint.h"
 

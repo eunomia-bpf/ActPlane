@@ -27,7 +27,7 @@ use serde_json::Value;
 
 use crate::config::{load_policy_path, policy_source};
 use crate::control as local_control;
-use crate::runtime::{EngineControl, PolicyAuditMeta};
+use crate::runtime::{EngineControl, PolicyAuditMeta, mark_non_stdio_fds_cloexec};
 use crate::{audit, dsl};
 use ebpf_ifc_engine::ChildDomainSpec;
 use ebpf_ifc_engine::capability::{AUTH_BIND_RULE, TARGET_SELF};
@@ -2061,6 +2061,7 @@ fn spawn_stopped_child(
     #[cfg(unix)]
     unsafe {
         child.pre_exec(move || {
+            mark_non_stdio_fds_cloexec()?;
             if libc::setpgid(0, 0) != 0 {
                 return Err(std::io::Error::last_os_error());
             }

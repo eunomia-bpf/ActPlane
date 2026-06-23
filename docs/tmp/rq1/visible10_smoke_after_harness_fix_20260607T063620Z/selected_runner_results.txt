@@ -1,4 +1,0 @@
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063620Z/actplane-opaque/docs/corpus-test/code-yeongyu__oh-my-openagent/platform-binaries-generated/results/20260607T063653Z-d1f817d7.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063620Z/actplane/docs/corpus-test/code-yeongyu__oh-my-openagent/platform-binaries-generated/results/20260607T063702Z-185a8f32.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063620Z/prompt-filter/docs/corpus-test/code-yeongyu__oh-my-openagent/platform-binaries-generated/results/20260607T063642Z-f622de33.json
-docs/tmp/rq1/visible10_smoke_after_harness_fix_20260607T063620Z/tool-regex/docs/corpus-test/code-yeongyu__oh-my-openagent/platform-binaries-generated/results/20260607T063646Z-67b8ac8d.json

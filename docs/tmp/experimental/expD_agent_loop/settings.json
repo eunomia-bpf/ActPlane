@@ -1,2 +1,0 @@
-{ "hooks": { "PostToolUse": [ { "matcher": ".*",
-  "hooks": [ { "type": "command", "command": "/home/yunwei37/workspace/ActPlane/collector/target/release/actplane feedback-hook" } ] } ] } }

@@ -15,10 +15,6 @@ struct WatchProcess {
 }
 
 impl WatchProcess {
-    fn start(policy: &std::path::Path, cwd: &std::path::Path) -> Option<Self> {
-        Self::start_with_attach_pid(policy, cwd, std::process::id() as i32)
-    }
-
     fn start_with_attach_pid(
         policy: &std::path::Path,
         cwd: &std::path::Path,
@@ -140,6 +136,7 @@ fn passwordless_sudo_available() -> bool {
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
 fn watch_exposes_repo_local_control_socket_privileged() {
     let tmp = tempfile::tempdir().expect("tempdir");
+    let mut agent = FakeAgent::start("actplane-watch-control-agent");
     let policy = tmp.path().join("actplane.yaml");
     std::fs::write(
         &policy,
@@ -154,8 +151,10 @@ policy: |
     )
     .expect("write policy");
 
-    let Some(mut watch) = WatchProcess::start(&policy, tmp.path()) else {
+    let Some(mut watch) = WatchProcess::start_with_attach_pid(&policy, tmp.path(), agent.pid())
+    else {
         eprintln!("skipping privileged watch control e2e: no root/CAP_BPF or passwordless sudo");
+        agent.stop();
         return;
     };
     let control_state = tmp.path().join(".actplane").join("control.json");
@@ -247,6 +246,7 @@ test "$rc" -ne 0
     );
 
     watch.stop();
+    agent.stop();
     assert!(
         !control_state.exists(),
         "control state remained after graceful watch shutdown"

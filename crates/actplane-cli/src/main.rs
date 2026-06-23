@@ -144,7 +144,7 @@ struct CompileArgs {
     /// Emit a human-readable policy review explaining enforcement timing and limits.
     #[arg(long, conflicts_with = "json")]
     explain: bool,
-    /// Emit policy domains and their effective locked/default rules.
+    /// Emit policy domains and their effective policy rules.
     #[arg(long, conflicts_with_all = ["out", "json", "explain"])]
     domains: bool,
     /// Write the compile report artifact to a file instead of stdout.
@@ -1053,10 +1053,9 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
     write_binary_output_file(out, &compiled.bytes, args.force)?;
     if let Some(domain) = &resolved.domain {
         eprintln!(
-            "ActPlane: domain `{}` (locked: {}; default: {})",
+            "ActPlane: domain `{}` policy: {}",
             domain.name,
-            format_rule_list(&domain.locked),
-            format_rule_list(&domain.defaults)
+            format_domain_policy_rules(domain)
         );
     }
     eprintln!(
@@ -1073,4 +1072,10 @@ fn format_rule_list(rules: &[String]) -> String {
     } else {
         rules.join(", ")
     }
+}
+
+fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
+    let mut rules = domain.locked.clone();
+    rules.extend(domain.defaults.clone());
+    format_rule_list(&rules)
 }

@@ -266,7 +266,8 @@ AgentSight 和 ActPlane 处理同一个 gap（intent ↔ behavior），但方向
 > 并在 behavior level 持久化 enforce。
 
 两者可以组合：AgentSight 的 intent 观测 + ActPlane 的 behavior enforcement
-可以形成闭环（观测到 intent 漂移 → 触发约束调整），但这是 future work。
+可以形成闭环（观测到 intent 漂移 → 触发约束调整）。这个组合不属于
+ActPlane 当前产品声明。
 
 > **反驳 "agent 主动参与未实现" 的 reviewer 攻击**：coding agent（Claude Code,
 > Codex CLI 等）本身就有完整的文件编辑和 shell 执行能力。Agent 可以直接编辑
@@ -417,7 +418,7 @@ ActPlane 相对于第三梯队的增量：时序门、语义反馈、machine-wri
 
 这不是 ActPlane 的 thesis 核心（core thesis 是 semantic gap），但它 motivate 了：
 - DSL 设计为 machine-writable（LLM/agent 可以生成策略）
-- `actplane check`（机器生成的策略需要 safety net）
+- `actplane compile --explain`（机器生成的策略需要 safety net）
 - notify 模式（先观测再执行，渐进式部署）
 
 在 intro 中，policy paralysis 放在 gap analysis（¶3）里作为 OS 层方案的共同缺陷：
@@ -474,8 +475,8 @@ DSL 是 agent 和 developer **共同面对的接口**：
 
 如果 reviewer 问 "agent 真的能写 policy 吗"——这不是 ActPlane 的 claim。Claim 是
 **interface design 允许 agent 参与**，不是 agent policy generation capability。
-后者是 future work（跟 LLM code generation 一样，是 agent 自身能力的问题，不是
-system interface 的问题）。
+后者跟 LLM code generation 一样，是 agent 自身能力的问题，不是 system
+interface 的问题。
 
 #### 在 introduction ¶3 中的具体措辞
 
@@ -716,8 +717,8 @@ Data Plane（kernel，deterministic）：
 - Agent 分析 `.actplane/last-violation.txt` 的历史记录
 - 发现某条规则频繁误报 → 提议放宽（developer approve）
 - 发现新的风险模式 → 提议加规则
-- **实现可行但不作为核心 claim**：这是 policy evolution，是 future work 的
-  direction，在 paper 中点到即止
+- **不作为核心 claim**：policy evolution 不属于 ActPlane 当前产品声明，
+  在 paper 中点到即止
 
 ### 8.6 在 Introduction 中怎么放
 

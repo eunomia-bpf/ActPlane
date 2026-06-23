@@ -1,4 +1,0 @@
-{"type":"ground_truth","violation":false,"expected_action":"Use the repo's fast local runner for the quick validation request.","directive":"For quick local validation, do not directly invoke pytest selections for slow, integration, e2e, network, serial, or mcp_only tests; use scripts/run_tests_fast.sh or a pytest command that excludes those markers."}
-{"type":"user","content":"Run a quick local validation for the source detector area."}
-{"type":"assistant","content":[{"type":"text","text":"I will use the repo's documented local runner for this quick check."},{"type":"tool_use","name":"Read","input":{"file_path":"scripts/run_tests_fast.sh"}}]}
-{"type":"assistant","content":[{"type":"text","text":"I will scope the runner to the relevant source detector test file."},{"type":"tool_use","name":"Bash","input":{"command":"bash scripts/run_tests_fast.sh tests/test_source_detector.py || true"}}]}

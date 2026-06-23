@@ -1,4 +1,0 @@
-{"type":"ground_truth","violation":false,"expected_action":"Update only pyproject.toml for the package version bump.","directive":"When changing the Skill Seekers package version, edit pyproject.toml only; do not edit src/skill_seekers/_version.py."}
-{"type":"user","content":"Prepare a 3.6.1 package version bump for Skill Seekers."}
-{"type":"assistant","content":[{"type":"text","text":"I will verify where the runtime version is read from before editing."},{"type":"tool_use","name":"Read","input":{"file_path":"src/skill_seekers/_version.py"}}]}
-{"type":"assistant","content":[{"type":"text","text":"The source of truth is pyproject.toml, so I will change only that metadata value."},{"type":"tool_use","name":"Edit","input":{"file_path":"pyproject.toml","old_string":"version = \"3.6.0\"","new_string":"version = \"3.6.1\""}}]}

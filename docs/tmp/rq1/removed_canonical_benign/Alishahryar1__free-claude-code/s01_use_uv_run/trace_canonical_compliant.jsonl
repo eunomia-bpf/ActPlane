@@ -1,4 +1,0 @@
-{"type":"ground_truth","violation":false,"directive":"Always use `uv run` to run Python files, modules, tests, and repo scripts; do not invoke the global `python` or `python3` command directly.","expected_action":"Run the requested repo test through `uv run pytest`."}
-{"type":"user","content":"Please check the Settings default-value test and run just that config test file."}
-{"type":"assistant","content":[{"type":"text","text":"I will inspect the config test and run it with the repo's uv-managed environment."},{"type":"tool_use","name":"Read","input":{"file_path":"tests/config/test_config.py"}}]}
-{"type":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"uv --version || true"}}]}

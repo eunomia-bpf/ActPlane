@@ -105,13 +105,13 @@ CLI:
 
 ```text
 actplane init
-actplane check
-actplane domains
-actplane --domain review check
+actplane compile --json
+actplane compile --domains
+actplane --domain review compile --explain
 actplane --domain review compile --out review.ir
 sudo -E actplane --domain review run -- <cmd>
-actplane apply --domain <id> --policy policy.yaml
-actplane events
+actplane control status
+actplane control delta add --target-id <id> --delta policy.dsl
 actplane doctor
 ```
 
@@ -120,8 +120,8 @@ The CLI should always tell the user which domain was selected:
 ```text
 domain: review
 parent: session
-locked: no-git-branch, readonly
-default: none
+policy: no-git-branch, readonly
+local additions: none
 ```
 
 That makes the runtime choice visible before anything needs privileges.

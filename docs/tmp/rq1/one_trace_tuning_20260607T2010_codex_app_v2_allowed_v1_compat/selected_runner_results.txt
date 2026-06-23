@@ -1,4 +1,0 @@
-docs/tmp/rq1/one_trace_tuning_20260607T2010_codex_app_v2_allowed_v1_compat/actplane-opaque/docs/corpus-test/openai__codex/app-server-v2-only/results/20260607T154755Z-44932b6c.json
-docs/tmp/rq1/one_trace_tuning_20260607T2010_codex_app_v2_allowed_v1_compat/actplane/docs/corpus-test/openai__codex/app-server-v2-only/results/20260607T154735Z-7e454fb7.json
-docs/tmp/rq1/one_trace_tuning_20260607T2010_codex_app_v2_allowed_v1_compat/prompt-filter/docs/corpus-test/openai__codex/app-server-v2-only/results/20260607T154712Z-103086b0.json
-docs/tmp/rq1/one_trace_tuning_20260607T2010_codex_app_v2_allowed_v1_compat/tool-regex/docs/corpus-test/openai__codex/app-server-v2-only/results/20260607T154722Z-0dbdf84d.json

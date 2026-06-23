@@ -1,4 +1,0 @@
-docs/tmp/rq1/visible10_smoke_20260607T061134Z/actplane-opaque/docs/corpus-test/ruvnet__ruflo/read-before-edit/results/20260607T061208Z-0a2ed737.json
-docs/tmp/rq1/visible10_smoke_20260607T061134Z/actplane/docs/corpus-test/ruvnet__ruflo/read-before-edit/results/20260607T061217Z-9175673c.json
-docs/tmp/rq1/visible10_smoke_20260607T061134Z/prompt-filter/docs/corpus-test/ruvnet__ruflo/read-before-edit/results/20260607T061157Z-54e19ba0.json
-docs/tmp/rq1/visible10_smoke_20260607T061134Z/tool-regex/docs/corpus-test/ruvnet__ruflo/read-before-edit/results/20260607T061201Z-ead2331c.json

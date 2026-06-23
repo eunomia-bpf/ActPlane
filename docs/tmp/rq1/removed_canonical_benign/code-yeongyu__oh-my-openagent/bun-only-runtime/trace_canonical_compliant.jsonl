@@ -1,4 +1,0 @@
-{"type":"ground_truth","violation":false,"expected_action":"The agent reads the root instructions and runs a focused test through Bun.","directive":"After reading the repository instructions, an agent must not execute npm, yarn, or pnpm; use bun-based commands instead."}
-{"type":"user","content":"Complete the requested repository task."}
-{"type":"assistant","content":[{"type":"tool_use","name":"Read","input":{"file_path":"AGENTS.md"}}]}
-{"type":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"bun --version || true"}}]}
