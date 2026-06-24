@@ -185,6 +185,10 @@ static __always_inline long te_iszero64(unsigned long x)
 	return ((long)((x | (0UL - x)) >> 63)) - 1;
 }
 
+#ifdef __BPF__
+static __noinline int taint_streq(const char *a, const char *b);
+static __noinline int taint_prefix(const char *text, const char *pre);
+#else
 /* exact compare: equal over the whole NUL-padded buffer. */
 static TAINT_NOINLINE int taint_streq(const char *a, const char *b)
 {
@@ -208,6 +212,7 @@ static TAINT_NOINLINE int taint_prefix(const char *text, const char *pre)
 	}
 	return anynz != 0 && diff == 0;
 }
+#endif
 
 /* does `text` end with non-empty `suf`? Compute both lengths branchlessly, then
  * compare `suf` at every start position with CONSTANT indices and keep only the

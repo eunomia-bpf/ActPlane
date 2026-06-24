@@ -49,11 +49,60 @@ struct {
 
 #include "capability.bpf.h"
 
-/* BPF implementation of taint_contains (substring search via bpf_loop).
- * The outer scan runs through bpf_loop so the callback is verified ONCE (not
- * TAINT_PAT_LEN times).  Inside, TE_COPY fetches the candidate window through
- * the bounded helper read — never a direct variable-offset stack dereference. */
+/* BPF implementations of the path/pattern matchers. These run inner byte scans
+ * through bpf_loop so rule/update callbacks do not multiply verifier state by
+ * TAINT_PAT_LEN on kernels with a tighter complexity budget. */
 #ifdef __BPF__
+struct __taint_cmp_ctx {
+	const char *a;
+	const char *b;
+	long diff;
+	long anynz;
+};
+
+static long __taint_streq_cb(__u32 idx, void *_ctx)
+{
+	struct __taint_cmp_ctx *c = _ctx;
+	unsigned char ac = 0, bc = 0;
+
+	TE_COPY(&ac, 1, c->a + idx);
+	TE_COPY(&bc, 1, c->b + idx);
+	c->diff |= (unsigned char)(ac ^ bc);
+	return 0;
+}
+
+static __noinline int taint_streq(const char *a, const char *b)
+{
+	struct __taint_cmp_ctx c = { .a = a, .b = b };
+
+	bpf_loop(TAINT_PAT_LEN, __taint_streq_cb, &c, 0);
+	return c.diff == 0;
+}
+
+static long __taint_prefix_cb(__u32 idx, void *_ctx)
+{
+	struct __taint_cmp_ctx *c = _ctx;
+	unsigned char tc = 0, pc = 0;
+	long m;
+
+	TE_COPY(&tc, 1, c->a + idx);
+	TE_COPY(&pc, 1, c->b + idx);
+	m = te_nzmask(pc);
+	c->anynz |= m;
+	c->diff |= m & (unsigned char)(tc ^ pc);
+	return 0;
+}
+
+static __noinline int taint_prefix(const char *text, const char *pre)
+{
+	struct __taint_cmp_ctx c = { .a = text, .b = pre };
+
+	bpf_loop(TAINT_PAT_LEN, __taint_prefix_cb, &c, 0);
+	return c.anynz != 0 && c.diff == 0;
+}
+
+/* Substring search via bpf_loop. The outer scan runs through bpf_loop so the
+ * callback is verified once. */
 struct __taint_contains_ctx {
 	const char *text;
 	const char *pat;
