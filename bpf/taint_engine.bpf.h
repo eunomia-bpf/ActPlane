@@ -889,9 +889,69 @@ static __noinline __u32 te_tick(pid_t root, __u32 domain_id)
 	return s->epoch;
 }
 
+struct te_stamp_ctx {
+	pid_t root;
+	__u32 domain_id;
+	__u32 ep;
+	__u64 hits;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct te_stamp_ctx);
+} ts_stamp_scratch SEC(".maps");
+
+static __always_inline struct te_stamp_ctx *te_stamp_scratch_buf(void)
+{
+	__u32 key = 0;
+
+	return bpf_map_lookup_elem(&ts_stamp_scratch, &key);
+}
+
+static long te_stamp_gate_cb(__u32 i, void *vc)
+{
+	struct te_stamp_ctx *c = te_stamp_scratch_buf();
+	__u32 idx = i;
+
+	(void)vc;
+	if (!c)
+		return 1;
+	barrier_var(idx);
+	idx &= (__u32)(MAX_TAINT_GATES - 1);
+	if (!(c->hits & (1ULL << idx)))
+		return 0;
+	struct te_sess *s = te_sess_get(c->root, c->domain_id);
+	if (!s)
+		return 1;
+	s->gate_epoch[idx] = c->ep;
+	return 0;
+}
+
+static long te_stamp_inval_cb(__u32 i, void *vc)
+{
+	struct te_stamp_ctx *c = te_stamp_scratch_buf();
+	__u32 idx = i;
+
+	(void)vc;
+	if (!c)
+		return 1;
+	barrier_var(idx);
+	idx &= (__u32)(MAX_TAINT_INVALS - 1);
+	if (!(c->hits & (1ULL << idx)))
+		return 0;
+	struct te_sess *s = te_sess_get(c->root, c->domain_id);
+	if (!s)
+		return 1;
+	s->inval_epoch[idx] = c->ep;
+	return 0;
+}
+
 /* Stamp the gates and invalidators that fired in one event at `ep`. gate_hits
  * also latch into gate_bits (v1 `after`). The two scans are constant-bound
- * (<= 64) writes through the in-place map-value pointer. */
+ * bpf_loop callbacks so older CI verifiers do not path-expand both 64-entry
+ * scans into the open/connect/read hook programs. */
 static __noinline void te_stamp(pid_t root, __u32 domain_id, __u32 ep,
 				__u64 gate_hits, __u64 inval_hits)
 {
@@ -901,12 +961,24 @@ static __noinline void te_stamp(pid_t root, __u32 domain_id, __u32 ep,
 	if (!s)
 		return;
 	s->gate_bits |= gate_hits;
-	for (int i = 0; i < MAX_TAINT_GATES; i++)
-		if (gate_hits & (1ULL << i))
-			s->gate_epoch[i] = ep;
-	for (int i = 0; i < MAX_TAINT_INVALS; i++)
-		if (inval_hits & (1ULL << i))
-			s->inval_epoch[i] = ep;
+	__u64 loop_ctx = 0;
+	struct te_stamp_ctx *c = te_stamp_scratch_buf();
+	if (!c)
+		return;
+	if (gate_hits) {
+		c->root = root;
+		c->domain_id = domain_id;
+		c->ep = ep;
+		c->hits = gate_hits;
+		bpf_loop(MAX_TAINT_GATES, te_stamp_gate_cb, &loop_ctx, 0);
+	}
+	if (inval_hits) {
+		c->root = root;
+		c->domain_id = domain_id;
+		c->ep = ep;
+		c->hits = inval_hits;
+		bpf_loop(MAX_TAINT_INVALS, te_stamp_inval_cb, &loop_ctx, 0);
+	}
 }
 
 /* Is a TCOND_AFTER condition satisfied (i.e. the deny is relaxed / allowed)?
