@@ -254,7 +254,9 @@ static int tracepoint_autoload_needed(const char *name, unsigned int features,
 	static const char *const file_write_path[] = {
 		"trace_creat", "trace_creat_exit", "trace_truncate",
 		"trace_truncate_exit", "trace_unlink", "trace_unlinkat",
-		"trace_rename", "trace_renameat", "trace_renameat2",
+		"trace_rename", "trace_rename_exit", "trace_renameat",
+		"trace_renameat_exit", "trace_renameat2",
+		"trace_renameat2_exit",
 	};
 	static const char *const fd_flow[] = {
 		"trace_read", "trace_read_exit", "trace_write",
@@ -301,7 +303,7 @@ static int tracepoint_autoload_needed(const char *name, unsigned int features,
 		return file_flow || open_rules;
 	if (name_in(name, file_write_path,
 		    sizeof(file_write_path) / sizeof(file_write_path[0])))
-		return file_write;
+		return file_write || file_flow;
 	if (name_in(name, fd_flow, sizeof(fd_flow) / sizeof(fd_flow[0])))
 		return file_flow || connect || recv;
 	if (name_in(name, connect_or_recv,

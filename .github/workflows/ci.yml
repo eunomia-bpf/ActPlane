@@ -121,6 +121,15 @@ jobs:
             "CARGO_TARGET_DIR=$RUNNER_TEMP/actplane-root-target" \
             "ACTPLANE_BIN=$RUNNER_TEMP/actplane-root-target/release/actplane" \
             bash script/e2e_examples.sh
+          sudo -E env \
+            "HOME=$HOME" \
+            "PATH=$PATH" \
+            "CARGO_HOME=$RUNNER_TEMP/actplane-root-cargo" \
+            "RUSTUP_HOME=$HOME/.rustup" \
+            "CARGO_TARGET_DIR=$RUNNER_TEMP/actplane-root-target" \
+            "ACTPLANE_BIN=$RUNNER_TEMP/actplane-root-target/release/actplane" \
+            "ACTPLANE_SKIP_BUILD=1" \
+            bash script/e2e_examples.sh test/e2e_file_flow_cases.yaml
 
   publish:
     name: Publish to crates.io

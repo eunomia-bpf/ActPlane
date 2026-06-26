@@ -728,6 +728,65 @@ static __noinline void te_copy_proc_prov(pid_t from, pid_t to, __u32 domain_id,
 	bpf_loop(te_count(5), te_copy_proc_prov_cb, &c, 0);
 }
 
+struct te_copy_file_to_file_ctx {
+	struct file_domain_id from;
+	struct file_domain_id to;
+	__u64 labels;
+};
+static int te_copy_file_prov_to_file_cb(__u32 i, void *vc)
+{
+	struct te_copy_file_to_file_ctx *c = vc;
+	if (i >= MAX_TAINT_LABELS)
+		return 1;
+	__u64 bit = 1ULL << i;
+	if (!(c->labels & bit))
+		return 0;
+	struct file_label_id from = { .fdom = c->from, .label = bit };
+	struct te_prov *p = bpf_map_lookup_elem(&ts_file_prov, &from);
+	if (!p)
+		return 0;
+	struct file_label_id to = { .fdom = c->to, .label = bit };
+	bpf_map_update_elem(&ts_file_prov, &to, p, BPF_ANY);
+	return 0;
+}
+static __noinline void te_copy_file_prov_to_file(struct file_domain_id *from,
+						 struct file_domain_id *to,
+						 __u64 labels)
+{
+	struct te_copy_file_to_file_ctx c = {
+		.from = *from,
+		.to = *to,
+		.labels = labels,
+	};
+	bpf_loop(te_count(5), te_copy_file_prov_to_file_cb, &c, 0);
+}
+
+struct te_delete_file_prov_ctx {
+	struct file_domain_id fdom;
+	__u64 labels;
+};
+static int te_delete_file_prov_cb(__u32 i, void *vc)
+{
+	struct te_delete_file_prov_ctx *c = vc;
+	if (i >= MAX_TAINT_LABELS)
+		return 1;
+	__u64 bit = 1ULL << i;
+	if (!(c->labels & bit))
+		return 0;
+	struct file_label_id fk = { .fdom = c->fdom, .label = bit };
+	bpf_map_delete_elem(&ts_file_prov, &fk);
+	return 0;
+}
+static __noinline void te_delete_file_prov_mask(struct file_domain_id *fdom,
+						__u64 labels)
+{
+	struct te_delete_file_prov_ctx c = {
+		.fdom = *fdom,
+		.labels = labels,
+	};
+	bpf_loop(te_count(5), te_delete_file_prov_cb, &c, 0);
+}
+
 struct te_copy_file_to_proc_ctx {
 	pid_t pid;
 	struct file_domain_id fdom;
@@ -1639,6 +1698,139 @@ static __always_inline void te_write_flow(pid_t pid, struct file_id *fid,
 			break;
 		te_write_flow_domain(pid, fid, path, domain_id);
 	}
+}
+
+/* File sources are intrinsic object labels. Materialize a matching source path
+ * into the file-object state so later reads through a renamed path inherit the
+ * same label without tainting the process that merely renamed or wrote it. */
+static __noinline void te_materialize_file_source_domain(pid_t pid,
+							 struct file_id *fid,
+							 const char *path,
+							 __u32 domain_id)
+{
+	if (!te_pid_active(pid) || !cap_domain_matches_pid(pid, domain_id))
+		return;
+	struct te_update_ctx u = {
+		.pid = pid,
+		.domain_id = domain_id,
+		.op = TOP_OPEN,
+		.target = path,
+	};
+	te_collect_file_updates(&u);
+	__u64 src_labels = u.add;
+	if (!src_labels)
+		return;
+	struct file_domain_id *fdom = te_file_domain_tmp();
+	if (!fdom)
+		return;
+	te_file_domain_key_for(domain_id, fid, fdom);
+	struct file_state *fs = bpf_map_lookup_elem(&ts_file, fdom);
+	if (fs) {
+		fs->labels |= src_labels;
+	} else {
+		struct file_state ns = { .labels = src_labels, .last_write_epoch = 0 };
+		bpf_map_update_elem(&ts_file, fdom, &ns, BPF_ANY);
+	}
+}
+
+static __noinline void te_materialize_file_source(pid_t pid,
+						  struct file_id *fid,
+						  const char *path)
+{
+	if (!fid)
+		return;
+	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
+		__u32 domain_id = te_domain_for_depth(pid, i);
+		if (i > 0 && !domain_id)
+			break;
+		te_materialize_file_source_domain(pid, fid, path, domain_id);
+	}
+}
+
+static __noinline void te_copy_file_state_domain(pid_t pid,
+						 struct file_id *from_fid,
+						 struct file_id *to_fid,
+						 __u32 domain_id,
+						 __u32 delete_from)
+{
+	if (!te_pid_active(pid) || !cap_domain_matches_pid(pid, domain_id))
+		return;
+	struct file_domain_id from = {};
+	struct file_domain_id to = {};
+	te_file_domain_key_for(domain_id, from_fid, &from);
+	te_file_domain_key_for(domain_id, to_fid, &to);
+	struct file_state *fs = bpf_map_lookup_elem(&ts_file, &from);
+	__u32 have_src = fs ? 1 : 0;
+	__u64 labels = fs ? fs->labels : 0;
+	__u32 last_write_epoch = fs ? fs->last_write_epoch : 0;
+	struct file_state *dst = bpf_map_lookup_elem(&ts_file, &to);
+	if (delete_from) {
+		__u64 dst_labels = dst ? dst->labels : 0;
+		if (dst_labels)
+			te_delete_file_prov_mask(&to, dst_labels);
+		if (labels) {
+			struct file_state ns = {
+				.labels = labels,
+				.last_write_epoch = last_write_epoch,
+			};
+			bpf_map_update_elem(&ts_file, &to, &ns, BPF_ANY);
+			te_copy_file_prov_to_file(&from, &to, labels);
+		} else {
+			bpf_map_delete_elem(&ts_file, &to);
+		}
+		if (have_src)
+			bpf_map_delete_elem(&ts_file, &from);
+		if (labels)
+			te_delete_file_prov_mask(&from, labels);
+		return;
+	}
+	if (!labels)
+		return;
+	if (dst) {
+		dst->labels |= labels;
+		if (last_write_epoch > dst->last_write_epoch)
+			dst->last_write_epoch = last_write_epoch;
+	} else {
+		struct file_state ns = {
+			.labels = labels,
+			.last_write_epoch = last_write_epoch,
+		};
+		bpf_map_update_elem(&ts_file, &to, &ns, BPF_ANY);
+	}
+	te_copy_file_prov_to_file(&from, &to, labels);
+}
+
+static __noinline void te_copy_file_state(pid_t pid,
+					  struct file_id *from_fid,
+					  struct file_id *to_fid,
+					  __u32 delete_from)
+{
+	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
+		__u32 domain_id = te_domain_for_depth(pid, i);
+		if (i > 0 && !domain_id)
+			break;
+		te_copy_file_state_domain(pid, from_fid, to_fid, domain_id,
+					  delete_from);
+	}
+}
+
+static __noinline void te_swap_file_state(pid_t pid,
+					  struct file_id *a_fid,
+					  struct file_id *b_fid)
+{
+	struct file_id tmp = {};
+
+	tmp.ino = bpf_ktime_get_ns() ^ a_fid->ino ^ (b_fid->ino << 1);
+	tmp.ino |= (1ULL << 63);
+	tmp.dev = a_fid->dev ^ b_fid->dev ^ 0xffffffffU;
+	tmp._pad = 0;
+	if (tmp.ino == a_fid->ino && tmp.dev == a_fid->dev)
+		tmp.ino ^= 0x517cc1b727220a95ULL;
+	if (tmp.ino == b_fid->ino && tmp.dev == b_fid->dev)
+		tmp.ino ^= 0x94d049bb133111ebULL;
+	te_copy_file_state(pid, b_fid, &tmp, 1);
+	te_copy_file_state(pid, a_fid, b_fid, 1);
+	te_copy_file_state(pid, &tmp, a_fid, 1);
 }
 
 /* connect egress: endpoint records proc labels. */

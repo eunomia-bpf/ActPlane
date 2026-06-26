@@ -1,0 +1,163 @@
+# Additional live eBPF cases for file-object label flow. These are intentionally
+# separate from test/e2e_cases.yaml, which mirrors the E1-E12 examples.
+
+cases:
+  - name: "F1 source label follows rename"
+    setup: |-
+      mkdir -p ${D}/flow
+      rm -f ${D}/flow/source.env ${D}/flow/private
+      echo secret > ${D}/flow/source.env
+    policy: |-
+      source SECRET = file "${D}/flow/source.env"
+      rule no-exfil:
+        kill connect endpoint "*" if SECRET
+        because "renamed secret source must not leave the host"
+    trigger: |-
+      mv ${D}/flow/source.env ${D}/flow/private; /bin/bash -c 'read y < ${D}/flow/private; timeout 1 bash -c "exec 3<>/dev/tcp/4.4.4.4/80"'
+    expect:
+      want: '"target":"4.4.4.4"'
+
+  - name: "F2 source rename does not taint mover"
+    setup: |-
+      mkdir -p ${D}/flow
+      rm -f ${D}/flow/source2.env ${D}/flow/private2
+      echo secret > ${D}/flow/source2.env
+    policy: |-
+      source SECRET = file "${D}/flow/source2.env"
+      rule no-exfil:
+        kill connect endpoint "*" if SECRET
+        because "moving a secret file is not reading it"
+    trigger: |-
+      (exec -a codex ${D}/codex -c 'mv ${D}/flow/source2.env ${D}/flow/private2; timeout 1 bash -c "exec 3<>/dev/tcp/5.5.5.5/80"'); /bin/bash -c 'read y < ${D}/flow/private2; timeout 1 bash -c "exec 4<>/dev/tcp/5.5.5.6/80"'
+    expect:
+      want: '"target":"5.5.5.6"'
+      notwant: '"target":"5.5.5.5"'
+
+  - name: "F3 derived label follows rename"
+    setup: |-
+      mkdir -p ${D}/flow
+      rm -f ${D}/flow/source3.env ${D}/flow/out3.json ${D}/flow/private3
+      echo secret > ${D}/flow/source3.env
+    policy: |-
+      source SECRET = file "${D}/flow/source3.env"
+      rule no-exfil:
+        kill connect endpoint "*" if SECRET
+        because "renamed secret-derived files must not leave the host"
+    trigger: |-
+      (exec -a codex ${D}/codex -c 'read x < ${D}/flow/source3.env; echo derived > ${D}/flow/out3.json; mv ${D}/flow/out3.json ${D}/flow/private3'); sleep 0.3; /bin/bash -c 'read y < ${D}/flow/private3; timeout 1 bash -c "exec 3<>/dev/tcp/6.6.6.6/80"'
+    expect:
+      want: '"target":"6.6.6.6"'
+
+  - name: "F4 write-only update preserves renamed source label"
+    setup: |-
+      mkdir -p ${D}/flow
+      rm -f ${D}/flow/source4.env ${D}/flow/private4
+      echo secret > ${D}/flow/source4.env
+    policy: |-
+      source SECRET = file "${D}/flow/source4.env"
+      rule no-exfil:
+        kill connect endpoint "*" if SECRET
+        because "write-only edits must preserve the renamed source label"
+    trigger: |-
+      mv ${D}/flow/source4.env ${D}/flow/private4; (exec -a codex ${D}/codex -c 'echo updated >> ${D}/flow/private4; timeout 1 bash -c "exec 3<>/dev/tcp/7.7.7.7/80"'); /bin/bash -c 'read y < ${D}/flow/private4; timeout 1 bash -c "exec 4<>/dev/tcp/7.7.7.8/80"'
+    expect:
+      want: '"target":"7.7.7.8"'
+      notwant: '"target":"7.7.7.7"'
+
+  - name: "F5 failed rename keeps source label on old path only"
+    setup: |-
+      mkdir -p ${D}/flow
+      rm -rf ${D}/flow/missing
+      rm -f ${D}/flow/source5.env
+      echo secret > ${D}/flow/source5.env
+    policy: |-
+      source SECRET = file "${D}/flow/source5.env"
+      rule no-exfil:
+        kill connect endpoint "*" if SECRET
+        because "failed rename must not move the source label"
+    trigger: |-
+      (mv ${D}/flow/source5.env ${D}/flow/missing/private5 || true); /bin/bash -c 'read y < ${D}/flow/source5.env; timeout 1 bash -c "exec 3<>/dev/tcp/8.8.4.4/80"'; mkdir -p ${D}/flow/missing; echo public > ${D}/flow/missing/private5; /bin/bash -c 'read y < ${D}/flow/missing/private5; timeout 1 bash -c "exec 4<>/dev/tcp/8.8.4.5/80"'
+    expect:
+      want: '"target":"8.8.4.4"'
+      notwant: '"target":"8.8.4.5"'
+
+  - name: "F6 write sink catches truncating create without open rule"
+    setup: |-
+      mkdir -p ${D}/flow
+      rm -f ${D}/flow/write-sink
+    policy: |-
+      source AGENT = exec "**/codex"
+      rule no-write:
+        kill write file "${D}/flow/write-sink" if AGENT
+        because "write sinks must apply to truncating opens"
+    trigger: |-
+      (exec -a codex ${D}/codex -c 'echo blocked > ${D}/flow/write-sink')
+    expect:
+      want: '"target":"[^"]*write-sink"'
+
+  - name: "F7 rename overwrite clears destination labels"
+    setup: |-
+      mkdir -p ${D}/flow
+      rm -f ${D}/flow/source7.env ${D}/flow/control7.env ${D}/flow/labeled7 ${D}/flow/public7
+      echo secret > ${D}/flow/source7.env
+      echo secret > ${D}/flow/control7.env
+      echo public > ${D}/flow/public7
+    policy: |-
+      source SECRET = file "${D}/flow/source7.env"
+      source SECRET = file "${D}/flow/control7.env"
+      rule no-exfil:
+        kill connect endpoint "*" if SECRET
+        because "overwriting a labeled destination with a public file must clear stale labels"
+    trigger: |-
+      mv ${D}/flow/source7.env ${D}/flow/labeled7; mv ${D}/flow/public7 ${D}/flow/labeled7; /bin/bash -c 'read y < ${D}/flow/labeled7; timeout 1 bash -c "exec 3<>/dev/tcp/9.9.9.9/80"'; /bin/bash -c 'read y < ${D}/flow/control7.env; timeout 1 bash -c "exec 4<>/dev/tcp/9.9.9.10/80"'
+    expect:
+      want: '"target":"9.9.9.10"'
+      notwant: '"target":"9.9.9.9"'
+
+  - name: "F8 rename exchange swaps file labels"
+    setup: |-
+      mkdir -p ${D}/flow
+      rm -f ${D}/flow/source8.env ${D}/flow/derived8 ${D}/flow/public8
+      echo secret > ${D}/flow/source8.env
+      echo public > ${D}/flow/public8
+    policy: |-
+      source SECRET = file "${D}/flow/source8.env"
+      rule no-exfil:
+        kill connect endpoint "*" if SECRET
+        because "RENAME_EXCHANGE must swap labels with file objects"
+    trigger: |-
+      mv ${D}/flow/source8.env ${D}/flow/derived8; python3 - <<'PY'
+      import ctypes, os, platform
+
+      libc = ctypes.CDLL(None, use_errno=True)
+      AT_FDCWD = -100
+      RENAME_EXCHANGE = 2
+      old = os.fsencode("${D}/flow/public8")
+      new = os.fsencode("${D}/flow/derived8")
+      try:
+          renameat2 = libc.renameat2
+      except AttributeError:
+          syscall_by_arch = {
+              "x86_64": 316,
+              "amd64": 316,
+              "aarch64": 276,
+              "arm64": 276,
+              "riscv64": 276,
+              "ppc64le": 357,
+          }
+          sysno = syscall_by_arch.get(platform.machine().lower())
+          if sysno is None:
+              raise RuntimeError(f"unknown renameat2 syscall number for {platform.machine()}")
+          libc.syscall.restype = ctypes.c_long
+          rc = libc.syscall(sysno, AT_FDCWD, old, AT_FDCWD, new, RENAME_EXCHANGE)
+      else:
+          renameat2.restype = ctypes.c_int
+          rc = renameat2(AT_FDCWD, old, AT_FDCWD, new, RENAME_EXCHANGE)
+      if rc != 0:
+          err = ctypes.get_errno()
+          raise OSError(err, os.strerror(err))
+      PY
+      /bin/bash -c 'read y < ${D}/flow/public8; timeout 1 bash -c "exec 3<>/dev/tcp/9.9.9.11/80"'; /bin/bash -c 'read y < ${D}/flow/derived8; timeout 1 bash -c "exec 4<>/dev/tcp/9.9.9.12/80"'
+    expect:
+      want: '"target":"9.9.9.11"'
+      notwant: '"target":"9.9.9.12"'

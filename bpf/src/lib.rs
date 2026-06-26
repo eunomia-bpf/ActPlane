@@ -617,15 +617,33 @@ const TRACEPOINTS: &[TracepointSpec] = &[
         need: TracepointNeed::FileWritePath,
     },
     TracepointSpec {
+        name: "trace_rename_exit",
+        category: "syscalls",
+        event: "sys_exit_rename",
+        need: TracepointNeed::FileWritePath,
+    },
+    TracepointSpec {
         name: "trace_renameat",
         category: "syscalls",
         event: "sys_enter_renameat",
         need: TracepointNeed::FileWritePath,
     },
     TracepointSpec {
+        name: "trace_renameat_exit",
+        category: "syscalls",
+        event: "sys_exit_renameat",
+        need: TracepointNeed::FileWritePath,
+    },
+    TracepointSpec {
         name: "trace_renameat2",
         category: "syscalls",
         event: "sys_enter_renameat2",
+        need: TracepointNeed::FileWritePath,
+    },
+    TracepointSpec {
+        name: "trace_renameat2_exit",
+        category: "syscalls",
+        event: "sys_exit_renameat2",
         need: TracepointNeed::FileWritePath,
     },
     TracepointSpec {
@@ -992,7 +1010,7 @@ fn tracepoint_needed(spec: &TracepointSpec, budget: HookBudget) -> bool {
         TracepointNeed::CoreExec => false,
         TracepointNeed::ExecArgs => true,
         TracepointNeed::FileOpen => budget.has_file_flow() || budget.has_open_rules(),
-        TracepointNeed::FileWritePath => budget.has_file_write(),
+        TracepointNeed::FileWritePath => budget.has_file_write() || budget.has_file_flow(),
         TracepointNeed::FdFlow => {
             budget.has_file_flow() || budget.has_connect() || budget.has_recv()
         }
@@ -2418,7 +2436,7 @@ mod tests {
         };
         assert!(tracepoint_needed(spec("trace_openat"), file));
         assert!(tracepoint_needed(spec("trace_read_exit"), file));
-        assert!(!tracepoint_needed(spec("trace_unlink"), file));
+        assert!(tracepoint_needed(spec("trace_unlink"), file));
         assert!(!tracepoint_needed(spec("trace_pipe"), file));
         assert!(!tracepoint_needed(spec("trace_mmap"), file));
 

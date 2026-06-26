@@ -1,5 +1,5 @@
 #!/bin/bash
-# ActPlane end-to-end example driver. The test cases (E1–E12 from
+# ActPlane end-to-end example driver. The default test cases (E1–E12 from
 # docs/taint-dsl.md) live in test/e2e_cases.yaml; this script is only the
 # driver: it seeds fixtures, then for each case compiles the case's DSL policy,
 # runs the real eBPF enforcer, fires the trigger, and checks the expected
@@ -153,7 +153,7 @@ run_case() {
   fi
 }
 
-echo "== ActPlane E1–E12 live enforcement ($N cases from $(basename "$CASES")) =="
+echo "== ActPlane live enforcement ($N cases from $(basename "$CASES")) =="
 for d in "$CDIR"/*/; do run_case "${d%/}"; done
 
 echo "== result: $pass passed, $fail failed =="
