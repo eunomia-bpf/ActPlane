@@ -6,7 +6,8 @@
 //! match kinds.
 
 use super::ast::*;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
+use std::net::{Ipv4Addr, SocketAddr, ToSocketAddrs};
 
 // must match bpf/taint.h
 const PAT: usize = 64;
@@ -289,15 +290,88 @@ mod tests {
         assert!(ops.contains(&OP_CONNECT), "missing connect update: {ops:?}");
         assert!(ops.contains(&OP_RECV), "missing recv update: {ops:?}");
     }
+
+    #[test]
+    fn hostname_endpoint_sources_resolve_to_ipv4_updates() {
+        let pol = crate::dsl::parse::parse(r#"source NET = endpoint "localhost""#)
+            .expect("parse endpoint source");
+        let compiled = compile(&pol).expect("compile endpoint source");
+        assert_eq!(
+            compiled.endpoint_resolutions.get("localhost"),
+            Some(&vec!["127.0.0.1".to_string()])
+        );
+
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let (localhost, mask) = lower_ipv4("127.0.0.1");
+        assert_eq!(cfg.n_updates, 2);
+        for update in &cfg.updates[..cfg.n_updates as usize] {
+            assert_eq!(update.ipv4, localhost);
+            assert_eq!(update.ipv4_mask, mask);
+        }
+    }
+
+    #[test]
+    fn hostname_endpoint_rule_resolves_to_ipv4_matcher() {
+        let pol = crate::dsl::parse::parse(
+            r#"
+            rule local:
+              notify connect endpoint "localhost" if true
+              because "local host"
+            "#,
+        )
+        .expect("parse endpoint rule");
+        let compiled = compile(&pol).expect("compile endpoint rule");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let (localhost, mask) = lower_ipv4("127.0.0.1");
+        assert_eq!(cfg.n_rules, 1);
+        assert_eq!(cfg.rules[0].ipv4, localhost);
+        assert_eq!(cfg.rules[0].ipv4_mask, mask);
+    }
+
+    #[test]
+    fn wildcard_hostnames_are_not_resolved_as_exact_hosts() {
+        assert_eq!(hostname_candidate("*.internal"), None);
+        assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
+    }
+}
+
+fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
+    let octets = addr.octets();
+    (octets[0] as u32)
+        | ((octets[1] as u32) << 8)
+        | ((octets[2] as u32) << 16)
+        | ((octets[3] as u32) << 24)
+}
+
+fn kernel_ipv4_to_string(ip: u32) -> String {
+    format!(
+        "{}.{}.{}.{}",
+        ip & 0xff,
+        (ip >> 8) & 0xff,
+        (ip >> 16) & 0xff,
+        (ip >> 24) & 0xff
+    )
+}
+
+fn looks_like_ipv4_prefix(pat: &str) -> bool {
+    if pat == "*" {
+        return true;
+    }
+    let body = pat.trim_end_matches('.');
+    !body.is_empty()
+        && body
+            .split('.')
+            .all(|tok| !tok.is_empty() && tok.bytes().all(|b| b.is_ascii_digit()))
 }
 
 /// Lower an IPv4 prefix/host pattern to (net, mask) in the same byte order as
 /// the kernel's `sin_addr.s_addr` (octet k at bit 8*k). "*" -> match-any (0,0).
-/// "10.0.0." -> /24, "10.0.0.5" -> /32. Non-IP hostnames -> (0, !0) = match-none
-/// (hostname rules need userspace DNS; not matched numerically).
-fn lower_ipv4(pat: &str) -> (u32, u32) {
+/// "10.0.0." -> /24, "10.0.0.5" -> /32.
+fn lower_numeric_ipv4(pat: &str) -> Option<(u32, u32)> {
     if pat == "*" {
-        return (0, 0);
+        return Some((0, 0));
     }
     let body = pat.strip_suffix('.').unwrap_or(pat);
     let mut net: u32 = 0;
@@ -313,10 +387,49 @@ fn lower_ipv4(pat: &str) -> (u32, u32) {
                 mask |= 0xffu32 << (8 * k);
                 k += 1;
             }
-            Err(_) => return (0, u32::MAX), // not an IP -> matches nothing in-kernel
+            Err(_) => return None,
         }
     }
-    (net, mask)
+    if k == 0 { None } else { Some((net, mask)) }
+}
+
+#[cfg(test)]
+fn lower_ipv4(pat: &str) -> (u32, u32) {
+    lower_numeric_ipv4(pat).unwrap_or((0, u32::MAX))
+}
+
+fn hostname_candidate(pat: &str) -> Option<&str> {
+    if pat == "*" || pat.contains('*') || pat.contains(':') || looks_like_ipv4_prefix(pat) {
+        return None;
+    }
+    let host = pat.trim_end_matches('.');
+    if host.is_empty() || host.contains('/') {
+        return None;
+    }
+    if host
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
+    {
+        Some(host)
+    } else {
+        None
+    }
+}
+
+fn resolve_hostname_ipv4s(host: &str) -> Vec<u32> {
+    if host.eq_ignore_ascii_case("localhost") {
+        return vec![ipv4_to_kernel(Ipv4Addr::new(127, 0, 0, 1))];
+    }
+    let Ok(addrs) = (host, 0).to_socket_addrs() else {
+        return Vec::new();
+    };
+    let mut out = BTreeSet::new();
+    for addr in addrs {
+        if let SocketAddr::V4(v4) = addr {
+            out.insert(ipv4_to_kernel(*v4.ip()));
+        }
+    }
+    out.into_iter().collect()
 }
 
 struct Ctx {
@@ -327,8 +440,49 @@ struct Ctx {
     next_gate: u32,
     inval_slots: HashMap<(u8, u8, String, String), u32>,
     next_inval: u32,
+    endpoint_cache: HashMap<String, Vec<(u32, u32)>>,
+    endpoint_resolutions: HashMap<String, Vec<String>>,
 }
 impl Ctx {
+    fn endpoint_matches(&mut self, pat: &str) -> Vec<(u32, u32)> {
+        if let Some(matches) = self.endpoint_cache.get(pat) {
+            return matches.clone();
+        }
+        let matches = if let Some(numeric) = lower_numeric_ipv4(pat) {
+            vec![numeric]
+        } else if let Some(host) = hostname_candidate(pat) {
+            let addrs = resolve_hostname_ipv4s(host);
+            self.endpoint_resolutions.insert(
+                pat.to_string(),
+                addrs
+                    .iter()
+                    .map(|addr| kernel_ipv4_to_string(*addr))
+                    .collect(),
+            );
+            if addrs.is_empty() {
+                vec![(0, u32::MAX)]
+            } else {
+                addrs.into_iter().map(|addr| (addr, u32::MAX)).collect()
+            }
+        } else {
+            vec![(0, u32::MAX)]
+        };
+        self.endpoint_cache.insert(pat.to_string(), matches.clone());
+        matches
+    }
+
+    fn endpoint_condition_match(&mut self, pat: &str, negate: bool) -> (u32, u32) {
+        let matches = self.endpoint_matches(pat);
+        if matches.len() == 1 {
+            return matches[0];
+        }
+        // `unless target PAT` should fail closed when a hostname expands to
+        // several A records but the current ABI can store only one condition
+        // address. For `target not PAT`, use match-any before negation so the
+        // condition is false for every endpoint, and the rule still applies.
+        if negate { (0, 0) } else { (0, u32::MAX) }
+    }
+
     fn add_update(&mut self, spec: UpdateSpec<'_>) -> Result<(), String> {
         for u in &mut self.updates {
             if u.op == spec.op
@@ -631,6 +785,10 @@ pub struct Compiled {
     pub reasons: Vec<String>, // indexed by lowered rule_id
     pub meta: Vec<RuleMeta>,  // indexed by lowered rule_id
     pub labels: HashMap<String, u64>,
+    /// Exact hostname endpoint patterns that were resolved at compile time.
+    /// Non-empty values are the IPv4 A records expanded into kernel matchers;
+    /// an empty value means resolution was attempted but yielded no IPv4.
+    pub endpoint_resolutions: HashMap<String, Vec<String>>,
 }
 
 fn collect_label_names(pol: &Policy) -> Vec<String> {
@@ -699,6 +857,8 @@ pub fn compile_with_labels(
         next_gate: 0,
         inval_slots: HashMap::new(),
         next_inval: 0,
+        endpoint_cache: HashMap::new(),
+        endpoint_resolutions: HashMap::new(),
     };
     for name in &sorted_labels {
         ctx.label_bit(name)?;
@@ -719,21 +879,23 @@ pub fn compile_with_labels(
                 (OP_OPEN, m, lit, 0, 0)
             }
             Kind::Endpoint => {
-                let (n, mk) = lower_ipv4(&s.pattern);
-                for op in [OP_CONNECT, OP_RECV] {
-                    ctx.add_update(UpdateSpec {
-                        op,
-                        m: M_ANY,
-                        target: "",
-                        arg: "",
-                        add: bit,
-                        del: 0,
-                        gates: 0,
-                        invals: 0,
-                        ipv4: n,
-                        ipv4_mask: mk,
-                        gate_exit_code: GATE_IMMEDIATE,
-                    })?;
+                let endpoints = ctx.endpoint_matches(&s.pattern);
+                for (n, mk) in endpoints {
+                    for op in [OP_CONNECT, OP_RECV] {
+                        ctx.add_update(UpdateSpec {
+                            op,
+                            m: M_ANY,
+                            target: "",
+                            arg: "",
+                            add: bit,
+                            del: 0,
+                            gates: 0,
+                            invals: 0,
+                            ipv4: n,
+                            ipv4_mask: mk,
+                            gate_exit_code: GATE_IMMEDIATE,
+                        })?;
+                    }
                 }
                 continue;
             }
@@ -773,100 +935,104 @@ pub fn compile_with_labels(
         for cl in &rule.clauses {
             for op in op_lowers(cl.op)? {
                 let op = *op;
-                let (tm, tlit) = lower_target(op, cl.target.kind, &cl.target.pattern);
-                // endpoint ops: numeric IPv4 target
-                let (ipv4, ipv4_mask) = if op == OP_CONNECT || op == OP_RECV {
-                    lower_ipv4(&cl.target.pattern)
+                let target_matches = if op == OP_CONNECT || op == OP_RECV {
+                    ctx.endpoint_matches(&cl.target.pattern)
+                        .into_iter()
+                        .map(|(ipv4, ipv4_mask)| (M_ANY, String::new(), ipv4, ipv4_mask))
+                        .collect::<Vec<_>>()
                 } else {
-                    (0, 0)
+                    let (tm, tlit) = lower_target(op, cl.target.kind, &cl.target.pattern);
+                    vec![(tm, tlit, 0, 0)]
                 };
-                // condition
-                let (mut ck, mut cneg, mut cm, mut clit, mut gate) =
-                    (C_NONE, 0u8, M_EXACT, String::new(), 0u64);
-                let (mut cipv4, mut cipv4_mask) = (0u32, 0u32);
-                let mut gate_idx = 0u32;
-                let mut since_mask = 0u64;
-                match &cl.unless {
-                    None => {}
-                    Some(Cond::Target { negate, pattern }) => {
-                        ck = C_TARGET;
-                        cneg = *negate as u8;
-                        if op == OP_CONNECT || op == OP_RECV {
-                            let (n, mk) = lower_ipv4(pattern);
-                            cipv4 = n;
-                            cipv4_mask = mk;
-                        } else {
-                            let (m, l) = lower_target(op, cl.target.kind, pattern);
-                            cm = m;
-                            clit = l;
+                for (tm, tlit, ipv4, ipv4_mask) in target_matches {
+                    // condition
+                    let (mut ck, mut cneg, mut cm, mut clit, mut gate) =
+                        (C_NONE, 0u8, M_EXACT, String::new(), 0u64);
+                    let (mut cipv4, mut cipv4_mask) = (0u32, 0u32);
+                    let mut gate_idx = 0u32;
+                    let mut since_mask = 0u64;
+                    match &cl.unless {
+                        None => {}
+                        Some(Cond::Target { negate, pattern }) => {
+                            ck = C_TARGET;
+                            cneg = *negate as u8;
+                            if op == OP_CONNECT || op == OP_RECV {
+                                let (n, mk) = ctx.endpoint_condition_match(pattern, *negate);
+                                cipv4 = n;
+                                cipv4_mask = mk;
+                            } else {
+                                let (m, l) = lower_target(op, cl.target.kind, pattern);
+                                cm = m;
+                                clit = l;
+                            }
+                        }
+                        Some(Cond::LineageIncludes { exec }) => {
+                            ck = C_LINEAGE;
+                            let (b, _idx) = ctx.gate_bit(Op::Exec, exec, None)?;
+                            gate = b;
+                        }
+                        Some(Cond::After {
+                            gate_op,
+                            gate_pattern,
+                            gate_exit,
+                            since,
+                        }) => {
+                            ck = C_AFTER;
+                            let (b, idx) = ctx.gate_bit(*gate_op, gate_pattern, *gate_exit)?;
+                            gate = b;
+                            gate_idx = idx;
+                            for (op, pat, arg) in since {
+                                let iop = inval_op(*op)?;
+                                since_mask |=
+                                    ctx.inval_slot(iop, cl.target.kind, pat, arg.as_deref())?;
+                            }
                         }
                     }
-                    Some(Cond::LineageIncludes { exec }) => {
-                        ck = C_LINEAGE;
-                        let (b, _idx) = ctx.gate_bit(Op::Exec, exec, None)?;
-                        gate = b;
-                    }
-                    Some(Cond::After {
-                        gate_op,
-                        gate_pattern,
-                        gate_exit,
-                        since,
-                    }) => {
-                        ck = C_AFTER;
-                        let (b, idx) = ctx.gate_bit(*gate_op, gate_pattern, *gate_exit)?;
-                        gate = b;
-                        gate_idx = idx;
-                        for (op, pat, arg) in since {
-                            let iop = inval_op(*op)?;
-                            since_mask |=
-                                ctx.inval_slot(iop, cl.target.kind, pat, arg.as_deref())?;
+                    for (req, forbid) in dnf(&cl.when, &mut ctx)? {
+                        let rule_id = meta.len() as u32;
+                        reasons.push(rule.reason.clone());
+                        meta.push(RuleMeta {
+                            name: rule.name.clone(),
+                            reason: rule.reason.clone(),
+                            effect: cl.effect,
+                            ops: vec![op_name(cl.op).to_string()],
+                            clause_op: op_name(cl.op).to_string(),
+                            kernel_op: kernel_op_name(op).to_string(),
+                            target_kind: cl.target.kind,
+                            target_pattern: cl.target.pattern.clone(),
+                            target_arg: cl.target.arg.clone(),
+                            clause_source_index: cl.source_index,
+                            source: None,
+                        });
+                        let mut cr = CRule {
+                            op,
+                            m: tm,
+                            cond_kind: ck,
+                            cond_neg: cneg,
+                            cond_match: cm,
+                            effect: lower_effect(cl.effect),
+                            target: [0; PAT],
+                            arg: [0; ARG],
+                            cond_pat: [0; PAT],
+                            req,
+                            forbid,
+                            gate,
+                            rule_id,
+                            ipv4,
+                            ipv4_mask,
+                            cond_ipv4: cipv4,
+                            cond_ipv4_mask: cipv4_mask,
+                            gate_idx,
+                            domain_id: 0,
+                            since_mask,
+                        };
+                        set_pat(&mut cr.target, &tlit);
+                        if let Some(a) = &cl.target.arg {
+                            set_pat(&mut cr.arg, a);
                         }
+                        set_pat(&mut cr.cond_pat, &clit);
+                        rules.push(cr);
                     }
-                }
-                for (req, forbid) in dnf(&cl.when, &mut ctx)? {
-                    let rule_id = meta.len() as u32;
-                    reasons.push(rule.reason.clone());
-                    meta.push(RuleMeta {
-                        name: rule.name.clone(),
-                        reason: rule.reason.clone(),
-                        effect: cl.effect,
-                        ops: vec![op_name(cl.op).to_string()],
-                        clause_op: op_name(cl.op).to_string(),
-                        kernel_op: kernel_op_name(op).to_string(),
-                        target_kind: cl.target.kind,
-                        target_pattern: cl.target.pattern.clone(),
-                        target_arg: cl.target.arg.clone(),
-                        clause_source_index: cl.source_index,
-                        source: None,
-                    });
-                    let mut cr = CRule {
-                        op,
-                        m: tm,
-                        cond_kind: ck,
-                        cond_neg: cneg,
-                        cond_match: cm,
-                        effect: lower_effect(cl.effect),
-                        target: [0; PAT],
-                        arg: [0; ARG],
-                        cond_pat: [0; PAT],
-                        req,
-                        forbid,
-                        gate,
-                        rule_id,
-                        ipv4,
-                        ipv4_mask,
-                        cond_ipv4: cipv4,
-                        cond_ipv4_mask: cipv4_mask,
-                        gate_idx,
-                        domain_id: 0,
-                        since_mask,
-                    };
-                    set_pat(&mut cr.target, &tlit);
-                    if let Some(a) = &cl.target.arg {
-                        set_pat(&mut cr.arg, a);
-                    }
-                    set_pat(&mut cr.cond_pat, &clit);
-                    rules.push(cr);
                 }
             }
         }
@@ -903,6 +1069,7 @@ pub fn compile_with_labels(
         reasons,
         meta,
         labels: ctx.labels,
+        endpoint_resolutions: ctx.endpoint_resolutions,
     })
 }
 

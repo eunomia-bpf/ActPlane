@@ -89,14 +89,15 @@ fn compile_default_prints_domain_summary() {
 #[test]
 fn compile_json_reports_backend_support_and_static_warnings() {
     let policy = r#"
-source NET = endpoint "source.example.com"
+source NET = endpoint "localhost"
+source WILD = endpoint "*.internal"
 
 rule recv-soft:
   notify recv endpoint "*" if true
   because "recv notify"
 
 rule host-connect:
-  notify connect endpoint "api.example.com" if true
+  notify connect endpoint "localhost" if true
   because "hostname connect"
 "#;
     let output = run(&["--rule", policy, "compile", "--json"]);
@@ -109,7 +110,22 @@ rule host-connect:
     assert_eq!(value["matrix_scope"], "static_policy_host_support");
     assert_eq!(value["rule_count"], 2);
     assert_eq!(value["backend_support"]["sources"][0]["label"], "NET");
-    assert_eq!(value["backend_support"]["sources"][0]["supported"], false);
+    assert_eq!(value["backend_support"]["sources"][0]["supported"], true);
+    assert!(
+        value["backend_support"]["sources"][0]["reason"]
+            .as_str()
+            .unwrap_or("")
+            .contains("hostname resolved")
+    );
+    assert_eq!(value["backend_support"]["sources"][1]["label"], "WILD");
+    assert_eq!(value["backend_support"]["sources"][1]["supported"], false);
+    assert!(
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "endpoint_source_unsupported")
+    );
 }
 
 #[test]

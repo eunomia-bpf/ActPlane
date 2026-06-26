@@ -119,10 +119,10 @@ pub(crate) fn check_policy(
         println!("  {}. {} — {} {} ({})", i + 1, m.name, eff, ops, m.reason);
     }
     println!("\nbackend support:");
-    for line in backend_support_lines(&parsed, lsm_bpf) {
+    for line in backend_support_lines(&parsed, &compiled, lsm_bpf) {
         println!("  - {}", line);
     }
-    let warns = backend_support_warnings(&parsed, lsm_bpf);
+    let warns = backend_support_warnings(&parsed, &compiled, lsm_bpf);
     if warns.is_empty() {
         println!("\n✓ no warnings.");
     } else {
@@ -338,6 +338,7 @@ fn render_rollout_plan(
         writeln!(&mut out, "     reason: {}", rule.reason).unwrap();
         for clause in &rule.clauses {
             let current = clause_support_detail(
+                compiled,
                 clause.effect,
                 clause.op,
                 clause.target.kind,
@@ -346,6 +347,7 @@ fn render_rollout_plan(
                 lsm_bpf,
             );
             let block = clause_support_detail(
+                compiled,
                 Effect::Block,
                 clause.op,
                 clause.target.kind,
@@ -368,7 +370,7 @@ fn render_rollout_plan(
                 enforcement_timing(clause.effect, &current)
             )
             .unwrap();
-            for warning in clause_condition_warnings(clause) {
+            for warning in clause_condition_warnings(clause, compiled) {
                 writeln!(&mut out, "       condition warning: {}", warning.message).unwrap();
             }
             let observation = evidence
@@ -387,7 +389,7 @@ fn render_rollout_plan(
         }
     }
 
-    let warns = backend_support_warnings(parsed, lsm_bpf);
+    let warns = backend_support_warnings(parsed, compiled, lsm_bpf);
     if !warns.is_empty() {
         writeln!(&mut out, "\nstatic warnings to resolve before promotion:").unwrap();
         for warning in warns {
@@ -1282,7 +1284,7 @@ fn render_check_json(
     lsm_bpf: bool,
     force_tracepoint: bool,
 ) -> Result<String> {
-    let warnings = backend_support_warnings(parsed, lsm_bpf)
+    let warnings = backend_support_warnings(parsed, compiled, lsm_bpf)
         .into_iter()
         .map(|w| {
             json!({
@@ -1312,8 +1314,8 @@ fn render_check_json(
         "rule_count": compiled.meta.len(),
         "rules": rule_meta_json(compiled),
         "backend_support": {
-            "sources": source_support_json(parsed),
-            "clauses": clause_support_json(parsed, lsm_bpf),
+            "sources": source_support_json(parsed, compiled),
+            "clauses": clause_support_json(parsed, compiled, lsm_bpf),
         },
         "warnings": warnings,
     });
@@ -1403,7 +1405,7 @@ fn render_check_explain(
     } else {
         for source in &parsed.sources {
             let (supported, reason, limitations) =
-                source_support_detail(source.kind, &source.pattern);
+                source_support_detail(compiled, source.kind, &source.pattern);
             writeln!(&mut out, "  - {}", source_summary(source)).unwrap();
             writeln!(&mut out, "    flow: {}", source_flow_summary(source.kind)).unwrap();
             writeln!(
@@ -1468,6 +1470,7 @@ fn render_check_explain(
         writeln!(&mut out, "     reason: {}", rule.reason).unwrap();
         for clause in &rule.clauses {
             let support = clause_support_detail(
+                compiled,
                 clause.effect,
                 clause.op,
                 clause.target.kind,
@@ -1509,7 +1512,7 @@ fn render_check_explain(
                 )
                 .unwrap();
             }
-            for warning in clause_condition_warnings(clause) {
+            for warning in clause_condition_warnings(clause, compiled) {
                 writeln!(&mut out, "       condition warning: {}", warning.message).unwrap();
             }
             writeln!(&mut out, "       lowered: {}", lowered).unwrap();
@@ -1538,7 +1541,7 @@ fn render_check_explain(
     )
     .unwrap();
 
-    let warns = backend_support_warnings(parsed, lsm_bpf);
+    let warns = backend_support_warnings(parsed, compiled, lsm_bpf);
     if warns.is_empty() {
         writeln!(&mut out, "\nwarnings: none").unwrap();
     } else {
@@ -1608,13 +1611,13 @@ fn rule_meta_json(compiled: &dsl::Compiled) -> Vec<Value> {
         .collect()
 }
 
-fn source_support_json(policy: &Policy) -> Vec<Value> {
+fn source_support_json(policy: &Policy, compiled: &dsl::Compiled) -> Vec<Value> {
     policy
         .sources
         .iter()
         .map(|source| {
             let (supported, reason, limitations) =
-                source_support_detail(source.kind, &source.pattern);
+                source_support_detail(compiled, source.kind, &source.pattern);
             json!({
                 "label": source.label,
                 "kind": kind_name(source.kind),
@@ -1627,11 +1630,12 @@ fn source_support_json(policy: &Policy) -> Vec<Value> {
         .collect()
 }
 
-fn clause_support_json(policy: &Policy, lsm_bpf: bool) -> Vec<Value> {
+fn clause_support_json(policy: &Policy, compiled: &dsl::Compiled, lsm_bpf: bool) -> Vec<Value> {
     let mut out = Vec::new();
     for rule in &policy.rules {
         for (clause_index, clause) in rule.clauses.iter().enumerate() {
             let support = clause_support_detail(
+                compiled,
                 clause.effect,
                 clause.op,
                 clause.target.kind,
@@ -1639,7 +1643,7 @@ fn clause_support_json(policy: &Policy, lsm_bpf: bool) -> Vec<Value> {
                 clause.target.arg.as_deref(),
                 lsm_bpf,
             );
-            let condition_warnings = clause_condition_warnings(clause)
+            let condition_warnings = clause_condition_warnings(clause, compiled)
                 .into_iter()
                 .map(|w| {
                     json!({
@@ -1669,28 +1673,23 @@ fn clause_support_json(policy: &Policy, lsm_bpf: bool) -> Vec<Value> {
     out
 }
 
-fn source_support_detail(kind: Kind, pattern: &str) -> (bool, &'static str, Vec<&'static str>) {
+fn source_support_detail(
+    compiled: &dsl::Compiled,
+    kind: Kind,
+    pattern: &str,
+) -> (bool, String, Vec<&'static str>) {
     match kind {
         Kind::Exec => (
             true,
-            "exec source labels are applied on process exec",
+            "exec source labels are applied on process exec".into(),
             vec![],
         ),
         Kind::File => (
             true,
-            "file source labels are applied through file open/read flow",
+            "file source labels are applied through file open/read flow".into(),
             vec!["open-time file source handling is conservative"],
         ),
-        Kind::Endpoint if endpoint_pattern_is_numeric_ipv4(pattern) => (
-            true,
-            "endpoint source labels match numeric IPv4 connect and recv paths",
-            vec!["IPv6 and hostname patterns are not enforced in-kernel"],
-        ),
-        Kind::Endpoint => (
-            false,
-            "endpoint source pattern is not numeric IPv4",
-            vec!["IPv6 and hostname patterns are not enforced in-kernel"],
-        ),
+        Kind::Endpoint => endpoint_support_detail(compiled, pattern, "source"),
     }
 }
 
@@ -1716,6 +1715,7 @@ struct ClauseConditionWarning {
 }
 
 fn clause_support_detail(
+    compiled: &dsl::Compiled,
     effect: Effect,
     op: Op,
     kind: Kind,
@@ -1725,15 +1725,16 @@ fn clause_support_detail(
 ) -> SupportDetail {
     if matches!(op, Op::Connect | Op::Recv)
         && kind == Kind::Endpoint
-        && !endpoint_pattern_is_numeric_ipv4(pattern)
+        && !endpoint_pattern_supported(compiled, pattern)
     {
+        let (_, reason, limitations) = endpoint_support_detail(compiled, pattern, "target");
         return SupportDetail {
             supported: false,
             status: "unsupported",
             mode: "none",
             pre_op: false,
-            reason: "endpoint target pattern is not numeric IPv4".into(),
-            limitations: vec!["IPv6 and hostname patterns are not enforced in-kernel"],
+            reason,
+            limitations,
         };
     }
 
@@ -1766,11 +1767,11 @@ fn clause_support_detail(
                     }
                     Op::Connect => (
                         "pre-op block via BPF-LSM socket_connect",
-                        vec!["numeric IPv4 only"],
+                        endpoint_limitations(compiled, pattern),
                     ),
                     Op::Recv => (
                         "pre-op block via BPF-LSM socket_recvmsg",
-                        vec!["connected numeric IPv4 only"],
+                        endpoint_limitations(compiled, pattern),
                     ),
                 };
                 SupportDetail {
@@ -1787,11 +1788,14 @@ fn clause_support_detail(
             let (reason, limitations) = match op {
                 Op::Recv => (
                     "tracepoint report after recv",
-                    vec!["numeric IPv4 only", "post-receive in tracepoint mode"],
+                    endpoint_limitations_with(compiled, pattern, "post-receive in tracepoint mode"),
                 ),
                 Op::Exec => ("post-exec tracepoint report", vec![]),
                 Op::Read | Op::Open | Op::Write | Op::Unlink => ("tracepoint report", vec![]),
-                Op::Connect => ("connect tracepoint report", vec!["numeric IPv4 only"]),
+                Op::Connect => (
+                    "connect tracepoint report",
+                    endpoint_limitations(compiled, pattern),
+                ),
             };
             SupportDetail {
                 supported: true,
@@ -1806,11 +1810,14 @@ fn clause_support_detail(
             let (reason, limitations) = match op {
                 Op::Recv => (
                     "tracepoint kill after recv",
-                    vec!["numeric IPv4 only", "post-receive in tracepoint mode"],
+                    endpoint_limitations_with(compiled, pattern, "post-receive in tracepoint mode"),
                 ),
                 Op::Exec => ("post-exec tracepoint kill", vec![]),
                 Op::Read | Op::Open | Op::Write | Op::Unlink => ("tracepoint kill", vec![]),
-                Op::Connect => ("connect tracepoint kill", vec!["numeric IPv4 only"]),
+                Op::Connect => (
+                    "connect tracepoint kill",
+                    endpoint_limitations(compiled, pattern),
+                ),
             };
             SupportDetail {
                 supported: true,
@@ -1832,7 +1839,85 @@ fn kind_name(kind: Kind) -> &'static str {
     }
 }
 
-fn backend_support_lines(policy: &Policy, lsm_bpf: bool) -> Vec<String> {
+fn endpoint_pattern_supported(compiled: &dsl::Compiled, pattern: &str) -> bool {
+    endpoint_pattern_is_numeric_ipv4(pattern)
+        || compiled
+            .endpoint_resolutions
+            .get(pattern)
+            .is_some_and(|addrs| !addrs.is_empty())
+}
+
+fn endpoint_support_detail(
+    compiled: &dsl::Compiled,
+    pattern: &str,
+    role: &str,
+) -> (bool, String, Vec<&'static str>) {
+    if endpoint_pattern_is_numeric_ipv4(pattern) {
+        return (
+            true,
+            format!("endpoint {role} matches numeric IPv4 connect and recv paths"),
+            vec!["IPv6 is not enforced in-kernel"],
+        );
+    }
+    match compiled.endpoint_resolutions.get(pattern) {
+        Some(addrs) if !addrs.is_empty() => (
+            true,
+            format!(
+                "endpoint {role} hostname resolved to IPv4 address(es): {}",
+                addrs.join(", ")
+            ),
+            vec![
+                "hostname is resolved at policy compile/load time",
+                "DNS changes require policy reload",
+                "IPv6 addresses are ignored",
+            ],
+        ),
+        Some(_) => (
+            false,
+            format!("endpoint {role} hostname did not resolve to an IPv4 address"),
+            vec![
+                "hostname is resolved at policy compile/load time",
+                "DNS changes require policy reload",
+                "IPv6 addresses are ignored",
+            ],
+        ),
+        None => (
+            false,
+            format!("endpoint {role} pattern is not numeric IPv4 or an exact resolvable hostname"),
+            vec!["wildcard hostnames and IPv6 are not enforced in-kernel"],
+        ),
+    }
+}
+
+fn endpoint_limitations(compiled: &dsl::Compiled, pattern: &str) -> Vec<&'static str> {
+    if endpoint_pattern_is_numeric_ipv4(pattern) {
+        vec!["IPv4 only"]
+    } else if compiled
+        .endpoint_resolutions
+        .get(pattern)
+        .is_some_and(|addrs| !addrs.is_empty())
+    {
+        vec![
+            "hostname resolved at policy compile/load time",
+            "DNS changes require policy reload",
+            "IPv4 only",
+        ]
+    } else {
+        vec!["IPv4 only"]
+    }
+}
+
+fn endpoint_limitations_with(
+    compiled: &dsl::Compiled,
+    pattern: &str,
+    extra: &'static str,
+) -> Vec<&'static str> {
+    let mut limitations = endpoint_limitations(compiled, pattern);
+    limitations.push(extra);
+    limitations
+}
+
+fn backend_support_lines(policy: &Policy, compiled: &dsl::Compiled, lsm_bpf: bool) -> Vec<String> {
     let mut lines = Vec::new();
     for rule in &policy.rules {
         for clause in &rule.clauses {
@@ -1847,6 +1932,7 @@ fn backend_support_lines(policy: &Policy, lsm_bpf: bool) -> Vec<String> {
                     clause.target.kind,
                     &clause.target.pattern,
                     clause.target.arg.as_deref(),
+                    compiled,
                     lsm_bpf
                 )
             ));
@@ -1855,40 +1941,63 @@ fn backend_support_lines(policy: &Policy, lsm_bpf: bool) -> Vec<String> {
     lines
 }
 
-fn clause_condition_warnings(clause: &Clause) -> Vec<ClauseConditionWarning> {
+fn clause_condition_warnings(
+    clause: &Clause,
+    compiled: &dsl::Compiled,
+) -> Vec<ClauseConditionWarning> {
     let mut warnings = Vec::new();
     if matches!(clause.op, Op::Connect | Op::Recv)
         && clause.target.kind == Kind::Endpoint
         && let Some(Cond::Target { negate, pattern }) = &clause.unless
-        && !endpoint_pattern_is_numeric_ipv4(pattern)
     {
-        let consequence = if *negate {
-            "a `target not` condition is evaluated after the non-numeric pattern matches nothing, which may suppress the rule more broadly than intended"
-        } else {
-            "the exception condition matches nothing; the rule will not exempt that endpoint"
-        };
-        warnings.push(ClauseConditionWarning {
-            code: "endpoint_target_condition_non_numeric_ipv4",
-            message: format!(
-                "unless target{} \"{}\" uses a hostname or IPv6 pattern; endpoint target conditions currently match numeric IPv4 only, and {}.",
-                if *negate { " not" } else { "" },
-                pattern,
-                consequence
-            ),
-        });
+        if endpoint_pattern_is_numeric_ipv4(pattern) {
+            return warnings;
+        }
+        match compiled.endpoint_resolutions.get(pattern) {
+            Some(addrs) if addrs.len() == 1 => {}
+            Some(addrs) if addrs.len() > 1 => warnings.push(ClauseConditionWarning {
+                code: "endpoint_target_condition_multi_ipv4_hostname",
+                message: format!(
+                    "unless target{} \"{}\" resolves to multiple IPv4 addresses, but endpoint target conditions can store one address in the current ABI; the condition fails closed.",
+                    if *negate { " not" } else { "" },
+                    pattern
+                ),
+            }),
+            Some(_) => warnings.push(ClauseConditionWarning {
+                code: "endpoint_target_condition_unresolved_hostname",
+                message: format!(
+                    "unless target{} \"{}\" did not resolve to an IPv4 address at compile/load time; the condition fails closed.",
+                    if *negate { " not" } else { "" },
+                    pattern
+                ),
+            }),
+            None => warnings.push(ClauseConditionWarning {
+                code: "endpoint_target_condition_unsupported_pattern",
+                message: format!(
+                    "unless target{} \"{}\" uses a wildcard hostname or IPv6 pattern; endpoint target conditions support numeric IPv4 or a single resolved IPv4 hostname.",
+                    if *negate { " not" } else { "" },
+                    pattern
+                ),
+            }),
+        }
     }
     warnings
 }
 
-fn backend_support_warnings(policy: &Policy, lsm_bpf: bool) -> Vec<BackendWarning> {
+fn backend_support_warnings(
+    policy: &Policy,
+    compiled: &dsl::Compiled,
+    lsm_bpf: bool,
+) -> Vec<BackendWarning> {
     let mut warnings = Vec::new();
     for source in &policy.sources {
-        if source.kind == Kind::Endpoint && !endpoint_pattern_is_numeric_ipv4(&source.pattern) {
+        if source.kind == Kind::Endpoint && !endpoint_pattern_supported(compiled, &source.pattern) {
+            let (_, reason, _) = endpoint_support_detail(compiled, &source.pattern, "source");
             warnings.push(BackendWarning {
-                code: "endpoint_source_non_numeric_ipv4",
+                code: "endpoint_source_unsupported",
                 message: format!(
-                    "source {} = endpoint \"{}\" uses a hostname or IPv6 pattern; endpoint sources currently match numeric IPv4 only.",
-                    source.label, source.pattern
+                    "source {} = endpoint \"{}\" is unsupported: {}.",
+                    source.label, source.pattern, reason
                 ),
             });
         }
@@ -1897,26 +2006,27 @@ fn backend_support_warnings(policy: &Policy, lsm_bpf: bool) -> Vec<BackendWarnin
         for clause in &rule.clauses {
             if matches!(clause.op, Op::Connect | Op::Recv)
                 && clause.target.kind == Kind::Endpoint
-                && !endpoint_pattern_is_numeric_ipv4(&clause.target.pattern)
+                && !endpoint_pattern_supported(compiled, &clause.target.pattern)
             {
+                let (_, reason, _) =
+                    endpoint_support_detail(compiled, &clause.target.pattern, "target");
                 warnings.push(BackendWarning {
-                    code: "endpoint_target_non_numeric_ipv4",
+                    code: "endpoint_target_unsupported",
                     message: format!(
-                        "{} {} endpoint \"{}\" uses a hostname or IPv6 pattern; the kernel matches numeric IPv4 only, so this rule will not fire.",
+                        "{} {} endpoint \"{}\" is unsupported: {}; this rule will not fire for that endpoint.",
                         effect_name(clause.effect),
                         op_name(clause.op),
-                        clause.target.pattern
+                        clause.target.pattern,
+                        reason
                     ),
                 });
             }
-            warnings.extend(
-                clause_condition_warnings(clause)
-                    .into_iter()
-                    .map(|warning| BackendWarning {
-                        code: warning.code,
-                        message: format!("{}: {}", rule.name, warning.message),
-                    }),
-            );
+            warnings.extend(clause_condition_warnings(clause, compiled).into_iter().map(
+                |warning| BackendWarning {
+                    code: warning.code,
+                    message: format!("{}: {}", rule.name, warning.message),
+                },
+            ));
             if clause.effect == Effect::Block
                 && clause.op == Op::Exec
                 && clause.target.arg.is_some()
@@ -1950,9 +2060,10 @@ fn clause_support(
     kind: Kind,
     pattern: &str,
     arg: Option<&str>,
+    compiled: &dsl::Compiled,
     lsm_bpf: bool,
 ) -> String {
-    let detail = clause_support_detail(effect, op, kind, pattern, arg, lsm_bpf);
+    let detail = clause_support_detail(compiled, effect, op, kind, pattern, arg, lsm_bpf);
     if detail.limitations.is_empty() {
         detail.reason
     } else {
