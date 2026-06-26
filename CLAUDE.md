@@ -36,6 +36,13 @@ injects an `[ActPlane]` message, treat it as authoritative kernel feedback. Read
 `.actplane/last-violation.txt` if you need the full reason, then follow the
 suggested path instead of retrying the same operation unchanged.
 
+## OSS Change Workflow
+
+When changing code, tests, docs, or examples in this OSS repository, use the
+`oss-change-workflow` skill before editing unless a more specific workflow skill
+applies. Follow its scope-control, validation, docs/test synchronization, and
+PR/CI handoff guidance.
+
 ## Build & Test Commands
 
 ```bash
