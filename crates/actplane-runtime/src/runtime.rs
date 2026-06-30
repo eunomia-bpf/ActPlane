@@ -10,7 +10,7 @@ use ebpf_ifc_engine::capability::{
     AUTH_REQUIRE_GATE, CapState, TARGET_CHILD, TARGET_SELF,
 };
 use ebpf_ifc_engine::{
-    ChildDomainSpec, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, HookReserve, Loader, ReloadHandle,
+    ChildDomainSpec, DomainHandle, EngineClient, GLOBAL_ACTIVE_DOMAIN_ID, ReloadHandle,
 };
 use serde_json::json;
 use tokio::process::{Child, Command};
@@ -41,6 +41,14 @@ pub async fn watch_policy_for_pid(
     parent_domain: bool,
     attach_pid: i32,
 ) -> Result<i32> {
+    if parent_domain {
+        return Err(
+            "--parent-domain is not supported by the pinned singleton engine yet; it would \
+             require a host-global policy replacement path. Start watch without \
+             --parent-domain to use an isolated runtime parent domain."
+                .into(),
+        );
+    }
     if attach_pid <= 1 {
         return Err(format!("invalid parent pid for watch attach: {attach_pid}").into());
     }
@@ -65,58 +73,56 @@ pub async fn watch_policy_for_pid(
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<ReadyResult>();
+    let parent_domain_id = submitter_pid as u32;
     let blob = compiled.bytes;
     let fb = feedback.feedback.clone();
     let ev = feedback.events.clone();
     let run_catalog = catalog.clone();
     let stop_thread = stop.clone();
     let poller = std::thread::spawn(move || {
-        let mut loader =
-            match Loader::load_with_hook_reserve(&blob, HookReserve::runtime_file_delta()) {
-                Ok(l) => l,
-                Err(e) => {
-                    let _ = ready_tx.send(Err(format!("load engine: {e}")));
-                    return;
-                }
-            };
-        if let Err(e) = loader.protect_pid(submitter_pid) {
+        let mut engine = match EngineClient::open_or_load_pinned_singleton() {
+            Ok(l) => l,
+            Err(e) => {
+                let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
+                return;
+            }
+        };
+        if let Err(e) = engine.protect_pid(submitter_pid) {
             let _ = ready_tx.send(Err(format!("protect control pid {submitter_pid}: {e}")));
             return;
         }
-        let seeded = if parent_domain {
-            loader.seed_global_label(attach_pid, agent_label)
-        } else {
-            loader.seed_label(attach_pid, agent_label)
-        };
-        if let Err(e) = seeded {
-            let mode = if parent_domain {
-                "parent/global watch pid"
-            } else {
-                "watch pid"
-            };
-            let _ = ready_tx.send(Err(format!("seed {mode} {attach_pid}: {e}")));
+        if let Err(e) = engine.seed_label_in_domain(attach_pid, parent_domain_id, agent_label) {
+            let _ = ready_tx.send(Err(format!(
+                "seed watch pid {attach_pid} in domain {parent_domain_id}: {e}"
+            )));
             return;
         }
-        if !parent_domain && submitter_pid != attach_pid {
-            if let Err(e) = loader.bind_state(
+        if submitter_pid != attach_pid {
+            if let Err(e) = engine.bind_state(
                 submitter_pid,
-                attach_pid as u32,
+                parent_domain_id,
                 control_plane_cap_state(agent_label),
             ) {
                 let _ = ready_tx.send(Err(format!(
-                    "bind control pid {submitter_pid} to watch domain {attach_pid}: {e}"
+                    "bind control pid {submitter_pid} to watch domain {parent_domain_id}: {e}"
                 )));
                 return;
             }
         }
-        let rh = match loader.reload_handle() {
+        let rh = match engine.reload_handle() {
             Ok(h) => h,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("create reload handle: {e}")));
                 return;
             }
         };
-        let dh = match loader.domain_handle() {
+        if let Err(e) = rh.append_policy_delta(submitter_pid, parent_domain_id, &blob) {
+            let _ = ready_tx.send(Err(format!(
+                "install policy in domain {parent_domain_id}: {e}"
+            )));
+            return;
+        }
+        let dh = match engine.domain_handle() {
             Ok(h) => h,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("create domain handle: {e}")));
@@ -124,7 +130,7 @@ pub async fn watch_policy_for_pid(
             }
         };
         let _ = ready_tx.send(Ok((rh, dh)));
-        let _ = loader.run(&stop_thread, |v| {
+        let _ = engine.run(&stop_thread, |v| {
             run_catalog.append_outputs(&to_violation(&v), &fb, &ev);
         });
     });
@@ -141,11 +147,6 @@ pub async fn watch_policy_for_pid(
             let _ = poller.join();
             return Err("engine thread exited before readiness".into());
         }
-    };
-    let parent_domain_id = if parent_domain {
-        GLOBAL_ACTIVE_DOMAIN_ID
-    } else {
-        attach_pid as u32
     };
     let control = Arc::new(EngineControl {
         reload_handle: Arc::new(reload_handle),
@@ -172,7 +173,7 @@ pub async fn watch_policy_for_pid(
         attach_pid,
         agent_label,
         if parent_domain {
-            " in parent/global domain"
+            " in an isolated singleton domain"
         } else {
             ""
         },
@@ -387,38 +388,37 @@ impl EngineControl {
         loaded: &LoadedPolicy,
     ) -> Result<usize> {
         let next_approval_policy = RuntimeApprovalPolicy::from_loaded_policy(loaded);
-        let outcome: Result<usize> = (|| {
+        let outcome: Result<PolicyDeltaOutcome> = (|| {
             let _mutation = self
                 .mutation_lock
                 .lock()
                 .map_err(|e| format!("runtime mutation lock poisoned: {e}"))?;
-            let mut inner = self
-                .catalog
-                .inner
-                .write()
-                .map_err(|e| format!("policy metadata lock poisoned: {e}"))?;
-            self.reload_handle.reload_policy(&compiled.bytes)?;
-            inner.rules = report::contexts_from_compiled(compiled);
-            inner.domain_labels.insert(0, compiled.labels.clone());
+            let delta = self.append_policy_delta_dsl_inner(
+                self.submitter_pid,
+                self.parent_domain_id,
+                policy_source,
+            )?;
             *self
                 .approval_policy
                 .write()
                 .map_err(|e| format!("approval policy lock poisoned: {e}"))? = next_approval_policy;
-            Ok(compiled.meta.len())
+            Ok(delta)
         })();
         match outcome {
-            Ok(n_rules) => {
+            Ok(delta) => {
                 self.audit(json!({
                     "event": "reload_policy",
                     "status": "accepted",
                     "actor_pid": self.parent_pid,
-                    "domain_id": 0,
-                    "rule_count": n_rules,
+                    "mode": "append_delta_compat",
+                    "target_id": self.parent_domain_id,
+                    "rule_id_base": delta.rule_id_base,
+                    "rule_count": delta.rule_count,
                     "policy_ref": policy_ref,
                     "policy_hash": audit::policy_hash(policy_source),
-                    "rule_provenance": rule_provenance_json(&compiled.meta, 0),
+                    "rule_provenance": delta.rule_provenance,
                 }))?;
-                Ok(n_rules)
+                Ok(delta.rule_count)
             }
             Err(e) => {
                 let msg = e.to_string();
@@ -426,7 +426,8 @@ impl EngineControl {
                     "event": "reload_policy",
                     "status": "rejected",
                     "actor_pid": self.parent_pid,
-                    "domain_id": 0,
+                    "mode": "append_delta_compat",
+                    "target_id": self.parent_domain_id,
                     "policy_ref": policy_ref,
                     "policy_hash": audit::policy_hash(policy_source),
                     "rule_provenance": rule_provenance_json(&compiled.meta, 0),
@@ -951,48 +952,56 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<ReadyResult>();
+    let parent_domain_id = submitter_pid as u32;
     let blob = compiled.bytes;
     let fb = feedback.feedback.clone();
     let ev = feedback.events.clone();
     let run_catalog = catalog.clone();
     let stop_thread = stop.clone();
     let thread = std::thread::spawn(move || {
-        let mut loader =
-            match Loader::load_with_hook_reserve(&blob, HookReserve::runtime_file_delta()) {
-                Ok(l) => l,
-                Err(e) => {
-                    let _ = ready_tx.send(Err(format!("load engine: {e}")));
-                    return;
-                }
-            };
-        if let Err(e) = loader.protect_pid(submitter_pid) {
+        let mut engine = match EngineClient::open_or_load_pinned_singleton() {
+            Ok(l) => l,
+            Err(e) => {
+                let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
+                return;
+            }
+        };
+        if let Err(e) = engine.protect_pid(submitter_pid) {
             let _ = ready_tx.send(Err(format!("protect control pid {submitter_pid}: {e}")));
             return;
         }
-        if let Err(e) = loader.seed_label(attach_pid, agent_label) {
-            let _ = ready_tx.send(Err(format!("seed parent pid {attach_pid}: {e}")));
+        if let Err(e) = engine.seed_label_in_domain(attach_pid, parent_domain_id, agent_label) {
+            let _ = ready_tx.send(Err(format!(
+                "seed parent pid {attach_pid} in domain {parent_domain_id}: {e}"
+            )));
             return;
         }
         if submitter_pid != attach_pid {
-            if let Err(e) = loader.bind_state(
+            if let Err(e) = engine.bind_state(
                 submitter_pid,
-                attach_pid as u32,
+                parent_domain_id,
                 control_plane_cap_state(agent_label),
             ) {
                 let _ = ready_tx.send(Err(format!(
-                    "bind control pid {submitter_pid} to parent domain {attach_pid}: {e}"
+                    "bind control pid {submitter_pid} to parent domain {parent_domain_id}: {e}"
                 )));
                 return;
             }
         }
-        let rh = match loader.reload_handle() {
+        let rh = match engine.reload_handle() {
             Ok(h) => h,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("create reload handle: {e}")));
                 return;
             }
         };
-        let dh = match loader.domain_handle() {
+        if let Err(e) = rh.append_policy_delta(submitter_pid, parent_domain_id, &blob) {
+            let _ = ready_tx.send(Err(format!(
+                "install policy in domain {parent_domain_id}: {e}"
+            )));
+            return;
+        }
+        let dh = match engine.domain_handle() {
             Ok(h) => h,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("create domain handle: {e}")));
@@ -1000,7 +1009,7 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
             }
         };
         let _ = ready_tx.send(Ok((rh, dh)));
-        let _ = loader.run(&stop_thread, |v| {
+        let _ = engine.run(&stop_thread, |v| {
             run_catalog.append_outputs(&to_violation(&v), &fb, &ev);
         });
     });
@@ -1026,7 +1035,7 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
                         &loaded,
                     )),
                     parent_pid: attach_pid,
-                    parent_domain_id: attach_pid as u32,
+                    parent_domain_id,
                     submitter_pid,
                 })),
             })
@@ -1142,6 +1151,14 @@ fn require_bpf_caps_or_elevate_with_env(
 }
 
 pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool) -> Result<i32> {
+    if parent_domain {
+        return Err(
+            "--parent-domain is not supported by the pinned singleton engine yet; it would \
+             require a host-global policy replacement path. Run without --parent-domain to \
+             use an isolated command domain."
+                .into(),
+        );
+    }
     require_bpf_caps_or_elevate(cli.internal_elevated)?;
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
@@ -1173,34 +1190,62 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let ev = feedback.events.clone();
     let stop_thread = stop.clone();
     let control_pid = std::process::id() as i32;
+    let target_domain_id = target_pid;
     let poller = std::thread::spawn(move || {
-        let mut loader = match Loader::load(&blob) {
+        let mut engine = match EngineClient::open_or_load_pinned_singleton() {
             Ok(l) => l,
             Err(e) => {
-                let _ = ready_tx.send(Err(format!("load engine: {e}")));
+                let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
                 return;
             }
         };
-        if let Err(e) = loader.protect_pid(control_pid) {
+        if let Err(e) = engine.protect_pid(control_pid) {
             let _ = ready_tx.send(Err(format!("protect control pid {control_pid}: {e}")));
             return;
         }
-        let seeded = if parent_domain {
-            loader.seed_global_label(target_pid as i32, agent_label)
-        } else {
-            loader.seed_label(target_pid as i32, agent_label)
-        };
-        if let Err(e) = seeded {
-            let mode = if parent_domain {
-                "parent/global pid"
-            } else {
-                "pid"
-            };
-            let _ = ready_tx.send(Err(format!("seed {mode}: {e}")));
+        if let Err(e) =
+            engine.seed_label_in_domain(target_pid as i32, target_domain_id, agent_label)
+        {
+            let _ = ready_tx.send(Err(format!(
+                "seed pid {target_pid} in domain {target_domain_id}: {e}"
+            )));
             return;
         }
+        if control_pid != target_pid as i32 {
+            if let Err(e) = engine.bind_state(
+                control_pid,
+                target_domain_id,
+                control_plane_cap_state(agent_label),
+            ) {
+                let _ = ready_tx.send(Err(format!(
+                    "bind control pid {control_pid} to run domain {target_domain_id}: {e}"
+                )));
+                return;
+            }
+        }
+        let rh = match engine.reload_handle() {
+            Ok(h) => h,
+            Err(e) => {
+                let _ = ready_tx.send(Err(format!("create reload handle: {e}")));
+                return;
+            }
+        };
+        if let Err(e) = rh.append_policy_delta(control_pid, target_domain_id, &blob) {
+            let _ = ready_tx.send(Err(format!(
+                "install policy in domain {target_domain_id}: {e}"
+            )));
+            return;
+        }
+        if control_pid != target_pid as i32 {
+            if let Err(e) = engine.unbind_pid_from_domain(control_pid, target_domain_id) {
+                let _ = ready_tx.send(Err(format!(
+                    "unbind control pid {control_pid} from run domain {target_domain_id}: {e}"
+                )));
+                return;
+            }
+        }
         let _ = ready_tx.send(Ok(()));
-        let _ = loader.run(&stop_thread, |v| {
+        let _ = engine.run(&stop_thread, |v| {
             report(&meta, &labels, &to_violation(&v), Some(&fb), Some(&ev))
         });
     });
@@ -1225,7 +1270,7 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
         target_pid,
         agent_label,
         if parent_domain {
-            " in parent/global domain"
+            " in an isolated singleton domain"
         } else {
             ""
         },
@@ -1293,30 +1338,37 @@ pub async fn run_child_command(
     let run_catalog = catalog.clone();
     let stop_thread = stop.clone();
     let poller = std::thread::spawn(move || {
-        let mut loader =
-            match Loader::load_with_hook_reserve(&blob, HookReserve::runtime_file_delta()) {
-                Ok(l) => l,
-                Err(e) => {
-                    let _ = ready_tx.send(Err(format!("load engine: {e}")));
-                    return;
-                }
-            };
-        if let Err(e) = loader.protect_pid(parent_pid) {
+        let mut engine = match EngineClient::open_or_load_pinned_singleton() {
+            Ok(l) => l,
+            Err(e) => {
+                let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
+                return;
+            }
+        };
+        if let Err(e) = engine.protect_pid(parent_pid) {
             let _ = ready_tx.send(Err(format!("protect control pid {parent_pid}: {e}")));
             return;
         }
-        if let Err(e) = loader.seed_label(parent_pid, agent_label) {
-            let _ = ready_tx.send(Err(format!("seed parent pid {parent_pid}: {e}")));
+        if let Err(e) = engine.seed_label_in_domain(parent_pid, parent_domain_id, agent_label) {
+            let _ = ready_tx.send(Err(format!(
+                "seed parent pid {parent_pid} in domain {parent_domain_id}: {e}"
+            )));
             return;
         }
-        let rh = match loader.reload_handle() {
+        let rh = match engine.reload_handle() {
             Ok(h) => h,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("create reload handle: {e}")));
                 return;
             }
         };
-        let dh = match loader.domain_handle() {
+        if let Err(e) = rh.append_policy_delta(parent_pid, parent_domain_id, &blob) {
+            let _ = ready_tx.send(Err(format!(
+                "install policy in domain {parent_domain_id}: {e}"
+            )));
+            return;
+        }
+        let dh = match engine.domain_handle() {
             Ok(h) => h,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("create domain handle: {e}")));
@@ -1324,7 +1376,7 @@ pub async fn run_child_command(
             }
         };
         let _ = ready_tx.send(Ok((rh, dh)));
-        let _ = loader.run(&stop_thread, |v| {
+        let _ = engine.run(&stop_thread, |v| {
             run_catalog.append_outputs(&to_violation(&v), &fb, &ev);
         });
     });

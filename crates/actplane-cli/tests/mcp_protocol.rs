@@ -119,12 +119,18 @@ impl McpProcess {
 
     fn send(&mut self, value: Value) {
         let stdin = self.stdin.as_mut().expect("mcp stdin open");
-        serde_json::to_writer(&mut *stdin, &value).expect("write request");
-        writeln!(stdin).expect("write newline");
-        stdin.flush().expect("flush request");
+        if let Err(e) = serde_json::to_writer(&mut *stdin, &value) {
+            panic!("write request: {e}; {}", self.exit_context());
+        }
+        if let Err(e) = writeln!(stdin) {
+            panic!("write newline: {e}; {}", self.exit_context());
+        }
+        if let Err(e) = stdin.flush() {
+            panic!("flush request: {e}; {}", self.exit_context());
+        }
     }
 
-    fn response(&self, id: i64) -> Value {
+    fn response(&mut self, id: i64) -> Value {
         let deadline = Instant::now() + Duration::from_secs(30);
         let mut stderr = Vec::new();
         let mut seen = Vec::new();
@@ -135,7 +141,8 @@ impl McpProcess {
             }
             assert!(
                 now < deadline,
-                "timed out waiting for MCP response id {id}; seen: {seen:?}; stderr: {stderr:?}"
+                "timed out waiting for MCP response id {id}; seen: {seen:?}; stderr: {stderr:?}; {}",
+                self.exit_context()
             );
             match self.rx.recv_timeout(Duration::from_millis(100)) {
                 Ok(value) => {
@@ -146,10 +153,26 @@ impl McpProcess {
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    panic!("MCP stdout closed waiting for response id {id}; stderr: {stderr:?}");
+                    panic!(
+                        "MCP stdout closed waiting for response id {id}; stderr: {stderr:?}; {}",
+                        self.exit_context()
+                    );
                 }
             }
         }
+    }
+
+    fn exit_context(&mut self) -> String {
+        let mut stderr = Vec::new();
+        while let Ok(line) = self.stderr_rx.try_recv() {
+            stderr.push(line);
+        }
+        let status = self
+            .child
+            .try_wait()
+            .map(|s| s.map(|s| s.to_string()).unwrap_or_else(|| "running".into()))
+            .unwrap_or_else(|e| format!("status unavailable: {e}"));
+        format!("child status: {status}; stderr: {stderr:?}")
     }
 }
 
@@ -209,6 +232,10 @@ fn passwordless_sudo_available() -> bool {
         .unwrap_or(false)
 }
 
+fn test_child_id(offset: u32) -> u32 {
+    0x4000_0000 | ((std::process::id() & 0xffff) << 12) | (offset & 0x0fff)
+}
+
 #[test]
 fn mcp_stdio_jsonrpc_lists_resources_and_domain_tools() {
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -250,6 +277,7 @@ policy: |
         "method": "notifications/initialized",
         "params": {}
     }));
+    std::thread::sleep(Duration::from_millis(50));
 
     mcp.send(json!({
         "jsonrpc": "2.0",
@@ -449,6 +477,10 @@ policy: |
     }));
     std::thread::sleep(Duration::from_millis(50));
 
+    let child_id = test_child_id(1);
+    let log_child_id = test_child_id(10);
+    let restart_child_id = test_child_id(20);
+    let replacement_child_id = test_child_id(21);
     let command = format!("read _ < '{}'; exec '{}'", secret.display(), hit.display());
     mcp.send(json!({
         "jsonrpc": "2.0",
@@ -457,7 +489,7 @@ policy: |
         "params": {
             "name": "launch_child_domain",
             "arguments": {
-                "child_id": 440001,
+                "child_id": child_id,
                 "cmd": ["/bin/sh", "-c", command],
                 "policy": delta
             }
@@ -468,7 +500,7 @@ policy: |
         launch["result"]["content"][0]["text"]
             .as_str()
             .unwrap_or("")
-            .contains("child domain 440001"),
+            .contains(&format!("child domain {child_id}")),
         "launch response: {launch}"
     );
 
@@ -481,7 +513,7 @@ policy: |
         feedback.contains("Provenance"),
         "feedback did not include provenance: {feedback}"
     );
-    let audit = poll_audit_append_delta(tmp.path(), 440001);
+    let audit = poll_audit_append_delta(tmp.path(), child_id);
     let provenance = audit["rule_provenance"]
         .as_array()
         .expect("rule provenance");
@@ -548,16 +580,16 @@ policy: |
         &mut next_id,
         "launch_child_domain",
         json!({
-            "child_id": 440010,
+            "child_id": log_child_id,
             "cmd": ["/bin/sh", "-c", "echo mcp-log-line; sleep 30"]
         }),
     );
     assert!(
-        tool_text(&launch_log_child).contains("child domain 440010"),
+        tool_text(&launch_log_child).contains(&format!("child domain {log_child_id}")),
         "launch log child response: {launch_log_child}"
     );
-    let logs = poll_child_stdout(&mut mcp, &mut next_id, 440010, "mcp-log-line");
-    assert_eq!(logs["child_id"], 440010);
+    let logs = poll_child_stdout(&mut mcp, &mut next_id, log_child_id, "mcp-log-line");
+    assert_eq!(logs["child_id"], log_child_id);
     assert!(
         logs["stdout"]["content"]
             .as_str()
@@ -570,11 +602,11 @@ policy: |
         &mut mcp,
         &mut next_id,
         "terminate_child_domain",
-        json!({ "child_id": 440010 }),
+        json!({ "child_id": log_child_id }),
     );
     let terminate_text = tool_text(&terminate);
     assert!(
-        terminate_text.contains("Terminated child domain 440010")
+        terminate_text.contains(&format!("Terminated child domain {log_child_id}"))
             || terminate_text.contains("already exited"),
         "terminate response: {terminate}"
     );
@@ -584,12 +616,12 @@ policy: |
         &mut next_id,
         "launch_child_domain",
         json!({
-            "child_id": 440020,
+            "child_id": restart_child_id,
             "cmd": ["/bin/sh", "-c", "echo mcp-restart-line; sleep 30"]
         }),
     );
     assert!(
-        tool_text(&launch_restart_child).contains("child domain 440020"),
+        tool_text(&launch_restart_child).contains(&format!("child domain {restart_child_id}")),
         "launch restart child response: {launch_restart_child}"
     );
 
@@ -598,16 +630,21 @@ policy: |
         &mut next_id,
         "restart_child_domain",
         json!({
-            "child_id": 440020,
-            "new_child_id": 440021,
+            "child_id": restart_child_id,
+            "new_child_id": replacement_child_id,
             "terminate_existing": true
         }),
     );
     assert!(
-        tool_text(&restart).contains("child domain 440021"),
+        tool_text(&restart).contains(&format!("child domain {replacement_child_id}")),
         "restart response: {restart}"
     );
-    let restarted_logs = poll_child_stdout(&mut mcp, &mut next_id, 440021, "mcp-restart-line");
+    let restarted_logs = poll_child_stdout(
+        &mut mcp,
+        &mut next_id,
+        replacement_child_id,
+        "mcp-restart-line",
+    );
     assert!(
         restarted_logs["stdout"]["content"]
             .as_str()
@@ -619,23 +656,23 @@ policy: |
     let reconcile = call_tool(&mut mcp, &mut next_id, "reconcile_child_domains", json!({}));
     let reconciled = tool_json(&reconcile);
     let children = reconciled["children"].as_array().expect("children array");
-    let original = find_child(children, 440020);
+    let original = find_child(children, restart_child_id);
     assert_ne!(
         original["status"]["state"], "running",
         "original child still running after restart: {reconciled}"
     );
-    let replacement = find_child(children, 440021);
-    assert_eq!(replacement["restarted_from"], 440020);
+    let replacement = find_child(children, replacement_child_id);
+    assert_eq!(replacement["restarted_from"], restart_child_id);
     assert_eq!(replacement["status"]["state"], "running");
 
     let terminate_replacement = call_tool(
         &mut mcp,
         &mut next_id,
         "terminate_child_domain",
-        json!({ "child_id": 440021 }),
+        json!({ "child_id": replacement_child_id }),
     );
     assert!(
-        tool_text(&terminate_replacement).contains("child domain 440021")
+        tool_text(&terminate_replacement).contains(&format!("child domain {replacement_child_id}"))
             || tool_text(&terminate_replacement).contains("already exited"),
         "terminate replacement response: {terminate_replacement}"
     );
@@ -783,7 +820,7 @@ policy: |
     std::fs::write(&policy, requiring_approval).expect("rewrite policy");
     let reload = call_tool(&mut mcp, &mut next_id, "reload_policy", json!({}));
     assert!(
-        tool_text(&reload).contains("Policy hot-reloaded"),
+        tool_text(&reload).contains("Policy appended as a domain-scoped singleton delta"),
         "reload response: {reload}"
     );
 
@@ -818,12 +855,13 @@ fn mcp_background_supervisor_relaunches_on_exit_child_privileged() {
     initialize_mcp(&mut mcp, 1, "actplane-supervisor-test");
 
     let mut next_id = 2;
+    let child_id = test_child_id(100);
     let launch = call_tool(
         &mut mcp,
         &mut next_id,
         "launch_child_domain",
         json!({
-            "child_id": 440100,
+            "child_id": child_id,
             "cmd": ["/bin/sh", "-c", "echo mcp-supervisor-line; sleep 30"],
             "restart_policy": "on_exit",
             "restart_limit": 1,
@@ -831,34 +869,34 @@ fn mcp_background_supervisor_relaunches_on_exit_child_privileged() {
         }),
     );
     assert!(
-        tool_text(&launch).contains("child domain 440100"),
+        tool_text(&launch).contains(&format!("child domain {child_id}")),
         "launch response: {launch}"
     );
 
     let listed = call_tool(&mut mcp, &mut next_id, "list_child_domains", json!({}));
     let rows = tool_json(&listed);
     let children = rows.as_array().expect("children array");
-    let original = find_child(children, 440100);
+    let original = find_child(children, child_id);
     assert_eq!(original["restart_policy"], "on_exit");
     assert_eq!(original["restart_limit"].as_u64(), Some(1));
     assert_eq!(original["restart_backoff_ms"].as_u64(), Some(100));
     let original_pid = original["pid"].as_i64().expect("original pid") as i32;
 
     kill_process_group(original_pid);
-    let reconciled = poll_supervised_replacement(&mut mcp, &mut next_id, 440100);
+    let reconciled = poll_supervised_replacement(&mut mcp, &mut next_id, child_id);
     let children = reconciled.as_array().expect("children array");
-    let old = find_child(children, 440100);
+    let old = find_child(children, child_id);
     let replacement_id = old["replacement_child_id"]
         .as_u64()
         .expect("replacement child id") as u32;
-    assert_ne!(replacement_id, 440100);
+    assert_ne!(replacement_id, child_id);
 
     assert_ne!(
         old["status"]["state"], "running",
         "old child should no longer be running: {reconciled}"
     );
     let replacement = find_child(children, replacement_id);
-    assert_eq!(replacement["restarted_from"], 440100);
+    assert_eq!(replacement["restarted_from"], child_id);
     assert_eq!(replacement["restart_policy"], "on_exit");
     assert_eq!(replacement["restart_count"].as_u64(), Some(1));
     assert_eq!(replacement["restart_limit"].as_u64(), Some(1));
@@ -910,12 +948,13 @@ fn mcp_restart_adopts_existing_child_and_relaunches_after_exit_privileged() {
     initialize_mcp(&mut first_mcp, 1, "actplane-adopt-first");
 
     let mut next_id = 2;
+    let child_id = test_child_id(200);
     let launch = call_tool(
         &mut first_mcp,
         &mut next_id,
         "launch_child_domain",
         json!({
-            "child_id": 440200,
+            "child_id": child_id,
             "cmd": ["/bin/sh", "-c", "echo mcp-adopt-line; sleep 30"],
             "restart_policy": "on_exit",
             "restart_limit": 1,
@@ -923,7 +962,7 @@ fn mcp_restart_adopts_existing_child_and_relaunches_after_exit_privileged() {
         }),
     );
     assert!(
-        tool_text(&launch).contains("child domain 440200"),
+        tool_text(&launch).contains(&format!("child domain {child_id}")),
         "launch response: {launch}"
     );
     let listed = call_tool(
@@ -934,7 +973,7 @@ fn mcp_restart_adopts_existing_child_and_relaunches_after_exit_privileged() {
     );
     let rows = tool_json(&listed);
     let children = rows.as_array().expect("children array");
-    let original = find_child(children, 440200);
+    let original = find_child(children, child_id);
     assert_eq!(original["supervision"]["mode"], "wait_handle");
     let original_pid = original["pid"].as_i64().expect("original pid") as i32;
 
@@ -952,15 +991,15 @@ fn mcp_restart_adopts_existing_child_and_relaunches_after_exit_privileged() {
     initialize_mcp(&mut second_mcp, 100, "actplane-adopt-second");
     let mut next_id = 101;
 
-    let adopted_rows = poll_child_adopted(&mut second_mcp, &mut next_id, 440200);
+    let adopted_rows = poll_child_adopted(&mut second_mcp, &mut next_id, child_id);
     let adopted_children = adopted_rows.as_array().expect("adopted children array");
-    let adopted = find_child(adopted_children, 440200);
+    let adopted = find_child(adopted_children, child_id);
     assert_eq!(adopted["pid"].as_i64(), Some(original_pid as i64));
     let audit = poll_audit_child_event(
         tmp.path(),
         "adopt_child_domain",
         "child_domain_id",
-        440200,
+        child_id,
         "accepted",
     );
     assert_eq!(audit["supervision_mode"], "adopted_polling");
@@ -975,15 +1014,15 @@ fn mcp_restart_adopts_existing_child_and_relaunches_after_exit_privileged() {
     );
 
     kill_process_group(original_pid);
-    let reconciled = poll_supervised_replacement(&mut second_mcp, &mut next_id, 440200);
+    let reconciled = poll_supervised_replacement(&mut second_mcp, &mut next_id, child_id);
     let children = reconciled.as_array().expect("children array");
-    let old = find_child(children, 440200);
+    let old = find_child(children, child_id);
     let replacement_id = old["replacement_child_id"]
         .as_u64()
         .expect("replacement child id") as u32;
     assert_ne!(old["status"]["state"], "running");
     let replacement = find_child(children, replacement_id);
-    assert_eq!(replacement["restarted_from"], 440200);
+    assert_eq!(replacement["restarted_from"], child_id);
     assert_eq!(replacement["restart_count"].as_u64(), Some(1));
     assert_eq!(replacement["supervision"]["mode"], "wait_handle");
 
@@ -1073,6 +1112,8 @@ fn two_mcp_servers_keep_child_domain_deltas_isolated_privileged() {
         "source SECRET_B = file \"{}\"\nrule only-mcp-agent-b:\n  notify exec \"apmcpbhit\" if SECRET_B\n  because \"MCP agent B delta fired\"\n",
         secret_b.display()
     );
+    let child_a_id = test_child_id(300);
+    let child_b_id = test_child_id(301);
 
     let mut next_id_a = 2;
     let launch_a = call_tool(
@@ -1080,7 +1121,7 @@ fn two_mcp_servers_keep_child_domain_deltas_isolated_privileged() {
         &mut next_id_a,
         "launch_child_domain",
         json!({
-            "child_id": 470010,
+            "child_id": child_a_id,
             "cmd": [
                 "/bin/sh",
                 "-c",
@@ -1090,7 +1131,7 @@ fn two_mcp_servers_keep_child_domain_deltas_isolated_privileged() {
         }),
     );
     assert!(
-        tool_text(&launch_a).contains("child domain 470010"),
+        tool_text(&launch_a).contains(&format!("child domain {child_a_id}")),
         "launch A response: {launch_a}"
     );
 
@@ -1100,7 +1141,7 @@ fn two_mcp_servers_keep_child_domain_deltas_isolated_privileged() {
         &mut next_id_b,
         "launch_child_domain",
         json!({
-            "child_id": 470020,
+            "child_id": child_b_id,
             "cmd": [
                 "/bin/sh",
                 "-c",
@@ -1110,7 +1151,7 @@ fn two_mcp_servers_keep_child_domain_deltas_isolated_privileged() {
         }),
     );
     assert!(
-        tool_text(&launch_b).contains("child domain 470020"),
+        tool_text(&launch_b).contains(&format!("child domain {child_b_id}")),
         "launch B response: {launch_b}"
     );
 

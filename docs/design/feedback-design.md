@@ -1,11 +1,18 @@
 # Corrective Feedback
 
 ActPlane treats feedback as part of enforcement. The kernel engine detects a
-policy match, the runtime resolves the rule metadata, and the agent integration
-delivers the same reason back to the agent. Hooks and MCP transport feedback,
-but they do not re-evaluate policy in userspace.
+policy match, a short-lived runtime/client path resolves the rule metadata, and
+the agent integration delivers the same reason back to the agent. Hooks and MCP
+transport feedback, but they do not re-evaluate policy in userspace.
 
-## Event Flow
+The target daemonless singleton design moves durable event and reason state into
+pinned BPF maps. See
+[`kernel-resident-singleton.md`](kernel-resident-singleton.md).
+
+## Current Event Flow
+
+This is the current feedback projection path. It is transitional: project files
+and live ring-buffer readers must not become the durable source of truth.
 
 ```text
 eBPF/BPF-LSM match

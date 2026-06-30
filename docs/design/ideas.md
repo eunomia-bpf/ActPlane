@@ -2,6 +2,11 @@
 
 > 本文记录 ActPlane 论文核心 thesis 的演化过程。每一层都保留，因为它展示了为什么
 > 浅层 framing 不够。**当前最佳 framing 见第六层（Intent / Action / Behavior）。**
+>
+> Terminology note: "control plane" in this brainstorm means the agent-facing
+> policy lifecycle/interface. It does not mean a required long-lived userspace
+> daemon or an engine owner outside the pinned kernel state described in
+> [`kernel-resident-singleton.md`](kernel-resident-singleton.md).
 
 ---
 
@@ -674,14 +679,14 @@ ActPlane 让 agent 从 passenger 变成 pilot：通过 programmable interface
 ActPlane 的架构把两者解耦：
 
 ```
-Control Plane（agent + developer 协同）：
+Policy Lifecycle Interface（agent + developer 协同，短命 client/API，不是 daemon）：
   ├── agent 读/写 actplane.yaml（DSL policy）
   ├── developer review / approve policy 变更
   ├── parent agent 为 sub-agent scope constraints
   ├── violation feedback → agent 改道 / 提议 policy 修改
   └── violation history → 分析 policy 有效性 / 误报率
 
-Data Plane（kernel，deterministic）：
+Kernel Enforcement Plane（kernel，deterministic）：
   ├── DSL → compiled label rules（rodata blob）
   ├── eBPF hooks：fork/exec/open/write/connect
   ├── label propagation（monotonic, O(1) bitmask）
@@ -690,12 +695,12 @@ Data Plane（kernel，deterministic）：
 ```
 
 关键性质：
-- **Data plane 是确定性的**：相同 label state + 相同 operation = 相同结果，
+- **Kernel enforcement plane 是确定性的**：相同 label state + 相同 operation = 相同结果，
   不管 agent 怎么到达这一步
-- **Control plane 是动态的**：policy 可以被 agent/developer 随时修改、
-  重新编译、重新加载
-- **两者通过 compiled blob 接口连接**：control plane 产出 `taint_config`，
-  data plane 消费它。修改 policy 不需要改内核代码
+- **Policy lifecycle 是动态的**：policy 可以被 agent/developer 通过短命 client
+  修改、重新编译，并按 domain 提交给内核
+- **两者通过 compiled blob 接口连接**：短命 compiler/client 产出 `taint_config`，
+  kernel enforcement plane 消费它。修改 policy 不需要改内核代码
 
 ### 8.5 Agent 参与 Control Plane 的三个层次
 

@@ -132,11 +132,18 @@ fn passwordless_sudo_available() -> bool {
         .unwrap_or(false)
 }
 
+fn test_child_id(offset: u32) -> u32 {
+    0x5000_0000 | ((std::process::id() & 0xffff) << 12) | (offset & 0x0fff)
+}
+
 #[test]
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
 fn watch_exposes_repo_local_control_socket_privileged() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let mut agent = FakeAgent::start("actplane-watch-control-agent");
+    let child_id = test_child_id(1);
+    let nested_parent_id = test_child_id(2);
+    let nested_rejected_id = test_child_id(3);
     let policy = tmp.path().join("actplane.yaml");
     std::fs::write(
         &policy,
@@ -178,15 +185,16 @@ policy: |
         thread.join().expect("concurrent status thread");
     }
 
+    let child_id_arg = child_id.to_string();
     let launch = Command::new(actplane())
         .current_dir(tmp.path())
+        .arg("--policy")
+        .arg(policy.to_str().expect("policy path"))
         .args([
-            "--policy",
-            policy.to_str().expect("policy path"),
             "control",
             "launch-child",
             "--child-id",
-            "550010",
+            &child_id_arg,
             "--",
             "/bin/sh",
             "-c",
@@ -201,23 +209,24 @@ policy: |
         String::from_utf8_lossy(&launch.stderr)
     );
 
-    let logs = poll_child_logs(&policy, tmp.path(), 550010, "watch-control-line");
+    let logs = poll_child_logs(&policy, tmp.path(), child_id, "watch-control-line");
     assert!(logs.contains("watch-control-line"), "{logs}");
 
     let terminate = actplane_output(
         &policy,
         tmp.path(),
-        &["control", "stop", "--child-id", "550010"],
+        &["control", "stop", "--child-id", &child_id_arg],
     );
     assert!(
-        terminate.contains("child domain 550010") || terminate.contains("already exited"),
+        terminate.contains(&format!("child domain {child_id}"))
+            || terminate.contains("already exited"),
         "{terminate}"
     );
 
     let nested_script = format!(
         r#"
 set +e
-output=$({actplane} --policy {policy} control launch-child --child-id 550012 -- /bin/true 2>&1)
+output=$({actplane} --policy {policy} control launch-child --child-id {nested_rejected_id} -- /bin/true 2>&1)
 rc=$?
 echo nested-control-rc=$rc
 printf '%s\n' "$output"
@@ -225,9 +234,10 @@ test "$rc" -ne 0
 "#,
         actplane = actplane(),
         policy = policy.display(),
+        nested_rejected_id = nested_rejected_id,
     );
-    launch_child(&policy, tmp.path(), 550011, &nested_script);
-    let nested_logs = poll_child_logs(&policy, tmp.path(), 550011, "nested-control-rc=");
+    launch_child(&policy, tmp.path(), nested_parent_id, &nested_script);
+    let nested_logs = poll_child_logs(&policy, tmp.path(), nested_parent_id, "nested-control-rc=");
     assert!(
         !nested_logs.contains("nested-control-rc=0")
             && nested_logs.contains("not trusted parent domain"),
@@ -239,10 +249,10 @@ test "$rc" -ne 0
         .as_array()
         .expect("children array")
         .iter()
-        .any(|child| child["child_id"].as_u64() == Some(550012));
+        .any(|child| child["child_id"].as_u64() == Some(nested_rejected_id.into()));
     assert!(
         !created_nested_child,
-        "rejected nested launch still created child domain 550012: {children}"
+        "rejected nested launch still created child domain {nested_rejected_id}: {children}"
     );
 
     watch.stop();
@@ -276,6 +286,8 @@ fn two_watch_engines_keep_child_domain_deltas_isolated_privileged() {
     std::fs::write(&secret_b, "agent B secret\n").expect("write secret B");
     std::fs::copy("/bin/true", &hit_a).expect("copy hit A");
     std::fs::copy("/bin/true", &hit_b).expect("copy hit B");
+    let child_a_id = test_child_id(10);
+    let child_b_id = test_child_id(20);
 
     let Some(mut watch_a) =
         WatchProcess::start_with_attach_pid(&policy_a, tmp_a.path(), agent_a.pid())
@@ -311,14 +323,14 @@ fn two_watch_engines_keep_child_domain_deltas_isolated_privileged() {
     launch_child_with_delta(
         &policy_a,
         tmp_a.path(),
-        560010,
+        child_a_id,
         &delta_a,
         &format!("read _ < {}; exec {}", secret_a.display(), hit_a.display()),
     );
     launch_child_with_delta(
         &policy_b,
         tmp_b.path(),
-        560020,
+        child_b_id,
         &delta_b,
         &format!("read _ < {}; exec {}", secret_b.display(), hit_b.display()),
     );

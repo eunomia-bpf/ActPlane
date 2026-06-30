@@ -11,12 +11,16 @@
 //! The config blob is exactly the `struct taint_config` the collector's DSL
 //! compiler already produces (the same bytes the C loader read from `--config`).
 
+use std::borrow::Borrow;
 use std::io::{self, Read};
 use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd};
+use std::os::unix::ffi::OsStrExt;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use aya::maps::{Array, HashMap, Map, MapData, MapError, ProgramArray, RingBuf};
+use aya::programs::links::{FdLink, PinnedLink};
 use aya::programs::{Lsm, ProgramFd, TracePoint};
 use aya::{Btf, Ebpf, EbpfLoader};
 
@@ -29,6 +33,10 @@ use capability::{
 const BPF_ANY: u64 = 0;
 const BPF_NOEXIST: u64 = 1;
 pub const GLOBAL_ACTIVE_DOMAIN_ID: u32 = u32::MAX;
+pub const DEFAULT_PIN_ROOT: &str = "/sys/fs/bpf/actplane/v1";
+pub const PIN_ROOT_ENV: &str = "ACTPLANE_BPF_PIN_ROOT";
+const ENGINE_META_SCHEMA_VERSION: u32 = 1;
+const ENGINE_HOOK_PROFILE_FULL: u32 = 1;
 
 // ---- prebuilt eBPF object, 8-byte aligned for aya's ELF parser ----
 #[repr(align(8))]
@@ -37,6 +45,28 @@ static OBJECT: &Aligned<[u8]> =
     &Aligned(*include_bytes!(concat!(env!("OUT_DIR"), "/process.bpf.o")));
 fn object_bytes() -> &'static [u8] {
     &OBJECT.0
+}
+
+fn fnv1a64(bytes: &[u8]) -> u64 {
+    let mut h = 0xcbf29ce484222325u64;
+    for b in bytes {
+        h ^= u64::from(*b);
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
+}
+
+fn fnv1a64_padded_pat(bytes: &[u8]) -> u64 {
+    let mut h = 0xcbf29ce484222325u64;
+    let n = bytes.len().min(PAT);
+    // Keep this in lockstep with te_fnv1a(): hash the fixed PAT buffer,
+    // including zero padding after bpf_probe_read_str's terminating NUL.
+    for i in 0..PAT {
+        let b = if i < n { bytes[i] } else { 0 };
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
 }
 
 // ===================== ABI mirrors (must match bpf/taint.h) =====================
@@ -65,6 +95,118 @@ const FEAT_FILE_FLOW: u32 = 1 << 6;
 const FEAT_BLOCK_EXEC: u32 = 1 << 7;
 const FEAT_BLOCK_FILE: u32 = 1 << 8;
 const FEAT_BLOCK_CONNECT: u32 = 1 << 9;
+const ALL_RESERVED_FEATURES: u32 = FEAT_CONNECT
+    | FEAT_RECV
+    | FEAT_FILE_FLOW
+    | FEAT_BLOCK_EXEC
+    | FEAT_BLOCK_FILE
+    | FEAT_BLOCK_CONNECT;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PinnedEnginePaths {
+    root: PathBuf,
+}
+
+impl PinnedEnginePaths {
+    pub fn from_env() -> Self {
+        Self::new(
+            std::env::var_os(PIN_ROOT_ENV)
+                .map_or_else(|| PathBuf::from(DEFAULT_PIN_ROOT), PathBuf::from),
+        )
+    }
+
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+        Self { root: root.into() }
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn meta(&self) -> PathBuf {
+        self.map("ap_meta")
+    }
+
+    pub fn maps_dir(&self) -> PathBuf {
+        self.root.join("maps")
+    }
+
+    pub fn programs_dir(&self) -> PathBuf {
+        self.root.join("programs")
+    }
+
+    pub fn links_dir(&self) -> PathBuf {
+        self.root.join("links")
+    }
+
+    pub fn map(&self, name: &str) -> PathBuf {
+        self.maps_dir().join(name)
+    }
+
+    pub fn program(&self, name: &str) -> PathBuf {
+        self.programs_dir().join(name)
+    }
+
+    pub fn link(&self, name: &str) -> PathBuf {
+        self.links_dir().join(name)
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct PinnedEngineMeta {
+    pub schema_version: u32,
+    pub abi_size: u32,
+    pub hook_profile: u32,
+    pub flags: u32,
+    pub policy_features: u32,
+    pub _pad: u32,
+    pub object_hash: u64,
+    pub install_generation: u64,
+}
+
+impl PinnedEngineMeta {
+    fn current(hook_profile: u32, policy_features: u32) -> Self {
+        Self {
+            schema_version: ENGINE_META_SCHEMA_VERSION,
+            abi_size: std::mem::size_of::<CConfig>() as u32,
+            hook_profile,
+            flags: 0,
+            policy_features,
+            _pad: 0,
+            object_hash: fnv1a64(object_bytes()),
+            install_generation: 0,
+        }
+    }
+
+    fn current_full_profile(policy_features: u32) -> Self {
+        Self::current(ENGINE_HOOK_PROFILE_FULL, policy_features)
+    }
+
+    fn compatible_with(self, expected: Self) -> bool {
+        self.schema_version == expected.schema_version
+            && self.abi_size == expected.abi_size
+            && self.hook_profile == expected.hook_profile
+            && self.object_hash == expected.object_hash
+    }
+}
+
+unsafe impl aya::Pod for PinnedEngineMeta {}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+struct TrustedClient {
+    path_hash: u64,
+}
+
+unsafe impl aya::Pod for TrustedClient {}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PinnedEngineMetaStatus {
+    Missing,
+    Compatible(PinnedEngineMeta),
+    Incompatible(PinnedEngineMeta),
+}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -300,6 +442,23 @@ fn child_domain_state(parent: &CapState, spec: ChildDomainSpec) -> io::Result<Ca
     })
 }
 
+fn runtime_root_state(label: u64) -> CapState {
+    CapState {
+        scope_id: 1,
+        labels: label,
+        authority_mask: AUTH_BIND_RULE
+            | AUTH_NARROW_SCOPE
+            | AUTH_ADD_LABEL
+            | AUTH_REQUIRE_GATE
+            | AUTH_DECLASSIFY
+            | AUTH_DELEGATE,
+        target_mask: TARGET_SELF | TARGET_CHILD,
+        gate_mask: u64::MAX,
+        label_mask: u64::MAX,
+        ..CapState::default()
+    }
+}
+
 /// Map-fd backed control handle for binding child domains while the loader polls events.
 pub struct DomainHandle {
     cap_task_fd: OwnedFd,
@@ -342,6 +501,210 @@ fn dup_array_map_fd(bpf: &Ebpf, name: &str) -> io::Result<OwnedFd> {
     dup_cloexec_fd(data.fd().as_fd().as_raw_fd())
 }
 
+fn protect_pid_in_loaded_bpf(bpf: &mut Ebpf, pid: i32) -> io::Result<()> {
+    if pid <= 0 {
+        return Err(err("protected pid must be positive"));
+    }
+    let mut protected: HashMap<_, i32, u32> = HashMap::try_from(
+        bpf.map_mut("te_protected_pids")
+            .ok_or_else(|| err("te_protected_pids missing"))?,
+    )
+    .map_err(|e| err(format!("te_protected_pids: {e}")))?;
+    protected
+        .insert(pid, 1, 0)
+        .map_err(|e| err(format!("protect pid {pid}: {e}")))?;
+    Ok(())
+}
+
+fn populate_trusted_client_map(bpf: &mut Ebpf) -> io::Result<()> {
+    let exe = std::env::current_exe()?;
+    let id = TrustedClient {
+        path_hash: fnv1a64_padded_pat(exe.as_os_str().as_bytes()),
+    };
+    let mut trusted: Array<_, TrustedClient> = Array::try_from(
+        bpf.map_mut("te_trusted_clients")
+            .ok_or_else(|| err("te_trusted_clients missing"))?,
+    )
+    .map_err(|e| err(format!("te_trusted_clients: {e}")))?;
+    trusted
+        .set(0, id, 0)
+        .map_err(|e| err(format!("seed trusted client {}: {e}", exe.display())))?;
+    Ok(())
+}
+
+fn ensure_pinned_engine_dirs(paths: &PinnedEnginePaths) -> io::Result<()> {
+    std::fs::create_dir_all(paths.maps_dir())?;
+    std::fs::create_dir_all(paths.programs_dir())?;
+    std::fs::create_dir_all(paths.links_dir())?;
+    Ok(())
+}
+
+#[derive(Default)]
+struct PinInstallCleanup {
+    created: Vec<PathBuf>,
+}
+
+impl PinInstallCleanup {
+    fn record(&mut self, path: &Path) {
+        self.created.push(path.to_path_buf());
+    }
+
+    fn cleanup(&mut self) {
+        for path in self.created.iter().rev() {
+            let _ = std::fs::remove_file(path);
+        }
+        self.created.clear();
+    }
+}
+
+fn pin_loaded_maps(
+    bpf: &Ebpf,
+    paths: &PinnedEnginePaths,
+    include_meta: bool,
+    cleanup: &mut PinInstallCleanup,
+) -> io::Result<()> {
+    for (name, map) in bpf.maps() {
+        if !should_pin_loaded_map(name, include_meta) {
+            continue;
+        }
+        let path = paths.map(name);
+        map.pin(&path)
+            .map_err(|e| err(format!("pin map {name} at {}: {e}", path.display())))?;
+        cleanup.record(&path);
+    }
+    Ok(())
+}
+
+fn should_pin_loaded_map(name: &str, include_meta: bool) -> bool {
+    if name == "ap_meta" {
+        return include_meta;
+    }
+    !name.starts_with('.')
+}
+
+fn pin_loaded_meta_map(
+    bpf: &Ebpf,
+    paths: &PinnedEnginePaths,
+    cleanup: &mut PinInstallCleanup,
+) -> io::Result<()> {
+    let map = bpf
+        .map("ap_meta")
+        .ok_or_else(|| err("map ap_meta missing"))?;
+    let path = paths.meta();
+    map.pin(&path)
+        .map_err(|e| err(format!("pin map ap_meta at {}: {e}", path.display())))?;
+    cleanup.record(&path);
+    Ok(())
+}
+
+fn pin_loaded_programs(
+    bpf: &mut Ebpf,
+    paths: &PinnedEnginePaths,
+    names: &[String],
+    cleanup: &mut PinInstallCleanup,
+) -> io::Result<()> {
+    for name in names {
+        let path = paths.program(name);
+        let program = bpf
+            .program_mut(name)
+            .ok_or_else(|| err(format!("program {name} missing")))?;
+        program
+            .pin(&path)
+            .map_err(|e| err(format!("pin program {name} at {}: {e}", path.display())))?;
+        cleanup.record(&path);
+    }
+    Ok(())
+}
+
+struct PendingPinnedLink {
+    name: String,
+    link: FdLink,
+}
+
+fn pin_pending_links(
+    paths: &PinnedEnginePaths,
+    links: Vec<PendingPinnedLink>,
+    cleanup: &mut PinInstallCleanup,
+) -> io::Result<Vec<PinnedLink>> {
+    let mut pinned = Vec::new();
+    for pending in links {
+        let path = paths.link(&pending.name);
+        match pending.link.pin(&path) {
+            Ok(link) => {
+                cleanup.record(&path);
+                pinned.push(link);
+            }
+            Err(e) => {
+                for link in pinned {
+                    let _ = link.unpin();
+                }
+                return Err(err(format!(
+                    "pin link {} at {}: {e}",
+                    pending.name,
+                    path.display()
+                )));
+            }
+        }
+    }
+    Ok(pinned)
+}
+
+fn pinned_map_data(paths: &PinnedEnginePaths, name: &str) -> io::Result<MapData> {
+    let path = paths.map(name);
+    MapData::from_pin(&path)
+        .map_err(|e| err(format!("open pinned map {name} at {}: {e}", path.display())))
+}
+
+fn dup_pinned_map_fd(paths: &PinnedEnginePaths, name: &str) -> io::Result<OwnedFd> {
+    let data = pinned_map_data(paths, name)?;
+    dup_cloexec_fd(data.fd().as_fd().as_raw_fd())
+}
+
+fn pinned_hash_map<K: aya::Pod, V: aya::Pod>(
+    paths: &PinnedEnginePaths,
+    name: &str,
+) -> io::Result<HashMap<MapData, K, V>> {
+    let data = pinned_map_data(paths, name)?;
+    HashMap::try_from(Map::HashMap(data)).map_err(|e| err(format!("pinned map {name}: {e}")))
+}
+
+fn pinned_array_map<V: aya::Pod>(
+    paths: &PinnedEnginePaths,
+    name: &str,
+) -> io::Result<Array<MapData, V>> {
+    let data = pinned_map_data(paths, name)?;
+    Array::try_from(Map::Array(data)).map_err(|e| err(format!("pinned map {name}: {e}")))
+}
+
+fn pinned_ringbuf(paths: &PinnedEnginePaths) -> io::Result<RingBuf<MapData>> {
+    let data = pinned_map_data(paths, "rb")?;
+    RingBuf::try_from(Map::RingBuf(data)).map_err(|e| err(format!("pinned map rb: {e}")))
+}
+
+pub fn read_pinned_engine_meta(paths: &PinnedEnginePaths) -> io::Result<PinnedEngineMeta> {
+    let meta: Array<_, PinnedEngineMeta> = pinned_array_map(paths, "ap_meta")?;
+    meta.get(&0, 0)
+        .map_err(|e| err(format!("read pinned ActPlane engine meta: {e}")))
+}
+
+pub fn probe_pinned_engine_meta(
+    paths: &PinnedEnginePaths,
+    expected: PinnedEngineMeta,
+) -> io::Result<PinnedEngineMetaStatus> {
+    if !paths.meta().try_exists()? {
+        return Ok(PinnedEngineMetaStatus::Missing);
+    }
+    match read_pinned_engine_meta(paths) {
+        Ok(installed) if installed.compatible_with(expected) => {
+            Ok(PinnedEngineMetaStatus::Compatible(installed))
+        }
+        Ok(installed) => Ok(PinnedEngineMetaStatus::Incompatible(installed)),
+        Err(e) if e.raw_os_error() == Some(libc::ENOENT) => Ok(PinnedEngineMetaStatus::Missing),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(PinnedEngineMetaStatus::Missing),
+        Err(e) => Err(e),
+    }
+}
+
 fn hash_map_from_fd<K: aya::Pod, V: aya::Pod>(fd: &OwnedFd) -> io::Result<HashMap<MapData, K, V>> {
     let data = MapData::from_fd(dup_owned_fd(fd)?).map_err(|e| err(format!("map from fd: {e}")))?;
     HashMap::try_from(Map::HashMap(data)).map_err(|e| err(format!("typed hash map: {e}")))
@@ -364,6 +727,13 @@ fn map_get_optional<K: aya::Pod, V: aya::Pod>(
     match map.get(key, BPF_ANY) {
         Ok(v) => Ok(Some(v)),
         Err(MapError::KeyNotFound) => Ok(None),
+        Err(e) => Err(err(format!("{what}: {e}"))),
+    }
+}
+
+fn ignore_missing_remove(result: Result<(), MapError>, what: &str) -> io::Result<()> {
+    match result {
+        Ok(()) | Err(MapError::KeyNotFound) => Ok(()),
         Err(e) => Err(err(format!("{what}: {e}"))),
     }
 }
@@ -901,13 +1271,6 @@ const LSM_PROGS: &[(&str, &str)] = &[
     ("enforce_bpf_syscall", "bpf"),
 ];
 
-const ALL_HOOK_FEATURES: u32 = FEAT_CONNECT
-    | FEAT_RECV
-    | FEAT_FILE_FLOW
-    | FEAT_BLOCK_EXEC
-    | FEAT_BLOCK_FILE
-    | FEAT_BLOCK_CONNECT;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum HookProfile {
     Minimal,
@@ -940,24 +1303,28 @@ struct HookBudget {
     features: u32,
     file_write: bool,
     advanced_tracepoints: bool,
+    full_profile: bool,
 }
 
 impl HookBudget {
     fn from_config(cfg: &CConfig, reserve: HookReserve) -> Self {
         let profile = HookProfile::from_env();
-        let mut budget = match profile {
-            HookProfile::Minimal => HookBudget {
+        let force_full = reserve.full_profile || profile == HookProfile::Full;
+        let mut budget = if force_full {
+            HookBudget {
+                features: config_features(cfg) | ALL_RESERVED_FEATURES,
+                file_write: true,
+                advanced_tracepoints: true,
+                full_profile: true,
+            }
+        } else {
+            HookBudget {
                 features: config_features(cfg),
                 file_write: config_has_file_write(cfg),
                 advanced_tracepoints: profile.advanced_tracepoints()
                     || reserve.advanced_tracepoints,
-            },
-            HookProfile::Full => HookBudget {
-                features: config_features(cfg) | ALL_HOOK_FEATURES,
-                file_write: true,
-                advanced_tracepoints: profile.advanced_tracepoints()
-                    || reserve.advanced_tracepoints,
-            },
+                full_profile: false,
+            }
         };
         if reserve.file_flow {
             budget.features |= FEAT_FILE_FLOW;
@@ -1001,6 +1368,14 @@ impl HookBudget {
 
     fn has_recv(self) -> bool {
         self.features & FEAT_RECV != 0
+    }
+
+    fn hook_profile(self) -> u32 {
+        if self.full_profile {
+            ENGINE_HOOK_PROFILE_FULL
+        } else {
+            0
+        }
     }
 }
 
@@ -1287,6 +1662,17 @@ pub struct Loader {
     policy_features: u32,
 }
 
+#[derive(Debug)]
+pub struct PinnedEngine {
+    paths: PinnedEnginePaths,
+    meta: PinnedEngineMeta,
+}
+
+pub enum EngineClient {
+    Loaded(Loader),
+    Pinned(PinnedEngine),
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct HookReserve {
     pub file_flow: bool,
@@ -1296,6 +1682,7 @@ pub struct HookReserve {
     pub block_file: bool,
     pub block_connect: bool,
     pub advanced_tracepoints: bool,
+    pub full_profile: bool,
 }
 
 impl HookReserve {
@@ -1305,6 +1692,344 @@ impl HookReserve {
             ..HookReserve::default()
         }
     }
+
+    pub fn full_profile() -> Self {
+        HookReserve {
+            file_flow: true,
+            file_write_paths: true,
+            network: true,
+            block_exec: true,
+            block_file: true,
+            block_connect: true,
+            advanced_tracepoints: true,
+            full_profile: true,
+        }
+    }
+}
+
+fn empty_config_blob() -> Vec<u8> {
+    let cfg: CConfig = unsafe { std::mem::zeroed() };
+    unsafe {
+        std::slice::from_raw_parts(
+            &cfg as *const CConfig as *const u8,
+            std::mem::size_of::<CConfig>(),
+        )
+        .to_vec()
+    }
+}
+
+impl PinnedEngine {
+    pub fn open(paths: PinnedEnginePaths) -> io::Result<Self> {
+        let expected = PinnedEngineMeta::current_full_profile(ALL_RESERVED_FEATURES);
+        match probe_pinned_engine_meta(&paths, expected)? {
+            PinnedEngineMetaStatus::Compatible(meta) => Ok(Self { paths, meta }),
+            PinnedEngineMetaStatus::Missing => Err(err(format!(
+                "pinned ActPlane engine missing at {}",
+                paths.root().display()
+            ))),
+            PinnedEngineMetaStatus::Incompatible(installed) => Err(err(format!(
+                "incompatible pinned ActPlane engine at {}: installed schema={} abi_size={} hook_profile={} object_hash=0x{:016x}; expected schema={} abi_size={} hook_profile={} object_hash=0x{:016x}",
+                paths.root().display(),
+                installed.schema_version,
+                installed.abi_size,
+                installed.hook_profile,
+                installed.object_hash,
+                expected.schema_version,
+                expected.abi_size,
+                expected.hook_profile,
+                expected.object_hash
+            ))),
+        }
+    }
+
+    pub fn paths(&self) -> &PinnedEnginePaths {
+        &self.paths
+    }
+
+    pub fn meta(&self) -> PinnedEngineMeta {
+        self.meta
+    }
+
+    pub fn protect_pid(&self, pid: i32) -> io::Result<()> {
+        if pid <= 0 {
+            return Err(err("protected pid must be positive"));
+        }
+        let mut protected: HashMap<_, i32, u32> =
+            pinned_hash_map(&self.paths, "te_protected_pids")?;
+        protected
+            .insert(pid, 1, 0)
+            .map_err(|e| err(format!("protect pid {pid}: {e}")))?;
+        Ok(())
+    }
+
+    pub fn reload_handle(&self) -> io::Result<ReloadHandle> {
+        Ok(ReloadHandle {
+            cap_req_fd: dup_pinned_map_fd(&self.paths, "cap_req")?,
+            cap_task_fd: dup_pinned_map_fd(&self.paths, "cap_task")?,
+            cap_state_fd: dup_pinned_map_fd(&self.paths, "cap_state")?,
+            cap_policy_fd: dup_pinned_map_fd(&self.paths, "cap_policy")?,
+            ts_counts_fd: dup_pinned_map_fd(&self.paths, "ts_counts")?,
+            append_lock: Mutex::new(()),
+            policy_features: self.meta.policy_features,
+        })
+    }
+
+    pub fn domain_handle(&self) -> io::Result<DomainHandle> {
+        Ok(DomainHandle {
+            cap_task_fd: dup_pinned_map_fd(&self.paths, "cap_task")?,
+            cap_state_fd: dup_pinned_map_fd(&self.paths, "cap_state")?,
+            ts_proc_domains_fd: dup_pinned_map_fd(&self.paths, "ts_proc_domains")?,
+            ts_root_fd: dup_pinned_map_fd(&self.paths, "ts_root")?,
+        })
+    }
+
+    pub fn bind_child_domain(&self, spec: ChildDomainSpec) -> io::Result<()> {
+        self.domain_handle()?.bind_child_domain(spec)
+    }
+
+    fn seed_global_proc_state(&self, pid: i32, label: u64) -> io::Result<()> {
+        if pid <= 0 || label == 0 {
+            return Err(err("pid and label must both be set"));
+        }
+        let mut proc: HashMap<_, i32, ProcState> = pinned_hash_map(&self.paths, "ts_proc")?;
+        proc.insert(
+            pid,
+            ProcState {
+                labels: label,
+                lin_gates: 0,
+            },
+            0,
+        )
+        .map_err(|e| err(format!("seed ts_proc: {e}")))?;
+
+        let mut root: HashMap<_, i32, i32> = pinned_hash_map(&self.paths, "ts_root")?;
+        root.insert(pid, pid, 0)
+            .map_err(|e| err(format!("seed ts_root: {e}")))?;
+        Ok(())
+    }
+
+    pub fn seed_global_label(&self, pid: i32, label: u64) -> io::Result<()> {
+        self.seed_global_proc_state(pid, label)?;
+        let mut pid_map: HashMap<_, i32, u32> = pinned_hash_map(&self.paths, "cap_task")?;
+        pid_map
+            .insert(pid, GLOBAL_ACTIVE_DOMAIN_ID, 0)
+            .map_err(|e| err(format!("seed cap_task: {e}")))?;
+        Ok(())
+    }
+
+    pub fn seed_label(&self, pid: i32, label: u64) -> io::Result<()> {
+        self.seed_label_in_domain(pid, pid as u32, label)?;
+        Ok(())
+    }
+
+    pub fn seed_label_in_domain(&self, pid: i32, domain_id: u32, label: u64) -> io::Result<()> {
+        self.seed_global_proc_state(pid, label)?;
+        self.bind_state(pid, domain_id, runtime_root_state(label))?;
+        Ok(())
+    }
+
+    pub fn bind_state(&self, pid: i32, target_id: u32, state: CapState) -> io::Result<()> {
+        if pid <= 0 || target_id == 0 {
+            return Err(err("pid and target id must both be set"));
+        }
+        {
+            let mut states: HashMap<_, u32, CapState> = pinned_hash_map(&self.paths, "cap_state")?;
+            states
+                .insert(target_id, state, 0)
+                .map_err(|e| err(format!("seed cap_state: {e}")))?;
+        }
+        {
+            let mut proc: HashMap<_, PidDomainKey, ProcState> =
+                pinned_hash_map(&self.paths, "ts_proc_domains")?;
+            proc.insert(
+                PidDomainKey {
+                    pid,
+                    domain_id: target_id,
+                },
+                ProcState {
+                    labels: 0,
+                    lin_gates: 0,
+                },
+                0,
+            )
+            .map_err(|e| err(format!("bind ts_proc_domains: {e}")))?;
+        }
+        {
+            let mut pid_map: HashMap<_, i32, u32> = pinned_hash_map(&self.paths, "cap_task")?;
+            pid_map
+                .insert(pid, target_id, 0)
+                .map_err(|e| err(format!("seed cap_task: {e}")))?;
+        }
+        Ok(())
+    }
+
+    pub fn unbind_pid_from_domain(&self, pid: i32, domain_id: u32) -> io::Result<()> {
+        let mut tasks: HashMap<_, i32, u32> = pinned_hash_map(&self.paths, "cap_task")?;
+        ignore_missing_remove(tasks.remove(&pid), "remove cap_task")?;
+        let mut proc: HashMap<_, PidDomainKey, ProcState> =
+            pinned_hash_map(&self.paths, "ts_proc_domains")?;
+        ignore_missing_remove(
+            proc.remove(&PidDomainKey { pid, domain_id }),
+            "remove ts_proc_domains",
+        )
+    }
+
+    pub fn run(&self, stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()> {
+        poll_ringbuf(pinned_ringbuf(&self.paths)?, stop, on)
+    }
+}
+
+impl EngineClient {
+    pub fn open_or_load_pinned_singleton() -> io::Result<Self> {
+        Self::open_or_load_pinned_singleton_at(PinnedEnginePaths::from_env())
+    }
+
+    pub fn open_or_load_pinned_singleton_at(paths: PinnedEnginePaths) -> io::Result<Self> {
+        let expected = PinnedEngineMeta::current_full_profile(ALL_RESERVED_FEATURES);
+        match probe_pinned_engine_meta(&paths, expected)? {
+            PinnedEngineMetaStatus::Compatible(_) => {
+                return Ok(Self::Pinned(PinnedEngine::open(paths)?));
+            }
+            PinnedEngineMetaStatus::Incompatible(installed) => {
+                return Err(err(format!(
+                    "incompatible pinned ActPlane engine at {}: installed schema={} abi_size={} hook_profile={} object_hash=0x{:016x}; expected schema={} abi_size={} hook_profile={} object_hash=0x{:016x}",
+                    paths.root().display(),
+                    installed.schema_version,
+                    installed.abi_size,
+                    installed.hook_profile,
+                    installed.object_hash,
+                    expected.schema_version,
+                    expected.abi_size,
+                    expected.hook_profile,
+                    expected.object_hash
+                )));
+            }
+            PinnedEngineMetaStatus::Missing => {}
+        }
+
+        match Loader::load_with_pinned_layout(
+            &empty_config_blob(),
+            HookReserve::full_profile(),
+            paths.clone(),
+        ) {
+            Ok(loader) => Ok(Self::Loaded(loader)),
+            Err(e) => match probe_pinned_engine_meta(&paths, expected)? {
+                PinnedEngineMetaStatus::Compatible(_) => {
+                    Ok(Self::Pinned(PinnedEngine::open(paths)?))
+                }
+                _ => Err(e),
+            },
+        }
+    }
+
+    pub fn protect_pid(&mut self, pid: i32) -> io::Result<()> {
+        match self {
+            Self::Loaded(loader) => loader.protect_pid(pid),
+            Self::Pinned(engine) => engine.protect_pid(pid),
+        }
+    }
+
+    pub fn reload_handle(&self) -> io::Result<ReloadHandle> {
+        match self {
+            Self::Loaded(loader) => loader.reload_handle(),
+            Self::Pinned(engine) => engine.reload_handle(),
+        }
+    }
+
+    pub fn domain_handle(&self) -> io::Result<DomainHandle> {
+        match self {
+            Self::Loaded(loader) => loader.domain_handle(),
+            Self::Pinned(engine) => engine.domain_handle(),
+        }
+    }
+
+    pub fn bind_child_domain(&self, spec: ChildDomainSpec) -> io::Result<()> {
+        match self {
+            Self::Loaded(loader) => loader.bind_child_domain(spec),
+            Self::Pinned(engine) => engine.bind_child_domain(spec),
+        }
+    }
+
+    pub fn seed_global_label(&mut self, pid: i32, label: u64) -> io::Result<()> {
+        match self {
+            Self::Loaded(loader) => loader.seed_global_label(pid, label),
+            Self::Pinned(engine) => engine.seed_global_label(pid, label),
+        }
+    }
+
+    pub fn seed_label(&mut self, pid: i32, label: u64) -> io::Result<()> {
+        self.seed_label_in_domain(pid, pid as u32, label)
+    }
+
+    pub fn seed_label_in_domain(&mut self, pid: i32, domain_id: u32, label: u64) -> io::Result<()> {
+        match self {
+            Self::Loaded(loader) => loader.seed_label_in_domain(pid, domain_id, label),
+            Self::Pinned(engine) => engine.seed_label_in_domain(pid, domain_id, label),
+        }
+    }
+
+    pub fn bind_state(&mut self, pid: i32, target_id: u32, state: CapState) -> io::Result<()> {
+        match self {
+            Self::Loaded(loader) => loader.bind_state(pid, target_id, state),
+            Self::Pinned(engine) => engine.bind_state(pid, target_id, state),
+        }
+    }
+
+    pub fn unbind_pid_from_domain(&mut self, pid: i32, domain_id: u32) -> io::Result<()> {
+        match self {
+            Self::Loaded(loader) => loader.unbind_pid_from_domain(pid, domain_id),
+            Self::Pinned(engine) => engine.unbind_pid_from_domain(pid, domain_id),
+        }
+    }
+
+    pub fn run(&mut self, stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()> {
+        match self {
+            Self::Loaded(loader) => loader.run(stop, on),
+            Self::Pinned(engine) => engine.run(stop, on),
+        }
+    }
+}
+
+fn poll_ringbuf<T: Borrow<MapData>>(
+    mut ring: RingBuf<T>,
+    stop: &AtomicBool,
+    mut on: impl FnMut(Violation),
+) -> io::Result<()> {
+    let fd = ring.as_raw_fd();
+
+    while !stop.load(Ordering::Relaxed) {
+        let mut pfd = libc::pollfd {
+            fd,
+            events: libc::POLLIN,
+            revents: 0,
+        };
+        let r = unsafe { libc::poll(&mut pfd, 1, 100) };
+        if r < 0 {
+            let e = io::Error::last_os_error();
+            if e.kind() == io::ErrorKind::Interrupted {
+                continue;
+            }
+            return Err(e);
+        }
+        while let Some(item) = ring.next() {
+            if stop.load(Ordering::Relaxed) {
+                return Ok(());
+            }
+            let bytes: &[u8] = &item;
+            if bytes.len() < std::mem::size_of::<Event>() {
+                continue;
+            }
+            let e: Event = unsafe { std::ptr::read_unaligned(bytes.as_ptr() as *const Event) };
+            if e.etype != EVENT_TYPE_TAINT_VIOLATION {
+                continue;
+            }
+            on(decode(&e));
+            if stop.load(Ordering::Relaxed) {
+                return Ok(());
+            }
+        }
+    }
+    Ok(())
 }
 
 impl Loader {
@@ -1319,6 +2044,22 @@ impl Loader {
     pub fn load_with_hook_reserve(
         config_blob: &[u8],
         hook_reserve: HookReserve,
+    ) -> io::Result<Self> {
+        Self::load_inner(config_blob, hook_reserve, None)
+    }
+
+    pub fn load_with_pinned_layout(
+        config_blob: &[u8],
+        hook_reserve: HookReserve,
+        paths: PinnedEnginePaths,
+    ) -> io::Result<Self> {
+        Self::load_inner(config_blob, hook_reserve, Some(paths))
+    }
+
+    fn load_inner(
+        config_blob: &[u8],
+        hook_reserve: HookReserve,
+        pin_paths: Option<PinnedEnginePaths>,
     ) -> io::Result<Self> {
         if config_blob.len() != std::mem::size_of::<CConfig>() {
             return Err(err(format!(
@@ -1336,6 +2077,33 @@ impl Loader {
         let enforce_mode: u32 = if enforce { 1 } else { 0 };
         let hook_budget = HookBudget::from_config(&cfg, hook_reserve);
         let policy_features = hook_budget.features;
+        let meta = PinnedEngineMeta::current(hook_budget.hook_profile(), policy_features);
+        if let Some(paths) = pin_paths.as_ref() {
+            ensure_pinned_engine_dirs(paths)?;
+            match probe_pinned_engine_meta(paths, meta)? {
+                PinnedEngineMetaStatus::Missing => {}
+                PinnedEngineMetaStatus::Compatible(_) => {
+                    return Err(err(format!(
+                        "ActPlane pinned engine already exists at {}; open pinned objects instead of loading another engine",
+                        paths.root().display()
+                    )));
+                }
+                PinnedEngineMetaStatus::Incompatible(installed) => {
+                    return Err(err(format!(
+                        "incompatible pinned ActPlane engine at {}: installed schema={} abi_size={} hook_profile={} object_hash=0x{:016x}; expected schema={} abi_size={} hook_profile={} object_hash=0x{:016x}",
+                        paths.root().display(),
+                        installed.schema_version,
+                        installed.abi_size,
+                        installed.hook_profile,
+                        installed.object_hash,
+                        meta.schema_version,
+                        meta.abi_size,
+                        meta.hook_profile,
+                        meta.object_hash
+                    )));
+                }
+            }
+        }
 
         let mut loader = EbpfLoader::new();
         loader
@@ -1351,6 +2119,9 @@ impl Loader {
         populate_update_map(&mut bpf, &cfg)?;
         populate_rule_map(&mut bpf, &cfg)?;
         populate_policy_mask_map(&mut bpf, &cfg)?;
+        if pin_paths.is_some() {
+            populate_engine_meta_map(&mut bpf, meta)?;
+        }
 
         // Loop counts in a (non-frozen) map so the verifier analyzes each
         // bpf_loop callback once. Slots: 0=rules 1=updates 5=labels.
@@ -1367,6 +2138,8 @@ impl Loader {
                     .map_err(|e| err(format!("ts_counts[{i}]: {e}")))?;
             }
         }
+        populate_trusted_client_map(&mut bpf)?;
+        protect_pid_in_loaded_bpf(&mut bpf, std::process::id() as i32)?;
 
         let has_recv = hook_budget.has_recv();
         let has_block_exec = hook_budget.features & FEAT_BLOCK_EXEC != 0;
@@ -1374,6 +2147,11 @@ impl Loader {
         let has_block_connect = hook_budget.features & FEAT_BLOCK_CONNECT != 0;
 
         load_exec_tail_programs(&mut bpf)?;
+        let mut loaded_programs: Vec<String> = EXEC_TAIL_PROGS
+            .iter()
+            .map(|(_, name)| (*name).to_string())
+            .collect();
+        let mut pending_links: Vec<PendingPinnedLink> = Vec::new();
 
         // Attach only the tracepoints required by this loaded hook set, then LSM
         // programs only when BPF LSM is active.
@@ -1388,8 +2166,25 @@ impl Loader {
                 .map_err(|e| err(format!("{} not a tracepoint: {e}", spec.name)))?;
             p.load()
                 .map_err(|e| err(format!("{}.load: {e}", spec.name)))?;
-            p.attach(spec.category, spec.event)
+            loaded_programs.push(spec.name.to_string());
+            let link_id = p
+                .attach(spec.category, spec.event)
                 .map_err(|e| err(format!("{}.attach: {e}", spec.name)))?;
+            if pin_paths.is_some() {
+                let link = p
+                    .take_link(link_id)
+                    .map_err(|e| err(format!("{}.take_link: {e}", spec.name)))?;
+                let fd_link: FdLink = link.try_into().map_err(|e| {
+                    err(format!(
+                        "{} tracepoint link is not pinnable as an fd link: {e}",
+                        spec.name
+                    ))
+                })?;
+                pending_links.push(PendingPinnedLink {
+                    name: spec.name.to_string(),
+                    link: fd_link,
+                });
+            }
         }
         if enforce {
             let btf = Btf::from_sys_fs().map_err(|e| err(format!("btf: {e}")))?;
@@ -1411,15 +2206,47 @@ impl Loader {
                     .map_err(|e| err(format!("{name} not an lsm: {e}")))?;
                 p.load(hook, &btf)
                     .map_err(|e| err(format!("{name}.load: {e}")))?;
-                p.attach().map_err(|e| err(format!("{name}.attach: {e}")))?;
+                loaded_programs.push(name.to_string());
+                let link_id = p.attach().map_err(|e| err(format!("{name}.attach: {e}")))?;
+                if pin_paths.is_some() {
+                    let link = p
+                        .take_link(link_id)
+                        .map_err(|e| err(format!("{name}.take_link: {e}")))?;
+                    let fd_link: FdLink = link.into();
+                    pending_links.push(PendingPinnedLink {
+                        name: name.to_string(),
+                        link: fd_link,
+                    });
+                }
             }
         }
 
-        Ok(Loader {
+        let mut pinned_links = Vec::new();
+        if let Some(paths) = pin_paths.as_ref() {
+            let mut cleanup = PinInstallCleanup::default();
+            let pin_result = (|| -> io::Result<Vec<PinnedLink>> {
+                pin_loaded_maps(&bpf, paths, false, &mut cleanup)?;
+                pin_loaded_programs(&mut bpf, paths, &loaded_programs, &mut cleanup)?;
+                let links = pin_pending_links(paths, pending_links, &mut cleanup)?;
+                pin_loaded_meta_map(&bpf, paths, &mut cleanup)?;
+                Ok(links)
+            })();
+            match pin_result {
+                Ok(links) => pinned_links = links,
+                Err(e) => {
+                    cleanup.cleanup();
+                    return Err(e);
+                }
+            }
+        }
+
+        let loader = Loader {
             bpf,
             enforce,
             policy_features,
-        })
+        };
+        drop(pinned_links);
+        Ok(loader)
     }
 
     pub fn enforce_mode(&self) -> bool {
@@ -1430,19 +2257,7 @@ impl Loader {
     /// already bound to an ActPlane runtime domain. Host processes outside a
     /// domain are not denied, including root/admin unload paths.
     pub fn protect_pid(&mut self, pid: i32) -> io::Result<()> {
-        if pid <= 0 {
-            return Err(err("protected pid must be positive"));
-        }
-        let mut protected: HashMap<_, i32, u32> = HashMap::try_from(
-            self.bpf
-                .map_mut("te_protected_pids")
-                .ok_or_else(|| err("te_protected_pids missing"))?,
-        )
-        .map_err(|e| err(format!("te_protected_pids: {e}")))?;
-        protected
-            .insert(pid, 1, 0)
-            .map_err(|e| err(format!("protect pid {pid}: {e}")))?;
-        Ok(())
+        protect_pid_in_loaded_bpf(&mut self.bpf, pid)
     }
 
     /// Create a `ReloadHandle` that can hot-reload policy into this engine.
@@ -1537,25 +2352,12 @@ impl Loader {
 
     /// Seed `pid` and its future descendants with an initial label.
     pub fn seed_label(&mut self, pid: i32, label: u64) -> io::Result<()> {
+        self.seed_label_in_domain(pid, pid as u32, label)
+    }
+
+    pub fn seed_label_in_domain(&mut self, pid: i32, domain_id: u32, label: u64) -> io::Result<()> {
         self.seed_global_proc_state(pid, label)?;
-        self.bind_state(
-            pid,
-            pid as u32,
-            CapState {
-                scope_id: 1,
-                labels: label,
-                authority_mask: AUTH_BIND_RULE
-                    | AUTH_NARROW_SCOPE
-                    | AUTH_ADD_LABEL
-                    | AUTH_REQUIRE_GATE
-                    | AUTH_DECLASSIFY
-                    | AUTH_DELEGATE,
-                target_mask: TARGET_SELF | TARGET_CHILD,
-                gate_mask: u64::MAX,
-                label_mask: u64::MAX,
-                ..CapState::default()
-            },
-        )?;
+        self.bind_state(pid, domain_id, runtime_root_state(label))?;
         Ok(())
     }
 
@@ -1614,6 +2416,27 @@ impl Loader {
         Ok(())
     }
 
+    pub fn unbind_pid_from_domain(&mut self, pid: i32, domain_id: u32) -> io::Result<()> {
+        let mut tasks: HashMap<_, i32, u32> = HashMap::try_from(
+            self.bpf
+                .map_mut("cap_task")
+                .ok_or_else(|| err("cap_task missing"))?,
+        )
+        .map_err(|e| err(format!("cap_task: {e}")))?;
+        ignore_missing_remove(tasks.remove(&pid), "remove cap_task")?;
+
+        let mut proc: HashMap<_, PidDomainKey, ProcState> = HashMap::try_from(
+            self.bpf
+                .map_mut("ts_proc_domains")
+                .ok_or_else(|| err("ts_proc_domains missing"))?,
+        )
+        .map_err(|e| err(format!("ts_proc_domains: {e}")))?;
+        ignore_missing_remove(
+            proc.remove(&PidDomainKey { pid, domain_id }),
+            "remove ts_proc_domains",
+        )
+    }
+
     /// Submit a runtime policy delta through the user-to-kernel ring buffer.
     ///
     /// The BPF side admits the request only if `caller_pid` maps to a state with
@@ -1657,38 +2480,10 @@ impl Loader {
     }
 
     /// Poll the ring buffer until `stop` is set, delivering each violation.
-    pub fn run(&mut self, stop: &AtomicBool, mut on: impl FnMut(Violation)) -> io::Result<()> {
-        let mut ring = RingBuf::try_from(self.bpf.map_mut("rb").ok_or_else(|| err("rb missing"))?)
+    pub fn run(&mut self, stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()> {
+        let ring = RingBuf::try_from(self.bpf.map_mut("rb").ok_or_else(|| err("rb missing"))?)
             .map_err(|e| err(format!("rb: {e}")))?;
-        let fd = ring.as_raw_fd();
-
-        while !stop.load(Ordering::Relaxed) {
-            let mut pfd = libc::pollfd {
-                fd,
-                events: libc::POLLIN,
-                revents: 0,
-            };
-            let r = unsafe { libc::poll(&mut pfd, 1, 100) };
-            if r < 0 {
-                let e = io::Error::last_os_error();
-                if e.kind() == io::ErrorKind::Interrupted {
-                    continue;
-                }
-                return Err(e);
-            }
-            while let Some(item) = ring.next() {
-                let bytes: &[u8] = &item;
-                if bytes.len() < std::mem::size_of::<Event>() {
-                    continue;
-                }
-                let e: Event = unsafe { std::ptr::read_unaligned(bytes.as_ptr() as *const Event) };
-                if e.etype != EVENT_TYPE_TAINT_VIOLATION {
-                    continue;
-                }
-                on(decode(&e));
-            }
-        }
-        Ok(())
+        poll_ringbuf(ring, stop, on)
     }
 }
 
@@ -1753,6 +2548,18 @@ fn populate_policy_mask_map(bpf: &mut Ebpf, cfg: &CConfig) -> io::Result<()> {
             .insert(domain_id, mask, 0)
             .map_err(|e| err(format!("cap_policy[{domain_id}]: {e}")))?;
     }
+    Ok(())
+}
+
+fn populate_engine_meta_map(bpf: &mut Ebpf, meta: PinnedEngineMeta) -> io::Result<()> {
+    let mut meta_map: Array<_, PinnedEngineMeta> = Array::try_from(
+        bpf.map_mut("ap_meta")
+            .ok_or_else(|| err("map ap_meta missing"))?,
+    )
+    .map_err(|e| err(format!("ap_meta: {e}")))?;
+    meta_map
+        .set(0, meta, 0)
+        .map_err(|e| err(format!("ap_meta[0]: {e}")))?;
     Ok(())
 }
 
@@ -1968,12 +2775,14 @@ impl ReloadHandle {
         self.submit(val)?;
         for _ in 0..10 {
             let after = self.count_slot(count_slot)?;
-            if after == before + 1 {
+            // Counts are global to the pinned singleton, so another short-lived
+            // client can append between this submit and our observation.
+            if after >= before + 1 {
                 return Ok(());
             }
             if after != before {
                 return Err(err(format!(
-                    "{what} changed count from {before} to {after}, expected {}",
+                    "{what} changed count from {before} to {after}, expected at least {}",
                     before + 1
                 )));
             }
@@ -2323,6 +3132,21 @@ mod tests {
         assert_eq!(std::mem::size_of::<CConfig>(), 74_760);
         assert_eq!(std::mem::align_of::<Event>(), 8);
         assert_eq!(std::mem::size_of::<Event>(), 384);
+        assert_eq!(std::mem::align_of::<PinnedEngineMeta>(), 8);
+        assert_eq!(std::mem::size_of::<PinnedEngineMeta>(), 40);
+        assert_eq!(std::mem::size_of::<TrustedClient>(), 8);
+    }
+
+    #[test]
+    fn trusted_client_path_hash_covers_full_pat_buffer() {
+        let mut path = vec![b'a'; PAT + 8];
+        path[0] = b'/';
+
+        let mut truncated = [0u8; PAT];
+        truncated[..PAT - 1].copy_from_slice(&path[..PAT - 1]);
+
+        assert_eq!(fnv1a64_padded_pat(&path), fnv1a64(&path[..PAT]));
+        assert_ne!(fnv1a64_padded_pat(&path), fnv1a64(&truncated));
     }
 
     #[test]
@@ -2376,6 +3200,7 @@ mod tests {
             b"trace_copy_file_range".as_slice(),
             b"trace_splice".as_slice(),
             b"enforce_socket_recvmsg".as_slice(),
+            b"te_trusted_clients".as_slice(),
             b"ts_fd".as_slice(),
             b"ts_sockfd".as_slice(),
             b"ts_connectpend".as_slice(),
@@ -2390,6 +3215,7 @@ mod tests {
             b"stdio:stdout".as_slice(),
             b"ts_updates".as_slice(),
             b"ts_rules".as_slice(),
+            b"ap_meta".as_slice(),
             b"ts_proc_domains".as_slice(),
             b"ts_exit_gates".as_slice(),
             b"exec_tail".as_slice(),
@@ -2407,6 +3233,108 @@ mod tests {
     }
 
     #[test]
+    fn pinned_engine_paths_use_versioned_bpffs_layout() {
+        let paths = PinnedEnginePaths::new("/tmp/actplane-test-root");
+        assert_eq!(paths.root(), Path::new("/tmp/actplane-test-root"));
+        assert_eq!(
+            paths.meta(),
+            Path::new("/tmp/actplane-test-root/maps/ap_meta")
+        );
+        assert_eq!(
+            paths.map("ts_proc"),
+            Path::new("/tmp/actplane-test-root/maps/ts_proc")
+        );
+        assert_eq!(
+            paths.program("handle_exec"),
+            Path::new("/tmp/actplane-test-root/programs/handle_exec")
+        );
+        assert_eq!(
+            paths.link("handle_exec"),
+            Path::new("/tmp/actplane-test-root/links/handle_exec")
+        );
+    }
+
+    #[test]
+    fn pinned_engine_meta_compatibility_ignores_mutable_fields() {
+        let expected = PinnedEngineMeta::current_full_profile(ALL_RESERVED_FEATURES);
+        let mut installed = expected;
+        installed.policy_features = 0;
+        installed.install_generation = 99;
+        assert!(installed.compatible_with(expected));
+
+        let mut incompatible = expected;
+        incompatible.hook_profile = 0;
+        assert!(!incompatible.compatible_with(expected));
+    }
+
+    #[test]
+    fn probe_pinned_engine_meta_reports_missing_meta() {
+        let paths = PinnedEnginePaths::new(
+            std::env::temp_dir().join(format!("actplane-missing-meta-{}", std::process::id())),
+        );
+        let status = probe_pinned_engine_meta(&paths, PinnedEngineMeta::current_full_profile(0))
+            .expect("probe missing pinned engine");
+        assert_eq!(status, PinnedEngineMetaStatus::Missing);
+    }
+
+    #[test]
+    fn pinned_engine_open_reports_missing_without_loading() {
+        let paths = PinnedEnginePaths::new(
+            std::env::temp_dir().join(format!("actplane-missing-open-{}", std::process::id())),
+        );
+        let err = PinnedEngine::open(paths).expect_err("missing pinned engine should not load");
+        assert!(
+            err.to_string().contains("pinned ActPlane engine missing"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn ensure_pinned_engine_dirs_creates_layout_dirs() {
+        let root =
+            std::env::temp_dir().join(format!("actplane-pinned-layout-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let paths = PinnedEnginePaths::new(&root);
+        ensure_pinned_engine_dirs(&paths).expect("create pinned layout dirs");
+        assert!(paths.maps_dir().is_dir());
+        assert!(paths.programs_dir().is_dir());
+        assert!(paths.links_dir().is_dir());
+        std::fs::remove_dir_all(root).expect("cleanup pinned layout dirs");
+    }
+
+    #[test]
+    fn pin_install_cleanup_removes_only_recorded_paths() {
+        let root =
+            std::env::temp_dir().join(format!("actplane-pin-cleanup-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let paths = PinnedEnginePaths::new(&root);
+        ensure_pinned_engine_dirs(&paths).expect("create pinned layout dirs");
+
+        let owned = paths.map("owned");
+        let foreign = paths.map("foreign");
+        std::fs::write(&owned, b"owned").expect("write owned pin placeholder");
+        std::fs::write(&foreign, b"foreign").expect("write foreign pin placeholder");
+
+        let mut cleanup = PinInstallCleanup::default();
+        cleanup.record(&owned);
+        cleanup.cleanup();
+
+        assert!(!owned.exists(), "recorded pin should be removed");
+        assert!(foreign.exists(), "unrecorded pin should be preserved");
+        std::fs::remove_dir_all(root).expect("cleanup pinned layout dirs");
+    }
+
+    #[test]
+    fn pinned_engine_skips_internal_data_section_maps() {
+        assert!(should_pin_loaded_map("ts_proc", false));
+        assert!(should_pin_loaded_map("rb", false));
+        assert!(!should_pin_loaded_map(".rodata", false));
+        assert!(!should_pin_loaded_map(".bss", false));
+        assert!(!should_pin_loaded_map("ap_meta", false));
+        assert!(should_pin_loaded_map("ap_meta", true));
+    }
+
+    #[test]
     fn default_hook_budget_keeps_advanced_tracepoints_off() {
         fn spec(name: &str) -> &'static TracepointSpec {
             TRACEPOINTS
@@ -2419,6 +3347,7 @@ mod tests {
             features: 0,
             file_write: false,
             advanced_tracepoints: false,
+            full_profile: false,
         };
         assert!(tracepoint_needed(spec("handle_fork"), empty));
         assert!(!tracepoint_needed(spec("handle_exec"), empty));
@@ -2433,6 +3362,7 @@ mod tests {
             features: FEAT_FILE_FLOW,
             file_write: false,
             advanced_tracepoints: false,
+            full_profile: false,
         };
         assert!(tracepoint_needed(spec("trace_openat"), file));
         assert!(tracepoint_needed(spec("trace_read_exit"), file));

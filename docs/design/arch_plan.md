@@ -11,6 +11,17 @@ ActPlane 的长期定位不是一个 Codex/Claude 插件，也不是一个单点
 换句话说，agent 不应该裸跑在主机上，而应该运行在 ActPlane 管理的 execution
 scope 中。ActPlane 负责身份、策略层级、委托边界、数据流约束、恢复反馈和审计。
 
+## Engine Lifetime Invariant
+
+ActPlane 的 OS 层 enforcement plane 必须是 host/kernel 级单例，而不是
+project 级进程。长期存在的 programs、links、maps、policy/domain registry 和
+event log 必须 pin 在 bpffs，`actplane` 用户态进程只是短命 client。不能引入
+必须长期运行的 userspace daemon 来持有 engine 生命周期或 policy authority。
+本文里的 runtime、hypervisor、control 等词只描述产品语义和短命 client/API
+surface，不表示一个新的长期用户态组件。
+
+详细设计见 [`kernel-resident-singleton.md`](kernel-resident-singleton.md)。
+
 ## Core Product Shape
 
 ActPlane 应该分成三层:
@@ -261,7 +272,8 @@ actplane:///audit
 ```
 
 MCP 不应该默认提供大量 policy-mutating tools。修改 policy、创建 delegation、发放
-approval 这类动作应该走 ActPlane control plane，并验证 authority 和 monotonicity。
+approval 这类动作应该通过短命 client 提交 kernel-admitted domain/map 操作，并验证
+authority 和 monotonicity。
 
 ## Non-Goals
 
@@ -283,7 +295,7 @@ data-flow enforcement + delegation + feedback + audit**。
 
 1. Stabilize setup, doctor, feedback hook, MCP auto-attach.
 2. Add `status` and `explain last`.
-3. Add built-in control-plane self-protection.
+3. Add built-in protection for ActPlane's own pinned objects and client paths.
 4. Add policy layer metadata and effective policy hash.
 5. Add `delegate` for subagent contracts.
 6. Add workspace/resource scopes for delegated principals.

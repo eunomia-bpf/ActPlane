@@ -346,7 +346,7 @@ impl ActPlaneMcp {
             })?;
 
         let msg = format!(
-            "Policy hot-reloaded ({} rule metadata entries) from {}",
+            "Policy appended as a domain-scoped singleton delta ({} rule metadata entries) from {}",
             n_rules,
             path.display()
         );
@@ -2394,9 +2394,9 @@ impl ServerHandler for ActPlaneMcp {
         let tools = vec![
             Tool::new(
                 "reload_policy",
-                "Hot-reload the policy from actplane.yaml into the running \
-                 eBPF engine without restarting. Accumulated state (process \
-                 labels, file labels, session gates) is preserved.",
+                "Append the current actplane.yaml policy to the attached \
+                 singleton runtime domain without restarting. Accumulated state \
+                 (process labels, file labels, session gates) is preserved.",
                 empty_schema.clone(),
             ),
             Tool::new(
