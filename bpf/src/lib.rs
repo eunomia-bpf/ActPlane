@@ -533,9 +533,9 @@ fn populate_trusted_client_map(bpf: &mut Ebpf) -> io::Result<()> {
 }
 
 fn ensure_pinned_engine_dirs(paths: &PinnedEnginePaths) -> io::Result<()> {
-    std::fs::create_dir_all(paths.maps_dir())?;
-    std::fs::create_dir_all(paths.programs_dir())?;
-    std::fs::create_dir_all(paths.links_dir())?;
+    for dir in [paths.maps_dir(), paths.programs_dir(), paths.links_dir()] {
+        std::fs::create_dir_all(dir)?;
+    }
     Ok(())
 }
 
@@ -567,11 +567,20 @@ fn pin_loaded_maps(
         if !should_pin_loaded_map(name, include_meta) {
             continue;
         }
-        let path = paths.map(name);
-        map.pin(&path)
-            .map_err(|e| err(format!("pin map {name} at {}: {e}", path.display())))?;
-        cleanup.record(&path);
+        pin_loaded_map(map, name, paths.map(name), cleanup)?;
     }
+    Ok(())
+}
+
+fn pin_loaded_map(
+    map: &Map,
+    name: &str,
+    path: PathBuf,
+    cleanup: &mut PinInstallCleanup,
+) -> io::Result<()> {
+    map.pin(&path)
+        .map_err(|e| err(format!("pin map {name} at {}: {e}", path.display())))?;
+    cleanup.record(&path);
     Ok(())
 }
 
@@ -590,11 +599,7 @@ fn pin_loaded_meta_map(
     let map = bpf
         .map("ap_meta")
         .ok_or_else(|| err("map ap_meta missing"))?;
-    let path = paths.meta();
-    map.pin(&path)
-        .map_err(|e| err(format!("pin map ap_meta at {}: {e}", path.display())))?;
-    cleanup.record(&path);
-    Ok(())
+    pin_loaded_map(map, "ap_meta", paths.meta(), cleanup)
 }
 
 fn pin_loaded_programs(
@@ -703,6 +708,25 @@ pub fn probe_pinned_engine_meta(
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(PinnedEngineMetaStatus::Missing),
         Err(e) => Err(e),
     }
+}
+
+fn pinned_engine_incompatible_error(
+    paths: &PinnedEnginePaths,
+    installed: PinnedEngineMeta,
+    expected: PinnedEngineMeta,
+) -> io::Error {
+    err(format!(
+        "incompatible pinned ActPlane engine at {}: installed schema={} abi_size={} hook_profile={} object_hash=0x{:016x}; expected schema={} abi_size={} hook_profile={} object_hash=0x{:016x}",
+        paths.root().display(),
+        installed.schema_version,
+        installed.abi_size,
+        installed.hook_profile,
+        installed.object_hash,
+        expected.schema_version,
+        expected.abi_size,
+        expected.hook_profile,
+        expected.object_hash
+    ))
 }
 
 fn hash_map_from_fd<K: aya::Pod, V: aya::Pod>(fd: &OwnedFd) -> io::Result<HashMap<MapData, K, V>> {
@@ -1727,27 +1751,10 @@ impl PinnedEngine {
                 "pinned ActPlane engine missing at {}",
                 paths.root().display()
             ))),
-            PinnedEngineMetaStatus::Incompatible(installed) => Err(err(format!(
-                "incompatible pinned ActPlane engine at {}: installed schema={} abi_size={} hook_profile={} object_hash=0x{:016x}; expected schema={} abi_size={} hook_profile={} object_hash=0x{:016x}",
-                paths.root().display(),
-                installed.schema_version,
-                installed.abi_size,
-                installed.hook_profile,
-                installed.object_hash,
-                expected.schema_version,
-                expected.abi_size,
-                expected.hook_profile,
-                expected.object_hash
-            ))),
+            PinnedEngineMetaStatus::Incompatible(installed) => Err(
+                pinned_engine_incompatible_error(&paths, installed, expected),
+            ),
         }
-    }
-
-    pub fn paths(&self) -> &PinnedEnginePaths {
-        &self.paths
-    }
-
-    pub fn meta(&self) -> PinnedEngineMeta {
-        self.meta
     }
 
     pub fn protect_pid(&self, pid: i32) -> io::Result<()> {
@@ -1783,10 +1790,6 @@ impl PinnedEngine {
         })
     }
 
-    pub fn bind_child_domain(&self, spec: ChildDomainSpec) -> io::Result<()> {
-        self.domain_handle()?.bind_child_domain(spec)
-    }
-
     fn seed_global_proc_state(&self, pid: i32, label: u64) -> io::Result<()> {
         if pid <= 0 || label == 0 {
             return Err(err("pid and label must both be set"));
@@ -1805,20 +1808,6 @@ impl PinnedEngine {
         let mut root: HashMap<_, i32, i32> = pinned_hash_map(&self.paths, "ts_root")?;
         root.insert(pid, pid, 0)
             .map_err(|e| err(format!("seed ts_root: {e}")))?;
-        Ok(())
-    }
-
-    pub fn seed_global_label(&self, pid: i32, label: u64) -> io::Result<()> {
-        self.seed_global_proc_state(pid, label)?;
-        let mut pid_map: HashMap<_, i32, u32> = pinned_hash_map(&self.paths, "cap_task")?;
-        pid_map
-            .insert(pid, GLOBAL_ACTIVE_DOMAIN_ID, 0)
-            .map_err(|e| err(format!("seed cap_task: {e}")))?;
-        Ok(())
-    }
-
-    pub fn seed_label(&self, pid: i32, label: u64) -> io::Result<()> {
-        self.seed_label_in_domain(pid, pid as u32, label)?;
         Ok(())
     }
 
@@ -1887,22 +1876,13 @@ impl EngineClient {
     pub fn open_or_load_pinned_singleton_at(paths: PinnedEnginePaths) -> io::Result<Self> {
         let expected = PinnedEngineMeta::current_full_profile(ALL_RESERVED_FEATURES);
         match probe_pinned_engine_meta(&paths, expected)? {
-            PinnedEngineMetaStatus::Compatible(_) => {
-                return Ok(Self::Pinned(PinnedEngine::open(paths)?));
+            PinnedEngineMetaStatus::Compatible(meta) => {
+                return Ok(Self::Pinned(PinnedEngine { paths, meta }));
             }
             PinnedEngineMetaStatus::Incompatible(installed) => {
-                return Err(err(format!(
-                    "incompatible pinned ActPlane engine at {}: installed schema={} abi_size={} hook_profile={} object_hash=0x{:016x}; expected schema={} abi_size={} hook_profile={} object_hash=0x{:016x}",
-                    paths.root().display(),
-                    installed.schema_version,
-                    installed.abi_size,
-                    installed.hook_profile,
-                    installed.object_hash,
-                    expected.schema_version,
-                    expected.abi_size,
-                    expected.hook_profile,
-                    expected.object_hash
-                )));
+                return Err(pinned_engine_incompatible_error(
+                    &paths, installed, expected,
+                ));
             }
             PinnedEngineMetaStatus::Missing => {}
         }
@@ -1914,8 +1894,8 @@ impl EngineClient {
         ) {
             Ok(loader) => Ok(Self::Loaded(loader)),
             Err(e) => match probe_pinned_engine_meta(&paths, expected)? {
-                PinnedEngineMetaStatus::Compatible(_) => {
-                    Ok(Self::Pinned(PinnedEngine::open(paths)?))
+                PinnedEngineMetaStatus::Compatible(meta) => {
+                    Ok(Self::Pinned(PinnedEngine { paths, meta }))
                 }
                 _ => Err(e),
             },
@@ -1941,24 +1921,6 @@ impl EngineClient {
             Self::Loaded(loader) => loader.domain_handle(),
             Self::Pinned(engine) => engine.domain_handle(),
         }
-    }
-
-    pub fn bind_child_domain(&self, spec: ChildDomainSpec) -> io::Result<()> {
-        match self {
-            Self::Loaded(loader) => loader.bind_child_domain(spec),
-            Self::Pinned(engine) => engine.bind_child_domain(spec),
-        }
-    }
-
-    pub fn seed_global_label(&mut self, pid: i32, label: u64) -> io::Result<()> {
-        match self {
-            Self::Loaded(loader) => loader.seed_global_label(pid, label),
-            Self::Pinned(engine) => engine.seed_global_label(pid, label),
-        }
-    }
-
-    pub fn seed_label(&mut self, pid: i32, label: u64) -> io::Result<()> {
-        self.seed_label_in_domain(pid, pid as u32, label)
     }
 
     pub fn seed_label_in_domain(&mut self, pid: i32, domain_id: u32, label: u64) -> io::Result<()> {
@@ -2089,18 +2051,7 @@ impl Loader {
                     )));
                 }
                 PinnedEngineMetaStatus::Incompatible(installed) => {
-                    return Err(err(format!(
-                        "incompatible pinned ActPlane engine at {}: installed schema={} abi_size={} hook_profile={} object_hash=0x{:016x}; expected schema={} abi_size={} hook_profile={} object_hash=0x{:016x}",
-                        paths.root().display(),
-                        installed.schema_version,
-                        installed.abi_size,
-                        installed.hook_profile,
-                        installed.object_hash,
-                        meta.schema_version,
-                        meta.abi_size,
-                        meta.hook_profile,
-                        meta.object_hash
-                    )));
+                    return Err(pinned_engine_incompatible_error(paths, installed, meta));
                 }
             }
         }
