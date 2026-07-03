@@ -1,0 +1,57 @@
+cff-version: 1.2.0
+message: "If you use ActPlane in your research, please cite the arXiv preprint."
+title: "ActPlane"
+type: software
+version: "0.1.8"
+license: MIT
+repository-code: "https://github.com/eunomia-bpf/ActPlane"
+url: "https://github.com/eunomia-bpf/ActPlane"
+authors:
+  - family-names: Zheng
+    given-names: Yusheng
+  - family-names: Wu
+    given-names: Tianyuan
+  - family-names: Fu
+    given-names: Quanzhi
+  - family-names: Yu
+    given-names: Tong
+  - family-names: Mao
+    given-names: Wenan
+  - family-names: Wang
+    given-names: Wei
+  - family-names: Williams
+    given-names: Dan
+  - family-names: Quinn
+    given-names: Andi
+keywords:
+  - AI agents
+  - eBPF
+  - information-flow control
+  - policy enforcement
+preferred-citation:
+  type: article
+  title: "ActPlane: Programmable OS-Level Policy Enforcement for Agent Harnesses"
+  authors:
+    - family-names: Zheng
+      given-names: Yusheng
+    - family-names: Wu
+      given-names: Tianyuan
+    - family-names: Fu
+      given-names: Quanzhi
+    - family-names: Yu
+      given-names: Tong
+    - family-names: Mao
+      given-names: Wenan
+    - family-names: Wang
+      given-names: Wei
+    - family-names: Williams
+      given-names: Dan
+    - family-names: Quinn
+      given-names: Andi
+  year: 2026
+  date-published: "2026-06-23"
+  url: "https://arxiv.org/abs/2606.25189"
+  identifiers:
+    - type: other
+      value: "arXiv:2606.25189"
+      description: "arXiv identifier"
