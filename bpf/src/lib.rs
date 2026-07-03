@@ -58,11 +58,9 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
 
 fn fnv1a64_padded_pat(bytes: &[u8]) -> u64 {
     let mut h = 0xcbf29ce484222325u64;
-    let n = bytes.len().min(PAT);
     // Keep this in lockstep with te_fnv1a(): hash the fixed PAT buffer,
     // including zero padding after bpf_probe_read_str's terminating NUL.
-    for i in 0..PAT {
-        let b = if i < n { bytes[i] } else { 0 };
+    for b in bytes.iter().copied().chain(std::iter::repeat(0)).take(PAT) {
         h ^= u64::from(b);
         h = h.wrapping_mul(0x100000001b3);
     }
@@ -154,15 +152,15 @@ impl PinnedEnginePaths {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct PinnedEngineMeta {
-    pub schema_version: u32,
-    pub abi_size: u32,
-    pub hook_profile: u32,
-    pub flags: u32,
-    pub policy_features: u32,
-    pub _pad: u32,
-    pub object_hash: u64,
-    pub install_generation: u64,
+struct PinnedEngineMeta {
+    schema_version: u32,
+    abi_size: u32,
+    hook_profile: u32,
+    flags: u32,
+    policy_features: u32,
+    _pad: u32,
+    object_hash: u64,
+    install_generation: u64,
 }
 
 impl PinnedEngineMeta {
@@ -202,7 +200,7 @@ struct TrustedClient {
 unsafe impl aya::Pod for TrustedClient {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PinnedEngineMetaStatus {
+enum PinnedEngineMetaStatus {
     Missing,
     Compatible(PinnedEngineMeta),
     Incompatible(PinnedEngineMeta),
@@ -686,13 +684,13 @@ fn pinned_ringbuf(paths: &PinnedEnginePaths) -> io::Result<RingBuf<MapData>> {
     RingBuf::try_from(Map::RingBuf(data)).map_err(|e| err(format!("pinned map rb: {e}")))
 }
 
-pub fn read_pinned_engine_meta(paths: &PinnedEnginePaths) -> io::Result<PinnedEngineMeta> {
+fn read_pinned_engine_meta(paths: &PinnedEnginePaths) -> io::Result<PinnedEngineMeta> {
     let meta: Array<_, PinnedEngineMeta> = pinned_array_map(paths, "ap_meta")?;
     meta.get(&0, 0)
         .map_err(|e| err(format!("read pinned ActPlane engine meta: {e}")))
 }
 
-pub fn probe_pinned_engine_meta(
+fn probe_pinned_engine_meta(
     paths: &PinnedEnginePaths,
     expected: PinnedEngineMeta,
 ) -> io::Result<PinnedEngineMetaStatus> {
@@ -1498,7 +1496,7 @@ pub fn bpf_lsm_active() -> bool {
 }
 
 fn err(msg: impl Into<String>) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, msg.into())
+    io::Error::other(msg.into())
 }
 
 fn validate_config(cfg: &CConfig) -> io::Result<()> {
@@ -2728,7 +2726,7 @@ impl ReloadHandle {
             let after = self.count_slot(count_slot)?;
             // Counts are global to the pinned singleton, so another short-lived
             // client can append between this submit and our observation.
-            if after >= before + 1 {
+            if after > before {
                 return Ok(());
             }
             if after != before {
