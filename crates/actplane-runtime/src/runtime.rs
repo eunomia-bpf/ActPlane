@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use ebpf_ifc_engine::capability::{
     AUTH_ADD_LABEL, AUTH_BIND_RULE, AUTH_DECLASSIFY, AUTH_DELEGATE, AUTH_NARROW_SCOPE,
@@ -30,6 +30,24 @@ use crate::{PolicyInput, Result, audit, dsl};
 
 const ATTACH_PID_ENV: &str = "ACTPLANE_ATTACH_PID";
 const CLOEXEC_FALLBACK_FD_LIMIT: i32 = 1024;
+
+fn fresh_runtime_domain_id(pid: i32, salt: u32) -> u32 {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let mut x = now.as_nanos() as u64
+        ^ ((std::process::id() as u64) << 32)
+        ^ ((pid.max(0) as u64) << 1)
+        ^ salt as u64;
+    x ^= x >> 33;
+    x = x.wrapping_mul(0xff51afd7ed558ccd);
+    x ^= x >> 33;
+    let mut id = (x as u32) & 0x7fff_fffe;
+    if id == 0 || id == GLOBAL_ACTIVE_DOMAIN_ID {
+        id = salt | 1;
+    }
+    id
+}
 
 pub async fn watch_policy(cli: &PolicyInput, parent_domain: bool) -> Result<i32> {
     let attach_pid = attach_pid_from_env_or_parent();
@@ -61,7 +79,11 @@ pub async fn watch_policy_for_pid(
     let compiled = dsl::compile_str(&policy)?;
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
-    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(&compiled));
+    let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x5741_5443);
+    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
+        &compiled,
+        parent_domain_id,
+    ));
     let feedback = feedback_paths(&loaded);
     let target_owner = target_user(cli.run_as_root);
     prepare_feedback_files(&feedback, target_owner)?;
@@ -73,7 +95,6 @@ pub async fn watch_policy_for_pid(
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<ReadyResult>();
-    let parent_domain_id = submitter_pid as u32;
     let blob = compiled.bytes;
     let fb = feedback.feedback.clone();
     let ev = feedback.events.clone();
@@ -353,9 +374,9 @@ fn string_missing(value: Option<&str>) -> bool {
 }
 
 impl RuntimePolicyCatalog {
-    fn from_compiled(compiled: &dsl::Compiled) -> Self {
+    fn from_compiled(compiled: &dsl::Compiled, domain_id: u32) -> Self {
         let mut domain_labels = HashMap::new();
-        domain_labels.insert(0, compiled.labels.clone());
+        domain_labels.insert(domain_id, compiled.labels.clone());
         Self {
             inner: RwLock::new(RuntimePolicyCatalogInner {
                 rules: report::contexts_from_compiled(compiled),
@@ -364,9 +385,23 @@ impl RuntimePolicyCatalog {
         }
     }
 
+    fn register_domain(&self, domain_id: u32) -> Result<()> {
+        let mut inner = self
+            .inner
+            .write()
+            .map_err(|e| format!("policy metadata lock poisoned: {e}"))?;
+        inner.domain_labels.entry(domain_id).or_default();
+        Ok(())
+    }
+
     fn append_outputs(&self, v: &report::Violation, feedback_file: &Path, event_file: &Path) {
         match self.inner.read() {
             Ok(inner) => {
+                if v.domain_id()
+                    .is_some_and(|domain_id| !inner.domain_labels.contains_key(&domain_id))
+                {
+                    return;
+                }
                 report::append_violation_feedback_context(
                     inner.rules.get(v.rule_id()),
                     v,
@@ -380,69 +415,11 @@ impl RuntimePolicyCatalog {
 }
 
 impl EngineControl {
-    pub fn reload_policy(
-        &self,
-        compiled: &dsl::Compiled,
-        policy_source: &str,
-        policy_ref: &str,
-        loaded: &LoadedPolicy,
-    ) -> Result<usize> {
-        let next_approval_policy = RuntimeApprovalPolicy::from_loaded_policy(loaded);
-        let outcome: Result<PolicyDeltaOutcome> = (|| {
-            let _mutation = self
-                .mutation_lock
-                .lock()
-                .map_err(|e| format!("runtime mutation lock poisoned: {e}"))?;
-            let delta = self.append_policy_delta_dsl_inner(
-                self.submitter_pid,
-                self.parent_domain_id,
-                policy_source,
-            )?;
-            *self
-                .approval_policy
-                .write()
-                .map_err(|e| format!("approval policy lock poisoned: {e}"))? = next_approval_policy;
-            Ok(delta)
-        })();
-        match outcome {
-            Ok(delta) => {
-                self.audit(json!({
-                    "event": "reload_policy",
-                    "status": "accepted",
-                    "actor_pid": self.parent_pid,
-                    "mode": "append_delta_compat",
-                    "target_id": self.parent_domain_id,
-                    "rule_id_base": delta.rule_id_base,
-                    "rule_count": delta.rule_count,
-                    "policy_ref": policy_ref,
-                    "policy_hash": audit::policy_hash(policy_source),
-                    "rule_provenance": delta.rule_provenance,
-                }))?;
-                Ok(delta.rule_count)
-            }
-            Err(e) => {
-                let msg = e.to_string();
-                self.audit(json!({
-                    "event": "reload_policy",
-                    "status": "rejected",
-                    "actor_pid": self.parent_pid,
-                    "mode": "append_delta_compat",
-                    "target_id": self.parent_domain_id,
-                    "policy_ref": policy_ref,
-                    "policy_hash": audit::policy_hash(policy_source),
-                    "rule_provenance": rule_provenance_json(&compiled.meta, 0),
-                    "error": msg,
-                }))
-                .map_err(|audit_err| format!("{e}; audit write failed: {audit_err}"))?;
-                Err(e)
-            }
-        }
-    }
-
     pub fn bind_child_domain(&self, spec: ebpf_ifc_engine::ChildDomainSpec) -> Result<()> {
         let outcome = self.domain_handle.bind_child_domain(spec);
         match outcome {
             Ok(()) => {
+                self.catalog.register_domain(spec.child_id)?;
                 self.audit(json!({
                     "event": "bind_child_domain",
                     "status": "accepted",
@@ -941,7 +918,11 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let compiled = dsl::compile_str(&policy)?;
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
-    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(&compiled));
+    let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x4d43_5041);
+    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
+        &compiled,
+        parent_domain_id,
+    ));
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "mcp");
     prepare_feedback_files(&feedback, target_user(cli.run_as_root))?;
     write_hook_state(&feedback.state, &feedback.feedback, attach_pid)?;
@@ -952,7 +933,6 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<ReadyResult>();
-    let parent_domain_id = submitter_pid as u32;
     let blob = compiled.bytes;
     let fb = feedback.feedback.clone();
     let ev = feedback.events.clone();
@@ -1190,7 +1170,7 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let ev = feedback.events.clone();
     let stop_thread = stop.clone();
     let control_pid = std::process::id() as i32;
-    let target_domain_id = target_pid;
+    let target_domain_id = fresh_runtime_domain_id(target_pid as i32, 0x5255_4e31);
     let poller = std::thread::spawn(move || {
         let engine = match PinnedEngine::open_or_install_singleton() {
             Ok(l) => l,
@@ -1246,7 +1226,9 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
         }
         let _ = ready_tx.send(Ok(()));
         let _ = engine.run(&stop_thread, |v| {
-            report(&meta, &labels, &to_violation(&v), Some(&fb), Some(&ev))
+            if v.domain_id == target_domain_id {
+                report(&meta, &labels, &to_violation(&v), Some(&fb), Some(&ev));
+            }
         });
     });
 
@@ -1317,8 +1299,9 @@ pub async fn run_child_command(
     )?;
     let child_pid = child.id().ok_or("child process has no pid")?;
     let parent_pid = std::process::id() as i32;
-    let parent_domain_id = parent_pid as u32;
-    let child_domain_id = child_id.unwrap_or(child_pid);
+    let parent_domain_id = fresh_runtime_domain_id(parent_pid, 0x5041_524e);
+    let child_domain_id =
+        child_id.unwrap_or_else(|| fresh_runtime_domain_id(child_pid as i32, 0x4348_4c44));
     if child_domain_id == 0 {
         kill_process_group_and_wait(&mut child).await;
         return Err("child domain id must be nonzero".into());
@@ -1328,7 +1311,10 @@ pub async fn run_child_command(
         chown_path(&feedback.state, uid, gid)?;
     }
 
-    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(&compiled));
+    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
+        &compiled,
+        parent_domain_id,
+    ));
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<ReadyResult>();

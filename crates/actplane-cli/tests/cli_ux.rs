@@ -381,7 +381,6 @@ fn control_help_exposes_already_running_engine_commands() {
     let stdout = stdout(&output);
     for command in [
         "status",
-        "reload",
         "bind-child",
         "delta",
         "launch-child",

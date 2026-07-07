@@ -254,9 +254,6 @@ struct AttachArgs {
 enum ControlCommands {
     /// Show the currently reachable local control server.
     Status,
-    /// Hot-reload actplane.yaml into the already-running engine.
-    #[command(name = "reload")]
-    ReloadPolicy,
     /// Bind an already-started subagent root pid to a child runtime domain.
     BindChild {
         /// Linux pid of the subagent root process.
@@ -722,10 +719,6 @@ async fn control_command(cli: &Cli, command: &ControlCommands) -> Result<i32> {
                 serde_json::json!({ "op": "status" }),
             )?]
         }
-        ControlCommands::ReloadPolicy => vec![control::send_request(
-            &project_dir,
-            serde_json::json!({ "op": "reload_policy" }),
-        )?],
         ControlCommands::BindChild {
             pid,
             child_id,

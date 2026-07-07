@@ -25,7 +25,6 @@ use rmcp::transport::io::stdio;
 use rmcp::{Peer, RoleServer, ServerHandler, ServiceExt};
 use serde_json::Value;
 
-use crate::config::{load_policy_path, policy_source};
 use crate::control as local_control;
 use crate::runtime::{EngineControl, PolicyAuditMeta, mark_non_stdio_fds_cloexec};
 use crate::{audit, dsl};
@@ -297,60 +296,6 @@ impl ActPlaneMcp {
         std::fs::metadata(self.feedback_file())
             .ok()
             .and_then(|m| m.modified().ok())
-    }
-
-    fn do_reload_policy(&self) -> Result<CallToolResult, rmcp::ErrorData> {
-        let control = self.control.as_ref().ok_or_else(|| {
-            rmcp::ErrorData::new(
-                ErrorCode::INTERNAL_ERROR,
-                "No eBPF engine attached (MCP not started with --auto-attach-parent)",
-                None::<Value>,
-            )
-        })?;
-        let path = self.discover_policy_file().ok_or_else(|| {
-            rmcp::ErrorData::new(
-                ErrorCode::INVALID_PARAMS,
-                "No actplane.yaml found",
-                None::<Value>,
-            )
-        })?;
-        let loaded = load_policy_path(&path, false, &self.project_dir).map_err(|e| {
-            rmcp::ErrorData::new(
-                ErrorCode::INTERNAL_ERROR,
-                format!("Policy load error: {e}"),
-                None::<Value>,
-            )
-        })?;
-        let dsl_src = policy_source(&loaded, None).map_err(|e| {
-            rmcp::ErrorData::new(
-                ErrorCode::INVALID_PARAMS,
-                format!("Policy resolve error: {e}"),
-                None::<Value>,
-            )
-        })?;
-        let compiled = dsl::compile_str(&dsl_src).map_err(|e| {
-            rmcp::ErrorData::new(
-                ErrorCode::INTERNAL_ERROR,
-                format!("Policy compile error: {e}"),
-                None::<Value>,
-            )
-        })?;
-        let n_rules = control
-            .reload_policy(&compiled, &dsl_src, &path.display().to_string(), &loaded)
-            .map_err(|e| {
-                rmcp::ErrorData::new(
-                    ErrorCode::INTERNAL_ERROR,
-                    format!("Reload failed: {e}"),
-                    None::<Value>,
-                )
-            })?;
-
-        let msg = format!(
-            "Policy appended as a domain-scoped singleton delta ({} rule metadata entries) from {}",
-            n_rules,
-            path.display()
-        );
-        Ok(CallToolResult::success(vec![Content::text(msg)]))
     }
 
     fn do_bind_child_domain(
@@ -1138,12 +1083,6 @@ impl ActPlaneMcp {
         };
         match op {
             "status" => self.local_control_status(),
-            "reload_policy" => {
-                if let Err(e) = self.ensure_local_parent_peer(peer) {
-                    return serde_json::json!({ "ok": false, "error": e });
-                }
-                local_tool_response(self.do_reload_policy())
-            }
             "bind_child_domain" => {
                 if let Err(e) = self.ensure_local_parent_peer(peer) {
                     return serde_json::json!({ "ok": false, "error": e });
@@ -2393,13 +2332,6 @@ impl ServerHandler for ActPlaneMcp {
             .unwrap();
         let tools = vec![
             Tool::new(
-                "reload_policy",
-                "Append the current actplane.yaml policy to the attached \
-                 singleton runtime domain without restarting. Accumulated state \
-                 (process labels, file labels, session gates) is preserved.",
-                empty_schema.clone(),
-            ),
-            Tool::new(
                 "bind_child_domain",
                 "Bind a subagent root pid to a child runtime policy domain under \
                  the auto-attached repo agent. The child can bind rules for its \
@@ -2470,7 +2402,6 @@ impl ServerHandler for ActPlaneMcp {
     ) -> impl std::future::Future<Output = Result<CallToolResult, rmcp::ErrorData>> + Send + '_
     {
         let result = match request.name.as_ref() {
-            "reload_policy" => self.do_reload_policy(),
             "bind_child_domain" => self.do_bind_child_domain(request.arguments),
             "append_policy_delta" => self.do_append_policy_delta(request.arguments),
             "launch_child_domain" => self.do_launch_child_domain(request.arguments),

@@ -209,6 +209,23 @@ fn passwordless_sudo_available() -> bool {
         .unwrap_or(false)
 }
 
+fn reset_bpf_pin_root() {
+    let mut command = if unsafe { libc::geteuid() } == 0 {
+        Command::new("rm")
+    } else if passwordless_sudo_available() {
+        let mut command = Command::new("sudo");
+        command.arg("-n");
+        command
+    } else {
+        return;
+    };
+    let _ = command
+        .args(["-rf", "/sys/fs/bpf/actplane/v1"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
 fn test_child_id(offset: u32) -> u32 {
     0x4000_0000 | ((std::process::id() & 0xffff) << 12) | (offset & 0x0fff)
 }
@@ -408,6 +425,7 @@ fn mcp_stdio_jsonrpc_handles_repeated_requests() {
 #[test]
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
 fn mcp_stdio_jsonrpc_launches_child_domain_with_delta_privileged() {
+    reset_bpf_pin_root();
     let tmp = tempfile::tempdir().expect("tempdir");
     let policy = tmp.path().join("actplane.yaml");
     std::fs::write(
@@ -658,6 +676,7 @@ policy: |
 #[test]
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
 fn mcp_append_delta_requires_configured_approval_privileged() {
+    reset_bpf_pin_root();
     let tmp = tempfile::tempdir().expect("tempdir");
     let policy = tmp.path().join("actplane.yaml");
     std::fs::write(
@@ -743,86 +762,8 @@ policy: |
 
 #[test]
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
-fn mcp_reload_updates_append_delta_approval_gate_privileged() {
-    let tmp = tempfile::tempdir().expect("tempdir");
-    let policy = tmp.path().join("actplane.yaml");
-    let base_policy = r#"
-version: 1
-policy: |
-  source COMMAND = exec "**"
-  rule noop:
-    notify exec "__actplane_never__" if COMMAND
-    because "noop"
-"#;
-    std::fs::write(&policy, base_policy).expect("write policy");
-
-    let Some(mut mcp) = McpProcess::start_auto_attach(&policy, tmp.path()) else {
-        eprintln!(
-            "skipping privileged MCP reload approval e2e: no root/CAP_BPF or passwordless sudo"
-        );
-        return;
-    };
-    initialize_mcp(&mut mcp, 1, "actplane-reload-approval-test");
-
-    let mut next_id = 2;
-    let before_reload = call_tool(
-        &mut mcp,
-        &mut next_id,
-        "append_policy_delta",
-        json!({
-            "policy": "rule pre-reload:\n  notify exec \"__actplane_never__\"\n  because \"pre reload\"",
-            "policy_ref": "inline://pre-reload"
-        }),
-    );
-    assert!(
-        tool_text(&before_reload).contains("Appended policy delta"),
-        "pre-reload append response: {before_reload}"
-    );
-
-    let requiring_approval = r#"
-version: 1
-runtime:
-  approval:
-    append_delta:
-      required: true
-      require_approval_ref: true
-      allowed_approvers:
-        - repo-supervisor
-policy: |
-  source COMMAND = exec "**"
-  rule noop:
-    notify exec "__actplane_never__" if COMMAND
-    because "noop"
-"#;
-    std::fs::write(&policy, requiring_approval).expect("rewrite policy");
-    let reload = call_tool(&mut mcp, &mut next_id, "reload_policy", json!({}));
-    assert!(
-        tool_text(&reload).contains("Policy appended as a domain-scoped singleton delta"),
-        "reload response: {reload}"
-    );
-
-    let rejected = call_tool_raw(
-        &mut mcp,
-        &mut next_id,
-        "append_policy_delta",
-        json!({
-            "policy": "rule post-reload:\n  notify exec \"__actplane_never__\"\n  because \"post reload\"",
-            "policy_ref": "inline://post-reload-missing"
-        }),
-    );
-    assert!(
-        rejected.to_string().contains("requires approval metadata"),
-        "post-reload missing approval response: {rejected}"
-    );
-    let audit =
-        poll_audit_append_delta_ref_status(tmp.path(), "inline://post-reload-missing", "rejected");
-    assert_eq!(audit["approval_chain"]["enforced"], true);
-    assert_eq!(audit["approval_chain"]["decision"], "rejected");
-}
-
-#[test]
-#[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
 fn mcp_background_supervisor_relaunches_on_exit_child_privileged() {
+    reset_bpf_pin_root();
     let tmp = tempfile::tempdir().expect("tempdir");
     let policy = write_base_policy(tmp.path());
     let Some(mut mcp) = McpProcess::start_auto_attach(&policy, tmp.path()) else {
@@ -916,6 +857,7 @@ fn mcp_background_supervisor_relaunches_on_exit_child_privileged() {
 #[test]
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
 fn mcp_restart_adopts_existing_child_and_relaunches_after_exit_privileged() {
+    reset_bpf_pin_root();
     let tmp = tempfile::tempdir().expect("tempdir");
     let policy = write_base_policy(tmp.path());
     let Some(mut first_mcp) = McpProcess::start_auto_attach(&policy, tmp.path()) else {
@@ -1019,6 +961,7 @@ fn mcp_restart_adopts_existing_child_and_relaunches_after_exit_privileged() {
 #[test]
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
 fn mcp_local_control_handles_concurrent_status_privileged() {
+    reset_bpf_pin_root();
     let tmp = tempfile::tempdir().expect("tempdir");
     let policy = write_base_policy(tmp.path());
     let Some(mut mcp) = McpProcess::start_auto_attach(&policy, tmp.path()) else {
@@ -1049,6 +992,7 @@ fn mcp_local_control_handles_concurrent_status_privileged() {
 #[test]
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads concurrent live eBPF programs"]
 fn two_mcp_servers_keep_child_domain_deltas_isolated_privileged() {
+    reset_bpf_pin_root();
     let tmp_a = tempfile::tempdir().expect("tempdir A");
     let tmp_b = tempfile::tempdir().expect("tempdir B");
     let mut agent_a = FakeAgent::start("actplane-mcp-agent-a");

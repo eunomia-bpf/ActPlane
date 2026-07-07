@@ -12,7 +12,7 @@
 //! compiler already produces (the same bytes the C loader read from `--config`).
 
 use std::io::{self, Read};
-use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd};
+use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -104,6 +104,16 @@ impl PinnedEnginePaths {
 
     fn link(&self, name: &str) -> PathBuf {
         self.links_dir().join(name)
+    }
+
+    fn append_lock_path(&self) -> PathBuf {
+        let root = self
+            .root
+            .to_string_lossy()
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect::<String>();
+        std::env::temp_dir().join(format!("actplane-{root}.append.lock"))
     }
 }
 
@@ -341,6 +351,22 @@ fn child_domain_state(parent: &CapState, spec: ChildDomainSpec) -> io::Result<Ca
     })
 }
 
+fn merge_cap_state(mut base: CapState, update: CapState) -> CapState {
+    if base.parent == 0 {
+        base.parent = update.parent;
+    }
+    if base.scope_id == 0 {
+        base.scope_id = update.scope_id;
+    }
+    base.labels |= update.labels;
+    base.authority_mask |= update.authority_mask;
+    base.target_mask |= update.target_mask;
+    base.restrict_mask |= update.restrict_mask;
+    base.gate_mask |= update.gate_mask;
+    base.label_mask |= update.label_mask;
+    base
+}
+
 /// Map-fd backed control handle for binding child domains while the loader polls events.
 pub struct DomainHandle {
     cap_task_fd: OwnedFd,
@@ -451,6 +477,14 @@ fn pinned_map_data(paths: &PinnedEnginePaths, name: &str) -> io::Result<MapData>
 fn dup_pinned_map_fd(paths: &PinnedEnginePaths, name: &str) -> io::Result<OwnedFd> {
     let data = pinned_map_data(paths, name)?;
     dup_cloexec_fd(data.fd().as_fd().as_raw_fd())
+}
+
+fn open_append_lock(paths: &PinnedEnginePaths) -> io::Result<std::fs::File> {
+    std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(paths.append_lock_path())
 }
 
 fn pinned_hash_map<K: aya::Pod, V: aya::Pod>(
@@ -1066,8 +1100,10 @@ const ALL_HOOK_FEATURES: u32 = FEAT_CONNECT
     | FEAT_BLOCK_EXEC
     | FEAT_BLOCK_FILE
     | FEAT_BLOCK_CONNECT;
+#[cfg(test)]
 const ALL_POLICY_FEATURES: u32 =
     FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX | FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
+const PINNED_POLICY_FEATURES: u32 = ALL_HOOK_FEATURES;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum HookProfile {
@@ -1114,12 +1150,13 @@ impl HookBudget {
                     || reserve.advanced_tracepoints,
             },
             HookProfile::Full => HookBudget {
-                features: config_features(cfg) | ALL_POLICY_FEATURES,
+                features: config_features(cfg) | ALL_HOOK_FEATURES,
                 file_write: true,
                 advanced_tracepoints: profile.advanced_tracepoints()
                     || reserve.advanced_tracepoints,
             },
         };
+        budget.features |= reserve.policy_features;
         if reserve.file_flow {
             budget.features |= FEAT_FILE_FLOW;
         }
@@ -1424,7 +1461,7 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
     }
     if missing & (FEAT_OPEN_RULES | FEAT_WRITE_RULES | FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX) != 0 {
         hints.push(
-            "file sink rule classes and path contains/suffix matcher classes require the engine to be loaded with those policy features; ACTPLANE_HOOK_PROFILE=full and the pinned singleton reserve them",
+            "file sink rule classes and path contains/suffix matcher classes require the engine to be loaded with those policy features; the pinned singleton reserves hooks for future deltas but not expensive file sink matcher classes",
         );
     }
     if missing & (FEAT_BLOCK_EXEC | FEAT_BLOCK_FILE | FEAT_BLOCK_CONNECT) != 0 {
@@ -1463,6 +1500,7 @@ struct HookReserve {
     block_file: bool,
     block_connect: bool,
     advanced_tracepoints: bool,
+    policy_features: u32,
 }
 
 impl HookReserve {
@@ -1483,6 +1521,7 @@ impl HookReserve {
             block_file: true,
             block_connect: true,
             advanced_tracepoints: true,
+            policy_features: PINNED_POLICY_FEATURES,
         }
     }
 }
@@ -1551,7 +1590,8 @@ impl PinnedEngine {
             cap_policy_fd: dup_pinned_map_fd(&self.paths, "cap_policy")?,
             ts_counts_fd: dup_pinned_map_fd(&self.paths, "ts_counts")?,
             append_lock: Mutex::new(()),
-            policy_features: ALL_POLICY_FEATURES,
+            append_lock_file: Some(open_append_lock(&self.paths)?),
+            policy_features: PINNED_POLICY_FEATURES,
         })
     }
 
@@ -1614,9 +1654,20 @@ impl PinnedEngine {
         }
         {
             let mut states: HashMap<_, u32, CapState> = pinned_hash_map(&self.paths, "cap_state")?;
-            states
-                .insert(target_id, state, 0)
-                .map_err(|e| err(format!("seed cap_state: {e}")))?;
+            match states.get(&target_id, BPF_ANY) {
+                Ok(existing) => {
+                    let merged = merge_cap_state(existing, state);
+                    if merged != existing {
+                        states
+                            .insert(target_id, merged, BPF_ANY)
+                            .map_err(|e| err(format!("merge cap_state: {e}")))?;
+                    }
+                }
+                Err(MapError::KeyNotFound) => states
+                    .insert(target_id, state, BPF_NOEXIST)
+                    .map_err(|e| err(format!("seed cap_state: {e}")))?,
+                Err(e) => return Err(err(format!("lookup cap_state: {e}"))),
+            }
         }
         {
             let mut proc: HashMap<_, PidDomainKey, ProcState> =
@@ -1920,6 +1971,7 @@ impl Loader {
             cap_policy_fd: dup_hash_map_fd(&self.bpf, "cap_policy")?,
             ts_counts_fd: dup_array_map_fd(&self.bpf, "ts_counts")?,
             append_lock: Mutex::new(()),
+            append_lock_file: None,
             policy_features: self.policy_features,
         })
     }
@@ -2032,9 +2084,20 @@ impl Loader {
                     .ok_or_else(|| err("cap_state missing"))?,
             )
             .map_err(|e| err(format!("cap_state: {e}")))?;
-            states
-                .insert(target_id, state, 0)
-                .map_err(|e| err(format!("seed cap_state: {e}")))?;
+            match states.get(&target_id, BPF_ANY) {
+                Ok(existing) => {
+                    let merged = merge_cap_state(existing, state);
+                    if merged != existing {
+                        states
+                            .insert(target_id, merged, BPF_ANY)
+                            .map_err(|e| err(format!("merge cap_state: {e}")))?;
+                    }
+                }
+                Err(MapError::KeyNotFound) => states
+                    .insert(target_id, state, BPF_NOEXIST)
+                    .map_err(|e| err(format!("seed cap_state: {e}")))?,
+                Err(e) => return Err(err(format!("lookup cap_state: {e}"))),
+            }
         }
         {
             let mut proc: HashMap<_, PidDomainKey, ProcState> = HashMap::try_from(
@@ -2278,13 +2341,34 @@ pub struct ReloadHandle {
     cap_policy_fd: std::os::fd::OwnedFd,
     ts_counts_fd: std::os::fd::OwnedFd,
     append_lock: Mutex<()>,
+    append_lock_file: Option<std::fs::File>,
     policy_features: u32,
 }
 
 unsafe impl Send for ReloadHandle {}
 unsafe impl Sync for ReloadHandle {}
 
+struct FileLockGuard(RawFd);
+
+impl Drop for FileLockGuard {
+    fn drop(&mut self) {
+        unsafe {
+            libc::flock(self.0, libc::LOCK_UN);
+        }
+    }
+}
+
 impl ReloadHandle {
+    fn lock_append_file(&self) -> io::Result<Option<FileLockGuard>> {
+        let Some(file) = &self.append_lock_file else {
+            return Ok(None);
+        };
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(Some(FileLockGuard(file.as_raw_fd())))
+    }
+
     fn submit_raw(&self, data: &[u8]) -> io::Result<()> {
         let fd = self.cap_req_fd.as_raw_fd();
         unsafe {
@@ -2424,14 +2508,12 @@ impl ReloadHandle {
         self.submit(val)?;
         for _ in 0..10 {
             let after = self.count_slot(count_slot)?;
-            // Counts are global to the pinned singleton, so another short-lived
-            // client can append between this submit and our observation.
-            if after > before {
+            if after == before + 1 {
                 return Ok(());
             }
             if after != before {
                 return Err(err(format!(
-                    "{what} changed count from {before} to {after}, expected at least {}",
+                    "{what} changed count from {before} to {after}, expected {}",
                     before + 1
                 )));
             }
@@ -2525,6 +2607,7 @@ impl ReloadHandle {
             .append_lock
             .lock()
             .map_err(|e| err(format!("reload lock poisoned: {e}")))?;
+        let _file_guard = self.lock_append_file()?;
 
         // Phase 1: quiesce — set counts to 0 so the engine skips all rules.
         self.submit(&ReloadCounts {
@@ -2607,6 +2690,7 @@ impl ReloadHandle {
             .append_lock
             .lock()
             .map_err(|e| err(format!("append lock poisoned: {e}")))?;
+        let _file_guard = self.lock_append_file()?;
         let updates_before = self.count_slot(1)?;
         let rules_before = self.count_slot(0)?;
         if updates_before as usize + cfg.n_updates as usize > MAX_UPDATES {
@@ -3030,7 +3114,7 @@ mod tests {
         let text = err.to_string();
         assert!(text.contains("path contains matches"), "{text}");
         assert!(
-            text.contains("ACTPLANE_HOOK_PROFILE=full and the pinned singleton reserve them"),
+            text.contains("not expensive file sink matcher classes"),
             "{text}"
         );
         assert!(text.contains("missing=0x"), "{text}");

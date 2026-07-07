@@ -1534,7 +1534,7 @@ fn render_check_explain(
     .unwrap();
     writeln!(
         &mut out,
-        "  - reload is a trusted admin path; append policy delta is the authority-checked append-only mutation path"
+        "  - append policy delta is the authority-checked runtime mutation path"
     )
     .unwrap();
 

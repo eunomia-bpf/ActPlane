@@ -181,6 +181,17 @@ static __always_inline int te_pid_protected(pid_t pid)
 	return v && *v;
 }
 
+static __always_inline int te_pid_can_control_bpf(pid_t pid)
+{
+	if (te_pid_protected(pid))
+		return 1;
+	__u32 domain_id = cap_domain_for_pid(pid);
+	if (!domain_id)
+		return 0;
+	struct cap_state *state = bpf_map_lookup_elem(&cap_state, &domain_id);
+	return state && state->authority_mask;
+}
+
 /* Pending open(at) args, stashed at sys_enter and consumed at sys_exit. The
  * sys_enter tracepoint fires before the kernel's copy_from_user faults the path
  * page in, so a non-faulting read of the path there can EFAULT and silently drop
@@ -2479,8 +2490,10 @@ int BPF_PROG(enforce_bpf_syscall, int cmd, union bpf_attr *attr,
 	(void)privileged;
 	if (!te_pid_active(caller))
 		return 0;
-		/* Runtime clients may need to open pinned maps while already managed.
-		 * Only protected control pids may mutate them. */
+
+	/* Runtime clients may need to open pinned maps while already managed.
+	 * Map mutation is limited to protected pids or domains that already carry
+	 * runtime authority. */
 	switch (cmd) {
 	case BPF_MAP_LOOKUP_ELEM:
 	case BPF_OBJ_GET:
@@ -2488,7 +2501,7 @@ int BPF_PROG(enforce_bpf_syscall, int cmd, union bpf_attr *attr,
 		return 0;
 	case BPF_MAP_UPDATE_ELEM:
 	case BPF_MAP_DELETE_ELEM:
-		return te_pid_protected(caller) ? 0 : -EPERM;
+		return te_pid_can_control_bpf(caller) ? 0 : -EPERM;
 	default:
 		return -EPERM;
 	}

@@ -42,6 +42,10 @@ impl Violation {
     pub fn rule_id(&self) -> usize {
         self.rule_id
     }
+
+    pub fn domain_id(&self) -> Option<u32> {
+        self.domain_id
+    }
 }
 
 #[derive(Clone, serde::Deserialize)]

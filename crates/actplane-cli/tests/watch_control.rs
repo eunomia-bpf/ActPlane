@@ -132,6 +132,23 @@ fn passwordless_sudo_available() -> bool {
         .unwrap_or(false)
 }
 
+fn reset_bpf_pin_root() {
+    let mut command = if unsafe { libc::geteuid() } == 0 {
+        Command::new("rm")
+    } else if passwordless_sudo_available() {
+        let mut command = Command::new("sudo");
+        command.arg("-n");
+        command
+    } else {
+        return;
+    };
+    let _ = command
+        .args(["-rf", "/sys/fs/bpf/actplane/v1"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
 fn test_child_id(offset: u32) -> u32 {
     0x5000_0000 | ((std::process::id() & 0xffff) << 12) | (offset & 0x0fff)
 }
@@ -139,6 +156,7 @@ fn test_child_id(offset: u32) -> u32 {
 #[test]
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
 fn watch_exposes_repo_local_control_socket_privileged() {
+    reset_bpf_pin_root();
     let tmp = tempfile::tempdir().expect("tempdir");
     let mut agent = FakeAgent::start("actplane-watch-control-agent");
     let child_id = test_child_id(1);
@@ -271,6 +289,7 @@ test "$rc" -ne 0
 #[test]
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads concurrent live eBPF programs"]
 fn two_watch_engines_keep_child_domain_deltas_isolated_privileged() {
+    reset_bpf_pin_root();
     let tmp_a = tempfile::tempdir().expect("tempdir A");
     let tmp_b = tempfile::tempdir().expect("tempdir B");
     let mut agent_a = FakeAgent::start("actplane-agent-a");
