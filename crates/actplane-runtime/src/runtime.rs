@@ -10,7 +10,7 @@ use ebpf_ifc_engine::capability::{
     AUTH_REQUIRE_GATE, CapState, TARGET_CHILD, TARGET_SELF,
 };
 use ebpf_ifc_engine::{
-    ChildDomainSpec, DomainHandle, EngineClient, GLOBAL_ACTIVE_DOMAIN_ID, ReloadHandle,
+    ChildDomainSpec, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, PinnedEngine, ReloadHandle,
 };
 use serde_json::json;
 use tokio::process::{Child, Command};
@@ -80,7 +80,7 @@ pub async fn watch_policy_for_pid(
     let run_catalog = catalog.clone();
     let stop_thread = stop.clone();
     let poller = std::thread::spawn(move || {
-        let mut engine = match EngineClient::open_or_load_pinned_singleton() {
+        let engine = match PinnedEngine::open_or_install_singleton() {
             Ok(l) => l,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
@@ -959,7 +959,7 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let run_catalog = catalog.clone();
     let stop_thread = stop.clone();
     let thread = std::thread::spawn(move || {
-        let mut engine = match EngineClient::open_or_load_pinned_singleton() {
+        let engine = match PinnedEngine::open_or_install_singleton() {
             Ok(l) => l,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
@@ -1192,7 +1192,7 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let control_pid = std::process::id() as i32;
     let target_domain_id = target_pid;
     let poller = std::thread::spawn(move || {
-        let mut engine = match EngineClient::open_or_load_pinned_singleton() {
+        let engine = match PinnedEngine::open_or_install_singleton() {
             Ok(l) => l,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
@@ -1338,7 +1338,7 @@ pub async fn run_child_command(
     let run_catalog = catalog.clone();
     let stop_thread = stop.clone();
     let poller = std::thread::spawn(move || {
-        let mut engine = match EngineClient::open_or_load_pinned_singleton() {
+        let engine = match PinnedEngine::open_or_install_singleton() {
             Ok(l) => l,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));

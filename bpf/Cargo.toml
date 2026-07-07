@@ -12,10 +12,6 @@ categories = ["os::linux-apis"]
 name = "ebpf_ifc_engine"
 path = "src/lib.rs"
 
-[[bin]]
-name = "actplane-loader"
-path = "src/bin/actplane-loader.rs"
-
 [dependencies]
 aya = "0.13"
 libc = "0.2"

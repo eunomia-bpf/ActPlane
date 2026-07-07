@@ -25,9 +25,11 @@ use aya::programs::{Lsm, ProgramFd, TracePoint};
 use aya::{Btf, Ebpf, EbpfLoader};
 
 pub mod capability;
+#[cfg(test)]
+use capability::DeltaRequest;
 use capability::{
-    CapState, DeltaRequest, AUTH_ADD_LABEL, AUTH_BIND_RULE, AUTH_DECLASSIFY, AUTH_DELEGATE,
-    AUTH_NARROW_SCOPE, AUTH_REQUIRE_GATE, TARGET_CHILD, TARGET_SELF,
+    CapState, AUTH_ADD_LABEL, AUTH_BIND_RULE, AUTH_DECLASSIFY, AUTH_DELEGATE, AUTH_NARROW_SCOPE,
+    AUTH_REQUIRE_GATE, TARGET_CHILD, TARGET_SELF,
 };
 
 const BPF_ANY: u64 = 0;
@@ -477,6 +479,7 @@ fn dup_owned_fd(fd: &OwnedFd) -> io::Result<OwnedFd> {
     dup_cloexec_fd(fd.as_raw_fd())
 }
 
+#[cfg(test)]
 fn dup_hash_map_fd(bpf: &Ebpf, name: &str) -> io::Result<OwnedFd> {
     let map = bpf
         .map(name)
@@ -488,6 +491,7 @@ fn dup_hash_map_fd(bpf: &Ebpf, name: &str) -> io::Result<OwnedFd> {
     dup_cloexec_fd(data.fd().as_fd().as_raw_fd())
 }
 
+#[cfg(test)]
 fn dup_array_map_fd(bpf: &Ebpf, name: &str) -> io::Result<OwnedFd> {
     let map = bpf
         .map(name)
@@ -1678,10 +1682,10 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
     )
 }
 
-pub struct Loader {
-    bpf: Ebpf,
-    enforce: bool,
-    policy_features: u32,
+struct Loader {
+    _bpf: Ebpf,
+    _enforce: bool,
+    _policy_features: u32,
 }
 
 #[derive(Debug)]
@@ -1690,32 +1694,28 @@ pub struct PinnedEngine {
     meta: PinnedEngineMeta,
 }
 
-pub enum EngineClient {
-    Loaded(Loader),
-    Pinned(PinnedEngine),
-}
-
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct HookReserve {
-    pub file_flow: bool,
-    pub file_write_paths: bool,
-    pub network: bool,
-    pub block_exec: bool,
-    pub block_file: bool,
-    pub block_connect: bool,
-    pub advanced_tracepoints: bool,
-    pub full_profile: bool,
+struct HookReserve {
+    file_flow: bool,
+    file_write_paths: bool,
+    network: bool,
+    block_exec: bool,
+    block_file: bool,
+    block_connect: bool,
+    advanced_tracepoints: bool,
+    full_profile: bool,
 }
 
 impl HookReserve {
-    pub fn runtime_file_delta() -> Self {
+    #[cfg(test)]
+    fn runtime_file_delta() -> Self {
         HookReserve {
             file_flow: true,
             ..HookReserve::default()
         }
     }
 
-    pub fn full_profile() -> Self {
+    fn full_profile() -> Self {
         HookReserve {
             file_flow: true,
             file_write_paths: true,
@@ -1741,6 +1741,40 @@ fn empty_config_blob() -> Vec<u8> {
 }
 
 impl PinnedEngine {
+    pub fn open_or_install_singleton() -> io::Result<Self> {
+        Self::open_or_install_singleton_at(PinnedEnginePaths::from_env())
+    }
+
+    pub fn open_or_install_singleton_at(paths: PinnedEnginePaths) -> io::Result<Self> {
+        let expected = PinnedEngineMeta::current_full_profile(ALL_RESERVED_FEATURES);
+        match probe_pinned_engine_meta(&paths, expected)? {
+            PinnedEngineMetaStatus::Compatible(meta) => {
+                return Ok(Self { paths, meta });
+            }
+            PinnedEngineMetaStatus::Incompatible(installed) => {
+                return Err(pinned_engine_incompatible_error(
+                    &paths, installed, expected,
+                ));
+            }
+            PinnedEngineMetaStatus::Missing => {}
+        }
+
+        match Loader::load_with_pinned_layout(
+            &empty_config_blob(),
+            HookReserve::full_profile(),
+            paths.clone(),
+        ) {
+            Ok(installer) => {
+                drop(installer);
+                Self::open(paths)
+            }
+            Err(e) => match probe_pinned_engine_meta(&paths, expected)? {
+                PinnedEngineMetaStatus::Compatible(meta) => Ok(Self { paths, meta }),
+                _ => Err(e),
+            },
+        }
+    }
+
     pub fn open(paths: PinnedEnginePaths) -> io::Result<Self> {
         let expected = PinnedEngineMeta::current_full_profile(ALL_RESERVED_FEATURES);
         match probe_pinned_engine_meta(&paths, expected)? {
@@ -1866,90 +1900,6 @@ impl PinnedEngine {
     }
 }
 
-impl EngineClient {
-    pub fn open_or_load_pinned_singleton() -> io::Result<Self> {
-        Self::open_or_load_pinned_singleton_at(PinnedEnginePaths::from_env())
-    }
-
-    pub fn open_or_load_pinned_singleton_at(paths: PinnedEnginePaths) -> io::Result<Self> {
-        let expected = PinnedEngineMeta::current_full_profile(ALL_RESERVED_FEATURES);
-        match probe_pinned_engine_meta(&paths, expected)? {
-            PinnedEngineMetaStatus::Compatible(meta) => {
-                return Ok(Self::Pinned(PinnedEngine { paths, meta }));
-            }
-            PinnedEngineMetaStatus::Incompatible(installed) => {
-                return Err(pinned_engine_incompatible_error(
-                    &paths, installed, expected,
-                ));
-            }
-            PinnedEngineMetaStatus::Missing => {}
-        }
-
-        match Loader::load_with_pinned_layout(
-            &empty_config_blob(),
-            HookReserve::full_profile(),
-            paths.clone(),
-        ) {
-            Ok(loader) => Ok(Self::Loaded(loader)),
-            Err(e) => match probe_pinned_engine_meta(&paths, expected)? {
-                PinnedEngineMetaStatus::Compatible(meta) => {
-                    Ok(Self::Pinned(PinnedEngine { paths, meta }))
-                }
-                _ => Err(e),
-            },
-        }
-    }
-
-    pub fn protect_pid(&mut self, pid: i32) -> io::Result<()> {
-        match self {
-            Self::Loaded(loader) => loader.protect_pid(pid),
-            Self::Pinned(engine) => engine.protect_pid(pid),
-        }
-    }
-
-    pub fn reload_handle(&self) -> io::Result<ReloadHandle> {
-        match self {
-            Self::Loaded(loader) => loader.reload_handle(),
-            Self::Pinned(engine) => engine.reload_handle(),
-        }
-    }
-
-    pub fn domain_handle(&self) -> io::Result<DomainHandle> {
-        match self {
-            Self::Loaded(loader) => loader.domain_handle(),
-            Self::Pinned(engine) => engine.domain_handle(),
-        }
-    }
-
-    pub fn seed_label_in_domain(&mut self, pid: i32, domain_id: u32, label: u64) -> io::Result<()> {
-        match self {
-            Self::Loaded(loader) => loader.seed_label_in_domain(pid, domain_id, label),
-            Self::Pinned(engine) => engine.seed_label_in_domain(pid, domain_id, label),
-        }
-    }
-
-    pub fn bind_state(&mut self, pid: i32, target_id: u32, state: CapState) -> io::Result<()> {
-        match self {
-            Self::Loaded(loader) => loader.bind_state(pid, target_id, state),
-            Self::Pinned(engine) => engine.bind_state(pid, target_id, state),
-        }
-    }
-
-    pub fn unbind_pid_from_domain(&mut self, pid: i32, domain_id: u32) -> io::Result<()> {
-        match self {
-            Self::Loaded(loader) => loader.unbind_pid_from_domain(pid, domain_id),
-            Self::Pinned(engine) => engine.unbind_pid_from_domain(pid, domain_id),
-        }
-    }
-
-    pub fn run(&mut self, stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()> {
-        match self {
-            Self::Loaded(loader) => loader.run(stop, on),
-            Self::Pinned(engine) => engine.run(stop, on),
-        }
-    }
-}
-
 fn poll_ringbuf<T: Borrow<MapData>>(
     mut ring: RingBuf<T>,
     stop: &AtomicBool,
@@ -1994,21 +1944,20 @@ fn poll_ringbuf<T: Borrow<MapData>>(
 
 impl Loader {
     /// `config_blob` is the raw `struct taint_config` produced by the collector.
-    pub fn load(config_blob: &[u8]) -> io::Result<Self> {
+    #[cfg(test)]
+    fn load(config_blob: &[u8]) -> io::Result<Self> {
         Self::load_with_hook_reserve(config_blob, HookReserve::default())
     }
 
     /// Load the engine with an explicit hook profile for later runtime deltas.
     /// This does not enable file sink rule matching or expensive path matchers
     /// unless the policy used to load the engine requires them.
-    pub fn load_with_hook_reserve(
-        config_blob: &[u8],
-        hook_reserve: HookReserve,
-    ) -> io::Result<Self> {
+    #[cfg(test)]
+    fn load_with_hook_reserve(config_blob: &[u8], hook_reserve: HookReserve) -> io::Result<Self> {
         Self::load_inner(config_blob, hook_reserve, None)
     }
 
-    pub fn load_with_pinned_layout(
+    fn load_with_pinned_layout(
         config_blob: &[u8],
         hook_reserve: HookReserve,
         paths: PinnedEnginePaths,
@@ -2190,29 +2139,24 @@ impl Loader {
         }
 
         let loader = Loader {
-            bpf,
-            enforce,
-            policy_features,
+            _bpf: bpf,
+            _enforce: enforce,
+            _policy_features: policy_features,
         };
         drop(pinned_links);
         Ok(loader)
     }
 
-    pub fn enforce_mode(&self) -> bool {
-        self.enforce
-    }
-
-    /// Mark a loader/control process as protected from subjects that are
-    /// already bound to an ActPlane runtime domain. Host processes outside a
-    /// domain are not denied, including root/admin unload paths.
-    pub fn protect_pid(&mut self, pid: i32) -> io::Result<()> {
-        protect_pid_in_loaded_bpf(&mut self.bpf, pid)
+    #[cfg(test)]
+    fn enforce_mode(&self) -> bool {
+        self._enforce
     }
 
     /// Create a `ReloadHandle` that can hot-reload policy into this engine.
-    pub fn reload_handle(&self) -> io::Result<ReloadHandle> {
+    #[cfg(test)]
+    fn reload_handle(&self) -> io::Result<ReloadHandle> {
         let map = self
-            .bpf
+            ._bpf
             .map("cap_req")
             .ok_or_else(|| err("cap_req missing"))?;
         let map_data = match map {
@@ -2223,41 +2167,38 @@ impl Loader {
         let dup = dup_cloexec_fd(raw)?;
         Ok(ReloadHandle {
             cap_req_fd: dup,
-            cap_task_fd: dup_hash_map_fd(&self.bpf, "cap_task")?,
-            cap_state_fd: dup_hash_map_fd(&self.bpf, "cap_state")?,
-            cap_policy_fd: dup_hash_map_fd(&self.bpf, "cap_policy")?,
-            ts_counts_fd: dup_array_map_fd(&self.bpf, "ts_counts")?,
+            cap_task_fd: dup_hash_map_fd(&self._bpf, "cap_task")?,
+            cap_state_fd: dup_hash_map_fd(&self._bpf, "cap_state")?,
+            cap_policy_fd: dup_hash_map_fd(&self._bpf, "cap_policy")?,
+            ts_counts_fd: dup_array_map_fd(&self._bpf, "ts_counts")?,
             append_lock: Mutex::new(()),
-            policy_features: self.policy_features,
+            policy_features: self._policy_features,
         })
     }
 
     /// Create a map-fd backed domain control handle.
     ///
-    /// This handle can be shared with a control plane while `Loader::run` polls
+    /// This handle can be shared with a control plane while the test loader polls
     /// the ring buffer, which is how MCP can bind subagent pids without stopping
     /// enforcement.
-    pub fn domain_handle(&self) -> io::Result<DomainHandle> {
+    #[cfg(test)]
+    fn domain_handle(&self) -> io::Result<DomainHandle> {
         Ok(DomainHandle {
-            cap_task_fd: dup_hash_map_fd(&self.bpf, "cap_task")?,
-            cap_state_fd: dup_hash_map_fd(&self.bpf, "cap_state")?,
-            ts_proc_domains_fd: dup_hash_map_fd(&self.bpf, "ts_proc_domains")?,
-            ts_root_fd: dup_hash_map_fd(&self.bpf, "ts_root")?,
+            cap_task_fd: dup_hash_map_fd(&self._bpf, "cap_task")?,
+            cap_state_fd: dup_hash_map_fd(&self._bpf, "cap_state")?,
+            ts_proc_domains_fd: dup_hash_map_fd(&self._bpf, "ts_proc_domains")?,
+            ts_root_fd: dup_hash_map_fd(&self._bpf, "ts_root")?,
         })
     }
 
-    /// Create a child runtime domain and bind a pid using the current loader.
-    pub fn bind_child_domain(&self, spec: ChildDomainSpec) -> io::Result<()> {
-        self.domain_handle()?.bind_child_domain(spec)
-    }
-
+    #[cfg(test)]
     fn seed_global_proc_state(&mut self, pid: i32, label: u64) -> io::Result<()> {
         if pid <= 0 || label == 0 {
             return Err(err("pid and label must both be set"));
         }
 
         let mut proc: HashMap<_, i32, ProcState> = HashMap::try_from(
-            self.bpf
+            self._bpf
                 .map_mut("ts_proc")
                 .ok_or_else(|| err("ts_proc missing"))?,
         )
@@ -2273,7 +2214,7 @@ impl Loader {
         .map_err(|e| err(format!("seed ts_proc: {e}")))?;
 
         let mut root: HashMap<_, i32, i32> = HashMap::try_from(
-            self.bpf
+            self._bpf
                 .map_mut("ts_root")
                 .ok_or_else(|| err("ts_root missing"))?,
         )
@@ -2283,28 +2224,14 @@ impl Loader {
         Ok(())
     }
 
-    /// Seed `pid` and its future descendants with an initial global label, but
-    /// do not create a mutable runtime domain for policy deltas.
-    pub fn seed_global_label(&mut self, pid: i32, label: u64) -> io::Result<()> {
-        self.seed_global_proc_state(pid, label)?;
-        let mut pid_map: HashMap<_, i32, u32> = HashMap::try_from(
-            self.bpf
-                .map_mut("cap_task")
-                .ok_or_else(|| err("cap_task missing"))?,
-        )
-        .map_err(|e| err(format!("cap_task: {e}")))?;
-        pid_map
-            .insert(pid, GLOBAL_ACTIVE_DOMAIN_ID, 0)
-            .map_err(|e| err(format!("seed cap_task: {e}")))?;
-        Ok(())
-    }
-
     /// Seed `pid` and its future descendants with an initial label.
-    pub fn seed_label(&mut self, pid: i32, label: u64) -> io::Result<()> {
+    #[cfg(test)]
+    fn seed_label(&mut self, pid: i32, label: u64) -> io::Result<()> {
         self.seed_label_in_domain(pid, pid as u32, label)
     }
 
-    pub fn seed_label_in_domain(&mut self, pid: i32, domain_id: u32, label: u64) -> io::Result<()> {
+    #[cfg(test)]
+    fn seed_label_in_domain(&mut self, pid: i32, domain_id: u32, label: u64) -> io::Result<()> {
         self.seed_global_proc_state(pid, label)?;
         self.bind_state(pid, domain_id, runtime_root_state(label))?;
         Ok(())
@@ -2316,13 +2243,14 @@ impl Loader {
     /// process labels in the target domain so labels inherited from a previous
     /// domain cannot be reinterpreted by the newly bound domain's local rules.
     /// Static initial labels live in `cap_state.labels`.
-    pub fn bind_state(&mut self, pid: i32, target_id: u32, state: CapState) -> io::Result<()> {
+    #[cfg(test)]
+    fn bind_state(&mut self, pid: i32, target_id: u32, state: CapState) -> io::Result<()> {
         if pid <= 0 || target_id == 0 {
             return Err(err("pid and target id must both be set"));
         }
         {
             let mut states: HashMap<_, u32, CapState> = HashMap::try_from(
-                self.bpf
+                self._bpf
                     .map_mut("cap_state")
                     .ok_or_else(|| err("cap_state missing"))?,
             )
@@ -2333,7 +2261,7 @@ impl Loader {
         }
         {
             let mut proc: HashMap<_, PidDomainKey, ProcState> = HashMap::try_from(
-                self.bpf
+                self._bpf
                     .map_mut("ts_proc_domains")
                     .ok_or_else(|| err("ts_proc_domains missing"))?,
             )
@@ -2353,7 +2281,7 @@ impl Loader {
         }
         {
             let mut pid_map: HashMap<_, i32, u32> = HashMap::try_from(
-                self.bpf
+                self._bpf
                     .map_mut("cap_task")
                     .ok_or_else(|| err("cap_task missing"))?,
             )
@@ -2365,72 +2293,10 @@ impl Loader {
         Ok(())
     }
 
-    pub fn unbind_pid_from_domain(&mut self, pid: i32, domain_id: u32) -> io::Result<()> {
-        let mut tasks: HashMap<_, i32, u32> = HashMap::try_from(
-            self.bpf
-                .map_mut("cap_task")
-                .ok_or_else(|| err("cap_task missing"))?,
-        )
-        .map_err(|e| err(format!("cap_task: {e}")))?;
-        ignore_missing_remove(tasks.remove(&pid), "remove cap_task")?;
-
-        let mut proc: HashMap<_, PidDomainKey, ProcState> = HashMap::try_from(
-            self.bpf
-                .map_mut("ts_proc_domains")
-                .ok_or_else(|| err("ts_proc_domains missing"))?,
-        )
-        .map_err(|e| err(format!("ts_proc_domains: {e}")))?;
-        ignore_missing_remove(
-            proc.remove(&PidDomainKey { pid, domain_id }),
-            "remove ts_proc_domains",
-        )
-    }
-
-    /// Submit a runtime policy delta through the user-to-kernel ring buffer.
-    ///
-    /// The BPF side admits the request only if `caller_pid` maps to a state with
-    /// the needed authority masks, and then applies a monotonic delta to
-    /// `cap_state`. The caller normally sets `caller_pid` to its own pid; this
-    /// method triggers a `getpid` syscall so the BPF drain hook runs.
-    pub fn submit_delta(&self, req: DeltaRequest) -> io::Result<()> {
-        let map = self
-            .bpf
-            .map("cap_req")
-            .ok_or_else(|| err("cap_req missing"))?;
-        let map_data = match map {
-            Map::Unsupported(data) => data,
-            _ => return Err(err("cap_req is not a user ringbuf map")),
-        };
-        let fd = map_data.fd().as_fd().as_raw_fd();
-        unsafe {
-            let rb = libbpf_sys::user_ring_buffer__new(fd, std::ptr::null());
-            if rb.is_null() {
-                return Err(io::Error::last_os_error());
-            }
-            let sample = libbpf_sys::user_ring_buffer__reserve(
-                rb,
-                std::mem::size_of::<DeltaRequest>() as u32,
-            );
-            if sample.is_null() {
-                let e = io::Error::last_os_error();
-                libbpf_sys::user_ring_buffer__free(rb);
-                return Err(e);
-            }
-            std::ptr::copy_nonoverlapping(
-                &req as *const DeltaRequest as *const u8,
-                sample as *mut u8,
-                std::mem::size_of::<DeltaRequest>(),
-            );
-            libbpf_sys::user_ring_buffer__submit(rb, sample);
-            libbpf_sys::user_ring_buffer__free(rb);
-            libc::syscall(libc::SYS_getpid);
-        }
-        Ok(())
-    }
-
     /// Poll the ring buffer until `stop` is set, delivering each violation.
-    pub fn run(&mut self, stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()> {
-        let ring = RingBuf::try_from(self.bpf.map_mut("rb").ok_or_else(|| err("rb missing"))?)
+    #[cfg(test)]
+    fn run(&mut self, stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()> {
+        let ring = RingBuf::try_from(self._bpf.map_mut("rb").ok_or_else(|| err("rb missing"))?)
             .map_err(|e| err(format!("rb: {e}")))?;
         poll_ringbuf(ring, stop, on)
     }

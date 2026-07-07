@@ -66,45 +66,20 @@ most important maps are:
 File identities are real `(dev,inode)` when hooks can recover a `struct file`.
 Tracepoint-only path references fall back to a domain-scoped FNV-1a path id.
 
-## Usage as a library
+## Runtime model
 
-The supported product entrypoint is the `actplane` CLI. The `ebpf-ifc-engine`
-crate is the lower-level loader used by the CLI and runtime, and its API follows
-the kernel ABI more closely.
+The supported product entrypoint is the `actplane` CLI. The runtime installs or
+opens one bpffs-pinned engine under `/sys/fs/bpf/actplane/v1` by default. Set
+`ACTPLANE_BPF_PIN_ROOT` to use a different pin root.
 
-Add to your `Cargo.toml`:
+The first runtime client installs and pins the maps, programs, and links. Later
+clients open those pins and append domain-scoped policy deltas through pinned
+control maps. Direct per-command private engine loading is not a supported
+runtime model.
 
-```toml
-[dependencies]
-ebpf-ifc-engine = { path = "bpf" }
-```
-
-```rust
-use std::sync::atomic::AtomicBool;
-
-use ebpf_ifc_engine::Loader;
-
-// Load a compiled policy config
-let config: Vec<u8> = std::fs::read("policy.bin")?;
-let mut loader = Loader::load(&config)?;
-loader.seed_label(std::process::id() as i32, 1)?;
-
-// Read match events
-let stop = AtomicBool::new(false);
-loader.run(&stop, |event| {
-    println!("rule {} matched on pid {}", event.rule_id, event.pid);
-})?;
-```
-
-## Usage as standalone loader
-
-```bash
-cargo build -p ebpf-ifc-engine --bin actplane-loader
-sudo ./target/debug/actplane-loader --config policy.bin
-```
-
-The loader attaches eBPF programs, reads the policy config into rodata,
-and prints match events as NDJSON to stdout.
+The `ebpf-ifc-engine` crate remains the low-level kernel ABI boundary used by
+the runtime. Normal callers should use the CLI and runtime crate instead of
+loading eBPF programs directly.
 
 ## Building the eBPF programs
 
