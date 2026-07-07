@@ -21,14 +21,17 @@ impl WatchProcess {
         attach_pid: i32,
     ) -> Option<Self> {
         let attach_pid = attach_pid.to_string();
+        let pin_root = bpf_pin_root();
         let mut command = if unsafe { libc::geteuid() } == 0 {
             let mut command = Command::new(actplane());
             command.env("ACTPLANE_ATTACH_PID", &attach_pid);
+            command.env("ACTPLANE_BPF_PIN_ROOT", &pin_root);
             command
         } else if passwordless_sudo_available() {
             let mut command = Command::new("sudo");
             command.arg("-E").arg("env");
             command.arg(format!("ACTPLANE_ATTACH_PID={attach_pid}"));
+            command.arg(format!("ACTPLANE_BPF_PIN_ROOT={pin_root}"));
             command.arg(actplane());
             command
         } else {
@@ -132,7 +135,17 @@ fn passwordless_sudo_available() -> bool {
         .unwrap_or(false)
 }
 
+fn bpf_pin_root() -> String {
+    let run_id = std::env::var("GITHUB_RUN_ID").unwrap_or_else(|_| "local".to_string());
+    let attempt = std::env::var("GITHUB_RUN_ATTEMPT").unwrap_or_else(|_| "0".to_string());
+    format!(
+        "/sys/fs/bpf/actplane/test-watch-{run_id}-{attempt}-{}",
+        std::process::id()
+    )
+}
+
 fn reset_bpf_pin_root() {
+    let root = bpf_pin_root();
     let mut command = if unsafe { libc::geteuid() } == 0 {
         Command::new("rm")
     } else if passwordless_sudo_available() {
@@ -143,7 +156,7 @@ fn reset_bpf_pin_root() {
         return;
     };
     let _ = command
-        .args(["-rf", "/sys/fs/bpf/actplane/v1"])
+        .args(["-rf", &root])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
