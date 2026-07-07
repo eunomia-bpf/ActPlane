@@ -119,18 +119,12 @@ impl McpProcess {
 
     fn send(&mut self, value: Value) {
         let stdin = self.stdin.as_mut().expect("mcp stdin open");
-        if let Err(e) = serde_json::to_writer(&mut *stdin, &value) {
-            panic!("write request: {e}; {}", self.exit_context());
-        }
-        if let Err(e) = writeln!(stdin) {
-            panic!("write newline: {e}; {}", self.exit_context());
-        }
-        if let Err(e) = stdin.flush() {
-            panic!("flush request: {e}; {}", self.exit_context());
-        }
+        serde_json::to_writer(&mut *stdin, &value).expect("write request");
+        writeln!(stdin).expect("write newline");
+        stdin.flush().expect("flush request");
     }
 
-    fn response(&mut self, id: i64) -> Value {
+    fn response(&self, id: i64) -> Value {
         let deadline = Instant::now() + Duration::from_secs(30);
         let mut stderr = Vec::new();
         let mut seen = Vec::new();
@@ -141,8 +135,7 @@ impl McpProcess {
             }
             assert!(
                 now < deadline,
-                "timed out waiting for MCP response id {id}; seen: {seen:?}; stderr: {stderr:?}; {}",
-                self.exit_context()
+                "timed out waiting for MCP response id {id}; seen: {seen:?}; stderr: {stderr:?}"
             );
             match self.rx.recv_timeout(Duration::from_millis(100)) {
                 Ok(value) => {
@@ -153,26 +146,10 @@ impl McpProcess {
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    panic!(
-                        "MCP stdout closed waiting for response id {id}; stderr: {stderr:?}; {}",
-                        self.exit_context()
-                    );
+                    panic!("MCP stdout closed waiting for response id {id}; stderr: {stderr:?}");
                 }
             }
         }
-    }
-
-    fn exit_context(&mut self) -> String {
-        let mut stderr = Vec::new();
-        while let Ok(line) = self.stderr_rx.try_recv() {
-            stderr.push(line);
-        }
-        let status = self
-            .child
-            .try_wait()
-            .map(|s| s.map(|s| s.to_string()).unwrap_or_else(|| "running".into()))
-            .unwrap_or_else(|e| format!("status unavailable: {e}"));
-        format!("child status: {status}; stderr: {stderr:?}")
     }
 }
 

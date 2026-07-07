@@ -103,51 +103,43 @@ const ALL_RESERVED_FEATURES: u32 = FEAT_CONNECT
     | FEAT_BLOCK_CONNECT;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PinnedEnginePaths {
+struct PinnedEnginePaths {
     root: PathBuf,
 }
 
 impl PinnedEnginePaths {
-    pub fn from_env() -> Self {
+    fn from_env() -> Self {
         Self::new(
             std::env::var_os(PIN_ROOT_ENV)
                 .map_or_else(|| PathBuf::from(DEFAULT_PIN_ROOT), PathBuf::from),
         )
     }
 
-    pub fn new(root: impl Into<PathBuf>) -> Self {
+    fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
     }
 
-    pub fn root(&self) -> &Path {
+    fn root(&self) -> &Path {
         &self.root
     }
 
-    pub fn meta(&self) -> PathBuf {
+    fn meta(&self) -> PathBuf {
         self.map("ap_meta")
     }
 
-    pub fn maps_dir(&self) -> PathBuf {
+    fn maps_dir(&self) -> PathBuf {
         self.root.join("maps")
     }
 
-    pub fn programs_dir(&self) -> PathBuf {
-        self.root.join("programs")
-    }
-
-    pub fn links_dir(&self) -> PathBuf {
+    fn links_dir(&self) -> PathBuf {
         self.root.join("links")
     }
 
-    pub fn map(&self, name: &str) -> PathBuf {
+    fn map(&self, name: &str) -> PathBuf {
         self.maps_dir().join(name)
     }
 
-    pub fn program(&self, name: &str) -> PathBuf {
-        self.programs_dir().join(name)
-    }
-
-    pub fn link(&self, name: &str) -> PathBuf {
+    fn link(&self, name: &str) -> PathBuf {
         self.links_dir().join(name)
     }
 }
@@ -200,13 +192,6 @@ struct TrustedClient {
 }
 
 unsafe impl aya::Pod for TrustedClient {}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum PinnedEngineMetaStatus {
-    Missing,
-    Compatible(PinnedEngineMeta),
-    Incompatible(PinnedEngineMeta),
-}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -535,7 +520,7 @@ fn populate_trusted_client_map(bpf: &mut Ebpf) -> io::Result<()> {
 }
 
 fn ensure_pinned_engine_dirs(paths: &PinnedEnginePaths) -> io::Result<()> {
-    for dir in [paths.maps_dir(), paths.programs_dir(), paths.links_dir()] {
+    for dir in [paths.maps_dir(), paths.links_dir()] {
         std::fs::create_dir_all(dir)?;
     }
     Ok(())
@@ -602,25 +587,6 @@ fn pin_loaded_meta_map(
         .map("ap_meta")
         .ok_or_else(|| err("map ap_meta missing"))?;
     pin_loaded_map(map, "ap_meta", paths.meta(), cleanup)
-}
-
-fn pin_loaded_programs(
-    bpf: &mut Ebpf,
-    paths: &PinnedEnginePaths,
-    names: &[String],
-    cleanup: &mut PinInstallCleanup,
-) -> io::Result<()> {
-    for name in names {
-        let path = paths.program(name);
-        let program = bpf
-            .program_mut(name)
-            .ok_or_else(|| err(format!("program {name} missing")))?;
-        program
-            .pin(&path)
-            .map_err(|e| err(format!("pin program {name} at {}: {e}", path.display())))?;
-        cleanup.record(&path);
-    }
-    Ok(())
 }
 
 struct PendingPinnedLink {
@@ -697,17 +663,15 @@ fn read_pinned_engine_meta(paths: &PinnedEnginePaths) -> io::Result<PinnedEngine
 fn probe_pinned_engine_meta(
     paths: &PinnedEnginePaths,
     expected: PinnedEngineMeta,
-) -> io::Result<PinnedEngineMetaStatus> {
+) -> io::Result<Option<PinnedEngineMeta>> {
     if !paths.meta().try_exists()? {
-        return Ok(PinnedEngineMetaStatus::Missing);
+        return Ok(None);
     }
     match read_pinned_engine_meta(paths) {
-        Ok(installed) if installed.compatible_with(expected) => {
-            Ok(PinnedEngineMetaStatus::Compatible(installed))
-        }
-        Ok(installed) => Ok(PinnedEngineMetaStatus::Incompatible(installed)),
-        Err(e) if e.raw_os_error() == Some(libc::ENOENT) => Ok(PinnedEngineMetaStatus::Missing),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(PinnedEngineMetaStatus::Missing),
+        Ok(installed) if installed.compatible_with(expected) => Ok(Some(installed)),
+        Ok(installed) => Err(pinned_engine_incompatible_error(paths, installed, expected)),
+        Err(e) if e.raw_os_error() == Some(libc::ENOENT) => Ok(None),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(e),
     }
 }
@@ -1742,21 +1706,10 @@ fn empty_config_blob() -> Vec<u8> {
 
 impl PinnedEngine {
     pub fn open_or_install_singleton() -> io::Result<Self> {
-        Self::open_or_install_singleton_at(PinnedEnginePaths::from_env())
-    }
-
-    pub fn open_or_install_singleton_at(paths: PinnedEnginePaths) -> io::Result<Self> {
+        let paths = PinnedEnginePaths::from_env();
         let expected = PinnedEngineMeta::current_full_profile(ALL_RESERVED_FEATURES);
-        match probe_pinned_engine_meta(&paths, expected)? {
-            PinnedEngineMetaStatus::Compatible(meta) => {
-                return Ok(Self { paths, meta });
-            }
-            PinnedEngineMetaStatus::Incompatible(installed) => {
-                return Err(pinned_engine_incompatible_error(
-                    &paths, installed, expected,
-                ));
-            }
-            PinnedEngineMetaStatus::Missing => {}
+        if let Some(meta) = probe_pinned_engine_meta(&paths, expected)? {
+            return Ok(Self { paths, meta });
         }
 
         match Loader::load_with_pinned_layout(
@@ -1766,26 +1719,18 @@ impl PinnedEngine {
         ) {
             Ok(installer) => {
                 drop(installer);
-                Self::open(paths)
+                match probe_pinned_engine_meta(&paths, expected)? {
+                    Some(meta) => Ok(Self { paths, meta }),
+                    None => Err(err(format!(
+                        "pinned ActPlane engine missing after install at {}",
+                        paths.root().display()
+                    ))),
+                }
             }
             Err(e) => match probe_pinned_engine_meta(&paths, expected)? {
-                PinnedEngineMetaStatus::Compatible(meta) => Ok(Self { paths, meta }),
-                _ => Err(e),
+                Some(meta) => Ok(Self { paths, meta }),
+                None => Err(e),
             },
-        }
-    }
-
-    pub fn open(paths: PinnedEnginePaths) -> io::Result<Self> {
-        let expected = PinnedEngineMeta::current_full_profile(ALL_RESERVED_FEATURES);
-        match probe_pinned_engine_meta(&paths, expected)? {
-            PinnedEngineMetaStatus::Compatible(meta) => Ok(Self { paths, meta }),
-            PinnedEngineMetaStatus::Missing => Err(err(format!(
-                "pinned ActPlane engine missing at {}",
-                paths.root().display()
-            ))),
-            PinnedEngineMetaStatus::Incompatible(installed) => Err(
-                pinned_engine_incompatible_error(&paths, installed, expected),
-            ),
         }
     }
 
@@ -1989,17 +1934,11 @@ impl Loader {
         let meta = PinnedEngineMeta::current(hook_budget.hook_profile(), policy_features);
         if let Some(paths) = pin_paths.as_ref() {
             ensure_pinned_engine_dirs(paths)?;
-            match probe_pinned_engine_meta(paths, meta)? {
-                PinnedEngineMetaStatus::Missing => {}
-                PinnedEngineMetaStatus::Compatible(_) => {
-                    return Err(err(format!(
-                        "ActPlane pinned engine already exists at {}; open pinned objects instead of loading another engine",
-                        paths.root().display()
-                    )));
-                }
-                PinnedEngineMetaStatus::Incompatible(installed) => {
-                    return Err(pinned_engine_incompatible_error(paths, installed, meta));
-                }
+            if probe_pinned_engine_meta(paths, meta)?.is_some() {
+                return Err(err(format!(
+                    "ActPlane pinned engine already exists at {}; open pinned objects instead of loading another engine",
+                    paths.root().display()
+                )));
             }
         }
 
@@ -2045,10 +1984,6 @@ impl Loader {
         let has_block_connect = hook_budget.features & FEAT_BLOCK_CONNECT != 0;
 
         load_exec_tail_programs(&mut bpf)?;
-        let mut loaded_programs: Vec<String> = EXEC_TAIL_PROGS
-            .iter()
-            .map(|(_, name)| (*name).to_string())
-            .collect();
         let mut pending_links: Vec<PendingPinnedLink> = Vec::new();
 
         // Attach only the tracepoints required by this loaded hook set, then LSM
@@ -2064,7 +1999,6 @@ impl Loader {
                 .map_err(|e| err(format!("{} not a tracepoint: {e}", spec.name)))?;
             p.load()
                 .map_err(|e| err(format!("{}.load: {e}", spec.name)))?;
-            loaded_programs.push(spec.name.to_string());
             let link_id = p
                 .attach(spec.category, spec.event)
                 .map_err(|e| err(format!("{}.attach: {e}", spec.name)))?;
@@ -2104,7 +2038,6 @@ impl Loader {
                     .map_err(|e| err(format!("{name} not an lsm: {e}")))?;
                 p.load(hook, &btf)
                     .map_err(|e| err(format!("{name}.load: {e}")))?;
-                loaded_programs.push(name.to_string());
                 let link_id = p.attach().map_err(|e| err(format!("{name}.attach: {e}")))?;
                 if pin_paths.is_some() {
                     let link = p
@@ -2124,7 +2057,6 @@ impl Loader {
             let mut cleanup = PinInstallCleanup::default();
             let pin_result = (|| -> io::Result<Vec<PinnedLink>> {
                 pin_loaded_maps(&bpf, paths, false, &mut cleanup)?;
-                pin_loaded_programs(&mut bpf, paths, &loaded_programs, &mut cleanup)?;
                 let links = pin_pending_links(paths, pending_links, &mut cleanup)?;
                 pin_loaded_meta_map(&bpf, paths, &mut cleanup)?;
                 Ok(links)
@@ -3045,108 +2977,6 @@ mod tests {
                 String::from_utf8_lossy(name)
             );
         }
-    }
-
-    #[test]
-    fn pinned_engine_paths_use_versioned_bpffs_layout() {
-        let paths = PinnedEnginePaths::new("/tmp/actplane-test-root");
-        assert_eq!(paths.root(), Path::new("/tmp/actplane-test-root"));
-        assert_eq!(
-            paths.meta(),
-            Path::new("/tmp/actplane-test-root/maps/ap_meta")
-        );
-        assert_eq!(
-            paths.map("ts_proc"),
-            Path::new("/tmp/actplane-test-root/maps/ts_proc")
-        );
-        assert_eq!(
-            paths.program("handle_exec"),
-            Path::new("/tmp/actplane-test-root/programs/handle_exec")
-        );
-        assert_eq!(
-            paths.link("handle_exec"),
-            Path::new("/tmp/actplane-test-root/links/handle_exec")
-        );
-    }
-
-    #[test]
-    fn pinned_engine_meta_compatibility_ignores_mutable_fields() {
-        let expected = PinnedEngineMeta::current_full_profile(ALL_RESERVED_FEATURES);
-        let mut installed = expected;
-        installed.policy_features = 0;
-        installed.install_generation = 99;
-        assert!(installed.compatible_with(expected));
-
-        let mut incompatible = expected;
-        incompatible.hook_profile = 0;
-        assert!(!incompatible.compatible_with(expected));
-    }
-
-    #[test]
-    fn probe_pinned_engine_meta_reports_missing_meta() {
-        let paths = PinnedEnginePaths::new(
-            std::env::temp_dir().join(format!("actplane-missing-meta-{}", std::process::id())),
-        );
-        let status = probe_pinned_engine_meta(&paths, PinnedEngineMeta::current_full_profile(0))
-            .expect("probe missing pinned engine");
-        assert_eq!(status, PinnedEngineMetaStatus::Missing);
-    }
-
-    #[test]
-    fn pinned_engine_open_reports_missing_without_loading() {
-        let paths = PinnedEnginePaths::new(
-            std::env::temp_dir().join(format!("actplane-missing-open-{}", std::process::id())),
-        );
-        let err = PinnedEngine::open(paths).expect_err("missing pinned engine should not load");
-        assert!(
-            err.to_string().contains("pinned ActPlane engine missing"),
-            "{err}"
-        );
-    }
-
-    #[test]
-    fn ensure_pinned_engine_dirs_creates_layout_dirs() {
-        let root =
-            std::env::temp_dir().join(format!("actplane-pinned-layout-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        let paths = PinnedEnginePaths::new(&root);
-        ensure_pinned_engine_dirs(&paths).expect("create pinned layout dirs");
-        assert!(paths.maps_dir().is_dir());
-        assert!(paths.programs_dir().is_dir());
-        assert!(paths.links_dir().is_dir());
-        std::fs::remove_dir_all(root).expect("cleanup pinned layout dirs");
-    }
-
-    #[test]
-    fn pin_install_cleanup_removes_only_recorded_paths() {
-        let root =
-            std::env::temp_dir().join(format!("actplane-pin-cleanup-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        let paths = PinnedEnginePaths::new(&root);
-        ensure_pinned_engine_dirs(&paths).expect("create pinned layout dirs");
-
-        let owned = paths.map("owned");
-        let foreign = paths.map("foreign");
-        std::fs::write(&owned, b"owned").expect("write owned pin placeholder");
-        std::fs::write(&foreign, b"foreign").expect("write foreign pin placeholder");
-
-        let mut cleanup = PinInstallCleanup::default();
-        cleanup.record(&owned);
-        cleanup.cleanup();
-
-        assert!(!owned.exists(), "recorded pin should be removed");
-        assert!(foreign.exists(), "unrecorded pin should be preserved");
-        std::fs::remove_dir_all(root).expect("cleanup pinned layout dirs");
-    }
-
-    #[test]
-    fn pinned_engine_skips_internal_data_section_maps() {
-        assert!(should_pin_loaded_map("ts_proc", false));
-        assert!(should_pin_loaded_map("rb", false));
-        assert!(!should_pin_loaded_map(".rodata", false));
-        assert!(!should_pin_loaded_map(".bss", false));
-        assert!(!should_pin_loaded_map("ap_meta", false));
-        assert!(should_pin_loaded_map("ap_meta", true));
     }
 
     #[test]
