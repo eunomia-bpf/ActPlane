@@ -6,19 +6,19 @@
 //! Loads the prebuilt CO-RE object `process.bpf.o` (compiled from the untouched
 //! kernel C in this directory), installs the compiled policy into writable BPF
 //! array maps, attaches the enforcer, and surfaces `TAINT_VIOLATION` events.
-//! Supports hot-reload of policy rules via `ReloadHandle` (user ring buffer).
+//! Supports runtime policy deltas via `ReloadHandle` (user ring buffer).
 //!
 //! The config blob is exactly the `struct taint_config` the collector's DSL
 //! compiler already produces (the same bytes the C loader read from `--config`).
 
 use std::io::{self, Read};
 use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd, RawFd};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use aya::maps::{Array, HashMap, Map, MapData, MapError, ProgramArray, RingBuf};
-use aya::programs::links::{FdLink, PinnedLink};
+use aya::programs::links::FdLink;
 use aya::programs::{Lsm, ProgramFd, TracePoint};
 use aya::{Btf, Ebpf, EbpfLoader};
 
@@ -86,10 +86,6 @@ impl PinnedEnginePaths {
         Self { root: root.into() }
     }
 
-    fn root(&self) -> &Path {
-        &self.root
-    }
-
     fn maps_dir(&self) -> PathBuf {
         self.root.join("maps")
     }
@@ -104,16 +100,6 @@ impl PinnedEnginePaths {
 
     fn link(&self, name: &str) -> PathBuf {
         self.links_dir().join(name)
-    }
-
-    fn append_lock_path(&self) -> PathBuf {
-        let root = self
-            .root
-            .to_string_lossy()
-            .chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .collect::<String>();
-        std::env::temp_dir().join(format!("actplane-{root}.append.lock"))
     }
 }
 
@@ -367,6 +353,31 @@ fn merge_cap_state(mut base: CapState, update: CapState) -> CapState {
     base
 }
 
+fn upsert_cap_state<T>(
+    states: &mut HashMap<T, u32, CapState>,
+    target_id: u32,
+    state: CapState,
+) -> io::Result<()>
+where
+    T: std::borrow::Borrow<MapData> + std::borrow::BorrowMut<MapData>,
+{
+    match states.get(&target_id, BPF_ANY) {
+        Ok(existing) => {
+            let merged = merge_cap_state(existing, state);
+            if merged != existing {
+                states
+                    .insert(target_id, merged, BPF_ANY)
+                    .map_err(|e| err(format!("merge cap_state: {e}")))?;
+            }
+        }
+        Err(MapError::KeyNotFound) => states
+            .insert(target_id, state, BPF_NOEXIST)
+            .map_err(|e| err(format!("seed cap_state: {e}")))?,
+        Err(e) => return Err(err(format!("lookup cap_state: {e}"))),
+    }
+    Ok(())
+}
+
 /// Map-fd backed control handle for binding child domains while the loader polls events.
 pub struct DomainHandle {
     cap_task_fd: OwnedFd,
@@ -435,37 +446,23 @@ fn pin_loaded_maps(
     Ok(())
 }
 
-struct PendingPinnedLink {
-    name: String,
-    link: FdLink,
-}
-
 fn pin_pending_links(
     paths: &PinnedEnginePaths,
-    links: Vec<PendingPinnedLink>,
+    links: Vec<(String, FdLink)>,
     created: &mut Vec<PathBuf>,
-) -> io::Result<Vec<PinnedLink>> {
-    let mut pinned = Vec::new();
-    for pending in links {
-        let path = paths.link(&pending.name);
-        match pending.link.pin(&path) {
-            Ok(link) => {
+) -> io::Result<()> {
+    for (name, link) in links {
+        let path = paths.link(&name);
+        match link.pin(&path) {
+            Ok(_) => {
                 created.push(path);
-                pinned.push(link);
             }
             Err(e) => {
-                for link in pinned {
-                    let _ = link.unpin();
-                }
-                return Err(err(format!(
-                    "pin link {} at {}: {e}",
-                    pending.name,
-                    path.display()
-                )));
+                return Err(err(format!("pin link {name} at {}: {e}", path.display())));
             }
         }
     }
-    Ok(pinned)
+    Ok(())
 }
 
 fn pinned_map_data(paths: &PinnedEnginePaths, name: &str) -> io::Result<MapData> {
@@ -479,12 +476,12 @@ fn dup_pinned_map_fd(paths: &PinnedEnginePaths, name: &str) -> io::Result<OwnedF
     dup_cloexec_fd(data.fd().as_fd().as_raw_fd())
 }
 
-fn open_append_lock(paths: &PinnedEnginePaths) -> io::Result<std::fs::File> {
+fn open_append_lock() -> io::Result<std::fs::File> {
     std::fs::OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
-        .open(paths.append_lock_path())
+        .open(std::env::temp_dir().join("actplane.append.lock"))
 }
 
 fn pinned_hash_map<K: aya::Pod, V: aya::Pod>(
@@ -1444,7 +1441,7 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
     }
     let mut hints = Vec::new();
     hints.push(
-        "runtime reload/delta cannot attach new hooks or enable new matcher classes after load; restart the engine with a profile or policy that enables them",
+        "runtime policy deltas cannot attach new hooks or enable new matcher classes after load; restart the engine with a profile or policy that enables them",
     );
     if missing
         & (FEAT_FILE_FLOW
@@ -1556,7 +1553,7 @@ impl PinnedEngine {
                 } else {
                     Err(err(format!(
                         "pinned ActPlane engine missing after install at {}",
-                        paths.root().display()
+                        paths.root.display()
                     )))
                 }
             }
@@ -1590,7 +1587,7 @@ impl PinnedEngine {
             cap_policy_fd: dup_pinned_map_fd(&self.paths, "cap_policy")?,
             ts_counts_fd: dup_pinned_map_fd(&self.paths, "ts_counts")?,
             append_lock: Mutex::new(()),
-            append_lock_file: Some(open_append_lock(&self.paths)?),
+            append_lock_file: Some(open_append_lock()?),
             policy_features: PINNED_POLICY_FEATURES,
         })
     }
@@ -1654,20 +1651,7 @@ impl PinnedEngine {
         }
         {
             let mut states: HashMap<_, u32, CapState> = pinned_hash_map(&self.paths, "cap_state")?;
-            match states.get(&target_id, BPF_ANY) {
-                Ok(existing) => {
-                    let merged = merge_cap_state(existing, state);
-                    if merged != existing {
-                        states
-                            .insert(target_id, merged, BPF_ANY)
-                            .map_err(|e| err(format!("merge cap_state: {e}")))?;
-                    }
-                }
-                Err(MapError::KeyNotFound) => states
-                    .insert(target_id, state, BPF_NOEXIST)
-                    .map_err(|e| err(format!("seed cap_state: {e}")))?,
-                Err(e) => return Err(err(format!("lookup cap_state: {e}"))),
-            }
+            upsert_cap_state(&mut states, target_id, state)?;
         }
         {
             let mut proc: HashMap<_, PidDomainKey, ProcState> =
@@ -1792,7 +1776,7 @@ impl Loader {
             if pinned_engine_present(paths)? {
                 return Err(err(format!(
                     "ActPlane pinned engine already exists at {}; open pinned objects instead of loading another engine",
-                    paths.root().display()
+                    paths.root.display()
                 )));
             }
         }
@@ -1833,7 +1817,7 @@ impl Loader {
         let has_block_connect = hook_budget.features & FEAT_BLOCK_CONNECT != 0;
 
         load_exec_tail_programs(&mut bpf)?;
-        let mut pending_links: Vec<PendingPinnedLink> = Vec::new();
+        let mut pending_links: Vec<(String, FdLink)> = Vec::new();
 
         // Attach only the tracepoints required by this loaded hook set, then LSM
         // programs only when BPF LSM is active.
@@ -1861,10 +1845,7 @@ impl Loader {
                         spec.name
                     ))
                 })?;
-                pending_links.push(PendingPinnedLink {
-                    name: spec.name.to_string(),
-                    link: fd_link,
-                });
+                pending_links.push((spec.name.to_string(), fd_link));
             }
         }
         if enforce {
@@ -1893,24 +1874,19 @@ impl Loader {
                         .take_link(link_id)
                         .map_err(|e| err(format!("{name}.take_link: {e}")))?;
                     let fd_link: FdLink = link.into();
-                    pending_links.push(PendingPinnedLink {
-                        name: name.to_string(),
-                        link: fd_link,
-                    });
+                    pending_links.push((name.to_string(), fd_link));
                 }
             }
         }
 
-        let mut pinned_links = Vec::new();
         if let Some(paths) = pin_paths.as_ref() {
             let mut created = Vec::new();
-            let pin_result = (|| -> io::Result<Vec<PinnedLink>> {
+            let pin_result = (|| -> io::Result<()> {
                 pin_loaded_maps(&bpf, paths, &mut created)?;
-                let links = pin_pending_links(paths, pending_links, &mut created)?;
-                Ok(links)
+                pin_pending_links(paths, pending_links, &mut created)
             })();
             match pin_result {
-                Ok(links) => pinned_links = links,
+                Ok(()) => {}
                 Err(e) => {
                     for path in created.iter().rev() {
                         let _ = std::fs::remove_file(path);
@@ -1925,7 +1901,6 @@ impl Loader {
             enforce,
             policy_features,
         };
-        drop(pinned_links);
         Ok(loader)
     }
 
@@ -1952,7 +1927,7 @@ impl Loader {
         Ok(())
     }
 
-    /// Create a `ReloadHandle` that can hot-reload policy into this engine.
+    /// Create a `ReloadHandle` that can append runtime policy deltas.
     pub fn reload_handle(&self) -> io::Result<ReloadHandle> {
         let map = self
             .bpf
@@ -2084,20 +2059,7 @@ impl Loader {
                     .ok_or_else(|| err("cap_state missing"))?,
             )
             .map_err(|e| err(format!("cap_state: {e}")))?;
-            match states.get(&target_id, BPF_ANY) {
-                Ok(existing) => {
-                    let merged = merge_cap_state(existing, state);
-                    if merged != existing {
-                        states
-                            .insert(target_id, merged, BPF_ANY)
-                            .map_err(|e| err(format!("merge cap_state: {e}")))?;
-                    }
-                }
-                Err(MapError::KeyNotFound) => states
-                    .insert(target_id, state, BPF_NOEXIST)
-                    .map_err(|e| err(format!("seed cap_state: {e}")))?,
-                Err(e) => return Err(err(format!("lookup cap_state: {e}"))),
-            }
+            upsert_cap_state(&mut states, target_id, state)?;
         }
         {
             let mut proc: HashMap<_, PidDomainKey, ProcState> = HashMap::try_from(
@@ -2275,38 +2237,10 @@ fn populate_policy_mask_map(bpf: &mut Ebpf, cfg: &CConfig) -> io::Result<()> {
     Ok(())
 }
 
-// ── Hot-reload via cap_req ring buffer ─────────────────────────────
+// ── Runtime policy deltas via cap_req ring buffer ──────────────────
 
-const CAP_REQ_RELOAD_UPDATE: i32 = -1;
-const CAP_REQ_RELOAD_RULE: i32 = -2;
-const CAP_REQ_RELOAD_COUNTS: i32 = -3;
 const CAP_REQ_APPEND_UPDATE: i32 = -4;
 const CAP_REQ_APPEND_RULE: i32 = -5;
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct ReloadUpdate {
-    tag: i32,
-    index: u32,
-    entry: CUpdate,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct ReloadRule {
-    tag: i32,
-    index: u32,
-    entry: CRule,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct ReloadCounts {
-    tag: i32,
-    n_rules: u32,
-    n_updates: u32,
-    _pad: u32,
-}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -2330,7 +2264,7 @@ struct AppendRule {
     entry: CRule,
 }
 
-/// A handle for hot-reloading policy rules into a running eBPF engine.
+/// A handle for appending runtime policy deltas into a running eBPF engine.
 ///
 /// Holds only the `cap_req` user ring buffer fd (via a dup'd `OwnedFd`).
 /// `Send + Sync` — safe to share across threads and the async MCP server.
@@ -2587,72 +2521,13 @@ impl ReloadHandle {
         Ok(())
     }
 
-    /// Hot-reload a new compiled policy blob without restarting the engine.
-    ///
-    /// Sequence: quiesce (counts→0) → write updates → write rules → activate.
-    /// Accumulated state (process labels, file labels, session gates) is preserved.
-    pub fn reload_policy(&self, new_blob: &[u8]) -> io::Result<()> {
-        if new_blob.len() != std::mem::size_of::<CConfig>() {
-            return Err(err(format!(
-                "reload config size mismatch: got {}, expected {}",
-                new_blob.len(),
-                std::mem::size_of::<CConfig>()
-            )));
-        }
-        let cfg: Box<CConfig> =
-            Box::new(unsafe { std::ptr::read_unaligned(new_blob.as_ptr() as *const CConfig) });
-        validate_config(&cfg)?;
-        validate_supported_features(&cfg, self.policy_features, "reload policy")?;
-        let _guard = self
-            .append_lock
-            .lock()
-            .map_err(|e| err(format!("reload lock poisoned: {e}")))?;
-        let _file_guard = self.lock_append_file()?;
-
-        // Phase 1: quiesce — set counts to 0 so the engine skips all rules.
-        self.submit(&ReloadCounts {
-            tag: CAP_REQ_RELOAD_COUNTS,
-            n_rules: 0,
-            n_updates: 0,
-            _pad: 0,
-        })?;
-
-        // Phase 2: submit all update entries.
-        for i in 0..cfg.n_updates {
-            self.submit(&ReloadUpdate {
-                tag: CAP_REQ_RELOAD_UPDATE,
-                index: i,
-                entry: cfg.updates[i as usize],
-            })?;
-        }
-
-        // Phase 3: submit all rule entries.
-        for i in 0..cfg.n_rules {
-            self.submit(&ReloadRule {
-                tag: CAP_REQ_RELOAD_RULE,
-                index: i,
-                entry: cfg.rules[i as usize],
-            })?;
-        }
-
-        // Phase 4: activate — set real counts.
-        self.submit(&ReloadCounts {
-            tag: CAP_REQ_RELOAD_COUNTS,
-            n_rules: cfg.n_rules,
-            n_updates: cfg.n_updates,
-            _pad: 0,
-        })?;
-
-        Ok(())
-    }
-
     /// Append a precompiled policy delta through the kernel-admitted runtime path.
     ///
-    /// Unlike `reload_policy`, this does not replace existing rules. Each update
-    /// and rule is admitted by the BPF capability checker using the submitting
-    /// pid's bound state. Updates that delete labels require `AUTH_DECLASSIFY`
-    /// and label authority over every deleted bit, so runtime declassification is
-    /// domain-local instead of a way to clear inherited higher-authority labels.
+    /// Each update and rule is admitted by the BPF capability checker using the
+    /// submitting pid's bound state. Updates that delete labels require
+    /// `AUTH_DECLASSIFY` and label authority over every deleted bit, so runtime
+    /// declassification is domain-local instead of a way to clear inherited
+    /// higher-authority labels.
     pub fn append_policy_delta(
         &self,
         caller_pid: i32,
@@ -3095,7 +2970,7 @@ mod tests {
         );
         assert!(
             err.to_string()
-                .contains("runtime reload/delta cannot attach new hooks"),
+                .contains("runtime policy deltas cannot attach new hooks"),
             "{err}"
         );
         validate_supported_features(&cfg, FEAT_BLOCK_EXEC, "runtime policy delta")
@@ -3231,16 +3106,7 @@ mod tests {
     }
 
     #[test]
-    fn reload_struct_layout() {
-        assert_eq!(
-            std::mem::size_of::<ReloadUpdate>(),
-            8 + std::mem::size_of::<CUpdate>()
-        );
-        assert_eq!(
-            std::mem::size_of::<ReloadRule>(),
-            8 + std::mem::size_of::<CRule>()
-        );
-        assert_eq!(std::mem::size_of::<ReloadCounts>(), 16);
+    fn append_struct_layout() {
         assert_eq!(
             std::mem::size_of::<AppendUpdate>(),
             24 + std::mem::size_of::<CUpdate>()
@@ -3682,29 +3548,6 @@ os.execv({hit:?}, [{hit:?}])
         )
     }
 
-    fn percentile(sorted: &[std::time::Duration], pct: f64) -> std::time::Duration {
-        assert!(!sorted.is_empty());
-        let idx = ((sorted.len() - 1) as f64 * pct).round() as usize;
-        sorted[idx.min(sorted.len() - 1)]
-    }
-
-    fn summarize_durations(name: &str, durs: &[std::time::Duration]) {
-        let mut sorted = durs.to_vec();
-        sorted.sort_unstable();
-        let total_ns: u128 = durs.iter().map(|d| d.as_nanos()).sum();
-        let mean_us = total_ns as f64 / durs.len() as f64 / 1000.0;
-        println!(
-            "{name}: n={} mean={:.2}us p50={:.2}us p90={:.2}us p99={:.2}us min={:.2}us max={:.2}us",
-            durs.len(),
-            mean_us,
-            percentile(&sorted, 0.50).as_secs_f64() * 1_000_000.0,
-            percentile(&sorted, 0.90).as_secs_f64() * 1_000_000.0,
-            percentile(&sorted, 0.99).as_secs_f64() * 1_000_000.0,
-            sorted[0].as_secs_f64() * 1_000_000.0,
-            sorted[sorted.len() - 1].as_secs_f64() * 1_000_000.0,
-        );
-    }
-
     struct LiveBpfTestGuard {
         _lock: std::sync::MutexGuard<'static, ()>,
         old_hook_profile: Option<std::ffi::OsString>,
@@ -3733,80 +3576,6 @@ os.execv({hit:?}, [{hit:?}])
             _lock: lock,
             old_hook_profile,
         }
-    }
-
-    #[test]
-    #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
-    fn reload_policy_latency_smoke() {
-        let empty = empty_config_blob();
-        let policy_a = notify_exec_config_blob("aprl_a");
-        let policy_b = notify_exec_config_blob("aprl_b");
-        let policy_hit = notify_exec_config_blob("aprlhit");
-
-        let mut loader = Loader::load(&empty).expect("load eBPF engine");
-        loader
-            .seed_label(std::process::id() as i32, 1)
-            .expect("seed current test domain");
-        let handle = loader.reload_handle().expect("reload handle");
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send((std::time::Instant::now(), v));
-            })
-        });
-
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        for i in 0..10 {
-            let blob = if i % 2 == 0 { &policy_a } else { &policy_b };
-            handle.reload_policy(blob).expect("warm reload");
-        }
-
-        let mut reload_durs = Vec::new();
-        for i in 0..200 {
-            let blob = if i % 2 == 0 { &policy_a } else { &policy_b };
-            let start = std::time::Instant::now();
-            handle.reload_policy(blob).expect("measured reload");
-            reload_durs.push(start.elapsed());
-        }
-
-        let tmp =
-            std::env::temp_dir().join(format!("actplane-reload-bench-{}", std::process::id()));
-        std::fs::create_dir_all(&tmp).expect("create temp dir");
-        let hit_path = tmp.join("aprlhit");
-        std::fs::copy("/bin/true", &hit_path).expect("copy /bin/true");
-
-        let mut effect_durs = Vec::new();
-        let mut reload_only_durs = Vec::new();
-        for _ in 0..50 {
-            let start = std::time::Instant::now();
-            handle
-                .reload_policy(&policy_hit)
-                .expect("reload hit policy");
-            reload_only_durs.push(start.elapsed());
-            let status = std::process::Command::new(&hit_path)
-                .status()
-                .expect("run matching executable");
-            assert!(status.success());
-            let (event_at, v) = rx
-                .recv_timeout(std::time::Duration::from_secs(2))
-                .expect("violation after reload");
-            assert!(v.target.ends_with("aprlhit"), "target was {}", v.target);
-            effect_durs.push(event_at.duration_since(start));
-        }
-
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
-        let _ = std::fs::remove_dir_all(&tmp);
-
-        println!("reload path: 1 rule, 0 updates, counts quiesce + rule + counts activate");
-        summarize_durations("reload_policy_submit_to_drain", &reload_durs);
-        summarize_durations("reload_policy_before_effect_samples", &reload_only_durs);
-        summarize_durations("reload_to_observed_exec_violation", &effect_durs);
     }
 
     #[test]
@@ -7051,7 +6820,7 @@ finally:
         loader
             .bind_state(caller_pid, domain_a, domain_a_state)
             .expect("bind caller to domain A");
-        let handle = loader.reload_handle().expect("reload handle");
+        let handle = loader.reload_handle().expect("policy delta handle");
         handle
             .append_policy_delta(caller_pid, domain_a, &policy_a_source)
             .expect("append domain A source");
@@ -7147,7 +6916,7 @@ finally:
                 },
             )
             .expect("bind caller to child domain");
-        let handle = loader.reload_handle().expect("reload handle");
+        let handle = loader.reload_handle().expect("policy delta handle");
         handle
             .append_policy_delta(caller_pid, child_domain, &policy)
             .expect("append child domain label rule");
@@ -7192,7 +6961,7 @@ finally:
                 },
             )
             .expect("bind caller to child domain");
-        let handle = loader.reload_handle().expect("reload handle");
+        let handle = loader.reload_handle().expect("policy delta handle");
         handle
             .append_policy_delta(caller_pid, child_domain, &policy)
             .expect("append child domain label rule");
@@ -7262,7 +7031,7 @@ finally:
         loader
             .bind_state(caller_pid, local_domain, local_state)
             .expect("bind caller to local domain");
-        let handle = loader.reload_handle().expect("reload handle");
+        let handle = loader.reload_handle().expect("policy delta handle");
         handle
             .append_policy_delta(caller_pid, local_domain, &local_source)
             .expect("append local source");
@@ -7369,7 +7138,7 @@ finally:
             )
             .expect("bind sibling domain child");
 
-        let handle = loader.reload_handle().expect("reload handle");
+        let handle = loader.reload_handle().expect("policy delta handle");
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
         let run_stop = std::sync::Arc::clone(&stop);
@@ -7446,7 +7215,7 @@ finally:
         loader
             .bind_state(caller_pid, parent_domain, parent_state)
             .expect("bind caller to parent domain");
-        let handle = loader.reload_handle().expect("reload handle");
+        let handle = loader.reload_handle().expect("policy delta handle");
         handle
             .append_policy_delta(caller_pid, parent_domain, &policy)
             .expect("append parent-domain source and rule");
@@ -7510,7 +7279,7 @@ finally:
         loader
             .seed_label(caller_pid, 1)
             .expect("seed parent agent domain");
-        let handle = loader.reload_handle().expect("reload handle");
+        let handle = loader.reload_handle().expect("policy delta handle");
         let domains = loader.domain_handle().expect("domain handle");
 
         let mut in_child = spawn_stopped_exec(&hit_path);
@@ -7604,7 +7373,7 @@ finally:
         loader
             .seed_label(caller_pid, 1)
             .expect("seed parent agent domain");
-        let handle = loader.reload_handle().expect("reload handle");
+        let handle = loader.reload_handle().expect("policy delta handle");
         let domains = loader.domain_handle().expect("domain handle");
 
         let mut child = spawn_stopped_shell(&format!("read _ < {src}; exec {hit}"));
@@ -7670,7 +7439,7 @@ finally:
                 },
             )
             .expect("bind caller domain");
-        let handle = loader.reload_handle().expect("reload handle");
+        let handle = loader.reload_handle().expect("policy delta handle");
 
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
@@ -7763,7 +7532,7 @@ finally:
         loader
             .bind_state(delegated_actor_pid, delegate_target_id, base_state)
             .expect("bind delegated actor domain");
-        let handle = loader.reload_handle().expect("reload handle");
+        let handle = loader.reload_handle().expect("policy delta handle");
         let err = handle
             .append_policy_delta(delegated_actor_pid, delegate_target_id, &declassify)
             .expect_err("declassify delta without AUTH_DECLASSIFY");

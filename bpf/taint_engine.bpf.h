@@ -6,8 +6,8 @@
 /*
  * ActPlane in-kernel taint engine. Owns the label state (process / file /
  * endpoint) + lineage/session gates + the compiled rule tables (writable
- * array maps, hot-reloadable from userspace via the cap_req ring buffer),
- * and provides the te_* helpers a hook program calls.
+ * array maps extended by admitted runtime deltas), and provides the te_* helpers
+ * a hook program calls.
  * Requires vmlinux.h + bpf_helpers.h + "taint.h" already included.
  */
 
@@ -15,13 +15,12 @@
 #define __noinline __attribute__((noinline))
 #endif
 
-/* ── Writable policy tables (defined before capability.bpf.h so the reload
+/* ── Writable policy tables (defined before capability.bpf.h so the delta
  *    handler in the drain callback can reference them). ──────────────── */
 
 /* Compiled kernel IR tables. Stored in writable array maps so userspace can
- * hot-reload them at runtime through the cap_req ring buffer without restarting
- * the engine or losing accumulated label state.  Loop counts live in ts_counts
- * (slots 0=rules, 1=updates) and drive bpf_loop iteration. */
+ * append admitted runtime deltas through the cap_req ring buffer. Loop counts
+ * live in ts_counts (slots 0=rules, 1=updates) and drive bpf_loop iteration. */
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, MAX_TAINT_UPDATES);

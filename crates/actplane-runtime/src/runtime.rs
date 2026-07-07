@@ -133,7 +133,7 @@ pub async fn watch_policy_for_pid(
         let rh = match engine.reload_handle() {
             Ok(h) => h,
             Err(e) => {
-                let _ = ready_tx.send(Err(format!("create reload handle: {e}")));
+                let _ = ready_tx.send(Err(format!("create policy delta handle: {e}")));
                 return;
             }
         };
@@ -971,7 +971,7 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
         let rh = match engine.reload_handle() {
             Ok(h) => h,
             Err(e) => {
-                let _ = ready_tx.send(Err(format!("create reload handle: {e}")));
+                let _ = ready_tx.send(Err(format!("create policy delta handle: {e}")));
                 return;
             }
         };
@@ -1206,7 +1206,7 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
         let rh = match engine.reload_handle() {
             Ok(h) => h,
             Err(e) => {
-                let _ = ready_tx.send(Err(format!("create reload handle: {e}")));
+                let _ = ready_tx.send(Err(format!("create policy delta handle: {e}")));
                 return;
             }
         };
@@ -1344,7 +1344,7 @@ pub async fn run_child_command(
         let rh = match engine.reload_handle() {
             Ok(h) => h,
             Err(e) => {
-                let _ = ready_tx.send(Err(format!("create reload handle: {e}")));
+                let _ = ready_tx.send(Err(format!("create policy delta handle: {e}")));
                 return;
             }
         };

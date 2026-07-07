@@ -54,12 +54,12 @@ most important maps are:
 
 | Map | Purpose |
 |-----|---------|
-| `ts_updates`, `ts_rules`, `ts_counts` | Hot-reloadable compiled policy tables and active loop counts |
+| `ts_updates`, `ts_rules`, `ts_counts` | Runtime-appendable compiled policy tables and active loop counts |
 | `ts_proc`, `ts_proc_domains` | Global and runtime-domain process label state |
 | `ts_root`, `ts_sess`, `ts_sess_zero` | Lineage roots and temporal gate/staleness epochs |
 | `ts_file`, `ts_endp` | Per-domain file and IPv4 endpoint labels |
 | `ts_file_prov`, `ts_endp_prov`, `ts_proc_prov` | Label provenance for corrective feedback |
-| `cap_req`, `cap_state`, `cap_task`, `cap_policy` | Runtime domain and append/reload admission state |
+| `cap_req`, `cap_state`, `cap_task`, `cap_policy` | Runtime domain and append admission state |
 | `ts_fd`, `ts_fileptr`, `ts_sockfd`, `ts_mmap` | Tracepoint fallback fd, socket, and mmap tracking |
 | `rb` | `TAINT_VIOLATION` ring buffer |
 
@@ -107,9 +107,9 @@ contains:
 - `n_rules` plus up to 128 `taint_rule` entries. Boolean `or` clauses are
   lowered into multiple kernel rules.
 
-The loader copies those entries into writable BPF array maps so runtime reloads
-and append-only policy deltas can update the active policy without rebuilding
-the eBPF object.
+The loader copies those entries into writable BPF array maps so admitted
+runtime policy deltas can extend the active policy without rebuilding the eBPF
+object.
 
 ## Requirements
 
