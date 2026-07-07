@@ -47,24 +47,6 @@ struct {
 	__type(value, __u32);
 } ts_counts SEC(".maps");
 
-struct ap_engine_meta {
-	__u32 schema_version;
-	__u32 abi_size;
-	__u32 hook_profile;
-	__u32 flags;
-	__u32 policy_features;
-	__u32 _pad;
-	__u64 object_hash;
-	__u64 install_generation;
-};
-
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 1);
-	__type(key, __u32);
-	__type(value, struct ap_engine_meta);
-} ap_meta SEC(".maps");
-
 #include "capability.bpf.h"
 
 /* BPF implementations of the path/pattern matchers. These run inner byte scans

@@ -174,43 +174,11 @@ struct {
 	__type(value, __u32);
 } te_protected_pids SEC(".maps");
 
-struct te_trusted_client {
-	__u64 path_hash;
-};
-
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 1);
-	__type(key, __u32);
-	__type(value, struct te_trusted_client);
-} te_trusted_clients SEC(".maps");
-
 static __always_inline int te_pid_protected(pid_t pid)
 {
 	__u32 *v = bpf_map_lookup_elem(&te_protected_pids, &pid);
 
 	return v && *v;
-}
-
-static __always_inline int te_path_is_trusted_client(const char *path)
-{
-	__u32 key = 0;
-	struct te_trusted_client *trusted =
-		bpf_map_lookup_elem(&te_trusted_clients, &key);
-
-	if (!trusted || !trusted->path_hash)
-		return 0;
-	return trusted->path_hash == te_fnv1a(path);
-}
-
-static __always_inline void te_refresh_trusted_client_path(pid_t pid,
-						  const char *path)
-{
-	__u32 one = 1;
-
-	bpf_map_delete_elem(&te_protected_pids, &pid);
-	if (te_path_is_trusted_client(path))
-		bpf_map_update_elem(&te_protected_pids, &pid, &one, BPF_ANY);
 }
 
 /* Pending open(at) args, stashed at sys_enter and consumed at sys_exit. The
@@ -2511,14 +2479,16 @@ int BPF_PROG(enforce_bpf_syscall, int cmd, union bpf_attr *attr,
 	(void)privileged;
 	if (!te_pid_active(caller))
 		return 0;
-	if (te_pid_protected(caller))
-		return 0;
-	/* Short-lived ActPlane clients are promoted to protected at exec. Managed
-	 * subjects that are not trusted clients cannot create, load, pin, get, or
-	 * mutate BPF objects even if they run with ambient root privileges. */
+		/* Runtime clients may need to open pinned maps while already managed.
+		 * Only protected control pids may mutate them. */
 	switch (cmd) {
+	case BPF_MAP_LOOKUP_ELEM:
+	case BPF_OBJ_GET:
 	case BPF_OBJ_GET_INFO_BY_FD:
 		return 0;
+	case BPF_MAP_UPDATE_ELEM:
+	case BPF_MAP_DELETE_ELEM:
+		return te_pid_protected(caller) ? 0 : -EPERM;
 	default:
 		return -EPERM;
 	}
@@ -2583,9 +2553,6 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 	if (!scratch)
 		return 0;
 	__builtin_memset(scratch, 0, sizeof(*scratch));
-	fname_off = ctx->__data_loc_filename & 0xFFFF;
-	bpf_probe_read_str(scratch->display, sizeof(scratch->display), (void *)ctx + fname_off);
-	te_refresh_trusted_client_path(pid, scratch->display);
 	if (!te_pid_active(pid))
 		return 0;
 
@@ -2611,6 +2578,7 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 		te_tokenize_args_eng(alen);
 	}
 
+	fname_off = ctx->__data_loc_filename & 0xFFFF;
 	bpf_probe_read_str(scratch->display, sizeof(scratch->display), (void *)ctx + fname_off);
 	if (exec_pipe_init(pid, te_tracepoint_mode()) == 0)
 		bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_UPDATE_SIMPLE);
@@ -2663,8 +2631,8 @@ int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 	if (pid != (u32)id)
 		return 0;
 	te_exit(pid, exit_code);
-	bpf_map_delete_elem(&te_protected_pids, &pid);
 	te_delete_mmaps(pid);
+	bpf_map_delete_elem(&te_protected_pids, &pid);
 	return 0;
 }
 
