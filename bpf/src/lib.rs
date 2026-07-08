@@ -6348,8 +6348,11 @@ os.execv({hit:?}, [{hit:?}])
         for _ in 0..200 {
             match std::fs::read_to_string(&port_path) {
                 Ok(s) => {
-                    port = Some(s.trim().parse::<u16>().expect("parse UDP port"));
-                    break;
+                    if let Ok(p) = s.trim().parse::<u16>() {
+                        port = Some(p);
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
                 }
                 Err(_) => std::thread::sleep(std::time::Duration::from_millis(10)),
             }
@@ -6464,8 +6467,11 @@ os.execv({hit:?}, [{hit:?}])
         for _ in 0..200 {
             match std::fs::read_to_string(&port_path) {
                 Ok(s) => {
-                    port = Some(s.trim().parse::<u16>().expect("parse UDP port"));
-                    break;
+                    if let Ok(p) = s.trim().parse::<u16>() {
+                        port = Some(p);
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
                 }
                 Err(_) => std::thread::sleep(std::time::Duration::from_millis(10)),
             }
