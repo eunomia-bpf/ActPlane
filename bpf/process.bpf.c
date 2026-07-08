@@ -2496,6 +2496,7 @@ int BPF_PROG(enforce_bpf_syscall, int cmd, union bpf_attr *attr,
 	 * runtime authority. */
 	switch (cmd) {
 	case BPF_MAP_LOOKUP_ELEM:
+	case BPF_MAP_GET_NEXT_KEY:
 	case BPF_OBJ_GET:
 	case BPF_OBJ_GET_INFO_BY_FD:
 		return 0;

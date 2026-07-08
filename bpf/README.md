@@ -77,6 +77,12 @@ clients open those pins and append domain-scoped policy deltas through pinned
 control maps. Direct per-command private engine loading is not a supported
 runtime model.
 
+The daemonless runtime has a single active event reader. A `run`, `watch`, or
+MCP auto-attach session holds the singleton runtime lock while it drains the
+pinned ring buffer, and it clears policy/control-map state when that session
+starts and exits. A second runtime session must wait or fail fast instead of
+racing to consume the same ring-buffer events.
+
 The `ebpf-ifc-engine` crate remains the low-level kernel ABI boundary used by
 the runtime. Normal callers should use the CLI and runtime crate instead of
 loading eBPF programs directly.

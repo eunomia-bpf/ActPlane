@@ -484,6 +484,14 @@ fn open_append_lock() -> io::Result<std::fs::File> {
         .open(std::env::temp_dir().join("actplane.append.lock"))
 }
 
+fn open_runtime_lock() -> io::Result<std::fs::File> {
+    std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(std::env::temp_dir().join("actplane.runtime.lock"))
+}
+
 fn pinned_hash_map<K: aya::Pod, V: aya::Pod>(
     paths: &PinnedEnginePaths,
     name: &str,
@@ -528,6 +536,21 @@ fn pinned_engine_present(paths: &PinnedEnginePaths) -> io::Result<bool> {
 fn hash_map_from_fd<K: aya::Pod, V: aya::Pod>(fd: &OwnedFd) -> io::Result<HashMap<MapData, K, V>> {
     let data = MapData::from_fd(dup_owned_fd(fd)?).map_err(|e| err(format!("map from fd: {e}")))?;
     HashMap::try_from(Map::HashMap(data)).map_err(|e| err(format!("typed hash map: {e}")))
+}
+
+fn clear_hash_map<K: aya::Pod + Copy, V: aya::Pod + Copy>(
+    fd: &OwnedFd,
+    what: &str,
+) -> io::Result<()> {
+    let mut map = hash_map_from_fd::<K, V>(fd)?;
+    let keys: Vec<K> = map
+        .keys()
+        .map(|key| key.map_err(|e| err(format!("list {what}: {e}"))))
+        .collect::<io::Result<_>>()?;
+    for key in keys {
+        ignore_missing_remove(map.remove(&key), &format!("clear {what}"))?;
+    }
+    Ok(())
 }
 
 fn map_get<K: aya::Pod, V: aya::Pod>(
@@ -1567,6 +1590,20 @@ impl PinnedEngine {
         }
     }
 
+    pub fn try_lock_runtime(&self) -> io::Result<std::fs::File> {
+        let file = open_runtime_lock()?;
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
+            let e = io::Error::last_os_error();
+            if e.raw_os_error() == Some(libc::EWOULDBLOCK) {
+                return Err(err(
+                    "another ActPlane runtime is already draining singleton events",
+                ));
+            }
+            return Err(e);
+        }
+        Ok(file)
+    }
+
     pub fn protect_pid(&self, pid: i32) -> io::Result<()> {
         if pid <= 0 {
             return Err(err("protected pid must be positive"));
@@ -2430,6 +2467,19 @@ impl ReloadHandle {
             return Err(e);
         }
         Ok(())
+    }
+
+    pub fn clear_runtime_state(&self) -> io::Result<()> {
+        let _guard = self
+            .append_lock
+            .lock()
+            .map_err(|e| err(format!("append lock poisoned: {e}")))?;
+        let _file_guard = self.lock_append_file()?;
+        self.set_count_slot(0, 0)?;
+        self.set_count_slot(1, 0)?;
+        clear_hash_map::<i32, u32>(&self.cap_task_fd, "cap_task")?;
+        clear_hash_map::<u32, CapState>(&self.cap_state_fd, "cap_state")?;
+        clear_hash_map::<u32, CapPolicyMask>(&self.cap_policy_fd, "cap_policy")
     }
 
     fn submit_expect_count<T: Copy>(
