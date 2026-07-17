@@ -69,7 +69,8 @@ The compatibility object therefore:
   successful syscall return
 - ignores modern hook-reservation environment variables so its attach set
   remains within the older verifier's limits
-- attaches directly for the lifetime of `actplane run`, without pinned links
+- attaches directly for the lifetime of the `run`, `watch`, foreground `attach`,
+  or MCP auto-attach session, without pinned links
 - raises `RLIMIT_MEMLOCK` before creating maps
 
 The modern object and singleton behavior are unchanged on Linux 6.1 and newer.
