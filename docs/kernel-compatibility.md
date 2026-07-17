@@ -19,7 +19,7 @@ policy semantics:
   freshness gates, and exact/prefix/suffix/contains matchers
 - numeric IPv4 connect/recv sources, sinks, conditions, and endpoint flow
 - `notify` and `kill` for exec, file, connect, and recv events
-- BPF-LSM `block` for exec without `@arg`, connect, and connected IPv4 recv
+- BPF-LSM `block` for exec without `@arg` and numeric IPv4 connect
 - per-label provenance across process, file, and endpoint propagation
 - up to 64 lowered updates and 32 lowered rules
 
@@ -29,10 +29,17 @@ attach runtime integration, or advanced fd/mmap/IPC tracking. File flow is
 path-hash based and committed only after a successful open or mutation, so it does
 not provide modern inode/fd precision for already-open descriptors, fd passing,
 sendfile/splice/copy_file_range, mmap permission changes, or Unix-socket IPC.
-Unconnected recv cannot be blocked before the kernel reveals its peer, and
-file `block` remains a 6.1+ feature because Linux 5.10 cannot safely resolve all
-file paths in the required pre-operation LSM hooks. `block exec` with `@arg`
-remains unsupported because argv is only available in the post-exec tracepoint.
+Recv policies require BPF-LSM so the compatibility engine can bind each syscall
+to the actual socket before a concurrent fd-table replacement. Unconnected recv
+reveals its peer only after data is received, so compatibility-mode `block recv`
+is rejected rather than silently enforcing only connected sockets. File `block`
+is also rejected because Linux 5.10 cannot safely resolve all file paths in the
+required pre-operation LSM hooks. `block exec` with `@arg` remains unsupported
+because argv is only available in the post-exec tracepoint.
+Compatibility mode commits connect state only when `connect(2)` returns zero.
+It does not later promote a nonblocking connect that returned `EINPROGRESS`, so
+such clients should use a blocking connect or Linux 6.1+ when connect flow must
+be tracked.
 Relative paths remain relative and should not be used to satisfy an absolute
 exact-path policy. Compatibility-mode file matching also uses the pathname
 spelling supplied to the syscall and does not canonicalize symlink aliases.
@@ -54,6 +61,10 @@ The compatibility object therefore:
 - replaces the capability request user ring buffer with an unused array map
 - uses separate verifier-bounded exec, path-based file, and numeric IPv4
   pipelines in the global domain
+- records connected recv peers from the actual socket in `socket_recvmsg`, then
+  commits recv state only after the syscall succeeds
+- commits connect labels, rules, endpoint state, and provenance only after a
+  successful syscall return
 - ignores modern hook-reservation environment variables so its attach set
   remains within the older verifier's limits
 - attaches directly for the lifetime of `actplane run`, without pinned links
@@ -93,11 +104,11 @@ The matrix verifies all of the following inside the guests:
 - exec, file, and network sources and transitive propagation
 - argv, glob, lineage, after, target, freshness, and declassification behavior
 - per-label provenance across file and endpoint hops
-- `notify`, `kill`, and real `EPERM` from every supported block hook class
+- `notify`, `kill`, and real `EPERM` from the supported exec/connect block hooks
 - truncate, unlink, rename, rename label migration, and failed-operation rollback
-- explicit rejection of file `block` and unrepresentable endpoint patterns,
-  plus high-numbered connected sockets, fd replacement, `FD_CLOEXEC` reuse,
-  and non-socket reads
+- explicit rejection of file/recv `block` and unrepresentable endpoint patterns,
+  plus failed-connect rollback, high-numbered connected sockets, concurrent and
+  sequential fd replacement, `FD_CLOEXEC` reuse, and non-socket reads
 
 Each report must contain exactly the expected reason count and exit status.
 Successful runs require `actplane_rc=0`, while rejection cases require the

@@ -51,14 +51,16 @@ constraint, and takes a different path to complete the task.
 6.1+ provides the full singleton, runtime-delta, MCP, watch, and attach paths.
 Linux 5.10-6.0 uses a static `run` compatibility path for exec, path-based file,
 and numeric IPv4 policies, including `notify`, `kill`, and BPF-LSM `block` for
-exec and IPv4 network operations. File `block` requires Linux 6.1+. Runtime
-domains and advanced fd/mmap/IPC flow remain 6.1+. See
+exec and connect. Compatibility-mode recv requires BPF-LSM to bind events to
+the actual socket. File and recv `block` require Linux 6.1+. Runtime domains
+and advanced fd/mmap/IPC flow remain 6.1+. See
 [Kernel compatibility](docs/kernel-compatibility.md). Applying policies needs
 root (or `CAP_BPF` + `CAP_SYS_ADMIN`); ActPlane drops the target command back to
 your user. On Linux 5.10, a finite `RLIMIT_MEMLOCK` hard limit additionally
 requires `CAP_SYS_RESOURCE`, or the service must start with
 `ulimit -l unlimited`. With BPF-LSM enabled, supported rules can `block` before
-the action commits; otherwise they `notify` (report) or `kill`.
+the action commits. On Linux 6.1+, other rules can use tracepoint-only
+`notify`/`kill`; the compatibility recv path requires BPF-LSM for object identity.
 
 ## Why an OS-level harness?
 

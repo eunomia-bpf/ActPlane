@@ -136,7 +136,9 @@ object.
   `CAP_SYS_RESOURCE` when the process has a finite
   `RLIMIT_MEMLOCK` hard limit, or set `ulimit -l unlimited` before launch.
 - BPF-LSM active for supported `block` effects (`bpf` in
-  `/sys/kernel/security/lsm`); compatibility-mode file `block` requires 6.1+
+  `/sys/kernel/security/lsm`). Compatibility-mode recv also requires BPF-LSM
+  to bind the event to the actual socket; compatibility-mode file and recv
+  `block` require 6.1+.
 
 ## Used by
 

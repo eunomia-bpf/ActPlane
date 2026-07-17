@@ -925,12 +925,6 @@ const TRACEPOINTS: &[TracepointSpec] = &[
         need: TracepointNeed::LegacyRecv,
     },
     TracepointSpec {
-        name: "legacy_trace_close",
-        category: "syscalls",
-        event: "sys_enter_close",
-        need: TracepointNeed::LegacyRecv,
-    },
-    TracepointSpec {
         name: "trace_openat",
         category: "syscalls",
         event: "sys_enter_openat",
@@ -1788,6 +1782,11 @@ fn validate_legacy_config(cfg: &CConfig) -> io::Result<()> {
                 "Linux 5.10 compatibility mode does not support file block rules safely; rule[{i}] must use notify/kill or run on Linux 6.1+"
             )));
         }
+        if rule.effect == EFFECT_BLOCK && rule.op == OP_RECV {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode does not support recv block rules safely because the peer of an unconnected socket is unavailable before receive; rule[{i}] must use notify/kill or run on Linux 6.1+"
+            )));
+        }
     }
     Ok(())
 }
@@ -2355,6 +2354,11 @@ impl Loader {
         if legacy && !enforce && config_has_block_rules(&cfg) {
             return Err(err(
                 "Linux 5.10 block rules require the BPF LSM; boot with lsm=bpf or use notify/kill",
+            ));
+        }
+        if legacy && !enforce && config_features(&cfg) & FEAT_RECV != 0 {
+            return Err(err(
+                "Linux 5.10 recv policies require the BPF LSM to bind each receive to the actual socket; boot with lsm=bpf",
             ));
         }
         let enforce_mode: u32 = if enforce { 1 } else { 0 };
@@ -3485,6 +3489,10 @@ mod tests {
         let err = validate_legacy_config(&cfg).expect_err("file block should be rejected");
         assert!(err.to_string().contains("file block rules safely"), "{err}");
 
+        cfg.rules[0].op = OP_RECV;
+        let err = validate_legacy_config(&cfg).expect_err("recv block should be rejected");
+        assert!(err.to_string().contains("recv block rules safely"), "{err}");
+
         cfg.rules[0].effect = EFFECT_NOTIFY;
         cfg.rules[0].op = OP_EXEC;
         cfg.updates[0].op = OP_WRITE;
@@ -3536,7 +3544,6 @@ mod tests {
         assert!(tracepoint_needed(spec("legacy_trace_rename"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_rename_exit"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_recvfrom"), budget));
-        assert!(tracepoint_needed(spec("legacy_trace_close"), budget));
         assert!(!tracepoint_needed(spec("trace_dup2"), budget));
         assert!(!tracepoint_needed(spec("trace_dup2_exit"), budget));
         assert!(!tracepoint_needed(spec("trace_fcntl"), budget));
@@ -3559,7 +3566,6 @@ mod tests {
             b"legacy_trace_connect".as_slice(),
             b"legacy_trace_connect_exit".as_slice(),
             b"legacy_trace_recvfrom".as_slice(),
-            b"legacy_trace_close".as_slice(),
             b"trace_dup2".as_slice(),
             b"trace_fcntl".as_slice(),
             b"legacy_enforce_bprm_check_security".as_slice(),

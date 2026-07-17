@@ -53,10 +53,12 @@ ALL_CASES=(
   file-failed-write-no-gate
   network-connect-source
   network-connect-sink
+  network-failed-connect-no-state
   network-recv-source
   network-recv-sink
   network-recv-connected
   network-connected-high-fd
+  network-concurrent-fd-reuse
   network-fd-reuse
   network-failed-connect-fd-reuse
   network-connected-dup2-fd-reuse
@@ -79,7 +81,7 @@ ALL_CASES=(
   block-file-rejected
   endpoint-pattern-rejected
   block-connect
-  block-recv
+  block-recv-rejected
 )
 if [ $# -gt 0 ]; then
   CASES=("$@")
@@ -531,11 +533,15 @@ rule network-connect-source:
       TRIGGER='python3 - <<'\''PY'\''
 import os
 import socket
-s = socket.socket()
-try:
-    s.connect(("127.0.0.1", 9))
-except OSError:
-    pass
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
+peer.close()
+client.close()
+server.close()
 os.execl("/usr/bin/true", "true")
 PY'
       ;;
@@ -547,11 +553,46 @@ rule network-connect-sink:
   because "Linux 5.10 connect sink matched"'
       TRIGGER='python3 - <<'\''PY'\''
 import socket
-s = socket.socket()
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
+peer.close()
+client.close()
+server.close()
+PY'
+      ;;
+    network-failed-connect-no-state)
+      REASON="Linux 5.10 failed connect committed state"
+      WANT_COUNT=0
+      EXPECT_PATTERN='^failed_connect_clean$'
+      POLICY='source AGENT = exec "**"
+source NET = endpoint "127.0.0.1"
+rule failed-connect-rule:
+  notify connect endpoint "127.0.0.1" if AGENT
+  because "Linux 5.10 failed connect committed state"
+rule failed-connect-flow:
+  notify exec "true" if NET
+  because "Linux 5.10 failed connect committed state"'
+      TRIGGER='python3 - <<'\''PY'\''
+import os
+import socket
+
+probe = socket.socket()
+probe.bind(("127.0.0.1", 0))
+port = probe.getsockname()[1]
+probe.close()
+client = socket.socket()
 try:
-    s.connect(("127.0.0.1", 9))
+    client.connect(("127.0.0.1", port))
 except OSError:
     pass
+else:
+    raise RuntimeError("expected connect to fail")
+print("failed_connect_clean", flush=True)
+os.execl("/usr/bin/true", "true")
 PY'
       ;;
     network-recv-source)
@@ -656,6 +697,55 @@ os.close(high_fd)
 peer.close()
 server.close()
 print("high_fd_recv")
+PY'
+      ;;
+    network-concurrent-fd-reuse)
+      REASON="Linux 5.10 concurrent connected recv matched"
+      EXPECT_PATTERN='^concurrent_recv$'
+      SETUP='printf regular >/tmp/ap-concurrent-read'
+      POLICY='source AGENT = exec "**"
+rule network-concurrent-fd-reuse:
+  notify recv endpoint "127.0.0.1" if AGENT
+  because "Linux 5.10 concurrent connected recv matched"'
+      TRIGGER='python3 - <<'\''PY'\''
+import os
+import socket
+import threading
+import time
+
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
+client_fd = client.fileno()
+started = threading.Event()
+received = []
+
+def reader():
+    started.set()
+    received.append(os.read(client_fd, 4))
+
+thread = threading.Thread(target=reader)
+thread.start()
+started.wait()
+time.sleep(0.2)
+if not thread.is_alive():
+    raise RuntimeError("reader returned before the fd replacement")
+regular_fd = os.open("/tmp/ap-concurrent-read", os.O_RDONLY)
+os.dup2(regular_fd, client_fd)
+if regular_fd != client_fd:
+    os.close(regular_fd)
+peer.sendall(b"data")
+thread.join(2)
+if thread.is_alive() or received != [b"data"]:
+    raise RuntimeError(f"connected read did not complete: {received!r}")
+client.detach()
+os.close(client_fd)
+peer.close()
+server.close()
+print("concurrent_recv")
 PY'
       ;;
     network-fd-reuse)
@@ -855,11 +945,15 @@ if pid == 0:
 os.close(w)
 os.read(r, 1)
 open("/tmp/ap-secret").read()
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
 probe = socket.socket()
-try:
-    probe.connect(("127.0.0.1", 9))
-except OSError:
-    pass
+probe.connect(server.getsockname())
+peer, _ = server.accept()
+peer.close()
+probe.close()
+server.close()
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.sendto(b"data", ("127.0.0.1", 34569))
 os.waitpid(pid, 0)
@@ -873,11 +967,12 @@ rule network-prefix:
   because "Linux 5.10 endpoint prefix matched"'
       TRIGGER='python3 - <<'\''PY'\''
 import socket
-s = socket.socket()
-try:
-    s.connect(("127.0.0.1", 9))
-except OSError:
-    pass
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
 PY'
       ;;
     network-lineage)
@@ -888,19 +983,21 @@ rule network-lineage:
   because "Linux 5.10 endpoint lineage matched"'
       TRIGGER='python3 - <<'\''PY'\''
 import socket
-s = socket.socket()
-try:
-    s.connect(("127.0.0.1", 9))
-except OSError:
-    pass
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
 PY
 /tmp/apgate -c "python3 - <<'\''PY'\''
 import socket
-s = socket.socket()
-try:
-    s.connect((\"127.0.0.1\", 9))
-except OSError:
-    pass
+server = socket.socket()
+server.bind((\"127.0.0.1\", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
 PY"'
       ;;
     network-after-exit)
@@ -911,20 +1008,22 @@ rule network-after-exit:
   because "Linux 5.10 endpoint after exit matched"'
       TRIGGER='python3 - <<'\''PY'\''
 import socket
-s = socket.socket()
-try:
-    s.connect(("127.0.0.1", 9))
-except OSError:
-    pass
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
 PY
 /tmp/apgate -c "exit 0"
 python3 - <<'\''PY'\''
 import socket
-s = socket.socket()
-try:
-    s.connect(("127.0.0.1", 9))
-except OSError:
-    pass
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
 PY'
       ;;
     network-target-condition)
@@ -935,13 +1034,16 @@ rule network-target-condition:
   because "Linux 5.10 endpoint target condition matched"'
       TRIGGER='python3 - <<'\''PY'\''
 import socket
-for address in ("127.0.0.1", "192.0.2.1"):
-    s = socket.socket()
-    s.settimeout(0.1)
-    try:
-        s.connect((address, 9))
-    except OSError:
-        pass
+server = socket.socket()
+server.bind(("0.0.0.0", 0))
+server.listen(2)
+port = server.getsockname()[1]
+for address in ("127.0.0.1", "127.0.0.2"):
+    client = socket.socket()
+    client.connect((address, port))
+    peer, _ = server.accept()
+    peer.close()
+    client.close()
 PY'
       ;;
     provenance-exec)
@@ -1025,11 +1127,11 @@ rule kill-connect:
   because "Linux 5.10 connect kill matched"'
       TRIGGER='if python3 - <<'\''PY'\''
 import socket
-s = socket.socket()
-try:
-    s.connect(("127.0.0.1", 9))
-except OSError:
-    pass
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
 PY
 then echo kill_failed; else echo connect_killed; fi'
       ;;
@@ -1113,36 +1215,17 @@ except OSError:
     print("block_failed")
 PY'
       ;;
-    block-recv)
-      REASON="Linux 5.10 recv block matched"
-      EXPECT_PATTERN='^recv_blocked$'
+    block-recv-rejected)
+      REASON="Linux 5.10 rejected recv block"
+      WANT_COUNT=0
+      WANT_RC=1
+      STARTUP_PATTERN='does not support recv block rules safely'
+      EXPECT_PATTERN='does not support recv block rules safely'
       POLICY='source AGENT = exec "**"
-rule block-recv:
+rule block-recv-rejected:
   block recv endpoint "127.0.0.1" if AGENT
-  because "Linux 5.10 recv block matched"'
-      TRIGGER='python3 - <<'\''PY'\''
-import os
-import socket
-r, w = os.pipe()
-pid = os.fork()
-if pid == 0:
-    os.close(r)
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.bind(("127.0.0.1", 34570))
-    s.connect(("127.0.0.1", 34571))
-    os.write(w, b"1")
-    try:
-        s.recv(16)
-    except PermissionError:
-        print("recv_blocked", flush=True)
-    os._exit(0)
-os.close(w)
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-s.bind(("127.0.0.1", 34571))
-os.read(r, 1)
-s.sendto(b"data", ("127.0.0.1", 34570))
-os.waitpid(pid, 0)
-PY'
+  because "Linux 5.10 rejected recv block"'
+      TRIGGER='echo block_recv_should_not_run'
       ;;
     *)
       echo "unknown Linux 5.10 KVM case: $1" >&2

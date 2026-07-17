@@ -3916,6 +3916,26 @@ int legacy_trace_connect(struct trace_event_raw_sys_enter *ctx)
 {
 	__u64 tid = bpf_get_current_pid_tgid();
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+	struct connect_pend pending = {
+		.fd = (int)ctx->args[0],
+	};
+
+	bpf_map_delete_elem(&ts_connectpend, &tid);
+	if (!te_pid_active(pid) ||
+	    te_resolve_sockaddr(TE_REF_SOCKADDR_USER,
+				(const void *)ctx->args[1], &pending.ip) < 0)
+		return 0;
+	bpf_map_update_elem(&ts_connectpend, &tid, &pending, BPF_ANY);
+	return 0;
+}
+
+static __noinline int te_legacy_finish_connect(long ret)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	pid_t pid = tid >> 32;
+	struct connect_pend *stored_pending =
+		bpf_map_lookup_elem(&ts_connectpend, &tid);
+	struct connect_pend pending = {};
 	struct proc_state *proc;
 	struct te_legacy_connect_ctx event = {
 		.pid = pid,
@@ -3925,20 +3945,19 @@ int legacy_trace_connect(struct trace_event_raw_sys_enter *ctx)
 		.best_rule = -1,
 	};
 	struct endp_domain_id key = {};
-	struct connect_pend pending;
 	__u64 *stored;
 	__u64 endpoint_labels;
 
-	if (!te_pid_active(pid) ||
-	    te_resolve_sockaddr(TE_REF_SOCKADDR_USER,
-				(const void *)ctx->args[1], &event.ip) < 0)
+	if (!stored_pending)
 		return 0;
-	pending.fd = (int)ctx->args[0];
-	pending.ip = event.ip;
-	bpf_map_update_elem(&ts_connectpend, &tid, &pending, BPF_ANY);
+	pending = *stored_pending;
+	bpf_map_delete_elem(&ts_connectpend, &tid);
+	if (ret != 0 || !te_pid_active(pid))
+		return 0;
 	proc = te_get(pid);
 	if (!proc)
 		return 0;
+	event.ip = pending.ip;
 	event.labels = proc->labels;
 	bpf_loop(te_count(1), te_legacy_connect_update_cb, &event, 0);
 	if (event.source_labels)
@@ -3967,27 +3986,15 @@ int legacy_trace_connect(struct trace_event_raw_sys_enter *ctx)
 	return 0;
 }
 
-static __always_inline int handle_connect_exit(long ret);
-
 SEC("tp/syscalls/sys_exit_connect")
 int legacy_trace_connect_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_connect_exit(ctx->ret);
-}
-
-SEC("tp/syscalls/sys_enter_close")
-int legacy_trace_close(struct trace_event_raw_sys_enter *ctx)
-{
-	pid_t pid = bpf_get_current_pid_tgid() >> 32;
-
-	if (te_pid_active(pid))
-		te_delete_fd(pid, (int)ctx->args[0]);
-	return 0;
+	return te_legacy_finish_connect(ctx->ret);
 }
 
 struct te_legacy_recv_pend {
-	int fd;
 	__u32 kind;
+	__u32 ip;
 	__u64 addr_ptr;
 };
 
@@ -4002,13 +4009,11 @@ struct {
 #define TE_LEGACY_RECV_MSGHDR   2
 #define TE_LEGACY_RECV_FD       3
 
-static __always_inline int te_legacy_stash_recv(int fd, const void *addr,
-						 __u32 kind)
+static __always_inline int te_legacy_stash_recv(const void *addr, __u32 kind)
 {
 	__u64 tid = bpf_get_current_pid_tgid();
 	pid_t pid = tid >> 32;
 	struct te_legacy_recv_pend pend = {
-		.fd = fd,
 		.kind = kind,
 		.addr_ptr = (__u64)addr,
 	};
@@ -4022,11 +4027,10 @@ static __always_inline int te_legacy_stash_recv(int fd, const void *addr,
 static __always_inline int te_legacy_recv_ip(
 	const struct te_legacy_recv_pend *pend, __u32 *ip)
 {
-	struct file *file;
-	struct inode *inode;
-	struct socket *sock;
-	umode_t mode;
-
+	if (pend->ip) {
+		*ip = pend->ip;
+		return 0;
+	}
 	if (pend->kind == TE_LEGACY_RECV_SOCKADDR && pend->addr_ptr)
 		return te_resolve_sockaddr(TE_REF_SOCKADDR_USER,
 					   (const void *)pend->addr_ptr, ip);
@@ -4038,19 +4042,7 @@ static __always_inline int te_legacy_recv_ip(
 			return te_resolve_sockaddr(TE_REF_SOCKADDR_USER,
 						   (const void *)name_ptr, ip);
 	}
-	file = te_current_file_from_fd(pend->fd);
-	if (!file)
-		return -1;
-	inode = BPF_CORE_READ(file, f_inode);
-	if (!inode)
-		return -1;
-	mode = BPF_CORE_READ(inode, i_mode);
-	if ((mode & TE_S_IFMT) != TE_S_IFSOCK)
-		return -1;
-	sock = BPF_CORE_READ(file, private_data);
-	if (!sock)
-		return -1;
-	return te_resolve_socket_peer_ipv4(sock, ip);
+	return -1;
 }
 
 static __always_inline int te_legacy_handle_recv(long ret)
@@ -4106,8 +4098,7 @@ out:
 SEC("tp/syscalls/sys_enter_recvfrom")
 int legacy_trace_recvfrom(struct trace_event_raw_sys_enter *ctx)
 {
-	return te_legacy_stash_recv((int)ctx->args[0],
-				    (const void *)ctx->args[4],
+	return te_legacy_stash_recv((const void *)ctx->args[4],
 				    TE_LEGACY_RECV_SOCKADDR);
 }
 
@@ -4120,8 +4111,7 @@ int legacy_trace_recvfrom_exit(struct trace_event_raw_sys_exit *ctx)
 SEC("tp/syscalls/sys_enter_recvmsg")
 int legacy_trace_recvmsg(struct trace_event_raw_sys_enter *ctx)
 {
-	return te_legacy_stash_recv((int)ctx->args[0],
-				    (const void *)ctx->args[1],
+	return te_legacy_stash_recv((const void *)ctx->args[1],
 				    TE_LEGACY_RECV_MSGHDR);
 }
 
@@ -4134,8 +4124,8 @@ int legacy_trace_recvmsg_exit(struct trace_event_raw_sys_exit *ctx)
 SEC("tp/syscalls/sys_enter_read")
 int legacy_trace_read(struct trace_event_raw_sys_enter *ctx)
 {
-	return te_legacy_stash_recv((int)ctx->args[0], 0,
-				    TE_LEGACY_RECV_FD);
+	(void)ctx;
+	return te_legacy_stash_recv(0, TE_LEGACY_RECV_FD);
 }
 
 SEC("tp/syscalls/sys_exit_read")
@@ -4289,15 +4279,20 @@ SEC("lsm/socket_recvmsg")
 int BPF_PROG(legacy_enforce_socket_recvmsg, struct socket *sock,
 	     struct msghdr *msg, int size, int flags)
 {
+	__u64 tid = bpf_get_current_pid_tgid();
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+	struct te_legacy_recv_pend *pending;
 	__u32 ip = 0;
 
 	(void)msg;
 	(void)size;
 	(void)flags;
-	if (!te_pid_active(pid) || te_resolve_socket_peer_ipv4(sock, &ip) < 0)
+	if (!te_pid_active(pid))
 		return 0;
-	return te_legacy_block_endpoint(pid, ip, TOP_RECV);
+	pending = bpf_map_lookup_elem(&ts_legacy_recvpend, &tid);
+	if (pending && te_resolve_socket_peer_ipv4(sock, &ip) == 0)
+		pending->ip = ip;
+	return 0;
 }
 #endif
 
