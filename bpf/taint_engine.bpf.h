@@ -19,8 +19,8 @@
 /* Linux 5.10 has bounded loops but predates the bpf_loop helper. Keep the
  * callback shape shared with the modern object while emitting an ordinary BPF
  * loop whose trip count is capped for the verifier. The legacy policy gate
- * keeps all active call sites below MAX_TAINT_UPDATES and rejects argv matching.
- * Revisit this ceiling before enabling another legacy call site. */
+ * keeps all active call sites below MAX_TAINT_UPDATES. Revisit this ceiling
+ * before enabling another legacy call site. */
 #define bpf_loop(nr_loops, callback_fn, callback_ctx, flags) ({ \
 	unsigned int __te_nr = (nr_loops); \
 	unsigned int __te_i; \
@@ -127,8 +127,10 @@ static __noinline int taint_prefix(const char *text, const char *pre)
  * callback is verified once. */
 struct __taint_contains_ctx {
 	const char *text;
-	const char *pat;
-	int pn;
+	__u64 pat_lo;
+	__u64 pat_hi;
+	__u64 mask_lo;
+	__u64 mask_hi;
 	int max_pos;
 	int found;
 };
@@ -141,20 +143,27 @@ static long __taint_contains_cb(__u32 idx, void *_ctx)
 	if (idx > (unsigned int)c->max_pos)
 		return 1;
 
-	char window[TAINT_SUF_MAX] = {};
+	__u64 window[2] = {};
 	TE_COPY(window, TAINT_SUF_MAX, c->text + idx);
-
-	long diff = 0;
-	TAINT_UNROLL
-	for (int j = 0; j < TAINT_SUF_MAX; j++) {
-		unsigned char pc = 0;
-		TE_COPY(&pc, 1, c->pat + j);
-		long jm = -(long)(j < c->pn);
-		diff |= jm & (unsigned char)(window[j] ^ pc);
-	}
-	if (diff == 0)
+	if ((((window[0] ^ c->pat_lo) & c->mask_lo) |
+	     ((window[1] ^ c->pat_hi) & c->mask_hi)) == 0)
 		c->found = 1;
 	return 0;
+}
+
+static __always_inline __u64 te_first_bytes_mask(int n)
+{
+	__u64 mask;
+
+	if (n <= 0)
+		return 0;
+	if (n >= 8)
+		return ~0ULL;
+	mask = (1ULL << (n * 8)) - 1;
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+	mask = __builtin_bswap64(mask);
+#endif
+	return mask;
 }
 
 static __noinline int taint_contains(const char *text, const char *pat)
@@ -171,10 +180,17 @@ static __noinline int taint_contains(const char *text, const char *pat)
 	}
 	if (pn == 0 || pn > tn || pn > TAINT_SUF_MAX)
 		return 0;
+	__u64 pat_words[2] = {};
+	TE_COPY(pat_words, TAINT_SUF_MAX, pat);
 
 	struct __taint_contains_ctx c = {
-		.text = text, .pat = pat,
-		.pn = pn, .max_pos = tn - pn, .found = 0
+		.text = text,
+		.pat_lo = pat_words[0],
+		.pat_hi = pat_words[1],
+		.mask_lo = te_first_bytes_mask(pn),
+		.mask_hi = te_first_bytes_mask(pn - 8),
+		.max_pos = tn - pn,
+		.found = 0,
 	};
 	bpf_loop(TAINT_PAT_LEN, __taint_contains_cb, &c, 0);
 	return c.found;
@@ -540,6 +556,21 @@ struct __taint_arg_match_ctx {
 	int found;
 };
 
+#ifdef ACTPLANE_LEGACY_KERNEL
+static __noinline int te_legacy_arg_slot_eq(const char *slot, const char *tok)
+{
+	long diff = 0;
+
+#pragma clang loop unroll(full)
+	for (int j = 0; j < TAINT_ARG_LEN; j++)
+	{
+		diff |= (unsigned char)(slot[j] ^ tok[j]);
+		barrier_var(diff);
+	}
+	return diff == 0;
+}
+#endif
+
 static long __taint_arg_match_cb(__u32 idx, void *_ctx)
 {
 	struct __taint_arg_match_ctx *c = _ctx;
@@ -570,6 +601,21 @@ static long __taint_arg_match_cb(__u32 idx, void *_ctx)
 
 static __noinline int taint_arg_match(const char *slots, const char *tok)
 {
+#ifdef ACTPLANE_LEGACY_KERNEL
+	if (tok[0] == '\0')
+		return 1;
+#define TE_ARG_SLOT_EQ(slot) \
+	te_legacy_arg_slot_eq(slots + (slot) * TAINT_ARG_LEN, tok)
+	return TE_ARG_SLOT_EQ(0) || TE_ARG_SLOT_EQ(1) ||
+	       TE_ARG_SLOT_EQ(2) || TE_ARG_SLOT_EQ(3) ||
+	       TE_ARG_SLOT_EQ(4) || TE_ARG_SLOT_EQ(5) ||
+	       TE_ARG_SLOT_EQ(6) || TE_ARG_SLOT_EQ(7) ||
+	       TE_ARG_SLOT_EQ(8) || TE_ARG_SLOT_EQ(9) ||
+	       TE_ARG_SLOT_EQ(10) || TE_ARG_SLOT_EQ(11) ||
+	       TE_ARG_SLOT_EQ(12) || TE_ARG_SLOT_EQ(13) ||
+	       TE_ARG_SLOT_EQ(14) || TE_ARG_SLOT_EQ(15);
+#undef TE_ARG_SLOT_EQ
+#else
 	(void)slots;
 	struct __taint_arg_match_ctx c = {};
 
@@ -580,6 +626,7 @@ static __noinline int taint_arg_match(const char *slots, const char *tok)
 		return 1;
 	bpf_loop(MAX_ARG_SLOTS, __taint_arg_match_cb, &c, 0);
 	return c.found;
+#endif
 }
 #endif /* __BPF__ */
 
@@ -724,6 +771,18 @@ static __always_inline void te_record_proc_prov_mask(pid_t pid, __u32 domain_id,
 						     unsigned int op,
 						     const char *target, __u32 ip)
 {
+#ifdef ACTPLANE_LEGACY_KERNEL
+#pragma clang loop unroll(disable)
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit;
+
+		if (!labels)
+			break;
+		bit = labels & (0ULL - labels);
+		te_record_proc_prov(pid, domain_id, bit, op, target, ip);
+		labels &= ~bit;
+	}
+#else
 	struct te_record_proc_prov_ctx c = {
 		.pid = pid,
 		.domain_id = domain_id,
@@ -733,6 +792,7 @@ static __always_inline void te_record_proc_prov_mask(pid_t pid, __u32 domain_id,
 		.ip = ip,
 	};
 	bpf_loop(te_count(5), te_record_proc_prov_cb, &c, 0);
+#endif
 }
 
 struct te_copy_proc_prov_ctx { pid_t from, to; __u32 domain_id; __u64 labels; };
@@ -1277,13 +1337,11 @@ static int te_exec_update_simple_cb(__u32 i, void *vc)
 		return 0;
 	if (!te_exec_simple_match(u.match, c->target, u.target))
 		return 0;
-#ifndef ACTPLANE_LEGACY_KERNEL
 	if (u.arg[0] != '\0') {
 		struct te_argslots *a = te_argslots_buf();
 		if (!a || !taint_arg_match(a->slots, u.arg))
 			return 0;
 	}
-#endif
 	c->add |= u.add;
 	c->del |= u.del;
 	if (u.gate_exit_code == TAINT_GATE_IMMEDIATE)
@@ -2056,13 +2114,11 @@ static __noinline int te_rule_effect_exec_simple(struct te_rule_eval *e,
 		return -1;
 	if (!te_exec_simple_match(rp->match, e->target, rp->target))
 		return -1;
-#ifndef ACTPLANE_LEGACY_KERNEL
 	if (rp->arg[0] != '\0') {
 		struct te_argslots *a = te_argslots_buf();
 		if (!a || !taint_arg_match(a->slots, rp->arg))
 			return -1;
 	}
-#endif
 	e->matched_rule = (int)rp->rule_id;
 	e->matched_index = (int)idx;
 	e->matched_domain_id = rp->domain_id;

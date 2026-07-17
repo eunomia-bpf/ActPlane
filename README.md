@@ -49,8 +49,9 @@ constraint, and takes a different path to complete the task.
 
 **Requirements:** Linux kernel 5.10+ with BTF (`/sys/kernel/btf/vmlinux`). Linux
 6.1+ provides the full singleton, runtime-delta, MCP, watch, and attach paths.
-Linux 5.10-6.0 uses a static `run` compatibility path limited to exact/any exec
-sources and `notify`/`kill` exec rules. See
+Linux 5.10-6.0 uses a static `run` compatibility path for exec, path-based file,
+and numeric IPv4 policies, including supported `notify`, `kill`, and BPF-LSM
+`block` rules. Runtime domains and advanced fd/mmap/IPC flow remain 6.1+. See
 [Kernel compatibility](docs/kernel-compatibility.md). Applying policies needs
 root (or `CAP_BPF` + `CAP_SYS_ADMIN`); ActPlane drops the target command back to
 your user. On Linux 5.10-6.0, a finite `RLIMIT_MEMLOCK` hard limit additionally

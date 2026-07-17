@@ -85,11 +85,12 @@ starts and exits. A second runtime session must wait or fail fast instead of
 racing to consume the same ring-buffer events.
 
 Linux 5.10 through 6.0 is the deliberate exception. `actplane run` directly
-loads an exec-only compatibility object for one command and detaches it when
-that command session ends. It does not expose singleton control, runtime
-domains, or policy deltas. Concurrent compatibility runs remain isolated in
-private maps, but each one attaches its own tracepoint set and increases
-per-event overhead.
+loads a verifier-bounded compatibility object for one command and detaches it
+when that command session ends. The static object covers exec, path-based file,
+and numeric IPv4 policies, but it does not expose singleton control, runtime
+domains, policy deltas, or the modern advanced fd/mmap/IPC hook profile.
+Concurrent compatibility runs remain isolated in private maps, but each one
+attaches its own tracepoint set and increases per-event overhead.
 
 The `ebpf-ifc-engine` crate remains the low-level kernel ABI boundary used by
 the runtime. Normal callers should use the CLI and runtime crate instead of
@@ -129,8 +130,8 @@ object.
 ## Requirements
 
 - Linux kernel 5.10+ with BTF (`/sys/kernel/btf/vmlinux`). Linux 5.10-6.0 uses
-  the static exec-only compatibility object; Linux 6.1+ supports the full
-  singleton and runtime-delta engine.
+  the static compatibility object; Linux 6.1+ supports the full singleton,
+  runtime-delta, and advanced fd/mmap/IPC engine.
 - Root or `CAP_BPF` + `CAP_SYS_ADMIN`. On Linux 5.10-6.0, also provide
   `CAP_SYS_RESOURCE` when the process has a finite `RLIMIT_MEMLOCK` hard limit,
   or set `ulimit -l unlimited` before launch.

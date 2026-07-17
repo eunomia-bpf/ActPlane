@@ -21,12 +21,14 @@ actplane compile --json > actplane-compile-report.json
 | Kernel | Runtime support | Policy support |
 | --- | --- | --- |
 | Earlier than 5.10 | Unsupported | None |
-| 5.10 through 6.0 | Static compatibility `actplane run` | Exec exact/any sources; exact/any `notify` or `kill` exec rules; no `@arg`, conditions, runtime domains, or provenance payload |
+| 5.10 through 6.0 | Static compatibility `actplane run` | Exec, path-based file, and numeric IPv4 policies; conditions, provenance, `notify`, `kill`, and supported BPF-LSM `block` |
 | 6.1 and newer | Full | Singleton engine, runtime deltas, MCP, watch, attach, BPF-LSM block, and the complete documented policy surface |
 
 The compatibility loader accepts at most 64 lowered updates and 32 lowered
-rules. It rejects unsupported policies before loading eBPF, with a message that
-identifies the first incompatible update or rule. See
+rules. It is global-domain and static: runtime domains, policy deltas, the
+pinned singleton, and advanced fd/mmap/IPC flow require Linux 6.1+. It rejects
+unsupported policies before loading eBPF, with a message that identifies the
+first incompatible update or rule. See
 [Kernel compatibility](kernel-compatibility.md) for the implementation and KVM
 test procedure.
 
@@ -88,7 +90,7 @@ domain deltas whose final policy is not known at startup.
 
 These settings apply only to the full engine on Linux 6.1 and newer. The
 Linux 5.10 through 6.0 compatibility loader ignores them and always attaches
-its verifier-bounded exec-only hook set.
+the verifier-bounded hook set required by its startup policy.
 
 ## BPF-LSM vs Tracepoint Mode
 

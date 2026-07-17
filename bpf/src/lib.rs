@@ -109,6 +109,7 @@ const LEGACY_MAX_UPDATES: usize = 64;
 const LEGACY_MAX_RULES: usize = 32;
 const MAX_TAINT_LABELS: usize = 64;
 const M_EXACT: u8 = 0;
+const M_PREFIX: u8 = 1;
 const M_SUFFIX: u8 = 2;
 const M_ANY: u8 = 3;
 const M_CONTAINS: u8 = 4;
@@ -694,6 +695,10 @@ enum TracepointNeed {
     Core,
     CoreExec,
     ExecArgs,
+    LegacyExecArgs,
+    LegacyFileOpen,
+    LegacyConnect,
+    LegacyRecv,
     FileOpen,
     FileWritePath,
     FdFlow,
@@ -734,10 +739,178 @@ const TRACEPOINTS: &[TracepointSpec] = &[
         need: TracepointNeed::ExecArgs,
     },
     TracepointSpec {
+        name: "handle_exec_legacy_args",
+        category: "sched",
+        event: "sched_process_exec",
+        need: TracepointNeed::LegacyExecArgs,
+    },
+    TracepointSpec {
         name: "handle_exit",
         category: "sched",
         event: "sched_process_exit",
         need: TracepointNeed::Core,
+    },
+    TracepointSpec {
+        name: "legacy_trace_openat",
+        category: "syscalls",
+        event: "sys_enter_openat",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_openat_exit",
+        category: "syscalls",
+        event: "sys_exit_openat",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_open",
+        category: "syscalls",
+        event: "sys_enter_open",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_open_exit",
+        category: "syscalls",
+        event: "sys_exit_open",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_openat2",
+        category: "syscalls",
+        event: "sys_enter_openat2",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_openat2_exit",
+        category: "syscalls",
+        event: "sys_exit_openat2",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_creat",
+        category: "syscalls",
+        event: "sys_enter_creat",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_creat_exit",
+        category: "syscalls",
+        event: "sys_exit_creat",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_truncate",
+        category: "syscalls",
+        event: "sys_enter_truncate",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_truncate_exit",
+        category: "syscalls",
+        event: "sys_exit_truncate",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_unlink",
+        category: "syscalls",
+        event: "sys_enter_unlink",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_unlink_exit",
+        category: "syscalls",
+        event: "sys_exit_unlink",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_unlinkat",
+        category: "syscalls",
+        event: "sys_enter_unlinkat",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_unlinkat_exit",
+        category: "syscalls",
+        event: "sys_exit_unlinkat",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_rename",
+        category: "syscalls",
+        event: "sys_enter_rename",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_rename_exit",
+        category: "syscalls",
+        event: "sys_exit_rename",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_renameat",
+        category: "syscalls",
+        event: "sys_enter_renameat",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_renameat_exit",
+        category: "syscalls",
+        event: "sys_exit_renameat",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_renameat2",
+        category: "syscalls",
+        event: "sys_enter_renameat2",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_renameat2_exit",
+        category: "syscalls",
+        event: "sys_exit_renameat2",
+        need: TracepointNeed::LegacyFileOpen,
+    },
+    TracepointSpec {
+        name: "legacy_trace_connect",
+        category: "syscalls",
+        event: "sys_enter_connect",
+        need: TracepointNeed::LegacyConnect,
+    },
+    TracepointSpec {
+        name: "legacy_trace_recvfrom",
+        category: "syscalls",
+        event: "sys_enter_recvfrom",
+        need: TracepointNeed::LegacyRecv,
+    },
+    TracepointSpec {
+        name: "legacy_trace_recvfrom_exit",
+        category: "syscalls",
+        event: "sys_exit_recvfrom",
+        need: TracepointNeed::LegacyRecv,
+    },
+    TracepointSpec {
+        name: "legacy_trace_recvmsg",
+        category: "syscalls",
+        event: "sys_enter_recvmsg",
+        need: TracepointNeed::LegacyRecv,
+    },
+    TracepointSpec {
+        name: "legacy_trace_recvmsg_exit",
+        category: "syscalls",
+        event: "sys_exit_recvmsg",
+        need: TracepointNeed::LegacyRecv,
+    },
+    TracepointSpec {
+        name: "legacy_trace_read",
+        category: "syscalls",
+        event: "sys_enter_read",
+        need: TracepointNeed::LegacyRecv,
+    },
+    TracepointSpec {
+        name: "legacy_trace_read_exit",
+        category: "syscalls",
+        event: "sys_exit_read",
+        need: TracepointNeed::LegacyRecv,
     },
     TracepointSpec {
         name: "trace_openat",
@@ -1156,6 +1329,15 @@ const EXEC_TAIL_PROGS: &[(u32, &str)] = &[
     (3, "exec_tp_rule_complex"),
 ];
 
+const LEGACY_ARG_EXEC_TAIL_PROGS: &[(u32, &str)] = &[
+    (4, "exec_tp_arg_update_simple"),
+    (5, "exec_tp_arg_update_prefix"),
+    (6, "exec_tp_arg_rule_simple"),
+    (7, "exec_tp_arg_rule_complex"),
+];
+
+const LEGACY_FILE_TAIL_PROGS: &[(u32, &str)] = &[(0, "legacy_file_provenance_tail")];
+
 /// LSM programs: (fn name, hook). Attached only when BPF LSM is active.
 const LSM_PROGS: &[(&str, &str)] = &[
     ("enforce_bprm_check_security", "bprm_check_security"),
@@ -1169,6 +1351,19 @@ const LSM_PROGS: &[(&str, &str)] = &[
     ("enforce_path_rename", "path_rename"),
     ("enforce_socket_connect", "socket_connect"),
     ("enforce_socket_recvmsg", "socket_recvmsg"),
+    ("enforce_task_kill", "task_kill"),
+    ("enforce_ptrace_access_check", "ptrace_access_check"),
+    ("enforce_bpf_syscall", "bpf"),
+];
+
+const LEGACY_LSM_PROGS: &[(&str, &str)] = &[
+    ("legacy_enforce_bprm_check_security", "bprm_check_security"),
+    ("legacy_enforce_file_open", "file_open"),
+    ("legacy_enforce_inode_setattr", "inode_setattr"),
+    ("legacy_enforce_inode_unlink", "inode_unlink"),
+    ("legacy_enforce_inode_rename", "inode_rename"),
+    ("legacy_enforce_socket_connect", "socket_connect"),
+    ("legacy_enforce_socket_recvmsg", "socket_recvmsg"),
     ("enforce_task_kill", "task_kill"),
     ("enforce_ptrace_access_check", "ptrace_access_check"),
     ("enforce_bpf_syscall", "bpf"),
@@ -1217,6 +1412,8 @@ struct HookBudget {
     features: u32,
     file_write: bool,
     advanced_tracepoints: bool,
+    legacy: bool,
+    exec_args: bool,
 }
 
 impl HookBudget {
@@ -1225,6 +1422,8 @@ impl HookBudget {
             features: config_features(cfg),
             file_write: false,
             advanced_tracepoints: false,
+            legacy: true,
+            exec_args: config_has_exec_args(cfg),
         }
     }
 
@@ -1236,12 +1435,16 @@ impl HookBudget {
                 file_write: config_has_file_write(cfg),
                 advanced_tracepoints: profile.advanced_tracepoints()
                     || reserve.advanced_tracepoints,
+                legacy: false,
+                exec_args: true,
             },
             HookProfile::Full => HookBudget {
                 features: config_features(cfg) | ALL_HOOK_FEATURES,
                 file_write: true,
                 advanced_tracepoints: profile.advanced_tracepoints()
                     || reserve.advanced_tracepoints,
+                legacy: false,
+                exec_args: true,
             },
         };
         budget.features |= reserve.policy_features;
@@ -1294,22 +1497,35 @@ fn tracepoint_needed(spec: &TracepointSpec, budget: HookBudget) -> bool {
     match spec.need {
         TracepointNeed::Core => true,
         TracepointNeed::CoreExec => false,
-        TracepointNeed::ExecArgs => true,
-        TracepointNeed::FileOpen => budget.has_file_flow() || budget.has_open_rules(),
-        TracepointNeed::FileWritePath => budget.has_file_write() || budget.has_file_flow(),
+        TracepointNeed::ExecArgs => !budget.legacy || !budget.exec_args,
+        TracepointNeed::LegacyExecArgs => budget.legacy && budget.exec_args,
+        TracepointNeed::LegacyFileOpen => {
+            budget.legacy && (budget.has_file_flow() || budget.has_open_rules())
+        }
+        TracepointNeed::LegacyConnect => budget.legacy && budget.has_connect(),
+        TracepointNeed::LegacyRecv => budget.legacy && budget.has_recv(),
+        TracepointNeed::FileOpen => {
+            !budget.legacy && (budget.has_file_flow() || budget.has_open_rules())
+        }
+        TracepointNeed::FileWritePath => {
+            !budget.legacy && (budget.has_file_write() || budget.has_file_flow())
+        }
         TracepointNeed::FdFlow => {
-            budget.has_file_flow() || budget.has_connect() || budget.has_recv()
+            !budget.legacy && (budget.has_file_flow() || budget.has_connect() || budget.has_recv())
         }
         TracepointNeed::ConnectOrRecv => {
-            budget.has_connect()
-                || budget.has_recv()
-                || (budget.has_file_flow() && budget.advanced_tracepoints)
+            !budget.legacy
+                && (budget.has_connect()
+                    || budget.has_recv()
+                    || (budget.has_file_flow() && budget.advanced_tracepoints))
         }
         TracepointNeed::SendAddr => {
-            budget.has_connect() || (budget.has_file_flow() && budget.advanced_tracepoints)
+            !budget.legacy
+                && (budget.has_connect() || (budget.has_file_flow() && budget.advanced_tracepoints))
         }
         TracepointNeed::RecvAddr => {
-            budget.has_recv() || (budget.has_file_flow() && budget.advanced_tracepoints)
+            !budget.legacy
+                && (budget.has_recv() || (budget.has_file_flow() && budget.advanced_tracepoints))
         }
         TracepointNeed::FileIpcAdvanced | TracepointNeed::MmapAdvanced => {
             budget.has_file_flow() && budget.advanced_tracepoints
@@ -1327,10 +1543,14 @@ fn lsm_needed(
 ) -> bool {
     match name {
         "enforce_task_kill" | "enforce_ptrace_access_check" | "enforce_bpf_syscall" => true,
-        "enforce_bprm_check_security" => block_exec,
-        "enforce_socket_connect" => block_connect,
-        "enforce_socket_recvmsg" => recv_flow,
-        "enforce_file_permission" => block_file,
+        "enforce_bprm_check_security" | "legacy_enforce_bprm_check_security" => block_exec,
+        "enforce_socket_connect" | "legacy_enforce_socket_connect" => block_connect,
+        "enforce_socket_recvmsg" | "legacy_enforce_socket_recvmsg" => recv_flow,
+        "enforce_file_permission"
+        | "legacy_enforce_file_open"
+        | "legacy_enforce_inode_setattr"
+        | "legacy_enforce_inode_unlink"
+        | "legacy_enforce_inode_rename" => block_file,
         "enforce_mmap_file" | "enforce_file_mprotect" => advanced_hooks && block_file,
         "enforce_file_open"
         | "enforce_file_truncate"
@@ -1341,10 +1561,15 @@ fn lsm_needed(
     }
 }
 
-fn load_exec_tail_programs(bpf: &mut Ebpf) -> io::Result<()> {
+fn load_exec_tail_programs(bpf: &mut Ebpf, legacy_args: bool) -> io::Result<()> {
     let mut fds: Vec<(u32, ProgramFd)> = Vec::new();
+    let programs = if legacy_args {
+        LEGACY_ARG_EXEC_TAIL_PROGS
+    } else {
+        EXEC_TAIL_PROGS
+    };
 
-    for (idx, name) in EXEC_TAIL_PROGS {
+    for (idx, name) in programs {
         let p: &mut TracePoint = bpf
             .program_mut(name)
             .ok_or_else(|| err(format!("program {name} missing")))?
@@ -1368,6 +1593,40 @@ fn load_exec_tail_programs(bpf: &mut Ebpf) -> io::Result<()> {
         exec_tail
             .set(idx, &fd, 0)
             .map_err(|e| err(format!("exec_tail[{idx}]: {e}")))?;
+    }
+    Ok(())
+}
+
+fn load_legacy_file_tail_programs(bpf: &mut Ebpf, needed: bool) -> io::Result<()> {
+    if !needed {
+        return Ok(());
+    }
+
+    let mut fds: Vec<(u32, ProgramFd)> = Vec::new();
+    for (idx, name) in LEGACY_FILE_TAIL_PROGS {
+        let p: &mut TracePoint = bpf
+            .program_mut(name)
+            .ok_or_else(|| err(format!("program {name} missing")))?
+            .try_into()
+            .map_err(|e| err(format!("{name} not a tracepoint: {e}")))?;
+        p.load().map_err(|e| err(format!("{name}.load: {e}")))?;
+        let fd = p
+            .fd()
+            .map_err(|e| err(format!("{name}.fd: {e}")))?
+            .try_clone()
+            .map_err(|e| err(format!("{name}.fd clone: {e}")))?;
+        fds.push((*idx, fd));
+    }
+
+    let mut file_tail: ProgramArray<_> = ProgramArray::try_from(
+        bpf.map_mut("legacy_file_tail")
+            .ok_or_else(|| err("map legacy_file_tail missing"))?,
+    )
+    .map_err(|e| err(format!("legacy_file_tail: {e}")))?;
+    for (idx, fd) in fds {
+        file_tail
+            .set(idx, &fd, 0)
+            .map_err(|e| err(format!("legacy_file_tail[{idx}]: {e}")))?;
     }
     Ok(())
 }
@@ -1431,21 +1690,27 @@ fn validate_legacy_config(cfg: &CConfig) -> io::Result<()> {
         )));
     }
     for (i, update) in cfg.updates.iter().take(cfg.n_updates as usize).enumerate() {
-        if update.op != OP_EXEC {
+        if update.op != OP_EXEC
+            && update.op != OP_OPEN
+            && update.op != OP_WRITE
+            && update.op != OP_CONNECT
+            && update.op != OP_RECV
+        {
             return Err(err(format!(
-                "Linux 5.10 compatibility mode supports only exec updates; update[{i}] uses operation {}",
+                "Linux 5.10 compatibility mode supports exec, open, write, connect, and recv updates; update[{i}] uses operation {}",
                 update.op
             )));
         }
-        if update.m != M_EXACT && update.m != M_ANY {
+        if (update.op == OP_OPEN || update.op == OP_WRITE)
+            && update.m != M_EXACT
+            && update.m != M_PREFIX
+            && update.m != M_SUFFIX
+            && update.m != M_ANY
+            && update.m != M_CONTAINS
+        {
             return Err(err(format!(
-                "Linux 5.10 compatibility mode supports only exact or any exec matches; update[{i}] uses matcher {}",
+                "Linux 5.10 compatibility mode does not support file update matcher {} in update[{i}]",
                 update.m
-            )));
-        }
-        if update.arg[0] != 0 {
-            return Err(err(format!(
-                "Linux 5.10 compatibility mode does not support exec @arg constraints; update[{i}] has one"
             )));
         }
         if update.domain_id != 0 {
@@ -1456,27 +1721,40 @@ fn validate_legacy_config(cfg: &CConfig) -> io::Result<()> {
         }
     }
     for (i, rule) in cfg.rules.iter().take(cfg.n_rules as usize).enumerate() {
-        if rule.op != OP_EXEC {
+        if rule.op != OP_EXEC
+            && rule.op != OP_OPEN
+            && rule.op != OP_WRITE
+            && rule.op != OP_CONNECT
+            && rule.op != OP_RECV
+        {
             return Err(err(format!(
-                "Linux 5.10 compatibility mode supports only exec rules; rule[{i}] uses operation {}",
+                "Linux 5.10 compatibility mode supports exec, open, write, connect, and recv rules; rule[{i}] uses operation {}",
                 rule.op
             )));
         }
-        if rule.m != M_EXACT && rule.m != M_ANY {
+        if (rule.op == OP_OPEN || rule.op == OP_WRITE)
+            && rule.m != M_EXACT
+            && rule.m != M_PREFIX
+            && rule.m != M_SUFFIX
+            && rule.m != M_ANY
+            && rule.m != M_CONTAINS
+        {
             return Err(err(format!(
-                "Linux 5.10 compatibility mode supports only exact or any exec matches; rule[{i}] uses matcher {}",
+                "Linux 5.10 compatibility mode does not support file rule matcher {} in rule[{i}]",
                 rule.m
             )));
         }
-        if rule.arg[0] != 0 {
+        if (rule.op == OP_OPEN || rule.op == OP_WRITE)
+            && rule.cond_kind == C_TARGET
+            && rule.cond_match != M_EXACT
+            && rule.cond_match != M_PREFIX
+            && rule.cond_match != M_SUFFIX
+            && rule.cond_match != M_ANY
+            && rule.cond_match != M_CONTAINS
+        {
             return Err(err(format!(
-                "Linux 5.10 compatibility mode does not support exec @arg constraints; rule[{i}] has one"
-            )));
-        }
-        if rule.cond_kind != 0 {
-            return Err(err(format!(
-                "Linux 5.10 compatibility mode does not support rule conditions; rule[{i}] has condition kind {}",
-                rule.cond_kind
+                "Linux 5.10 compatibility mode does not support file target condition matcher {} in rule[{i}]",
+                rule.cond_match
             )));
         }
         if rule.domain_id != 0 {
@@ -1485,13 +1763,56 @@ fn validate_legacy_config(cfg: &CConfig) -> io::Result<()> {
                 rule.domain_id
             )));
         }
-        if rule.effect == EFFECT_BLOCK {
+        if rule.effect == EFFECT_BLOCK && rule.op == OP_EXEC && rule.arg[0] != 0 {
             return Err(err(format!(
-                "Linux 5.10 compatibility mode does not support block rules; use notify or kill for rule[{i}]"
+                "Linux 5.10 compatibility mode does not support @arg on block exec rule[{i}]"
             )));
         }
     }
     Ok(())
+}
+
+fn legacy_path_hash(target: &[u8; PAT]) -> u64 {
+    target.iter().fold(0xcbf29ce484222325_u64, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+    })
+}
+
+fn prepare_legacy_config(cfg: &mut CConfig) {
+    for update in cfg
+        .updates
+        .iter_mut()
+        .take((cfg.n_updates as usize).min(MAX_UPDATES))
+    {
+        if update.op != OP_EXEC
+            && update.op != OP_CONNECT
+            && update.op != OP_RECV
+            && update.m == M_EXACT
+        {
+            let hash = legacy_path_hash(&update.target);
+            update.ipv4 = hash as u32;
+            update.ipv4_mask = (hash >> 32) as u32;
+        }
+    }
+    for rule in cfg
+        .rules
+        .iter_mut()
+        .take((cfg.n_rules as usize).min(MAX_RULES))
+    {
+        if (rule.op == OP_OPEN || rule.op == OP_WRITE) && rule.m == M_EXACT {
+            let hash = legacy_path_hash(&rule.target);
+            rule.ipv4 = hash as u32;
+            rule.ipv4_mask = (hash >> 32) as u32;
+        }
+        if (rule.op == OP_OPEN || rule.op == OP_WRITE)
+            && rule.cond_kind == C_TARGET
+            && rule.cond_match == M_EXACT
+        {
+            let hash = legacy_path_hash(&rule.cond_pat);
+            rule.cond_ipv4 = hash as u32;
+            rule.cond_ipv4_mask = (hash >> 32) as u32;
+        }
+    }
 }
 
 fn path_match_features(m: u8) -> u32 {
@@ -1564,6 +1885,32 @@ fn config_has_file_write(cfg: &CConfig) -> bool {
             .iter()
             .take((cfg.n_rules as usize).min(MAX_RULES))
             .any(|r| r.op == OP_WRITE)
+}
+
+fn config_has_exec_args(cfg: &CConfig) -> bool {
+    cfg.updates
+        .iter()
+        .take((cfg.n_updates as usize).min(MAX_UPDATES))
+        .any(|u| u.op == OP_EXEC && u.arg[0] != 0)
+        || cfg
+            .rules
+            .iter()
+            .take((cfg.n_rules as usize).min(MAX_RULES))
+            .any(|r| r.op == OP_EXEC && r.arg[0] != 0)
+}
+
+fn config_has_legacy_file_rule_conditions(cfg: &CConfig) -> bool {
+    cfg.rules
+        .iter()
+        .take((cfg.n_rules as usize).min(MAX_RULES))
+        .any(|r| (r.op == OP_OPEN || r.op == OP_WRITE) && r.cond_kind != 0)
+}
+
+fn config_has_block_rules(cfg: &CConfig) -> bool {
+    cfg.rules
+        .iter()
+        .take((cfg.n_rules as usize).min(MAX_RULES))
+        .any(|r| r.effect == EFFECT_BLOCK)
 }
 
 fn validate_supported_features(cfg: &CConfig, supported: u32, context: &str) -> io::Result<()> {
@@ -1713,7 +2060,7 @@ impl PinnedEngine {
         validate_running_kernel()?;
         if legacy_kernel_required() {
             return Err(err(
-                "the pinned singleton engine requires Linux 6.1 or newer; on Linux 5.10-6.0 use `actplane run` with a static exec-only compatibility policy",
+                "the pinned singleton engine requires Linux 6.1 or newer; on Linux 5.10-6.0 use `actplane run` with a static compatibility policy",
             ));
         }
         let paths = PinnedEnginePaths::from_env();
@@ -1974,25 +2321,33 @@ impl Loader {
             )));
         }
         // Owned, aligned copy so we can borrow fields for set_global.
-        let cfg: Box<CConfig> =
+        let mut cfg: Box<CConfig> =
             Box::new(unsafe { std::ptr::read_unaligned(config_blob.as_ptr() as *const CConfig) });
         validate_config(&cfg)?;
         if legacy {
             validate_running_kernel()?;
             validate_legacy_config(&cfg)?;
+            prepare_legacy_config(&mut cfg);
             raise_legacy_memlock_limit()?;
         }
 
         let enforce = bpf_lsm_active();
+        if legacy && !enforce && config_has_block_rules(&cfg) {
+            return Err(err(
+                "Linux 5.10 block rules require the BPF LSM; boot with lsm=bpf or use notify/kill",
+            ));
+        }
         let enforce_mode: u32 = if enforce { 1 } else { 0 };
-        // The compatibility object is verifier-limited to its static exec-only
-        // hook set. Modern reservation environment variables must not widen it.
+        // The compatibility object has a fixed, verifier-bounded static hook
+        // set. Modern reservation environment variables must not widen it.
         let hook_budget = if legacy {
             HookBudget::for_legacy_config(&cfg)
         } else {
             HookBudget::from_config(&cfg, hook_reserve)
         };
         let policy_features = hook_budget.features;
+        let legacy_file_rule_conditions =
+            u32::from(legacy && config_has_legacy_file_rule_conditions(&cfg));
         if let Some(paths) = pin_paths.as_ref() {
             ensure_pinned_engine_dirs(paths)?;
             if pinned_engine_present(paths)? {
@@ -2011,7 +2366,12 @@ impl Loader {
         if legacy {
             loader
                 .set_global("legacy_n_rules", &cfg.n_rules, true)
-                .set_global("legacy_n_updates", &cfg.n_updates, true);
+                .set_global("legacy_n_updates", &cfg.n_updates, true)
+                .set_global(
+                    "legacy_file_rule_conditions",
+                    &legacy_file_rule_conditions,
+                    true,
+                );
         }
 
         let mut bpf = loader
@@ -2043,7 +2403,11 @@ impl Loader {
         let has_block_file = hook_budget.features & FEAT_BLOCK_FILE != 0;
         let has_block_connect = hook_budget.features & FEAT_BLOCK_CONNECT != 0;
 
-        load_exec_tail_programs(&mut bpf)?;
+        load_exec_tail_programs(&mut bpf, legacy && hook_budget.exec_args)?;
+        load_legacy_file_tail_programs(
+            &mut bpf,
+            legacy && (hook_budget.has_file_flow() || hook_budget.has_open_rules()),
+        )?;
         let mut pending_links: Vec<(String, FdLink)> = Vec::new();
 
         // Attach only the tracepoints required by this loaded hook set, then LSM
@@ -2077,7 +2441,8 @@ impl Loader {
         }
         if enforce {
             let btf = Btf::from_sys_fs().map_err(|e| err(format!("btf: {e}")))?;
-            for (name, hook) in LSM_PROGS {
+            let lsm_programs = if legacy { LEGACY_LSM_PROGS } else { LSM_PROGS };
+            for (name, hook) in lsm_programs {
                 if !lsm_needed(
                     name,
                     has_block_exec,
@@ -2903,7 +3268,7 @@ fn cstr(buf: &[u8]) -> String {
 }
 
 impl CompatibilityLoader {
-    /// Load the static exec-only compatibility engine.
+    /// Load the static Linux 5.10 compatibility engine.
     pub fn load(config_blob: &[u8]) -> io::Result<Self> {
         Loader::load_legacy(config_blob).map(|loader| Self { loader })
     }
@@ -3051,7 +3416,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_config_accepts_only_static_exec_subset() {
+    fn legacy_config_accepts_static_policy_features() {
         let mut cfg: CConfig = unsafe { std::mem::zeroed() };
         cfg.n_updates = 1;
         cfg.updates[0].op = OP_EXEC;
@@ -3061,23 +3426,43 @@ mod tests {
         cfg.rules[0].m = M_EXACT;
         validate_legacy_config(&cfg).expect("static exec policy should be accepted");
 
-        cfg.rules[0].op = OP_OPEN;
-        let err = validate_legacy_config(&cfg).expect_err("file rule should be rejected");
-        assert!(err.to_string().contains("only exec rules"), "{err}");
-
-        cfg.rules[0].op = OP_EXEC;
         cfg.rules[0].arg[0] = b'x';
-        let err = validate_legacy_config(&cfg).expect_err("argv rule should be rejected");
-        assert!(err.to_string().contains("@arg constraints"), "{err}");
+        cfg.rules[0].cond_kind = 1;
+        validate_legacy_config(&cfg).expect("argv and lineage should be accepted");
 
         cfg.rules[0].arg[0] = 0;
+        cfg.rules[0].cond_kind = 0;
+        cfg.rules[0].op = OP_OPEN;
+        validate_legacy_config(&cfg).expect("static file rule should be accepted");
+
+        cfg.updates[0].op = OP_OPEN;
+        cfg.rules[0].op = OP_EXEC;
+        validate_legacy_config(&cfg).expect("static file source should be accepted");
+
+        cfg.updates[0].op = OP_CONNECT;
+        cfg.rules[0].op = OP_RECV;
+        validate_legacy_config(&cfg).expect("static network policy should be accepted");
+
+        cfg.updates[0].op = u8::MAX;
+        let err = validate_legacy_config(&cfg).expect_err("unknown update op should be rejected");
+        assert!(
+            err.to_string().contains("supports exec, open, write"),
+            "{err}"
+        );
+        cfg.updates[0].op = OP_CONNECT;
+
+        cfg.rules[0].arg[0] = 0;
+        cfg.rules[0].cond_kind = 0;
+        cfg.rules[0].op = OP_EXEC;
         cfg.rules[0].effect = EFFECT_BLOCK;
-        let err = validate_legacy_config(&cfg).expect_err("block rule should be rejected");
-        assert!(err.to_string().contains("does not support block"), "{err}");
+        validate_legacy_config(&cfg).expect("block exec should be accepted");
+        cfg.rules[0].arg[0] = b'x';
+        let err = validate_legacy_config(&cfg).expect_err("block exec argv should be rejected");
+        assert!(err.to_string().contains("does not support @arg"), "{err}");
     }
 
     #[test]
-    fn legacy_hook_budget_stays_exec_only() {
+    fn legacy_hook_budget_stays_static() {
         let mut cfg: CConfig = unsafe { std::mem::zeroed() };
         cfg.n_updates = 1;
         cfg.updates[0].op = OP_EXEC;
@@ -3090,6 +3475,61 @@ mod tests {
         assert_eq!(budget.features, config_features(&cfg));
         assert!(!budget.file_write);
         assert!(!budget.advanced_tracepoints);
+    }
+
+    #[test]
+    fn legacy_hook_budget_selects_static_operation_hooks() {
+        fn spec(name: &str) -> &'static TracepointSpec {
+            TRACEPOINTS
+                .iter()
+                .find(|candidate| candidate.name == name)
+                .expect("tracepoint spec")
+        }
+
+        let mut cfg: CConfig = unsafe { std::mem::zeroed() };
+        cfg.n_updates = 2;
+        cfg.updates[0].op = OP_OPEN;
+        cfg.updates[0].m = M_EXACT;
+        cfg.updates[1].op = OP_RECV;
+        cfg.n_rules = 2;
+        cfg.rules[0].op = OP_WRITE;
+        cfg.rules[0].m = M_EXACT;
+        cfg.rules[1].op = OP_EXEC;
+        cfg.rules[1].m = M_EXACT;
+        cfg.rules[1].arg[0] = b'x';
+
+        let budget = HookBudget::for_legacy_config(&cfg);
+        assert!(tracepoint_needed(spec("legacy_trace_openat"), budget));
+        assert!(tracepoint_needed(spec("legacy_trace_rename"), budget));
+        assert!(tracepoint_needed(spec("legacy_trace_rename_exit"), budget));
+        assert!(tracepoint_needed(spec("legacy_trace_recvfrom"), budget));
+        assert!(tracepoint_needed(spec("handle_exec_legacy_args"), budget));
+        assert!(!tracepoint_needed(spec("handle_exec_args"), budget));
+        assert!(!tracepoint_needed(spec("trace_rename"), budget));
+    }
+
+    #[test]
+    fn legacy_object_contains_compatibility_hooks() {
+        let object = legacy_object_bytes();
+        for name in [
+            b"handle_exec_legacy_args".as_slice(),
+            b"legacy_trace_openat".as_slice(),
+            b"legacy_file_provenance_tail".as_slice(),
+            b"legacy_file_tail".as_slice(),
+            b"legacy_trace_rename".as_slice(),
+            b"legacy_trace_connect".as_slice(),
+            b"legacy_trace_recvfrom".as_slice(),
+            b"legacy_enforce_bprm_check_security".as_slice(),
+            b"legacy_enforce_file_open".as_slice(),
+            b"legacy_enforce_inode_rename".as_slice(),
+            b"legacy_enforce_socket_recvmsg".as_slice(),
+        ] {
+            assert!(
+                object.windows(name.len()).any(|window| window == name),
+                "legacy object should contain {}",
+                String::from_utf8_lossy(name)
+            );
+        }
     }
 
     #[test]
@@ -3164,6 +3604,8 @@ mod tests {
             features: 0,
             file_write: false,
             advanced_tracepoints: false,
+            legacy: false,
+            exec_args: true,
         };
         assert!(tracepoint_needed(spec("handle_fork"), empty));
         assert!(!tracepoint_needed(spec("handle_exec"), empty));
@@ -3178,6 +3620,8 @@ mod tests {
             features: FEAT_FILE_FLOW,
             file_write: false,
             advanced_tracepoints: false,
+            legacy: false,
+            exec_args: true,
         };
         assert!(tracepoint_needed(spec("trace_openat"), file));
         assert!(tracepoint_needed(spec("trace_read_exit"), file));

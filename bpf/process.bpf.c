@@ -20,6 +20,7 @@ const volatile unsigned int policy_features = 0;
  * loader patches these rodata values before loading any program. */
 const volatile unsigned int legacy_n_rules = 0;
 const volatile unsigned int legacy_n_updates = 0;
+const volatile unsigned int legacy_file_rule_conditions = 0;
 #endif
 
 #include "taint_engine.bpf.h"
@@ -445,7 +446,11 @@ enum exec_tail_slot {
 	EXEC_TAIL_UPDATE_PREFIX = 1,
 	EXEC_TAIL_RULE_SIMPLE = 2,
 	EXEC_TAIL_RULE_COMPLEX = 3,
-	EXEC_TAIL_MAX = 4,
+	EXEC_TAIL_ARG_UPDATE_SIMPLE = 4,
+	EXEC_TAIL_ARG_UPDATE_PREFIX = 5,
+	EXEC_TAIL_ARG_RULE_SIMPLE = 6,
+	EXEC_TAIL_ARG_RULE_COMPLEX = 7,
+	EXEC_TAIL_MAX = 8,
 };
 
 struct exec_pipe_state {
@@ -1049,12 +1054,39 @@ static __always_inline void fill_violation_provenance(struct event *v, pid_t pid
 		}
 	}
 #else
-	(void)pid;
-	(void)domain_id;
-	(void)matched_labels;
-	(void)obj_kind;
-	(void)fid;
-	(void)ip;
+	__u64 bit = matched_labels & (0ULL - matched_labels);
+	struct te_prov *p;
+
+	if (!bit)
+		return;
+	v->matched_label = bit;
+	p = te_lookup_proc_prov(pid, domain_id, bit);
+	if (p) {
+		copy_violation_provenance(v, p);
+		return;
+	}
+	if (obj_kind == TE_OBJ_FILE && fid) {
+		struct file_domain_id fdom = {};
+		struct file_label_id key;
+		te_file_domain_key_for(domain_id, fid, &fdom);
+		key.fdom = fdom;
+		key.label = bit;
+		p = bpf_map_lookup_elem(&ts_file_prov, &key);
+		if (p) {
+			copy_violation_provenance(v, p);
+			return;
+		}
+	}
+	if (obj_kind == TE_OBJ_ENDPOINT && ip) {
+		struct endp_domain_id edom = {};
+		struct endp_label_id key;
+		te_endp_domain_key_for(domain_id, ip, &edom);
+		key.edom = edom;
+		key.label = bit;
+		p = bpf_map_lookup_elem(&ts_endp_prov, &key);
+		if (p)
+			copy_violation_provenance(v, p);
+	}
 #endif
 }
 
@@ -1343,7 +1375,7 @@ static __always_inline int exec_pipe_init(pid_t pid, __u32 mode)
 	return 0;
 }
 
-static __always_inline void exec_pipe_collect_updates(__u32 prefix)
+static __always_inline void exec_pipe_collect_updates(__u32 prefix, __u32 with_args)
 {
 	struct exec_pipe_state *s = exec_pipe_buf();
 	struct exec_scratch *scratch = exec_scratch_buf();
@@ -1362,10 +1394,15 @@ static __always_inline void exec_pipe_collect_updates(__u32 prefix)
 			.op = TOP_EXEC,
 			.target = scratch->match,
 		};
-		if (prefix)
+		if (!with_args) {
+			if (prefix)
+				continue;
+			te_collect_exec_updates_no_args(&c);
+		} else if (prefix) {
 			bpf_loop(te_count(1), te_exec_update_prefix_cb, &c, 0);
-		else
+		} else {
 			bpf_loop(te_count(1), te_exec_update_simple_cb, &c, 0);
+		}
 		s->add[i] |= c.add;
 		s->del[i] |= c.del;
 		s->gates[i] |= c.gates;
@@ -1395,11 +1432,15 @@ static __always_inline void exec_pipe_apply_updates(void)
 		ns.labels = (ns.labels | s->add[i]) & ~s->del[i];
 		ns.lin_gates |= s->gates[i];
 		te_store_proc_domain(s->pid, domain_id, &ns);
-#ifndef ACTPLANE_LEGACY_KERNEL
-		if (s->add[i])
+		if (s->add[i]) {
+#ifdef ACTPLANE_LEGACY_KERNEL
+			te_record_proc_prov_mask(s->pid, domain_id, s->add[i],
+						 TOP_EXEC, scratch->match, 0);
+#else
 			te_record_proc_prov_mask(s->pid, domain_id, s->add[i],
 						 TOP_EXEC, scratch->match, 0);
 #endif
+		}
 		if (s->gates[i] || s->exit_gates[i] || s->invals[i]) {
 			pid_t r = te_root(s->pid);
 			__u32 ep = te_tick(r, domain_id);
@@ -1442,7 +1483,7 @@ static __always_inline void exec_pipe_merge_rule(struct exec_pipe_state *s,
 	}
 }
 
-static __always_inline void exec_pipe_scan_rules(__u32 complex)
+static __always_inline void exec_pipe_scan_rules(__u32 complex, __u32 with_args)
 {
 	struct exec_pipe_state *s = exec_pipe_buf();
 	struct exec_scratch *scratch = exec_scratch_buf();
@@ -1468,8 +1509,15 @@ static __always_inline void exec_pipe_scan_rules(__u32 complex)
 	eval->current_domain_id = current_domain_id;
 	eval->effect = TEFFECT_BLOCK;
 	eval->effect_mask = te_supported_effects(s->mode);
-	int rid = complex ? te_check_exec_complex(eval) :
-			    te_check_exec_simple(eval);
+	int rid;
+	if (!with_args) {
+		if (complex)
+			return;
+		rid = te_check_labels_no_args(eval);
+	} else {
+		rid = complex ? te_check_exec_complex(eval) :
+				te_check_exec_simple(eval);
+	}
 	exec_pipe_merge_rule(s, eval, rid);
 }
 
@@ -2632,10 +2680,92 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 	return 0;
 }
 
+#ifdef ACTPLANE_LEGACY_KERNEL
+static __noinline void te_read_legacy_args(struct task_struct *task)
+{
+	struct te_argslots *as = te_argslots_buf();
+	struct mm_struct *mm;
+	unsigned long pos;
+	long n;
+
+	if (!as || !task)
+		return;
+	__builtin_memset(as, 0, sizeof(*as));
+	mm = BPF_CORE_READ(task, mm);
+	if (!mm)
+		return;
+	pos = BPF_CORE_READ(mm, arg_start);
+	if (!pos)
+		return;
+
+	/* Read argv[0] into the blob at its wider cap so a normal absolute program
+	 * path does not hide all later arguments. The rule matcher uses slot zero,
+	 * while this copy's return value advances to argv[1]. */
+	n = bpf_probe_read_user_str(as->blob, TAINT_PAT_LEN, (void *)pos);
+	if (n <= 0 || n >= TAINT_PAT_LEN)
+		return;
+	bpf_probe_read_user_str(as->slots, TAINT_ARG_LEN, (void *)pos);
+	pos += n;
+
+/* Fixed helper calls avoid the data-dependent byte-tokenizer loop that makes
+ * Linux 5.10 exhaust its one-million verifier-state budget. */
+#define TE_READ_ARG_SLOT(slot) do { \
+	n = bpf_probe_read_user_str(as->slots + (slot) * TAINT_ARG_LEN, \
+				    TAINT_ARG_LEN, (void *)pos); \
+	if (n <= 0 || n >= TAINT_ARG_LEN) \
+		return; \
+	pos += n; \
+} while (0)
+	TE_READ_ARG_SLOT(1);
+	TE_READ_ARG_SLOT(2);
+	TE_READ_ARG_SLOT(3);
+	TE_READ_ARG_SLOT(4);
+	TE_READ_ARG_SLOT(5);
+	TE_READ_ARG_SLOT(6);
+	TE_READ_ARG_SLOT(7);
+	TE_READ_ARG_SLOT(8);
+	TE_READ_ARG_SLOT(9);
+	TE_READ_ARG_SLOT(10);
+	TE_READ_ARG_SLOT(11);
+	TE_READ_ARG_SLOT(12);
+	TE_READ_ARG_SLOT(13);
+	TE_READ_ARG_SLOT(14);
+	TE_READ_ARG_SLOT(15);
+#undef TE_READ_ARG_SLOT
+}
+
+SEC("tp/sched/sched_process_exec")
+int handle_exec_legacy_args(struct trace_event_raw_sched_process_exec *ctx)
+{
+	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	struct exec_scratch *scratch = exec_scratch_buf();
+	unsigned fname_off;
+
+	if (!scratch)
+		return 0;
+	__builtin_memset(scratch, 0, sizeof(*scratch));
+	if (!te_pid_active(pid))
+		return 0;
+	bpf_get_current_comm(&scratch->match, TASK_COMM_LEN);
+	__builtin_memcpy(scratch->display, scratch->match, TASK_COMM_LEN);
+	te_read_legacy_args(task);
+	fname_off = ctx->__data_loc_filename & 0xFFFF;
+	bpf_probe_read_str(scratch->display, sizeof(scratch->display), (void *)ctx + fname_off);
+	if (exec_pipe_init(pid, te_tracepoint_mode()) == 0)
+		bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_ARG_UPDATE_SIMPLE);
+	return 0;
+}
+#endif
+
 SEC("tp/sched/sched_process_exec")
 int exec_tp_update_simple(struct trace_event_raw_sched_process_exec *ctx)
 {
-	exec_pipe_collect_updates(0);
+#ifdef ACTPLANE_LEGACY_KERNEL
+	exec_pipe_collect_updates(0, 0);
+#else
+	exec_pipe_collect_updates(0, 1);
+#endif
 	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_UPDATE_PREFIX);
 	return 0;
 }
@@ -2643,8 +2773,10 @@ int exec_tp_update_simple(struct trace_event_raw_sched_process_exec *ctx)
 SEC("tp/sched/sched_process_exec")
 int exec_tp_update_prefix(struct trace_event_raw_sched_process_exec *ctx)
 {
-#ifndef ACTPLANE_LEGACY_KERNEL
-	exec_pipe_collect_updates(1);
+#ifdef ACTPLANE_LEGACY_KERNEL
+	exec_pipe_collect_updates(1, 0);
+#else
+	exec_pipe_collect_updates(1, 1);
 #endif
 	exec_pipe_apply_updates();
 	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_RULE_SIMPLE);
@@ -2654,7 +2786,11 @@ int exec_tp_update_prefix(struct trace_event_raw_sched_process_exec *ctx)
 SEC("tp/sched/sched_process_exec")
 int exec_tp_rule_simple(struct trace_event_raw_sched_process_exec *ctx)
 {
-	exec_pipe_scan_rules(0);
+#ifdef ACTPLANE_LEGACY_KERNEL
+	exec_pipe_scan_rules(0, 0);
+#else
+	exec_pipe_scan_rules(0, 1);
+#endif
 	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_RULE_COMPLEX);
 	return 0;
 }
@@ -2663,12 +2799,1472 @@ SEC("tp/sched/sched_process_exec")
 int exec_tp_rule_complex(struct trace_event_raw_sched_process_exec *ctx)
 {
 	(void)ctx;
-#ifndef ACTPLANE_LEGACY_KERNEL
-	exec_pipe_scan_rules(1);
+#ifdef ACTPLANE_LEGACY_KERNEL
+	exec_pipe_scan_rules(1, 0);
+#else
+	exec_pipe_scan_rules(1, 1);
 #endif
 	exec_pipe_finish();
 	return 0;
 }
+
+#ifdef ACTPLANE_LEGACY_KERNEL
+SEC("tp/sched/sched_process_exec")
+int exec_tp_arg_update_simple(struct trace_event_raw_sched_process_exec *ctx)
+{
+	exec_pipe_collect_updates(0, 1);
+	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_ARG_UPDATE_PREFIX);
+	return 0;
+}
+
+SEC("tp/sched/sched_process_exec")
+int exec_tp_arg_update_prefix(struct trace_event_raw_sched_process_exec *ctx)
+{
+	exec_pipe_collect_updates(1, 1);
+	exec_pipe_apply_updates();
+	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_ARG_RULE_SIMPLE);
+	return 0;
+}
+
+SEC("tp/sched/sched_process_exec")
+int exec_tp_arg_rule_simple(struct trace_event_raw_sched_process_exec *ctx)
+{
+	exec_pipe_scan_rules(0, 1);
+	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_ARG_RULE_COMPLEX);
+	return 0;
+}
+
+SEC("tp/sched/sched_process_exec")
+int exec_tp_arg_rule_complex(struct trace_event_raw_sched_process_exec *ctx)
+{
+	(void)ctx;
+	exec_pipe_scan_rules(1, 1);
+	exec_pipe_finish();
+	return 0;
+}
+#endif
+
+#ifdef ACTPLANE_LEGACY_KERNEL
+struct te_legacy_file_update_ctx {
+	__u64 path_hash;
+	__u64 add;
+	__u64 read_gates;
+	__u64 read_invals;
+	__u64 write_gates;
+	__u64 write_invals;
+};
+
+struct te_legacy_file_rule_ctx {
+	pid_t pid;
+	__u32 access;
+	__u64 path_hash;
+	__u64 proc_labels;
+	__u64 read_labels;
+	__u32 effect_mask;
+	__u32 best_effect;
+	int best_rule;
+	int best_index;
+	__u32 best_op;
+	__u64 best_labels;
+};
+
+struct te_legacy_file_eval_scratch {
+	struct te_legacy_file_update_ctx updates;
+	struct te_legacy_file_rule_ctx rules;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct te_legacy_file_eval_scratch);
+} ts_legacy_file_eval_scratch SEC(".maps");
+
+static __always_inline struct te_legacy_file_eval_scratch *
+te_legacy_file_eval_scratch_buf(void)
+{
+	__u32 key = 0;
+
+	return bpf_map_lookup_elem(&ts_legacy_file_eval_scratch, &key);
+}
+
+struct te_legacy_file_prov_op {
+	struct file_domain_id fdom;
+	__u64 source_labels;
+	__u64 read_labels;
+	__u64 write_labels;
+	char target[MAX_FILENAME_LEN];
+};
+
+struct te_legacy_file_prov_pipe {
+	pid_t pid;
+	__u32 n_ops;
+	struct te_legacy_file_prov_op ops[2];
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct te_legacy_file_prov_pipe);
+} ts_legacy_file_prov_pipe SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u32);
+} legacy_file_tail SEC(".maps");
+
+static __always_inline struct te_legacy_file_prov_pipe *
+te_legacy_file_prov_pipe_buf(void)
+{
+	__u32 key = 0;
+
+	return bpf_map_lookup_elem(&ts_legacy_file_prov_pipe, &key);
+}
+
+static __always_inline void te_legacy_file_prov_pipe_reset(void)
+{
+	struct te_legacy_file_prov_pipe *pipe =
+		te_legacy_file_prov_pipe_buf();
+
+	if (pipe)
+		pipe->n_ops = 0;
+}
+
+static int te_legacy_file_update_cb(__u32 i, void *vc)
+{
+	struct te_legacy_file_update_ctx *c = vc;
+	struct taint_update *up;
+	__u64 target_hash;
+
+	if (i >= MAX_TAINT_UPDATES)
+		return 1;
+	up = bpf_map_lookup_elem(&ts_updates, &i);
+	if (!up)
+		return 1;
+	if (up->domain_id != 0 ||
+	    (up->op != TOP_OPEN && up->op != TOP_WRITE))
+		return 0;
+	target_hash = ((__u64)up->ipv4_mask << 32) | up->ipv4;
+	if (up->match == TAINT_MATCH_ANY ||
+	    (up->match == TAINT_MATCH_EXACT && target_hash == c->path_hash)) {
+		if (up->op == TOP_OPEN) {
+			c->add |= up->add;
+			c->read_gates |= up->gates;
+			c->read_invals |= up->invals;
+		}
+		else {
+			c->write_gates |= up->gates;
+			c->write_invals |= up->invals;
+		}
+	}
+	return 0;
+}
+
+static int te_legacy_file_update_path_cb(__u32 i, void *vc)
+{
+	struct te_legacy_file_update_ctx *c = vc;
+	struct file_scratch *scratch = file_scratch_buf();
+	struct taint_update *up;
+
+	if (!scratch || i >= MAX_TAINT_UPDATES)
+		return 1;
+	up = bpf_map_lookup_elem(&ts_updates, &i);
+	if (!up)
+		return 1;
+	if (up->domain_id != 0 ||
+	    (up->op != TOP_OPEN && up->op != TOP_WRITE) ||
+	    up->match == TAINT_MATCH_EXACT || up->match == TAINT_MATCH_ANY)
+		return 0;
+	if (te_path_match(up->match, scratch->path, up->target)) {
+		if (up->op == TOP_OPEN) {
+			c->add |= up->add;
+			c->read_gates |= up->gates;
+			c->read_invals |= up->invals;
+		}
+		else {
+			c->write_gates |= up->gates;
+			c->write_invals |= up->invals;
+		}
+	}
+	return 0;
+}
+
+static __always_inline int te_legacy_file_rule_apply(
+	struct te_legacy_file_rule_ctx *c, const struct taint_rule *r, __u32 i)
+{
+	__u64 labels;
+
+	if (r->domain_id != 0)
+		return 0;
+	if (r->op == TOP_OPEN) {
+		if (!(c->access & TE_ACCESS_READ))
+			return 0;
+		labels = c->read_labels;
+	} else if (r->op == TOP_WRITE) {
+		if (!(c->access & TE_ACCESS_WRITE))
+			return 0;
+		labels = c->proc_labels;
+	} else {
+		return 0;
+	}
+	if (!taint_mask_ok(labels, r->req, r->forbid))
+		return 0;
+	if (r->effect > TEFFECT_KILL ||
+	    !(c->effect_mask & (1U << r->effect)))
+		return 0;
+	if (c->best_rule < 0 || r->effect > c->best_effect) {
+		c->best_effect = r->effect;
+		c->best_rule = (int)r->rule_id;
+		c->best_index = (int)i;
+		c->best_op = r->op;
+		c->best_labels = labels & r->req;
+		if (r->effect == TEFFECT_KILL)
+			return 1;
+	}
+	return 0;
+}
+
+static int te_legacy_file_rule_cb(__u32 i, void *vc)
+{
+	struct te_legacy_file_rule_ctx *c = vc;
+	struct taint_rule *rp;
+	__u64 target_hash;
+
+	if (i >= MAX_TAINT_RULES)
+		return 1;
+	rp = bpf_map_lookup_elem(&ts_rules, &i);
+	if (!rp)
+		return 1;
+	if (rp->cond_kind != TCOND_NONE)
+		return 0;
+	target_hash = ((__u64)rp->ipv4_mask << 32) | rp->ipv4;
+	if (rp->match != TAINT_MATCH_ANY &&
+	    (rp->match != TAINT_MATCH_EXACT || target_hash != c->path_hash))
+		return 0;
+	return te_legacy_file_rule_apply(c, rp, i);
+}
+
+static int te_legacy_file_rule_path_cb(__u32 i, void *vc)
+{
+	struct te_legacy_file_rule_ctx *c = vc;
+	struct file_scratch *scratch = file_scratch_buf();
+	struct taint_rule *rp;
+
+	if (!scratch || i >= MAX_TAINT_RULES)
+		return 1;
+	rp = bpf_map_lookup_elem(&ts_rules, &i);
+	if (!rp)
+		return 1;
+	if (rp->cond_kind != TCOND_NONE)
+		return 0;
+	if (rp->match == TAINT_MATCH_EXACT || rp->match == TAINT_MATCH_ANY ||
+	    !te_path_match(rp->match, scratch->path, rp->target))
+		return 0;
+	return te_legacy_file_rule_apply(c, rp, i);
+}
+
+static int te_legacy_file_rule_condition_cb(__u32 i, void *vc)
+{
+	struct te_legacy_file_rule_ctx *c = vc;
+	struct file_scratch *scratch = file_scratch_buf();
+	struct taint_rule *rp;
+	struct proc_state *proc;
+	__u64 target_hash;
+	__u64 cond_hash;
+	int target_match;
+	int cond_match;
+
+	if (!scratch || i >= MAX_TAINT_RULES)
+		return 1;
+	rp = bpf_map_lookup_elem(&ts_rules, &i);
+	if (!rp)
+		return 1;
+	if (rp->cond_kind == TCOND_NONE)
+		return 0;
+	if (rp->match == TAINT_MATCH_EXACT || rp->match == TAINT_MATCH_ANY) {
+		target_hash = ((__u64)rp->ipv4_mask << 32) | rp->ipv4;
+		target_match = rp->match == TAINT_MATCH_ANY ||
+			target_hash == c->path_hash;
+	} else {
+		target_match = te_path_match(rp->match, scratch->path,
+					     rp->target);
+	}
+	if (!target_match)
+		return 0;
+	if (rp->cond_kind == TCOND_LINEAGE) {
+		proc = te_get(c->pid);
+		if (proc && (proc->lin_gates & rp->gate))
+			return 0;
+	} else if (rp->cond_kind == TCOND_AFTER) {
+		if (te_after_satisfied(rp, c->pid))
+			return 0;
+	} else if (rp->cond_kind == TCOND_TARGET) {
+		if (rp->cond_match == TAINT_MATCH_EXACT ||
+		    rp->cond_match == TAINT_MATCH_ANY) {
+			cond_hash = ((__u64)rp->cond_ipv4_mask << 32) |
+				rp->cond_ipv4;
+			cond_match = rp->cond_match == TAINT_MATCH_ANY ||
+				cond_hash == c->path_hash;
+		} else {
+			cond_match = te_path_match(rp->cond_match, scratch->path,
+						   rp->cond_pat);
+		}
+		if (rp->cond_neg ? !cond_match : cond_match)
+			return 0;
+	}
+	return te_legacy_file_rule_apply(c, rp, i);
+}
+
+static __noinline void te_legacy_record_file_prov(
+	pid_t pid, struct file_domain_id *fdom, __u64 labels,
+	unsigned int op, const char *target)
+{
+	struct te_prov *prov;
+	struct file_label_id key;
+
+	prov = te_prov_tmp();
+	if (!prov)
+		return;
+	__builtin_memset(prov, 0, sizeof(*prov));
+	prov->timestamp_ns = bpf_ktime_get_ns();
+	prov->pid = pid;
+	prov->op = op;
+	bpf_probe_read_kernel_str(prov->target, sizeof(prov->target), target);
+	key.fdom = *fdom;
+#pragma clang loop unroll(disable)
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit;
+
+		if (!labels)
+			break;
+		bit = labels & (0ULL - labels);
+		prov->label = bit;
+		key.label = bit;
+		bpf_map_update_elem(&ts_file_prov, &key, prov, BPF_ANY);
+		labels &= ~bit;
+	}
+}
+
+static __noinline void te_legacy_file_prov_to_proc(
+	pid_t pid, struct file_domain_id *fdom, __u64 labels)
+{
+	struct file_label_id from;
+	struct pid_label_id to;
+	struct te_prov *prov;
+
+#pragma clang loop unroll(disable)
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit;
+
+		if (!labels)
+			break;
+		bit = labels & (0ULL - labels);
+		from.fdom = *fdom;
+		from.label = bit;
+		prov = bpf_map_lookup_elem(&ts_file_prov, &from);
+		if (prov) {
+			to.pid = pid;
+			to.domain_id = 0;
+			to.label = bit;
+			bpf_map_update_elem(&ts_proc_prov, &to, prov, BPF_ANY);
+		}
+		labels &= ~bit;
+	}
+}
+
+static __noinline void te_legacy_proc_prov_to_file(
+	pid_t pid, struct file_domain_id *fdom, __u64 labels)
+{
+	struct pid_label_id from = { .pid = pid, .domain_id = 0 };
+	struct file_label_id to;
+	struct te_prov *prov;
+
+#pragma clang loop unroll(disable)
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit;
+
+		if (!labels)
+			break;
+		bit = labels & (0ULL - labels);
+		from.label = bit;
+		prov = bpf_map_lookup_elem(&ts_proc_prov, &from);
+		if (prov) {
+			to.fdom = *fdom;
+			to.label = bit;
+			bpf_map_update_elem(&ts_file_prov, &to, prov, BPF_ANY);
+		}
+		labels &= ~bit;
+	}
+}
+
+static __noinline void te_legacy_record_file_prov_bit(
+	pid_t pid, struct file_domain_id *fdom, __u64 bit,
+	unsigned int op, const char *target)
+{
+	struct te_prov *prov = te_prov_tmp();
+	struct file_label_id key;
+
+	if (!prov || !bit)
+		return;
+	__builtin_memset(prov, 0, sizeof(*prov));
+	prov->label = bit;
+	prov->timestamp_ns = bpf_ktime_get_ns();
+	prov->pid = pid;
+	prov->op = op;
+	bpf_probe_read_kernel_str(prov->target, sizeof(prov->target), target);
+	key.fdom = *fdom;
+	key.label = bit;
+	bpf_map_update_elem(&ts_file_prov, &key, prov, BPF_ANY);
+}
+
+static __noinline void te_legacy_file_prov_bit_to_proc(
+	pid_t pid, struct file_domain_id *fdom, __u64 bit)
+{
+	struct file_label_id from;
+	struct pid_label_id to;
+	struct te_prov *prov;
+
+	if (!bit)
+		return;
+	from.fdom = *fdom;
+	from.label = bit;
+	prov = bpf_map_lookup_elem(&ts_file_prov, &from);
+	if (!prov)
+		return;
+	to.pid = pid;
+	to.domain_id = 0;
+	to.label = bit;
+	bpf_map_update_elem(&ts_proc_prov, &to, prov, BPF_ANY);
+}
+
+static __always_inline void te_legacy_record_endp_prov(
+	pid_t pid, struct endp_domain_id *edom, __u64 labels,
+	unsigned int op, __u32 ip)
+{
+	struct te_prov *prov;
+	struct endp_label_id key;
+
+	prov = te_prov_tmp();
+	if (!prov)
+		return;
+	__builtin_memset(prov, 0, sizeof(*prov));
+	prov->timestamp_ns = bpf_ktime_get_ns();
+	prov->pid = pid;
+	prov->op = op;
+	prov->ip = ip;
+	key.edom = *edom;
+#pragma clang loop unroll(disable)
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit;
+
+		if (!labels)
+			break;
+		bit = labels & (0ULL - labels);
+		prov->label = bit;
+		key.label = bit;
+		bpf_map_update_elem(&ts_endp_prov, &key, prov, BPF_ANY);
+		labels &= ~bit;
+	}
+}
+
+static __always_inline void te_legacy_endp_prov_to_proc(
+	pid_t pid, struct endp_domain_id *edom, __u64 labels)
+{
+	struct endp_label_id from;
+	struct pid_label_id to;
+	struct te_prov *prov;
+
+#pragma clang loop unroll(disable)
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit;
+
+		if (!labels)
+			break;
+		bit = labels & (0ULL - labels);
+		from.edom = *edom;
+		from.label = bit;
+		prov = bpf_map_lookup_elem(&ts_endp_prov, &from);
+		if (prov) {
+			to.pid = pid;
+			to.domain_id = 0;
+			to.label = bit;
+			bpf_map_update_elem(&ts_proc_prov, &to, prov, BPF_ANY);
+		}
+		labels &= ~bit;
+	}
+}
+
+static __always_inline void te_legacy_proc_prov_to_endp(
+	pid_t pid, struct endp_domain_id *edom, __u64 labels)
+{
+	struct pid_label_id from = { .pid = pid, .domain_id = 0 };
+	struct endp_label_id to;
+	struct te_prov *prov;
+
+#pragma clang loop unroll(disable)
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit;
+
+		if (!labels)
+			break;
+		bit = labels & (0ULL - labels);
+		from.label = bit;
+		prov = bpf_map_lookup_elem(&ts_proc_prov, &from);
+		if (prov) {
+			to.edom = *edom;
+			to.label = bit;
+			bpf_map_update_elem(&ts_endp_prov, &to, prov, BPF_ANY);
+		}
+		labels &= ~bit;
+	}
+}
+
+static __always_inline void te_legacy_queue_file_prov(
+	pid_t pid, struct file_domain_id *fdom, __u64 source_labels,
+	__u64 read_labels, __u64 write_labels, const char *target)
+{
+	struct te_legacy_file_prov_pipe *pipe =
+		te_legacy_file_prov_pipe_buf();
+	struct te_legacy_file_prov_op *op;
+
+	if (!pipe || pipe->n_ops >= 2 ||
+	    !(source_labels || read_labels || write_labels))
+		return;
+	if (pipe->n_ops == 0)
+		op = &pipe->ops[0];
+	else
+		op = &pipe->ops[1];
+	op->fdom = *fdom;
+	op->source_labels = source_labels;
+	op->read_labels = read_labels;
+	op->write_labels = write_labels;
+	bpf_probe_read_kernel_str(op->target, sizeof(op->target), target);
+	pipe->pid = pid;
+	pipe->n_ops++;
+}
+
+static __noinline void te_legacy_apply_file_prov_op(
+	pid_t pid, struct te_legacy_file_prov_op *op)
+{
+	if (op->source_labels)
+		te_legacy_record_file_prov(pid, &op->fdom,
+					   op->source_labels, TOP_OPEN,
+					   op->target);
+	if (op->read_labels)
+		te_legacy_file_prov_to_proc(pid, &op->fdom,
+					    op->read_labels);
+	if (op->write_labels)
+		te_legacy_proc_prov_to_file(pid, &op->fdom,
+					    op->write_labels);
+}
+
+SEC("tp/syscalls/sys_enter_openat")
+int legacy_file_provenance_tail(struct trace_event_raw_sys_enter *ctx)
+{
+	struct te_legacy_file_prov_pipe *pipe =
+		te_legacy_file_prov_pipe_buf();
+
+	(void)ctx;
+	if (!pipe)
+		return 0;
+	if (pipe->n_ops > 0)
+		te_legacy_apply_file_prov_op(pipe->pid, &pipe->ops[0]);
+	if (pipe->n_ops > 1)
+		te_legacy_apply_file_prov_op(pipe->pid, &pipe->ops[1]);
+	pipe->n_ops = 0;
+	return 0;
+}
+
+struct te_legacy_file_block_pend {
+	int rule;
+	__u32 op;
+	__u64 matched_labels;
+	char path[MAX_FILENAME_LEN];
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 16384);
+	__type(key, __u64);
+	__type(value, struct te_legacy_file_block_pend);
+} ts_legacy_file_block_pend SEC(".maps");
+
+static __always_inline void te_legacy_scan_file_rules(
+	struct te_legacy_file_rule_ctx *rules)
+{
+	bpf_loop(te_count(0), te_legacy_file_rule_cb, rules, 0);
+	bpf_loop(te_count(0), te_legacy_file_rule_path_cb, rules, 0);
+	if (legacy_file_rule_conditions)
+		bpf_loop(te_count(0), te_legacy_file_rule_condition_cb, rules, 0);
+}
+
+static __always_inline int te_legacy_open_path(const void *path_ptr,
+						unsigned int flags,
+						int preserve_block_pending)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	pid_t pid = tid >> 32;
+	struct file_scratch *scratch = file_scratch_buf();
+	struct proc_state *proc;
+	struct file_domain_id key = {};
+	struct file_state *file;
+	struct file_state next = {};
+	struct te_legacy_file_eval_scratch *eval =
+		te_legacy_file_eval_scratch_buf();
+	struct te_legacy_file_update_ctx *updates;
+	struct te_legacy_file_rule_ctx *rules;
+	__u64 path_hash;
+	int block_pending = 0;
+
+	if (!scratch || !eval || !te_pid_active(pid))
+		return 0;
+	__builtin_memset(eval, 0, sizeof(*eval));
+	updates = &eval->updates;
+	rules = &eval->rules;
+	rules->pid = pid;
+	rules->access = te_access_from_open_flags(flags);
+	rules->effect_mask =
+		(1U << TEFFECT_NOTIFY) | (1U << TEFFECT_KILL);
+	rules->best_effect = TEFFECT_NOTIFY;
+	rules->best_rule = -1;
+	rules->best_index = -1;
+	if (!preserve_block_pending) {
+		bpf_map_delete_elem(&ts_legacy_file_block_pend, &tid);
+		te_legacy_file_prov_pipe_reset();
+	}
+	__builtin_memset(scratch, 0, sizeof(*scratch));
+	if (bpf_probe_read_user_str(scratch->path, sizeof(scratch->path), path_ptr) <= 0)
+		return 0;
+	proc = te_get(pid);
+	if (!proc)
+		return 0;
+	path_hash = te_fnv1a(scratch->path);
+	updates->path_hash = path_hash;
+	bpf_loop(te_count(1), te_legacy_file_update_cb, updates, 0);
+	bpf_loop(te_count(1), te_legacy_file_update_path_cb, updates, 0);
+
+	key.fid.ino = path_hash;
+	key.fid.dev = 0;
+	key.fid._pad = 0;
+	key.domain_id = 0;
+	key._pad = 0;
+	file = bpf_map_lookup_elem(&ts_file, &key);
+	if (file)
+		next = *file;
+	next.labels |= updates->add;
+	rules->path_hash = path_hash;
+	rules->proc_labels = proc->labels;
+	rules->read_labels = proc->labels | next.labels;
+	if (policy_features & TE_POLICY_BLOCK_FILE) {
+		rules->effect_mask = 1U << TEFFECT_BLOCK;
+		te_legacy_scan_file_rules(rules);
+		if (rules->best_rule >= 0) {
+			struct te_legacy_file_block_pend pend = {
+				.rule = rules->best_rule,
+				.op = rules->best_op,
+				.matched_labels = rules->best_labels,
+			};
+			bpf_probe_read_kernel_str(pend.path, sizeof(pend.path),
+					  scratch->path);
+			bpf_map_update_elem(&ts_legacy_file_block_pend, &tid,
+					    &pend, BPF_ANY);
+			block_pending = 1;
+		}
+	}
+	if (!block_pending &&
+	    (policy_features & (TE_POLICY_OPEN_RULES | TE_POLICY_WRITE_RULES))) {
+		rules->effect_mask =
+			(1U << TEFFECT_NOTIFY) | (1U << TEFFECT_KILL);
+		rules->best_effect = TEFFECT_NOTIFY;
+		rules->best_rule = -1;
+		rules->best_index = -1;
+		te_legacy_scan_file_rules(rules);
+	}
+	if (!block_pending && rules->best_rule >= 0) {
+		__u64 matched_bit =
+			rules->best_labels & (0ULL - rules->best_labels);
+
+		if (rules->best_op == TOP_OPEN && (next.labels & matched_bit)) {
+			if (updates->add & matched_bit)
+				te_legacy_record_file_prov_bit(
+					pid, &key, matched_bit, TOP_OPEN,
+					scratch->path);
+			te_legacy_file_prov_bit_to_proc(pid, &key, matched_bit);
+		}
+		emit_violation(pid, rules->best_rule, scratch->path, 0,
+			       TE_OBJ_FILE, &key.fid, 0, rules->best_labels,
+			       rules->best_op, 0,
+			       rules->best_effect == TEFFECT_KILL,
+			       rules->best_effect);
+		if (rules->best_effect == TEFFECT_KILL)
+			bpf_send_signal(SIGKILL);
+	}
+	if ((rules->access & TE_ACCESS_WRITE) &&
+	    (updates->write_gates || updates->write_invals)) {
+		pid_t root = te_root(pid);
+		__u32 epoch = te_tick(root, 0);
+		te_stamp(root, 0, epoch, updates->write_gates,
+			 updates->write_invals);
+	}
+	if ((rules->access & TE_ACCESS_READ) &&
+	    (updates->read_gates || updates->read_invals)) {
+		pid_t root = te_root(pid);
+		__u32 epoch = te_tick(root, 0);
+		te_stamp(root, 0, epoch, updates->read_gates,
+			 updates->read_invals);
+	}
+	if (rules->access & TE_ACCESS_READ) {
+		proc->labels |= next.labels;
+	}
+	if (rules->access & TE_ACCESS_WRITE) {
+		next.labels |= proc->labels;
+	}
+	te_legacy_queue_file_prov(
+		pid, &key, updates->add,
+		(rules->access & TE_ACCESS_READ) ? next.labels : 0,
+		(rules->access & TE_ACCESS_WRITE) ? proc->labels : 0,
+		scratch->path);
+	if (next.labels)
+		bpf_map_update_elem(&ts_file, &key, &next, BPF_ANY);
+	return 0;
+}
+
+static __always_inline int te_legacy_finish_file_prov(
+	struct trace_event_raw_sys_enter *ctx)
+{
+	bpf_tail_call(ctx, &legacy_file_tail, 0);
+	return 0;
+}
+
+SEC("tp/syscalls/sys_enter_openat")
+int legacy_trace_openat(struct trace_event_raw_sys_enter *ctx)
+{
+	te_legacy_open_path((const void *)ctx->args[1],
+			    (unsigned int)ctx->args[2], 0);
+	return te_legacy_finish_file_prov(ctx);
+}
+
+SEC("tp/syscalls/sys_enter_open")
+int legacy_trace_open(struct trace_event_raw_sys_enter *ctx)
+{
+	te_legacy_open_path((const void *)ctx->args[0],
+			    (unsigned int)ctx->args[1], 0);
+	return te_legacy_finish_file_prov(ctx);
+}
+
+SEC("tp/syscalls/sys_enter_openat2")
+int legacy_trace_openat2(struct trace_event_raw_sys_enter *ctx)
+{
+	struct open_how how = {};
+	bpf_probe_read_user(&how, sizeof(how), (void *)ctx->args[2]);
+	te_legacy_open_path((const void *)ctx->args[1],
+			    (unsigned int)how.flags, 0);
+	return te_legacy_finish_file_prov(ctx);
+}
+
+SEC("tp/syscalls/sys_enter_creat")
+int legacy_trace_creat(struct trace_event_raw_sys_enter *ctx)
+{
+	te_legacy_open_path((const void *)ctx->args[0],
+			    O_WRONLY | O_CREAT | O_TRUNC, 0);
+	return te_legacy_finish_file_prov(ctx);
+}
+
+struct te_legacy_rename_pend {
+	__u64 old_hash;
+	__u64 new_hash;
+	__u32 flags;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 16384);
+	__type(key, __u64);
+	__type(value, struct te_legacy_rename_pend);
+} ts_legacy_renamepend SEC(".maps");
+
+static __always_inline void te_legacy_copy_file_prov(
+	struct file_domain_id *from, struct file_domain_id *to, __u64 labels,
+	int delete_from)
+{
+	struct file_label_id from_key;
+	struct file_label_id to_key;
+	struct te_prov *prov;
+
+#pragma clang loop unroll(disable)
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit;
+
+		if (!labels)
+			break;
+		bit = labels & (0ULL - labels);
+		from_key.fdom = *from;
+		from_key.label = bit;
+		prov = bpf_map_lookup_elem(&ts_file_prov, &from_key);
+		if (prov) {
+			to_key.fdom = *to;
+			to_key.label = bit;
+			bpf_map_update_elem(&ts_file_prov, &to_key, prov, BPF_ANY);
+		}
+		if (delete_from)
+			bpf_map_delete_elem(&ts_file_prov, &from_key);
+		labels &= ~bit;
+	}
+}
+
+static __always_inline int te_legacy_rename_enter(const void *old_path,
+						   const void *new_path,
+						   __u32 flags)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	struct file_scratch *scratch = file_scratch_buf();
+	struct te_legacy_rename_pend pend = { .flags = flags };
+
+	bpf_map_delete_elem(&ts_legacy_file_block_pend, &tid);
+	bpf_map_delete_elem(&ts_legacy_renamepend, &tid);
+	te_legacy_file_prov_pipe_reset();
+	te_legacy_open_path(old_path, O_WRONLY, 1);
+	if (scratch && scratch->path[0])
+		pend.old_hash = te_fnv1a(scratch->path);
+	te_legacy_open_path(new_path, O_WRONLY, 1);
+	if (scratch && scratch->path[0])
+		pend.new_hash = te_fnv1a(scratch->path);
+	if (pend.old_hash && pend.new_hash)
+		bpf_map_update_elem(&ts_legacy_renamepend, &tid, &pend, BPF_ANY);
+	return 0;
+}
+
+static __always_inline int te_legacy_rename_exit(long ret)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	struct te_legacy_rename_pend *pend =
+		bpf_map_lookup_elem(&ts_legacy_renamepend, &tid);
+	struct file_domain_id old_key = {};
+	struct file_domain_id new_key = {};
+	struct file_state *old;
+	struct file_state *new;
+	struct file_state old_state = {};
+	struct file_state new_state = {};
+	__u64 labels;
+
+	if (!pend)
+		return 0;
+	if (ret != 0)
+		goto out;
+	old_key.fid.ino = pend->old_hash;
+	new_key.fid.ino = pend->new_hash;
+	old = bpf_map_lookup_elem(&ts_file, &old_key);
+	new = bpf_map_lookup_elem(&ts_file, &new_key);
+	if (old)
+		old_state = *old;
+	if (new)
+		new_state = *new;
+	if (pend->flags & RENAME_EXCHANGE) {
+		struct file_state merged = {
+			.labels = old_state.labels | new_state.labels,
+		};
+		if (merged.labels) {
+			bpf_map_update_elem(&ts_file, &old_key, &merged, BPF_ANY);
+			bpf_map_update_elem(&ts_file, &new_key, &merged, BPF_ANY);
+			te_legacy_copy_file_prov(&old_key, &new_key,
+						 old_state.labels, 0);
+			te_legacy_copy_file_prov(&new_key, &old_key,
+						 new_state.labels, 0);
+		}
+	} else if (old_state.labels) {
+		labels = old_state.labels;
+		bpf_map_update_elem(&ts_file, &new_key, &old_state, BPF_ANY);
+		te_legacy_copy_file_prov(&old_key, &new_key, labels, 1);
+		bpf_map_delete_elem(&ts_file, &old_key);
+	}
+out:
+	bpf_map_delete_elem(&ts_legacy_renamepend, &tid);
+	bpf_map_delete_elem(&ts_legacy_file_block_pend, &tid);
+	return 0;
+}
+
+SEC("tp/syscalls/sys_enter_truncate")
+int legacy_trace_truncate(struct trace_event_raw_sys_enter *ctx)
+{
+	te_legacy_open_path((const void *)ctx->args[0], O_WRONLY, 0);
+	return te_legacy_finish_file_prov(ctx);
+}
+
+SEC("tp/syscalls/sys_enter_unlink")
+int legacy_trace_unlink(struct trace_event_raw_sys_enter *ctx)
+{
+	te_legacy_open_path((const void *)ctx->args[0], O_WRONLY, 0);
+	return te_legacy_finish_file_prov(ctx);
+}
+
+SEC("tp/syscalls/sys_enter_unlinkat")
+int legacy_trace_unlinkat(struct trace_event_raw_sys_enter *ctx)
+{
+	te_legacy_open_path((const void *)ctx->args[1], O_WRONLY, 0);
+	return te_legacy_finish_file_prov(ctx);
+}
+
+static __always_inline int te_legacy_file_block_cleanup(void)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+
+	bpf_map_delete_elem(&ts_legacy_file_block_pend, &tid);
+	return 0;
+}
+
+#define TE_LEGACY_FILE_CLEANUP(name, event) \
+	SEC("tp/syscalls/" event) \
+	int name(struct trace_event_raw_sys_exit *ctx) \
+	{ \
+		(void)ctx; \
+		return te_legacy_file_block_cleanup(); \
+	}
+
+TE_LEGACY_FILE_CLEANUP(legacy_trace_openat_exit, "sys_exit_openat")
+TE_LEGACY_FILE_CLEANUP(legacy_trace_open_exit, "sys_exit_open")
+TE_LEGACY_FILE_CLEANUP(legacy_trace_openat2_exit, "sys_exit_openat2")
+TE_LEGACY_FILE_CLEANUP(legacy_trace_creat_exit, "sys_exit_creat")
+TE_LEGACY_FILE_CLEANUP(legacy_trace_truncate_exit, "sys_exit_truncate")
+TE_LEGACY_FILE_CLEANUP(legacy_trace_unlink_exit, "sys_exit_unlink")
+TE_LEGACY_FILE_CLEANUP(legacy_trace_unlinkat_exit, "sys_exit_unlinkat")
+
+#undef TE_LEGACY_FILE_CLEANUP
+
+SEC("tp/syscalls/sys_enter_rename")
+int legacy_trace_rename(struct trace_event_raw_sys_enter *ctx)
+{
+	te_legacy_rename_enter((const void *)ctx->args[0],
+			       (const void *)ctx->args[1], 0);
+	return te_legacy_finish_file_prov(ctx);
+}
+
+SEC("tp/syscalls/sys_exit_rename")
+int legacy_trace_rename_exit(struct trace_event_raw_sys_exit *ctx)
+{
+	return te_legacy_rename_exit(ctx->ret);
+}
+
+SEC("tp/syscalls/sys_enter_renameat")
+int legacy_trace_renameat(struct trace_event_raw_sys_enter *ctx)
+{
+	te_legacy_rename_enter((const void *)ctx->args[1],
+			       (const void *)ctx->args[3], 0);
+	return te_legacy_finish_file_prov(ctx);
+}
+
+SEC("tp/syscalls/sys_exit_renameat")
+int legacy_trace_renameat_exit(struct trace_event_raw_sys_exit *ctx)
+{
+	return te_legacy_rename_exit(ctx->ret);
+}
+
+SEC("tp/syscalls/sys_enter_renameat2")
+int legacy_trace_renameat2(struct trace_event_raw_sys_enter *ctx)
+{
+	te_legacy_rename_enter((const void *)ctx->args[1],
+			       (const void *)ctx->args[3],
+			       (__u32)ctx->args[4]);
+	return te_legacy_finish_file_prov(ctx);
+}
+
+SEC("tp/syscalls/sys_exit_renameat2")
+int legacy_trace_renameat2_exit(struct trace_event_raw_sys_exit *ctx)
+{
+	return te_legacy_rename_exit(ctx->ret);
+}
+
+struct te_legacy_connect_ctx {
+	pid_t pid;
+	__u32 ip;
+	__u32 op;
+	__u64 labels;
+	__u64 source_labels;
+	__u32 effect_mask;
+	__u32 best_effect;
+	int best_rule;
+	__u64 best_labels;
+};
+
+static int te_legacy_connect_update_cb(__u32 i, void *vc)
+{
+	struct te_legacy_connect_ctx *c = vc;
+	struct taint_update *up;
+
+	if (i >= MAX_TAINT_UPDATES)
+		return 1;
+	up = bpf_map_lookup_elem(&ts_updates, &i);
+	if (!up)
+		return 1;
+	if (up->domain_id == 0 && up->op == c->op &&
+	    (c->ip & up->ipv4_mask) == up->ipv4) {
+		c->labels |= up->add;
+		c->source_labels |= up->add;
+	}
+	return 0;
+}
+
+static int te_legacy_connect_rule_cb(__u32 i, void *vc)
+{
+	struct te_legacy_connect_ctx *c = vc;
+	struct taint_rule *rp;
+	struct proc_state *proc;
+	int cond_match;
+
+	if (i >= MAX_TAINT_RULES)
+		return 1;
+	rp = bpf_map_lookup_elem(&ts_rules, &i);
+	if (!rp)
+		return 1;
+	if (rp->domain_id != 0 || rp->op != c->op)
+		return 0;
+	if (!taint_mask_ok(c->labels, rp->req, rp->forbid))
+		return 0;
+	if (rp->effect > TEFFECT_KILL ||
+	    !(c->effect_mask & (1U << rp->effect)))
+		return 0;
+	if ((c->ip & rp->ipv4_mask) != rp->ipv4)
+		return 0;
+	if (rp->cond_kind == TCOND_LINEAGE) {
+		proc = te_get(c->pid);
+		if (proc && (proc->lin_gates & rp->gate))
+			return 0;
+	} else if (rp->cond_kind == TCOND_AFTER) {
+		if (te_after_satisfied(rp, c->pid))
+			return 0;
+	} else if (rp->cond_kind == TCOND_TARGET) {
+		cond_match = (c->ip & rp->cond_ipv4_mask) == rp->cond_ipv4;
+		if (rp->cond_neg ? !cond_match : cond_match)
+			return 0;
+	}
+	if (c->best_rule < 0 || rp->effect > c->best_effect) {
+		c->best_effect = rp->effect;
+		c->best_rule = (int)rp->rule_id;
+		c->best_labels = c->labels & rp->req;
+		if (rp->effect == TEFFECT_KILL)
+			return 1;
+	}
+	return 0;
+}
+
+SEC("tp/syscalls/sys_enter_connect")
+int legacy_trace_connect(struct trace_event_raw_sys_enter *ctx)
+{
+	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+	struct proc_state *proc;
+	struct te_legacy_connect_ctx event = {
+		.pid = pid,
+		.op = TOP_CONNECT,
+		.effect_mask = (1U << TEFFECT_NOTIFY) | (1U << TEFFECT_KILL),
+		.best_effect = TEFFECT_NOTIFY,
+		.best_rule = -1,
+	};
+	struct endp_domain_id key = {};
+	__u64 *stored;
+	__u64 endpoint_labels;
+
+	if (!te_pid_active(pid) ||
+	    te_resolve_sockaddr(TE_REF_SOCKADDR_USER,
+				(const void *)ctx->args[1], &event.ip) < 0)
+		return 0;
+	proc = te_get(pid);
+	if (!proc)
+		return 0;
+	event.labels = proc->labels;
+	bpf_loop(te_count(1), te_legacy_connect_update_cb, &event, 0);
+	if (event.source_labels)
+		te_record_proc_prov_mask(pid, 0, event.source_labels,
+					 TOP_CONNECT, 0, event.ip);
+	bpf_loop(te_count(0), te_legacy_connect_rule_cb, &event, 0);
+	if (event.best_rule >= 0) {
+		emit_violation(pid, event.best_rule, 0, event.ip,
+			       TE_OBJ_ENDPOINT, 0, 0, event.best_labels,
+			       event.op, 0,
+			       event.best_effect == TEFFECT_KILL,
+			       event.best_effect);
+		if (event.best_effect == TEFFECT_KILL)
+			bpf_send_signal(SIGKILL);
+	}
+	proc->labels = event.labels;
+	te_store_sockfd(pid, (int)ctx->args[0], event.ip);
+	te_endp_domain_key_for(0, event.ip, &key);
+	stored = bpf_map_lookup_elem(&ts_endp, &key);
+	endpoint_labels = event.labels | (stored ? *stored : 0);
+	if (event.source_labels)
+		te_legacy_record_endp_prov(pid, &key, event.source_labels,
+					   TOP_CONNECT, event.ip);
+	te_legacy_proc_prov_to_endp(pid, &key, event.labels);
+	if (endpoint_labels)
+		bpf_map_update_elem(&ts_endp, &key, &endpoint_labels, BPF_ANY);
+	return 0;
+}
+
+struct te_legacy_recv_pend {
+	int fd;
+	__u32 kind;
+	__u64 addr_ptr;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 16384);
+	__type(key, __u64);
+	__type(value, struct te_legacy_recv_pend);
+} ts_legacy_recvpend SEC(".maps");
+
+#define TE_LEGACY_RECV_SOCKADDR 1
+#define TE_LEGACY_RECV_MSGHDR   2
+#define TE_LEGACY_RECV_FD       3
+
+static __always_inline int te_legacy_stash_recv(int fd, const void *addr,
+						 __u32 kind)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	pid_t pid = tid >> 32;
+	struct te_legacy_recv_pend pend = {
+		.fd = fd,
+		.kind = kind,
+		.addr_ptr = (__u64)addr,
+	};
+
+	if (!te_pid_active(pid))
+		return 0;
+	bpf_map_update_elem(&ts_legacy_recvpend, &tid, &pend, BPF_ANY);
+	return 0;
+}
+
+static __always_inline int te_legacy_recv_ip(
+	const struct te_legacy_recv_pend *pend, pid_t pid, __u32 *ip)
+{
+	struct file *file;
+	struct socket *sock;
+	__u32 *tracked;
+
+	if (pend->kind == TE_LEGACY_RECV_SOCKADDR && pend->addr_ptr)
+		return te_resolve_sockaddr(TE_REF_SOCKADDR_USER,
+					   (const void *)pend->addr_ptr, ip);
+	if (pend->kind == TE_LEGACY_RECV_MSGHDR && pend->addr_ptr) {
+		__u64 name_ptr = 0;
+		if (bpf_probe_read_user(&name_ptr, sizeof(name_ptr),
+					(const void *)pend->addr_ptr) == 0 &&
+		    name_ptr)
+			return te_resolve_sockaddr(TE_REF_SOCKADDR_USER,
+						   (const void *)name_ptr, ip);
+	}
+	tracked = te_lookup_sockfd(pid, pend->fd);
+	if (tracked) {
+		*ip = *tracked;
+		return 0;
+	}
+	file = te_current_file_from_fd(pend->fd);
+	if (!file)
+		return -1;
+	sock = BPF_CORE_READ(file, private_data);
+	if (!sock)
+		return -1;
+	return te_resolve_socket_peer_ipv4(sock, ip);
+}
+
+static __always_inline int te_legacy_handle_recv(long ret)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	pid_t pid = tid >> 32;
+	struct te_legacy_recv_pend *pend =
+		bpf_map_lookup_elem(&ts_legacy_recvpend, &tid);
+	struct proc_state *proc;
+	struct te_legacy_connect_ctx event = {
+		.pid = pid,
+		.op = TOP_RECV,
+		.effect_mask = (1U << TEFFECT_NOTIFY) | (1U << TEFFECT_KILL),
+		.best_effect = TEFFECT_NOTIFY,
+		.best_rule = -1,
+	};
+	struct endp_domain_id key = {};
+	__u64 *stored;
+
+	if (!pend)
+		return 0;
+	if (ret <= 0 || !te_pid_active(pid) ||
+	    te_legacy_recv_ip(pend, pid, &event.ip) < 0)
+		goto out;
+	proc = te_get(pid);
+	if (!proc)
+		goto out;
+	te_endp_domain_key_for(0, event.ip, &key);
+	stored = bpf_map_lookup_elem(&ts_endp, &key);
+	event.labels = proc->labels | (stored ? *stored : 0);
+	if (stored)
+		te_legacy_endp_prov_to_proc(pid, &key, *stored);
+	bpf_loop(te_count(1), te_legacy_connect_update_cb, &event, 0);
+	if (event.source_labels)
+		te_record_proc_prov_mask(pid, 0, event.source_labels,
+					 TOP_RECV, 0, event.ip);
+	bpf_loop(te_count(0), te_legacy_connect_rule_cb, &event, 0);
+	if (event.best_rule >= 0) {
+		emit_violation(pid, event.best_rule, 0, event.ip,
+			       TE_OBJ_ENDPOINT, 0, 0, event.best_labels,
+			       event.op, 0,
+			       event.best_effect == TEFFECT_KILL,
+			       event.best_effect);
+		if (event.best_effect == TEFFECT_KILL)
+			bpf_send_signal(SIGKILL);
+	}
+	proc->labels = event.labels;
+out:
+	bpf_map_delete_elem(&ts_legacy_recvpend, &tid);
+	return 0;
+}
+
+SEC("tp/syscalls/sys_enter_recvfrom")
+int legacy_trace_recvfrom(struct trace_event_raw_sys_enter *ctx)
+{
+	return te_legacy_stash_recv((int)ctx->args[0],
+				    (const void *)ctx->args[4],
+				    TE_LEGACY_RECV_SOCKADDR);
+}
+
+SEC("tp/syscalls/sys_exit_recvfrom")
+int legacy_trace_recvfrom_exit(struct trace_event_raw_sys_exit *ctx)
+{
+	return te_legacy_handle_recv(ctx->ret);
+}
+
+SEC("tp/syscalls/sys_enter_recvmsg")
+int legacy_trace_recvmsg(struct trace_event_raw_sys_enter *ctx)
+{
+	return te_legacy_stash_recv((int)ctx->args[0],
+				    (const void *)ctx->args[1],
+				    TE_LEGACY_RECV_MSGHDR);
+}
+
+SEC("tp/syscalls/sys_exit_recvmsg")
+int legacy_trace_recvmsg_exit(struct trace_event_raw_sys_exit *ctx)
+{
+	return te_legacy_handle_recv(ctx->ret);
+}
+
+SEC("tp/syscalls/sys_enter_read")
+int legacy_trace_read(struct trace_event_raw_sys_enter *ctx)
+{
+	return te_legacy_stash_recv((int)ctx->args[0], 0,
+				    TE_LEGACY_RECV_FD);
+}
+
+SEC("tp/syscalls/sys_exit_read")
+int legacy_trace_read_exit(struct trace_event_raw_sys_exit *ctx)
+{
+	return te_legacy_handle_recv(ctx->ret);
+}
+
+struct te_legacy_exec_block_ctx {
+	pid_t pid;
+	const char *target;
+	__u64 labels;
+	int rule;
+	__u64 matched_labels;
+};
+
+static int te_legacy_exec_block_update_cb(__u32 i, void *vc)
+{
+	struct te_legacy_exec_block_ctx *c = vc;
+	struct taint_update *up;
+
+	if (i >= MAX_TAINT_UPDATES)
+		return 1;
+	up = bpf_map_lookup_elem(&ts_updates, &i);
+	if (!up)
+		return 1;
+	if (up->domain_id != 0 || up->op != TOP_EXEC || up->arg[0] != '\0' ||
+	    !taint_exec_match(up->match, c->target, up->target))
+		return 0;
+	c->labels = (c->labels | up->add) & ~up->del;
+	return 0;
+}
+
+static int te_legacy_exec_block_rule_cb(__u32 i, void *vc)
+{
+	struct te_legacy_exec_block_ctx *c = vc;
+	struct taint_rule *rp;
+	struct proc_state *proc;
+	int cond_match;
+
+	if (i >= MAX_TAINT_RULES)
+		return 1;
+	rp = bpf_map_lookup_elem(&ts_rules, &i);
+	if (!rp)
+		return 1;
+	if (rp->domain_id != 0 || rp->op != TOP_EXEC ||
+	    rp->effect != TEFFECT_BLOCK || rp->arg[0] != '\0')
+		return 0;
+	if (!taint_mask_ok(c->labels, rp->req, rp->forbid) ||
+	    !taint_exec_match(rp->match, c->target, rp->target))
+		return 0;
+	if (rp->cond_kind == TCOND_LINEAGE) {
+		proc = te_get(c->pid);
+		if (proc && (proc->lin_gates & rp->gate))
+			return 0;
+	} else if (rp->cond_kind == TCOND_AFTER) {
+		if (te_after_satisfied(rp, c->pid))
+			return 0;
+	} else if (rp->cond_kind == TCOND_TARGET) {
+		cond_match = taint_exec_match(rp->cond_match, c->target,
+					      rp->cond_pat);
+		if (rp->cond_neg ? !cond_match : cond_match)
+			return 0;
+	}
+	c->rule = (int)rp->rule_id;
+	c->matched_labels = c->labels & rp->req;
+	return 1;
+}
+
+SEC("lsm/bprm_check_security")
+int BPF_PROG(legacy_enforce_bprm_check_security, struct linux_binprm *bprm)
+{
+	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+	struct exec_scratch *scratch = exec_scratch_buf();
+	struct te_legacy_exec_block_ctx event = {
+		.pid = pid,
+		.rule = -1,
+	};
+	struct proc_state *proc;
+
+	if (!scratch || !te_pid_active(pid))
+		return 0;
+	__builtin_memset(scratch, 0, sizeof(*scratch));
+	if (bprm_basename(bprm, scratch->match, sizeof(scratch->match)) < 0)
+		return 0;
+	if (bprm_filename(bprm, scratch->display, sizeof(scratch->display)) < 0)
+		te_copy_target(scratch->display, scratch->match);
+	proc = te_get(pid);
+	if (!proc)
+		return 0;
+	event.target = scratch->match;
+	event.labels = proc->labels;
+	bpf_loop(te_count(1), te_legacy_exec_block_update_cb, &event, 0);
+	bpf_loop(te_count(0), te_legacy_exec_block_rule_cb, &event, 0);
+	if (event.rule < 0)
+		return 0;
+	emit_violation(pid, event.rule, scratch->display, 0, TE_OBJ_EXEC, 0,
+		       0, event.matched_labels, TOP_EXEC, 1, 0, TEFFECT_BLOCK);
+	return -EPERM;
+}
+
+static __always_inline int te_legacy_consume_file_block(void)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	pid_t pid = tid >> 32;
+	struct te_legacy_file_block_pend *pend =
+		bpf_map_lookup_elem(&ts_legacy_file_block_pend, &tid);
+	if (!pend)
+		return 0;
+	emit_violation(pid, pend->rule, pend->path, 0, TE_OBJ_FILE, 0, 0,
+		       pend->matched_labels, pend->op, 1, 0, TEFFECT_BLOCK);
+	bpf_map_delete_elem(&ts_legacy_file_block_pend, &tid);
+	return -EPERM;
+}
+
+SEC("lsm/file_open")
+int BPF_PROG(legacy_enforce_file_open, struct file *file)
+{
+	(void)file;
+	return te_legacy_consume_file_block();
+}
+
+SEC("lsm/inode_setattr")
+int BPF_PROG(legacy_enforce_inode_setattr, struct dentry *dentry,
+	     struct iattr *attr)
+{
+	(void)dentry;
+	(void)attr;
+	return te_legacy_consume_file_block();
+}
+
+SEC("lsm/inode_unlink")
+int BPF_PROG(legacy_enforce_inode_unlink, struct inode *dir,
+	     struct dentry *dentry)
+{
+	(void)dir;
+	(void)dentry;
+	return te_legacy_consume_file_block();
+}
+
+SEC("lsm/inode_rename")
+int BPF_PROG(legacy_enforce_inode_rename, struct inode *old_dir,
+	     struct dentry *old_dentry, struct inode *new_dir,
+	     struct dentry *new_dentry)
+{
+	(void)old_dir;
+	(void)old_dentry;
+	(void)new_dir;
+	(void)new_dentry;
+	return te_legacy_consume_file_block();
+}
+
+static __always_inline int te_legacy_block_endpoint(pid_t pid, __u32 ip,
+						      __u32 op)
+{
+	struct proc_state *proc = te_get(pid);
+	struct te_legacy_connect_ctx event = {
+		.pid = pid,
+		.ip = ip,
+		.op = op,
+		.effect_mask = 1U << TEFFECT_BLOCK,
+		.best_effect = TEFFECT_NOTIFY,
+		.best_rule = -1,
+	};
+	struct endp_domain_id key = {};
+	__u64 *stored;
+
+	if (!proc)
+		return 0;
+	event.labels = proc->labels;
+	if (op == TOP_RECV) {
+		te_endp_domain_key_for(0, ip, &key);
+		stored = bpf_map_lookup_elem(&ts_endp, &key);
+		if (stored)
+			event.labels |= *stored;
+	}
+	bpf_loop(te_count(1), te_legacy_connect_update_cb, &event, 0);
+	bpf_loop(te_count(0), te_legacy_connect_rule_cb, &event, 0);
+	if (event.best_rule < 0)
+		return 0;
+	emit_violation(pid, event.best_rule, 0, ip, TE_OBJ_ENDPOINT, 0, 0,
+		       event.best_labels, op, 1, 0, TEFFECT_BLOCK);
+	return -EPERM;
+}
+
+SEC("lsm/socket_connect")
+int BPF_PROG(legacy_enforce_socket_connect, struct socket *sock,
+	     struct sockaddr *address, int addrlen)
+{
+	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+	__u32 ip = 0;
+
+	(void)sock;
+	(void)addrlen;
+	if (!te_pid_active(pid) ||
+	    te_resolve_sockaddr(TE_REF_SOCKADDR_KERN, address, &ip) < 0)
+		return 0;
+	return te_legacy_block_endpoint(pid, ip, TOP_CONNECT);
+}
+
+SEC("lsm/socket_recvmsg")
+int BPF_PROG(legacy_enforce_socket_recvmsg, struct socket *sock,
+	     struct msghdr *msg, int size, int flags)
+{
+	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+	__u32 ip = 0;
+
+	(void)msg;
+	(void)size;
+	(void)flags;
+	if (!te_pid_active(pid) || te_resolve_socket_peer_ipv4(sock, &ip) < 0)
+		return 0;
+	return te_legacy_block_endpoint(pid, ip, TOP_RECV);
+}
+#endif
 
 SEC("tp/sched/sched_process_exit")
 int handle_exit(struct trace_event_raw_sched_process_template *ctx)
