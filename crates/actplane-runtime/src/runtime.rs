@@ -10,7 +10,8 @@ use ebpf_ifc_engine::capability::{
     AUTH_REQUIRE_GATE, CapState, TARGET_CHILD, TARGET_SELF,
 };
 use ebpf_ifc_engine::{
-    ChildDomainSpec, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, PinnedEngine, ReloadHandle,
+    ChildDomainSpec, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, Loader, PinnedEngine, ReloadHandle,
+    legacy_kernel_required,
 };
 use serde_json::json;
 use tokio::process::{Child, Command};
@@ -1221,91 +1222,118 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let stop_thread = stop.clone();
     let control_pid = std::process::id() as i32;
     let target_domain_id = fresh_runtime_domain_id(target_pid as i32, 0x5255_4e31);
-    let poller = std::thread::spawn(move || {
-        let engine = match PinnedEngine::open_or_install_singleton() {
-            Ok(l) => l,
-            Err(e) => {
-                let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
+    let legacy = legacy_kernel_required();
+    let poller = if legacy {
+        std::thread::spawn(move || {
+            let mut loader = match Loader::load_legacy(&blob) {
+                Ok(loader) => loader,
+                Err(e) => {
+                    let _ = ready_tx.send(Err(format!("load compatibility engine: {e}")));
+                    return;
+                }
+            };
+            if let Err(e) = loader.protect_pid(control_pid) {
+                let _ = ready_tx.send(Err(format!("protect control pid {control_pid}: {e}")));
                 return;
             }
-        };
-        let _runtime_lock = match engine.try_lock_runtime() {
-            Ok(lock) => lock,
-            Err(e) => {
-                let _ = ready_tx.send(Err(format!("lock ActPlane singleton runtime: {e}")));
+            if let Err(e) = loader.seed_global_label(target_pid as i32, agent_label) {
+                let _ = ready_tx.send(Err(format!("seed pid {target_pid}: {e}")));
                 return;
             }
-        };
-        let rh = match engine.reload_handle() {
-            Ok(h) => h,
-            Err(e) => {
-                let _ = ready_tx.send(Err(format!("create policy delta handle: {e}")));
-                return;
-            }
-        };
-        if let Err(e) = engine.protect_pid(control_pid) {
-            let _ = ready_tx.send(Err(format!("protect control pid {control_pid}: {e}")));
-            return;
-        }
-        if let Err(e) = rh.clear_runtime_state() {
-            let _ = ready_tx.send(Err(format!("clear singleton runtime state: {e}")));
-            return;
-        }
-        if let Err(e) =
-            engine.seed_label_in_domain(target_pid as i32, target_domain_id, agent_label)
-        {
-            let _ = ready_tx.send(Err(format!(
-                "seed pid {target_pid} in domain {target_domain_id}: {e}"
-            )));
-            return;
-        }
-        if control_pid != target_pid as i32 {
-            if let Err(e) = engine.bind_state(
-                control_pid,
-                target_domain_id,
-                control_plane_cap_state(agent_label),
-            ) {
-                let _ = ready_tx.send(Err(format!(
-                    "bind control pid {control_pid} to run domain {target_domain_id}: {e}"
-                )));
-                return;
-            }
-        }
-        if let Err(e) = rh.append_policy_delta(control_pid, target_domain_id, &blob) {
-            let _ = ready_tx.send(Err(format!(
-                "install policy in domain {target_domain_id}: {e}"
-            )));
-            return;
-        }
-        if control_pid != target_pid as i32 {
-            if let Err(e) = engine.unbind_pid_from_domain(control_pid, target_domain_id) {
-                let _ = ready_tx.send(Err(format!(
-                    "unbind control pid {control_pid} from run domain {target_domain_id}: {e}"
-                )));
-                return;
-            }
-        }
-        let cleanup = match engine.reload_handle() {
-            Ok(h) => h,
-            Err(e) => {
-                let _ = rh.clear_runtime_state();
-                let _ = ready_tx.send(Err(format!("create policy cleanup handle: {e}")));
-                return;
-            }
-        };
-        let _ = ready_tx.send(Ok(()));
-        let run_result = engine.run(&stop_thread, |v| {
-            if v.domain_id == target_domain_id {
+            let _ = ready_tx.send(Ok(()));
+            if let Err(e) = loader.run(&stop_thread, |v| {
                 report(&meta, &labels, &to_violation(&v), Some(&fb), Some(&ev));
+            }) {
+                eprintln!("ActPlane: compatibility event loop failed: {e}");
             }
-        });
-        if let Err(e) = cleanup.clear_runtime_state() {
-            eprintln!("ActPlane: failed to clear singleton runtime state: {e}");
-        }
-        if let Err(e) = run_result {
-            eprintln!("ActPlane: singleton event loop failed: {e}");
-        }
-    });
+        })
+    } else {
+        std::thread::spawn(move || {
+            let engine = match PinnedEngine::open_or_install_singleton() {
+                Ok(l) => l,
+                Err(e) => {
+                    let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
+                    return;
+                }
+            };
+            let _runtime_lock = match engine.try_lock_runtime() {
+                Ok(lock) => lock,
+                Err(e) => {
+                    let _ = ready_tx.send(Err(format!("lock ActPlane singleton runtime: {e}")));
+                    return;
+                }
+            };
+            let rh = match engine.reload_handle() {
+                Ok(h) => h,
+                Err(e) => {
+                    let _ = ready_tx.send(Err(format!("create policy delta handle: {e}")));
+                    return;
+                }
+            };
+            if let Err(e) = engine.protect_pid(control_pid) {
+                let _ = ready_tx.send(Err(format!("protect control pid {control_pid}: {e}")));
+                return;
+            }
+            if let Err(e) = rh.clear_runtime_state() {
+                let _ = ready_tx.send(Err(format!("clear singleton runtime state: {e}")));
+                return;
+            }
+            if let Err(e) =
+                engine.seed_label_in_domain(target_pid as i32, target_domain_id, agent_label)
+            {
+                let _ = ready_tx.send(Err(format!(
+                    "seed pid {target_pid} in domain {target_domain_id}: {e}"
+                )));
+                return;
+            }
+            if control_pid != target_pid as i32 {
+                if let Err(e) = engine.bind_state(
+                    control_pid,
+                    target_domain_id,
+                    control_plane_cap_state(agent_label),
+                ) {
+                    let _ = ready_tx.send(Err(format!(
+                        "bind control pid {control_pid} to run domain {target_domain_id}: {e}"
+                    )));
+                    return;
+                }
+            }
+            if let Err(e) = rh.append_policy_delta(control_pid, target_domain_id, &blob) {
+                let _ = ready_tx.send(Err(format!(
+                    "install policy in domain {target_domain_id}: {e}"
+                )));
+                return;
+            }
+            if control_pid != target_pid as i32 {
+                if let Err(e) = engine.unbind_pid_from_domain(control_pid, target_domain_id) {
+                    let _ = ready_tx.send(Err(format!(
+                        "unbind control pid {control_pid} from run domain {target_domain_id}: {e}"
+                    )));
+                    return;
+                }
+            }
+            let cleanup = match engine.reload_handle() {
+                Ok(h) => h,
+                Err(e) => {
+                    let _ = rh.clear_runtime_state();
+                    let _ = ready_tx.send(Err(format!("create policy cleanup handle: {e}")));
+                    return;
+                }
+            };
+            let _ = ready_tx.send(Ok(()));
+            let run_result = engine.run(&stop_thread, |v| {
+                if v.domain_id == target_domain_id {
+                    report(&meta, &labels, &to_violation(&v), Some(&fb), Some(&ev));
+                }
+            });
+            if let Err(e) = cleanup.clear_runtime_state() {
+                eprintln!("ActPlane: failed to clear singleton runtime state: {e}");
+            }
+            if let Err(e) = run_result {
+                eprintln!("ActPlane: singleton event loop failed: {e}");
+            }
+        })
+    };
 
     match ready_rx.recv() {
         Ok(Ok(())) => {}
@@ -1333,6 +1361,11 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
         },
         feedback.feedback.display()
     );
+    if legacy {
+        eprintln!(
+            "ActPlane: Linux compatibility mode uses a static startup policy; singleton control and runtime policy deltas require Linux 6.1+"
+        );
+    }
     send_signal(target_pid, libc::SIGCONT)?;
 
     let status = target.wait().await?;

@@ -15,6 +15,12 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 const volatile unsigned int enforce_mode = 0;
 const volatile unsigned int policy_features = 0;
+#ifdef ACTPLANE_LEGACY_KERNEL
+/* Kernels before bpf_loop() need verifier-visible policy bounds. The direct
+ * loader patches these rodata values before loading any program. */
+const volatile unsigned int legacy_n_rules = 0;
+const volatile unsigned int legacy_n_updates = 0;
+#endif
 
 #include "taint_engine.bpf.h"
 
@@ -1007,6 +1013,7 @@ static __always_inline void fill_violation_provenance(struct event *v, pid_t pid
 	v->prov_ip = 0;
 	v->prov_target[0] = '\0';
 
+#ifndef ACTPLANE_LEGACY_KERNEL
 	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
 		__u64 bit = 1ULL << i;
 		if (!(matched_labels & bit))
@@ -1041,6 +1048,14 @@ static __always_inline void fill_violation_provenance(struct event *v, pid_t pid
 			}
 		}
 	}
+#else
+	(void)pid;
+	(void)domain_id;
+	(void)matched_labels;
+	(void)obj_kind;
+	(void)fid;
+	(void)ip;
+#endif
 }
 
 static __always_inline void emit_violation(pid_t pid, unsigned int rule_id,
@@ -1300,6 +1315,12 @@ static __always_inline __u32 te_supported_effects(__u32 backend_mode)
 	return (1U << TEFFECT_NOTIFY) | (1U << TEFFECT_KILL);
 }
 
+#ifdef ACTPLANE_LEGACY_KERNEL
+#define TE_EXEC_DOMAIN_DEPTH 1
+#else
+#define TE_EXEC_DOMAIN_DEPTH CAP_DOMAIN_DEPTH
+#endif
+
 static __always_inline int exec_pipe_init(pid_t pid, __u32 mode)
 {
 	struct exec_pipe_state *s = exec_pipe_buf();
@@ -1312,7 +1333,7 @@ static __always_inline int exec_pipe_init(pid_t pid, __u32 mode)
 	s->best_rule = -1;
 	s->best_index = -1;
 	s->best_effect = TEFFECT_NOTIFY;
-	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
+	for (int i = 0; i < TE_EXEC_DOMAIN_DEPTH; i++) {
 		__u32 domain_id = te_domain_for_depth(pid, i);
 		if (i > 0 && !domain_id)
 			break;
@@ -1329,7 +1350,7 @@ static __always_inline void exec_pipe_collect_updates(__u32 prefix)
 
 	if (!s || !scratch)
 		return;
-	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
+	for (int i = 0; i < TE_EXEC_DOMAIN_DEPTH; i++) {
 		if (i >= s->n_domains)
 			break;
 		__u32 domain_id = s->domain_ids[i];
@@ -1360,7 +1381,7 @@ static __always_inline void exec_pipe_apply_updates(void)
 
 	if (!s || !scratch)
 		return;
-	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
+	for (int i = 0; i < TE_EXEC_DOMAIN_DEPTH; i++) {
 		if (i >= s->n_domains)
 			break;
 		__u32 domain_id = s->domain_ids[i];
@@ -1374,9 +1395,11 @@ static __always_inline void exec_pipe_apply_updates(void)
 		ns.labels = (ns.labels | s->add[i]) & ~s->del[i];
 		ns.lin_gates |= s->gates[i];
 		te_store_proc_domain(s->pid, domain_id, &ns);
+#ifndef ACTPLANE_LEGACY_KERNEL
 		if (s->add[i])
 			te_record_proc_prov_mask(s->pid, domain_id, s->add[i],
 						 TOP_EXEC, scratch->match, 0);
+#endif
 		if (s->gates[i] || s->exit_gates[i] || s->invals[i]) {
 			pid_t r = te_root(s->pid);
 			__u32 ep = te_tick(r, domain_id);
@@ -1430,7 +1453,11 @@ static __always_inline void exec_pipe_scan_rules(__u32 complex)
 		return;
 	if (s->best_effect == TEFFECT_KILL)
 		return;
+#ifdef ACTPLANE_LEGACY_KERNEL
+	__u32 current_domain_id = 0;
+#else
 	__u32 current_domain_id = cap_domain_for_pid(s->pid);
+#endif
 	__builtin_memset(es, 0, sizeof(*es));
 	eval = &es->eval;
 	eval->pid = s->pid;
@@ -2559,10 +2586,14 @@ SEC("tp/sched/sched_process_exec")
 int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 {
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+#ifndef ACTPLANE_LEGACY_KERNEL
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+#endif
 	struct exec_scratch *scratch = exec_scratch_buf();
 	unsigned fname_off;
+#ifndef ACTPLANE_LEGACY_KERNEL
 	int alen = 0;
+#endif
 
 	if (!scratch)
 		return 0;
@@ -2575,6 +2606,7 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 
 	/* read argv blob (NUL-separated) into per-CPU scratch, then tokenize into
 	 * fixed slots there for @arg matching. */
+#ifndef ACTPLANE_LEGACY_KERNEL
 	struct te_argslots *as = te_argslots_buf();
 	if (as) {
 		struct mm_struct *mm = BPF_CORE_READ(task, mm);
@@ -2591,6 +2623,7 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 		}
 		te_tokenize_args_eng(alen);
 	}
+#endif
 
 	fname_off = ctx->__data_loc_filename & 0xFFFF;
 	bpf_probe_read_str(scratch->display, sizeof(scratch->display), (void *)ctx + fname_off);
@@ -2610,7 +2643,9 @@ int exec_tp_update_simple(struct trace_event_raw_sched_process_exec *ctx)
 SEC("tp/sched/sched_process_exec")
 int exec_tp_update_prefix(struct trace_event_raw_sched_process_exec *ctx)
 {
+#ifndef ACTPLANE_LEGACY_KERNEL
 	exec_pipe_collect_updates(1);
+#endif
 	exec_pipe_apply_updates();
 	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_RULE_SIMPLE);
 	return 0;
@@ -2628,7 +2663,9 @@ SEC("tp/sched/sched_process_exec")
 int exec_tp_rule_complex(struct trace_event_raw_sched_process_exec *ctx)
 {
 	(void)ctx;
+#ifndef ACTPLANE_LEGACY_KERNEL
 	exec_pipe_scan_rules(1);
+#endif
 	exec_pipe_finish();
 	return 0;
 }

@@ -39,8 +39,67 @@ pub const PIN_ROOT_ENV: &str = "ACTPLANE_BPF_PIN_ROOT";
 struct Aligned<T: ?Sized>(T);
 static OBJECT: &Aligned<[u8]> =
     &Aligned(*include_bytes!(concat!(env!("OUT_DIR"), "/process.bpf.o")));
+static LEGACY_OBJECT: &Aligned<[u8]> = &Aligned(*include_bytes!(concat!(
+    env!("OUT_DIR"),
+    "/process-legacy.bpf.o"
+)));
 fn object_bytes() -> &'static [u8] {
     &OBJECT.0
+}
+fn legacy_object_bytes() -> &'static [u8] {
+    &LEGACY_OBJECT.0
+}
+
+const MODERN_KERNEL_MAJOR: u32 = 6;
+const MODERN_KERNEL_MINOR: u32 = 1;
+const MIN_KERNEL_MAJOR: u32 = 5;
+const MIN_KERNEL_MINOR: u32 = 10;
+
+fn kernel_version(release: &str) -> Option<(u32, u32)> {
+    let mut parts = release.split('.');
+    Some((parts.next()?.parse().ok()?, parts.next()?.parse().ok()?))
+}
+
+fn running_kernel_version() -> Option<(u32, u32)> {
+    std::fs::read_to_string("/proc/sys/kernel/osrelease")
+        .ok()
+        .and_then(|release| kernel_version(release.trim()))
+}
+
+/// Whether this host needs the direct-load compatibility engine. Linux 6.1 is
+/// the first upstream release with the user ring buffer required by the pinned
+/// singleton control path.
+pub fn legacy_kernel_required() -> bool {
+    if std::env::var_os("ACTPLANE_FORCE_LEGACY_BPF").is_some() {
+        return true;
+    }
+    running_kernel_version()
+        .is_some_and(|version| version < (MODERN_KERNEL_MAJOR, MODERN_KERNEL_MINOR))
+}
+
+fn validate_running_kernel() -> io::Result<()> {
+    if running_kernel_version()
+        .is_some_and(|version| version < (MIN_KERNEL_MAJOR, MIN_KERNEL_MINOR))
+    {
+        return Err(err(
+            "ActPlane requires Linux 5.10 or newer; Linux 5.10-6.0 supports only the static compatibility run path",
+        ));
+    }
+    Ok(())
+}
+
+fn raise_legacy_memlock_limit() -> io::Result<()> {
+    let limit = libc::rlimit {
+        rlim_cur: libc::RLIM_INFINITY,
+        rlim_max: libc::RLIM_INFINITY,
+    };
+    if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &limit) } == 0 {
+        return Ok(());
+    }
+    Err(err(format!(
+        "Linux 5.10 uses RLIMIT_MEMLOCK for BPF objects and ActPlane could not raise it: {}. Run as root with CAP_SYS_RESOURCE or set `ulimit -l unlimited` before starting ActPlane",
+        io::Error::last_os_error()
+    )))
 }
 
 // ===================== ABI mirrors (must match bpf/taint.h) =====================
@@ -49,8 +108,12 @@ const PAT: usize = 64;
 const ARG: usize = 24;
 const MAX_UPDATES: usize = 320;
 const MAX_RULES: usize = 128;
+const LEGACY_MAX_UPDATES: usize = 64;
+const LEGACY_MAX_RULES: usize = 32;
 const MAX_TAINT_LABELS: usize = 64;
+const M_EXACT: u8 = 0;
 const M_SUFFIX: u8 = 2;
+const M_ANY: u8 = 3;
 const M_CONTAINS: u8 = 4;
 const OP_EXEC: u8 = 0;
 const OP_OPEN: u8 = 1;
@@ -1349,6 +1412,83 @@ fn validate_config(cfg: &CConfig) -> io::Result<()> {
     Ok(())
 }
 
+fn validate_legacy_config(cfg: &CConfig) -> io::Result<()> {
+    if cfg.n_updates as usize > LEGACY_MAX_UPDATES {
+        return Err(err(format!(
+            "Linux 5.10 compatibility mode supports at most {LEGACY_MAX_UPDATES} updates; policy has {}",
+            cfg.n_updates
+        )));
+    }
+    if cfg.n_rules as usize > LEGACY_MAX_RULES {
+        return Err(err(format!(
+            "Linux 5.10 compatibility mode supports at most {LEGACY_MAX_RULES} rules; policy has {}",
+            cfg.n_rules
+        )));
+    }
+    for (i, update) in cfg.updates.iter().take(cfg.n_updates as usize).enumerate() {
+        if update.op != OP_EXEC {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode supports only exec updates; update[{i}] uses operation {}",
+                update.op
+            )));
+        }
+        if update.m != M_EXACT && update.m != M_ANY {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode supports only exact or any exec matches; update[{i}] uses matcher {}",
+                update.m
+            )));
+        }
+        if update.arg[0] != 0 {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode does not support exec @arg constraints; update[{i}] has one"
+            )));
+        }
+        if update.domain_id != 0 {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode does not support runtime domains; update[{i}] targets domain {}",
+                update.domain_id
+            )));
+        }
+    }
+    for (i, rule) in cfg.rules.iter().take(cfg.n_rules as usize).enumerate() {
+        if rule.op != OP_EXEC {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode supports only exec rules; rule[{i}] uses operation {}",
+                rule.op
+            )));
+        }
+        if rule.m != M_EXACT && rule.m != M_ANY {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode supports only exact or any exec matches; rule[{i}] uses matcher {}",
+                rule.m
+            )));
+        }
+        if rule.arg[0] != 0 {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode does not support exec @arg constraints; rule[{i}] has one"
+            )));
+        }
+        if rule.cond_kind != 0 {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode does not support rule conditions; rule[{i}] has condition kind {}",
+                rule.cond_kind
+            )));
+        }
+        if rule.domain_id != 0 {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode does not support runtime domains; rule[{i}] targets domain {}",
+                rule.domain_id
+            )));
+        }
+        if rule.effect == EFFECT_BLOCK {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode does not support block rules; use notify or kill for rule[{i}]"
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn path_match_features(m: u8) -> u32 {
     match m {
         M_SUFFIX => FEAT_PATH_SUFFIX,
@@ -1500,7 +1640,7 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
 }
 
 #[allow(dead_code)]
-struct Loader {
+pub struct Loader {
     bpf: Ebpf,
     enforce: bool,
     policy_features: u32,
@@ -1559,6 +1699,12 @@ fn empty_config_blob() -> Vec<u8> {
 
 impl PinnedEngine {
     pub fn open_or_install_singleton() -> io::Result<Self> {
+        validate_running_kernel()?;
+        if legacy_kernel_required() {
+            return Err(err(
+                "the pinned singleton engine requires Linux 6.1 or newer; on Linux 5.10-6.0 use `actplane run` with a static exec-only compatibility policy",
+            ));
+        }
         let paths = PinnedEnginePaths::from_env();
         if pinned_engine_present(&paths)? {
             return Ok(Self { paths });
@@ -1769,14 +1915,23 @@ impl Loader {
         Self::load_with_hook_reserve(config_blob, HookReserve::default())
     }
 
+    /// Load the Linux 5.10-compatible object without pinned links or runtime
+    /// policy deltas. The caller must retain this loader for the full session.
+    pub fn load_legacy(config_blob: &[u8]) -> io::Result<Self> {
+        Self::load_inner(
+            config_blob,
+            HookReserve::default(),
+            None,
+            legacy_object_bytes(),
+            true,
+        )
+    }
+
     /// Load the engine with an explicit hook profile for later runtime deltas.
     /// This does not enable file sink rule matching or expensive path matchers
     /// unless the policy used to load the engine requires them.
-    pub fn load_with_hook_reserve(
-        config_blob: &[u8],
-        hook_reserve: HookReserve,
-    ) -> io::Result<Self> {
-        Self::load_inner(config_blob, hook_reserve, None)
+    fn load_with_hook_reserve(config_blob: &[u8], hook_reserve: HookReserve) -> io::Result<Self> {
+        Self::load_inner(config_blob, hook_reserve, None, object_bytes(), false)
     }
 
     fn load_with_pinned_layout(
@@ -1784,13 +1939,21 @@ impl Loader {
         hook_reserve: HookReserve,
         paths: PinnedEnginePaths,
     ) -> io::Result<Self> {
-        Self::load_inner(config_blob, hook_reserve, Some(paths))
+        Self::load_inner(
+            config_blob,
+            hook_reserve,
+            Some(paths),
+            object_bytes(),
+            false,
+        )
     }
 
     fn load_inner(
         config_blob: &[u8],
         hook_reserve: HookReserve,
         pin_paths: Option<PinnedEnginePaths>,
+        object: &[u8],
+        legacy: bool,
     ) -> io::Result<Self> {
         if config_blob.len() != std::mem::size_of::<CConfig>() {
             return Err(err(format!(
@@ -1803,6 +1966,11 @@ impl Loader {
         let cfg: Box<CConfig> =
             Box::new(unsafe { std::ptr::read_unaligned(config_blob.as_ptr() as *const CConfig) });
         validate_config(&cfg)?;
+        if legacy {
+            validate_running_kernel()?;
+            validate_legacy_config(&cfg)?;
+            raise_legacy_memlock_limit()?;
+        }
 
         let enforce = bpf_lsm_active();
         let enforce_mode: u32 = if enforce { 1 } else { 0 };
@@ -1823,9 +1991,14 @@ impl Loader {
             .allow_unsupported_maps()
             .set_global("enforce_mode", &enforce_mode, true)
             .set_global("policy_features", &policy_features, true);
+        if legacy {
+            loader
+                .set_global("legacy_n_rules", &cfg.n_rules, true)
+                .set_global("legacy_n_updates", &cfg.n_updates, true);
+        }
 
         let mut bpf = loader
-            .load(object_bytes())
+            .load(object)
             .map_err(|e| err(format!("Ebpf::load: {e}")))?;
 
         // Populate writable array maps for updates and rules.
@@ -2812,6 +2985,48 @@ mod tests {
         let b = object_bytes();
         assert_eq!(b.as_ptr() as usize % 8, 0, "object must be 8-aligned");
         assert_eq!(&b[..4], b"\x7fELF");
+
+        let legacy = legacy_object_bytes();
+        assert_eq!(
+            legacy.as_ptr() as usize % 8,
+            0,
+            "legacy object must be 8-aligned"
+        );
+        assert_eq!(&legacy[..4], b"\x7fELF");
+    }
+
+    #[test]
+    fn parses_kernel_release_for_engine_selection() {
+        assert_eq!(kernel_version("5.10.260-virtme"), Some((5, 10)));
+        assert_eq!(kernel_version("6.1.0-generic"), Some((6, 1)));
+        assert_eq!(kernel_version("7.0.0-rc2+"), Some((7, 0)));
+        assert_eq!(kernel_version("invalid"), None);
+    }
+
+    #[test]
+    fn legacy_config_accepts_only_static_exec_subset() {
+        let mut cfg: CConfig = unsafe { std::mem::zeroed() };
+        cfg.n_updates = 1;
+        cfg.updates[0].op = OP_EXEC;
+        cfg.updates[0].m = M_ANY;
+        cfg.n_rules = 1;
+        cfg.rules[0].op = OP_EXEC;
+        cfg.rules[0].m = M_EXACT;
+        validate_legacy_config(&cfg).expect("static exec policy should be accepted");
+
+        cfg.rules[0].op = OP_OPEN;
+        let err = validate_legacy_config(&cfg).expect_err("file rule should be rejected");
+        assert!(err.to_string().contains("only exec rules"), "{err}");
+
+        cfg.rules[0].op = OP_EXEC;
+        cfg.rules[0].arg[0] = b'x';
+        let err = validate_legacy_config(&cfg).expect_err("argv rule should be rejected");
+        assert!(err.to_string().contains("@arg constraints"), "{err}");
+
+        cfg.rules[0].arg[0] = 0;
+        cfg.rules[0].effect = EFFECT_BLOCK;
+        let err = validate_legacy_config(&cfg).expect_err("block rule should be rejected");
+        assert!(err.to_string().contains("does not support block"), "{err}");
     }
 
     #[test]

@@ -15,6 +15,27 @@
 #define __noinline __attribute__((noinline))
 #endif
 
+#ifdef ACTPLANE_LEGACY_KERNEL
+/* Linux 5.10 has bounded loops but predates the bpf_loop helper. Keep the
+ * callback shape shared with the modern object while emitting an ordinary BPF
+ * loop whose trip count is capped for the verifier. */
+#define bpf_loop(nr_loops, callback_fn, callback_ctx, flags) ({ \
+	unsigned int __te_nr = (nr_loops); \
+	unsigned int __te_i; \
+	long __te_ret = 0; \
+	(void)(flags); \
+	if (__te_nr > MAX_TAINT_UPDATES) \
+		__te_nr = MAX_TAINT_UPDATES; \
+	TAINT_UNROLL \
+	for (__te_i = 0; __te_i < __te_nr; __te_i++) { \
+		__te_ret++; \
+		if ((callback_fn)(__te_i, (callback_ctx))) \
+			break; \
+	} \
+	__te_ret; \
+})
+#endif
+
 /* ── Writable policy tables (defined before capability.bpf.h so the delta
  *    handler in the drain callback can reference them). ──────────────── */
 
@@ -417,8 +438,18 @@ static __always_inline struct file_domain_id *te_file_domain_tmp(void)
 
 static __always_inline unsigned int te_count(__u32 slot)
 {
+#ifdef ACTPLANE_LEGACY_KERNEL
+	if (slot == 0)
+		return legacy_n_rules;
+	if (slot == 1)
+		return legacy_n_updates;
+	if (slot == 5)
+		return MAX_TAINT_LABELS;
+	return 0;
+#else
 	__u32 *v = bpf_map_lookup_elem(&ts_counts, &slot);
 	return v ? *v : 0;
+#endif
 }
 
 /* Per-CPU scratch for the raw argv blob + tokenized slots (off-stack; the exec
@@ -1176,7 +1207,17 @@ static __always_inline int te_exec_simple_match(unsigned int kind,
 		return 1;
 	if (kind != TAINT_MATCH_EXACT)
 		return 0;
+#ifdef ACTPLANE_LEGACY_KERNEL
+	/* exec matching is against comm, which is capped at TASK_COMM_LEN. Avoid
+	 * the nested bounded string loop that exhausts the Linux 5.10 verifier. */
+	long diff = 0;
+#pragma clang loop unroll(full)
+	for (int i = 0; i < TAINT_COMM_LEN; i++)
+		diff |= (unsigned char)(text[i] ^ pat[i]);
+	return diff == 0;
+#else
 	return taint_streq(text, pat);
+#endif
 }
 
 static int te_update_cb(__u32 i, void *vc)
@@ -1234,11 +1275,13 @@ static int te_exec_update_simple_cb(__u32 i, void *vc)
 		return 0;
 	if (!te_exec_simple_match(u.match, c->target, u.target))
 		return 0;
+#ifndef ACTPLANE_LEGACY_KERNEL
 	if (u.arg[0] != '\0') {
 		struct te_argslots *a = te_argslots_buf();
 		if (!a || !taint_arg_match(a->slots, u.arg))
 			return 0;
 	}
+#endif
 	c->add |= u.add;
 	c->del |= u.del;
 	if (u.gate_exit_code == TAINT_GATE_IMMEDIATE)
@@ -2011,11 +2054,13 @@ static __noinline int te_rule_effect_exec_simple(struct te_rule_eval *e,
 		return -1;
 	if (!te_exec_simple_match(rp->match, e->target, rp->target))
 		return -1;
+#ifndef ACTPLANE_LEGACY_KERNEL
 	if (rp->arg[0] != '\0') {
 		struct te_argslots *a = te_argslots_buf();
 		if (!a || !taint_arg_match(a->slots, rp->arg))
 			return -1;
 	}
+#endif
 	e->matched_rule = (int)rp->rule_id;
 	e->matched_index = (int)idx;
 	e->matched_domain_id = rp->domain_id;
