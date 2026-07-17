@@ -242,6 +242,16 @@ wait_for_feedback() {
   return 1
 }
 
+/usr/bin/true &
+dead_pid=$!
+wait "$dead_pid"
+if "$binary" --rule "$(cat "$policy")" attach --pid "$dead_pid" >/tmp/ap-dead-attach.txt 2>&1; then
+  echo dead_pid_attach_succeeded
+  exit 1
+fi
+grep -q "does not exist or cannot be inspected" /tmp/ap-dead-attach.txt
+rm -f /tmp/ap-dead-attach.txt
+
 fifo=/tmp/ap-static-attach-fifo
 target_script=/tmp/ap-static-attach-target.sh
 rm -f "$fifo" "$target_script"
@@ -254,9 +264,9 @@ target_pid=$!
 attach_pid=$!
 wait_for_startup "statically watching pid" "$attach_pid"
 printf "%s\n" /usr/bin/true >&8
-feedback=$(sed -n "s/.*feedback \([^;]*\); runtime.*/\1/p" "$report" | tail -n 1)
-wait_for_feedback "$feedback"
-cat "$feedback"
+attach_feedback=$(sed -n "s/.*feedback \([^;]*\); runtime.*/\1/p" "$report" | tail -n 1)
+wait_for_feedback "$attach_feedback"
+cat "$attach_feedback"
 kill -INT "$attach_pid"
 wait "$attach_pid"
 exec 8>&-
@@ -270,20 +280,25 @@ mkfifo "$mcp_fifo"
 (
   printf "%s\n" \
     "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"actplane-kvm\",\"version\":\"0\"}}}" \
-    "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\",\"params\":{}}"
+    "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\",\"params\":{}}" \
+    "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}" \
+    "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"append_policy_delta\",\"arguments\":{\"policy\":\"label EXTRA\"}}}"
   sleep 60
 ) >"$mcp_fifo" &
 writer_pid=$!
 "$binary" --rule "$(cat "$policy")" mcp --auto-attach-parent <"$mcp_fifo" &
 mcp_pid=$!
 wait_for_startup "MCP auto-attached pid" "$mcp_pid"
-/usr/bin/true
+wait_for_startup "\"tools\":\[\]" "$mcp_pid"
+wait_for_startup "Runtime policy and child-domain tools require Linux 6.1+" "$mcp_pid"
 feedback=$(sed -n "s/.*feedback \([^;]*\); runtime.*/\1/p" "$report" | tail -n 1)
-wait_for_feedback "$feedback"
-cat "$feedback"
+[ "$feedback" != "$attach_feedback" ]
+/usr/bin/true
 kill "$writer_pid"
 wait "$writer_pid" || true
 wait "$mcp_pid"
+wait_for_feedback "$feedback"
+cat "$feedback"
 rm -f "$mcp_fifo"
 echo static_surfaces_triggered'
       ;;

@@ -89,12 +89,18 @@ pub async fn watch_policy_for_pid(
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
-    if legacy_kernel_required() {
+    let legacy = legacy_kernel_required();
+    if legacy {
         validate_legacy_endpoint_compatibility(&compiled)?;
     }
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
-    let feedback = feedback_paths(&loaded);
+    let base_feedback = feedback_paths(&loaded);
+    let feedback = if legacy {
+        scoped_feedback_paths(&base_feedback, "attach")
+    } else {
+        base_feedback
+    };
     let target_owner = target_user(cli.run_as_root);
     prepare_feedback_files(&feedback, target_owner)?;
     write_hook_state(&feedback.state, &feedback.feedback, attach_pid)?;
@@ -102,8 +108,8 @@ pub async fn watch_policy_for_pid(
         chown_path(&feedback.state, uid, gid)?;
     }
 
-    if legacy_kernel_required() {
-        let guard = start_compatibility_attach(
+    if legacy {
+        let mut guard = start_compatibility_attach(
             compiled,
             attach_pid,
             agent_label,
@@ -116,8 +122,12 @@ pub async fn watch_policy_for_pid(
             agent_label,
             feedback.feedback.display()
         );
-        let _ = tokio::signal::ctrl_c().await;
+        let result = tokio::select! {
+            result = tokio::signal::ctrl_c() => result.map_err(|e| e.into()),
+            result = guard.wait_for_failure() => result,
+        };
         drop(guard);
+        result?;
         return Ok(0);
     }
 
@@ -273,6 +283,9 @@ pub struct AttachGuard {
     stop: Arc<AtomicBool>,
     thread: Option<std::thread::JoinHandle<()>>,
     control: Option<Arc<EngineControl>>,
+    failure: Option<tokio::sync::oneshot::Receiver<String>>,
+    static_policy_only: bool,
+    feedback_file: PathBuf,
 }
 
 pub struct EngineControl {
@@ -951,6 +964,24 @@ impl AttachGuard {
     pub fn engine_control(&self) -> Option<Arc<EngineControl>> {
         self.control.clone()
     }
+
+    pub fn static_policy_only(&self) -> bool {
+        self.static_policy_only
+    }
+
+    pub fn feedback_file(&self) -> PathBuf {
+        self.feedback_file.clone()
+    }
+
+    pub async fn wait_for_failure(&mut self) -> Result<()> {
+        let Some(failure) = self.failure.as_mut() else {
+            return std::future::pending().await;
+        };
+        match failure.await {
+            Ok(message) => Err(message.into()),
+            Err(_) => std::future::pending().await,
+        }
+    }
 }
 
 impl Drop for AttachGuard {
@@ -962,6 +993,30 @@ impl Drop for AttachGuard {
     }
 }
 
+fn target_process_start_time(pid: i32) -> Result<u64> {
+    match proc_state_code(pid as u32) {
+        Ok('Z' | 'X') => return Err(format!("target pid {pid} has already exited").into()),
+        Ok(_) => {}
+        Err(_) => {
+            return Err(format!("target pid {pid} does not exist or cannot be inspected").into());
+        }
+    }
+    audit::ProcessIdentity::capture(pid, None, None)
+        .proc_start_time
+        .ok_or_else(|| format!("target pid {pid} does not exist or cannot be inspected").into())
+}
+
+fn verify_target_process(pid: i32, expected_start_time: u64) -> std::result::Result<(), String> {
+    if !matches!(proc_state_code(pid as u32), Ok(state) if state != 'Z' && state != 'X') {
+        return Err(format!("target pid {pid} exited while attaching"));
+    }
+    match audit::ProcessIdentity::capture(pid, None, None).proc_start_time {
+        Some(actual) if actual == expected_start_time => Ok(()),
+        Some(_) => Err(format!("target pid {pid} was reused while attaching")),
+        None => Err(format!("target pid {pid} exited while attaching")),
+    }
+}
+
 fn start_compatibility_attach(
     compiled: dsl::Compiled,
     attach_pid: i32,
@@ -969,8 +1024,10 @@ fn start_compatibility_attach(
     control_pid: i32,
     feedback: &FeedbackPaths,
 ) -> Result<AttachGuard> {
+    let target_start_time = target_process_start_time(attach_pid)?;
     let stop = Arc::new(AtomicBool::new(false));
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
+    let (failure_tx, failure_rx) = tokio::sync::oneshot::channel::<String>();
     let blob = compiled.bytes;
     let meta = compiled.meta;
     let labels = compiled.labels;
@@ -989,15 +1046,28 @@ fn start_compatibility_attach(
             let _ = ready_tx.send(Err(format!("protect control pid {control_pid}: {e}")));
             return;
         }
+        if let Err(e) = verify_target_process(attach_pid, target_start_time) {
+            let _ = ready_tx.send(Err(e));
+            return;
+        }
         if let Err(e) = loader.seed_global_label(attach_pid, agent_label) {
             let _ = ready_tx.send(Err(format!("seed pid {attach_pid}: {e}")));
             return;
         }
+        if let Err(e) = verify_target_process(attach_pid, target_start_time) {
+            let _ = ready_tx.send(Err(e));
+            return;
+        }
         let _ = ready_tx.send(Ok(()));
-        if let Err(e) = loader.run(&stop_thread, |v| {
+        let run_result = loader.run(&stop_thread, |v| {
             report(&meta, &labels, &to_violation(&v), Some(&fb), Some(&ev));
-        }) {
-            eprintln!("ActPlane: compatibility event loop failed: {e}");
+        });
+        if !stop_thread.load(Ordering::SeqCst) {
+            let message = match run_result {
+                Ok(()) => "compatibility event loop exited unexpectedly".to_string(),
+                Err(e) => format!("compatibility event loop failed: {e}"),
+            };
+            let _ = failure_tx.send(message);
         }
     });
 
@@ -1006,6 +1076,9 @@ fn start_compatibility_attach(
             stop,
             thread: Some(thread),
             control: None,
+            failure: Some(failure_rx),
+            static_policy_only: true,
+            feedback_file: feedback.feedback.clone(),
         }),
         Ok(Err(e)) => {
             stop.store(true, Ordering::SeqCst);
@@ -1072,6 +1145,7 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<ReadyResult>();
+    let (failure_tx, failure_rx) = tokio::sync::oneshot::channel::<String>();
     let blob = compiled.bytes;
     let fb = feedback.feedback.clone();
     let ev = feedback.events.clone();
@@ -1153,8 +1227,15 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
         if let Err(e) = cleanup.clear_runtime_state() {
             eprintln!("ActPlane: failed to clear singleton runtime state: {e}");
         }
-        if let Err(e) = run_result {
+        if let Err(e) = &run_result {
             eprintln!("ActPlane: singleton event loop failed: {e}");
+        }
+        if !stop_thread.load(Ordering::SeqCst) {
+            let message = match &run_result {
+                Ok(()) => "singleton event loop exited unexpectedly".to_string(),
+                Err(e) => format!("singleton event loop failed: {e}"),
+            };
+            let _ = failure_tx.send(message);
         }
     });
 
@@ -1182,6 +1263,9 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
                     parent_domain_id,
                     submitter_pid,
                 })),
+                failure: Some(failure_rx),
+                static_policy_only: false,
+                feedback_file: feedback.feedback.clone(),
             })
         }
         Ok(Err(e)) => {
@@ -2016,6 +2100,36 @@ fn exit_code(status: std::process::ExitStatus) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn attach_target_identity_rejects_missing_or_changed_processes() {
+        let pid = std::process::id() as i32;
+        let start_time = target_process_start_time(pid).expect("current process identity");
+        verify_target_process(pid, start_time).expect("unchanged current process");
+        assert!(verify_target_process(pid, start_time.wrapping_add(1)).is_err());
+        assert!(target_process_start_time(i32::MAX).is_err());
+    }
+
+    #[tokio::test]
+    async fn attach_guard_surfaces_event_loop_failure() {
+        let (failure_tx, failure_rx) = tokio::sync::oneshot::channel();
+        let mut guard = AttachGuard {
+            stop: Arc::new(AtomicBool::new(false)),
+            thread: None,
+            control: None,
+            failure: Some(failure_rx),
+            static_policy_only: true,
+            feedback_file: PathBuf::new(),
+        };
+        failure_tx
+            .send("compatibility event loop failed: test".to_string())
+            .expect("send failure");
+        let error = guard
+            .wait_for_failure()
+            .await
+            .expect_err("failure must reach the owner");
+        assert!(error.to_string().contains("event loop failed: test"));
+    }
 
     #[test]
     fn legacy_endpoint_validation_rejects_unrepresentable_patterns() {

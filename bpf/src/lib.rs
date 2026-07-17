@@ -2759,19 +2759,22 @@ impl Loader {
             .map_err(|e| err(format!("rb: {e}")))?;
         let fd = ring.as_raw_fd();
 
-        while !stop.load(Ordering::Relaxed) {
-            let mut pfd = libc::pollfd {
-                fd,
-                events: libc::POLLIN,
-                revents: 0,
-            };
-            let r = unsafe { libc::poll(&mut pfd, 1, 100) };
-            if r < 0 {
-                let e = io::Error::last_os_error();
-                if e.kind() == io::ErrorKind::Interrupted {
-                    continue;
+        loop {
+            let stopping = stop.load(Ordering::Relaxed);
+            if !stopping {
+                let mut pfd = libc::pollfd {
+                    fd,
+                    events: libc::POLLIN,
+                    revents: 0,
+                };
+                let r = unsafe { libc::poll(&mut pfd, 1, 100) };
+                if r < 0 {
+                    let e = io::Error::last_os_error();
+                    if e.kind() == io::ErrorKind::Interrupted {
+                        continue;
+                    }
+                    return Err(e);
                 }
-                return Err(e);
             }
             while let Some(item) = ring.next() {
                 let bytes: &[u8] = &item;
@@ -2783,6 +2786,9 @@ impl Loader {
                     continue;
                 }
                 on(decode(&e));
+            }
+            if stopping {
+                break;
             }
         }
         Ok(())

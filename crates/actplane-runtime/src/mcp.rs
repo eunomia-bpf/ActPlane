@@ -45,6 +45,8 @@ const DEFAULT_RESTART_BACKOFF_MS: u64 = 1000;
 pub struct ActPlaneMcp {
     project_dir: PathBuf,
     control: Option<Arc<EngineControl>>,
+    static_policy_only: bool,
+    feedback_file_override: Option<PathBuf>,
     children: Arc<Mutex<HashMap<u32, ChildRecord>>>,
 }
 
@@ -154,12 +156,23 @@ impl ActPlaneMcp {
         control: Option<Arc<EngineControl>>,
         project_dir: Option<PathBuf>,
     ) -> Self {
+        Self::new_with_engine_mode(control, project_dir, false, None)
+    }
+
+    fn new_with_engine_mode(
+        control: Option<Arc<EngineControl>>,
+        project_dir: Option<PathBuf>,
+        static_policy_only: bool,
+        feedback_file_override: Option<PathBuf>,
+    ) -> Self {
         let project_dir = project_dir.unwrap_or_else(default_project_dir);
         let loaded = load_child_records_with_adoptions(&project_dir);
         let adopted = loaded.adopted;
         let this = Self {
             project_dir,
             control,
+            static_policy_only,
+            feedback_file_override,
             children: Arc::new(Mutex::new(loaded.records)),
         };
         if let Some(control) = this.control.as_ref() {
@@ -241,6 +254,9 @@ impl ActPlaneMcp {
     }
 
     fn feedback_file(&self) -> PathBuf {
+        if let Some(path) = &self.feedback_file_override {
+            return path.clone();
+        }
         if let Ok(path) = std::env::var("ACTPLANE_FEEDBACK_FILE") {
             return PathBuf::from(path);
         }
@@ -2145,6 +2161,12 @@ impl ServerHandler for ActPlaneMcp {
         _context: rmcp::service::RequestContext<rmcp::service::RoleServer>,
     ) -> impl std::future::Future<Output = Result<ListToolsResult, rmcp::ErrorData>> + Send + '_
     {
+        if self.static_policy_only {
+            return std::future::ready(Ok(ListToolsResult {
+                tools: Vec::new(),
+                ..Default::default()
+            }));
+        }
         let empty_schema: serde_json::Map<String, Value> =
             serde_json::from_value(serde_json::json!({
                 "type": "object",
@@ -2401,6 +2423,13 @@ impl ServerHandler for ActPlaneMcp {
         _context: rmcp::service::RequestContext<rmcp::service::RoleServer>,
     ) -> impl std::future::Future<Output = Result<CallToolResult, rmcp::ErrorData>> + Send + '_
     {
+        if self.static_policy_only {
+            return std::future::ready(Err(rmcp::ErrorData::new(
+                ErrorCode::INTERNAL_ERROR,
+                "Runtime policy and child-domain tools require Linux 6.1+",
+                None::<Value>,
+            )));
+        }
         let result = match request.name.as_ref() {
             "bind_child_domain" => self.do_bind_child_domain(request.arguments),
             "append_policy_delta" => self.do_append_policy_delta(request.arguments),
@@ -2563,8 +2592,11 @@ async fn watch_policy_file(server: Arc<ActPlaneMcp>, peer: Peer<RoleServer>) {
 pub async fn run_mcp_server_with_control(
     control: Option<Arc<EngineControl>>,
     project_dir: Option<PathBuf>,
+    static_policy_only: bool,
+    feedback_file: Option<PathBuf>,
 ) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let server = ActPlaneMcp::new_with_control_and_project_dir(control, project_dir);
+    let server =
+        ActPlaneMcp::new_with_engine_mode(control, project_dir, static_policy_only, feedback_file);
     let control_guard = if server.control.is_some() {
         Some(start_local_control_server_for_server(server.clone())?)
     } else {
