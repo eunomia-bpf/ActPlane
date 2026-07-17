@@ -18,7 +18,9 @@
 #ifdef ACTPLANE_LEGACY_KERNEL
 /* Linux 5.10 has bounded loops but predates the bpf_loop helper. Keep the
  * callback shape shared with the modern object while emitting an ordinary BPF
- * loop whose trip count is capped for the verifier. */
+ * loop whose trip count is capped for the verifier. The legacy policy gate
+ * keeps all active call sites below MAX_TAINT_UPDATES and rejects argv matching.
+ * Revisit this ceiling before enabling another legacy call site. */
 #define bpf_loop(nr_loops, callback_fn, callback_ctx, flags) ({ \
 	unsigned int __te_nr = (nr_loops); \
 	unsigned int __te_i; \

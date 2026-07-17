@@ -86,6 +86,10 @@ reserved when the engine loaded.
 Use the full profile for long-running MCP/watch sessions that will accept child
 domain deltas whose final policy is not known at startup.
 
+These settings apply only to the full engine on Linux 6.1 and newer. The
+Linux 5.10 through 6.0 compatibility loader ignores them and always attaches
+its verifier-bounded exec-only hook set.
+
 ## BPF-LSM vs Tracepoint Mode
 
 | Capability | BPF-LSM active | Tracepoint-only mode |

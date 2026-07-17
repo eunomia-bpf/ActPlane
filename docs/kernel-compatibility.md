@@ -40,10 +40,18 @@ The compatibility object therefore:
 - stores static rule/update counts in loader-patched read-only globals
 - replaces the capability request user ring buffer with an unused array map
 - uses an exec-only, global-domain pipeline with bounded exact matching
+- ignores modern hook-reservation environment variables so its attach set
+  remains within the older verifier's limits
 - attaches directly for the lifetime of `actplane run`, without pinned links
 - raises `RLIMIT_MEMLOCK` before creating maps
 
 The modern object and singleton behavior are unchanged on Linux 6.1 and newer.
+Concurrent compatibility runs use isolated maps, but each run attaches a
+separate tracepoint set and adds per-event overhead.
+
+Raising a finite hard limit requires root or `CAP_SYS_RESOURCE`. A
+capability-only deployment using `CAP_BPF` and `CAP_SYS_ADMIN` must also grant
+`CAP_SYS_RESOURCE` or start ActPlane with an unlimited memlock limit.
 
 ## Reproducing The KVM Test
 
@@ -65,8 +73,11 @@ following inside the guest:
 
 - the running release starts with `5.10.`
 - `/sys/kernel/btf/vmlinux` is readable
+- the `bpf` LSM is active and the compatibility LSM programs verify and attach
 - a host-built ActPlane binary loads without a manual memlock adjustment
 - an exec source and notify sink produce the expected violation reason
+- modern hook-reservation environment variables cannot widen the compatibility
+  attach set
 
 Set `ACTPLANE_REBUILD_KERNEL=1` to force a kernel rebuild through
 virtme-ng's existing configuration and build flow.

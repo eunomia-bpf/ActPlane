@@ -68,14 +68,15 @@ Tracepoint-only path references fall back to a domain-scoped FNV-1a path id.
 
 ## Runtime model
 
-The supported product entrypoint is the `actplane` CLI. The runtime installs or
-opens one bpffs-pinned engine under `/sys/fs/bpf/actplane/v1` by default. Set
-`ACTPLANE_BPF_PIN_ROOT` to use a different pin root.
+The supported product entrypoint is the `actplane` CLI. On Linux 6.1 and newer,
+the runtime installs or opens one bpffs-pinned engine under
+`/sys/fs/bpf/actplane/v1` by default. Set `ACTPLANE_BPF_PIN_ROOT` to use a
+different pin root.
 
 The first runtime client installs and pins the maps, programs, and links. Later
 clients open those pins and append domain-scoped policy deltas through pinned
 control maps. Direct per-command private engine loading is not a supported
-runtime model.
+full-engine runtime model.
 
 The daemonless runtime has a single active event reader. A `run`, `watch`, or
 MCP auto-attach session holds the singleton runtime lock while it drains the
@@ -83,13 +84,21 @@ pinned ring buffer, and it clears policy/control-map state when that session
 starts and exits. A second runtime session must wait or fail fast instead of
 racing to consume the same ring-buffer events.
 
+Linux 5.10 through 6.0 is the deliberate exception. `actplane run` directly
+loads an exec-only compatibility object for one command and detaches it when
+that command session ends. It does not expose singleton control, runtime
+domains, or policy deltas. Concurrent compatibility runs remain isolated in
+private maps, but each one attaches its own tracepoint set and increases
+per-event overhead.
+
 The `ebpf-ifc-engine` crate remains the low-level kernel ABI boundary used by
 the runtime. Normal callers should use the CLI and runtime crate instead of
 loading eBPF programs directly.
 
 ## Building the eBPF programs
 
-The prebuilt CO-RE object ships in `prebuilt/process.bpf.o`. To rebuild:
+The modern and Linux 5.10 compatibility CO-RE objects ship in `prebuilt/`.
+To rebuild both:
 
 ```bash
 # Requires: clang, llvm, libelf-dev, zlib1g-dev
@@ -122,7 +131,9 @@ object.
 - Linux kernel 5.10+ with BTF (`/sys/kernel/btf/vmlinux`). Linux 5.10-6.0 uses
   the static exec-only compatibility object; Linux 6.1+ supports the full
   singleton and runtime-delta engine.
-- Root or `CAP_BPF` + `CAP_SYS_ADMIN`
+- Root or `CAP_BPF` + `CAP_SYS_ADMIN`. On Linux 5.10-6.0, also provide
+  `CAP_SYS_RESOURCE` when the process has a finite `RLIMIT_MEMLOCK` hard limit,
+  or set `ulimit -l unlimited` before launch.
 - BPF-LSM active for `block` effect (`bpf` in `/sys/kernel/security/lsm`)
 
 ## Used by

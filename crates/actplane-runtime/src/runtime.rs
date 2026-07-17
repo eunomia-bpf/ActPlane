@@ -10,8 +10,8 @@ use ebpf_ifc_engine::capability::{
     AUTH_REQUIRE_GATE, CapState, TARGET_CHILD, TARGET_SELF,
 };
 use ebpf_ifc_engine::{
-    ChildDomainSpec, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, Loader, PinnedEngine, ReloadHandle,
-    legacy_kernel_required,
+    ChildDomainSpec, CompatibilityLoader, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, PinnedEngine,
+    ReloadHandle, legacy_kernel_required,
 };
 use serde_json::json;
 use tokio::process::{Child, Command};
@@ -1225,7 +1225,7 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let legacy = legacy_kernel_required();
     let poller = if legacy {
         std::thread::spawn(move || {
-            let mut loader = match Loader::load_legacy(&blob) {
+            let mut loader = match CompatibilityLoader::load(&blob) {
                 Ok(loader) => loader,
                 Err(e) => {
                     let _ = ready_tx.send(Err(format!("load compatibility engine: {e}")));

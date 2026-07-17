@@ -53,8 +53,10 @@ Linux 5.10-6.0 uses a static `run` compatibility path limited to exact/any exec
 sources and `notify`/`kill` exec rules. See
 [Kernel compatibility](docs/kernel-compatibility.md). Applying policies needs
 root (or `CAP_BPF` + `CAP_SYS_ADMIN`); ActPlane drops the target command back to
-your user. With BPF-LSM enabled, supported rules can `block` before the action
-commits; otherwise they `notify` (report) or `kill`.
+your user. On Linux 5.10-6.0, a finite `RLIMIT_MEMLOCK` hard limit additionally
+requires `CAP_SYS_RESOURCE`, or the service must start with
+`ulimit -l unlimited`. With BPF-LSM enabled, supported rules can `block` before
+the action commits; otherwise they `notify` (report) or `kill`.
 
 ## Why an OS-level harness?
 
@@ -268,7 +270,7 @@ Editing the kernel eBPF (`bpf/*.bpf.c`) requires the BPF toolchain
 refresh the committed object with:
 
 ```bash
-ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine   # regenerates bpf/prebuilt/process.bpf.o
+ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine   # regenerates both bpf/prebuilt objects
 ```
 
 Run the tests:

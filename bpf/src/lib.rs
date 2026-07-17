@@ -70,9 +70,6 @@ fn running_kernel_version() -> Option<(u32, u32)> {
 /// the first upstream release with the user ring buffer required by the pinned
 /// singleton control path.
 pub fn legacy_kernel_required() -> bool {
-    if std::env::var_os("ACTPLANE_FORCE_LEGACY_BPF").is_some() {
-        return true;
-    }
     running_kernel_version()
         .is_some_and(|version| version < (MODERN_KERNEL_MAJOR, MODERN_KERNEL_MINOR))
 }
@@ -82,7 +79,7 @@ fn validate_running_kernel() -> io::Result<()> {
         .is_some_and(|version| version < (MIN_KERNEL_MAJOR, MIN_KERNEL_MINOR))
     {
         return Err(err(
-            "ActPlane requires Linux 5.10 or newer; Linux 5.10-6.0 supports only the static compatibility run path",
+            "ActPlane requires Linux 5.10 or newer; the running kernel is below the minimum supported version",
         ));
     }
     Ok(())
@@ -1223,6 +1220,14 @@ struct HookBudget {
 }
 
 impl HookBudget {
+    fn for_legacy_config(cfg: &CConfig) -> Self {
+        HookBudget {
+            features: config_features(cfg),
+            file_write: false,
+            advanced_tracepoints: false,
+        }
+    }
+
     fn from_config(cfg: &CConfig, reserve: HookReserve) -> Self {
         let profile = HookProfile::from_env();
         let mut budget = match profile {
@@ -1640,10 +1645,16 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
 }
 
 #[allow(dead_code)]
-pub struct Loader {
+struct Loader {
     bpf: Ebpf,
     enforce: bool,
     policy_features: u32,
+}
+
+/// Narrow direct-load facade for the static Linux 5.10 through 6.0 runtime.
+/// Full-engine control remains available only through [`PinnedEngine`].
+pub struct CompatibilityLoader {
+    loader: Loader,
 }
 
 #[derive(Debug)]
@@ -1974,7 +1985,13 @@ impl Loader {
 
         let enforce = bpf_lsm_active();
         let enforce_mode: u32 = if enforce { 1 } else { 0 };
-        let hook_budget = HookBudget::from_config(&cfg, hook_reserve);
+        // The compatibility object is verifier-limited to its static exec-only
+        // hook set. Modern reservation environment variables must not widen it.
+        let hook_budget = if legacy {
+            HookBudget::for_legacy_config(&cfg)
+        } else {
+            HookBudget::from_config(&cfg, hook_reserve)
+        };
         let policy_features = hook_budget.features;
         if let Some(paths) = pin_paths.as_ref() {
             ensure_pinned_engine_dirs(paths)?;
@@ -2885,6 +2902,28 @@ fn cstr(buf: &[u8]) -> String {
     String::from_utf8_lossy(&buf[..end]).into_owned()
 }
 
+impl CompatibilityLoader {
+    /// Load the static exec-only compatibility engine.
+    pub fn load(config_blob: &[u8]) -> io::Result<Self> {
+        Loader::load_legacy(config_blob).map(|loader| Self { loader })
+    }
+
+    /// Protect the ActPlane control process from a labeled target.
+    pub fn protect_pid(&mut self, pid: i32) -> io::Result<()> {
+        self.loader.protect_pid(pid)
+    }
+
+    /// Seed the target process and descendants with their initial label.
+    pub fn seed_global_label(&mut self, pid: i32, label: u64) -> io::Result<()> {
+        self.loader.seed_global_label(pid, label)
+    }
+
+    /// Poll compatibility-engine violations until `stop` is set.
+    pub fn run(&mut self, stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()> {
+        self.loader.run(stop, on)
+    }
+}
+
 fn decode(e: &Event) -> Violation {
     let target = if e.conn_ip != 0 {
         let ip = e.conn_ip; // network order: bytes are a.b.c.d in memory
@@ -3027,6 +3066,22 @@ mod tests {
         cfg.rules[0].effect = EFFECT_BLOCK;
         let err = validate_legacy_config(&cfg).expect_err("block rule should be rejected");
         assert!(err.to_string().contains("does not support block"), "{err}");
+    }
+
+    #[test]
+    fn legacy_hook_budget_stays_exec_only() {
+        let mut cfg: CConfig = unsafe { std::mem::zeroed() };
+        cfg.n_updates = 1;
+        cfg.updates[0].op = OP_EXEC;
+        cfg.updates[0].m = M_ANY;
+        cfg.n_rules = 1;
+        cfg.rules[0].op = OP_EXEC;
+        cfg.rules[0].m = M_EXACT;
+
+        let budget = HookBudget::for_legacy_config(&cfg);
+        assert_eq!(budget.features, config_features(&cfg));
+        assert!(!budget.file_write);
+        assert!(!budget.advanced_tracepoints);
     }
 
     #[test]

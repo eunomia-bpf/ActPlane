@@ -81,19 +81,29 @@ EOF
 chmod 644 "$policy"
 chmod 666 "$report"
 
+printf -v binary_q '%q' "$ROOT/target/release/actplane"
+printf -v policy_q '%q' "$policy"
+printf -v report_q '%q' "$report"
 guest_command="set -eu; { \
 echo kernel=\$(uname -r); \
 echo memlock_before=\$(ulimit -l); \
 test -r /sys/kernel/btf/vmlinux; \
 echo btf=present; \
-timeout 45 '$ROOT/target/release/actplane' --rule \"\$(cat '$policy')\" run /usr/bin/true; \
-} >'$report' 2>&1"
+grep -qw bpf /sys/kernel/security/lsm; \
+echo active_lsm=\$(cat /sys/kernel/security/lsm); \
+echo hook_profile=full; \
+ACTPLANE_HOOK_PROFILE=full \
+ACTPLANE_RESERVE_FILE_FLOW=1 \
+ACTPLANE_ENABLE_ADVANCED_HOOKS=1 \
+timeout 45 $binary_q --rule \"\$(cat $policy_q)\" run /usr/bin/true; \
+} >$report_q 2>&1"
 
 echo "== booting $release and running compatibility smoke =="
 if ! vng --run "$IMAGE" \
   --user root \
   --cpus "${ACTPLANE_KVM_CPUS:-2}" \
   --memory "${ACTPLANE_KVM_MEMORY:-4G}" \
+  --append "lsm=bpf" \
   --cwd "$ROOT" \
   --rwdir "$ROOT/target" \
   --exec "$guest_command" >"$host_log" 2>&1; then
@@ -113,6 +123,8 @@ assert_report() {
 }
 assert_report '^kernel=5\.10\.'
 assert_report '^btf=present$'
+assert_report '^active_lsm=.*bpf'
+assert_report '^hook_profile=full$'
 assert_report 'effect: notify'
 assert_report 'reason: Linux 5.10 compatibility smoke matched'
 assert_report 'static startup policy'
