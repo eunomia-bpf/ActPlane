@@ -50,6 +50,17 @@ fn fresh_runtime_domain_id(pid: i32, salt: u32) -> u32 {
     id
 }
 
+fn validate_legacy_endpoint_compatibility(compiled: &dsl::Compiled) -> Result<()> {
+    if compiled.endpoint_compatibility_errors.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "Linux 5.10 compatibility mode cannot represent this endpoint policy safely: {}",
+        compiled.endpoint_compatibility_errors.join("; ")
+    )
+    .into())
+}
+
 pub async fn watch_policy(cli: &PolicyInput, parent_domain: bool) -> Result<i32> {
     let attach_pid = attach_pid_from_env_or_parent();
     watch_policy_for_pid(cli, parent_domain, attach_pid).await
@@ -78,6 +89,9 @@ pub async fn watch_policy_for_pid(
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
+    if legacy_kernel_required() {
+        validate_legacy_endpoint_compatibility(&compiled)?;
+    }
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
     let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x5741_5443);
@@ -1194,6 +1208,9 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
+    if legacy_kernel_required() {
+        validate_legacy_endpoint_compatibility(&compiled)?;
+    }
     let agent_label = runner_label(&compiled)?;
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "run");
     let target_owner = target_user(cli.run_as_root);
@@ -1900,6 +1917,20 @@ fn exit_code(status: std::process::ExitStatus) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_endpoint_validation_rejects_unrepresentable_patterns() {
+        let compiled = dsl::compile_str(
+            r#"source AGENT = exec "**"
+rule outbound:
+  block connect endpoint "*.internal" if AGENT"#,
+        )
+        .expect("compile endpoint policy");
+
+        let error = validate_legacy_endpoint_compatibility(&compiled)
+            .expect_err("wildcard hostname must not silently degrade");
+        assert!(error.to_string().contains("*.internal"), "{error}");
+    }
 
     #[test]
     fn audit_context_id_uses_run_dir_when_available() {

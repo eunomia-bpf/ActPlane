@@ -132,10 +132,11 @@ object.
 - Linux kernel 5.10+ with BTF (`/sys/kernel/btf/vmlinux`). Linux 5.10-6.0 uses
   the static compatibility object; Linux 6.1+ supports the full singleton,
   runtime-delta, and advanced fd/mmap/IPC engine.
-- Root or `CAP_BPF` + `CAP_SYS_ADMIN`. On Linux 5.10-6.0, also provide
-  `CAP_SYS_RESOURCE` when the process has a finite `RLIMIT_MEMLOCK` hard limit,
-  or set `ulimit -l unlimited` before launch.
-- BPF-LSM active for `block` effect (`bpf` in `/sys/kernel/security/lsm`)
+- Root or `CAP_BPF` + `CAP_SYS_ADMIN`. On Linux 5.10, also provide
+  `CAP_SYS_RESOURCE` when the process has a finite
+  `RLIMIT_MEMLOCK` hard limit, or set `ulimit -l unlimited` before launch.
+- BPF-LSM active for supported `block` effects (`bpf` in
+  `/sys/kernel/security/lsm`); compatibility-mode file `block` requires 6.1+
 
 ## Used by
 

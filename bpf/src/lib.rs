@@ -93,10 +93,16 @@ fn raise_legacy_memlock_limit() -> io::Result<()> {
     if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &limit) } == 0 {
         return Ok(());
     }
-    Err(err(format!(
-        "Linux 5.10 uses RLIMIT_MEMLOCK for BPF objects and ActPlane could not raise it: {}. Run as root with CAP_SYS_RESOURCE or set `ulimit -l unlimited` before starting ActPlane",
-        io::Error::last_os_error()
-    )))
+    let error = io::Error::last_os_error();
+    if running_kernel_version().is_some_and(|version| version < (5, 11)) {
+        return Err(err(format!(
+            "Linux 5.10 uses RLIMIT_MEMLOCK for BPF objects and ActPlane could not raise it: {error}. Run as root with CAP_SYS_RESOURCE or set `ulimit -l unlimited` before starting ActPlane"
+        )));
+    }
+    eprintln!(
+        "ActPlane: warning: could not raise RLIMIT_MEMLOCK ({error}); continuing because Linux 5.11+ accounts BPF memory through memcg"
+    );
+    Ok(())
 }
 
 // ===================== ABI mirrors (must match bpf/taint.h) =====================
@@ -702,6 +708,7 @@ enum TracepointNeed {
     FileOpen,
     FileWritePath,
     FdFlow,
+    FdLifetime,
     ConnectOrRecv,
     SendAddr,
     RecvAddr,
@@ -1246,49 +1253,49 @@ const TRACEPOINTS: &[TracepointSpec] = &[
         name: "trace_dup",
         category: "syscalls",
         event: "sys_enter_dup",
-        need: TracepointNeed::FdFlow,
+        need: TracepointNeed::FdLifetime,
     },
     TracepointSpec {
         name: "trace_dup_exit",
         category: "syscalls",
         event: "sys_exit_dup",
-        need: TracepointNeed::FdFlow,
+        need: TracepointNeed::FdLifetime,
     },
     TracepointSpec {
         name: "trace_dup2",
         category: "syscalls",
         event: "sys_enter_dup2",
-        need: TracepointNeed::FdFlow,
+        need: TracepointNeed::FdLifetime,
     },
     TracepointSpec {
         name: "trace_dup2_exit",
         category: "syscalls",
         event: "sys_exit_dup2",
-        need: TracepointNeed::FdFlow,
+        need: TracepointNeed::FdLifetime,
     },
     TracepointSpec {
         name: "trace_dup3",
         category: "syscalls",
         event: "sys_enter_dup3",
-        need: TracepointNeed::FdFlow,
+        need: TracepointNeed::FdLifetime,
     },
     TracepointSpec {
         name: "trace_dup3_exit",
         category: "syscalls",
         event: "sys_exit_dup3",
-        need: TracepointNeed::FdFlow,
+        need: TracepointNeed::FdLifetime,
     },
     TracepointSpec {
         name: "trace_fcntl",
         category: "syscalls",
         event: "sys_enter_fcntl",
-        need: TracepointNeed::FdFlow,
+        need: TracepointNeed::FdLifetime,
     },
     TracepointSpec {
         name: "trace_fcntl_exit",
         category: "syscalls",
         event: "sys_exit_fcntl",
-        need: TracepointNeed::FdFlow,
+        need: TracepointNeed::FdLifetime,
     },
     TracepointSpec {
         name: "trace_sendfile64",
@@ -1370,11 +1377,6 @@ const LSM_PROGS: &[(&str, &str)] = &[
 
 const LEGACY_LSM_PROGS: &[(&str, &str)] = &[
     ("legacy_enforce_bprm_check_security", "bprm_check_security"),
-    ("legacy_enforce_file_open", "file_open"),
-    ("legacy_enforce_inode_create", "inode_create"),
-    ("legacy_enforce_inode_setattr", "inode_setattr"),
-    ("legacy_enforce_inode_unlink", "inode_unlink"),
-    ("legacy_enforce_inode_rename", "inode_rename"),
     ("legacy_enforce_socket_connect", "socket_connect"),
     ("legacy_enforce_socket_recvmsg", "socket_recvmsg"),
     ("enforce_task_kill", "task_kill"),
@@ -1526,6 +1528,11 @@ fn tracepoint_needed(spec: &TracepointSpec, budget: HookBudget) -> bool {
         TracepointNeed::FdFlow => {
             !budget.legacy && (budget.has_file_flow() || budget.has_connect() || budget.has_recv())
         }
+        TracepointNeed::FdLifetime => {
+            (!budget.legacy
+                && (budget.has_file_flow() || budget.has_connect() || budget.has_recv()))
+                || (budget.legacy && budget.has_recv())
+        }
         TracepointNeed::ConnectOrRecv => {
             !budget.legacy
                 && (budget.has_connect()
@@ -1559,12 +1566,7 @@ fn lsm_needed(
         "enforce_bprm_check_security" | "legacy_enforce_bprm_check_security" => block_exec,
         "enforce_socket_connect" | "legacy_enforce_socket_connect" => block_connect,
         "enforce_socket_recvmsg" | "legacy_enforce_socket_recvmsg" => recv_flow,
-        "enforce_file_permission"
-        | "legacy_enforce_file_open"
-        | "legacy_enforce_inode_create"
-        | "legacy_enforce_inode_setattr"
-        | "legacy_enforce_inode_unlink"
-        | "legacy_enforce_inode_rename" => block_file,
+        "enforce_file_permission" => block_file,
         "enforce_mmap_file" | "enforce_file_mprotect" => advanced_hooks && block_file,
         "enforce_file_open"
         | "enforce_file_truncate"
@@ -1733,6 +1735,11 @@ fn validate_legacy_config(cfg: &CConfig) -> io::Result<()> {
                 update.domain_id
             )));
         }
+        if update.op == OP_WRITE && update.add != 0 {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode does not support add-label write updates; update[{i}] adds labels"
+            )));
+        }
     }
     for (i, rule) in cfg.rules.iter().take(cfg.n_rules as usize).enumerate() {
         if rule.op != OP_EXEC
@@ -1780,6 +1787,11 @@ fn validate_legacy_config(cfg: &CConfig) -> io::Result<()> {
         if rule.effect == EFFECT_BLOCK && rule.op == OP_EXEC && rule.arg[0] != 0 {
             return Err(err(format!(
                 "Linux 5.10 compatibility mode does not support @arg on block exec rule[{i}]"
+            )));
+        }
+        if rule.effect == EFFECT_BLOCK && (rule.op == OP_OPEN || rule.op == OP_WRITE) {
+            return Err(err(format!(
+                "Linux 5.10 compatibility mode does not support file block rules safely; rule[{i}] must use notify/kill or run on Linux 6.1+"
             )));
         }
     }
@@ -3473,6 +3485,18 @@ mod tests {
         cfg.rules[0].arg[0] = b'x';
         let err = validate_legacy_config(&cfg).expect_err("block exec argv should be rejected");
         assert!(err.to_string().contains("does not support @arg"), "{err}");
+
+        cfg.rules[0].arg[0] = 0;
+        cfg.rules[0].op = OP_WRITE;
+        let err = validate_legacy_config(&cfg).expect_err("file block should be rejected");
+        assert!(err.to_string().contains("file block rules safely"), "{err}");
+
+        cfg.rules[0].effect = EFFECT_NOTIFY;
+        cfg.rules[0].op = OP_EXEC;
+        cfg.updates[0].op = OP_WRITE;
+        cfg.updates[0].add = 1;
+        let err = validate_legacy_config(&cfg).expect_err("write add should be rejected");
+        assert!(err.to_string().contains("add-label write updates"), "{err}");
     }
 
     #[test]
@@ -3519,6 +3543,9 @@ mod tests {
         assert!(tracepoint_needed(spec("legacy_trace_rename_exit"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_recvfrom"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_close"), budget));
+        assert!(tracepoint_needed(spec("trace_dup2"), budget));
+        assert!(tracepoint_needed(spec("trace_dup2_exit"), budget));
+        assert!(tracepoint_needed(spec("trace_fcntl"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_connect"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_connect_exit"), budget));
         assert!(tracepoint_needed(spec("handle_exec_legacy_args"), budget));
@@ -3539,15 +3566,25 @@ mod tests {
             b"legacy_trace_connect_exit".as_slice(),
             b"legacy_trace_recvfrom".as_slice(),
             b"legacy_trace_close".as_slice(),
+            b"trace_dup2".as_slice(),
+            b"trace_fcntl".as_slice(),
             b"legacy_enforce_bprm_check_security".as_slice(),
-            b"legacy_enforce_file_open".as_slice(),
-            b"legacy_enforce_inode_create".as_slice(),
-            b"legacy_enforce_inode_rename".as_slice(),
             b"legacy_enforce_socket_recvmsg".as_slice(),
         ] {
             assert!(
                 object.windows(name.len()).any(|window| window == name),
                 "legacy object should contain {}",
+                String::from_utf8_lossy(name)
+            );
+        }
+        for name in [
+            b"legacy_enforce_file_open".as_slice(),
+            b"legacy_enforce_inode_create".as_slice(),
+            b"legacy_enforce_inode_rename".as_slice(),
+        ] {
+            assert!(
+                !object.windows(name.len()).any(|window| window == name),
+                "legacy object must not ship unsafe file block hook {}",
                 String::from_utf8_lossy(name)
             );
         }

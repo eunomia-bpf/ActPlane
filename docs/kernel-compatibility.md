@@ -19,21 +19,23 @@ policy semantics:
   freshness gates, and exact/prefix/suffix/contains matchers
 - numeric IPv4 connect/recv sources, sinks, conditions, and endpoint flow
 - `notify` and `kill` for exec, file, connect, and recv events
-- BPF-LSM `block` for exec without `@arg`, file open/truncate/unlink/rename,
-  connect, and connected IPv4 recv
+- BPF-LSM `block` for exec without `@arg`, connect, and connected IPv4 recv
 - per-label provenance across process, file, and endpoint propagation
 - up to 64 lowered updates and 32 lowered rules
 
 The older-kernel path remains narrower than the modern engine. It does not
 provide runtime domains, policy deltas, pinned singleton lifecycle, MCP/watch/
 attach runtime integration, or advanced fd/mmap/IPC tracking. File flow is
-path-hash based and applied conservatively at open or mutation entry, so it does
+path-hash based and committed only after a successful open or mutation, so it does
 not provide modern inode/fd precision for already-open descriptors, fd passing,
 sendfile/splice/copy_file_range, mmap permission changes, or Unix-socket IPC.
 Unconnected recv cannot be blocked before the kernel reveals its peer, and
-`block exec` with `@arg` remains unsupported because argv is only available in
-the post-exec tracepoint. Relative paths remain relative and should not be used
-to satisfy an absolute exact-path policy.
+file `block` remains a 6.1+ feature because Linux 5.10 cannot safely resolve all
+file paths in the required pre-operation LSM hooks. `block exec` with `@arg`
+remains unsupported because argv is only available in the post-exec tracepoint.
+Relative paths remain relative and should not be used to satisfy an absolute
+exact-path policy. Compatibility-mode file matching also uses the pathname
+spelling supplied to the syscall and does not canonicalize symlink aliases.
 
 These checks happen in userspace before BPF load. Unsupported policies do not
 silently run with reduced semantics.
@@ -61,9 +63,10 @@ The modern object and singleton behavior are unchanged on Linux 6.1 and newer.
 Concurrent compatibility runs use isolated maps, but each run attaches a
 separate tracepoint set and adds per-event overhead.
 
-Raising a finite hard limit requires root or `CAP_SYS_RESOURCE`. A
-capability-only deployment using `CAP_BPF` and `CAP_SYS_ADMIN` must also grant
-`CAP_SYS_RESOURCE` or start ActPlane with an unlimited memlock limit.
+On Linux 5.10, raising a finite hard limit requires root or `CAP_SYS_RESOURCE`.
+A capability-only deployment must also grant `CAP_SYS_RESOURCE` or start
+ActPlane with an unlimited memlock limit. Linux 5.11 and newer use memcg
+accounting, so a failed best-effort memlock raise does not prevent loading.
 
 ## Reproducing The KVM Test
 
@@ -91,11 +94,14 @@ The matrix verifies all of the following inside the guests:
 - argv, glob, lineage, after, target, freshness, and declassification behavior
 - per-label provenance across file and endpoint hops
 - `notify`, `kill`, and real `EPERM` from every supported block hook class
-- truncate, unlink, rename, and rename label migration
+- truncate, unlink, rename, rename label migration, and failed-operation rollback
+- explicit rejection of file `block` and unrepresentable endpoint patterns,
+  plus fd replacement and non-socket reads
 
-Each report must contain exactly the expected reason count and
-`actplane_rc=0`; a verifier error, missing hook, extra match, or runner failure
-fails the case.
+Each report must contain exactly the expected reason count and exit status.
+Successful runs require `actplane_rc=0`, while rejection cases require the
+documented nonzero status and error. A verifier error, missing hook, extra
+match, or runner failure fails the case.
 
 Set `ACTPLANE_REBUILD_KERNEL=1` to force a kernel rebuild through
 virtme-ng's existing configuration and build flow. Set `ACTPLANE_KVM_TIMEOUT`

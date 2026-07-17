@@ -76,9 +76,9 @@ sudo ./bpf/process --config policy.bin
 
 Requires `sudo` (or `CAP_BPF` + `CAP_SYS_ADMIN`) and Linux 5.10 or newer.
 Linux 6.1+ provides the full runtime; Linux 5.10-6.0 supports the static exec,
-path-based file, and numeric IPv4 compatibility path and additionally needs
-`CAP_SYS_RESOURCE` when the memlock hard limit is finite (or an unlimited limit
-configured before launch). Development targets Linux 6.15.
+path-based file, and numeric IPv4 compatibility path. Linux 5.10 additionally
+needs `CAP_SYS_RESOURCE` when the memlock hard limit is finite (or an unlimited
+limit configured before launch). Development targets Linux 6.15.
 
 ## Architecture
 

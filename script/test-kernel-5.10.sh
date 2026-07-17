@@ -49,6 +49,8 @@ ALL_CASES=(
   file-rename-overwrite
   file-rename-exchange
   file-rename-self
+  file-failed-read-no-flow
+  file-failed-write-no-gate
   network-connect-source
   network-connect-sink
   network-recv-source
@@ -56,6 +58,8 @@ ALL_CASES=(
   network-recv-connected
   network-fd-reuse
   network-failed-connect-fd-reuse
+  network-connected-dup2-fd-reuse
+  network-nonsocket-read
   network-transitive
   network-prefix
   network-lineage
@@ -70,11 +74,8 @@ ALL_CASES=(
   kill-connect
   kill-recv
   block-exec
-  block-file
-  block-truncate
-  block-unlink
-  block-rename
-  block-stale-pending
+  block-file-rejected
+  endpoint-pattern-rejected
   block-connect
   block-recv
 )
@@ -139,6 +140,8 @@ case_data() {
   TRIGGER=
   REASON=
   WANT_COUNT=1
+  WANT_RC=0
+  STARTUP_PATTERN='static startup policy'
   EXPECT_PATTERN=
   case "$1" in
     exec-basic)
@@ -485,6 +488,37 @@ if libc.syscall(82, path, path) != 0:
 PY
 /bin/bash -c '\''read -r value </tmp/ap-self-rename-derived; exec /usr/bin/true'\'''
       ;;
+    file-failed-read-no-flow)
+      REASON="Linux 5.10 failed read changed labels"
+      WANT_COUNT=0
+      EXPECT_PATTERN='^failed_read_clean$'
+      POLICY='source AGENT = exec "never"
+source SECRET = file "/tmp/ap-missing-secret"
+rule failed-read-no-flow:
+  notify exec "true" if SECRET
+  because "Linux 5.10 failed read changed labels"'
+      TRIGGER='rm -f /tmp/ap-missing-secret
+python3 - <<'\''PY'\''
+try:
+    open("/tmp/ap-missing-secret").read()
+except FileNotFoundError:
+    pass
+PY
+/usr/bin/true
+echo failed_read_clean'
+      ;;
+    file-failed-write-no-gate)
+      REASON="Linux 5.10 failed write satisfied gate"
+      EXPECT_PATTERN='^failed_write_gate_open$'
+      POLICY='source AGENT = exec "**"
+rule failed-write-no-gate:
+  notify exec "true" if AGENT unless after write "/tmp/ap-missing-dir/file"
+  because "Linux 5.10 failed write satisfied gate"'
+      TRIGGER='rm -rf /tmp/ap-missing-dir
+if : >/tmp/ap-missing-dir/file; then echo unexpected_write; fi
+/usr/bin/true
+echo failed_write_gate_open'
+      ;;
     network-connect-source)
       REASON="Linux 5.10 endpoint source matched"
       POLICY='source AGENT = exec "**"
@@ -660,6 +694,58 @@ if regular_fd != client_fd:
     os.close(regular_fd)
 os.read(client_fd, 4)
 print("failed_connect_regular_read")
+PY'
+      ;;
+    network-connected-dup2-fd-reuse)
+      REASON="Linux 5.10 connected dup2 cached regular fd"
+      WANT_COUNT=0
+      EXPECT_PATTERN='^connected_dup2_regular_read$'
+      SETUP='printf data >/tmp/ap-connected-dup2-read'
+      POLICY='source AGENT = exec "**"
+source CONNECT_HOOK = endpoint "192.0.2.1"
+rule enable-connect-hooks:
+  notify connect endpoint "192.0.2.1" if CONNECT_HOOK
+  because "Linux 5.10 connect hook reserve"
+rule network-connected-dup2-fd-reuse:
+  notify recv endpoint "127.0.0.1" if AGENT
+  because "Linux 5.10 connected dup2 cached regular fd"'
+      TRIGGER='python3 - <<'\''PY'\''
+import os
+import socket
+
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
+client_fd = client.fileno()
+regular_fd = os.open("/tmp/ap-connected-dup2-read", os.O_RDONLY)
+os.dup2(regular_fd, client_fd)
+if regular_fd != client_fd:
+    os.close(regular_fd)
+os.read(client_fd, 4)
+peer.close()
+server.close()
+print("connected_dup2_regular_read")
+PY'
+      ;;
+    network-nonsocket-read)
+      REASON="Linux 5.10 nonsocket read matched recv"
+      WANT_COUNT=0
+      EXPECT_PATTERN='^pipe_read_clean$'
+      POLICY='source AGENT = exec "**"
+rule network-nonsocket-read:
+  notify recv endpoint "*" if AGENT
+  because "Linux 5.10 nonsocket read matched recv"'
+      TRIGGER='python3 - <<'\''PY'\''
+import os
+r, w = os.pipe()
+os.write(w, b"data")
+os.close(w)
+os.read(r, 4)
+os.close(r)
+print("pipe_read_clean")
 PY'
       ;;
     network-transitive)
@@ -907,68 +993,29 @@ rule block-exec:
   because "Linux 5.10 exec block matched"'
       TRIGGER='if /usr/bin/true; then echo block_failed; else echo exec_blocked; fi'
       ;;
-    block-file)
-      REASON="Linux 5.10 file block matched"
-      EXPECT_PATTERN='^file_blocked$'
-      POLICY='source AGENT = exec "**"
-rule block-file:
-  block write file "/tmp/ap-block" if AGENT
-  because "Linux 5.10 file block matched"'
-      TRIGGER='rm -f /tmp/ap-block
-if : >/tmp/ap-block; then
-  echo block_failed
-elif [ -e /tmp/ap-block ]; then
-  echo block_committed
-else
-  echo file_blocked
-fi'
-      ;;
-    block-truncate)
-      REASON="Linux 5.10 truncate block matched"
-      EXPECT_PATTERN='^truncate_blocked$'
-      SETUP='printf data >/tmp/ap-block-truncate'
-      POLICY='source AGENT = exec "**"
-rule block-truncate:
-  block write file "/tmp/ap-block-truncate" if AGENT
-  because "Linux 5.10 truncate block matched"'
-      TRIGGER='if python3 - <<'\''PY'\''
-import os
-os.truncate("/tmp/ap-block-truncate", 0)
-PY
-then echo block_failed; else echo truncate_blocked; fi'
-      ;;
-    block-unlink)
-      REASON="Linux 5.10 unlink block matched"
-      EXPECT_PATTERN='^unlink_blocked$'
-      SETUP='printf data >/tmp/ap-block-unlink'
-      POLICY='source AGENT = exec "**"
-rule block-unlink:
-  block write file "/tmp/ap-block-unlink" if AGENT
-  because "Linux 5.10 unlink block matched"'
-      TRIGGER='if rm /tmp/ap-block-unlink; then echo block_failed; else echo unlink_blocked; fi'
-      ;;
-    block-rename)
-      REASON="Linux 5.10 rename block matched"
-      EXPECT_PATTERN='^rename_blocked$'
-      SETUP='printf data >/tmp/ap-block-rename-old; rm -f /tmp/ap-block-rename-new'
-      POLICY='source AGENT = exec "**"
-rule block-rename:
-  block write file "/tmp/ap-block-rename-new" if AGENT
-  because "Linux 5.10 rename block matched"'
-      TRIGGER='if mv /tmp/ap-block-rename-old /tmp/ap-block-rename-new; then echo block_failed; else echo rename_blocked; fi'
-      ;;
-    block-stale-pending)
-      REASON="Linux 5.10 stale pending must not match"
+    block-file-rejected)
+      REASON="Linux 5.10 rejected file block"
       WANT_COUNT=0
-      EXPECT_PATTERN='^stale_pending_safe$'
-      SETUP='printf data >/tmp/ap-stale-safe; rm -rf /tmp/ap-stale-missing'
+      WANT_RC=1
+      STARTUP_PATTERN='does not support file block rules safely'
+      EXPECT_PATTERN='does not support file block rules safely'
       POLICY='source AGENT = exec "**"
-rule block-stale-pending:
-  block write file "/tmp/ap-stale-missing/file" if AGENT
-  because "Linux 5.10 stale pending must not match"'
-      TRIGGER='if : >/tmp/ap-stale-missing/file; then echo setup_failed; fi
-chmod 600 /tmp/ap-stale-safe
-echo stale_pending_safe'
+rule block-file-rejected:
+  block write file "/tmp/ap-block" if AGENT
+  because "Linux 5.10 rejected file block"'
+      TRIGGER='echo block_file_should_not_run'
+      ;;
+    endpoint-pattern-rejected)
+      REASON="Linux 5.10 rejected endpoint pattern"
+      WANT_COUNT=0
+      WANT_RC=1
+      STARTUP_PATTERN='cannot represent this endpoint policy safely'
+      EXPECT_PATTERN='endpoint pattern `\*\.internal` is not numeric IPv4'
+      POLICY='source AGENT = exec "**"
+rule endpoint-pattern-rejected:
+  block connect endpoint "*.internal" if AGENT
+  because "Linux 5.10 rejected endpoint pattern"'
+      TRIGGER='echo endpoint_pattern_should_not_run'
       ;;
     block-connect)
       REASON="Linux 5.10 connect block matched"
@@ -1090,8 +1137,10 @@ echo actplane_rc=\$?; \
   assert_report "$report" '^kernel=5\.10\.'
   assert_report "$report" '^btf=present$'
   assert_report "$report" '^active_lsm=.*bpf'
-  assert_report "$report" 'static startup policy'
-  assert_report "$report" '^actplane_rc=0$'
+  if [ -n "$STARTUP_PATTERN" ]; then
+    assert_report "$report" "$STARTUP_PATTERN"
+  fi
+  assert_report "$report" "^actplane_rc=$WANT_RC$"
   if [ -n "$EXPECT_PATTERN" ]; then
     assert_report "$report" "$EXPECT_PATTERN"
   fi
