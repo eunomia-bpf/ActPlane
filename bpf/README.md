@@ -119,7 +119,9 @@ object.
 
 ## Requirements
 
-- Linux kernel 5.8+ with BTF (`/sys/kernel/btf/vmlinux`)
+- Linux kernel 5.10+ with BTF (`/sys/kernel/btf/vmlinux`). Linux 5.10-6.0 uses
+  the static exec-only compatibility object; Linux 6.1+ supports the full
+  singleton and runtime-delta engine.
 - Root or `CAP_BPF` + `CAP_SYS_ADMIN`
 - BPF-LSM active for `block` effect (`bpf` in `/sys/kernel/security/lsm`)
 

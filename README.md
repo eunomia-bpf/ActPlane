@@ -47,11 +47,14 @@ When a rule matches, ActPlane kills the action and tells the agent why:
 The agent receives this reason through its hook integration, understands the
 constraint, and takes a different path to complete the task.
 
-**Requirements:** Linux kernel 5.8+ with BTF (`/sys/kernel/btf/vmlinux`). `run`
-and `watch` load the eBPF engine, so they need root (or `CAP_BPF` +
-`CAP_SYS_ADMIN`); ActPlane drops the target command back to your user. With
-BPF-LSM enabled, rules can `block` before the action commits; otherwise they
-`notify` (report) or `kill`.
+**Requirements:** Linux kernel 5.10+ with BTF (`/sys/kernel/btf/vmlinux`). Linux
+6.1+ provides the full singleton, runtime-delta, MCP, watch, and attach paths.
+Linux 5.10-6.0 uses a static `run` compatibility path limited to exact/any exec
+sources and `notify`/`kill` exec rules. See
+[Kernel compatibility](docs/kernel-compatibility.md). Applying policies needs
+root (or `CAP_BPF` + `CAP_SYS_ADMIN`); ActPlane drops the target command back to
+your user. With BPF-LSM enabled, supported rules can `block` before the action
+commits; otherwise they `notify` (report) or `kill`.
 
 ## Why an OS-level harness?
 

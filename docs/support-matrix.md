@@ -16,6 +16,20 @@ Use `--json` for CI:
 actplane compile --json > actplane-compile-report.json
 ```
 
+## Kernel Versions
+
+| Kernel | Runtime support | Policy support |
+| --- | --- | --- |
+| Earlier than 5.10 | Unsupported | None |
+| 5.10 through 6.0 | Static compatibility `actplane run` | Exec exact/any sources; exact/any `notify` or `kill` exec rules; no `@arg`, conditions, runtime domains, or provenance payload |
+| 6.1 and newer | Full | Singleton engine, runtime deltas, MCP, watch, attach, BPF-LSM block, and the complete documented policy surface |
+
+The compatibility loader accepts at most 64 lowered updates and 32 lowered
+rules. It rejects unsupported policies before loading eBPF, with a message that
+identifies the first incompatible update or rule. See
+[Kernel compatibility](kernel-compatibility.md) for the implementation and KVM
+test procedure.
+
 ## Effects
 
 | Effect | What it means | Requires BPF-LSM | Use when |
