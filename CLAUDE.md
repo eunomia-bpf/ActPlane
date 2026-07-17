@@ -74,8 +74,9 @@ sudo ./target/release/actplane --rule "$(cat policy.dsl)" run <cmd>
 sudo ./bpf/process --config policy.bin
 ```
 
-Requires `sudo` (or `CAP_BPF` + `CAP_SYS_ADMIN`) and a recent kernel (5.8+,
-developed on 6.15).
+Requires `sudo` (or `CAP_BPF` + `CAP_SYS_ADMIN`) and Linux 5.10 or newer.
+Linux 6.1+ provides the full runtime; Linux 5.10-6.0 supports the static
+exec-only compatibility path. Development targets Linux 6.15.
 
 ## Architecture
 

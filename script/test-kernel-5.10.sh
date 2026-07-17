@@ -99,7 +99,7 @@ timeout 45 $binary_q --rule \"\$(cat $policy_q)\" run /usr/bin/true; \
 } >$report_q 2>&1"
 
 echo "== booting $release and running compatibility smoke =="
-if ! vng --run "$IMAGE" \
+if ! timeout "${ACTPLANE_KVM_TIMEOUT:-120}" vng --run "$IMAGE" \
   --user root \
   --cpus "${ACTPLANE_KVM_CPUS:-2}" \
   --memory "${ACTPLANE_KVM_MEMORY:-4G}" \

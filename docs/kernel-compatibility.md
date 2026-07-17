@@ -80,4 +80,5 @@ following inside the guest:
   attach set
 
 Set `ACTPLANE_REBUILD_KERNEL=1` to force a kernel rebuild through
-virtme-ng's existing configuration and build flow.
+virtme-ng's existing configuration and build flow. Set `ACTPLANE_KVM_TIMEOUT`
+to override the 120-second host-side boot and smoke-test timeout.

@@ -3035,6 +3035,14 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires root/CAP_BPF and loads the compatibility eBPF object"]
+    fn legacy_object_loads_smoke() {
+        let _guard = live_bpf_test_guard();
+        let policy = notify_exec_config_blob("aplegacyload");
+        let _loader = CompatibilityLoader::load(&policy).expect("load compatibility engine");
+    }
+
+    #[test]
     fn parses_kernel_release_for_engine_selection() {
         assert_eq!(kernel_version("5.10.260-virtme"), Some((5, 10)));
         assert_eq!(kernel_version("6.1.0-generic"), Some((6, 1)));
