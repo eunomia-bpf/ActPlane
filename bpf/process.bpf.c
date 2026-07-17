@@ -4021,12 +4021,11 @@ static __always_inline int te_legacy_stash_recv(int fd, const void *addr,
 }
 
 static __always_inline int te_legacy_recv_ip(
-	const struct te_legacy_recv_pend *pend, pid_t pid, __u32 *ip)
+	const struct te_legacy_recv_pend *pend, __u32 *ip)
 {
 	struct file *file;
 	struct inode *inode;
 	struct socket *sock;
-	__u32 *tracked;
 	umode_t mode;
 
 	if (pend->kind == TE_LEGACY_RECV_SOCKADDR && pend->addr_ptr)
@@ -4039,11 +4038,6 @@ static __always_inline int te_legacy_recv_ip(
 		    name_ptr)
 			return te_resolve_sockaddr(TE_REF_SOCKADDR_USER,
 						   (const void *)name_ptr, ip);
-	}
-	tracked = te_lookup_sockfd(pid, pend->fd);
-	if (tracked) {
-		*ip = *tracked;
-		return 0;
 	}
 	file = te_current_file_from_fd(pend->fd);
 	if (!file)
@@ -4080,7 +4074,7 @@ static __always_inline int te_legacy_handle_recv(long ret)
 	if (!pend)
 		return 0;
 	if (ret <= 0 || !te_pid_active(pid) ||
-	    te_legacy_recv_ip(pend, pid, &event.ip) < 0)
+	    te_legacy_recv_ip(pend, &event.ip) < 0)
 		goto out;
 	proc = te_get(pid);
 	if (!proc)

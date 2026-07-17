@@ -59,6 +59,7 @@ ALL_CASES=(
   network-fd-reuse
   network-failed-connect-fd-reuse
   network-connected-dup2-fd-reuse
+  network-cloexec-fd-reuse
   network-nonsocket-read
   network-transitive
   network-prefix
@@ -728,6 +729,50 @@ os.read(client_fd, 4)
 peer.close()
 server.close()
 print("connected_dup2_regular_read")
+PY'
+      ;;
+    network-cloexec-fd-reuse)
+      REASON="Linux 5.10 CLOEXEC cached regular fd"
+      WANT_COUNT=0
+      EXPECT_PATTERN='^cloexec_regular_read$'
+      SETUP='printf data >/tmp/ap-cloexec-read'
+      POLICY='source AGENT = exec "**"
+source CONNECT_HOOK = endpoint "192.0.2.1"
+rule enable-connect-hooks:
+  notify connect endpoint "192.0.2.1" if CONNECT_HOOK
+  because "Linux 5.10 connect hook reserve"
+rule network-cloexec-fd-reuse:
+  notify recv endpoint "127.0.0.1" if AGENT
+  because "Linux 5.10 CLOEXEC cached regular fd"'
+      TRIGGER='python3 - <<'\''PY'\''
+import os
+import socket
+import sys
+
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+os.set_inheritable(server.fileno(), True)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
+client_fd = client.fileno()
+os.set_inheritable(client_fd, False)
+peer.close()
+
+child = r"""
+import os
+import sys
+
+expected_fd = int(sys.argv[1])
+regular_fd = os.open("/tmp/ap-cloexec-read", os.O_RDONLY)
+if regular_fd != expected_fd:
+    raise RuntimeError(f"expected fd {expected_fd}, got {regular_fd}")
+os.read(regular_fd, 4)
+os.close(regular_fd)
+print("cloexec_regular_read")
+"""
+os.execv(sys.executable, [sys.executable, "-c", child, str(client_fd)])
 PY'
       ;;
     network-nonsocket-read)

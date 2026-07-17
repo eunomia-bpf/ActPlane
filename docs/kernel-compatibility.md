@@ -96,7 +96,7 @@ The matrix verifies all of the following inside the guests:
 - `notify`, `kill`, and real `EPERM` from every supported block hook class
 - truncate, unlink, rename, rename label migration, and failed-operation rollback
 - explicit rejection of file `block` and unrepresentable endpoint patterns,
-  plus fd replacement and non-socket reads
+  plus fd replacement, `FD_CLOEXEC` reuse, and non-socket reads
 
 Each report must contain exactly the expected reason count and exit status.
 Successful runs require `actplane_rc=0`, while rejection cases require the
