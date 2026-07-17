@@ -21,12 +21,13 @@ actplane compile --json > actplane-compile-report.json
 | Kernel | Runtime support | Policy support |
 | --- | --- | --- |
 | Earlier than 5.10 | Unsupported | None |
-| 5.10 through 6.0 | Static compatibility `actplane run` | Exec, path-based file, and numeric IPv4 policies; conditions, provenance, `notify`, `kill`, plus BPF-LSM `block` for exec and connect; recv requires BPF-LSM, and file/recv `block` is rejected |
+| 5.10 through 6.0 | Static `run`, `watch`, foreground `attach`, and MCP auto-attach | Exec, path-based file, and numeric IPv4 policies; conditions, provenance, `notify`, `kill`, plus BPF-LSM `block` for exec and connect; recv requires BPF-LSM, and file/recv `block` is rejected |
 | 6.1 and newer | Full | Singleton engine, runtime deltas, MCP, watch, attach, BPF-LSM block, and the complete documented policy surface |
 
 The compatibility loader accepts at most 64 lowered updates and 32 lowered
 rules. It is global-domain and static: runtime domains, policy deltas, the
-pinned singleton, and advanced fd/mmap/IPC flow require Linux 6.1+. It rejects
+pinned singleton, local runtime control, child-domain attachment, and advanced
+fd/mmap/IPC flow require Linux 6.1+. It rejects
 unsupported policies before loading eBPF, with a message that identifies the
 first incompatible update or rule. See
 [Kernel compatibility](kernel-compatibility.md) for the implementation and KVM

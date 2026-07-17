@@ -26,6 +26,7 @@ ALL_CASES=(
   exec-lineage
   exec-after-exit
   exec-declassify
+  static-attach-mcp
   file-read-source
   file-transitive
   file-open-sink
@@ -145,6 +146,7 @@ case_data() {
   REASON=
   WANT_COUNT=1
   WANT_RC=0
+  COMMAND_MODE=run
   STARTUP_PATTERN='static startup policy'
   EXPECT_PATTERN=
   case "$1" in
@@ -206,6 +208,84 @@ rule exec-declassify:
   because "Linux 5.10 exec declassify matched"'
       TRIGGER='/tmp/apsecret -c "exec /usr/bin/true"
 /tmp/apsecret -c "exec /tmp/apredact -c '\''exec /usr/bin/true'\''"'
+      ;;
+    static-attach-mcp)
+      REASON="Linux 5.10 static attach matched"
+      WANT_COUNT=2
+      COMMAND_MODE=script
+      STARTUP_PATTERN='statically watching pid'
+      EXPECT_PATTERN='^static_surfaces_triggered$'
+      POLICY='source COMMAND = exec "/tmp/ap-never-source"
+rule static-attach-mcp:
+  notify exec "true" if COMMAND
+  because "Linux 5.10 static attach matched"'
+      TRIGGER='set -e
+binary=$1
+policy=$2
+report=$3
+wait_for_startup() {
+  pattern=$1
+  pid=$2
+  for _ in $(seq 1 100); do
+    grep -q "$pattern" "$report" && return 0
+    kill -0 "$pid" 2>/dev/null || return 1
+    sleep 0.1
+  done
+  return 1
+}
+wait_for_feedback() {
+  path=$1
+  for _ in $(seq 1 100); do
+    grep -q "Reason: Linux 5.10 static attach matched" "$path" 2>/dev/null && return 0
+    sleep 0.1
+  done
+  return 1
+}
+
+fifo=/tmp/ap-static-attach-fifo
+target_script=/tmp/ap-static-attach-target.sh
+rm -f "$fifo" "$target_script"
+mkfifo "$fifo"
+exec 8<>"$fifo"
+printf "%s\n" "while IFS= read -r cmd; do eval \"\$cmd\"; done" >"$target_script"
+/bin/bash "$target_script" <"$fifo" &
+target_pid=$!
+"$binary" --rule "$(cat "$policy")" attach --pid "$target_pid" &
+attach_pid=$!
+wait_for_startup "statically watching pid" "$attach_pid"
+printf "%s\n" /usr/bin/true >&8
+feedback=$(sed -n "s/.*feedback \([^;]*\); runtime.*/\1/p" "$report" | tail -n 1)
+wait_for_feedback "$feedback"
+cat "$feedback"
+kill -INT "$attach_pid"
+wait "$attach_pid"
+exec 8>&-
+kill "$target_pid" 2>/dev/null || true
+wait "$target_pid" || true
+rm -f "$fifo" "$target_script"
+
+mcp_fifo=/tmp/ap-static-mcp-fifo
+rm -f "$mcp_fifo"
+mkfifo "$mcp_fifo"
+(
+  printf "%s\n" \
+    "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"actplane-kvm\",\"version\":\"0\"}}}" \
+    "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\",\"params\":{}}"
+  sleep 60
+) >"$mcp_fifo" &
+writer_pid=$!
+"$binary" --rule "$(cat "$policy")" mcp --auto-attach-parent <"$mcp_fifo" &
+mcp_pid=$!
+wait_for_startup "MCP auto-attached pid" "$mcp_pid"
+/usr/bin/true
+feedback=$(sed -n "s/.*feedback \([^;]*\); runtime.*/\1/p" "$report" | tail -n 1)
+wait_for_feedback "$feedback"
+cat "$feedback"
+kill "$writer_pid"
+wait "$writer_pid" || true
+wait "$mcp_pid"
+rm -f "$mcp_fifo"
+echo static_surfaces_triggered'
       ;;
     file-read-source)
       REASON="Linux 5.10 file read source matched"
@@ -1244,7 +1324,7 @@ assert_report() {
 }
 
 run_case() {
-  local name="$1" setup policy trigger report host_log count vng_command
+  local name="$1" setup policy trigger report host_log count invocation vng_command
   case_data "$name"
   setup="$(mktemp "$ROOT/target/actplane-5.10-setup.XXXXXX")"
   policy="$(mktemp "$ROOT/target/actplane-5.10-policy.XXXXXX")"
@@ -1262,6 +1342,11 @@ run_case() {
   printf -v policy_q '%q' "$policy"
   printf -v trigger_q '%q' "$trigger"
   printf -v report_q '%q' "$report"
+  if [ "$COMMAND_MODE" = script ]; then
+    invocation="timeout 60 /bin/bash $trigger_q $binary_q $policy_q $report_q"
+  else
+    invocation="timeout 60 $binary_q --rule \"\$(cat $policy_q)\" run /bin/bash $trigger_q"
+  fi
   guest_command="set -u; { \
 echo case=$name; \
 echo kernel=\$(uname -r); \
@@ -1271,7 +1356,7 @@ grep -qw bpf /sys/kernel/security/lsm; \
 echo active_lsm=\$(cat /sys/kernel/security/lsm); \
 cp /bin/bash /tmp/apgate; cp /bin/bash /tmp/apsecret; cp /bin/bash /tmp/apredact; \
 /bin/bash $setup_q; \
-timeout 60 $binary_q --rule \"\$(cat $policy_q)\" run /bin/bash $trigger_q; \
+$invocation; \
 echo actplane_rc=\$?; \
 } >$report_q 2>&1"
 

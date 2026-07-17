@@ -84,13 +84,14 @@ pinned ring buffer, and it clears policy/control-map state when that session
 starts and exits. A second runtime session must wait or fail fast instead of
 racing to consume the same ring-buffer events.
 
-Linux 5.10 through 6.0 is the deliberate exception. `actplane run` directly
-loads a verifier-bounded compatibility object for one command and detaches it
-when that command session ends. The static object covers exec, path-based file,
-and numeric IPv4 policies, but it does not expose singleton control, runtime
-domains, policy deltas, or the modern advanced fd/mmap/IPC hook profile.
-Concurrent compatibility runs remain isolated in private maps, but each one
-attaches its own tracepoint set and increases per-event overhead.
+Linux 5.10 through 6.0 is the deliberate exception. `actplane run`, static
+`watch`, foreground `attach`, and MCP auto-attach directly load a
+verifier-bounded compatibility object for the session and detach it on exit.
+The static object covers exec, path-based file, and numeric IPv4 policies, but
+it does not expose singleton control, runtime domains, policy deltas, or the
+modern advanced fd/mmap/IPC hook profile. Concurrent compatibility sessions
+remain isolated in private maps, but each one attaches its own tracepoint set
+and increases per-event overhead.
 
 The `ebpf-ifc-engine` crate remains the low-level kernel ABI boundary used by
 the runtime. Normal callers should use the CLI and runtime crate instead of

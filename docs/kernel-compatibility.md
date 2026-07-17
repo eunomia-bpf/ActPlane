@@ -6,7 +6,7 @@ kernel interfaces that are not present in Linux 5.10.
 | Kernel | Engine path | Supported commands |
 | --- | --- | --- |
 | Earlier than 5.10 | Rejected before load | `compile` only |
-| 5.10 through 6.0 | Direct compatibility loader | `compile`, static `run` |
+| 5.10 through 6.0 | Direct compatibility loader | `compile`; static `run`, `watch`, foreground `attach`, and MCP auto-attach |
 | 6.1 and newer | Pinned singleton loader | Full CLI, MCP, watch, attach, and runtime deltas |
 
 ## Linux 5.10 Policy Boundary
@@ -23,9 +23,11 @@ policy semantics:
 - per-label provenance across process, file, and endpoint propagation
 - up to 64 lowered updates and 32 lowered rules
 
-The older-kernel path remains narrower than the modern engine. It does not
-provide runtime domains, policy deltas, pinned singleton lifecycle, MCP/watch/
-attach runtime integration, or advanced fd/mmap/IPC tracking. File flow is
+The older-kernel path remains narrower than the modern engine. Static `watch`,
+foreground `attach`, and MCP auto-attach enforce the startup policy and report
+feedback, but do not expose the local control socket, child domains, or policy
+mutation. The engine also does not provide runtime domains, policy deltas,
+pinned singleton lifecycle, or advanced fd/mmap/IPC tracking. File flow is
 path-hash based and committed only after a successful open or mutation, so it does
 not provide modern inode/fd precision for already-open descriptors, fd passing,
 sendfile/splice/copy_file_range, mmap permission changes, or Unix-socket IPC.
@@ -104,6 +106,7 @@ The matrix verifies all of the following inside the guests:
 - exec, file, and network sources and transitive propagation
 - argv, glob, lineage, after, target, freshness, and declassification behavior
 - per-label provenance across file and endpoint hops
+- static foreground attach and MCP auto-attach enforcement for future events
 - `notify`, `kill`, and real `EPERM` from the supported exec/connect block hooks
 - truncate, unlink, rename, rename label migration, and failed-operation rollback
 - explicit rejection of file/recv `block` and unrepresentable endpoint patterns,

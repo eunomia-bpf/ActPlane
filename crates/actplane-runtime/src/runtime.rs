@@ -94,11 +94,6 @@ pub async fn watch_policy_for_pid(
     }
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
-    let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x5741_5443);
-    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
-        &compiled,
-        parent_domain_id,
-    ));
     let feedback = feedback_paths(&loaded);
     let target_owner = target_user(cli.run_as_root);
     prepare_feedback_files(&feedback, target_owner)?;
@@ -106,6 +101,31 @@ pub async fn watch_policy_for_pid(
     if let Some((uid, gid)) = target_owner {
         chown_path(&feedback.state, uid, gid)?;
     }
+
+    if legacy_kernel_required() {
+        let guard = start_compatibility_attach(
+            compiled,
+            attach_pid,
+            agent_label,
+            submitter_pid,
+            &feedback,
+        )?;
+        eprintln!(
+            "ActPlane: statically watching pid {} under COMMAND label 0x{:x} with the Linux compatibility engine; feedback {}; runtime control requires Linux 6.1+\n",
+            attach_pid,
+            agent_label,
+            feedback.feedback.display()
+        );
+        let _ = tokio::signal::ctrl_c().await;
+        drop(guard);
+        return Ok(0);
+    }
+
+    let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x5741_5443);
+    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
+        &compiled,
+        parent_domain_id,
+    ));
 
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
@@ -942,6 +962,64 @@ impl Drop for AttachGuard {
     }
 }
 
+fn start_compatibility_attach(
+    compiled: dsl::Compiled,
+    attach_pid: i32,
+    agent_label: u64,
+    control_pid: i32,
+    feedback: &FeedbackPaths,
+) -> Result<AttachGuard> {
+    let stop = Arc::new(AtomicBool::new(false));
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
+    let blob = compiled.bytes;
+    let meta = compiled.meta;
+    let labels = compiled.labels;
+    let fb = feedback.feedback.clone();
+    let ev = feedback.events.clone();
+    let stop_thread = stop.clone();
+    let thread = std::thread::spawn(move || {
+        let mut loader = match CompatibilityLoader::load(&blob) {
+            Ok(loader) => loader,
+            Err(e) => {
+                let _ = ready_tx.send(Err(format!("load compatibility engine: {e}")));
+                return;
+            }
+        };
+        if let Err(e) = loader.protect_pid(control_pid) {
+            let _ = ready_tx.send(Err(format!("protect control pid {control_pid}: {e}")));
+            return;
+        }
+        if let Err(e) = loader.seed_global_label(attach_pid, agent_label) {
+            let _ = ready_tx.send(Err(format!("seed pid {attach_pid}: {e}")));
+            return;
+        }
+        let _ = ready_tx.send(Ok(()));
+        if let Err(e) = loader.run(&stop_thread, |v| {
+            report(&meta, &labels, &to_violation(&v), Some(&fb), Some(&ev));
+        }) {
+            eprintln!("ActPlane: compatibility event loop failed: {e}");
+        }
+    });
+
+    match ready_rx.recv() {
+        Ok(Ok(())) => Ok(AttachGuard {
+            stop,
+            thread: Some(thread),
+            control: None,
+        }),
+        Ok(Err(e)) => {
+            stop.store(true, Ordering::SeqCst);
+            let _ = thread.join();
+            Err(e.into())
+        }
+        Err(_) => {
+            stop.store(true, Ordering::SeqCst);
+            let _ = thread.join();
+            Err("compatibility engine thread exited before readiness".into())
+        }
+    }
+}
+
 pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let attach_pid = attach_pid_from_env_or_parent();
     if attach_pid <= 1 {
@@ -956,19 +1034,40 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
+    if legacy_kernel_required() {
+        validate_legacy_endpoint_compatibility(&compiled)?;
+    }
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
-    let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x4d43_5041);
-    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
-        &compiled,
-        parent_domain_id,
-    ));
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "mcp");
     prepare_feedback_files(&feedback, target_user(cli.run_as_root))?;
     write_hook_state(&feedback.state, &feedback.feedback, attach_pid)?;
     if let Some((uid, gid)) = target_user(cli.run_as_root) {
         chown_path(&feedback.state, uid, gid)?;
     }
+
+    if legacy_kernel_required() {
+        let guard = start_compatibility_attach(
+            compiled,
+            attach_pid,
+            agent_label,
+            submitter_pid,
+            &feedback,
+        )?;
+        eprintln!(
+            "ActPlane: MCP auto-attached pid {} under COMMAND label 0x{:x} with a static Linux compatibility policy; feedback {}; runtime policy mutation requires Linux 6.1+",
+            attach_pid,
+            agent_label,
+            feedback.feedback.display()
+        );
+        return Ok(guard);
+    }
+
+    let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x4d43_5041);
+    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
+        &compiled,
+        parent_domain_id,
+    ));
 
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;

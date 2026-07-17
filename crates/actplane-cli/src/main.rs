@@ -208,7 +208,9 @@ struct WatchArgs {
     the runtime root domain, reports violations, and exposes the repo-local \
     control socket until Ctrl-C. Supplying --child-domain, --domain-id, \
     --child-id, --scope-id, or delta flags instead binds the target pid into \
-    an already-running MCP/watch engine as a child runtime domain.\n\n  \
+    an already-running MCP/watch engine as a child runtime domain. Linux \
+    5.10-6.0 foreground attach enforces a static policy without exposing the \
+    control socket or child domains.\n\n  \
     `attach` is post-hoc. It binds future events from the target process tree \
     to ActPlane, but it does not reconstruct file, network, or label history \
     from before the attach. For strict launch-time enforcement, prefer \
