@@ -1003,6 +1003,55 @@ static __always_inline void copy_violation_provenance(struct event *v,
 	v->prov_target[MAX_FILENAME_LEN - 1] = '\0';
 }
 
+#ifdef ACTPLANE_LEGACY_KERNEL
+struct legacy_violation_prov_ctx {
+	pid_t pid;
+	__u32 domain_id;
+	__u32 obj_kind;
+	__u32 ip;
+	__u32 have_fid;
+	struct file_id fid;
+};
+
+static __noinline int fill_legacy_violation_provenance_bit(
+	struct event *v, struct legacy_violation_prov_ctx *c, __u64 bit)
+{
+	struct te_prov *p = te_lookup_proc_prov(c->pid, c->domain_id, bit);
+
+	if (p) {
+		copy_violation_provenance(v, p);
+		return 1;
+	}
+	if (c->obj_kind == TE_OBJ_FILE && c->have_fid) {
+		struct file_domain_id fdom = {};
+		struct file_label_id key;
+
+		te_file_domain_key_for(c->domain_id, &c->fid, &fdom);
+		key.fdom = fdom;
+		key.label = bit;
+		p = bpf_map_lookup_elem(&ts_file_prov, &key);
+		if (p) {
+			copy_violation_provenance(v, p);
+			return 1;
+		}
+	}
+	if (c->obj_kind == TE_OBJ_ENDPOINT && c->ip) {
+		struct endp_domain_id edom = {};
+		struct endp_label_id key;
+
+		te_endp_domain_key_for(c->domain_id, c->ip, &edom);
+		key.edom = edom;
+		key.label = bit;
+		p = bpf_map_lookup_elem(&ts_endp_prov, &key);
+		if (p) {
+			copy_violation_provenance(v, p);
+			return 1;
+		}
+	}
+	return 0;
+}
+#endif
+
 static __always_inline void fill_violation_provenance(struct event *v, pid_t pid,
 						      __u32 domain_id,
 						      __u64 matched_labels,
@@ -1054,38 +1103,30 @@ static __always_inline void fill_violation_provenance(struct event *v, pid_t pid
 		}
 	}
 #else
-	__u64 bit = matched_labels & (0ULL - matched_labels);
-	struct te_prov *p;
+	__u64 remaining = matched_labels;
+	struct legacy_violation_prov_ctx c = {
+		.pid = pid,
+		.domain_id = domain_id,
+		.obj_kind = obj_kind,
+		.ip = ip,
+		.have_fid = fid ? 1 : 0,
+	};
 
-	if (!bit)
-		return;
-	v->matched_label = bit;
-	p = te_lookup_proc_prov(pid, domain_id, bit);
-	if (p) {
-		copy_violation_provenance(v, p);
-		return;
-	}
-	if (obj_kind == TE_OBJ_FILE && fid) {
-		struct file_domain_id fdom = {};
-		struct file_label_id key;
-		te_file_domain_key_for(domain_id, fid, &fdom);
-		key.fdom = fdom;
-		key.label = bit;
-		p = bpf_map_lookup_elem(&ts_file_prov, &key);
-		if (p) {
-			copy_violation_provenance(v, p);
+	if (fid)
+		c.fid = *fid;
+
+#pragma clang loop unroll(disable)
+	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
+		__u64 bit;
+
+		if (!remaining)
+			break;
+		bit = remaining & (0ULL - remaining);
+		if (!v->matched_label)
+			v->matched_label = bit;
+		if (fill_legacy_violation_provenance_bit(v, &c, bit))
 			return;
-		}
-	}
-	if (obj_kind == TE_OBJ_ENDPOINT && ip) {
-		struct endp_domain_id edom = {};
-		struct endp_label_id key;
-		te_endp_domain_key_for(domain_id, ip, &edom);
-		key.edom = edom;
-		key.label = bit;
-		p = bpf_map_lookup_elem(&ts_endp_prov, &key);
-		if (p)
-			copy_violation_provenance(v, p);
+		remaining &= ~bit;
 	}
 #endif
 }
@@ -2685,6 +2726,8 @@ static __noinline void te_read_legacy_args(struct task_struct *task)
 {
 	struct te_argslots *as = te_argslots_buf();
 	struct mm_struct *mm;
+	unsigned long start;
+	unsigned long end;
 	unsigned long pos;
 	long n;
 
@@ -2694,28 +2737,32 @@ static __noinline void te_read_legacy_args(struct task_struct *task)
 	mm = BPF_CORE_READ(task, mm);
 	if (!mm)
 		return;
-	pos = BPF_CORE_READ(mm, arg_start);
-	if (!pos)
+	start = BPF_CORE_READ(mm, arg_start);
+	end = BPF_CORE_READ(mm, arg_end);
+	pos = start;
+	if (!start || end <= start)
 		return;
-
-	/* Read argv[0] into the blob at its wider cap so a normal absolute program
-	 * path does not hide all later arguments. The rule matcher uses slot zero,
-	 * while this copy's return value advances to argv[1]. */
-	n = bpf_probe_read_user_str(as->blob, TAINT_PAT_LEN, (void *)pos);
-	if (n <= 0 || n >= TAINT_PAT_LEN)
-		return;
-	bpf_probe_read_user_str(as->slots, TAINT_ARG_LEN, (void *)pos);
-	pos += n;
 
 /* Fixed helper calls avoid the data-dependent byte-tokenizer loop that makes
- * Linux 5.10 exhaust its one-million verifier-state budget. */
+	 * Linux 5.10 exhaust its one-million verifier-state budget. Each wide read
+	 * advances over a complete token, while only representable @arg tokens are
+	 * copied into matcher slots. arg_end and TAINT_ARGV_CAP keep the scan out of
+	 * the environment and aligned with the modern engine's argv byte budget. */
 #define TE_READ_ARG_SLOT(slot) do { \
-	n = bpf_probe_read_user_str(as->slots + (slot) * TAINT_ARG_LEN, \
-				    TAINT_ARG_LEN, (void *)pos); \
-	if (n <= 0 || n >= TAINT_ARG_LEN) \
+	unsigned long used = pos - start; \
+	if (pos >= end || used >= TAINT_ARGV_CAP) \
 		return; \
+	n = bpf_probe_read_user_str(as->blob, TAINT_ARGV_CAP, (void *)pos); \
+	if (n <= 0 || n >= TAINT_ARGV_CAP || \
+	    (unsigned long)n > end - pos || \
+	    (unsigned long)n > TAINT_ARGV_CAP - used) \
+		return; \
+	if (n <= TAINT_ARG_LEN) \
+		bpf_probe_read_user_str(as->slots + (slot) * TAINT_ARG_LEN, \
+					TAINT_ARG_LEN, (void *)pos); \
 	pos += n; \
 } while (0)
+	TE_READ_ARG_SLOT(0);
 	TE_READ_ARG_SLOT(1);
 	TE_READ_ARG_SLOT(2);
 	TE_READ_ARG_SLOT(3);
@@ -3015,7 +3062,8 @@ static __always_inline int te_legacy_file_rule_apply(
 	if (r->effect > TEFFECT_KILL ||
 	    !(c->effect_mask & (1U << r->effect)))
 		return 0;
-	if (c->best_rule < 0 || r->effect > c->best_effect) {
+	if (c->best_rule < 0 || r->effect > c->best_effect ||
+	    (r->effect == c->best_effect && (int)i < c->best_index)) {
 		c->best_effect = r->effect;
 		c->best_rule = (int)r->rule_id;
 		c->best_index = (int)i;
@@ -3484,8 +3532,9 @@ static __always_inline int te_legacy_open_path(const void *path_ptr,
 		te_legacy_scan_file_rules(rules);
 	}
 	if (!block_pending && rules->best_rule >= 0) {
+		__u64 matched_file_labels = rules->best_labels & next.labels;
 		__u64 matched_bit =
-			rules->best_labels & (0ULL - rules->best_labels);
+			matched_file_labels & (0ULL - matched_file_labels);
 
 		if (rules->best_op == TOP_OPEN && (next.labels & matched_bit)) {
 			if (updates->add & matched_bit)
@@ -3586,35 +3635,6 @@ struct {
 	__type(value, struct te_legacy_rename_pend);
 } ts_legacy_renamepend SEC(".maps");
 
-static __always_inline void te_legacy_copy_file_prov(
-	struct file_domain_id *from, struct file_domain_id *to, __u64 labels,
-	int delete_from)
-{
-	struct file_label_id from_key;
-	struct file_label_id to_key;
-	struct te_prov *prov;
-
-#pragma clang loop unroll(disable)
-	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
-		__u64 bit;
-
-		if (!labels)
-			break;
-		bit = labels & (0ULL - labels);
-		from_key.fdom = *from;
-		from_key.label = bit;
-		prov = bpf_map_lookup_elem(&ts_file_prov, &from_key);
-		if (prov) {
-			to_key.fdom = *to;
-			to_key.label = bit;
-			bpf_map_update_elem(&ts_file_prov, &to_key, prov, BPF_ANY);
-		}
-		if (delete_from)
-			bpf_map_delete_elem(&ts_file_prov, &from_key);
-		labels &= ~bit;
-	}
-}
-
 static __always_inline int te_legacy_rename_enter(const void *old_path,
 						   const void *new_path,
 						   __u32 flags)
@@ -3644,41 +3664,27 @@ static __always_inline int te_legacy_rename_exit(long ret)
 		bpf_map_lookup_elem(&ts_legacy_renamepend, &tid);
 	struct file_domain_id old_key = {};
 	struct file_domain_id new_key = {};
-	struct file_state *old;
-	struct file_state *new;
-	struct file_state old_state = {};
-	struct file_state new_state = {};
-	__u64 labels;
+	struct file_id tmp = {};
+	pid_t pid = tid >> 32;
 
 	if (!pend)
 		return 0;
 	if (ret != 0)
 		goto out;
+	if (pend->old_hash == pend->new_hash)
+		goto out;
 	old_key.fid.ino = pend->old_hash;
 	new_key.fid.ino = pend->new_hash;
-	old = bpf_map_lookup_elem(&ts_file, &old_key);
-	new = bpf_map_lookup_elem(&ts_file, &new_key);
-	if (old)
-		old_state = *old;
-	if (new)
-		new_state = *new;
 	if (pend->flags & RENAME_EXCHANGE) {
-		struct file_state merged = {
-			.labels = old_state.labels | new_state.labels,
-		};
-		if (merged.labels) {
-			bpf_map_update_elem(&ts_file, &old_key, &merged, BPF_ANY);
-			bpf_map_update_elem(&ts_file, &new_key, &merged, BPF_ANY);
-			te_legacy_copy_file_prov(&old_key, &new_key,
-						 old_state.labels, 0);
-			te_legacy_copy_file_prov(&new_key, &old_key,
-						 new_state.labels, 0);
-		}
-	} else if (old_state.labels) {
-		labels = old_state.labels;
-		bpf_map_update_elem(&ts_file, &new_key, &old_state, BPF_ANY);
-		te_legacy_copy_file_prov(&old_key, &new_key, labels, 1);
-		bpf_map_delete_elem(&ts_file, &old_key);
+		tmp.ino = bpf_ktime_get_ns() ^ old_key.fid.ino ^
+			(new_key.fid.ino << 1);
+		tmp.ino |= 1ULL << 63;
+		tmp.dev = 0xffffffffU;
+		te_copy_file_state_domain(pid, &new_key.fid, &tmp, 0, 1);
+		te_copy_file_state_domain(pid, &old_key.fid, &new_key.fid, 0, 1);
+		te_copy_file_state_domain(pid, &tmp, &old_key.fid, 0, 1);
+	} else {
+		te_copy_file_state_domain(pid, &old_key.fid, &new_key.fid, 0, 1);
 	}
 out:
 	bpf_map_delete_elem(&ts_legacy_renamepend, &tid);
@@ -3852,6 +3858,7 @@ static int te_legacy_connect_rule_cb(__u32 i, void *vc)
 SEC("tp/syscalls/sys_enter_connect")
 int legacy_trace_connect(struct trace_event_raw_sys_enter *ctx)
 {
+	__u64 tid = bpf_get_current_pid_tgid();
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
 	struct proc_state *proc;
 	struct te_legacy_connect_ctx event = {
@@ -3862,6 +3869,7 @@ int legacy_trace_connect(struct trace_event_raw_sys_enter *ctx)
 		.best_rule = -1,
 	};
 	struct endp_domain_id key = {};
+	struct connect_pend pending;
 	__u64 *stored;
 	__u64 endpoint_labels;
 
@@ -3869,6 +3877,9 @@ int legacy_trace_connect(struct trace_event_raw_sys_enter *ctx)
 	    te_resolve_sockaddr(TE_REF_SOCKADDR_USER,
 				(const void *)ctx->args[1], &event.ip) < 0)
 		return 0;
+	pending.fd = (int)ctx->args[0];
+	pending.ip = event.ip;
+	bpf_map_update_elem(&ts_connectpend, &tid, &pending, BPF_ANY);
 	proc = te_get(pid);
 	if (!proc)
 		return 0;
@@ -3888,7 +3899,6 @@ int legacy_trace_connect(struct trace_event_raw_sys_enter *ctx)
 			bpf_send_signal(SIGKILL);
 	}
 	proc->labels = event.labels;
-	te_store_sockfd(pid, (int)ctx->args[0], event.ip);
 	te_endp_domain_key_for(0, event.ip, &key);
 	stored = bpf_map_lookup_elem(&ts_endp, &key);
 	endpoint_labels = event.labels | (stored ? *stored : 0);
@@ -3898,6 +3908,24 @@ int legacy_trace_connect(struct trace_event_raw_sys_enter *ctx)
 	te_legacy_proc_prov_to_endp(pid, &key, event.labels);
 	if (endpoint_labels)
 		bpf_map_update_elem(&ts_endp, &key, &endpoint_labels, BPF_ANY);
+	return 0;
+}
+
+static __always_inline int handle_connect_exit(long ret);
+
+SEC("tp/syscalls/sys_exit_connect")
+int legacy_trace_connect_exit(struct trace_event_raw_sys_exit *ctx)
+{
+	return handle_connect_exit(ctx->ret);
+}
+
+SEC("tp/syscalls/sys_enter_close")
+int legacy_trace_close(struct trace_event_raw_sys_enter *ctx)
+{
+	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+
+	if (te_pid_active(pid))
+		te_delete_fd(pid, (int)ctx->args[0]);
 	return 0;
 }
 
@@ -4169,6 +4197,16 @@ SEC("lsm/file_open")
 int BPF_PROG(legacy_enforce_file_open, struct file *file)
 {
 	(void)file;
+	return te_legacy_consume_file_block();
+}
+
+SEC("lsm/inode_create")
+int BPF_PROG(legacy_enforce_inode_create, struct inode *dir,
+	     struct dentry *dentry, umode_t mode)
+{
+	(void)dir;
+	(void)dentry;
+	(void)mode;
 	return te_legacy_consume_file_block();
 }
 

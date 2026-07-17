@@ -877,6 +877,12 @@ const TRACEPOINTS: &[TracepointSpec] = &[
         need: TracepointNeed::LegacyConnect,
     },
     TracepointSpec {
+        name: "legacy_trace_connect_exit",
+        category: "syscalls",
+        event: "sys_exit_connect",
+        need: TracepointNeed::LegacyConnect,
+    },
+    TracepointSpec {
         name: "legacy_trace_recvfrom",
         category: "syscalls",
         event: "sys_enter_recvfrom",
@@ -910,6 +916,12 @@ const TRACEPOINTS: &[TracepointSpec] = &[
         name: "legacy_trace_read_exit",
         category: "syscalls",
         event: "sys_exit_read",
+        need: TracepointNeed::LegacyRecv,
+    },
+    TracepointSpec {
+        name: "legacy_trace_close",
+        category: "syscalls",
+        event: "sys_enter_close",
         need: TracepointNeed::LegacyRecv,
     },
     TracepointSpec {
@@ -1359,6 +1371,7 @@ const LSM_PROGS: &[(&str, &str)] = &[
 const LEGACY_LSM_PROGS: &[(&str, &str)] = &[
     ("legacy_enforce_bprm_check_security", "bprm_check_security"),
     ("legacy_enforce_file_open", "file_open"),
+    ("legacy_enforce_inode_create", "inode_create"),
     ("legacy_enforce_inode_setattr", "inode_setattr"),
     ("legacy_enforce_inode_unlink", "inode_unlink"),
     ("legacy_enforce_inode_rename", "inode_rename"),
@@ -1548,6 +1561,7 @@ fn lsm_needed(
         "enforce_socket_recvmsg" | "legacy_enforce_socket_recvmsg" => recv_flow,
         "enforce_file_permission"
         | "legacy_enforce_file_open"
+        | "legacy_enforce_inode_create"
         | "legacy_enforce_inode_setattr"
         | "legacy_enforce_inode_unlink"
         | "legacy_enforce_inode_rename" => block_file,
@@ -3487,10 +3501,11 @@ mod tests {
         }
 
         let mut cfg: CConfig = unsafe { std::mem::zeroed() };
-        cfg.n_updates = 2;
+        cfg.n_updates = 3;
         cfg.updates[0].op = OP_OPEN;
         cfg.updates[0].m = M_EXACT;
         cfg.updates[1].op = OP_RECV;
+        cfg.updates[2].op = OP_CONNECT;
         cfg.n_rules = 2;
         cfg.rules[0].op = OP_WRITE;
         cfg.rules[0].m = M_EXACT;
@@ -3503,6 +3518,9 @@ mod tests {
         assert!(tracepoint_needed(spec("legacy_trace_rename"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_rename_exit"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_recvfrom"), budget));
+        assert!(tracepoint_needed(spec("legacy_trace_close"), budget));
+        assert!(tracepoint_needed(spec("legacy_trace_connect"), budget));
+        assert!(tracepoint_needed(spec("legacy_trace_connect_exit"), budget));
         assert!(tracepoint_needed(spec("handle_exec_legacy_args"), budget));
         assert!(!tracepoint_needed(spec("handle_exec_args"), budget));
         assert!(!tracepoint_needed(spec("trace_rename"), budget));
@@ -3518,9 +3536,12 @@ mod tests {
             b"legacy_file_tail".as_slice(),
             b"legacy_trace_rename".as_slice(),
             b"legacy_trace_connect".as_slice(),
+            b"legacy_trace_connect_exit".as_slice(),
             b"legacy_trace_recvfrom".as_slice(),
+            b"legacy_trace_close".as_slice(),
             b"legacy_enforce_bprm_check_security".as_slice(),
             b"legacy_enforce_file_open".as_slice(),
+            b"legacy_enforce_inode_create".as_slice(),
             b"legacy_enforce_inode_rename".as_slice(),
             b"legacy_enforce_socket_recvmsg".as_slice(),
         ] {

@@ -2584,7 +2584,7 @@ fn doctor_kernel_support(problems: &mut usize) {
         }
         Some(KernelSupport::Compatibility) => {
             println!(
-                "⚠ kernel runtime: {release} (static exec-only `actplane run`; full runtime requires Linux 6.1+)"
+                "⚠ kernel runtime: {release} (static exec/file/numeric-IPv4 `actplane run`; full runtime requires Linux 6.1+)"
             );
         }
         Some(KernelSupport::Unsupported) => {

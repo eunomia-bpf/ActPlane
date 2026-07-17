@@ -46,11 +46,16 @@ ALL_CASES=(
   file-unlink-sink
   file-rename-sink
   file-rename-flow
+  file-rename-overwrite
+  file-rename-exchange
+  file-rename-self
   network-connect-source
   network-connect-sink
   network-recv-source
   network-recv-sink
   network-recv-connected
+  network-fd-reuse
+  network-failed-connect-fd-reuse
   network-transitive
   network-prefix
   network-lineage
@@ -59,6 +64,7 @@ ALL_CASES=(
   provenance-exec
   provenance-file-immediate
   provenance-file-transitive
+  provenance-multilabel-fallback
   kill-exec
   kill-file
   kill-connect
@@ -78,7 +84,7 @@ else
   CASES=("${ALL_CASES[@]}")
 fi
 
-for command in cargo grep make timeout vng; do
+for command in cargo grep make script timeout vng; do
   command -v "$command" >/dev/null || {
     echo "missing required command: $command" >&2
     exit 2
@@ -150,7 +156,10 @@ rule exec-argv:
   notify exec "true" "matchme" if AGENT
   because "Linux 5.10 exec argv matched"'
       TRIGGER='/usr/bin/true missme
-/usr/bin/true matchme'
+python3 - <<'\''PY'\''
+import os
+os.execv("/usr/bin/true", ["x" * 70, "y" * 30, "matchme"])
+PY'
       ;;
     exec-prefix)
       REASON="Linux 5.10 exec prefix matched"
@@ -405,6 +414,77 @@ rule file-rename-flow:
 read -r value </tmp/ap-rename-moved
 /usr/bin/true'
       ;;
+    file-rename-overwrite)
+      REASON="Linux 5.10 rename overwrite retained stale label"
+      WANT_COUNT=0
+      EXPECT_PATTERN='^overwrite_clean$'
+      SETUP='printf plain >/tmp/ap-rename-plain; printf secret >/tmp/ap-rename-source-secret; rm -f /tmp/ap-rename-dest'
+      POLICY='source AGENT = exec "never"
+source SECRET = file "/tmp/ap-rename-source-secret"
+rule file-rename-overwrite:
+  notify exec "true" if SECRET
+  because "Linux 5.10 rename overwrite retained stale label"'
+      TRIGGER='/bin/bash -c '\''read -r value </tmp/ap-rename-source-secret'\''
+python3 - <<'\''PY'\''
+import ctypes
+import os
+
+libc = ctypes.CDLL(None, use_errno=True)
+for old, new in ((b"/tmp/ap-rename-source-secret", b"/tmp/ap-rename-dest"),
+                 (b"/tmp/ap-rename-plain", b"/tmp/ap-rename-dest")):
+    if libc.syscall(82, old, new) != 0:
+        raise OSError(ctypes.get_errno(), os.strerror(ctypes.get_errno()))
+PY
+/bin/bash -c '\''read -r value </tmp/ap-rename-dest; exec /usr/bin/true'\''
+echo overwrite_clean'
+      ;;
+    file-rename-exchange)
+      REASON="Linux 5.10 rename exchange label moved"
+      EXPECT_PATTERN='^exchange_complete$'
+      SETUP='printf secret >/tmp/ap-exchange-source; printf plain >/tmp/ap-exchange-b; rm -f /tmp/ap-exchange-a'
+      POLICY='source AGENT = exec "never"
+source SECRET = file "/tmp/ap-exchange-source"
+rule file-rename-exchange:
+  notify exec "true" if SECRET
+  because "Linux 5.10 rename exchange label moved"'
+      TRIGGER='/bin/bash -c '\''read -r value </tmp/ap-exchange-source'\''
+python3 - <<'\''PY'\''
+import ctypes
+import os
+
+libc = ctypes.CDLL(None, use_errno=True)
+AT_FDCWD = -100
+RENAME_EXCHANGE = 2
+if libc.syscall(82, b"/tmp/ap-exchange-source", b"/tmp/ap-exchange-a") != 0:
+    raise OSError(ctypes.get_errno(), os.strerror(ctypes.get_errno()))
+if libc.syscall(316, AT_FDCWD, b"/tmp/ap-exchange-a", AT_FDCWD,
+                b"/tmp/ap-exchange-b", RENAME_EXCHANGE) != 0:
+    raise OSError(ctypes.get_errno(), os.strerror(ctypes.get_errno()))
+PY
+/bin/bash -c '\''read -r value </tmp/ap-exchange-a; exec /usr/bin/true'\''
+/bin/bash -c '\''read -r value </tmp/ap-exchange-b; exec /usr/bin/true'\''
+echo exchange_complete'
+      ;;
+    file-rename-self)
+      REASON="Linux 5.10 self rename preserved derived label"
+      SETUP='printf secret >/tmp/ap-self-rename-secret; rm -f /tmp/ap-self-rename-derived'
+      POLICY='source AGENT = exec "never"
+source SECRET = file "/tmp/ap-self-rename-secret"
+rule file-rename-self:
+  notify exec "true" if SECRET
+  because "Linux 5.10 self rename preserved derived label"'
+      TRIGGER='/bin/bash -c '\''read -r value </tmp/ap-self-rename-secret; printf derived >/tmp/ap-self-rename-derived'\''
+python3 - <<'\''PY'\''
+import ctypes
+import os
+
+libc = ctypes.CDLL(None, use_errno=True)
+path = b"/tmp/ap-self-rename-derived"
+if libc.syscall(82, path, path) != 0:
+    raise OSError(ctypes.get_errno(), os.strerror(ctypes.get_errno()))
+PY
+/bin/bash -c '\''read -r value </tmp/ap-self-rename-derived; exec /usr/bin/true'\'''
+      ;;
     network-connect-source)
       REASON="Linux 5.10 endpoint source matched"
       POLICY='source AGENT = exec "**"
@@ -508,6 +588,78 @@ s.bind(("127.0.0.1", 34575))
 os.read(r, 1)
 s.sendto(b"data", ("127.0.0.1", 34574))
 os.waitpid(pid, 0)
+PY'
+      ;;
+    network-fd-reuse)
+      REASON="Linux 5.10 stale connected fd matched regular read"
+      WANT_COUNT=0
+      EXPECT_PATTERN='^regular_read$'
+      SETUP='printf data >/tmp/ap-regular-read'
+      POLICY='source AGENT = exec "**"
+source CONNECT_HOOK = endpoint "192.0.2.1"
+rule enable-connect-hooks:
+  notify connect endpoint "192.0.2.1" if CONNECT_HOOK
+  because "Linux 5.10 connect hook reserve"
+rule network-fd-reuse:
+  notify recv endpoint "127.0.0.1" if AGENT
+  because "Linux 5.10 stale connected fd matched regular read"'
+      TRIGGER='python3 - <<'\''PY'\''
+import os
+import socket
+
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
+client_fd = client.fileno()
+client.close()
+peer.close()
+fd = os.open("/tmp/ap-regular-read", os.O_RDONLY)
+if fd != client_fd:
+    raise RuntimeError(f"expected fd reuse {client_fd}, got {fd}")
+os.read(fd, 4)
+print("regular_read")
+PY'
+      ;;
+    network-failed-connect-fd-reuse)
+      REASON="Linux 5.10 failed connect cached regular fd"
+      WANT_COUNT=0
+      EXPECT_PATTERN='^failed_connect_regular_read$'
+      SETUP='printf data >/tmp/ap-failed-connect-read'
+      POLICY='source AGENT = exec "**"
+source CONNECT_HOOK = endpoint "192.0.2.1"
+rule enable-connect-hooks:
+  notify connect endpoint "192.0.2.1" if CONNECT_HOOK
+  because "Linux 5.10 connect hook reserve"
+rule network-failed-connect-fd-reuse:
+  notify recv endpoint "127.0.0.1" if AGENT
+  because "Linux 5.10 failed connect cached regular fd"'
+      TRIGGER='python3 - <<'\''PY'\''
+import os
+import socket
+
+probe = socket.socket()
+probe.bind(("127.0.0.1", 0))
+port = probe.getsockname()[1]
+probe.close()
+
+client = socket.socket()
+client_fd = client.fileno()
+try:
+    client.connect(("127.0.0.1", port))
+except OSError:
+    pass
+else:
+    raise RuntimeError("expected connect to fail")
+
+regular_fd = os.open("/tmp/ap-failed-connect-read", os.O_RDONLY)
+os.dup2(regular_fd, client_fd)
+if regular_fd != client_fd:
+    os.close(regular_fd)
+os.read(client_fd, 4)
+print("failed_connect_regular_read")
 PY'
       ;;
     network-transitive)
@@ -670,6 +822,18 @@ printf "%s\n" "$value" >/tmp/ap-derived
 : >/tmp/ap-ready
 wait "$reader"'
       ;;
+    provenance-multilabel-fallback)
+      REASON="Linux 5.10 multi-label provenance matched"
+      EXPECT_PATTERN='provenance: pid [0-9][0-9]* read /tmp/ap-multilabel -> label PRIVATE'
+      POLICY='source AGENT = exec "never"
+source PRIVATE = file "/tmp/ap-multilabel"
+rule provenance-multilabel-fallback:
+  notify exec "true" if AGENT and PRIVATE
+  because "Linux 5.10 multi-label provenance matched"'
+      TRIGGER='printf private >/tmp/ap-multilabel
+read -r value </tmp/ap-multilabel
+/usr/bin/true'
+      ;;
     kill-exec)
       REASON="Linux 5.10 exec kill matched"
       EXPECT_PATTERN='^exec_killed$'
@@ -750,7 +914,14 @@ rule block-exec:
 rule block-file:
   block write file "/tmp/ap-block" if AGENT
   because "Linux 5.10 file block matched"'
-      TRIGGER='if : >/tmp/ap-block; then echo block_failed; else echo file_blocked; fi'
+      TRIGGER='rm -f /tmp/ap-block
+if : >/tmp/ap-block; then
+  echo block_failed
+elif [ -e /tmp/ap-block ]; then
+  echo block_committed
+else
+  echo file_blocked
+fi'
       ;;
     block-truncate)
       REASON="Linux 5.10 truncate block matched"
@@ -865,7 +1036,7 @@ assert_report() {
 }
 
 run_case() {
-  local name="$1" setup policy trigger report host_log count
+  local name="$1" setup policy trigger report host_log count vng_command
   case_data "$name"
   setup="$(mktemp "$ROOT/target/actplane-5.10-setup.XXXXXX")"
   policy="$(mktemp "$ROOT/target/actplane-5.10-policy.XXXXXX")"
@@ -897,14 +1068,18 @@ echo actplane_rc=\$?; \
 } >$report_q 2>&1"
 
   echo "== [$name] booting $release =="
-  if ! timeout "${ACTPLANE_KVM_TIMEOUT:-120}" vng --run "$IMAGE" \
-    --user root \
-    --cpus "${ACTPLANE_KVM_CPUS:-2}" \
-    --memory "${ACTPLANE_KVM_MEMORY:-4G}" \
-    --append "lsm=bpf" \
-    --cwd "$ROOT" \
-    --rwdir "$ROOT/target" \
-    --exec "$guest_command" >"$host_log" 2>&1; then
+  printf -v vng_command '%q ' \
+    timeout "${ACTPLANE_KVM_TIMEOUT:-120}" vng --run "$IMAGE" \
+      --user root \
+      --cpus "${ACTPLANE_KVM_CPUS:-2}" \
+      --memory "${ACTPLANE_KVM_MEMORY:-4G}" \
+      --append "lsm=bpf" \
+      --cwd "$ROOT" \
+      --rwdir "$ROOT/target" \
+      --exec "$guest_command"
+  # QEMU's virtme chardev requires a terminal; util-linux script preserves one
+  # while retaining a host-side log for verifier and boot diagnostics.
+  if ! script -qefc "$vng_command" "$host_log" >/dev/null; then
     cat "$report" >&2
     tail -n 80 "$host_log" >&2
     rm -f "$setup" "$policy" "$trigger" "$report" "$host_log"
