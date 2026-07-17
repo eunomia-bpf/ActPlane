@@ -708,7 +708,6 @@ enum TracepointNeed {
     FileOpen,
     FileWritePath,
     FdFlow,
-    FdLifetime,
     ConnectOrRecv,
     SendAddr,
     RecvAddr,
@@ -1253,49 +1252,49 @@ const TRACEPOINTS: &[TracepointSpec] = &[
         name: "trace_dup",
         category: "syscalls",
         event: "sys_enter_dup",
-        need: TracepointNeed::FdLifetime,
+        need: TracepointNeed::FdFlow,
     },
     TracepointSpec {
         name: "trace_dup_exit",
         category: "syscalls",
         event: "sys_exit_dup",
-        need: TracepointNeed::FdLifetime,
+        need: TracepointNeed::FdFlow,
     },
     TracepointSpec {
         name: "trace_dup2",
         category: "syscalls",
         event: "sys_enter_dup2",
-        need: TracepointNeed::FdLifetime,
+        need: TracepointNeed::FdFlow,
     },
     TracepointSpec {
         name: "trace_dup2_exit",
         category: "syscalls",
         event: "sys_exit_dup2",
-        need: TracepointNeed::FdLifetime,
+        need: TracepointNeed::FdFlow,
     },
     TracepointSpec {
         name: "trace_dup3",
         category: "syscalls",
         event: "sys_enter_dup3",
-        need: TracepointNeed::FdLifetime,
+        need: TracepointNeed::FdFlow,
     },
     TracepointSpec {
         name: "trace_dup3_exit",
         category: "syscalls",
         event: "sys_exit_dup3",
-        need: TracepointNeed::FdLifetime,
+        need: TracepointNeed::FdFlow,
     },
     TracepointSpec {
         name: "trace_fcntl",
         category: "syscalls",
         event: "sys_enter_fcntl",
-        need: TracepointNeed::FdLifetime,
+        need: TracepointNeed::FdFlow,
     },
     TracepointSpec {
         name: "trace_fcntl_exit",
         category: "syscalls",
         event: "sys_exit_fcntl",
-        need: TracepointNeed::FdLifetime,
+        need: TracepointNeed::FdFlow,
     },
     TracepointSpec {
         name: "trace_sendfile64",
@@ -1527,11 +1526,6 @@ fn tracepoint_needed(spec: &TracepointSpec, budget: HookBudget) -> bool {
         }
         TracepointNeed::FdFlow => {
             !budget.legacy && (budget.has_file_flow() || budget.has_connect() || budget.has_recv())
-        }
-        TracepointNeed::FdLifetime => {
-            (!budget.legacy
-                && (budget.has_file_flow() || budget.has_connect() || budget.has_recv()))
-                || (budget.legacy && budget.has_recv())
         }
         TracepointNeed::ConnectOrRecv => {
             !budget.legacy
@@ -3543,9 +3537,9 @@ mod tests {
         assert!(tracepoint_needed(spec("legacy_trace_rename_exit"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_recvfrom"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_close"), budget));
-        assert!(tracepoint_needed(spec("trace_dup2"), budget));
-        assert!(tracepoint_needed(spec("trace_dup2_exit"), budget));
-        assert!(tracepoint_needed(spec("trace_fcntl"), budget));
+        assert!(!tracepoint_needed(spec("trace_dup2"), budget));
+        assert!(!tracepoint_needed(spec("trace_dup2_exit"), budget));
+        assert!(!tracepoint_needed(spec("trace_fcntl"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_connect"), budget));
         assert!(tracepoint_needed(spec("legacy_trace_connect_exit"), budget));
         assert!(tracepoint_needed(spec("handle_exec_legacy_args"), budget));

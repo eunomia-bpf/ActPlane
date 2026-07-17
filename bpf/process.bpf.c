@@ -114,7 +114,6 @@ const volatile unsigned int legacy_file_rule_conditions = 0;
 #define TE_CMSG_SCAN_MAX              2
 #define TE_CMSG_CONTROL_MAX           4096ULL
 #define TE_SCM_RIGHTS_MAX_FDS         8
-#define TE_FD_TABLE_LOOKUP_MAX        4096
 /*
  * Tracepoint fallback keeps exact-start records for the recent file-backed
  * mappings of each active pid. mprotect/mremap use a direct (pid,start) lookup
@@ -683,7 +682,7 @@ static __always_inline struct file *te_current_file_from_fd(int fd)
 	struct file *file = NULL;
 	unsigned int max_fds;
 
-	if (fd < 0 || fd >= TE_FD_TABLE_LOOKUP_MAX)
+	if (fd < 0)
 		return NULL;
 	files = BPF_CORE_READ(task, files);
 	if (!files)

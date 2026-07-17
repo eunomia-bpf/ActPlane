@@ -56,6 +56,7 @@ ALL_CASES=(
   network-recv-source
   network-recv-sink
   network-recv-connected
+  network-connected-high-fd
   network-fd-reuse
   network-failed-connect-fd-reuse
   network-connected-dup2-fd-reuse
@@ -623,6 +624,38 @@ s.bind(("127.0.0.1", 34575))
 os.read(r, 1)
 s.sendto(b"data", ("127.0.0.1", 34574))
 os.waitpid(pid, 0)
+PY'
+      ;;
+    network-connected-high-fd)
+      REASON="Linux 5.10 connected high fd recv matched"
+      EXPECT_PATTERN='^high_fd_recv$'
+      POLICY='source AGENT = exec "**"
+rule network-connected-high-fd:
+  notify recv endpoint "127.0.0.1" if AGENT
+  because "Linux 5.10 connected high fd recv matched"'
+      TRIGGER='python3 - <<'\''PY'\''
+import fcntl
+import os
+import resource
+import socket
+
+resource.setrlimit(resource.RLIMIT_NOFILE, (8192, 8192))
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+peer, _ = server.accept()
+high_fd = fcntl.fcntl(client.fileno(), fcntl.F_DUPFD, 4096)
+if high_fd < 4096:
+    raise RuntimeError(f"expected high fd, got {high_fd}")
+client.close()
+peer.sendall(b"data")
+os.read(high_fd, 4)
+os.close(high_fd)
+peer.close()
+server.close()
+print("high_fd_recv")
 PY'
       ;;
     network-fd-reuse)
