@@ -119,9 +119,11 @@ object.
 
 ## Requirements
 
-- Linux kernel 5.8+ with BTF (`/sys/kernel/btf/vmlinux`)
-- Root or `CAP_BPF` + `CAP_SYS_ADMIN`
-- BPF-LSM active for `block` effect (`bpf` in `/sys/kernel/security/lsm`)
+- Linux kernel 5.10+ with BTF; Linux 5.10-6.0 supports static exec-only `run`,
+  while the full runtime requires Linux 6.1+
+- Root or `CAP_BPF` + `CAP_SYS_ADMIN`; Linux 5.10 also needs
+  `CAP_SYS_RESOURCE` when the memlock hard limit is finite
+- BPF-LSM active for the full runtime's `block` effect
 
 ## Used by
 

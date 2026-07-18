@@ -85,10 +85,14 @@ fn raise_legacy_memlock_limit() -> io::Result<()> {
     if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &limit) } == 0 {
         return Ok(());
     }
-    Err(err(format!(
-        "Linux 5.10 uses RLIMIT_MEMLOCK for BPF objects and ActPlane could not raise it: {}. Run as root with CAP_SYS_RESOURCE or set `ulimit -l unlimited` before starting ActPlane",
-        io::Error::last_os_error()
-    )))
+    let error = io::Error::last_os_error();
+    if running_kernel_version().is_some_and(|version| version < (5, 11)) {
+        return Err(err(format!(
+            "Linux 5.10 uses RLIMIT_MEMLOCK for BPF objects and ActPlane could not raise it: {error}. Run as root with CAP_SYS_RESOURCE or set `ulimit -l unlimited` before starting ActPlane"
+        )));
+    }
+    eprintln!("ActPlane: warning: could not raise RLIMIT_MEMLOCK ({error}); continuing with memcg accounting");
+    Ok(())
 }
 
 // ===================== ABI mirrors (must match bpf/taint.h) =====================
@@ -1578,11 +1582,13 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
 }
 
 #[allow(dead_code)]
-pub struct Loader {
+struct Loader {
     bpf: Ebpf,
     enforce: bool,
     policy_features: u32,
 }
+
+pub struct CompatibilityLoader(Loader);
 
 #[derive(Debug)]
 pub struct PinnedEngine {
@@ -1855,7 +1861,7 @@ impl Loader {
 
     /// Load the Linux 5.10-compatible object without pinned links or runtime
     /// policy deltas. The caller must retain this loader for the full session.
-    pub fn load_legacy(config_blob: &[u8]) -> io::Result<Self> {
+    fn load_legacy(config_blob: &[u8]) -> io::Result<Self> {
         Self::load_inner(
             config_blob,
             HookReserve::default(),
@@ -2285,11 +2291,20 @@ impl Loader {
         Ok(())
     }
 
-    /// Poll the ring buffer until `stop` is set, delivering each violation.
     pub fn run(&mut self, stop: &AtomicBool, mut on: impl FnMut(Violation)) -> io::Result<()> {
+        self.run_with_ready(stop, || {}, &mut on)
+    }
+
+    fn run_with_ready(
+        &mut self,
+        stop: &AtomicBool,
+        ready: impl FnOnce(),
+        mut on: impl FnMut(Violation),
+    ) -> io::Result<()> {
         let mut ring = RingBuf::try_from(self.bpf.map_mut("rb").ok_or_else(|| err("rb missing"))?)
             .map_err(|e| err(format!("rb: {e}")))?;
         let fd = ring.as_raw_fd();
+        ready();
 
         while !stop.load(Ordering::Relaxed) {
             let mut pfd = libc::pollfd {
@@ -2318,6 +2333,29 @@ impl Loader {
             }
         }
         Ok(())
+    }
+}
+
+impl CompatibilityLoader {
+    pub fn load(config_blob: &[u8]) -> io::Result<Self> {
+        Loader::load_legacy(config_blob).map(Self)
+    }
+
+    pub fn protect_pid(&mut self, pid: i32) -> io::Result<()> {
+        self.0.protect_pid(pid)
+    }
+
+    pub fn seed_global_label(&mut self, pid: i32, label: u64) -> io::Result<()> {
+        self.0.seed_global_label(pid, label)
+    }
+
+    pub fn run(
+        &mut self,
+        stop: &AtomicBool,
+        ready: impl FnOnce(),
+        on: impl FnMut(Violation),
+    ) -> io::Result<()> {
+        self.0.run_with_ready(stop, ready, on)
     }
 }
 

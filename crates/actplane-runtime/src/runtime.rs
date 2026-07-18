@@ -10,8 +10,8 @@ use ebpf_ifc_engine::capability::{
     AUTH_REQUIRE_GATE, CapState, TARGET_CHILD, TARGET_SELF,
 };
 use ebpf_ifc_engine::{
-    ChildDomainSpec, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, Loader, PinnedEngine, ReloadHandle,
-    legacy_kernel_required,
+    ChildDomainSpec, CompatibilityLoader, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, PinnedEngine,
+    ReloadHandle, legacy_kernel_required,
 };
 use serde_json::json;
 use tokio::process::{Child, Command};
@@ -1191,10 +1191,11 @@ async fn run_legacy_command(
     let stop = Arc::new(AtomicBool::new(false));
     let stop_thread = stop.clone();
     let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (failure_tx, mut failure_rx) = tokio::sync::oneshot::channel();
     let control_pid = std::process::id() as i32;
     let feedback_file = feedback.feedback.clone();
     let poller = std::thread::spawn(move || {
-        let mut loader = match Loader::load_legacy(&compiled.bytes) {
+        let mut loader = match CompatibilityLoader::load(&compiled.bytes) {
             Ok(loader) => loader,
             Err(e) => {
                 let _ = ready_tx.send(Err(format!("load compatibility engine: {e}")));
@@ -1208,17 +1209,26 @@ async fn run_legacy_command(
             let _ = ready_tx.send(Err(e.to_string()));
             return;
         }
-        let _ = ready_tx.send(Ok(()));
-        if let Err(e) = loader.run(&stop_thread, |v| {
-            report(
-                &compiled.meta,
-                &compiled.labels,
-                &to_violation(&v),
-                Some(&feedback.feedback),
-                Some(&feedback.events),
-            );
-        }) {
-            eprintln!("ActPlane: compatibility event loop failed: {e}");
+        let result = loader.run(
+            &stop_thread,
+            || {
+                let _ = ready_tx.send(Ok(()));
+            },
+            |v| {
+                report(
+                    &compiled.meta,
+                    &compiled.labels,
+                    &to_violation(&v),
+                    Some(&feedback.feedback),
+                    Some(&feedback.events),
+                );
+            },
+        );
+        if let Err(e) = result {
+            let _ = failure_tx.send(format!("compatibility event loop failed: {e}"));
+            while !stop_thread.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(10));
+            }
         }
     });
 
@@ -1226,8 +1236,8 @@ async fn run_legacy_command(
         .recv()
         .unwrap_or_else(|_| Err("compatibility engine thread exited before readiness".to_string()))
     {
-        let _ = send_signal(target_pid, libc::SIGKILL);
-        let _ = target.wait().await;
+        kill_process_group_and_wait(&mut target).await;
+        stop.store(true, Ordering::SeqCst);
         let _ = poller.join();
         return Err(e.into());
     }
@@ -1237,11 +1247,39 @@ async fn run_legacy_command(
          ActPlane: Linux compatibility mode uses a static exec-only policy; full runtime requires Linux 6.1+",
         feedback_file.display()
     );
-    send_signal(target_pid, libc::SIGCONT)?;
-    let status = target.wait().await?;
+    if let Err(error) = send_process_group_signal(target_pid, libc::SIGCONT) {
+        kill_process_group_and_wait(&mut target).await;
+        stop.store(true, Ordering::SeqCst);
+        let _ = poller.join();
+        return Err(error.into());
+    }
+    let status = tokio::select! {
+        biased;
+        failure = &mut failure_rx => {
+            let error = failure.unwrap_or_else(|_| "compatibility event loop exited unexpectedly".into());
+            kill_process_group_and_wait(&mut target).await;
+            stop.store(true, Ordering::SeqCst);
+            let _ = poller.join();
+            return Err(error.into());
+        }
+        status = target.wait() => status,
+    };
+    let status = match status {
+        Ok(status) => status,
+        Err(error) => {
+            let _ = send_process_group_signal(target_pid, libc::SIGKILL);
+            stop.store(true, Ordering::SeqCst);
+            let _ = poller.join();
+            return Err(error.into());
+        }
+    };
+    let _ = send_process_group_signal(target_pid, libc::SIGKILL);
     std::thread::sleep(Duration::from_millis(200));
     stop.store(true, Ordering::SeqCst);
     let _ = poller.join();
+    if let Ok(error) = failure_rx.try_recv() {
+        return Err(error.into());
+    }
     Ok(exit_code(status))
 }
 
@@ -1263,12 +1301,13 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let target_owner = target_user(cli.run_as_root);
     prepare_feedback_files(&feedback, target_owner)?;
 
+    let legacy = legacy_kernel_required();
     let mut target = spawn_stopped_target(
         cmd,
         &feedback,
         loaded.path.as_deref(),
         cli.run_as_root,
-        false,
+        legacy,
     )?;
     let target_pid = target.id().ok_or("target process has no pid")?;
     write_hook_state(&feedback.state, &feedback.feedback, target_pid as i32)?;
@@ -1276,7 +1315,7 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
         chown_path(&feedback.state, uid, gid)?;
     }
 
-    if legacy_kernel_required() {
+    if legacy {
         return run_legacy_command(target, target_pid, agent_label, compiled, feedback).await;
     }
 

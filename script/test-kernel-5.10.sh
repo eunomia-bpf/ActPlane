@@ -30,7 +30,9 @@ cargo build --locked --release -p actplane --manifest-path "$ROOT/Cargo.toml"
 mkdir -p "$ROOT/target"
 policy="$(mktemp "$ROOT/target/actplane-5.10-policy.XXXXXX")"
 report="$(mktemp "$ROOT/target/actplane-5.10-report.XXXXXX")"
-trap 'rm -f "$policy" "$report"' EXIT
+runner="$(mktemp "$ROOT/target/actplane-5.10-runner.XXXXXX")"
+pidfile="$(mktemp "$ROOT/target/actplane-5.10-pid.XXXXXX")"
+trap 'rm -f "$policy" "$report" "$runner" "$pidfile"' EXIT
 
 cat >"$policy" <<'EOF'
 source COMMAND = exec "**"
@@ -38,11 +40,20 @@ rule linux-5-10-smoke:
   notify exec "true" if COMMAND
   because "Linux 5.10 compatibility smoke matched"
 EOF
+cat >"$runner" <<EOF
+#!/bin/sh
+sleep 30 &
+echo \$! >'$pidfile'
+EOF
 chmod 644 "$policy"
 chmod 666 "$report"
+chmod 755 "$runner"
+chmod 666 "$pidfile"
 
 guest="set -eu; { echo kernel=\$(uname -r); test -r /sys/kernel/btf/vmlinux; \
   timeout 45 '$ROOT/target/release/actplane' --rule \"\$(cat '$policy')\" run /usr/bin/true; \
+  timeout 45 '$ROOT/target/release/actplane' --rule \"\$(cat '$policy')\" run '$runner'; \
+  ! kill -0 \$(cat '$pidfile') 2>/dev/null; echo descendants=clean; \
   } >'$report' 2>&1"
 
 vng --run "$IMAGE" \
@@ -55,7 +66,7 @@ vng --run "$IMAGE" \
 
 cat "$report"
 grep -q '^kernel=5\.10\.' "$report"
-for text in 'effect: notify' 'reason: Linux 5.10 compatibility smoke matched' 'static exec-only policy'; do
+for text in 'effect: notify' 'reason: Linux 5.10 compatibility smoke matched' 'static exec-only policy' 'descendants=clean'; do
   grep -q "$text" "$report"
 done
 
