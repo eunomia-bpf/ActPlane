@@ -1181,21 +1181,23 @@ fn require_bpf_caps_or_elevate_with_env(
     }
 }
 
-async fn legacy_shutdown_signal() -> std::io::Result<()> {
-    let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
-    tokio::select! {
-        result = tokio::signal::ctrl_c() => result,
-        _ = term.recv() => Ok(()),
-    }
+fn legacy_shutdown_signals() -> std::io::Result<[tokio::signal::unix::Signal; 2]> {
+    use tokio::signal::unix::{SignalKind, signal};
+    Ok([
+        signal(SignalKind::interrupt())?,
+        signal(SignalKind::terminate())?,
+    ])
 }
 
 async fn run_legacy_command(
     mut target: Child,
-    target_pid: u32,
     agent_label: u64,
     compiled: dsl::Compiled,
     feedback: FeedbackPaths,
+    signals: [tokio::signal::unix::Signal; 2],
 ) -> Result<i32> {
+    let target_pid = target.id().ok_or("target process has no pid")?;
+    let [mut interrupt, mut terminate] = signals;
     let mut loader = match CompatibilityLoader::load(
         &compiled.bytes,
         std::process::id() as i32,
@@ -1244,7 +1246,8 @@ async fn run_legacy_command(
         tokio::select! {
             biased;
             failure = &mut failure_rx => Err(failure.unwrap_or_else(|_| "compatibility event loop exited unexpectedly".into()).into()),
-            signal = legacy_shutdown_signal() => Err(signal.map_or_else(|error| error.to_string(), |_| "terminated by signal".into()).into()),
+            _ = interrupt.recv() => Err("terminated by SIGINT".into()),
+            _ = terminate.recv() => Err("terminated by SIGTERM".into()),
             status = target.wait() => status.map(exit_code).map_err(|error| error.into()),
         }
     };
@@ -1278,6 +1281,7 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     prepare_feedback_files(&feedback, target_owner)?;
 
     let legacy = legacy_kernel_required();
+    let shutdown = legacy.then(legacy_shutdown_signals).transpose()?;
     let mut target = spawn_stopped_target(
         cmd,
         &feedback,
@@ -1292,7 +1296,8 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     }
 
     if legacy {
-        return run_legacy_command(target, target_pid, agent_label, compiled, feedback).await;
+        return run_legacy_command(target, agent_label, compiled, feedback, shutdown.unwrap())
+            .await;
     }
 
     let stop = Arc::new(AtomicBool::new(false));

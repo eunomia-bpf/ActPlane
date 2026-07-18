@@ -18,8 +18,7 @@
 #ifdef ACTPLANE_LEGACY_KERNEL
 #define bpf_loop(nr_loops, callback_fn, callback_ctx, flags) ({ \
 	unsigned int __te_nr = (nr_loops); \
-	(void)(flags); \
-	if (__te_nr > MAX_TAINT_UPDATES) __te_nr = MAX_TAINT_UPDATES; \
+	(void)(flags); if (__te_nr > MAX_TAINT_UPDATES) __te_nr = MAX_TAINT_UPDATES; \
 	TAINT_UNROLL \
 	for (unsigned int __te_i = 0; __te_i < __te_nr; __te_i++) \
 		if ((callback_fn)(__te_i, (callback_ctx))) break; \
@@ -483,16 +482,12 @@ static __always_inline unsigned int te_count(__u32 slot)
 #ifdef ACTPLANE_LEGACY_KERNEL
 static __always_inline unsigned int te_group_start(unsigned int op, unsigned int file, unsigned int net)
 {
-	if (op == TOP_CONNECT || op == TOP_RECV) return file;
-	if (op == TOP_EXEC) return file + net;
-	return 0;
+	if (op == TOP_CONNECT || op == TOP_RECV) return file; if (op == TOP_EXEC) return file + net; return 0;
 }
 
 static __always_inline unsigned int te_group_count(unsigned int op, unsigned int total, unsigned int file, unsigned int net)
 {
-	if (op == TOP_OPEN || op == TOP_WRITE) return file;
-	if (op == TOP_CONNECT || op == TOP_RECV) return net;
-	return total - te_group_start(op, file, net);
+	if (op == TOP_OPEN || op == TOP_WRITE) return file; if (op == TOP_CONNECT || op == TOP_RECV) return net; return total - te_group_start(op, file, net);
 }
 #define te_update_start(op) te_group_start((op), legacy_n_file_updates, legacy_n_net_updates)
 #define te_update_count(op) te_group_count((op), legacy_n_updates, legacy_n_file_updates, legacy_n_net_updates)
