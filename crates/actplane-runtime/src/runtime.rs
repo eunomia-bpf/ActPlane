@@ -284,7 +284,6 @@ pub struct AttachGuard {
     thread: Option<std::thread::JoinHandle<()>>,
     control: Option<Arc<EngineControl>>,
     failure: Option<tokio::sync::oneshot::Receiver<String>>,
-    static_policy_only: bool,
     feedback_file: PathBuf,
 }
 
@@ -966,7 +965,7 @@ impl AttachGuard {
     }
 
     pub fn static_policy_only(&self) -> bool {
-        self.static_policy_only
+        self.control.is_none()
     }
 
     pub fn feedback_file(&self) -> PathBuf {
@@ -1077,7 +1076,6 @@ fn start_compatibility_attach(
             thread: Some(thread),
             control: None,
             failure: Some(failure_rx),
-            static_policy_only: true,
             feedback_file: feedback.feedback.clone(),
         }),
         Ok(Err(e)) => {
@@ -1264,7 +1262,6 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
                     submitter_pid,
                 })),
                 failure: Some(failure_rx),
-                static_policy_only: false,
                 feedback_file: feedback.feedback.clone(),
             })
         }
@@ -1551,14 +1548,9 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     }
 
     eprintln!(
-        "ActPlane: running pid {} under COMMAND label 0x{:x}{}; feedback {}\n",
+        "ActPlane: running pid {} under COMMAND label 0x{:x}; feedback {}\n",
         target_pid,
         agent_label,
-        if parent_domain {
-            " in an isolated singleton domain"
-        } else {
-            ""
-        },
         feedback.feedback.display()
     );
     if legacy {
@@ -2118,7 +2110,6 @@ mod tests {
             thread: None,
             control: None,
             failure: Some(failure_rx),
-            static_policy_only: true,
             feedback_file: PathBuf::new(),
         };
         failure_tx
