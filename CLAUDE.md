@@ -74,14 +74,8 @@ sudo ./target/release/actplane --rule "$(cat policy.dsl)" run <cmd>
 sudo ./bpf/process --config policy.bin
 ```
 
-Requires `sudo` (or `CAP_BPF` + `CAP_SYS_ADMIN`) and Linux 5.10 or newer.
-Linux 6.1+ provides the full runtime; Linux 5.10-6.0 supports the static exec,
-path-based file, and numeric IPv4 compatibility path through `run`, `watch`,
-foreground `attach`, and MCP auto-attach. Compatibility-mode recv requires the
-BPF LSM, and runtime control/policy mutation still requires Linux 6.1+.
-Linux 5.10 additionally needs `CAP_SYS_RESOURCE` when the memlock hard limit is
-finite (or an unlimited limit configured before launch). Development targets
-Linux 6.15.
+Requires `sudo` (or `CAP_BPF` + `CAP_SYS_ADMIN`) and a recent kernel (5.8+,
+developed on 6.15).
 
 ## Architecture
 

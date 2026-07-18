@@ -208,9 +208,7 @@ struct WatchArgs {
     the runtime root domain, reports violations, and exposes the repo-local \
     control socket until Ctrl-C. Supplying --child-domain, --domain-id, \
     --child-id, --scope-id, or delta flags instead binds the target pid into \
-    an already-running MCP/watch engine as a child runtime domain. Linux \
-    5.10-6.0 foreground attach enforces a static policy without exposing the \
-    control socket or child domains.\n\n  \
+    an already-running MCP/watch engine as a child runtime domain.\n\n  \
     `attach` is post-hoc. It binds future events from the target process tree \
     to ActPlane, but it does not reconstruct file, network, or label history \
     from before the attach. For strict launch-time enforcement, prefer \
@@ -409,30 +407,13 @@ async fn main() -> Result<()> {
             0
         }
         Commands::Mcp { auto_attach_parent } => {
-            let mut attach = if *auto_attach_parent {
+            let attach = if *auto_attach_parent {
                 Some(runtime::start_mcp_auto_attach(&policy_input(&cli))?)
             } else {
                 None
             };
             let control = attach.as_ref().and_then(|a| a.engine_control());
-            let static_policy_only = attach
-                .as_ref()
-                .is_some_and(|guard| guard.static_policy_only());
-            let feedback_file = attach.as_ref().map(|guard| guard.feedback_file());
-            let project_dir = Some(control_project_dir(&cli)?);
-            if let Some(guard) = attach.as_mut() {
-                tokio::select! {
-                    result = mcp::run_mcp_server_with_control(
-                        control,
-                        project_dir,
-                        static_policy_only,
-                        feedback_file,
-                    ) => result?,
-                    result = guard.wait_for_failure() => result?,
-                }
-            } else {
-                mcp::run_mcp_server_with_control(control, project_dir, false, None).await?;
-            }
+            mcp::run_mcp_server_with_control(control, Some(control_project_dir(&cli)?)).await?;
             drop(attach);
             0
         }

@@ -47,21 +47,11 @@ When a rule matches, ActPlane kills the action and tells the agent why:
 The agent receives this reason through its hook integration, understands the
 constraint, and takes a different path to complete the task.
 
-**Requirements:** Linux kernel 5.10+ with BTF (`/sys/kernel/btf/vmlinux`). Linux
-6.1+ provides the full singleton and runtime-delta paths. Linux 5.10-6.0 uses a
-static compatibility path for `run`, `watch`, foreground `attach`, and MCP
-auto-attach enforcement and feedback. It covers exec, path-based file, and
-numeric IPv4 policies, including `notify`, `kill`, and BPF-LSM `block` for exec
-and connect. Compatibility-mode recv requires BPF-LSM to bind events to the
-actual socket. File and recv `block`, runtime control, runtime domains, and
-advanced fd/mmap/IPC flow require Linux 6.1+. See
-[Kernel compatibility](docs/kernel-compatibility.md). Applying policies needs
-root (or `CAP_BPF` + `CAP_SYS_ADMIN`); ActPlane drops the target command back to
-your user. On Linux 5.10, a finite `RLIMIT_MEMLOCK` hard limit additionally
-requires `CAP_SYS_RESOURCE`, or the service must start with
-`ulimit -l unlimited`. With BPF-LSM enabled, supported rules can `block` before
-the action commits. On Linux 6.1+, other rules can use tracepoint-only
-`notify`/`kill`; the compatibility recv path requires BPF-LSM for object identity.
+**Requirements:** Linux kernel 5.8+ with BTF (`/sys/kernel/btf/vmlinux`). `run`
+and `watch` load the eBPF engine, so they need root (or `CAP_BPF` +
+`CAP_SYS_ADMIN`); ActPlane drops the target command back to your user. With
+BPF-LSM enabled, rules can `block` before the action commits; otherwise they
+`notify` (report) or `kill`.
 
 ## Why an OS-level harness?
 
@@ -275,7 +265,7 @@ Editing the kernel eBPF (`bpf/*.bpf.c`) requires the BPF toolchain
 refresh the committed object with:
 
 ```bash
-ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine   # regenerates both bpf/prebuilt objects
+ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine   # regenerates bpf/prebuilt/process.bpf.o
 ```
 
 Run the tests:

@@ -10,8 +10,8 @@ use ebpf_ifc_engine::capability::{
     AUTH_REQUIRE_GATE, CapState, TARGET_CHILD, TARGET_SELF,
 };
 use ebpf_ifc_engine::{
-    ChildDomainSpec, CompatibilityLoader, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, PinnedEngine,
-    ReloadHandle, legacy_kernel_required,
+    ChildDomainSpec, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, Loader, PinnedEngine, ReloadHandle,
+    legacy_kernel_required,
 };
 use serde_json::json;
 use tokio::process::{Child, Command};
@@ -50,17 +50,6 @@ fn fresh_runtime_domain_id(pid: i32, salt: u32) -> u32 {
     id
 }
 
-fn validate_legacy_endpoint_compatibility(compiled: &dsl::Compiled) -> Result<()> {
-    if compiled.endpoint_compatibility_errors.is_empty() {
-        return Ok(());
-    }
-    Err(format!(
-        "Linux 5.10 compatibility mode cannot represent this endpoint policy safely: {}",
-        compiled.endpoint_compatibility_errors.join("; ")
-    )
-    .into())
-}
-
 pub async fn watch_policy(cli: &PolicyInput, parent_domain: bool) -> Result<i32> {
     let attach_pid = attach_pid_from_env_or_parent();
     watch_policy_for_pid(cli, parent_domain, attach_pid).await
@@ -89,53 +78,20 @@ pub async fn watch_policy_for_pid(
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
-    let legacy = legacy_kernel_required();
-    if legacy {
-        validate_legacy_endpoint_compatibility(&compiled)?;
-    }
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
-    let base_feedback = feedback_paths(&loaded);
-    let feedback = if legacy {
-        scoped_feedback_paths(&base_feedback, "attach")
-    } else {
-        base_feedback
-    };
+    let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x5741_5443);
+    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
+        &compiled,
+        parent_domain_id,
+    ));
+    let feedback = feedback_paths(&loaded);
     let target_owner = target_user(cli.run_as_root);
     prepare_feedback_files(&feedback, target_owner)?;
     write_hook_state(&feedback.state, &feedback.feedback, attach_pid)?;
     if let Some((uid, gid)) = target_owner {
         chown_path(&feedback.state, uid, gid)?;
     }
-
-    if legacy {
-        let mut guard = start_compatibility_attach(
-            compiled,
-            attach_pid,
-            agent_label,
-            submitter_pid,
-            &feedback,
-        )?;
-        eprintln!(
-            "ActPlane: statically watching pid {} under COMMAND label 0x{:x} with the Linux compatibility engine; feedback {}; runtime control requires Linux 6.1+\n",
-            attach_pid,
-            agent_label,
-            feedback.feedback.display()
-        );
-        let result = tokio::select! {
-            result = tokio::signal::ctrl_c() => result.map_err(|e| e.into()),
-            result = guard.wait_for_failure() => result,
-        };
-        drop(guard);
-        result?;
-        return Ok(0);
-    }
-
-    let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x5741_5443);
-    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
-        &compiled,
-        parent_domain_id,
-    ));
 
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
@@ -283,8 +239,6 @@ pub struct AttachGuard {
     stop: Arc<AtomicBool>,
     thread: Option<std::thread::JoinHandle<()>>,
     control: Option<Arc<EngineControl>>,
-    failure: Option<tokio::sync::oneshot::Receiver<String>>,
-    feedback_file: PathBuf,
 }
 
 pub struct EngineControl {
@@ -963,24 +917,6 @@ impl AttachGuard {
     pub fn engine_control(&self) -> Option<Arc<EngineControl>> {
         self.control.clone()
     }
-
-    pub fn static_policy_only(&self) -> bool {
-        self.control.is_none()
-    }
-
-    pub fn feedback_file(&self) -> PathBuf {
-        self.feedback_file.clone()
-    }
-
-    pub async fn wait_for_failure(&mut self) -> Result<()> {
-        let Some(failure) = self.failure.as_mut() else {
-            return std::future::pending().await;
-        };
-        match failure.await {
-            Ok(message) => Err(message.into()),
-            Err(_) => std::future::pending().await,
-        }
-    }
 }
 
 impl Drop for AttachGuard {
@@ -988,105 +924,6 @@ impl Drop for AttachGuard {
         self.stop.store(true, Ordering::SeqCst);
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
-        }
-    }
-}
-
-fn target_process_start_time(pid: i32) -> Result<u64> {
-    match proc_state_code(pid as u32) {
-        Ok('Z' | 'X') => return Err(format!("target pid {pid} has already exited").into()),
-        Ok(_) => {}
-        Err(_) => {
-            return Err(format!("target pid {pid} does not exist or cannot be inspected").into());
-        }
-    }
-    audit::ProcessIdentity::capture(pid, None, None)
-        .proc_start_time
-        .ok_or_else(|| format!("target pid {pid} does not exist or cannot be inspected").into())
-}
-
-fn verify_target_process(pid: i32, expected_start_time: u64) -> std::result::Result<(), String> {
-    if !matches!(proc_state_code(pid as u32), Ok(state) if state != 'Z' && state != 'X') {
-        return Err(format!("target pid {pid} exited while attaching"));
-    }
-    match audit::ProcessIdentity::capture(pid, None, None).proc_start_time {
-        Some(actual) if actual == expected_start_time => Ok(()),
-        Some(_) => Err(format!("target pid {pid} was reused while attaching")),
-        None => Err(format!("target pid {pid} exited while attaching")),
-    }
-}
-
-fn start_compatibility_attach(
-    compiled: dsl::Compiled,
-    attach_pid: i32,
-    agent_label: u64,
-    control_pid: i32,
-    feedback: &FeedbackPaths,
-) -> Result<AttachGuard> {
-    let target_start_time = target_process_start_time(attach_pid)?;
-    let stop = Arc::new(AtomicBool::new(false));
-    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
-    let (failure_tx, failure_rx) = tokio::sync::oneshot::channel::<String>();
-    let blob = compiled.bytes;
-    let meta = compiled.meta;
-    let labels = compiled.labels;
-    let fb = feedback.feedback.clone();
-    let ev = feedback.events.clone();
-    let stop_thread = stop.clone();
-    let thread = std::thread::spawn(move || {
-        let mut loader = match CompatibilityLoader::load(&blob) {
-            Ok(loader) => loader,
-            Err(e) => {
-                let _ = ready_tx.send(Err(format!("load compatibility engine: {e}")));
-                return;
-            }
-        };
-        if let Err(e) = loader.protect_pid(control_pid) {
-            let _ = ready_tx.send(Err(format!("protect control pid {control_pid}: {e}")));
-            return;
-        }
-        if let Err(e) = verify_target_process(attach_pid, target_start_time) {
-            let _ = ready_tx.send(Err(e));
-            return;
-        }
-        if let Err(e) = loader.seed_global_label(attach_pid, agent_label) {
-            let _ = ready_tx.send(Err(format!("seed pid {attach_pid}: {e}")));
-            return;
-        }
-        if let Err(e) = verify_target_process(attach_pid, target_start_time) {
-            let _ = ready_tx.send(Err(e));
-            return;
-        }
-        let _ = ready_tx.send(Ok(()));
-        let run_result = loader.run(&stop_thread, |v| {
-            report(&meta, &labels, &to_violation(&v), Some(&fb), Some(&ev));
-        });
-        if !stop_thread.load(Ordering::SeqCst) {
-            let message = match run_result {
-                Ok(()) => "compatibility event loop exited unexpectedly".to_string(),
-                Err(e) => format!("compatibility event loop failed: {e}"),
-            };
-            let _ = failure_tx.send(message);
-        }
-    });
-
-    match ready_rx.recv() {
-        Ok(Ok(())) => Ok(AttachGuard {
-            stop,
-            thread: Some(thread),
-            control: None,
-            failure: Some(failure_rx),
-            feedback_file: feedback.feedback.clone(),
-        }),
-        Ok(Err(e)) => {
-            stop.store(true, Ordering::SeqCst);
-            let _ = thread.join();
-            Err(e.into())
-        }
-        Err(_) => {
-            stop.store(true, Ordering::SeqCst);
-            let _ = thread.join();
-            Err("compatibility engine thread exited before readiness".into())
         }
     }
 }
@@ -1105,11 +942,13 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
-    if legacy_kernel_required() {
-        validate_legacy_endpoint_compatibility(&compiled)?;
-    }
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
+    let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x4d43_5041);
+    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
+        &compiled,
+        parent_domain_id,
+    ));
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "mcp");
     prepare_feedback_files(&feedback, target_user(cli.run_as_root))?;
     write_hook_state(&feedback.state, &feedback.feedback, attach_pid)?;
@@ -1117,33 +956,9 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
         chown_path(&feedback.state, uid, gid)?;
     }
 
-    if legacy_kernel_required() {
-        let guard = start_compatibility_attach(
-            compiled,
-            attach_pid,
-            agent_label,
-            submitter_pid,
-            &feedback,
-        )?;
-        eprintln!(
-            "ActPlane: MCP auto-attached pid {} under COMMAND label 0x{:x} with a static Linux compatibility policy; feedback {}; runtime policy mutation requires Linux 6.1+",
-            attach_pid,
-            agent_label,
-            feedback.feedback.display()
-        );
-        return Ok(guard);
-    }
-
-    let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x4d43_5041);
-    let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
-        &compiled,
-        parent_domain_id,
-    ));
-
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<ReadyResult>();
-    let (failure_tx, failure_rx) = tokio::sync::oneshot::channel::<String>();
     let blob = compiled.bytes;
     let fb = feedback.feedback.clone();
     let ev = feedback.events.clone();
@@ -1225,15 +1040,8 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
         if let Err(e) = cleanup.clear_runtime_state() {
             eprintln!("ActPlane: failed to clear singleton runtime state: {e}");
         }
-        if let Err(e) = &run_result {
+        if let Err(e) = run_result {
             eprintln!("ActPlane: singleton event loop failed: {e}");
-        }
-        if !stop_thread.load(Ordering::SeqCst) {
-            let message = match &run_result {
-                Ok(()) => "singleton event loop exited unexpectedly".to_string(),
-                Err(e) => format!("singleton event loop failed: {e}"),
-            };
-            let _ = failure_tx.send(message);
         }
     });
 
@@ -1261,8 +1069,6 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
                     parent_domain_id,
                     submitter_pid,
                 })),
-                failure: Some(failure_rx),
-                feedback_file: feedback.feedback.clone(),
             })
         }
         Ok(Err(e)) => {
@@ -1375,6 +1181,70 @@ fn require_bpf_caps_or_elevate_with_env(
     }
 }
 
+async fn run_legacy_command(
+    mut target: Child,
+    target_pid: u32,
+    agent_label: u64,
+    compiled: dsl::Compiled,
+    feedback: FeedbackPaths,
+) -> Result<i32> {
+    let stop = Arc::new(AtomicBool::new(false));
+    let stop_thread = stop.clone();
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let control_pid = std::process::id() as i32;
+    let feedback_file = feedback.feedback.clone();
+    let poller = std::thread::spawn(move || {
+        let mut loader = match Loader::load_legacy(&compiled.bytes) {
+            Ok(loader) => loader,
+            Err(e) => {
+                let _ = ready_tx.send(Err(format!("load compatibility engine: {e}")));
+                return;
+            }
+        };
+        if let Err(e) = loader
+            .protect_pid(control_pid)
+            .and_then(|_| loader.seed_global_label(target_pid as i32, agent_label))
+        {
+            let _ = ready_tx.send(Err(e.to_string()));
+            return;
+        }
+        let _ = ready_tx.send(Ok(()));
+        if let Err(e) = loader.run(&stop_thread, |v| {
+            report(
+                &compiled.meta,
+                &compiled.labels,
+                &to_violation(&v),
+                Some(&feedback.feedback),
+                Some(&feedback.events),
+            );
+        }) {
+            eprintln!("ActPlane: compatibility event loop failed: {e}");
+        }
+    });
+
+    if let Err(e) = ready_rx
+        .recv()
+        .unwrap_or_else(|_| Err("compatibility engine thread exited before readiness".to_string()))
+    {
+        let _ = send_signal(target_pid, libc::SIGKILL);
+        let _ = target.wait().await;
+        let _ = poller.join();
+        return Err(e.into());
+    }
+
+    eprintln!(
+        "ActPlane: running pid {target_pid} under COMMAND label 0x{agent_label:x}; feedback {}\n\
+         ActPlane: Linux compatibility mode uses a static exec-only policy; full runtime requires Linux 6.1+",
+        feedback_file.display()
+    );
+    send_signal(target_pid, libc::SIGCONT)?;
+    let status = target.wait().await?;
+    std::thread::sleep(Duration::from_millis(200));
+    stop.store(true, Ordering::SeqCst);
+    let _ = poller.join();
+    Ok(exit_code(status))
+}
+
 pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool) -> Result<i32> {
     if parent_domain {
         return Err(
@@ -1388,9 +1258,6 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
-    if legacy_kernel_required() {
-        validate_legacy_endpoint_compatibility(&compiled)?;
-    }
     let agent_label = runner_label(&compiled)?;
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "run");
     let target_owner = target_user(cli.run_as_root);
@@ -1409,6 +1276,10 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
         chown_path(&feedback.state, uid, gid)?;
     }
 
+    if legacy_kernel_required() {
+        return run_legacy_command(target, target_pid, agent_label, compiled, feedback).await;
+    }
+
     let stop = Arc::new(AtomicBool::new(false));
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
     let blob = compiled.bytes;
@@ -1419,118 +1290,91 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let stop_thread = stop.clone();
     let control_pid = std::process::id() as i32;
     let target_domain_id = fresh_runtime_domain_id(target_pid as i32, 0x5255_4e31);
-    let legacy = legacy_kernel_required();
-    let poller = if legacy {
-        std::thread::spawn(move || {
-            let mut loader = match CompatibilityLoader::load(&blob) {
-                Ok(loader) => loader,
-                Err(e) => {
-                    let _ = ready_tx.send(Err(format!("load compatibility engine: {e}")));
-                    return;
-                }
-            };
-            if let Err(e) = loader.protect_pid(control_pid) {
-                let _ = ready_tx.send(Err(format!("protect control pid {control_pid}: {e}")));
+    let poller = std::thread::spawn(move || {
+        let engine = match PinnedEngine::open_or_install_singleton() {
+            Ok(l) => l,
+            Err(e) => {
+                let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
                 return;
             }
-            if let Err(e) = loader.seed_global_label(target_pid as i32, agent_label) {
-                let _ = ready_tx.send(Err(format!("seed pid {target_pid}: {e}")));
+        };
+        let _runtime_lock = match engine.try_lock_runtime() {
+            Ok(lock) => lock,
+            Err(e) => {
+                let _ = ready_tx.send(Err(format!("lock ActPlane singleton runtime: {e}")));
                 return;
             }
-            let _ = ready_tx.send(Ok(()));
-            if let Err(e) = loader.run(&stop_thread, |v| {
+        };
+        let rh = match engine.reload_handle() {
+            Ok(h) => h,
+            Err(e) => {
+                let _ = ready_tx.send(Err(format!("create policy delta handle: {e}")));
+                return;
+            }
+        };
+        if let Err(e) = engine.protect_pid(control_pid) {
+            let _ = ready_tx.send(Err(format!("protect control pid {control_pid}: {e}")));
+            return;
+        }
+        if let Err(e) = rh.clear_runtime_state() {
+            let _ = ready_tx.send(Err(format!("clear singleton runtime state: {e}")));
+            return;
+        }
+        if let Err(e) =
+            engine.seed_label_in_domain(target_pid as i32, target_domain_id, agent_label)
+        {
+            let _ = ready_tx.send(Err(format!(
+                "seed pid {target_pid} in domain {target_domain_id}: {e}"
+            )));
+            return;
+        }
+        if control_pid != target_pid as i32 {
+            if let Err(e) = engine.bind_state(
+                control_pid,
+                target_domain_id,
+                control_plane_cap_state(agent_label),
+            ) {
+                let _ = ready_tx.send(Err(format!(
+                    "bind control pid {control_pid} to run domain {target_domain_id}: {e}"
+                )));
+                return;
+            }
+        }
+        if let Err(e) = rh.append_policy_delta(control_pid, target_domain_id, &blob) {
+            let _ = ready_tx.send(Err(format!(
+                "install policy in domain {target_domain_id}: {e}"
+            )));
+            return;
+        }
+        if control_pid != target_pid as i32 {
+            if let Err(e) = engine.unbind_pid_from_domain(control_pid, target_domain_id) {
+                let _ = ready_tx.send(Err(format!(
+                    "unbind control pid {control_pid} from run domain {target_domain_id}: {e}"
+                )));
+                return;
+            }
+        }
+        let cleanup = match engine.reload_handle() {
+            Ok(h) => h,
+            Err(e) => {
+                let _ = rh.clear_runtime_state();
+                let _ = ready_tx.send(Err(format!("create policy cleanup handle: {e}")));
+                return;
+            }
+        };
+        let _ = ready_tx.send(Ok(()));
+        let run_result = engine.run(&stop_thread, |v| {
+            if v.domain_id == target_domain_id {
                 report(&meta, &labels, &to_violation(&v), Some(&fb), Some(&ev));
-            }) {
-                eprintln!("ActPlane: compatibility event loop failed: {e}");
             }
-        })
-    } else {
-        std::thread::spawn(move || {
-            let engine = match PinnedEngine::open_or_install_singleton() {
-                Ok(l) => l,
-                Err(e) => {
-                    let _ = ready_tx.send(Err(format!("open ActPlane singleton: {e}")));
-                    return;
-                }
-            };
-            let _runtime_lock = match engine.try_lock_runtime() {
-                Ok(lock) => lock,
-                Err(e) => {
-                    let _ = ready_tx.send(Err(format!("lock ActPlane singleton runtime: {e}")));
-                    return;
-                }
-            };
-            let rh = match engine.reload_handle() {
-                Ok(h) => h,
-                Err(e) => {
-                    let _ = ready_tx.send(Err(format!("create policy delta handle: {e}")));
-                    return;
-                }
-            };
-            if let Err(e) = engine.protect_pid(control_pid) {
-                let _ = ready_tx.send(Err(format!("protect control pid {control_pid}: {e}")));
-                return;
-            }
-            if let Err(e) = rh.clear_runtime_state() {
-                let _ = ready_tx.send(Err(format!("clear singleton runtime state: {e}")));
-                return;
-            }
-            if let Err(e) =
-                engine.seed_label_in_domain(target_pid as i32, target_domain_id, agent_label)
-            {
-                let _ = ready_tx.send(Err(format!(
-                    "seed pid {target_pid} in domain {target_domain_id}: {e}"
-                )));
-                return;
-            }
-            if control_pid != target_pid as i32 {
-                if let Err(e) = engine.bind_state(
-                    control_pid,
-                    target_domain_id,
-                    control_plane_cap_state(agent_label),
-                ) {
-                    let _ = ready_tx.send(Err(format!(
-                        "bind control pid {control_pid} to run domain {target_domain_id}: {e}"
-                    )));
-                    return;
-                }
-            }
-            if let Err(e) = rh.append_policy_delta(control_pid, target_domain_id, &blob) {
-                let _ = ready_tx.send(Err(format!(
-                    "install policy in domain {target_domain_id}: {e}"
-                )));
-                return;
-            }
-            if control_pid != target_pid as i32 {
-                if let Err(e) = engine.unbind_pid_from_domain(control_pid, target_domain_id) {
-                    let _ = ready_tx.send(Err(format!(
-                        "unbind control pid {control_pid} from run domain {target_domain_id}: {e}"
-                    )));
-                    return;
-                }
-            }
-            let cleanup = match engine.reload_handle() {
-                Ok(h) => h,
-                Err(e) => {
-                    let _ = rh.clear_runtime_state();
-                    let _ = ready_tx.send(Err(format!("create policy cleanup handle: {e}")));
-                    return;
-                }
-            };
-            let _ = ready_tx.send(Ok(()));
-            let run_result = engine.run(&stop_thread, |v| {
-                if v.domain_id == target_domain_id {
-                    report(&meta, &labels, &to_violation(&v), Some(&fb), Some(&ev));
-                }
-            });
-            if let Err(e) = cleanup.clear_runtime_state() {
-                eprintln!("ActPlane: failed to clear singleton runtime state: {e}");
-            }
-            if let Err(e) = run_result {
-                eprintln!("ActPlane: singleton event loop failed: {e}");
-            }
-        })
-    };
+        });
+        if let Err(e) = cleanup.clear_runtime_state() {
+            eprintln!("ActPlane: failed to clear singleton runtime state: {e}");
+        }
+        if let Err(e) = run_result {
+            eprintln!("ActPlane: singleton event loop failed: {e}");
+        }
+    });
 
     match ready_rx.recv() {
         Ok(Ok(())) => {}
@@ -1548,16 +1392,16 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     }
 
     eprintln!(
-        "ActPlane: running pid {} under COMMAND label 0x{:x}; feedback {}\n",
+        "ActPlane: running pid {} under COMMAND label 0x{:x}{}; feedback {}\n",
         target_pid,
         agent_label,
+        if parent_domain {
+            " in an isolated singleton domain"
+        } else {
+            ""
+        },
         feedback.feedback.display()
     );
-    if legacy {
-        eprintln!(
-            "ActPlane: Linux compatibility mode uses a static startup policy; singleton control and runtime policy deltas require Linux 6.1+"
-        );
-    }
     send_signal(target_pid, libc::SIGCONT)?;
 
     let status = target.wait().await?;
@@ -2092,49 +1936,6 @@ fn exit_code(status: std::process::ExitStatus) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn attach_target_identity_rejects_missing_or_changed_processes() {
-        let pid = std::process::id() as i32;
-        let start_time = target_process_start_time(pid).expect("current process identity");
-        verify_target_process(pid, start_time).expect("unchanged current process");
-        assert!(verify_target_process(pid, start_time.wrapping_add(1)).is_err());
-        assert!(target_process_start_time(i32::MAX).is_err());
-    }
-
-    #[tokio::test]
-    async fn attach_guard_surfaces_event_loop_failure() {
-        let (failure_tx, failure_rx) = tokio::sync::oneshot::channel();
-        let mut guard = AttachGuard {
-            stop: Arc::new(AtomicBool::new(false)),
-            thread: None,
-            control: None,
-            failure: Some(failure_rx),
-            feedback_file: PathBuf::new(),
-        };
-        failure_tx
-            .send("compatibility event loop failed: test".to_string())
-            .expect("send failure");
-        let error = guard
-            .wait_for_failure()
-            .await
-            .expect_err("failure must reach the owner");
-        assert!(error.to_string().contains("event loop failed: test"));
-    }
-
-    #[test]
-    fn legacy_endpoint_validation_rejects_unrepresentable_patterns() {
-        let compiled = dsl::compile_str(
-            r#"source AGENT = exec "**"
-rule outbound:
-  block connect endpoint "*.internal" if AGENT"#,
-        )
-        .expect("compile endpoint policy");
-
-        let error = validate_legacy_endpoint_compatibility(&compiled)
-            .expect_err("wildcard hostname must not silently degrade");
-        assert!(error.to_string().contains("*.internal"), "{error}");
-    }
 
     #[test]
     fn audit_context_id_uses_run_dir_when_available() {

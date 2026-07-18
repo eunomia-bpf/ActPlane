@@ -32,7 +32,6 @@ ALL_LDFLAGS += $(ASAN_FLAGS)
 endif
 
 APPS = process test_taint
-BPF_OBJECTS = $(OUTPUT)/process-legacy.bpf.o
 
 # All test programs (no BPF skeleton needed)
 TEST_APPS = test_taint
@@ -80,7 +79,7 @@ $(call allow-override,CC,$(CROSS_COMPILE)cc)
 $(call allow-override,LD,$(CROSS_COMPILE)ld)
 
 .PHONY: all
-all: $(APPS) $(BPF_OBJECTS)
+all: $(APPS)
 
 .PHONY: debug
 debug:
@@ -101,7 +100,7 @@ help:
 	@echo "  clean        - Clean build artifacts"
 
 .PHONY: test
-test: test_taint $(BPF_OBJECTS)
+test: test_taint
 	@echo "Running ActPlane taint tests..."
 	@./test_taint
 

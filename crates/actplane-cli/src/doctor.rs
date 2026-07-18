@@ -2342,7 +2342,6 @@ pub(crate) fn doctor(cli: &PolicyInput) -> Result<i32> {
         problems += 1;
         println!("✗ kernel BTF: missing /sys/kernel/btf/vmlinux");
     }
-    doctor_kernel_support(&mut problems);
 
     if have_bpf_caps() {
         println!("✓ eBPF privilege: current process has root/CAP_BPF+CAP_SYS_ADMIN");
@@ -2552,52 +2551,6 @@ fn active_lsms() -> Option<String> {
     std::fs::read_to_string("/sys/kernel/security/lsm").ok()
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum KernelSupport {
-    Unsupported,
-    Compatibility,
-    Full,
-}
-
-fn kernel_support(release: &str) -> Option<KernelSupport> {
-    let mut parts = release.split('.');
-    let version = (
-        parts.next()?.parse::<u32>().ok()?,
-        parts.next()?.parse::<u32>().ok()?,
-    );
-    Some(if version < (5, 10) {
-        KernelSupport::Unsupported
-    } else if version < (6, 1) {
-        KernelSupport::Compatibility
-    } else {
-        KernelSupport::Full
-    })
-}
-
-fn doctor_kernel_support(problems: &mut usize) {
-    let release =
-        std::fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_else(|_| "unknown".into());
-    let release = release.trim();
-    match kernel_support(release) {
-        Some(KernelSupport::Full) => {
-            println!("✓ kernel runtime: {release} (full singleton and runtime-delta support)");
-        }
-        Some(KernelSupport::Compatibility) => {
-            println!(
-                "⚠ kernel runtime: {release} (static exec/file/numeric-IPv4 `actplane run`; full runtime requires Linux 6.1+)"
-            );
-        }
-        Some(KernelSupport::Unsupported) => {
-            *problems += 1;
-            println!("✗ kernel runtime: {release} is unsupported; Linux 5.10+ is required");
-        }
-        None => {
-            *problems += 1;
-            println!("✗ kernel runtime: could not parse release `{release}`");
-        }
-    }
-}
-
 fn lsm_list_has_bpf(lsms: &str) -> bool {
     lsms.split(',').any(|name| name.trim() == "bpf")
 }
@@ -2637,18 +2590,5 @@ mod tests {
         assert!(!text_has_bpf_lsm_arg(
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
-    }
-
-    #[test]
-    fn kernel_support_tiers_match_runtime_requirements() {
-        assert_eq!(kernel_support("5.9.18"), Some(KernelSupport::Unsupported));
-        assert_eq!(
-            kernel_support("5.10.260-virtme"),
-            Some(KernelSupport::Compatibility)
-        );
-        assert_eq!(kernel_support("6.0.19"), Some(KernelSupport::Compatibility));
-        assert_eq!(kernel_support("6.1.0"), Some(KernelSupport::Full));
-        assert_eq!(kernel_support("7.0.0-rc2+"), Some(KernelSupport::Full));
-        assert_eq!(kernel_support("invalid"), None);
     }
 }

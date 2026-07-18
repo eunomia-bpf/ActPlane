@@ -335,31 +335,6 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
-
-    #[test]
-    fn unsupported_endpoint_forms_are_reported_for_compatibility_loaders() {
-        let pol = crate::dsl::parse::parse(
-            r#"source NET = endpoint "*.internal"
-rule ipv6:
-  notify connect endpoint "::1" if NET"#,
-        )
-        .expect("parse unsupported endpoint forms");
-        let compiled = compile(&pol).expect("lower unsupported endpoint forms");
-
-        assert_eq!(compiled.endpoint_compatibility_errors.len(), 2);
-        assert!(
-            compiled
-                .endpoint_compatibility_errors
-                .iter()
-                .any(|error| error.contains("*.internal"))
-        );
-        assert!(
-            compiled
-                .endpoint_compatibility_errors
-                .iter()
-                .any(|error| error.contains("::1"))
-        );
-    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
@@ -467,7 +442,6 @@ struct Ctx {
     next_inval: u32,
     endpoint_cache: HashMap<String, Vec<(u32, u32)>>,
     endpoint_resolutions: HashMap<String, Vec<String>>,
-    endpoint_compatibility_errors: BTreeSet<String>,
 }
 impl Ctx {
     fn endpoint_matches(&mut self, pat: &str) -> Vec<(u32, u32)> {
@@ -486,17 +460,11 @@ impl Ctx {
                     .collect(),
             );
             if addrs.is_empty() {
-                self.endpoint_compatibility_errors.insert(format!(
-                    "endpoint hostname `{pat}` did not resolve to an IPv4 address"
-                ));
                 vec![(0, u32::MAX)]
             } else {
                 addrs.into_iter().map(|addr| (addr, u32::MAX)).collect()
             }
         } else {
-            self.endpoint_compatibility_errors.insert(format!(
-                "endpoint pattern `{pat}` is not numeric IPv4 or an exact resolvable hostname"
-            ));
             vec![(0, u32::MAX)]
         };
         self.endpoint_cache.insert(pat.to_string(), matches.clone());
@@ -508,9 +476,6 @@ impl Ctx {
         if matches.len() == 1 {
             return matches[0];
         }
-        self.endpoint_compatibility_errors.insert(format!(
-            "endpoint target condition `{pat}` resolves to multiple IPv4 addresses"
-        ));
         // `unless target PAT` should fail closed when a hostname expands to
         // several A records but the current ABI can store only one condition
         // address. For `target not PAT`, use match-any before negation so the
@@ -824,9 +789,6 @@ pub struct Compiled {
     /// Non-empty values are the IPv4 A records expanded into kernel matchers;
     /// an empty value means resolution was attempted but yielded no IPv4.
     pub endpoint_resolutions: HashMap<String, Vec<String>>,
-    /// Endpoint forms that the IPv4-only kernel ABI cannot represent without
-    /// silently changing policy meaning.
-    pub endpoint_compatibility_errors: Vec<String>,
 }
 
 fn collect_label_names(pol: &Policy) -> Vec<String> {
@@ -897,7 +859,6 @@ pub fn compile_with_labels(
         next_inval: 0,
         endpoint_cache: HashMap::new(),
         endpoint_resolutions: HashMap::new(),
-        endpoint_compatibility_errors: BTreeSet::new(),
     };
     for name in &sorted_labels {
         ctx.label_bit(name)?;
@@ -1109,7 +1070,6 @@ pub fn compile_with_labels(
         meta,
         labels: ctx.labels,
         endpoint_resolutions: ctx.endpoint_resolutions,
-        endpoint_compatibility_errors: ctx.endpoint_compatibility_errors.into_iter().collect(),
     })
 }
 
