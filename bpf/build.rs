@@ -47,23 +47,11 @@ fn main() {
         std::fs::create_dir_all(manifest.join("prebuilt")).ok();
         std::fs::copy(&built, &prebuilt)
             .unwrap_or_else(|e| panic!("copy {} -> prebuilt: {e}", built.display()));
-        std::fs::copy(&legacy_built, &legacy_prebuilt).unwrap_or_else(|e| {
-            panic!(
-                "copy {} -> {}: {e}",
-                legacy_built.display(),
-                legacy_prebuilt.display()
-            )
-        });
+        std::fs::copy(&legacy_built, &legacy_prebuilt)
+            .unwrap_or_else(|e| panic!("copy {} -> prebuilt: {e}", legacy_built.display()));
     }
 
     let src = if prebuilt.exists() { &prebuilt } else { &built };
     std::fs::copy(src, out.join("process.bpf.o"))
         .unwrap_or_else(|e| panic!("copy {} -> OUT_DIR: {e}", src.display()));
-    let legacy_src = if legacy_prebuilt.exists() {
-        &legacy_prebuilt
-    } else {
-        &legacy_built
-    };
-    std::fs::copy(legacy_src, out.join("process-legacy.bpf.o"))
-        .unwrap_or_else(|e| panic!("copy {} -> OUT_DIR: {e}", legacy_src.display()));
 }

@@ -170,15 +170,13 @@ static __noinline int taint_contains(const char *text, const char *pat)
 }
 #endif /* __BPF__ */
 
-struct te_path_cmp_scratch {
-	char text[TAINT_PAT_LEN], pat[TAINT_PAT_LEN], tail[TAINT_SUF_MAX];
-};
+#ifdef ACTPLANE_LEGACY_KERNEL
+struct te_path_cmp_scratch { char text[TAINT_PAT_LEN], pat[TAINT_PAT_LEN], tail[TAINT_SUF_MAX]; };
 struct {
-	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY); __uint(max_entries, 1);
-	__type(key, __u32); __type(value, struct te_path_cmp_scratch);
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY); __uint(max_entries, 1); __type(key, __u32);
+	__type(value, struct te_path_cmp_scratch);
 } ts_path_cmp SEC(".maps");
 
-#ifdef ACTPLANE_LEGACY_KERNEL
 static __always_inline __u64 te_path_mask(int n)
 {
 	if (n <= 0) return 0;
@@ -197,31 +195,26 @@ static __always_inline int te_path_match(unsigned int kind, const char *text,
 	__u32 key = 0;
 	struct te_path_cmp_scratch *s = bpf_map_lookup_elem(&ts_path_cmp, &key);
 	__u64 diff = 0;
-
 	if (!s) return 0;
 	if (kind == TAINT_MATCH_ANY || kind == TAINT_MATCH_CONTAINS)
 		return kind == TAINT_MATCH_ANY;
-	int tn = bpf_probe_read_kernel_str(s->text, sizeof(s->text), text),
-	    pn = bpf_probe_read_kernel_str(s->pat, sizeof(s->pat), pat);
+	int tn = bpf_probe_read_kernel_str(s->text, sizeof(s->text), text), pn = bpf_probe_read_kernel_str(s->pat, sizeof(s->pat), pat);
 	if (tn <= 0 || pn <= 1 || tn > TAINT_PAT_LEN || pn > TAINT_PAT_LEN) return 0;
 	if (kind == TAINT_MATCH_SUFFIX) {
 		tn--; pn--;
-		if (!(policy_features & TE_POLICY_PATH_SUFFIX) || pn > TAINT_SUF_MAX || pn > tn)
-			return 0;
+		if (!(policy_features & TE_POLICY_PATH_SUFFIX) || pn > TAINT_SUF_MAX || pn > tn) return 0;
 		unsigned int off = tn - pn;
 		if (off >= TAINT_PAT_LEN) return 0;
 		TE_COPY(s->tail, sizeof(s->tail), text + off);
 #pragma clang loop unroll(full)
 		for (int i = 0; i < TAINT_SUF_MAX / 8; i++)
-			diff |= (((__u64 *)s->tail)[i] ^ ((__u64 *)s->pat)[i]) &
-				te_path_mask(pn - i * 8);
+			diff |= (((__u64 *)s->tail)[i] ^ ((__u64 *)s->pat)[i]) & te_path_mask(pn - i * 8);
 		return diff == 0;
 	}
 	if (kind == TAINT_MATCH_EXACT && tn != pn) return 0;
 #pragma clang loop unroll(full)
 	for (int i = 0; i < TAINT_PAT_LEN / 8; i++)
-		diff |= (((__u64 *)s->text)[i] ^ ((__u64 *)s->pat)[i]) &
-			te_path_mask(pn - 1 - i * 8);
+		diff |= (((__u64 *)s->text)[i] ^ ((__u64 *)s->pat)[i]) & te_path_mask(pn - 1 - i * 8);
 	return diff == 0;
 #else
 	switch (kind) {

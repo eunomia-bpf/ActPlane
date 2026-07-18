@@ -39,10 +39,8 @@ pub const PIN_ROOT_ENV: &str = "ACTPLANE_BPF_PIN_ROOT";
 struct Aligned<T: ?Sized>(T);
 static OBJECT: &Aligned<[u8]> =
     &Aligned(*include_bytes!(concat!(env!("OUT_DIR"), "/process.bpf.o")));
-static LEGACY_OBJECT: &Aligned<[u8]> = &Aligned(*include_bytes!(concat!(
-    env!("OUT_DIR"),
-    "/process-legacy.bpf.o"
-)));
+static LEGACY_OBJECT: &Aligned<[u8]> =
+    &Aligned(*include_bytes!("../prebuilt/process-legacy.bpf.o"));
 fn object_bytes() -> &'static [u8] {
     &OBJECT.0
 }
@@ -1390,27 +1388,30 @@ fn validate_legacy_config(cfg: &CConfig) -> io::Result<()> {
     if cfg.n_updates as usize > LEGACY_MAX_UPDATES || cfg.n_rules as usize > LEGACY_MAX_RULES {
         return Err(err("Linux 5.10 supports at most 64 updates and 32 rules"));
     }
-    let supported = |op, m, arg, domain| {
+    let supported = |op, m, arg, domain, pat: &[u8; PAT]| {
         domain == 0
             && arg == 0
             && op <= OP_CONNECT
             && m != M_CONTAINS
             && (op != OP_EXEC || m != M_SUFFIX)
+            && (m != M_SUFFIX || pat[16] == 0)
     };
     if cfg.updates[..cfg.n_updates as usize].iter().any(|u| {
-        !supported(u.op, u.m, u.arg[0], u.domain_id)
-            && !(u.op == OP_RECV && u.arg[0] == 0 && u.domain_id == 0)
+        !supported(u.op, u.m, u.arg[0], u.domain_id, &u.target)
+            && !(u.op == OP_RECV && supported(OP_CONNECT, u.m, u.arg[0], u.domain_id, &u.target))
     }) {
         return Err(err(
-            "Linux 5.10 sources support exec, file, and IPv4 endpoints without @arg or domains",
+            "Linux 5.10 source matches exceed compatibility limits or use @arg/domains",
         ));
     }
     if cfg.rules[..cfg.n_rules as usize].iter().any(|r| {
-        !supported(r.op, r.m, r.arg[0], r.domain_id)
+        !supported(r.op, r.m, r.arg[0], r.domain_id, &r.target)
+            || (r.cond_kind == C_TARGET
+                && !supported(r.op, r.cond_match, 0, r.domain_id, &r.cond_pat))
             || (r.effect == EFFECT_BLOCK && matches!(r.op, OP_OPEN | OP_WRITE | OP_RECV))
     }) {
         return Err(err(
-            "Linux 5.10 rules exclude @arg, recv, file block, contains, and domains",
+            "Linux 5.10 rules exclude @arg, recv, file block, contains/long suffix matches, and domains",
         ));
     }
     Ok(())

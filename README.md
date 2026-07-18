@@ -48,7 +48,7 @@ The agent receives this reason through its hook integration, understands the
 constraint, and takes a different path to complete the task.
 
 **Requirements:** Linux kernel 5.10+ with BTF (`/sys/kernel/btf/vmlinux`). Linux
-5.10-6.0 supports static exec/file/IPv4 policies; the full runtime requires 6.1+. `run`
+5.10-6.0 supports static exec/file/IPv4 policies (file suffixes up to 16 bytes); the full runtime requires 6.1+. `run`
 and `watch` load the eBPF engine, so they need root (or `CAP_BPF` +
 `CAP_SYS_ADMIN`); Linux 5.10 also needs `CAP_SYS_RESOURCE` when its memlock hard
 limit is finite. ActPlane drops the target command back to your user. In the

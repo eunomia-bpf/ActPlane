@@ -1202,6 +1202,7 @@ async fn run_legacy_command(
     };
     let stop = Arc::new(AtomicBool::new(false));
     let stop_thread = stop.clone();
+    let (failure_tx, mut failure_rx) = tokio::sync::oneshot::channel();
     let feedback_file = feedback.feedback.clone();
     let poller = std::thread::spawn(move || {
         let result = loader.run(&stop_thread, |v| {
@@ -1214,8 +1215,12 @@ async fn run_legacy_command(
             )
         });
         if let Err(error) = result {
-            eprintln!("ActPlane: compatibility engine failed: {error}");
+            let _ = failure_tx.send(format!("compatibility event loop failed: {error}"));
+            while !stop_thread.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(10));
+            }
         }
+        drop(loader);
     });
 
     eprintln!(
@@ -1223,13 +1228,26 @@ async fn run_legacy_command(
          ActPlane: Linux compatibility mode uses a static policy; runtime updates require Linux 6.1+",
         feedback_file.display()
     );
-    send_process_group_signal(target_pid, libc::SIGCONT)?;
-    let status = target.wait().await?;
+    let outcome: Result<i32> = if let Err(error) =
+        send_process_group_signal(target_pid, libc::SIGCONT)
+    {
+        Err(error.into())
+    } else {
+        tokio::select! {
+            biased;
+            failure = &mut failure_rx => Err(failure.unwrap_or_else(|_| "compatibility event loop exited unexpectedly".into()).into()),
+            status = target.wait() => status.map(exit_code).map_err(|error| error.into()),
+        }
+    };
     let _ = send_process_group_signal(target_pid, libc::SIGKILL);
+    let _ = target.wait().await;
     std::thread::sleep(Duration::from_millis(200));
     stop.store(true, Ordering::SeqCst);
     let _ = poller.join();
-    Ok(exit_code(status))
+    if let Ok(error) = failure_rx.try_recv() {
+        return Err(error.into());
+    }
+    outcome
 }
 
 pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool) -> Result<i32> {
