@@ -16,10 +16,9 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 const volatile unsigned int enforce_mode = 0;
 const volatile unsigned int policy_features = 0;
 #ifdef ACTPLANE_LEGACY_KERNEL
-/* Kernels before bpf_loop() need verifier-visible policy bounds. The direct
- * loader patches these rodata values before loading any program. */
-const volatile unsigned int legacy_n_rules = 0;
-const volatile unsigned int legacy_n_updates = 0;
+const volatile unsigned int legacy_n_rules = 0, legacy_n_updates = 0;
+const volatile unsigned int legacy_n_file_rules = 0, legacy_n_file_updates = 0;
+const volatile unsigned int legacy_n_net_rules = 0, legacy_n_net_updates = 0;
 #endif
 
 #include "taint_engine.bpf.h"
@@ -1049,12 +1048,8 @@ static __always_inline void fill_violation_provenance(struct event *v, pid_t pid
 		}
 	}
 #else
-	(void)pid;
-	(void)domain_id;
-	(void)matched_labels;
-	(void)obj_kind;
-	(void)fid;
-	(void)ip;
+	(void)pid; (void)domain_id; (void)matched_labels;
+	(void)obj_kind; (void)fid; (void)ip;
 #endif
 }
 
@@ -1315,12 +1310,6 @@ static __always_inline __u32 te_supported_effects(__u32 backend_mode)
 	return (1U << TEFFECT_NOTIFY) | (1U << TEFFECT_KILL);
 }
 
-#ifdef ACTPLANE_LEGACY_KERNEL
-#define TE_EXEC_DOMAIN_DEPTH 1
-#else
-#define TE_EXEC_DOMAIN_DEPTH CAP_DOMAIN_DEPTH
-#endif
-
 static __always_inline int exec_pipe_init(pid_t pid, __u32 mode)
 {
 	struct exec_pipe_state *s = exec_pipe_buf();
@@ -1333,7 +1322,7 @@ static __always_inline int exec_pipe_init(pid_t pid, __u32 mode)
 	s->best_rule = -1;
 	s->best_index = -1;
 	s->best_effect = TEFFECT_NOTIFY;
-	for (int i = 0; i < TE_EXEC_DOMAIN_DEPTH; i++) {
+	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
 		__u32 domain_id = te_domain_for_depth(pid, i);
 		if (i > 0 && !domain_id)
 			break;
@@ -1350,7 +1339,7 @@ static __always_inline void exec_pipe_collect_updates(__u32 prefix)
 
 	if (!s || !scratch)
 		return;
-	for (int i = 0; i < TE_EXEC_DOMAIN_DEPTH; i++) {
+	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
 		if (i >= s->n_domains)
 			break;
 		__u32 domain_id = s->domain_ids[i];
@@ -1363,9 +1352,9 @@ static __always_inline void exec_pipe_collect_updates(__u32 prefix)
 			.target = scratch->match,
 		};
 		if (prefix)
-			bpf_loop(te_count(1), te_exec_update_prefix_cb, &c, 0);
+			bpf_loop(te_update_count(TOP_EXEC), te_exec_update_prefix_cb, &c, 0);
 		else
-			bpf_loop(te_count(1), te_exec_update_simple_cb, &c, 0);
+			bpf_loop(te_update_count(TOP_EXEC), te_exec_update_simple_cb, &c, 0);
 		s->add[i] |= c.add;
 		s->del[i] |= c.del;
 		s->gates[i] |= c.gates;
@@ -1381,7 +1370,7 @@ static __always_inline void exec_pipe_apply_updates(void)
 
 	if (!s || !scratch)
 		return;
-	for (int i = 0; i < TE_EXEC_DOMAIN_DEPTH; i++) {
+	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
 		if (i >= s->n_domains)
 			break;
 		__u32 domain_id = s->domain_ids[i];
@@ -1734,7 +1723,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		if ((ev->access & TE_ACCESS_READ) &&
 		    (policy_features & TE_POLICY_OPEN_RULES)) {
 			eval->op = TOP_OPEN;
-			candidate = te_check_labels(eval);
+			candidate = te_check_file_labels(eval);
 			if (te_better_match(candidate, eval->effect, rid, effect)) {
 				rid = candidate;
 				effect = eval->effect;
@@ -1747,7 +1736,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		    (policy_features & TE_POLICY_WRITE_RULES)) {
 			eval->effect = TEFFECT_BLOCK;
 			eval->op = TOP_WRITE;
-			candidate = te_check_labels(eval);
+			candidate = te_check_file_labels(eval);
 			if (te_better_match(candidate, eval->effect, rid, effect)) {
 				rid = candidate;
 				effect = eval->effect;
@@ -1765,7 +1754,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		eval->effect_mask = te_supported_effects(ev->mode);
 		eval->op = (ev->access & TE_ACCESS_RECV) ? TOP_RECV : TOP_CONNECT;
 		eval->ip = ev->ip;
-		rid = te_check_labels(eval);
+		rid = te_check_net_labels(eval);
 		effect = eval->effect;
 		matched_labels = eval->matched_labels;
 		matched_domain_id = eval->matched_domain_id;
@@ -1850,7 +1839,7 @@ static __always_inline int te_handle_file_event(pid_t pid, const char *target,
 	eval->include_file_labels = (access & TE_ACCESS_READ) ? 1 : 0;
 	if ((access & TE_ACCESS_READ) && (policy_features & TE_POLICY_OPEN_RULES)) {
 		eval->op = TOP_OPEN;
-		candidate = te_check_labels(eval);
+		candidate = te_check_file_labels(eval);
 		if (te_better_match(candidate, eval->effect, rid, effect)) {
 			rid = candidate;
 			effect = eval->effect;
@@ -1862,7 +1851,7 @@ static __always_inline int te_handle_file_event(pid_t pid, const char *target,
 	if ((access & TE_ACCESS_WRITE) && (policy_features & TE_POLICY_WRITE_RULES)) {
 		eval->effect = TEFFECT_BLOCK;
 		eval->op = TOP_WRITE;
-		candidate = te_check_labels(eval);
+		candidate = te_check_file_labels(eval);
 		if (te_better_match(candidate, eval->effect, rid, effect)) {
 			rid = candidate;
 			effect = eval->effect;

@@ -16,23 +16,14 @@
 #endif
 
 #ifdef ACTPLANE_LEGACY_KERNEL
-/* Linux 5.10 has bounded loops but predates the bpf_loop helper. Keep the
- * callback shape shared with the modern object while emitting an ordinary BPF
- * loop whose trip count is capped for the verifier. */
 #define bpf_loop(nr_loops, callback_fn, callback_ctx, flags) ({ \
 	unsigned int __te_nr = (nr_loops); \
-	unsigned int __te_i; \
-	long __te_ret = 0; \
 	(void)(flags); \
-	if (__te_nr > MAX_TAINT_UPDATES) \
-		__te_nr = MAX_TAINT_UPDATES; \
+	if (__te_nr > MAX_TAINT_UPDATES) __te_nr = MAX_TAINT_UPDATES; \
 	TAINT_UNROLL \
-	for (__te_i = 0; __te_i < __te_nr; __te_i++) { \
-		__te_ret++; \
-		if ((callback_fn)(__te_i, (callback_ctx))) \
-			break; \
-	} \
-	__te_ret; \
+	for (unsigned int __te_i = 0; __te_i < __te_nr; __te_i++) \
+		if ((callback_fn)(__te_i, (callback_ctx))) break; \
+	0; \
 })
 #endif
 
@@ -179,9 +170,60 @@ static __noinline int taint_contains(const char *text, const char *pat)
 }
 #endif /* __BPF__ */
 
+struct te_path_cmp_scratch {
+	char text[TAINT_PAT_LEN], pat[TAINT_PAT_LEN], tail[TAINT_SUF_MAX];
+};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY); __uint(max_entries, 1);
+	__type(key, __u32); __type(value, struct te_path_cmp_scratch);
+} ts_path_cmp SEC(".maps");
+
+#ifdef ACTPLANE_LEGACY_KERNEL
+static __always_inline __u64 te_path_mask(int n)
+{
+	if (n <= 0) return 0;
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	return n >= 8 ? ~0ULL : (1ULL << (n * 8)) - 1;
+#else
+	return n >= 8 ? ~0ULL : ~0ULL << ((8 - n) * 8);
+#endif
+}
+#endif
+
 static __always_inline int te_path_match(unsigned int kind, const char *text,
 					 const char *pat)
 {
+#ifdef ACTPLANE_LEGACY_KERNEL
+	__u32 key = 0;
+	struct te_path_cmp_scratch *s = bpf_map_lookup_elem(&ts_path_cmp, &key);
+	__u64 diff = 0;
+
+	if (!s) return 0;
+	if (kind == TAINT_MATCH_ANY || kind == TAINT_MATCH_CONTAINS)
+		return kind == TAINT_MATCH_ANY;
+	int tn = bpf_probe_read_kernel_str(s->text, sizeof(s->text), text),
+	    pn = bpf_probe_read_kernel_str(s->pat, sizeof(s->pat), pat);
+	if (tn <= 0 || pn <= 1 || tn > TAINT_PAT_LEN || pn > TAINT_PAT_LEN) return 0;
+	if (kind == TAINT_MATCH_SUFFIX) {
+		tn--; pn--;
+		if (!(policy_features & TE_POLICY_PATH_SUFFIX) || pn > TAINT_SUF_MAX || pn > tn)
+			return 0;
+		unsigned int off = tn - pn;
+		if (off >= TAINT_PAT_LEN) return 0;
+		TE_COPY(s->tail, sizeof(s->tail), text + off);
+#pragma clang loop unroll(full)
+		for (int i = 0; i < TAINT_SUF_MAX / 8; i++)
+			diff |= (((__u64 *)s->tail)[i] ^ ((__u64 *)s->pat)[i]) &
+				te_path_mask(pn - i * 8);
+		return diff == 0;
+	}
+	if (kind == TAINT_MATCH_EXACT && tn != pn) return 0;
+#pragma clang loop unroll(full)
+	for (int i = 0; i < TAINT_PAT_LEN / 8; i++)
+		diff |= (((__u64 *)s->text)[i] ^ ((__u64 *)s->pat)[i]) &
+			te_path_mask(pn - 1 - i * 8);
+	return diff == 0;
+#else
 	switch (kind) {
 	case TAINT_MATCH_PREFIX:
 		return taint_prefix(text, pat);
@@ -198,6 +240,7 @@ static __always_inline int te_path_match(unsigned int kind, const char *text,
 	default:
 		return taint_streq(text, pat);
 	}
+#endif
 }
 
 struct proc_state {
@@ -439,18 +482,40 @@ static __always_inline struct file_domain_id *te_file_domain_tmp(void)
 static __always_inline unsigned int te_count(__u32 slot)
 {
 #ifdef ACTPLANE_LEGACY_KERNEL
-	if (slot == 0)
-		return legacy_n_rules;
-	if (slot == 1)
-		return legacy_n_updates;
-	if (slot == 5)
-		return MAX_TAINT_LABELS;
-	return 0;
+	return slot == 0 ? legacy_n_rules : slot == 1 ? legacy_n_updates :
+	       slot == 5 ? MAX_TAINT_LABELS : 0;
 #else
 	__u32 *v = bpf_map_lookup_elem(&ts_counts, &slot);
 	return v ? *v : 0;
 #endif
 }
+
+#ifdef ACTPLANE_LEGACY_KERNEL
+static __always_inline unsigned int te_group_start(unsigned int op, unsigned int file,
+						    unsigned int net)
+{
+	if (op == TOP_CONNECT || op == TOP_RECV) return file;
+	if (op == TOP_EXEC) return file + net;
+	return 0;
+}
+
+static __always_inline unsigned int te_group_count(unsigned int op, unsigned int total,
+						    unsigned int file, unsigned int net)
+{
+	if (op == TOP_OPEN || op == TOP_WRITE) return file;
+	if (op == TOP_CONNECT || op == TOP_RECV) return net;
+	return total - te_group_start(op, file, net);
+}
+#define te_update_start(op) te_group_start((op), legacy_n_file_updates, legacy_n_net_updates)
+#define te_update_count(op) te_group_count((op), legacy_n_updates, legacy_n_file_updates, legacy_n_net_updates)
+#define te_rule_start(op) te_group_start((op), legacy_n_file_rules, legacy_n_net_rules)
+#define te_rule_count(op) te_group_count((op), legacy_n_rules, legacy_n_file_rules, legacy_n_net_rules)
+#else
+#define te_update_start(op) 0
+#define te_update_count(op) te_count(1)
+#define te_rule_start(op) 0
+#define te_rule_count(op) te_count(0)
+#endif
 
 /* Per-CPU scratch for the raw argv blob + tokenized slots (off-stack; the exec
  * hook fills it then matches synchronously, so per-CPU reuse is safe). Both live
@@ -1205,26 +1270,35 @@ static __always_inline int te_exec_simple_match(unsigned int kind,
 {
 	if (kind == TAINT_MATCH_ANY)
 		return 1;
-	if (kind != TAINT_MATCH_EXACT)
-		return 0;
 #ifdef ACTPLANE_LEGACY_KERNEL
-	/* exec matching is against comm, which is capped at TASK_COMM_LEN. Avoid
-	 * the nested bounded string loop that exhausts the Linux 5.10 verifier. */
 	long diff = 0;
+	if (kind != TAINT_MATCH_EXACT && kind != TAINT_MATCH_PREFIX)
+		return 0;
 #pragma clang loop unroll(full)
-	for (int i = 0; i < TAINT_COMM_LEN; i++)
+	for (int i = 0; i < TAINT_COMM_LEN; i++) {
+		if (kind == TAINT_MATCH_PREFIX && !pat[i]) break;
 		diff |= (unsigned char)(text[i] ^ pat[i]);
+	}
 	return diff == 0;
 #else
+	if (kind != TAINT_MATCH_EXACT)
+		return 0;
 	return taint_streq(text, pat);
 #endif
 }
+
+#ifdef ACTPLANE_LEGACY_KERNEL
+#define te_exec_rule_match te_exec_simple_match
+#else
+#define te_exec_rule_match taint_exec_match
+#endif
 
 static int te_update_cb(__u32 i, void *vc)
 {
 	struct te_update_ctx *c = vc;
 	int match = 0;
 
+	i += te_update_start(c->op);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
 	struct taint_update *up = bpf_map_lookup_elem(&ts_updates, &i);
@@ -1263,6 +1337,7 @@ static int te_exec_update_simple_cb(__u32 i, void *vc)
 {
 	struct te_update_ctx *c = vc;
 
+	i += te_update_start(TOP_EXEC);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
 	struct taint_update *up = bpf_map_lookup_elem(&ts_updates, &i);
@@ -1296,6 +1371,7 @@ static int te_exec_update_prefix_cb(__u32 i, void *vc)
 {
 	struct te_update_ctx *c = vc;
 
+	i += te_update_start(TOP_EXEC);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
 	struct taint_update *up = bpf_map_lookup_elem(&ts_updates, &i);
@@ -1327,13 +1403,14 @@ static int te_exec_update_prefix_cb(__u32 i, void *vc)
 
 static __always_inline void te_collect_updates(struct te_update_ctx *c)
 {
-	bpf_loop(te_count(1), te_update_cb, c, 0);
+	bpf_loop(te_update_count(c->op), te_update_cb, c, 0);
 }
 
 static int te_exec_update_no_args_cb(__u32 i, void *vc)
 {
 	struct te_update_ctx *c = vc;
 
+	i += te_update_start(TOP_EXEC);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
 	struct taint_update *up = bpf_map_lookup_elem(&ts_updates, &i);
@@ -1360,7 +1437,7 @@ static int te_exec_update_no_args_cb(__u32 i, void *vc)
 
 static __always_inline void te_collect_exec_updates_no_args(struct te_update_ctx *c)
 {
-	bpf_loop(te_count(1), te_exec_update_no_args_cb, c, 0);
+	bpf_loop(te_update_count(TOP_EXEC), te_exec_update_no_args_cb, c, 0);
 }
 
 static __always_inline void te_update_accum(struct te_update_ctx *c,
@@ -1375,35 +1452,45 @@ static __always_inline void te_update_accum(struct te_update_ctx *c,
 	c->invals |= u->invals;
 }
 
+#ifdef ACTPLANE_LEGACY_KERNEL
+static int te_file_update_cb(__u32 i, struct te_update_ctx *vc)
+#else
 static int te_file_update_cb(__u32 i, void *vc)
+#endif
 {
 	struct te_update_ctx *c = vc;
 
+	i += te_update_start(c->op);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
 	struct taint_update *up = bpf_map_lookup_elem(&ts_updates, &i);
 	if (!up)
 		return 1;
-	struct taint_update u = *up;
-	if (u.op != c->op)
+	struct taint_update *u = up;
+#ifndef ACTPLANE_LEGACY_KERNEL
+	struct taint_update local = *up;
+	u = &local;
+#endif
+	if (u->op != c->op)
 		return 0;
-	if (u.domain_id != c->domain_id)
+	if (u->domain_id != c->domain_id)
 		return 0;
-	if (!te_path_match(u.match, c->target, u.target))
+	if (!te_path_match(u->match, c->target, u->target))
 		return 0;
-	te_update_accum(c, &u);
+	te_update_accum(c, u);
 	return 0;
 }
 
 static __always_inline void te_collect_file_updates(struct te_update_ctx *c)
 {
-	bpf_loop(te_count(1), te_file_update_cb, c, 0);
+	bpf_loop(te_update_count(c->op), te_file_update_cb, c, 0);
 }
 
 static int te_endpoint_update_cb(__u32 i, void *vc)
 {
 	struct te_update_ctx *c = vc;
 
+	i += te_update_start(c->op);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
 	struct taint_update *up = bpf_map_lookup_elem(&ts_updates, &i);
@@ -1422,7 +1509,7 @@ static int te_endpoint_update_cb(__u32 i, void *vc)
 
 static __always_inline void te_collect_endpoint_updates(struct te_update_ctx *c)
 {
-	bpf_loop(te_count(1), te_endpoint_update_cb, c, 0);
+	bpf_loop(te_update_count(c->op), te_endpoint_update_cb, c, 0);
 }
 
 /* on exec: apply compiled updates for labels, declassification, gates, and
@@ -1951,7 +2038,7 @@ static __always_inline int te_cond_satisfied(const struct taint_rule *r,
 	if (e->op == TOP_CONNECT || e->op == TOP_RECV)
 		m = ((e->ip & r->cond_ipv4_mask) == r->cond_ipv4);
 	else if (e->op == TOP_EXEC)
-		m = taint_exec_match(r->cond_match, e->target, r->cond_pat);
+		m = te_exec_rule_match(r->cond_match, e->target, r->cond_pat);
 	else
 		m = te_path_match(r->cond_match, e->target, r->cond_pat);
 	return r->cond_neg ? !m : m;
@@ -1996,11 +2083,12 @@ static __noinline int te_rule_effect(struct te_rule_eval *e, unsigned int idx)
 		if ((e->ip & rp->ipv4_mask) != rp->ipv4)
 			return -1;
 	} else if (e->op == TOP_EXEC) {
-		if (!taint_exec_match(rp->match, e->target, rp->target))
+		if (!te_exec_rule_match(rp->match, e->target, rp->target))
 			return -1;
 	} else if (!te_path_match(rp->match, e->target, rp->target)) {
 		return -1;
 	}
+#ifndef ACTPLANE_LEGACY_KERNEL
 	if (e->op == TOP_EXEC && rp->arg[0] != '\0') {
 		/* Match against the pre-tokenized arg slots. Re-look-up the per-CPU
 		 * scratch here so the verifier keeps the map_value bound. */
@@ -2008,6 +2096,7 @@ static __noinline int te_rule_effect(struct te_rule_eval *e, unsigned int idx)
 		if (!a || !taint_arg_match(a->slots, rp->arg))
 			return -1;
 	}
+#endif
 	if (te_cond_satisfied(rp, e))
 		return -1;
 	e->matched_rule = (int)rp->rule_id;
@@ -2032,8 +2121,10 @@ static __noinline int te_rule_effect_exec_simple(struct te_rule_eval *e,
 		return -1;
 	if (rp->op != TOP_EXEC)
 		return -1;
+#ifndef ACTPLANE_LEGACY_KERNEL
 	if (rp->cond_kind != TCOND_NONE)
 		return -1;
+#endif
 	if (rp->domain_id != 0 && rp->domain_id != e->current_domain_id &&
 	    !cap_domain_matches_pid(e->pid, rp->domain_id))
 		return -1;
@@ -2054,6 +2145,10 @@ static __noinline int te_rule_effect_exec_simple(struct te_rule_eval *e,
 		return -1;
 	if (!te_exec_simple_match(rp->match, e->target, rp->target))
 		return -1;
+#ifdef ACTPLANE_LEGACY_KERNEL
+	if (te_cond_satisfied(rp, e))
+		return -1;
+#endif
 #ifndef ACTPLANE_LEGACY_KERNEL
 	if (rp->arg[0] != '\0') {
 		struct te_argslots *a = te_argslots_buf();
@@ -2175,6 +2270,7 @@ static __noinline int te_rule_effect_no_args(struct te_rule_eval *e,
 
 struct te_rule_ctx {
 	struct te_rule_eval *e;
+	unsigned int start;
 	unsigned int best_effect;
 	int best_rule;
 	int best_idx;
@@ -2185,6 +2281,7 @@ struct te_rule_ctx {
 static int te_rule_cb(__u32 i, void *vc)
 {
 	struct te_rule_ctx *c = vc;
+	i += c->start;
 	int eff = te_rule_effect(c->e, i);
 	if (eff < 0)
 		return 0;
@@ -2204,6 +2301,7 @@ static int te_rule_cb(__u32 i, void *vc)
 static int te_rule_no_args_cb(__u32 i, void *vc)
 {
 	struct te_rule_ctx *c = vc;
+	i += c->start;
 	int eff = te_rule_effect_no_args(c->e, i);
 	if (eff < 0)
 		return 0;
@@ -2223,6 +2321,7 @@ static int te_rule_no_args_cb(__u32 i, void *vc)
 static int te_rule_exec_simple_cb(__u32 i, void *vc)
 {
 	struct te_rule_ctx *c = vc;
+	i += c->start;
 	int eff = te_rule_effect_exec_simple(c->e, i);
 	if (eff < 0)
 		return 0;
@@ -2242,6 +2341,7 @@ static int te_rule_exec_simple_cb(__u32 i, void *vc)
 static int te_rule_exec_complex_cb(__u32 i, void *vc)
 {
 	struct te_rule_ctx *c = vc;
+	i += c->start;
 	int eff = te_rule_effect_exec_complex(c->e, i);
 	if (eff < 0)
 		return 0;
@@ -2262,15 +2362,17 @@ static int te_rule_exec_complex_cb(__u32 i, void *vc)
  * The rule loop runs via bpf_loop() with the count from the ts_counts map, so
  * the callback is verified ONCE — verifier cost is independent of rule count,
  * which (with the branchless matchers) lets 100+ rules load in one program. */
-static __noinline int te_check_labels(struct te_rule_eval *e)
+static __noinline int te_check_labels_range(struct te_rule_eval *e, unsigned int start,
+					     unsigned int count)
 {
 	struct te_rule_ctx c = {
 		.e = e,
+		.start = start,
 		.best_effect = TEFFECT_NOTIFY,
 		.best_rule = -1,
 		.best_idx = -1,
 	};
-	bpf_loop(te_count(0), te_rule_cb, &c, 0);
+	bpf_loop(count, te_rule_cb, &c, 0);
 	if (c.best_rule >= 0) {
 		e->effect = c.best_effect;
 		e->matched_rule = c.best_rule;
@@ -2282,15 +2384,26 @@ static __noinline int te_check_labels(struct te_rule_eval *e)
 	return c.best_rule;
 }
 
+#ifdef ACTPLANE_LEGACY_KERNEL
+#define te_check_labels(e) te_check_labels_range((e), te_rule_start((e)->op), te_rule_count((e)->op))
+#define te_check_file_labels(e) te_check_labels_range((e), 0, legacy_n_file_rules)
+#define te_check_net_labels(e) te_check_labels_range((e), legacy_n_file_rules, legacy_n_net_rules)
+#else
+#define te_check_labels(e) te_check_labels_range((e), 0, te_count(0))
+#define te_check_file_labels(e) te_check_labels(e)
+#define te_check_net_labels(e) te_check_labels(e)
+#endif
+
 static __noinline int te_check_exec_simple(struct te_rule_eval *e)
 {
 	struct te_rule_ctx c = {
 		.e = e,
+		.start = te_rule_start(e->op),
 		.best_effect = TEFFECT_NOTIFY,
 		.best_rule = -1,
 		.best_idx = -1,
 	};
-	bpf_loop(te_count(0), te_rule_exec_simple_cb, &c, 0);
+	bpf_loop(te_rule_count(e->op), te_rule_exec_simple_cb, &c, 0);
 	if (c.best_rule >= 0) {
 		e->effect = c.best_effect;
 		e->matched_rule = c.best_rule;
@@ -2306,11 +2419,12 @@ static __noinline int te_check_exec_complex(struct te_rule_eval *e)
 {
 	struct te_rule_ctx c = {
 		.e = e,
+		.start = te_rule_start(e->op),
 		.best_effect = TEFFECT_NOTIFY,
 		.best_rule = -1,
 		.best_idx = -1,
 	};
-	bpf_loop(te_count(0), te_rule_exec_complex_cb, &c, 0);
+	bpf_loop(te_rule_count(e->op), te_rule_exec_complex_cb, &c, 0);
 	if (c.best_rule >= 0) {
 		e->effect = c.best_effect;
 		e->matched_rule = c.best_rule;
@@ -2326,11 +2440,12 @@ static __noinline int te_check_labels_no_args(struct te_rule_eval *e)
 {
 	struct te_rule_ctx c = {
 		.e = e,
+		.start = te_rule_start(e->op),
 		.best_effect = TEFFECT_NOTIFY,
 		.best_rule = -1,
 		.best_idx = -1,
 	};
-	bpf_loop(te_count(0), te_rule_no_args_cb, &c, 0);
+	bpf_loop(te_rule_count(e->op), te_rule_no_args_cb, &c, 0);
 	if (c.best_rule >= 0) {
 		e->effect = c.best_effect;
 		e->matched_rule = c.best_rule;
@@ -2363,6 +2478,7 @@ static int te_exit_gate_cb(__u32 i, void *vc)
 {
 	struct te_exit_gate_ctx *c = vc;
 
+	i += te_update_start(TOP_EXEC);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
 	struct taint_update *up = bpf_map_lookup_elem(&ts_updates, &i);
@@ -2390,7 +2506,7 @@ static __noinline __u64 te_exit_gate_hits(pid_t pid, __u32 domain_id,
 		.gates = 0,
 	};
 
-	bpf_loop(te_count(1), te_exit_gate_cb, &c, 0);
+	bpf_loop(te_update_count(TOP_EXEC), te_exit_gate_cb, &c, 0);
 	return c.gates;
 }
 

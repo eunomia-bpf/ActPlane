@@ -27,7 +27,11 @@
 #define CAP_STAT_REJECT 1
 #define CAP_STAT_DRAIN  2
 #define CAP_STAT_DROP   3
+#ifdef ACTPLANE_LEGACY_KERNEL
+#define CAP_DOMAIN_DEPTH 1
+#else
 #define CAP_DOMAIN_DEPTH 8
+#endif
 
 #ifndef TE_POLICY_PATH_CONTAINS
 #define TE_POLICY_PATH_CONTAINS (1U << 0)
@@ -69,9 +73,6 @@ struct cap_delta_request {
 };
 
 #ifdef ACTPLANE_LEGACY_KERNEL
-/* Direct-load mode installs a complete policy before the target starts, so it
- * does not need the user-to-kernel policy-delta channel introduced in Linux
- * 6.1. Retain the map name for a stable object layout and diagnostics. */
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 1);
@@ -493,9 +494,7 @@ static __always_inline void cap_drain_current(void)
 	cap_count(CAP_STAT_DRAIN);
 }
 #else
-static __always_inline void cap_drain_current(void)
-{
-}
+#define cap_drain_current() ((void)0)
 #endif
 
 static __always_inline __u64 cap_labels_for_pid(pid_t pid)
