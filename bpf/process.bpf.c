@@ -1048,8 +1048,7 @@ static __always_inline void fill_violation_provenance(struct event *v, pid_t pid
 		}
 	}
 #else
-	(void)pid; (void)domain_id; (void)matched_labels;
-	(void)obj_kind; (void)fid; (void)ip;
+	(void)pid; (void)domain_id; (void)matched_labels; (void)obj_kind; (void)fid; (void)ip;
 #endif
 }
 

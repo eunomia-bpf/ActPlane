@@ -1181,6 +1181,14 @@ fn require_bpf_caps_or_elevate_with_env(
     }
 }
 
+async fn legacy_shutdown_signal() -> std::io::Result<()> {
+    let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+    tokio::select! {
+        result = tokio::signal::ctrl_c() => result,
+        _ = term.recv() => Ok(()),
+    }
+}
+
 async fn run_legacy_command(
     mut target: Child,
     target_pid: u32,
@@ -1236,6 +1244,7 @@ async fn run_legacy_command(
         tokio::select! {
             biased;
             failure = &mut failure_rx => Err(failure.unwrap_or_else(|_| "compatibility event loop exited unexpectedly".into()).into()),
+            signal = legacy_shutdown_signal() => Err(signal.map_or_else(|error| error.to_string(), |_| "terminated by signal".into()).into()),
             status = target.wait() => status.map(exit_code).map_err(|error| error.into()),
         }
     };

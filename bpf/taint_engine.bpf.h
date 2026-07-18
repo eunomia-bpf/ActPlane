@@ -172,10 +172,7 @@ static __noinline int taint_contains(const char *text, const char *pat)
 
 #ifdef ACTPLANE_LEGACY_KERNEL
 struct te_path_cmp_scratch { char text[TAINT_PAT_LEN], pat[TAINT_PAT_LEN], tail[TAINT_SUF_MAX]; };
-struct {
-	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY); __uint(max_entries, 1); __type(key, __u32);
-	__type(value, struct te_path_cmp_scratch);
-} ts_path_cmp SEC(".maps");
+struct { __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY); __uint(max_entries, 1); __type(key, __u32); __type(value, struct te_path_cmp_scratch); } ts_path_cmp SEC(".maps");
 
 static __always_inline __u64 te_path_mask(int n)
 {
@@ -484,16 +481,14 @@ static __always_inline unsigned int te_count(__u32 slot)
 }
 
 #ifdef ACTPLANE_LEGACY_KERNEL
-static __always_inline unsigned int te_group_start(unsigned int op, unsigned int file,
-						    unsigned int net)
+static __always_inline unsigned int te_group_start(unsigned int op, unsigned int file, unsigned int net)
 {
 	if (op == TOP_CONNECT || op == TOP_RECV) return file;
 	if (op == TOP_EXEC) return file + net;
 	return 0;
 }
 
-static __always_inline unsigned int te_group_count(unsigned int op, unsigned int total,
-						    unsigned int file, unsigned int net)
+static __always_inline unsigned int te_group_count(unsigned int op, unsigned int total, unsigned int file, unsigned int net)
 {
 	if (op == TOP_OPEN || op == TOP_WRITE) return file;
 	if (op == TOP_CONNECT || op == TOP_RECV) return net;
@@ -1265,8 +1260,7 @@ static __always_inline int te_exec_simple_match(unsigned int kind,
 		return 1;
 #ifdef ACTPLANE_LEGACY_KERNEL
 	long diff = 0;
-	if (kind != TAINT_MATCH_EXACT && kind != TAINT_MATCH_PREFIX)
-		return 0;
+	if (kind != TAINT_MATCH_EXACT && kind != TAINT_MATCH_PREFIX) return 0;
 #pragma clang loop unroll(full)
 	for (int i = 0; i < TAINT_COMM_LEN; i++) {
 		if (kind == TAINT_MATCH_PREFIX && !pat[i]) break;

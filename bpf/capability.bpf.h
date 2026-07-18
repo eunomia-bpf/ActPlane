@@ -74,10 +74,8 @@ struct cap_delta_request {
 
 #ifdef ACTPLANE_LEGACY_KERNEL
 struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 1);
-	__type(key, __u32);
-	__type(value, __u32);
+	__uint(type, BPF_MAP_TYPE_ARRAY); __uint(max_entries, 1);
+	__type(key, __u32); __type(value, __u32);
 } cap_req SEC(".maps");
 #else
 struct {
