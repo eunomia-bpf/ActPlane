@@ -342,7 +342,7 @@ impl ActPlaneMcp {
                     None::<Value>,
                 )
             })?;
-        Ok(CallToolResult::success(vec![Content::text(format!(
+        Ok(CallToolResult::success(vec![ContentBlock::text(format!(
             "Bound pid {pid} to child domain {child_id} under parent domain {}",
             control.parent_domain_id
         ))]))
@@ -400,7 +400,7 @@ impl ActPlaneMcp {
                     None::<Value>,
                 )
             })?;
-        Ok(CallToolResult::success(vec![Content::text(format!(
+        Ok(CallToolResult::success(vec![ContentBlock::text(format!(
             "Appended policy delta to domain {target_id}: {n_rules} rule metadata entries starting at rule_id {base}"
         ))]))
     }
@@ -443,7 +443,7 @@ impl ActPlaneMcp {
             },
         )?;
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
+        Ok(CallToolResult::success(vec![ContentBlock::text(format!(
             "Launched pid {} in child domain {}",
             outcome.pid, outcome.child_id
         ))]))
@@ -634,7 +634,7 @@ impl ActPlaneMcp {
         }
         let mut rows: Vec<serde_json::Value> = children.values().map(child_record_json).collect();
         rows.sort_by_key(|v| v["child_id"].as_u64().unwrap_or(0));
-        Ok(CallToolResult::success(vec![Content::text(
+        Ok(CallToolResult::success(vec![ContentBlock::text(
             serde_json::to_string_pretty(&rows).unwrap_or_else(|_| "[]".to_string()),
         )]))
     }
@@ -680,7 +680,7 @@ impl ActPlaneMcp {
         if stream == "stderr" || stream == "both" {
             value["stderr"] = read_log_json(&record.stderr, max_bytes)?;
         }
-        Ok(CallToolResult::success(vec![Content::text(
+        Ok(CallToolResult::success(vec![ContentBlock::text(
             serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".to_string()),
         )]))
     }
@@ -708,12 +708,12 @@ impl ActPlaneMcp {
         if let Ok(status) = record.status.lock() {
             match &*status {
                 ChildStatus::Exited { .. } => {
-                    return Ok(CallToolResult::success(vec![Content::text(format!(
+                    return Ok(CallToolResult::success(vec![ContentBlock::text(format!(
                         "Child domain {child_id} already exited"
                     ))]));
                 }
                 ChildStatus::Terminated => {
-                    return Ok(CallToolResult::success(vec![Content::text(format!(
+                    return Ok(CallToolResult::success(vec![ContentBlock::text(format!(
                         "Child domain {child_id} was already terminated"
                     ))]));
                 }
@@ -750,7 +750,7 @@ impl ActPlaneMcp {
         } else {
             format!("Child domain {child_id} already exited")
         };
-        Ok(CallToolResult::success(vec![Content::text(msg)]))
+        Ok(CallToolResult::success(vec![ContentBlock::text(msg)]))
     }
 
     fn do_restart_child_domain(
@@ -901,7 +901,7 @@ impl ActPlaneMcp {
             }
         }
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
+        Ok(CallToolResult::success(vec![ContentBlock::text(format!(
             "Restarted child domain {old_child_id} as pid {} in child domain {}",
             outcome.pid, outcome.child_id
         ))]))
@@ -1053,7 +1053,7 @@ impl ActPlaneMcp {
             "restarted": restarted,
             "children": rows,
         });
-        Ok(CallToolResult::success(vec![Content::text(
+        Ok(CallToolResult::success(vec![ContentBlock::text(
             serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".to_string()),
         )]))
     }
@@ -2426,34 +2426,14 @@ impl ServerHandler for ActPlaneMcp {
     ) -> impl std::future::Future<Output = Result<ListResourcesResult, rmcp::ErrorData>> + Send + '_
     {
         let resources = vec![
-            Annotated::new(
-                RawResource {
-                    uri: POLICY_RESOURCE_URI.into(),
-                    name: "actplane-policy".into(),
-                    title: Some("ActPlane Policy Status".into()),
-                    description: Some("Current policy validation result from actplane.yaml".into()),
-                    mime_type: Some("text/plain".into()),
-                    size: None,
-                    icons: None,
-                    meta: None,
-                },
-                None,
-            ),
-            Annotated::new(
-                RawResource {
-                    uri: FEEDBACK_RESOURCE_URI.into(),
-                    name: "actplane-feedback".into(),
-                    title: Some("ActPlane Feedback".into()),
-                    description: Some(
-                        "Latest corrective feedback from .actplane/last-violation.txt".into(),
-                    ),
-                    mime_type: Some("text/plain".into()),
-                    size: None,
-                    icons: None,
-                    meta: None,
-                },
-                None,
-            ),
+            Resource::new(POLICY_RESOURCE_URI, "actplane-policy")
+                .with_title("ActPlane Policy Status")
+                .with_description("Current policy validation result from actplane.yaml")
+                .with_mime_type("text/plain"),
+            Resource::new(FEEDBACK_RESOURCE_URI, "actplane-feedback")
+                .with_title("ActPlane Feedback")
+                .with_description("Latest corrective feedback from .actplane/last-violation.txt")
+                .with_mime_type("text/plain"),
         ];
         std::future::ready(Ok(ListResourcesResult {
             resources,
@@ -2500,6 +2480,7 @@ impl ServerHandler for ActPlaneMcp {
 
 // ── File watcher ────────────────────────────────────────────────────
 
+#[allow(deprecated)]
 async fn watch_policy_file(server: Arc<ActPlaneMcp>, peer: Peer<RoleServer>) {
     let mut last_policy_mtime = server.policy_mtime();
     let mut last_feedback_mtime = server.feedback_mtime();
