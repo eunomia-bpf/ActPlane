@@ -1897,7 +1897,7 @@ impl Loader {
                 std::mem::size_of::<CConfig>()
             )));
         }
-        // Owned, aligned copy so we can borrow fields for set_global.
+        // Owned, aligned copy so we can borrow fields for override_global.
         let mut cfg: Box<CConfig> =
             Box::new(unsafe { std::ptr::read_unaligned(config_blob.as_ptr() as *const CConfig) });
         validate_config(&cfg)?;
@@ -1928,16 +1928,16 @@ impl Loader {
         let mut loader = EbpfLoader::new();
         loader
             .allow_unsupported_maps()
-            .set_global("enforce_mode", &enforce_mode, true)
-            .set_global("policy_features", &policy_features, true);
+            .override_global("enforce_mode", &enforce_mode, true)
+            .override_global("policy_features", &policy_features, true);
         if legacy {
             loader
-                .set_global("legacy_n_rules", &cfg.n_rules, true)
-                .set_global("legacy_n_updates", &cfg.n_updates, true)
-                .set_global("legacy_n_file_updates", &groups[0], true)
-                .set_global("legacy_n_net_updates", &groups[1], true)
-                .set_global("legacy_n_file_rules", &groups[2], true)
-                .set_global("legacy_n_net_rules", &groups[3], true);
+                .override_global("legacy_n_rules", &cfg.n_rules, true)
+                .override_global("legacy_n_updates", &cfg.n_updates, true)
+                .override_global("legacy_n_file_updates", &groups[0], true)
+                .override_global("legacy_n_net_updates", &groups[1], true)
+                .override_global("legacy_n_file_rules", &groups[2], true)
+                .override_global("legacy_n_net_rules", &groups[3], true);
         }
         let mut bpf = loader
             .load(if legacy {

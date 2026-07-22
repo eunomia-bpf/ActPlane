@@ -13,6 +13,6 @@ name = "ebpf_ifc_engine"
 path = "src/lib.rs"
 
 [dependencies]
-aya = "0.13"
+aya = "0.14"
 libc = "0.2"
 libbpf-sys = "1.7"
