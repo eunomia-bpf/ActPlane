@@ -357,6 +357,13 @@ struct te_rule_eval {
 	int matched_index;      /* table index used for same-effect tie-breaking */
 	__u64 matched_req;      /* required label mask for the matched compiled rule */
 	__u64 matched_labels;   /* domain-specific labels used by the matched rule */
+	unsigned int best_effect;
+	int best_rule;
+	int best_idx;
+	__u32 best_domain_id;
+	__u64 best_req;
+	__u64 best_labels;
+	unsigned int rule_start;
 };
 
 struct eval_scratch {
@@ -2252,92 +2259,59 @@ static __noinline int te_rule_effect_no_args(struct te_rule_eval *e,
 
 struct te_rule_ctx {
 	struct te_rule_eval *e;
-	unsigned int start;
-	unsigned int best_effect;
-	int best_rule;
-	int best_idx;
-	__u32 best_domain_id;
-	__u64 best_req;
-	__u64 best_labels;
 };
-static int te_rule_cb(__u32 i, void *vc)
+
+/* bpf_loop requires its callback context to live on the BPF stack. Keep that
+ * context to a single pointer and store the larger best-match accumulator in
+ * the existing per-CPU eval scratch. This avoids pushing file hooks over the
+ * verifier's combined 512-byte stack limit on older kernels. */
+static __always_inline int te_record_best(struct te_rule_eval *e, int eff)
 {
-	struct te_rule_ctx *c = vc;
-	i += c->start;
-	int eff = te_rule_effect(c->e, i);
 	if (eff < 0)
 		return 0;
-	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
-		c->best_rule = c->e->matched_rule;
-		c->best_idx = c->e->matched_index;
-		c->best_effect = (unsigned int)eff;
-		c->best_domain_id = c->e->matched_domain_id;
-		c->best_req = c->e->matched_req;
-		c->best_labels = c->e->matched_labels;
-		if (c->best_effect == TEFFECT_KILL)
+	if (e->best_rule < 0 || (unsigned int)eff > e->best_effect) {
+		e->best_rule = e->matched_rule;
+		e->best_idx = e->matched_index;
+		e->best_effect = (unsigned int)eff;
+		e->best_domain_id = e->matched_domain_id;
+		e->best_req = e->matched_req;
+		e->best_labels = e->matched_labels;
+		if (e->best_effect == TEFFECT_KILL)
 			return 1;
 	}
 	return 0;
+}
+
+static int te_rule_cb(__u32 i, void *vc)
+{
+	struct te_rule_ctx *c = vc;
+	i += c->e->rule_start;
+	int eff = te_rule_effect(c->e, i);
+	return te_record_best(c->e, eff);
 }
 
 static int te_rule_no_args_cb(__u32 i, void *vc)
 {
 	struct te_rule_ctx *c = vc;
-	i += c->start;
+	i += c->e->rule_start;
 	int eff = te_rule_effect_no_args(c->e, i);
-	if (eff < 0)
-		return 0;
-	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
-		c->best_rule = c->e->matched_rule;
-		c->best_idx = c->e->matched_index;
-		c->best_effect = (unsigned int)eff;
-		c->best_domain_id = c->e->matched_domain_id;
-		c->best_req = c->e->matched_req;
-		c->best_labels = c->e->matched_labels;
-		if (c->best_effect == TEFFECT_KILL)
-			return 1;
-	}
-	return 0;
+	return te_record_best(c->e, eff);
 }
 
 static int te_rule_exec_simple_cb(__u32 i, void *vc)
 {
 	struct te_rule_ctx *c = vc;
-	i += c->start;
+	i += c->e->rule_start;
 	int eff = te_rule_effect_exec_simple(c->e, i);
-	if (eff < 0)
-		return 0;
-	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
-		c->best_rule = c->e->matched_rule;
-		c->best_idx = c->e->matched_index;
-		c->best_effect = (unsigned int)eff;
-		c->best_domain_id = c->e->matched_domain_id;
-		c->best_req = c->e->matched_req;
-		c->best_labels = c->e->matched_labels;
-		if (c->best_effect == TEFFECT_KILL)
-			return 1;
-	}
-	return 0;
+	return te_record_best(c->e, eff);
 }
 
 static int te_rule_exec_complex_cb(__u32 i, void *vc)
 {
 	struct te_rule_ctx *c = vc;
-	i += c->start;
+	i += c->e->rule_start;
 	int eff = te_rule_effect_exec_complex(c->e, i);
-	if (eff < 0)
-		return 0;
-	if (c->best_rule < 0 || (unsigned int)eff > c->best_effect) {
-		c->best_rule = c->e->matched_rule;
-		c->best_idx = c->e->matched_index;
-		c->best_effect = (unsigned int)eff;
-		c->best_domain_id = c->e->matched_domain_id;
-		c->best_req = c->e->matched_req;
-		c->best_labels = c->e->matched_labels;
-		if (c->best_effect == TEFFECT_KILL)
-			return 1;
-	}
-	return 0;
+	return te_record_best(c->e, eff);
 }
 
 /* Evaluate sinks for one normalized event. Returns the matched rule_id, or -1.
@@ -2347,23 +2321,22 @@ static int te_rule_exec_complex_cb(__u32 i, void *vc)
 static __noinline int te_check_labels_range(struct te_rule_eval *e, unsigned int start,
 					     unsigned int count)
 {
-	struct te_rule_ctx c = {
-		.e = e,
-		.start = start,
-		.best_effect = TEFFECT_NOTIFY,
-		.best_rule = -1,
-		.best_idx = -1,
-	};
+	struct te_rule_ctx c = { .e = e };
+
+	e->rule_start = start;
+	e->best_effect = TEFFECT_NOTIFY;
+	e->best_rule = -1;
+	e->best_idx = -1;
 	bpf_loop(count, te_rule_cb, &c, 0);
-	if (c.best_rule >= 0) {
-		e->effect = c.best_effect;
-		e->matched_rule = c.best_rule;
-		e->matched_index = c.best_idx;
-		e->matched_domain_id = c.best_domain_id;
-		e->matched_req = c.best_req;
-		e->matched_labels = c.best_labels;
+	if (e->best_rule >= 0) {
+		e->effect = e->best_effect;
+		e->matched_rule = e->best_rule;
+		e->matched_index = e->best_idx;
+		e->matched_domain_id = e->best_domain_id;
+		e->matched_req = e->best_req;
+		e->matched_labels = e->best_labels;
 	}
-	return c.best_rule;
+	return e->best_rule;
 }
 
 #ifdef ACTPLANE_LEGACY_KERNEL
@@ -2378,65 +2351,62 @@ static __noinline int te_check_labels_range(struct te_rule_eval *e, unsigned int
 
 static __noinline int te_check_exec_simple(struct te_rule_eval *e)
 {
-	struct te_rule_ctx c = {
-		.e = e,
-		.start = te_rule_start(e->op),
-		.best_effect = TEFFECT_NOTIFY,
-		.best_rule = -1,
-		.best_idx = -1,
-	};
+	struct te_rule_ctx c = { .e = e };
+
+	e->rule_start = te_rule_start(e->op);
+	e->best_effect = TEFFECT_NOTIFY;
+	e->best_rule = -1;
+	e->best_idx = -1;
 	bpf_loop(te_rule_count(e->op), te_rule_exec_simple_cb, &c, 0);
-	if (c.best_rule >= 0) {
-		e->effect = c.best_effect;
-		e->matched_rule = c.best_rule;
-		e->matched_index = c.best_idx;
-		e->matched_domain_id = c.best_domain_id;
-		e->matched_req = c.best_req;
-		e->matched_labels = c.best_labels;
+	if (e->best_rule >= 0) {
+		e->effect = e->best_effect;
+		e->matched_rule = e->best_rule;
+		e->matched_index = e->best_idx;
+		e->matched_domain_id = e->best_domain_id;
+		e->matched_req = e->best_req;
+		e->matched_labels = e->best_labels;
 	}
-	return c.best_rule;
+	return e->best_rule;
 }
 
 static __noinline int te_check_exec_complex(struct te_rule_eval *e)
 {
-	struct te_rule_ctx c = {
-		.e = e,
-		.start = te_rule_start(e->op),
-		.best_effect = TEFFECT_NOTIFY,
-		.best_rule = -1,
-		.best_idx = -1,
-	};
+	struct te_rule_ctx c = { .e = e };
+
+	e->rule_start = te_rule_start(e->op);
+	e->best_effect = TEFFECT_NOTIFY;
+	e->best_rule = -1;
+	e->best_idx = -1;
 	bpf_loop(te_rule_count(e->op), te_rule_exec_complex_cb, &c, 0);
-	if (c.best_rule >= 0) {
-		e->effect = c.best_effect;
-		e->matched_rule = c.best_rule;
-		e->matched_index = c.best_idx;
-		e->matched_domain_id = c.best_domain_id;
-		e->matched_req = c.best_req;
-		e->matched_labels = c.best_labels;
+	if (e->best_rule >= 0) {
+		e->effect = e->best_effect;
+		e->matched_rule = e->best_rule;
+		e->matched_index = e->best_idx;
+		e->matched_domain_id = e->best_domain_id;
+		e->matched_req = e->best_req;
+		e->matched_labels = e->best_labels;
 	}
-	return c.best_rule;
+	return e->best_rule;
 }
 
 static __noinline int te_check_labels_no_args(struct te_rule_eval *e)
 {
-	struct te_rule_ctx c = {
-		.e = e,
-		.start = te_rule_start(e->op),
-		.best_effect = TEFFECT_NOTIFY,
-		.best_rule = -1,
-		.best_idx = -1,
-	};
+	struct te_rule_ctx c = { .e = e };
+
+	e->rule_start = te_rule_start(e->op);
+	e->best_effect = TEFFECT_NOTIFY;
+	e->best_rule = -1;
+	e->best_idx = -1;
 	bpf_loop(te_rule_count(e->op), te_rule_no_args_cb, &c, 0);
-	if (c.best_rule >= 0) {
-		e->effect = c.best_effect;
-		e->matched_rule = c.best_rule;
-		e->matched_index = c.best_idx;
-		e->matched_domain_id = c.best_domain_id;
-		e->matched_req = c.best_req;
-		e->matched_labels = c.best_labels;
+	if (e->best_rule >= 0) {
+		e->effect = e->best_effect;
+		e->matched_rule = e->best_rule;
+		e->matched_index = e->best_idx;
+		e->matched_domain_id = e->best_domain_id;
+		e->matched_req = e->best_req;
+		e->matched_labels = e->best_labels;
 	}
-	return c.best_rule;
+	return e->best_rule;
 }
 
 static __always_inline int te_exit_status_matches(int raw_status, int expected)
