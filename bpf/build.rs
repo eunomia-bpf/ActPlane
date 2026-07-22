@@ -13,14 +13,17 @@ fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
     let prebuilt = manifest.join("prebuilt/process.bpf.o");
+    let legacy_prebuilt = manifest.join("prebuilt/process-legacy.bpf.o");
     let built = manifest.join(".output/process.bpf.o");
+    let legacy_built = manifest.join(".output/process-legacy.bpf.o");
 
     println!("cargo:rerun-if-env-changed=ACTPLANE_REBUILD_BPF");
     println!("cargo:rerun-if-changed={}", prebuilt.display());
+    println!("cargo:rerun-if-changed={}", legacy_prebuilt.display());
 
     let rebuild = env::var_os("ACTPLANE_REBUILD_BPF").is_some();
 
-    if rebuild || !prebuilt.exists() {
+    if rebuild || !prebuilt.exists() || !legacy_prebuilt.exists() {
         for f in [
             "process.bpf.c",
             "process.h",
@@ -36,6 +39,7 @@ fn main() {
             .arg("-C")
             .arg(&manifest)
             .arg("process")
+            .arg(".output/process-legacy.bpf.o")
             .status()
             .expect("run make -C bpf process (ACTPLANE_REBUILD_BPF)");
         assert!(status.success(), "make -C bpf process failed");
@@ -43,6 +47,8 @@ fn main() {
         std::fs::create_dir_all(manifest.join("prebuilt")).ok();
         std::fs::copy(&built, &prebuilt)
             .unwrap_or_else(|e| panic!("copy {} -> prebuilt: {e}", built.display()));
+        std::fs::copy(&legacy_built, &legacy_prebuilt)
+            .unwrap_or_else(|e| panic!("copy {} -> prebuilt: {e}", legacy_built.display()));
     }
 
     let src = if prebuilt.exists() { &prebuilt } else { &built };

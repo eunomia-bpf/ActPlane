@@ -143,6 +143,13 @@ $(OUTPUT)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard *.h) $(VMLINUX) | $(OUTPUT) 
 		     -c $(filter %.c,$^) -o $(patsubst %.bpf.o,%.tmp.bpf.o,$@)
 	$(Q)$(BPFTOOL) gen object $@ $(patsubst %.bpf.o,%.tmp.bpf.o,$@)
 
+$(OUTPUT)/process-legacy.bpf.o: process.bpf.c $(LIBBPF_OBJ) $(wildcard *.h) $(VMLINUX) | $(OUTPUT) $(BPFTOOL)
+	$(call msg,BPF,$@)
+	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) \
+		     -DACTPLANE_LEGACY_KERNEL $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) \
+		     -c $< -o $(OUTPUT)/process-legacy.tmp.bpf.o
+	$(Q)$(BPFTOOL) gen object $@ $(OUTPUT)/process-legacy.tmp.bpf.o
+
 # Generate BPF skeletons
 $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT) $(BPFTOOL)
 	$(call msg,GEN-SKEL,$@)

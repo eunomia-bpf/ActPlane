@@ -15,6 +15,11 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 const volatile unsigned int enforce_mode = 0;
 const volatile unsigned int policy_features = 0;
+#ifdef ACTPLANE_LEGACY_KERNEL
+const volatile unsigned int legacy_n_rules = 0, legacy_n_updates = 0;
+const volatile unsigned int legacy_n_file_rules = 0, legacy_n_file_updates = 0;
+const volatile unsigned int legacy_n_net_rules = 0, legacy_n_net_updates = 0;
+#endif
 
 #include "taint_engine.bpf.h"
 
@@ -1007,6 +1012,7 @@ static __always_inline void fill_violation_provenance(struct event *v, pid_t pid
 	v->prov_ip = 0;
 	v->prov_target[0] = '\0';
 
+#ifndef ACTPLANE_LEGACY_KERNEL
 	for (int i = 0; i < MAX_TAINT_LABELS; i++) {
 		__u64 bit = 1ULL << i;
 		if (!(matched_labels & bit))
@@ -1041,6 +1047,9 @@ static __always_inline void fill_violation_provenance(struct event *v, pid_t pid
 			}
 		}
 	}
+#else
+	(void)pid; (void)domain_id; (void)matched_labels; (void)obj_kind; (void)fid; (void)ip;
+#endif
 }
 
 static __always_inline void emit_violation(pid_t pid, unsigned int rule_id,
@@ -1342,9 +1351,9 @@ static __always_inline void exec_pipe_collect_updates(__u32 prefix)
 			.target = scratch->match,
 		};
 		if (prefix)
-			bpf_loop(te_count(1), te_exec_update_prefix_cb, &c, 0);
+			bpf_loop(te_update_count(TOP_EXEC), te_exec_update_prefix_cb, &c, 0);
 		else
-			bpf_loop(te_count(1), te_exec_update_simple_cb, &c, 0);
+			bpf_loop(te_update_count(TOP_EXEC), te_exec_update_simple_cb, &c, 0);
 		s->add[i] |= c.add;
 		s->del[i] |= c.del;
 		s->gates[i] |= c.gates;
@@ -1374,9 +1383,11 @@ static __always_inline void exec_pipe_apply_updates(void)
 		ns.labels = (ns.labels | s->add[i]) & ~s->del[i];
 		ns.lin_gates |= s->gates[i];
 		te_store_proc_domain(s->pid, domain_id, &ns);
+#ifndef ACTPLANE_LEGACY_KERNEL
 		if (s->add[i])
 			te_record_proc_prov_mask(s->pid, domain_id, s->add[i],
 						 TOP_EXEC, scratch->match, 0);
+#endif
 		if (s->gates[i] || s->exit_gates[i] || s->invals[i]) {
 			pid_t r = te_root(s->pid);
 			__u32 ep = te_tick(r, domain_id);
@@ -1430,7 +1441,11 @@ static __always_inline void exec_pipe_scan_rules(__u32 complex)
 		return;
 	if (s->best_effect == TEFFECT_KILL)
 		return;
+#ifdef ACTPLANE_LEGACY_KERNEL
+	__u32 current_domain_id = 0;
+#else
 	__u32 current_domain_id = cap_domain_for_pid(s->pid);
+#endif
 	__builtin_memset(es, 0, sizeof(*es));
 	eval = &es->eval;
 	eval->pid = s->pid;
@@ -1707,7 +1722,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		if ((ev->access & TE_ACCESS_READ) &&
 		    (policy_features & TE_POLICY_OPEN_RULES)) {
 			eval->op = TOP_OPEN;
-			candidate = te_check_labels(eval);
+			candidate = te_check_file_labels(eval);
 			if (te_better_match(candidate, eval->effect, rid, effect)) {
 				rid = candidate;
 				effect = eval->effect;
@@ -1720,7 +1735,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		    (policy_features & TE_POLICY_WRITE_RULES)) {
 			eval->effect = TEFFECT_BLOCK;
 			eval->op = TOP_WRITE;
-			candidate = te_check_labels(eval);
+			candidate = te_check_file_labels(eval);
 			if (te_better_match(candidate, eval->effect, rid, effect)) {
 				rid = candidate;
 				effect = eval->effect;
@@ -1738,7 +1753,7 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 		eval->effect_mask = te_supported_effects(ev->mode);
 		eval->op = (ev->access & TE_ACCESS_RECV) ? TOP_RECV : TOP_CONNECT;
 		eval->ip = ev->ip;
-		rid = te_check_labels(eval);
+		rid = te_check_net_labels(eval);
 		effect = eval->effect;
 		matched_labels = eval->matched_labels;
 		matched_domain_id = eval->matched_domain_id;
@@ -1823,7 +1838,7 @@ static __always_inline int te_handle_file_event(pid_t pid, const char *target,
 	eval->include_file_labels = (access & TE_ACCESS_READ) ? 1 : 0;
 	if ((access & TE_ACCESS_READ) && (policy_features & TE_POLICY_OPEN_RULES)) {
 		eval->op = TOP_OPEN;
-		candidate = te_check_labels(eval);
+		candidate = te_check_file_labels(eval);
 		if (te_better_match(candidate, eval->effect, rid, effect)) {
 			rid = candidate;
 			effect = eval->effect;
@@ -1835,7 +1850,7 @@ static __always_inline int te_handle_file_event(pid_t pid, const char *target,
 	if ((access & TE_ACCESS_WRITE) && (policy_features & TE_POLICY_WRITE_RULES)) {
 		eval->effect = TEFFECT_BLOCK;
 		eval->op = TOP_WRITE;
-		candidate = te_check_labels(eval);
+		candidate = te_check_file_labels(eval);
 		if (te_better_match(candidate, eval->effect, rid, effect)) {
 			rid = candidate;
 			effect = eval->effect;
@@ -2559,10 +2574,14 @@ SEC("tp/sched/sched_process_exec")
 int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 {
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+#ifndef ACTPLANE_LEGACY_KERNEL
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+#endif
 	struct exec_scratch *scratch = exec_scratch_buf();
 	unsigned fname_off;
+#ifndef ACTPLANE_LEGACY_KERNEL
 	int alen = 0;
+#endif
 
 	if (!scratch)
 		return 0;
@@ -2575,6 +2594,7 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 
 	/* read argv blob (NUL-separated) into per-CPU scratch, then tokenize into
 	 * fixed slots there for @arg matching. */
+#ifndef ACTPLANE_LEGACY_KERNEL
 	struct te_argslots *as = te_argslots_buf();
 	if (as) {
 		struct mm_struct *mm = BPF_CORE_READ(task, mm);
@@ -2591,6 +2611,7 @@ int handle_exec_args(struct trace_event_raw_sched_process_exec *ctx)
 		}
 		te_tokenize_args_eng(alen);
 	}
+#endif
 
 	fname_off = ctx->__data_loc_filename & 0xFFFF;
 	bpf_probe_read_str(scratch->display, sizeof(scratch->display), (void *)ctx + fname_off);
@@ -2610,7 +2631,9 @@ int exec_tp_update_simple(struct trace_event_raw_sched_process_exec *ctx)
 SEC("tp/sched/sched_process_exec")
 int exec_tp_update_prefix(struct trace_event_raw_sched_process_exec *ctx)
 {
+#ifndef ACTPLANE_LEGACY_KERNEL
 	exec_pipe_collect_updates(1);
+#endif
 	exec_pipe_apply_updates();
 	bpf_tail_call(ctx, &exec_tail, EXEC_TAIL_RULE_SIMPLE);
 	return 0;
@@ -2628,7 +2651,9 @@ SEC("tp/sched/sched_process_exec")
 int exec_tp_rule_complex(struct trace_event_raw_sched_process_exec *ctx)
 {
 	(void)ctx;
+#ifndef ACTPLANE_LEGACY_KERNEL
 	exec_pipe_scan_rules(1);
+#endif
 	exec_pipe_finish();
 	return 0;
 }

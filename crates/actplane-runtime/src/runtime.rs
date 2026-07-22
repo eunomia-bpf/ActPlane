@@ -10,7 +10,8 @@ use ebpf_ifc_engine::capability::{
     AUTH_REQUIRE_GATE, CapState, TARGET_CHILD, TARGET_SELF,
 };
 use ebpf_ifc_engine::{
-    ChildDomainSpec, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, PinnedEngine, ReloadHandle,
+    ChildDomainSpec, CompatibilityLoader, DomainHandle, GLOBAL_ACTIVE_DOMAIN_ID, PinnedEngine,
+    ReloadHandle, legacy_kernel_required,
 };
 use serde_json::json;
 use tokio::process::{Child, Command};
@@ -1180,6 +1181,87 @@ fn require_bpf_caps_or_elevate_with_env(
     }
 }
 
+fn legacy_shutdown_signals() -> std::io::Result<[tokio::signal::unix::Signal; 2]> {
+    use tokio::signal::unix::{SignalKind, signal};
+    Ok([
+        signal(SignalKind::interrupt())?,
+        signal(SignalKind::terminate())?,
+    ])
+}
+
+async fn run_legacy_command(
+    mut target: Child,
+    agent_label: u64,
+    compiled: dsl::Compiled,
+    feedback: FeedbackPaths,
+    signals: [tokio::signal::unix::Signal; 2],
+) -> Result<i32> {
+    let target_pid = target.id().ok_or("target process has no pid")?;
+    let [mut interrupt, mut terminate] = signals;
+    let mut loader = match CompatibilityLoader::load(
+        &compiled.bytes,
+        std::process::id() as i32,
+        target_pid as i32,
+        agent_label,
+    ) {
+        Ok(loader) => loader,
+        Err(error) => {
+            target.kill().await?;
+            return Err(error.into());
+        }
+    };
+    let stop = Arc::new(AtomicBool::new(false));
+    let stop_thread = stop.clone();
+    let (failure_tx, mut failure_rx) = tokio::sync::oneshot::channel();
+    let feedback_file = feedback.feedback.clone();
+    let poller = std::thread::spawn(move || {
+        let result = loader.run(&stop_thread, |v| {
+            report(
+                &compiled.meta,
+                &compiled.labels,
+                &to_violation(&v),
+                Some(&feedback.feedback),
+                Some(&feedback.events),
+            )
+        });
+        if let Err(error) = result {
+            let _ = failure_tx.send(format!("compatibility event loop failed: {error}"));
+            while !stop_thread.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        }
+        drop(loader);
+    });
+
+    eprintln!(
+        "ActPlane: running pid {target_pid} under COMMAND label 0x{agent_label:x}; feedback {}\n\
+         ActPlane: Linux compatibility mode uses a static policy; runtime updates require Linux 6.1+",
+        feedback_file.display()
+    );
+    let outcome: Result<i32> = if let Err(error) =
+        send_process_group_signal(target_pid, libc::SIGCONT)
+    {
+        Err(error.into())
+    } else {
+        tokio::select! {
+            biased;
+            failure = &mut failure_rx => Err(failure.unwrap_or_else(|_| "compatibility event loop exited unexpectedly".into()).into()),
+            _ = interrupt.recv() => Err("terminated by SIGINT".into()),
+            _ = terminate.recv() => Err("terminated by SIGTERM".into()),
+            status = target.wait() => status.map(exit_code).map_err(|error| error.into()),
+        }
+    };
+    let _ = send_process_group_signal(target_pid, libc::SIGKILL);
+    let _ = target.wait().await;
+    std::thread::sleep(Duration::from_millis(200));
+    stop.store(true, Ordering::SeqCst);
+    let _ = poller.join();
+    if let Ok(error) = failure_rx.try_recv() {
+        return Err(error.into());
+    }
+    outcome
+}
+
 pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool) -> Result<i32> {
     if parent_domain {
         return Err(
@@ -1198,17 +1280,24 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let target_owner = target_user(cli.run_as_root);
     prepare_feedback_files(&feedback, target_owner)?;
 
+    let legacy = legacy_kernel_required();
+    let shutdown = legacy.then(legacy_shutdown_signals).transpose()?;
     let mut target = spawn_stopped_target(
         cmd,
         &feedback,
         loaded.path.as_deref(),
         cli.run_as_root,
-        false,
+        legacy,
     )?;
     let target_pid = target.id().ok_or("target process has no pid")?;
     write_hook_state(&feedback.state, &feedback.feedback, target_pid as i32)?;
     if let Some((uid, gid)) = target_owner {
         chown_path(&feedback.state, uid, gid)?;
+    }
+
+    if legacy {
+        return run_legacy_command(target, agent_label, compiled, feedback, shutdown.unwrap())
+            .await;
     }
 
     let stop = Arc::new(AtomicBool::new(false));

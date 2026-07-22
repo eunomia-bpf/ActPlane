@@ -27,7 +27,11 @@
 #define CAP_STAT_REJECT 1
 #define CAP_STAT_DRAIN  2
 #define CAP_STAT_DROP   3
+#ifdef ACTPLANE_LEGACY_KERNEL
+#define CAP_DOMAIN_DEPTH 1
+#else
 #define CAP_DOMAIN_DEPTH 8
+#endif
 
 #ifndef TE_POLICY_PATH_CONTAINS
 #define TE_POLICY_PATH_CONTAINS (1U << 0)
@@ -68,10 +72,17 @@ struct cap_delta_request {
 	__u64 add_gate_mask;
 };
 
+#ifdef ACTPLANE_LEGACY_KERNEL
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY); __uint(max_entries, 1);
+	__type(key, __u32); __type(value, __u32);
+} cap_req SEC(".maps");
+#else
 struct {
 	__uint(type, BPF_MAP_TYPE_USER_RINGBUF);
 	__uint(max_entries, 64 * 1024);
 } cap_req SEC(".maps");
+#endif
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -416,6 +427,7 @@ static __always_inline int cap_append_rule_entry(const struct cap_append_rule *r
 	return 0;
 }
 
+#ifndef ACTPLANE_LEGACY_KERNEL
 static long cap_request_cb(struct bpf_dynptr *dynptr, void *data)
 {
 	const __s32 *tag = bpf_dynptr_data(dynptr, 0, sizeof(__s32));
@@ -479,6 +491,9 @@ static __always_inline void cap_drain_current(void)
 	bpf_user_ringbuf_drain(&cap_req, cap_request_cb, &ctx, 0);
 	cap_count(CAP_STAT_DRAIN);
 }
+#else
+#define cap_drain_current() ((void)0)
+#endif
 
 static __always_inline __u64 cap_labels_for_pid(pid_t pid)
 {
