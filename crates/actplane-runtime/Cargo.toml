@@ -21,7 +21,7 @@ serde_json = "1.0.140"
 serde_yaml = "0.9"
 tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "process", "io-util", "time", "signal", "io-std"] }
 libc = "0.2"
-rmcp = { version = "2", features = ["server", "transport-io"] }
+rmcp = { version = "3", features = ["server", "transport-io"] }
 
 [dev-dependencies]
 tempfile = "3.10"
