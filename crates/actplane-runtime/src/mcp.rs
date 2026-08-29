@@ -2399,7 +2399,7 @@ impl ServerHandler for ActPlaneMcp {
         &self,
         request: CallToolRequestParams,
         _context: rmcp::service::RequestContext<rmcp::service::RoleServer>,
-    ) -> impl std::future::Future<Output = Result<CallToolResult, rmcp::ErrorData>> + Send + '_
+    ) -> impl std::future::Future<Output = Result<CallToolResponse, rmcp::ErrorData>> + Send + '_
     {
         let result = match request.name.as_ref() {
             "bind_child_domain" => self.do_bind_child_domain(request.arguments),
@@ -2416,7 +2416,7 @@ impl ServerHandler for ActPlaneMcp {
                 None::<Value>,
             )),
         };
-        std::future::ready(result)
+        std::future::ready(result.map(Into::into))
     }
 
     fn list_resources(
@@ -2445,7 +2445,7 @@ impl ServerHandler for ActPlaneMcp {
         &self,
         request: ReadResourceRequestParams,
         _context: rmcp::service::RequestContext<rmcp::service::RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ReadResourceResult, rmcp::ErrorData>> + Send + '_
+    ) -> impl std::future::Future<Output = Result<ReadResourceResponse, rmcp::ErrorData>> + Send + '_
     {
         let result = if request.uri == POLICY_RESOURCE_URI {
             let text = self.load_and_validate();
@@ -2474,7 +2474,7 @@ impl ServerHandler for ActPlaneMcp {
                 None::<Value>,
             ))
         };
-        std::future::ready(result)
+        std::future::ready(result.map(Into::into))
     }
 }
 
