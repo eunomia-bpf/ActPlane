@@ -94,13 +94,53 @@ causal count remains pending trace-by-trace review. Until that review is complet
 the evidence supports an end-to-end metric clarification, not the stronger claim
 that policy translation alone caused 17 of 18 false positives.
 
-## New experiment gate
+## Selected new experiment: long-session over-tainting
 
-Only after this audit fixes the outcome semantics should new execution start. The
-next experiment must address evidence that reuse cannot answer: either (1) freeze
-high-authority policies before exposure to unseen, non-coding task content and
-compare with an independent official baseline, or (2) measure security and benign
-utility over session length after a sensitive read. Choice depends on available
-official benchmark runners and whether policies are truly frozen before task and
-injection exposure. Build success, smoke tests, and active processes are not
-research outcomes.
+Reviewer B predicts label explosion in long sessions, and Reviewer D asks whether
+reading `.env` prevents all later network use. Existing E1 proves one secret-read
+to connect flow and E8 proves explicit declassification, but neither measures how
+intervention burden grows or where process-scope boundaries reset it.
+
+The hypothesis is that a sensitive label remains monotonic within a process lineage,
+so every later benign connect matches even when it does not use sensitive content.
+Safety should remain constant while intervention burden grows linearly with the
+number of later connects. A negative result would show lost persistence or missing
+connect observation. A mixed result would locate a process or descendant boundary
+and narrow the paper's “session” claim.
+
+| Case | Label at start | Later relationship | Benign connects | Predicted matches |
+| --- | --- | --- | ---: | ---: |
+| clean control | no | same seeded lineage | 5 | 0 |
+| length 1 | yes | same process | 1 | 1 |
+| length 5 | yes | same process | 5 | 5 |
+| length 20 | yes | same process | 20 | 20 |
+| labeled process exits | child only | clean sibling | 5 | 0 |
+| nested descendant | yes | one extra fork generation | 5 | 5 |
+
+Existing E1 already tests file-read label acquisition. This experiment isolates
+the unanswered persistence question by seeding the frozen `SECRET` bit at the
+process boundary. The sibling case instead acquires it through an observed
+`exec "reader"` source after the loader is ready. The policy uses `notify`, not
+`kill`, so all scheduled connects execute and the count measures burden rather
+than early termination. Destinations are closed loopback ports, and no payload is
+sent.
+
+The privileged VM runner is
+`docs/empirical-study/run_long_session_overtaint_vm.sh`. On Ubuntu 6.8 under KVM,
+the observed counts were 0, 1, 5, 20, 0, and 5, exactly matching the preregistered
+rows. Thus intervention burden grows linearly inside the labeled lineage, including
+one more fork generation, while a clean sibling remains untainted after the labeled
+child exits. This supports Reviewer B's over-taint concern within one lineage, but
+not process-tree-global label explosion.
+
+Raw evidence is under
+`/workspaces/.agent-state/actplane-research/raw/long-session-vm-20260909T1917Z/`.
+`counts.tsv` is derived from `console.clean.log`, which retains every
+`TAINT_VIOLATION`, and `metadata.tsv` records commit, kernels, acceleration, and
+policy hash. The container runner
+`docs/empirical-study/run_long_session_overtaint.sh` could not load BPF because
+the container lacks `CAP_BPF` and `CAP_SYS_ADMIN`. An initial VM attempt using a
+file source also exposed a separate Ubuntu 6.8 verifier rejection in the current
+file-open hook (combined call-stack size 544 bytes). Neither failed run is counted
+as an experimental observation. Build success and loader readiness remain
+prerequisites, not results.
