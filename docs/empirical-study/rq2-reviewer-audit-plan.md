@@ -77,6 +77,15 @@ hidden from the agent and can remain a TN. The paired runs are separate agent
 executions, so the remaining trigger differences cannot be assigned to feedback
 without comparing their exact executed effects.
 
+The stage cross-tab further confirms that the labels are not kernel verdicts.
+Among ActPlane rows, observed intervention occurs on 86/86 TP, 2/28 FN, 18/18
+FP, and 2/58 TN trajectories. Thus intervention is necessary for the published
+TP definition but is neither sufficient for TP nor exclusive to FP. Across all
+190 matched ActPlane/opaque pairs, setup triggers occur in both runs for 83,
+only ActPlane for 14, only opaque for zero, and neither for 93. This comparison
+describes recorded executions, not paired deterministic trials, because feedback
+can change later actions within a multi-step setup trajectory.
+
 The raw rules already show heterogeneous candidate causes, including deliberately
 broad translations (notify on every write), semantic conditions unavailable to a
 path-only rule (dependency content or release intent), generated helper processes

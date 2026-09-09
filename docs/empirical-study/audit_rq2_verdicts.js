@@ -98,16 +98,36 @@ for (const row of rows) {
 }
 
 const counts = {};
+const interventionByLabel = {};
 for (const row of rows) {
   const key = `${row.system}:${row.judgment}`;
   counts[key] = (counts[key] || 0) + 1;
+  if (!interventionByLabel[key]) {
+    interventionByLabel[key] = {rows: 0, setup: 0, any_phase: 0, kill: 0, notify: 0};
+  }
+  const cell = interventionByLabel[key];
+  cell.rows += 1;
+  cell.setup += Number(row.kernel_intervened);
+  cell.any_phase += Number(row.any_observed_intervention);
+  cell.kill += Number(row.effect === "kill" || row.recovery_effect === "kill");
+  cell.notify += Number(row.effect === "notify" || row.recovery_effect === "notify");
 }
 const actplaneFp = rows.filter(x => x.system === "actplane" && x.judgment === "FP");
+const actplanePairs = rows.filter(x => x.system === "actplane");
+const pairedSetupTriggers = {both: 0, actplane_only: 0, opaque_only: 0, neither: 0};
+for (const row of actplanePairs) {
+  const left = row.kernel_intervened;
+  const right = row.paired_kernel_intervened;
+  const key = left && right ? "both" : left ? "actplane_only" : right ? "opaque_only" : "neither";
+  pairedSetupTriggers[key] += 1;
+}
 const summary = {
   schema: "rq2-verdict-audit-v1",
   source_manifest: "docs/artifact/rq2-qwen-primary/selected_runner_results.txt",
   total_rows: rows.length,
   counts,
+  intervention_by_label: interventionByLabel,
+  actplane_vs_opaque_setup_triggers: pairedSetupTriggers,
   actplane_fp: {
     count: actplaneFp.length,
     kernel_intervened: actplaneFp.filter(x => x.kernel_intervened).length,
