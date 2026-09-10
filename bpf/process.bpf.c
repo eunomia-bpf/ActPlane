@@ -2066,6 +2066,7 @@ static __noinline int te_handle_rename_exit(long ret, __u32 mode)
 /* Source-only file-flow policies do not need sink-rule evaluation on rename.
  * Keep their propagation path separate so older verifiers do not charge the
  * full rule matcher against the rename tracepoint's call-stack budget. */
+#ifndef ACTPLANE_LEGACY_KERNEL
 static __noinline int te_handle_rename_flow_exit(long ret)
 {
 	__u64 tid = bpf_get_current_pid_tgid();
@@ -2119,6 +2120,7 @@ static __noinline int te_handle_rename_flow_exit(long ret)
 	bpf_map_delete_elem(&ts_renamepend, &tid);
 	return 0;
 }
+#endif
 
 static __always_inline int te_handle_file_permission(struct file *file,
 						     __u32 access, __u32 mode)
@@ -3120,11 +3122,13 @@ int trace_rename_exit(struct trace_event_raw_sys_exit *ctx)
 	return te_handle_rename_exit(ctx->ret, te_tracepoint_mode());
 }
 
+#ifndef ACTPLANE_LEGACY_KERNEL
 SEC("tp/syscalls/sys_exit_rename")
 int trace_rename_exit_flow(struct trace_event_raw_sys_exit *ctx)
 {
 	return te_handle_rename_flow_exit(ctx->ret);
 }
+#endif
 SEC("tp/syscalls/sys_enter_renameat")
 int trace_renameat(struct trace_event_raw_sys_enter *ctx)
 {
@@ -3139,11 +3143,13 @@ int trace_renameat_exit(struct trace_event_raw_sys_exit *ctx)
 	return te_handle_rename_exit(ctx->ret, te_tracepoint_mode());
 }
 
+#ifndef ACTPLANE_LEGACY_KERNEL
 SEC("tp/syscalls/sys_exit_renameat")
 int trace_renameat_exit_flow(struct trace_event_raw_sys_exit *ctx)
 {
 	return te_handle_rename_flow_exit(ctx->ret);
 }
+#endif
 SEC("tp/syscalls/sys_enter_renameat2")
 int trace_renameat2(struct trace_event_raw_sys_enter *ctx)
 {
@@ -3158,11 +3164,13 @@ int trace_renameat2_exit(struct trace_event_raw_sys_exit *ctx)
 	return te_handle_rename_exit(ctx->ret, te_tracepoint_mode());
 }
 
+#ifndef ACTPLANE_LEGACY_KERNEL
 SEC("tp/syscalls/sys_exit_renameat2")
 int trace_renameat2_exit_flow(struct trace_event_raw_sys_exit *ctx)
 {
 	return te_handle_rename_flow_exit(ctx->ret);
 }
+#endif
 
 /* connect: numeric IPv4 matching (compiler lowers host/IP patterns to net+mask;
  * no in-kernel string formatting, so no verifier-rejected pointer arithmetic).
