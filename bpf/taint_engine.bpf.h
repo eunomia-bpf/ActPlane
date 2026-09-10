@@ -364,6 +364,12 @@ struct te_rule_eval {
 	__u64 best_req;
 	__u64 best_labels;
 	unsigned int rule_start;
+	unsigned int event_effect;
+	unsigned int event_action;
+	int event_rule;
+	__u32 event_domain_id;
+	__u64 event_labels;
+	__u32 event_op;
 };
 
 struct eval_scratch {
@@ -375,6 +381,13 @@ struct {
 	__type(key, __u32);
 	__type(value, struct eval_scratch);
 } ts_eval_scratch SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct taint_update);
+} ts_update_scratch SEC(".maps");
 
 static __always_inline struct eval_scratch *eval_scratch_buf(void)
 {
@@ -457,7 +470,7 @@ struct {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-	__uint(max_entries, 1);
+	__uint(max_entries, 2);
 	__type(key, __u32);
 	__type(value, struct file_domain_id);
 } ts_fdom_tmp SEC(".maps");
@@ -472,6 +485,12 @@ struct {
 static __always_inline struct file_domain_id *te_file_domain_tmp(void)
 {
 	__u32 k = 0;
+	return bpf_map_lookup_elem(&ts_fdom_tmp, &k);
+}
+
+static __always_inline struct file_domain_id *te_file_domain_tmp_second(void)
+{
+	__u32 k = 1;
 	return bpf_map_lookup_elem(&ts_fdom_tmp, &k);
 }
 
@@ -1457,8 +1476,13 @@ static int te_file_update_cb(__u32 i, void *vc)
 		return 1;
 	struct taint_update *u = up;
 #ifndef ACTPLANE_LEGACY_KERNEL
-	struct taint_update local = *up;
-	u = &local;
+	__u32 scratch_key = 0;
+	struct taint_update *local = bpf_map_lookup_elem(&ts_update_scratch,
+							       &scratch_key);
+	if (!local)
+		return 1;
+	*local = *up;
+	u = local;
 #endif
 	if (u->op != c->op)
 		return 0;
@@ -1826,16 +1850,8 @@ static __noinline void te_materialize_file_source_domain(pid_t pid,
 							 const char *path,
 							 __u32 domain_id)
 {
-	if (!te_pid_active(pid) || !cap_domain_matches_pid(pid, domain_id))
-		return;
-	struct te_update_ctx u = {
-		.pid = pid,
-		.domain_id = domain_id,
-		.op = TOP_OPEN,
-		.target = path,
-	};
-	te_collect_file_updates(&u);
-	__u64 src_labels = u.add;
+	__u64 src_labels = te_update_add_file_domain(TOP_OPEN, path, pid,
+						     domain_id);
 	if (!src_labels)
 		return;
 	struct file_domain_id *fdom = te_file_domain_tmp();
@@ -1873,33 +1889,35 @@ static __noinline void te_copy_file_state_domain(pid_t pid,
 {
 	if (!te_pid_active(pid) || !cap_domain_matches_pid(pid, domain_id))
 		return;
-	struct file_domain_id from = {};
-	struct file_domain_id to = {};
-	te_file_domain_key_for(domain_id, from_fid, &from);
-	te_file_domain_key_for(domain_id, to_fid, &to);
-	struct file_state *fs = bpf_map_lookup_elem(&ts_file, &from);
+	struct file_domain_id *from = te_file_domain_tmp();
+	struct file_domain_id *to = te_file_domain_tmp_second();
+	if (!from || !to)
+		return;
+	te_file_domain_key_for(domain_id, from_fid, from);
+	te_file_domain_key_for(domain_id, to_fid, to);
+	struct file_state *fs = bpf_map_lookup_elem(&ts_file, from);
 	__u32 have_src = fs ? 1 : 0;
 	__u64 labels = fs ? fs->labels : 0;
 	__u32 last_write_epoch = fs ? fs->last_write_epoch : 0;
-	struct file_state *dst = bpf_map_lookup_elem(&ts_file, &to);
+	struct file_state *dst = bpf_map_lookup_elem(&ts_file, to);
 	if (delete_from) {
 		__u64 dst_labels = dst ? dst->labels : 0;
 		if (dst_labels)
-			te_delete_file_prov_mask(&to, dst_labels);
+			te_delete_file_prov_mask(to, dst_labels);
 		if (labels) {
 			struct file_state ns = {
 				.labels = labels,
 				.last_write_epoch = last_write_epoch,
 			};
-			bpf_map_update_elem(&ts_file, &to, &ns, BPF_ANY);
-			te_copy_file_prov_to_file(&from, &to, labels);
+			bpf_map_update_elem(&ts_file, to, &ns, BPF_ANY);
+			te_copy_file_prov_to_file(from, to, labels);
 		} else {
-			bpf_map_delete_elem(&ts_file, &to);
+			bpf_map_delete_elem(&ts_file, to);
 		}
 		if (have_src)
-			bpf_map_delete_elem(&ts_file, &from);
+			bpf_map_delete_elem(&ts_file, from);
 		if (labels)
-			te_delete_file_prov_mask(&from, labels);
+			te_delete_file_prov_mask(from, labels);
 		return;
 	}
 	if (!labels)
@@ -1913,9 +1931,9 @@ static __noinline void te_copy_file_state_domain(pid_t pid,
 			.labels = labels,
 			.last_write_epoch = last_write_epoch,
 		};
-		bpf_map_update_elem(&ts_file, &to, &ns, BPF_ANY);
+		bpf_map_update_elem(&ts_file, to, &ns, BPF_ANY);
 	}
-	te_copy_file_prov_to_file(&from, &to, labels);
+	te_copy_file_prov_to_file(from, to, labels);
 }
 
 static __noinline void te_copy_file_state(pid_t pid,

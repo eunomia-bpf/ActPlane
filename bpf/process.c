@@ -258,6 +258,14 @@ static int tracepoint_autoload_needed(const char *name, unsigned int features,
 		"trace_renameat_exit", "trace_renameat2",
 		"trace_renameat2_exit",
 	};
+	static const char *const rename_rule_exit[] = {
+		"trace_rename_exit", "trace_renameat_exit",
+		"trace_renameat2_exit",
+	};
+	static const char *const rename_flow_exit[] = {
+		"trace_rename_exit_flow", "trace_renameat_exit_flow",
+		"trace_renameat2_exit_flow",
+	};
 	static const char *const fd_flow[] = {
 		"trace_read", "trace_read_exit", "trace_write",
 		"trace_write_exit", "trace_close", "trace_dup",
@@ -290,6 +298,7 @@ static int tracepoint_autoload_needed(const char *name, unsigned int features,
 	};
 	bool file_flow = features & TE_POLICY_FILE_FLOW;
 	bool open_rules = features & TE_POLICY_OPEN_RULES;
+	bool write_rules = features & TE_POLICY_WRITE_RULES;
 	bool connect = features & TE_POLICY_CONNECT;
 	bool recv = features & TE_POLICY_RECV;
 
@@ -301,6 +310,12 @@ static int tracepoint_autoload_needed(const char *name, unsigned int features,
 		return 1;
 	if (name_in(name, file_open, sizeof(file_open) / sizeof(file_open[0])))
 		return file_flow || open_rules;
+	if (name_in(name, rename_rule_exit,
+		    sizeof(rename_rule_exit) / sizeof(rename_rule_exit[0])))
+		return write_rules;
+	if (name_in(name, rename_flow_exit,
+		    sizeof(rename_flow_exit) / sizeof(rename_flow_exit[0])))
+		return file_flow && !write_rules;
 	if (name_in(name, file_write_path,
 		    sizeof(file_write_path) / sizeof(file_write_path[0])))
 		return file_write || file_flow;
