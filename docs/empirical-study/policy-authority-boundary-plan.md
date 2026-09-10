@@ -58,3 +58,33 @@ independent-baseline experiment. Its runner exposes only `baseline` and
 the historical per-task ActPlane outcomes are explicitly absent. Therefore this
 experiment does not substitute the same-agent condition for an independent
 strong baseline, and it does not claim held-out non-coding generalization.
+
+## Result (2026-09-10)
+
+The committed matrix at `3ed7811e` completed under KVM on Ubuntu kernel
+6.8.0-138-generic. All seven predictions matched. The bound child was rejected
+when it requested `AUTH_DECLASSIFY` (`lacks runtime authority 0x20`) and when it
+targeted the parent domain. Its local tightening was accepted and fired. After a
+real read of the configured secret file, the inherited frozen rule also fired,
+with the feedback record attributing `SECRET` to that read. The trusted parent
+without required metadata was rejected, while allowlisted metadata was accepted
+with `external_verified=false` and `signature=null` in the audit record.
+
+The first five guest attempts are retained as negative engineering evidence.
+They exposed a missing guest mount applet and then Ubuntu 6.8 combined-stack
+verifier failures in the shared `recvfrom`/`recvmsg` exit path. The socket exit
+paths were split and the SCM_RIGHTS scan was isolated before the successful
+matrix. These load failures are not counted as experimental observations.
+
+Raw evidence is under:
+
+```text
+/workspaces/.agent-state/actplane-research/raw/authority-boundary-20260910T1340Z/
+  attempt1/ ... attempt6/
+  final-3ed7811e/{console.clean.log,counts.tsv,metadata.tsv}
+```
+
+This result supports the child-domain monotonicity boundary, not trustworthy
+natural-language policy generation. The static approval row is deliberately a
+negative boundary result: an allowlisted string is audit metadata and is not
+external identity verification.
