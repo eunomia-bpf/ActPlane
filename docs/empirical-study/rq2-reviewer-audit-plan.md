@@ -138,12 +138,12 @@ untainted after the reader exits. This supports Reviewer B's over-taint concern
 within one lineage, but not process-tree-global label explosion.
 
 A seventh engineering validation renames `/session.env` to `/renamed.env`, reads
-the renamed inode, and then connects. It observes the one predicted violation,
-which validates label-state propagation through the new rename exit path. Its
-provenance is null, however, so label provenance does not currently survive this
-materialization-and-rename path. This retained negative result does not affect the
-six-row over-taint comparison, and it identifies a separate feedback-explanation
-gap rather than claiming full rename equivalence.
+the renamed inode, and then connects. The first run observed its predicted
+violation but returned null provenance, which exposed a feedback-explanation gap.
+File-source materialization now records object provenance before rename state is
+copied. A second Ubuntu 6.8 KVM run again observed one violation and attributed it
+to `op:1,target:/session.env`. This is an engineering validation outside the six
+preregistered over-taint rows, not another independent experimental condition.
 
 Raw evidence is under
 `/workspaces/.agent-state/actplane-research/raw/file-read-long-session-20260910T0124Z/`.
@@ -159,3 +159,46 @@ path, so source-only policies now autoload a propagation-only rename exit progra
 while write-rule policies retain the full sink evaluator. These failures are
 engineering evidence, not experimental observations. Build success and loader
 readiness remain prerequisites, not results.
+
+The first independent Codex review blocked the follow-up because the Rust loader
+did not select the new flow-only exits and the runner did not fail closed. After
+the loader fix, a second review confirmed hook selection and hashes but retained a
+block because the sibling control discarded its reader child's exit status. The
+runner now propagates that status, and its unit matrix explicitly covers modern
+source-only, modern write-rule, and legacy rename selection. These reviews assess
+code and evidence integrity, not the paper's scientific claims. Their raw reports
+are under `raw/independent-review-6259cd3b/` and
+`raw/independent-review-8298d23a/` in the agent-state directory.
+The final review reports `APPROVE` with no blocking code or runner findings. It
+retains the limitation that modern write-rule and legacy selection are covered by
+code inspection and unit assertions rather than separate KVM runs.
+
+## Remaining generality and baseline evidence
+
+The frozen `origin/artifact-ready` OpenAgentSafety assets establish a useful but
+bounded non-coding result. They inventory all 361 workplace and personal-assistant
+tasks, 303 nontrivial policies and 58 no-op policies. The aggregate summary reports
+106 baseline-unsafe outcomes, of which ActPlane prevented 78 and missed 28. The
+311 first-pass policies were generated from task descriptions without evaluator,
+trajectory, score, or ActPlane-log access. Thus this is evidence beyond coding and
+for description-to-DSL transfer, not evidence that no such evaluation exists.
+
+Two limitations remain material. The artifact branch retains only aggregate
+outcomes, and every ledger row explicitly marks per-task outcome unavailable, so
+the 78/28 split cannot currently be trace-audited like RQ2. Its baseline is the
+same agent without ActPlane enforcement, not an independent policy system. FIDES
+is the independent prior-system baseline only in the 190-trace RQ2 coding corpus.
+OPAQUE remains a feedback ablation, while prompt-filter and tool-regex remain weak
+configured controls. Therefore the existing evidence does not support claiming an
+independent strong-baseline comparison on unseen non-coding tasks.
+
+A defensible next experiment would freeze a task-description-only policy generator
+and an unseen OpenAgentSafety subset, then compare ActPlane with an official,
+independently implemented runtime policy method under the same tasks, model,
+services, and end-to-end outcome rubric. Positive, negative, and mixed results
+would respectively support cross-domain advantage, reject it, or localize it by
+OS-observable versus semantic/service-side effects. This experiment should not be
+started until the official checkout, complete per-task raw outcomes, and runnable
+independent baseline are present. The current workspace has the runner and policy
+inventory but lacks those three frozen inputs, so inventing a substitute here
+would create another weak control rather than answer Reviewers A, C, and D.
