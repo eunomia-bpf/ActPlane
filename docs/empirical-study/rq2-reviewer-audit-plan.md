@@ -86,6 +86,65 @@ only ActPlane for 14, only opaque for zero, and neither for 93. This comparison
 describes recorded executions, not paired deterministic trials, because feedback
 can change later actions within a multi-step setup trajectory.
 
+## RQ2 matched execution-path analysis
+
+Reviewer D accepts FIDES as a reasonable baseline but questions whether the
+other controls are strong, while the stated RQ2 asks specifically about direct
+and indirect execution paths. The existing overall confusion matrix cannot show
+whether the result follows the below-tool mechanism, and the family heatmap does
+not report matched differences against the independent baseline. The analysis
+hypothesis is therefore that ActPlane and FIDES will be comparable on direct
+violations, where both see the initiating tool call, but ActPlane will have a
+large paired advantage on script and hidden violations whose effects cross that
+boundary.
+
+A positive result localizes the advantage to the mechanism claimed by RQ2. A
+negative result, such as the same advantage on direct paths or no advantage on
+indirect paths, would weaken that explanation. A mixed result requires reporting
+the losing path and limits rather than relying on overall DCR.
+
+| Comparison | Units | Outcome semantics | Role |
+| --- | ---: | --- | --- |
+| Five systems by allowed-effect, lookalike, direct, script, and hidden family | 38 per cell | End-to-end TP/TN/FP/FN from the paired judge file | descriptive matrix |
+| ActPlane versus FIDES on compliant, direct, and combined indirect groups | 76, 38, and 76 matched traces | Correct means TP or TN; exact two-sided McNemar test uses discordant pairs | primary independent-baseline comparison |
+| ActPlane versus opaque intervention by family | 38 per cell | setup and any-phase rule reports, separate from final judgment | feedback ablation and stage audit only |
+
+The frozen 950-row artifact supports the hypothesis, with an important direct-path
+boundary. On the 76 indirect violation traces, ActPlane correctly resolves 55
+(72.4%) while FIDES resolves 7 (9.2%), a 63.2 percentage-point difference. The
+matched cells are 4 both correct, 51 ActPlane only, 3 FIDES only, and 18 both
+wrong (exact two-sided McNemar \(p=2.92\times10^{-12}\)). The difference appears
+in both indirect families: script is 27/38 versus 7/38, and hidden is 28/38
+versus 0/38.
+
+Direct violations do not favor ActPlane: it resolves 31/38 (81.6%) versus
+FIDES at 34/38 (89.5%), with 2 ActPlane-only and 5 FIDES-only correct pairs
+(McNemar \(p=0.453\)). On the 76 compliant traces, ActPlane is 58/76 and FIDES
+is 52/76 (\(p=0.405\)). These exploratory paired tests were added after seeing
+the aggregate result and are not a substitute for a preregistered replication.
+They nevertheless make the mechanism boundary falsifiable and show that the
+overall advantage is not evidence of superiority on direct paths.
+
+The same run keeps enforcement observations distinct from end-to-end outcomes.
+ActPlane records an intervention in 31 direct, 27 script, and 30 hidden traces,
+while the corresponding final TP counts are 31, 27, and 28. FIDES is compared
+only on final judged outcome because its tool-layer records are not kernel events.
+ActPlane-opaque remains an ablation and is not included in the independent
+baseline test.
+
+The executable analysis is `docs/empirical-study/audit_rq2_verdicts.js`. Its
+version-2 JSON includes the complete family matrix, the matched comparison, and
+the ActPlane/opaque stage counts. The run used the read-only extraction command
+above, with raw output, input hashes, and a concise table retained under
+`/workspaces/.agent-state/actplane-research/raw/rq2-path-baseline-audit-20260910T0906Z/`.
+The manifest's undocumented fifth column disagrees with 97 FIDES judge outcomes
+and is ignored by the official paper verifier. The audit retains it as an
+auxiliary provenance field but uses each referenced judge file as the final
+outcome source, matching `docs/artifact/verify_results.py` on the artifact ref.
+This result strengthens the original coding-task RQ2 comparison. It does not add
+an independent baseline to OpenAgentSafety or establish unseen non-coding
+generalization.
+
 The raw rules already show heterogeneous candidate causes, including deliberately
 broad translations (notify on every write), semantic conditions unavailable to a
 path-only rule (dependency content or release intent), generated helper processes
