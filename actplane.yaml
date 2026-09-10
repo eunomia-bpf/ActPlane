@@ -7,12 +7,6 @@ policy: |
   source AGENT = exec "**/claude"
   source AGENT = exec "**/codex"
 
-  # No new branches or worktrees.
-  rule no-git-branch:
-    kill exec "git" "branch"   if AGENT
-    kill exec "git" "worktree" if AGENT
-    because "This workspace forbids creating git branches or worktrees. Use other git commands, or ask the user to manage branches."
-
   # No auto-commit — agent must not commit without explicit user approval.
   # Gate: write .actplane/commit-approved to signal user approval; re-arms after each commit.
   rule no-auto-commit:

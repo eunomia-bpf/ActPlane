@@ -19,17 +19,18 @@ The repo descends from AgentSight (an eBPF observability framework); the SSL/HTT
 analyzer chain, runners, web server, and frontend were removed. What remains is the
 labeled information-flow engine plus a minimal Rust compiler/driver.
 
-## Agent behavioral constraints (ActPlane-applied)
+## Agent change workflow
 
-When acting as an agent in this repo, **do not run `git branch` or `git worktree`** —
-the user does not want new branches or worktrees created right now. **Other git
-operations are allowed** (`git commit`, `git add`, `git status`, `git log`, `git push`,
-…). If you think a different branch is needed, ask the user instead of creating one.
+Develop experiments and other changes on a dedicated non-default branch in this
+existing checkout. Changes entering the default `master` branch require a pull
+request. Do not push implementation or experiment commits directly to `master`.
+Creating and using a task branch is authorized, but do not create an additional
+worktree unless the user explicitly requests one.
 
-`git branch` and `git worktree` are also applied below the tool layer by ActPlane
-itself (`actplane.yaml`, rule `no-git-branch`, `kill exec "git" "branch"`/`kill exec "git" "worktree"`): they
-are killed whether invoked via a tool call, `bash -c`, or a subprocess — a worked
-example of a real corpus-derived guardrail in the taint DSL.
+The repository still includes `no-git-branch` templates, examples, and test
+fixtures as demonstrations of ActPlane policy behavior. They are product assets,
+not an operational prohibition for this checkout, and should not be removed merely
+because this workspace now uses branches.
 
 When an operation fails with `EPERM` / `Operation not permitted`, or a tool hook
 injects an `[ActPlane]` message, treat it as authoritative kernel feedback. Read
