@@ -212,11 +212,6 @@ git ls-remote https://github.com/eunomia-bpf/OpenAgentSafety.git \
 # inspect the recursive Git tree for nested commit 8cb4131 via the GitHub API
 ```
 
-An independent local-model assessment attempt is retained under
-`/workspaces/.agent-state/actplane-research/raw/oas-forensic-review-20260910/`.
-Provider errors, if any, remain part of that raw record and are not treated as a
-successful review.
-
 A defensible next experiment would freeze a task-description-only policy generator
 and an unseen OpenAgentSafety subset, then compare ActPlane with an official,
 independently implemented runtime policy method under the same tasks, model,
