@@ -222,3 +222,45 @@ started until the official checkout, complete per-task raw outcomes, and runnabl
 independent baseline are present. The current workspace has the runner and policy
 inventory but lacks those three frozen inputs, so inventing a substitute here
 would create another weak control rather than answer Reviewers A, C, and D.
+
+## Follow-up experiment: bounded declassification
+
+The persistence matrix establishes Reviewer B's predicted intervention growth,
+but it does not test the corresponding usability mechanism. The follow-up
+hypothesis is that a policy-authorized redactor exec clears `SECRET` for the same
+process lineage before later benign connects, while an unrelated executable does
+not. A mixed timing case tests that violations before the trusted gate remain
+visible even when later connects are released.
+
+| Case | Sequence after real secret read | Later connects | Predicted matches |
+| --- | --- | ---: | ---: |
+| trusted gate first | exec `/redact`, then connect | 5 | 0 |
+| unrelated executable | exec `/sanitize`, then connect | 5 | 5 |
+| gate after one connect | connect once, exec `/redact`, then connect | 5 | 1 |
+
+All three cases use the same frozen policy, process lineage, closed loopback
+destinations, and event-counting semantics as the persistence matrix. A positive
+result supports a bounded safety-usability tradeoff: intervention persists until
+the configured trust boundary and stops afterward. Five matches after `/redact`
+would reject effective declassification. Zero matches after `/sanitize` would
+expose unintended label clearing. Any other count is retained as a mixed result
+requiring event-level diagnosis. This test evaluates enforcement semantics only.
+It does not establish that the redactor is correct or that an agent should be
+trusted to generate or invoke the declassification policy.
+
+The Ubuntu 6.8 KVM run observes exactly `0/0`, `5/5`, and `1/1` for the three
+rows. The unrelated `/sanitize` case retains `/session.env` provenance on all
+five matches, and the mixed case retains the single pre-gate match. This supports
+the scoped hypothesis that the configured exec gate bounds later intervention
+burden without retroactively hiding earlier violations. It does not answer who
+may authorize the gate or whether `/redact` actually sanitizes content because
+the experiment deliberately isolates label-transform enforcement.
+
+The first attempt failed closed because the earlier rename validation had moved
+the shared `/session.env` fixture before these cases ran. All three new readers
+exited with status 4, so their apparent zero counts are not mechanism results.
+The runner now restores the identical frozen fixture before every case. The
+failed attempt is retained at
+`/workspaces/.agent-state/actplane-research/raw/declassification-long-session-20260910T0725Z-attempt1/`,
+and the successful raw run is at
+`/workspaces/.agent-state/actplane-research/raw/declassification-long-session-20260910T0725Z/`.

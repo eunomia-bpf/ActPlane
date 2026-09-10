@@ -19,6 +19,7 @@ done
 mkdir -p "$OUT" "$WORK/root"/{bin,dev,proc,sys,tmp}
 
 policy='source SECRET = file "/session.env"
+declassify SECRET by exec "**/redact"
 rule long-session-no-egress:
   notify connect endpoint "*" if SECRET
   because "A process lineage that has read a secret remains in sensitive context"'
@@ -93,6 +94,20 @@ int main(int argc, char **argv) {
         if (rename("/session.env", "/renamed.env") != 0) return 5;
         if (read_path("/renamed.env") != 0) return 6;
         connect_n(n);
+    } else if (!strcmp(mode, "declass")) {
+        read_secret();
+        execl("/redact", "redact", "post", argv[2], (char *)0);
+        return 8;
+    } else if (!strcmp(mode, "wronggate")) {
+        read_secret();
+        execl("/sanitize", "sanitize", "post", argv[2], (char *)0);
+        return 9;
+    } else if (!strcmp(mode, "before_declass")) {
+        read_secret(); connect_n(1);
+        execl("/redact", "redact", "post", argv[2], (char *)0);
+        return 10;
+    } else if (!strcmp(mode, "post")) {
+        connect_n(n);
     } else return 2;
     return 0;
 }
@@ -100,6 +115,8 @@ EOF
 gcc -static -O2 "$WORK/trigger.c" -o "$WORK/root/trigger"
 cp "$WORK/root/trigger" "$WORK/root/reader"
 cp "$WORK/root/trigger" "$WORK/root/control"
+cp "$WORK/root/trigger" "$WORK/root/redact"
+cp "$WORK/root/trigger" "$WORK/root/sanitize"
 
 cat > "$WORK/root/init" <<'EOF'
 #!/bin/sh
@@ -115,6 +132,7 @@ dmesg -n 1 2>/dev/null || true
 run_case() {
   name="$1" executable="$2" mode="$3" count="$4" expected="$5" seed_label="$6"
   echo "CASE_BEGIN $name $expected"
+  printf '%s\n' 'TOKEN=frozen-experiment-secret' > /session.env
   SELF_STOP=1 "/$executable" "$mode" "$count" &
   trigger_pid=$!
   tries=0
@@ -175,6 +193,9 @@ run_case same_lineage_20 reader same 20 20 none
 run_case sibling_after_reader_exit control sibling 5 0 none
 run_case descendant_after_read_5 reader descendant 5 5 none
 run_case renamed_source_read reader rename 1 1 none
+run_case trusted_declass_before_5 reader declass 5 0 none
+run_case unrelated_exec_before_5 reader wronggate 5 5 none
+run_case one_connect_then_declass_5 reader before_declass 5 1 none
 echo EXPERIMENT_DONE
 poweroff -f
 EOF
