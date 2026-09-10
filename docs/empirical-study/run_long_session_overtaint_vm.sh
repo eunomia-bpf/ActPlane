@@ -169,8 +169,10 @@ run_case() {
     return
   fi
   kill -CONT "$trigger_pid"
+  set +e
   wait "$trigger_pid" 2>/dev/null
   trigger_status=$?
+  set -e
   if [ "$trigger_status" -ne 0 ]; then
     kill "$loader_pid" 2>/dev/null || true
     wait "$loader_pid" 2>/dev/null || true

@@ -248,19 +248,12 @@ requiring event-level diagnosis. This test evaluates enforcement semantics only.
 It does not establish that the redactor is correct or that an agent should be
 trusted to generate or invoke the declassification policy.
 
-The Ubuntu 6.8 KVM run observes exactly `0/0`, `5/5`, and `1/1` for the three
-rows. The unrelated `/sanitize` case retains `/session.env` provenance on all
-five matches, and the mixed case retains the single pre-gate match. This supports
-the scoped hypothesis that the configured exec gate bounds later intervention
-burden without retroactively hiding earlier violations. It does not answer who
-may authorize the gate or whether `/redact` actually sanitizes content because
-the experiment deliberately isolates label-transform enforcement.
-
-The first attempt failed closed because the earlier rename validation had moved
-the shared `/session.env` fixture before these cases ran. All three new readers
-exited with status 4, so their apparent zero counts are not mechanism results.
-The runner now restores the identical frozen fixture before every case. The
-failed attempt is retained at
-`/workspaces/.agent-state/actplane-research/raw/declassification-long-session-20260910T0725Z-attempt1/`,
-and the successful raw run is at
-`/workspaces/.agent-state/actplane-research/raw/declassification-long-session-20260910T0725Z/`.
+The runner restores the identical frozen fixture before every case and treats a
+nonzero trigger exit as a case failure. A prior workspace report stated counts of
+`0/0`, `5/5`, and `1/1`, but its cited raw directories are not present in the
+current retained state. Those counts are therefore not treated as verified
+evidence here. Before drawing a conclusion, an exact-head Ubuntu KVM run must
+retain `console.clean.log`, `counts.tsv`, and `metadata.tsv` so the event stream,
+source revision, binaries, kernels, and acceleration can be audited. The result
+will remain scoped to label-transform enforcement: it cannot establish who may
+authorize the gate or whether `/redact` actually sanitizes content.
