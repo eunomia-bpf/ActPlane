@@ -3080,6 +3080,21 @@ mod tests {
         assert!(!tracepoint_needed(spec("trace_pipe"), file, false));
         assert!(!tracepoint_needed(spec("trace_mmap"), file, false));
 
+        let file_with_write_rule = HookBudget {
+            features: FEAT_FILE_FLOW | FEAT_WRITE_RULES,
+            ..file
+        };
+        assert!(tracepoint_needed(
+            spec("trace_rename_exit"),
+            file_with_write_rule,
+            false
+        ));
+        assert!(!tracepoint_needed(
+            spec("trace_rename_exit_flow"),
+            file_with_write_rule,
+            false
+        ));
+
         let advanced_file = HookBudget {
             advanced_tracepoints: true,
             ..file

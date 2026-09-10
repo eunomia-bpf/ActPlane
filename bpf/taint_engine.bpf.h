@@ -807,6 +807,56 @@ static __always_inline void te_record_proc_prov_mask(pid_t pid, __u32 domain_id,
 	bpf_loop(te_count(5), te_record_proc_prov_cb, &c, 0);
 }
 
+static __always_inline void te_record_file_prov(struct file_domain_id *fdom,
+						__u64 label, pid_t pid,
+						unsigned int op, const char *target)
+{
+	if (!label)
+		return;
+	struct te_prov *p = te_prov_tmp();
+	if (!p)
+		return;
+	__builtin_memset(p, 0, sizeof(*p));
+	p->label = label;
+	p->timestamp_ns = bpf_ktime_get_ns();
+	p->pid = pid;
+	p->op = op;
+	te_copy_target(p->target, target);
+	struct file_label_id key = { .fdom = *fdom, .label = label };
+	bpf_map_update_elem(&ts_file_prov, &key, p, BPF_ANY);
+}
+
+struct te_record_file_prov_ctx {
+	struct file_domain_id fdom;
+	__u64 labels;
+	pid_t pid;
+	unsigned int op;
+	const char *target;
+};
+static int te_record_file_prov_cb(__u32 i, void *vc)
+{
+	struct te_record_file_prov_ctx *c = vc;
+	if (i >= MAX_TAINT_LABELS)
+		return 1;
+	__u64 bit = 1ULL << i;
+	if (c->labels & bit)
+		te_record_file_prov(&c->fdom, bit, c->pid, c->op, c->target);
+	return 0;
+}
+static __noinline void te_record_file_prov_mask(struct file_domain_id *fdom,
+						__u64 labels, pid_t pid,
+						unsigned int op, const char *target)
+{
+	struct te_record_file_prov_ctx c = {
+		.fdom = *fdom,
+		.labels = labels,
+		.pid = pid,
+		.op = op,
+		.target = target,
+	};
+	bpf_loop(te_count(5), te_record_file_prov_cb, &c, 0);
+}
+
 struct te_copy_proc_prov_ctx { pid_t from, to; __u32 domain_id; __u64 labels; };
 static int te_copy_proc_prov_cb(__u32 i, void *vc)
 {
@@ -1865,6 +1915,7 @@ static __noinline void te_materialize_file_source_domain(pid_t pid,
 		struct file_state ns = { .labels = src_labels, .last_write_epoch = 0 };
 		bpf_map_update_elem(&ts_file, fdom, &ns, BPF_ANY);
 	}
+	te_record_file_prov_mask(fdom, src_labels, pid, TOP_OPEN, path);
 }
 
 static __noinline void te_materialize_file_source(pid_t pid,

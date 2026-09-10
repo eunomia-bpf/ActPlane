@@ -81,7 +81,10 @@ int main(int argc, char **argv) {
     else if (!strcmp(mode, "sibling")) {
         pid_t child = fork();
         if (child == 0) { read_secret(); _exit(0); }
-        waitpid(child, 0, 0); connect_n(n);
+        int status = 0;
+        if (child < 0 || waitpid(child, &status, 0) < 0 ||
+            !WIFEXITED(status) || WEXITSTATUS(status) != 0) return 7;
+        connect_n(n);
     } else if (!strcmp(mode, "descendant")) {
         read_secret(); pid_t child = fork();
         if (child == 0) { connect_n(n); _exit(0); }
@@ -107,6 +110,7 @@ mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
 mount -t debugfs debugfs /sys/kernel/debug 2>/dev/null || true
 mount -t tracefs tracefs /sys/kernel/tracing 2>/dev/null || true
 mount -t bpf bpf /sys/fs/bpf 2>/dev/null || true
+dmesg -n 1 2>/dev/null || true
 
 run_case() {
   name="$1" executable="$2" mode="$3" count="$4" expected="$5" seed_label="$6"
