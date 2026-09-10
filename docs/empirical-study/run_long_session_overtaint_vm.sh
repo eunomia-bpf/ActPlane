@@ -18,12 +18,13 @@ for command in qemu-system-x86_64 cpio gcc; do
 done
 mkdir -p "$OUT" "$WORK/root"/{bin,dev,proc,sys,tmp}
 
-policy='source SECRET = exec "reader"
+policy='source SECRET = file "/session.env"
 rule long-session-no-egress:
   notify connect endpoint "*" if SECRET
   because "A process lineage that has read a secret remains in sensitive context"'
 "$ACT" --rule "$policy" compile --out "$WORK/root/config.bin" --force >"$OUT/compile.stdout" 2>"$OUT/compile.stderr"
 printf '%s\n' "$policy" > "$OUT/policy.dsl"
+printf '%s\n' 'TOKEN=frozen-experiment-secret' > "$WORK/root/session.env"
 cp "$PROC" "$WORK/root/process"
 cp "$ACT" "$WORK/root/actplane"
 cp /bin/busybox "$WORK/root/bin/busybox"
@@ -42,12 +43,23 @@ cat > "$WORK/trigger.c" <<'EOF'
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+static void read_path(const char *path) {
+    char buf[64];
+    int fd = open(path, O_RDONLY);
+    if (fd >= 0) {
+        ssize_t n = read(fd, buf, sizeof(buf));
+        if (n < 0) _exit(4);
+        close(fd);
+    }
+}
+static void read_secret(void) { read_path("/session.env"); }
 static void connect_n(int n) {
     for (int i = 0; i < n; i++) {
         int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -63,15 +75,18 @@ int main(int argc, char **argv) {
     int n = argc > 2 ? atoi(argv[2]) : 1;
     if (getenv("SELF_STOP")) { unsetenv("SELF_STOP"); raise(SIGSTOP); }
     if (!strcmp(mode, "clean")) connect_n(n);
-    else if (!strcmp(mode, "same")) connect_n(n);
+    else if (!strcmp(mode, "same")) { read_secret(); connect_n(n); }
     else if (!strcmp(mode, "sibling")) {
         pid_t child = fork();
-        if (child == 0) { execl("/reader", "reader", "read-only", "0", NULL); _exit(3); }
+        if (child == 0) { read_secret(); _exit(0); }
         waitpid(child, 0, 0); connect_n(n);
     } else if (!strcmp(mode, "descendant")) {
-        pid_t child = fork();
+        read_secret(); pid_t child = fork();
         if (child == 0) { connect_n(n); _exit(0); }
         waitpid(child, 0, 0);
+    } else if (!strcmp(mode, "rename")) {
+        if (rename("/session.env", "/renamed.env") != 0) return 5;
+        read_path("/renamed.env"); connect_n(n);
     } else return 2;
     return 0;
 }
@@ -137,12 +152,13 @@ run_case() {
   echo "CASE_END $name"
 }
 
-run_case clean_pre_label control clean 5 0 none
-run_case same_lineage_1 reader same 1 1 1
-run_case same_lineage_5 reader same 5 5 1
-run_case same_lineage_20 reader same 20 20 1
-run_case sibling_after_labeled_exit control sibling 5 0 none
-run_case descendant_after_label_5 reader descendant 5 5 1
+run_case clean_pre_read control clean 5 0 none
+run_case same_lineage_1 reader same 1 1 none
+run_case same_lineage_5 reader same 5 5 none
+run_case same_lineage_20 reader same 20 20 none
+run_case sibling_after_reader_exit control sibling 5 0 none
+run_case descendant_after_read_5 reader descendant 5 5 none
+run_case renamed_source_read reader rename 1 1 none
 echo EXPERIMENT_DONE
 poweroff -f
 EOF

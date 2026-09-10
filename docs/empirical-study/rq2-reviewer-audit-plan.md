@@ -117,30 +117,45 @@ and narrow the paper's “session” claim.
 | labeled process exits | child only | clean sibling | 5 | 0 |
 | nested descendant | yes | one extra fork generation | 5 | 5 |
 
-Existing E1 already tests file-read label acquisition. This experiment isolates
-the unanswered persistence question by seeding the frozen `SECRET` bit at the
-process boundary. The sibling case instead acquires it through an observed
-`exec "reader"` source after the loader is ready. The policy uses `notify`, not
-`kill`, so all scheduled connects execute and the count measures burden rather
-than early termination. Destinations are closed loopback ports, and no payload is
-sent.
+The first run isolated persistence by seeding the frozen `SECRET` bit at the
+process boundary. It established the propagation control but did not answer the
+reviewer's actual file-read premise. After moving update matching and rename-flow
+state off the BPF stack, the follow-up uses `source SECRET = file
+"/session.env"`. Each sensitive case opens and reads that file before connecting.
+The sibling case confines the read to a child that exits. The policy uses
+`notify`, not `kill`, so all scheduled connects execute and the count measures
+burden rather than early termination. Destinations are closed loopback ports, and
+no payload is sent.
 
 The privileged VM runner is
 `docs/empirical-study/run_long_session_overtaint_vm.sh`. On Ubuntu 6.8 under KVM,
-the observed counts were 0, 1, 5, 20, 0, and 5, exactly matching the preregistered
-rows. Thus intervention burden grows linearly inside the labeled lineage, including
-one more fork generation, while a clean sibling remains untainted after the labeled
-child exits. This supports Reviewer B's over-taint concern within one lineage, but
-not process-tree-global label explosion.
+the seeded control and the real-read follow-up both observed 0, 1, 5, 20, 0, and
+5, exactly matching the preregistered rows. Every sensitive violation in those
+six rows records provenance `op:1` and target `/session.env`. Thus the control's propagation result
+survives real label acquisition: intervention burden grows linearly inside the
+labeled lineage, including one more fork generation, while a clean sibling remains
+untainted after the reader exits. This supports Reviewer B's over-taint concern
+within one lineage, but not process-tree-global label explosion.
+
+A seventh engineering validation renames `/session.env` to `/renamed.env`, reads
+the renamed inode, and then connects. It observes the one predicted violation,
+which validates label-state propagation through the new rename exit path. Its
+provenance is null, however, so label provenance does not currently survive this
+materialization-and-rename path. This retained negative result does not affect the
+six-row over-taint comparison, and it identifies a separate feedback-explanation
+gap rather than claiming full rename equivalence.
 
 Raw evidence is under
-`/workspaces/.agent-state/actplane-research/raw/long-session-vm-20260909T1917Z/`.
+`/workspaces/.agent-state/actplane-research/raw/file-read-long-session-20260910T0124Z/`.
 `counts.tsv` is derived from `console.clean.log`, which retains every
 `TAINT_VIOLATION`, and `metadata.tsv` records commit, kernels, acceleration, and
 policy hash. The container runner
 `docs/empirical-study/run_long_session_overtaint.sh` could not load BPF because
-the container lacks `CAP_BPF` and `CAP_SYS_ADMIN`. An initial VM attempt using a
-file source also exposed a separate Ubuntu 6.8 verifier rejection in the current
-file-open hook (combined call-stack size 544 bytes). Neither failed run is counted
-as an experimental observation. Build success and loader readiness remain
-prerequisites, not results.
+the container lacks `CAP_BPF` and `CAP_SYS_ADMIN`. The original Ubuntu 6.8
+file-source attempt failed at `trace_openat_exit` with combined call-stack size
+544 bytes. Raw failed attempts remain under `raw/file-read-stack-fix-attempt*`.
+After the open path loaded, the same limit surfaced in the generic rename-rule
+path, so source-only policies now autoload a propagation-only rename exit program
+while write-rule policies retain the full sink evaluator. These failures are
+engineering evidence, not experimental observations. Build success and loader
+readiness remain prerequisites, not results.
