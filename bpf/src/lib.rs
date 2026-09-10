@@ -1288,9 +1288,7 @@ fn tracepoint_needed(spec: &TracepointSpec, budget: HookBudget, legacy: bool) ->
         TracepointNeed::ExecArgs => true,
         TracepointNeed::FileOpen => budget.has_file_flow() || budget.has_open_rules(),
         TracepointNeed::FileWritePath => budget.has_file_write() || budget.has_file_flow(),
-        TracepointNeed::RenameRuleExit => {
-            legacy || budget.has_write_rules()
-        }
+        TracepointNeed::RenameRuleExit => legacy || budget.has_write_rules(),
         TracepointNeed::RenameFlowExit => {
             !legacy && budget.has_file_flow() && !budget.has_write_rules()
         }
@@ -3073,10 +3071,18 @@ mod tests {
         assert!(tracepoint_needed(spec("trace_openat"), file, false));
         assert!(tracepoint_needed(spec("trace_read_exit"), file, false));
         assert!(tracepoint_needed(spec("trace_unlink"), file, false));
-        assert!(tracepoint_needed(spec("trace_rename_exit_flow"), file, false));
+        assert!(tracepoint_needed(
+            spec("trace_rename_exit_flow"),
+            file,
+            false
+        ));
         assert!(!tracepoint_needed(spec("trace_rename_exit"), file, false));
         assert!(tracepoint_needed(spec("trace_rename_exit"), file, true));
-        assert!(!tracepoint_needed(spec("trace_rename_exit_flow"), file, true));
+        assert!(!tracepoint_needed(
+            spec("trace_rename_exit_flow"),
+            file,
+            true
+        ));
         assert!(!tracepoint_needed(spec("trace_pipe"), file, false));
         assert!(!tracepoint_needed(spec("trace_mmap"), file, false));
 
@@ -3101,7 +3107,11 @@ mod tests {
         };
         assert!(tracepoint_needed(spec("trace_pipe"), advanced_file, false));
         assert!(tracepoint_needed(spec("trace_mmap"), advanced_file, false));
-        assert!(tracepoint_needed(spec("trace_recvmsg"), advanced_file, false));
+        assert!(tracepoint_needed(
+            spec("trace_recvmsg"),
+            advanced_file,
+            false
+        ));
     }
 
     #[test]
