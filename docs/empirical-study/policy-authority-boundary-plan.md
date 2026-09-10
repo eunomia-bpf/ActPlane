@@ -13,6 +13,11 @@ metadata with a weakening delta. The child should still be able to add a local
 restriction. This separates monotonic kernel authority from the distinct static
 metadata approval gate.
 
+Here, "frozen" is experimental shorthand for the effective parent policy that
+was installed before the child started and was not changed during the child
+cases. ActPlane does not implement an immutable-policy-file or freeze-bit
+primitive, and this experiment does not test policy-file replacement.
+
 Existing declassification and long-session runs do not answer this question.
 They exercise one frozen policy and show label propagation or an explicit gate,
 but they do not submit a policy mutation from the protected child. Unit tests of

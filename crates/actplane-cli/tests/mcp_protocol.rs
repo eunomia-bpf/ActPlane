@@ -822,6 +822,50 @@ sleep 2
             && child_tighten_evidence.contains("Appended policy delta"),
         "child monotonic tightening was not accepted: {logs}"
     );
+    let child_declassify_ref = child_declassify.display().to_string();
+    let parent_mutation_ref = parent_mutation.display().to_string();
+    let child_tighten_ref = child_tighten.display().to_string();
+    let child_declassify_audit =
+        poll_audit_append_delta_ref_status(tmp.path(), &child_declassify_ref, "rejected");
+    assert_eq!(child_declassify_audit["target_id"], child_id);
+    assert_eq!(
+        child_declassify_audit["approval_chain"]["decision"],
+        "accepted"
+    );
+    assert!(
+        child_declassify_audit["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("lacks runtime authority 0x20")
+    );
+    assert_ne!(
+        child_declassify_audit["caller_pid"],
+        child_declassify_audit["engine_parent_pid"]
+    );
+    let parent_mutation_audit =
+        poll_audit_append_delta_ref_status(tmp.path(), &parent_mutation_ref, "rejected");
+    assert_eq!(parent_mutation_audit["target_id"], parent_domain_id);
+    assert_eq!(
+        parent_mutation_audit["approval_chain"]["decision"],
+        "accepted"
+    );
+    assert!(
+        parent_mutation_audit["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("cannot target runtime domain")
+    );
+    let child_tighten_audit = poll_audit_append_delta_ref(tmp.path(), &child_tighten_ref);
+    assert_eq!(child_tighten_audit["target_id"], child_id);
+    assert_eq!(child_tighten_audit["rule_count"], 1);
+    eprintln!(
+        "AUTHORITY_CHILD_AUDITS {}",
+        json!({
+            "declassify": child_declassify_audit,
+            "parent_mutation": parent_mutation_audit,
+            "tighten": child_tighten_audit,
+        })
+    );
     eprintln!("AUTHORITY_CHILD_STDOUT {}", stdout.replace('\n', "\\n"));
     eprintln!();
     eprintln!("AUTHORITY_CASE child_declassify expected=reject observed=reject");
