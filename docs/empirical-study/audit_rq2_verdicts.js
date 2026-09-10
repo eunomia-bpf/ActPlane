@@ -52,6 +52,9 @@ function feedbackFacts(messages) {
 for (const line of fs.readFileSync(manifest, "utf8").split(/\r?\n/)) {
   if (!line || line.startsWith("#")) continue;
   const fields = line.split("\t");
+  if (fields.length !== 7) {
+    throw new Error(`malformed manifest row: expected 7 tab-separated fields, got ${fields.length}`);
+  }
   const [system, repoKey, statement, trace, manifestAuxLabel] = fields;
   if (!SYSTEMS.includes(system)) throw new Error(`unknown system in manifest: ${system}`);
   const rel = fields[fields.length - 1];
