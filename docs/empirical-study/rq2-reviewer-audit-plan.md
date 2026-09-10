@@ -192,6 +192,31 @@ OPAQUE remains a feedback ablation, while prompt-filter and tool-regex remain we
 configured controls. Therefore the existing evidence does not support claiming an
 independent strong-baseline comparison on unseen non-coding tasks.
 
+A forensic check of both documented backups narrows, but does not remove, the raw
+evidence gap. `origin/backup/2026-06-14-master` contains no OpenAgentSafety result
+directories. The separately backed-up official benchmark repository at commit
+`8cb4131211435a933d44942479e79418972f8f9b` retains per-task trajectories and
+evaluator outputs for its published model runs. It does not retain the ActPlane
+condition's per-task watcher logs, runner summaries, or matched trajectories used
+to produce the paper's aggregate 78/28 count. Those official files can support a
+future frozen task selection and baseline audit, but cannot reconstruct ActPlane's
+per-task outcomes or turn the no-enforcement condition into an independent method.
+
+The forensic commands are:
+
+```bash
+git ls-tree -r --name-only origin/backup/2026-06-14-master \
+  docs/OpenAgentSafety
+git ls-remote https://github.com/eunomia-bpf/OpenAgentSafety.git \
+  refs/heads/backup/2026-06-14-actplane-submodule
+# inspect the recursive Git tree for nested commit 8cb4131 via the GitHub API
+```
+
+An independent local-model assessment attempt is retained under
+`/workspaces/.agent-state/actplane-research/raw/oas-forensic-review-20260910/`.
+Provider errors, if any, remain part of that raw record and are not treated as a
+successful review.
+
 A defensible next experiment would freeze a task-description-only policy generator
 and an unseen OpenAgentSafety subset, then compare ActPlane with an official,
 independently implemented runtime policy method under the same tasks, model,
