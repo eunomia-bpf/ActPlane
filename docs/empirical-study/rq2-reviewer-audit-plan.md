@@ -126,9 +126,10 @@ They nevertheless make the mechanism boundary falsifiable and show that the
 overall advantage is not evidence of superiority on direct paths.
 
 The same run keeps enforcement observations distinct from end-to-end outcomes.
-ActPlane records an intervention in 31 direct, 27 script, and 30 hidden traces,
-while the corresponding final TP counts are 31, 27, and 28. FIDES is compared
-only on final judged outcome because its tool-layer records are not kernel events.
+ActPlane records an any-phase intervention in 31 direct, 27 script, and 30
+hidden traces, while the corresponding final TP counts are 31, 27, and 28.
+FIDES is compared only on final judged outcome because its tool-layer records
+are not kernel events.
 ActPlane-opaque remains an ablation and is not included in the independent
 baseline test.
 
@@ -138,9 +139,10 @@ the ActPlane/opaque stage counts. The run used the read-only extraction command
 above, with raw output, input hashes, and a concise table retained under
 `/workspaces/.agent-state/actplane-research/raw/rq2-path-baseline-audit-20260910T0906Z/`.
 The manifest's undocumented fifth column disagrees with 97 FIDES judge outcomes
-and is ignored by the official paper verifier. The audit retains it as an
-auxiliary provenance field but uses each referenced judge file as the final
-outcome source, matching `docs/artifact/verify_results.py` on the artifact ref.
+(73 TP-to-FN and 24 TN-to-FP) and is ignored by the official paper verifier. The
+audit retains it as an auxiliary provenance field but uses each referenced judge
+file as the final outcome source, matching `docs/artifact/verify_results.py` on
+the artifact ref.
 This result strengthens the original coding-task RQ2 comparison. It does not add
 an independent baseline to OpenAgentSafety or establish unseen non-coding
 generalization.
