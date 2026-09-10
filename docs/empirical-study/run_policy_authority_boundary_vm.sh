@@ -3,7 +3,7 @@
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic | tail -1)}"
+KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic | sort -V | tail -1)}"
 OUT="${1:-$ROOT/docs/empirical-study/results/policy-authority-boundary-vm}"
 WORK="$(mktemp -d /tmp/actplane-authority-vm.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT

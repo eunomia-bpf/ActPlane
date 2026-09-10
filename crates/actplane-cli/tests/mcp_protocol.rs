@@ -746,18 +746,24 @@ policy: |
 set +e
 self_out="$({actplane} --policy {policy} control delta add --target-id {child_id} --delta {child_declassify} --approved-by repo-supervisor --approval-ref injected-self --generated-by injected-child 2>&1)"
 self_rc=$?
+echo AUTHORITY_CASE_BEGIN child_declassify
 printf 'AUTHORITY_CASE child_declassify expected=reject observed_rc=%s\n' "$self_rc"
 printf '%s\n' "$self_out"
+echo AUTHORITY_CASE_END child_declassify
 
 parent_out="$({actplane} --policy {policy} control delta add --target-id {parent_domain_id} --delta {parent_mutation} --approved-by repo-supervisor --approval-ref injected-parent --generated-by injected-child 2>&1)"
 parent_rc=$?
+echo AUTHORITY_CASE_BEGIN child_parent_mutation
 printf 'AUTHORITY_CASE child_parent_mutation expected=reject observed_rc=%s\n' "$parent_rc"
 printf '%s\n' "$parent_out"
+echo AUTHORITY_CASE_END child_parent_mutation
 
 tighten_out="$({actplane} --policy {policy} control delta add --target-id {child_id} --delta {child_tighten} --approved-by repo-supervisor --approval-ref child-tighten --generated-by injected-child 2>&1)"
 tighten_rc=$?
+echo AUTHORITY_CASE_BEGIN child_tighten
 printf 'AUTHORITY_CASE child_tighten expected=accept observed_rc=%s\n' "$tighten_rc"
 printf '%s\n' "$tighten_out"
+echo AUTHORITY_CASE_END child_tighten
 
 read -r _ < {secret}
 {tighter_hit}
@@ -799,19 +805,25 @@ sleep 2
 
     let logs = poll_child_stdout(&mut mcp, &mut next_id, child_id, "AUTHORITY_MATRIX_DONE");
     let stdout = logs["stdout"]["content"].as_str().unwrap_or("");
+    let child_declassify_evidence = delimited_case(stdout, "child_declassify");
+    let child_parent_evidence = delimited_case(stdout, "child_parent_mutation");
+    let child_tighten_evidence = delimited_case(stdout, "child_tighten");
     assert!(
-        stdout.contains("AUTHORITY_CASE child_declassify expected=reject observed_rc=1")
-            && stdout.contains("lacks runtime authority"),
+        child_declassify_evidence
+            .contains("AUTHORITY_CASE child_declassify expected=reject observed_rc=1")
+            && child_declassify_evidence.contains("lacks runtime authority 0x20"),
         "child declassification was not authority-rejected: {logs}"
     );
     assert!(
-        stdout.contains("AUTHORITY_CASE child_parent_mutation expected=reject observed_rc=1")
-            && stdout.contains("cannot target runtime domain"),
+        child_parent_evidence
+            .contains("AUTHORITY_CASE child_parent_mutation expected=reject observed_rc=1")
+            && child_parent_evidence.contains("cannot target runtime domain"),
         "child parent mutation was not target-rejected: {logs}"
     );
     assert!(
-        stdout.contains("AUTHORITY_CASE child_tighten expected=accept observed_rc=0")
-            && stdout.contains("Appended policy delta"),
+        child_tighten_evidence
+            .contains("AUTHORITY_CASE child_tighten expected=accept observed_rc=0")
+            && child_tighten_evidence.contains("Appended policy delta"),
         "child monotonic tightening was not accepted: {logs}"
     );
     eprintln!("AUTHORITY_CHILD_STDOUT {}", stdout.replace('\n', "\\n"));
@@ -1291,6 +1303,18 @@ fn tool_text(response: &Value) -> &str {
 
 fn tool_json(response: &Value) -> Value {
     serde_json::from_str(tool_text(response)).expect("tool JSON content")
+}
+
+fn delimited_case<'a>(text: &'a str, name: &str) -> &'a str {
+    let begin = format!("AUTHORITY_CASE_BEGIN {name}\n");
+    let end = format!("AUTHORITY_CASE_END {name}");
+    let (_, after_begin) = text
+        .split_once(&begin)
+        .unwrap_or_else(|| panic!("missing case boundary {begin:?} in {text}"));
+    let (evidence, _) = after_begin
+        .split_once(&end)
+        .unwrap_or_else(|| panic!("missing case boundary {end:?} in {text}"));
+    evidence
 }
 
 fn poll_child_stdout(
