@@ -680,11 +680,8 @@ fn mcp_policy_authority_boundary_matrix_privileged() {
         ),
     )
     .expect("write child source delta");
-    std::fs::write(
-        &child_declassify,
-        "declassify SECRET by exec \"**/true\"\n",
-    )
-    .expect("write child declassify delta");
+    std::fs::write(&child_declassify, "declassify SECRET by exec \"**/true\"\n")
+        .expect("write child declassify delta");
     std::fs::write(
         &parent_mutation,
         "rule child-mutates-parent:\n  notify exec \"__actplane_never__\"\n  because \"child attempted to mutate its parent\"\n",
@@ -731,10 +728,9 @@ policy: |
     initialize_mcp(&mut mcp, 1, "actplane-authority-boundary-test");
     let control_state = tmp.path().join(".actplane").join("control.json");
     wait_for_control_state(&mut mcp, &control_state);
-    let control_state: Value = serde_json::from_str(
-        &std::fs::read_to_string(&control_state).expect("read control state"),
-    )
-    .expect("parse control state");
+    let control_state: Value =
+        serde_json::from_str(&std::fs::read_to_string(&control_state).expect("read control state"))
+            .expect("parse control state");
 
     let child_id = test_child_id(300);
     let parent_domain_id = control_state["parent_domain_id"]
