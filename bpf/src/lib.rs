@@ -671,6 +671,8 @@ enum TracepointNeed {
     ExecArgs,
     FileOpen,
     FileWritePath,
+    RenameRuleExit,
+    RenameFlowExit,
     FdFlow,
     ConnectOrRecv,
     SendAddr,
@@ -868,7 +870,13 @@ const TRACEPOINTS: &[TracepointSpec] = &[
         name: "trace_rename_exit",
         category: "syscalls",
         event: "sys_exit_rename",
-        need: TracepointNeed::FileWritePath,
+        need: TracepointNeed::RenameRuleExit,
+    },
+    TracepointSpec {
+        name: "trace_rename_exit_flow",
+        category: "syscalls",
+        event: "sys_exit_rename",
+        need: TracepointNeed::RenameFlowExit,
     },
     TracepointSpec {
         name: "trace_renameat",
@@ -880,7 +888,13 @@ const TRACEPOINTS: &[TracepointSpec] = &[
         name: "trace_renameat_exit",
         category: "syscalls",
         event: "sys_exit_renameat",
-        need: TracepointNeed::FileWritePath,
+        need: TracepointNeed::RenameRuleExit,
+    },
+    TracepointSpec {
+        name: "trace_renameat_exit_flow",
+        category: "syscalls",
+        event: "sys_exit_renameat",
+        need: TracepointNeed::RenameFlowExit,
     },
     TracepointSpec {
         name: "trace_renameat2",
@@ -892,7 +906,13 @@ const TRACEPOINTS: &[TracepointSpec] = &[
         name: "trace_renameat2_exit",
         category: "syscalls",
         event: "sys_exit_renameat2",
-        need: TracepointNeed::FileWritePath,
+        need: TracepointNeed::RenameRuleExit,
+    },
+    TracepointSpec {
+        name: "trace_renameat2_exit_flow",
+        category: "syscalls",
+        event: "sys_exit_renameat2",
+        need: TracepointNeed::RenameFlowExit,
     },
     TracepointSpec {
         name: "trace_connect",
@@ -1248,6 +1268,10 @@ impl HookBudget {
         self.file_write
     }
 
+    fn has_write_rules(self) -> bool {
+        self.features & FEAT_WRITE_RULES != 0
+    }
+
     fn has_connect(self) -> bool {
         self.features & FEAT_CONNECT != 0
     }
@@ -1257,13 +1281,19 @@ impl HookBudget {
     }
 }
 
-fn tracepoint_needed(spec: &TracepointSpec, budget: HookBudget) -> bool {
+fn tracepoint_needed(spec: &TracepointSpec, budget: HookBudget, legacy: bool) -> bool {
     match spec.need {
         TracepointNeed::Core => true,
         TracepointNeed::CoreExec => false,
         TracepointNeed::ExecArgs => true,
         TracepointNeed::FileOpen => budget.has_file_flow() || budget.has_open_rules(),
         TracepointNeed::FileWritePath => budget.has_file_write() || budget.has_file_flow(),
+        TracepointNeed::RenameRuleExit => {
+            legacy || budget.has_write_rules()
+        }
+        TracepointNeed::RenameFlowExit => {
+            !legacy && budget.has_file_flow() && !budget.has_write_rules()
+        }
         TracepointNeed::FdFlow => {
             budget.has_file_flow() || budget.has_connect() || budget.has_recv()
         }
@@ -1978,7 +2008,7 @@ impl Loader {
         // Attach only the tracepoints required by this loaded hook set, then LSM
         // programs only when BPF LSM is active.
         for spec in TRACEPOINTS {
-            if !tracepoint_needed(spec, hook_budget) {
+            if !tracepoint_needed(spec, hook_budget, legacy) {
                 continue;
             }
             let p: &mut TracePoint = bpf
@@ -3026,33 +3056,37 @@ mod tests {
             file_write: false,
             advanced_tracepoints: false,
         };
-        assert!(tracepoint_needed(spec("handle_fork"), empty));
-        assert!(!tracepoint_needed(spec("handle_exec"), empty));
-        assert!(tracepoint_needed(spec("handle_exec_args"), empty));
-        assert!(tracepoint_needed(spec("handle_exit"), empty));
-        assert!(tracepoint_needed(spec("cap_drain_tick"), empty));
-        assert!(!tracepoint_needed(spec("trace_openat"), empty));
-        assert!(!tracepoint_needed(spec("trace_mmap"), empty));
-        assert!(!tracepoint_needed(spec("trace_recvmsg"), empty));
+        assert!(tracepoint_needed(spec("handle_fork"), empty, false));
+        assert!(!tracepoint_needed(spec("handle_exec"), empty, false));
+        assert!(tracepoint_needed(spec("handle_exec_args"), empty, false));
+        assert!(tracepoint_needed(spec("handle_exit"), empty, false));
+        assert!(tracepoint_needed(spec("cap_drain_tick"), empty, false));
+        assert!(!tracepoint_needed(spec("trace_openat"), empty, false));
+        assert!(!tracepoint_needed(spec("trace_mmap"), empty, false));
+        assert!(!tracepoint_needed(spec("trace_recvmsg"), empty, false));
 
         let file = HookBudget {
             features: FEAT_FILE_FLOW,
             file_write: false,
             advanced_tracepoints: false,
         };
-        assert!(tracepoint_needed(spec("trace_openat"), file));
-        assert!(tracepoint_needed(spec("trace_read_exit"), file));
-        assert!(tracepoint_needed(spec("trace_unlink"), file));
-        assert!(!tracepoint_needed(spec("trace_pipe"), file));
-        assert!(!tracepoint_needed(spec("trace_mmap"), file));
+        assert!(tracepoint_needed(spec("trace_openat"), file, false));
+        assert!(tracepoint_needed(spec("trace_read_exit"), file, false));
+        assert!(tracepoint_needed(spec("trace_unlink"), file, false));
+        assert!(tracepoint_needed(spec("trace_rename_exit_flow"), file, false));
+        assert!(!tracepoint_needed(spec("trace_rename_exit"), file, false));
+        assert!(tracepoint_needed(spec("trace_rename_exit"), file, true));
+        assert!(!tracepoint_needed(spec("trace_rename_exit_flow"), file, true));
+        assert!(!tracepoint_needed(spec("trace_pipe"), file, false));
+        assert!(!tracepoint_needed(spec("trace_mmap"), file, false));
 
         let advanced_file = HookBudget {
             advanced_tracepoints: true,
             ..file
         };
-        assert!(tracepoint_needed(spec("trace_pipe"), advanced_file));
-        assert!(tracepoint_needed(spec("trace_mmap"), advanced_file));
-        assert!(tracepoint_needed(spec("trace_recvmsg"), advanced_file));
+        assert!(tracepoint_needed(spec("trace_pipe"), advanced_file, false));
+        assert!(tracepoint_needed(spec("trace_mmap"), advanced_file, false));
+        assert!(tracepoint_needed(spec("trace_recvmsg"), advanced_file, false));
     }
 
     #[test]

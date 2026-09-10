@@ -50,16 +50,18 @@ cat > "$WORK/trigger.c" <<'EOF'
 #include <sys/wait.h>
 #include <unistd.h>
 
-static void read_path(const char *path) {
+static int read_path(const char *path) {
     char buf[64];
     int fd = open(path, O_RDONLY);
     if (fd >= 0) {
         ssize_t n = read(fd, buf, sizeof(buf));
-        if (n < 0) _exit(4);
+        if (n < 0) return -1;
         close(fd);
+        return 0;
     }
+    return -1;
 }
-static void read_secret(void) { read_path("/session.env"); }
+static void read_secret(void) { if (read_path("/session.env") != 0) _exit(4); }
 static void connect_n(int n) {
     for (int i = 0; i < n; i++) {
         int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -86,7 +88,8 @@ int main(int argc, char **argv) {
         waitpid(child, 0, 0);
     } else if (!strcmp(mode, "rename")) {
         if (rename("/session.env", "/renamed.env") != 0) return 5;
-        read_path("/renamed.env"); connect_n(n);
+        if (read_path("/renamed.env") != 0) return 6;
+        connect_n(n);
     } else return 2;
     return 0;
 }
@@ -144,7 +147,16 @@ run_case() {
     return
   fi
   kill -CONT "$trigger_pid"
-  wait "$trigger_pid" 2>/dev/null || true
+  wait "$trigger_pid" 2>/dev/null
+  trigger_status=$?
+  if [ "$trigger_status" -ne 0 ]; then
+    kill "$loader_pid" 2>/dev/null || true
+    wait "$loader_pid" 2>/dev/null || true
+    cat "/tmp/$name.log"
+    echo "CASE_FAILURE $name trigger-exit-$trigger_status"
+    echo "CASE_END $name"
+    return
+  fi
   sleep 1
   kill "$loader_pid" 2>/dev/null || true
   wait "$loader_pid" 2>/dev/null || true
@@ -194,6 +206,8 @@ awk '
   printf 'acceleration\t%s\n' "$acceleration"
   printf 'qemu_status\t%s\n' "$qemu_status"
   printf 'policy_sha256\t%s\n' "$(printf '%s' "$policy" | sha256sum | cut -d' ' -f1)"
+  printf 'process_sha256\t%s\n' "$(sha256sum "$PROC" | cut -d' ' -f1)"
+  printf 'actplane_sha256\t%s\n' "$(sha256sum "$ACT" | cut -d' ' -f1)"
 } > "$OUT/metadata.tsv"
 
 grep -q '^EXPERIMENT_DONE' "$OUT/console.clean.log" || { echo "guest experiment did not complete" >&2; exit 1; }
