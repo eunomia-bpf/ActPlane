@@ -283,3 +283,38 @@ started until the official checkout, complete per-task raw outcomes, and runnabl
 independent baseline are present. The current workspace has the runner and policy
 inventory but lacks those three frozen inputs, so inventing a substitute here
 would create another weak control rather than answer Reviewers A, C, and D.
+
+## Follow-up experiment: bounded declassification
+
+The persistence matrix establishes Reviewer B's predicted intervention growth,
+but it does not test the corresponding usability mechanism. The follow-up
+hypothesis is that a policy-authorized redactor exec clears `SECRET` for the same
+process lineage before later benign connects, while an unrelated executable does
+not. A mixed timing case tests that violations before the trusted gate remain
+visible even when later connects are released.
+
+| Case | Sequence after real secret read | Later connects | Predicted matches |
+| --- | --- | ---: | ---: |
+| trusted gate first | exec `/redact`, then connect | 5 | 0 |
+| unrelated executable | exec `/sanitize`, then connect | 5 | 5 |
+| gate after one connect | connect once, exec `/redact`, then connect | 5 | 1 |
+
+All three cases use the same frozen policy, process lineage, closed loopback
+destinations, and event-counting semantics as the persistence matrix. A positive
+result supports a bounded safety-usability tradeoff: intervention persists until
+the configured trust boundary and stops afterward. Five matches after `/redact`
+would reject effective declassification. Zero matches after `/sanitize` would
+expose unintended label clearing. Any other count is retained as a mixed result
+requiring event-level diagnosis. This test evaluates enforcement semantics only.
+It does not establish that the redactor is correct or that an agent should be
+trusted to generate or invoke the declassification policy.
+
+The runner restores the identical frozen fixture before every case and treats a
+nonzero trigger exit as a case failure. A prior workspace report stated counts of
+`0/0`, `5/5`, and `1/1`, but its cited raw directories are not present in the
+current retained state. Those counts are therefore not treated as verified
+evidence here. Before drawing a conclusion, an exact-head Ubuntu KVM run must
+retain `console.clean.log`, `counts.tsv`, and `metadata.tsv` so the event stream,
+source revision, binaries, kernels, and acceleration can be audited. The result
+will remain scoped to label-transform enforcement: it cannot establish who may
+authorize the gate or whether `/redact` actually sanitizes content.
