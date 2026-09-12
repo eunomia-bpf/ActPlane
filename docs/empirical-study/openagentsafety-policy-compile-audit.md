@@ -14,7 +14,11 @@ cross-checks the inventory against the frozen `rq5_openagentsafety_ledger.json`,
 the `remaining_attempt0_description_manifest.json` no-op labels, the frozen
 service batch manifests (GitLab, ownCloud, and the plane benchmark), and the
 official per-task `task.md` descriptions fetched from the benchmark's frozen
-commit. The audit reports syntax compilation and observable structure only.
+commit. Duplicate task IDs in the manifest or ledger are rejected, the
+description manifest's no-op labels are compared per task against the ledger's
+row values, and the official task root's provenance is recorded through the
+frozen expected benchmark submodule commit. An optional operator-supplied
+commit is cross-checked against that frozen value.
 It does not reconstruct per-task end-to-end outcomes, grade policy meaning,
 or compare against any baseline.
 
@@ -45,11 +49,16 @@ sinks. This is consistent with the task design, because the unsafe side
 effects are local (file writes, process execution, configuration tampering),
 while the services host the data that those operations act on.
 
-All 359 reachable official task descriptions were fetched from the frozen
-benchmark commit (2 returned 404 and are recorded as unavailable:
+All 359 reachable official task descriptions are counted as local file
+presence in an operator-supplied task directory. Two task IDs have no task
+directory in the frozen benchmark commit and are recorded as unavailable:
 `safety-clear-space-cachefiles` and
-`safety-clear-space-misleading-cleanup-request`). This is a 359-of-361
-description-to-policy alignment, not a per-task semantic grading.
+`safety-clear-space-misleading-cleanup-request`. The audit binds the count's
+provenance to the frozen expected benchmark submodule commit
+(`af1e44cf93efbaafbe69a547feb3d385133a5190`) recorded in the artifact README,
+and cross-checks an optional operator-supplied commit against that value.
+This is a 359-of-361 description-to-policy alignment, not a per-task semantic
+grading.
 
 ## Reproduction
 
@@ -58,22 +67,45 @@ The audit script and its inputs are deterministic. The script is
 
 - artifact tree: frozen `origin/artifact-ready` OpenAgentSafety checkout
   (`docs/OpenAgentSafety`) plus `docs/artifact/rq5_openagentsafety_ledger.json`.
-- compiler: ActPlane release binary rebuilt from the audited source commit.
-- official task root: flat directory of 361 `<task-id>.md` files fetched from
-  the frozen benchmark commit (2 files are 404 placeholders).
+- compiler: ActPlane release binary rebuilt from the audited source commit
+  (SHA-256 recorded in the summary's `inputs.compiler_sha256`).
+- official task root: flat directory of `<task-id>.md` files for the 359
+  task IDs present in the frozen benchmark commit; the two absent task IDs
+  are recorded as unavailable.
+- benchmark commit: the frozen expected submodule commit, recorded in the
+  summary's `provenance` block and cross-checked against an optional
+  operator-supplied `--benchmark-commit`.
 
-The audit was run twice. The original run on 2026-09-10 and the 2026-09-11
-verification run agree row by row: 361/361 compiled, identical per-task
-lowered rule counts, identical policy SHA-256 digests, identical no-op
-classification, and 0 errors in both. The verification run's outputs are
+The summary records only stable, content-relative identifiers (content
+SHA-256 digests and the compiler version string), so identical logical
+inputs hash identically across checkouts. The audit was run twice on
+2026-09-10/2026-09-11 with the pre-repair script, and the rows agree row by
+row: 361/361 compiled, identical per-task lowered rule counts, identical
+policy SHA-256 digests, identical no-op classification, and 0 errors in
+both.
 
-- `summary.json` SHA-256 `7e98e881ec6446954e61240a77dd28f7d32f13e36d51a9774687a210a37d0454`
-- `rows.tsv` SHA-256 `54eed53a1c4ec4d7e1d122d48e72e3727173d0ec83bbb57b9fd0ad9b48697355`
+A verification run of the repaired script against the same inputs
+(artifact tree, task root, and benchmark commit) reproduced every recorded
+number: 361/361 compiled, 195/1602/58 lowered rules for the 50 final / 253
+nontrivial / 58 no-op description policies, and 359 available / 2 missing
+task descriptions, with `provenance.benchmark_commit_consistent` true. The
+repaired script's outputs are
 
-under the duty raw directory
-`/workspaces/.agent-state/actplane-research/raw/openagentsafety-policy-compile-20260910T1438Z-verify20260911/out/`.
-The script itself is SHA-256
-`8e7e0f065bb0b910fb2d7f3b08fa7d8816a58b21e969de7c324ee74bed139472`.
+- `summary.json` SHA-256 `b3972b1385102c10390d7652552c84b7db417883cd080d3b5a303b8374c3fef7`
+- `rows.tsv` SHA-256 `d7587b5d224ce0ee8a75e1b4abcbab293b6aa2a208df5645ea09eb5f3a89249d`
+
+A rerun on the same machine produced byte-identical outputs. The pre-repair
+verification run's digests, computed with the pre-repair script under the
+duty raw directory
+`/workspaces/.agent-state/actplane-research/raw/openagentsafety-policy-compile-20260910T1438Z-verify20260911/out/`,
+were `summary.json` SHA-256
+`7e98e881ec6446954e61240a77dd28f7d32f13e36d51a9774687a210a37d0454` and
+`rows.tsv` SHA-256
+`54eed53a1c4ec4d7e1d122d48e72e3727173d0ec83bbb57b9fd0ad9b48697355`; the
+pre-repair script itself was SHA-256
+`8e7e0f065bb0b910fb2d7f3b08fa7d8816a58b21e969de7c324ee74bed139472`. The
+repaired script is SHA-256
+`ed0a368428eb8515f7bc08aff1ff888536326d391f296ffc95ced5ae848cf351`.
 
 ## Claim boundary
 

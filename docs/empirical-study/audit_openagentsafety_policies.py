@@ -3,6 +3,10 @@
 
 This script deliberately reports syntax compilation and observable policy
 structure.  It does not reconstruct per-task outcomes or grade policy meaning.
+Official-task availability is a local file-presence count in an operator-
+supplied directory; provenance from the frozen benchmark commit is recorded,
+never verified.  The summary carries content-relative identifiers only, so
+the same logical inputs hash identically across checkouts.
 """
 
 from __future__ import annotations
@@ -41,6 +45,14 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Optional flat directory containing <task-id>.md from the frozen OAS commit",
     )
+    parser.add_argument(
+        "--benchmark-commit",
+        help=(
+            "40-hex SHA of the frozen OpenAgentSafety benchmark commit to "
+            "record. When supplied, it is checked against the expected "
+            "submodule commit recorded in the frozen artifact README."
+        ),
+    )
     parser.add_argument("--summary-out", type=Path, required=True)
     parser.add_argument("--rows-out", type=Path, required=True)
     parser.add_argument("--expected-total", type=int, default=361)
@@ -61,6 +73,42 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def directory_content_digest(root: Path) -> tuple[str, int]:
+    """Return ``(sha256, file_count)`` over ``"<sha256>  <relpath>"`` lines.
+
+    Files are visited in sorted relative order, so the digest is stable across
+    checkouts: it depends only on file names and bytes, never on where the
+    tree is mounted.
+    """
+    digest = hashlib.sha256()
+    count = 0
+    for path in sorted(root.rglob("*"), key=lambda p: p.relative_to(root).as_posix()):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        digest.update(f"{sha256(path)}  {rel}\n".encode("utf-8"))
+        count += 1
+    return (digest.hexdigest(), count)
+
+
+def benchmark_commit_expected(artifact_root: Path) -> str | None:
+    """Read the OAS submodule commit recorded in the frozen artifact README.
+
+    The frozen artifact tree records (but does not commit) the expected commit
+    of the official OpenAgentSafety benchmark submodule.  Recording it keeps
+    the provenance claim tied to a frozen input instead of an operator's
+    unverified fetch.
+    """
+    readme = artifact_root / "docs" / "OpenAgentSafety" / "README.md"
+    if not readme.is_file():
+        return None
+    match = re.search(
+        r"Expected submodule commit:\s*`?([0-9a-f]{40})`?",
+        readme.read_text(encoding="utf-8"),
+    )
+    return match.group(1) if match else None
 
 
 def service_membership(batch_root: Path) -> dict[str, set[str]]:
@@ -86,6 +134,15 @@ def policy_actions(path: Path) -> Counter[str]:
             if match:
                 actions[match.group(1)] += 1
     return actions
+
+
+def lowered_rule_sum(rows: list[dict[str, object]]) -> int:
+    """Sum ``lowered_rules`` over rows that carry a value.
+
+    Failed compiles store ``""`` in the row, so they are skipped here and
+    reported through the collected errors instead of crashing the summary.
+    """
+    return sum(row["lowered_rules"] for row in rows if isinstance(row["lowered_rules"], int))
 
 
 def compile_policy(compiler: Path, policy: Path, output: Path) -> tuple[int, int | None, str]:
@@ -114,9 +171,40 @@ def main() -> int:
     manifest = load_json(manifest_path)
     ledger = load_json(ledger_path)
     assert isinstance(manifest, dict) and isinstance(ledger, dict)
-    description_cases = {case["task_id"]: case for case in manifest["cases"]}
-    ledger_rows = {row["task_id"]: row for row in ledger["rows"]}
+    manifest_cases = manifest["cases"]
+    ledger_rows_list = ledger["rows"]
+    description_cases = {case["task_id"]: case for case in manifest_cases}
+    ledger_rows = {row["task_id"]: row for row in ledger_rows_list}
     services = service_membership(batch_root)
+
+    # Stable, content-relative identifiers for the hashed summary.  These
+    # replace machine-specific absolute paths so the same logical inputs
+    # hash identically across checkouts.
+    oas_content_sha256, oas_file_count = directory_content_digest(oas_root)
+    if args.official_task_root:
+        task_root_content_sha256, task_root_file_count = directory_content_digest(
+            args.official_task_root.resolve()
+        )
+    else:
+        task_root_content_sha256 = None
+        task_root_file_count = None
+    version_probe = subprocess.run(
+        [str(compiler), "--version"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    compiler_version = (
+        version_probe.stdout.decode("utf-8", "replace").splitlines()[0].strip()
+        if version_probe.returncode == 0 and version_probe.stdout
+        else None
+    )
+
+    # Provenance: the frozen artifact tree records the expected commit of the
+    # official OpenAgentSafety benchmark submodule.  The script records it,
+    # optionally cross-checks an operator-supplied commit, and never claims
+    # the operator's task files were verified against it.
+    benchmark_commit_expected_value = benchmark_commit_expected(artifact_root)
 
     final_policies = sorted(final_root.glob("*.yaml"))
     description_policies = sorted(description_root.glob("*.yaml"))
@@ -129,13 +217,22 @@ def main() -> int:
         )
 
     errors: list[str] = []
+    manifest_case_ids = [case["task_id"] for case in manifest_cases]
+    ledger_row_ids = [row["task_id"] for row in ledger_rows_list]
+    duplicate_case_ids = sorted({k for k, v in Counter(manifest_case_ids).items() if v > 1})
+    duplicate_row_ids = sorted({k for k, v in Counter(ledger_row_ids).items() if v > 1})
+    if duplicate_case_ids:
+        errors.append(f"description manifest has duplicate task IDs: {duplicate_case_ids}")
+    if duplicate_row_ids:
+        errors.append(f"ledger has duplicate task IDs: {duplicate_row_ids}")
     expected = {
-        "ledger rows": (len(ledger_rows), args.expected_total),
+        "raw ledger rows": (len(ledger_rows_list), args.expected_total),
+        "raw description manifest cases": (len(manifest_cases), args.expected_description),
         "all policies": (len(policy_specs), args.expected_total),
         "description policies": (len(description_policies), args.expected_description),
         "final policies": (len(final_policies), args.expected_final),
         "description no-op policies": (
-            sum(bool(case["is_noop"]) for case in description_cases.values()),
+            sum(bool(case["is_noop"]) for case in manifest_cases),
             args.expected_noop,
         ),
     }
@@ -144,6 +241,33 @@ def main() -> int:
             errors.append(f"{label}: expected {wanted}, found {actual}")
     if set(ledger_rows) != {path.stem for _, path, _ in policy_specs}:
         errors.append("ledger task IDs do not exactly match policy filenames")
+    noop_mismatches = []
+    for case in manifest_cases:
+        task_id = case["task_id"]
+        ledger_row = ledger_rows.get(task_id)
+        if ledger_row is None:
+            continue
+        manifest_noop = bool(case["is_noop"])
+        ledger_noop = bool(ledger_row["is_noop"])
+        if manifest_noop != ledger_noop:
+            noop_mismatches.append(
+                f"{task_id} (manifest={manifest_noop}, ledger={ledger_noop})"
+            )
+    if noop_mismatches:
+        errors.append(
+            "description manifest and ledger no-op labels disagree: "
+            + ", ".join(noop_mismatches)
+        )
+    benchmark_commit_supplied = args.benchmark_commit
+    if (
+        benchmark_commit_supplied
+        and benchmark_commit_expected_value
+        and benchmark_commit_supplied != benchmark_commit_expected_value
+    ):
+        errors.append(
+            f"benchmark commit {benchmark_commit_supplied} does not match the "
+            f"frozen expected submodule commit {benchmark_commit_expected_value}"
+        )
 
     rows: list[dict[str, object]] = []
     with tempfile.TemporaryDirectory(prefix="actplane-oas-audit-") as temp_dir:
@@ -199,13 +323,22 @@ def main() -> int:
             ],
         },
         "inputs": {
-            "artifact_root": str(artifact_root),
-            "compiler": str(compiler),
+            # Stable, content-relative identifiers only: no machine-specific
+            # absolute paths, so the same logical inputs hash identically
+            # across checkouts.
+            "artifact_root_identifier": {
+                "content_sha256": oas_content_sha256,
+                "file_count": oas_file_count,
+            },
             "compiler_sha256": sha256(compiler),
+            "compiler_version": compiler_version,
             "manifest_sha256": sha256(manifest_path),
             "ledger_sha256": sha256(ledger_path),
-            "official_task_root": str(args.official_task_root.resolve())
-            if args.official_task_root
+            "official_task_root_identifier": {
+                "content_sha256": task_root_content_sha256,
+                "file_count": task_root_file_count,
+            }
+            if task_root_content_sha256 is not None
             else None,
         },
         "inventory": {
@@ -218,15 +351,28 @@ def main() -> int:
             "official_task_descriptions_missing": len(rows) - official_available
             if args.official_task_root
             else None,
+            # The availability count above is local file presence in an
+            # operator-supplied directory.  It is not provenance from the
+            # frozen benchmark commit; see "provenance".
+            "official_task_source": "local file presence",
+        },
+        "provenance": {
+            "benchmark_commit_expected": benchmark_commit_expected_value,
+            "benchmark_commit_supplied": benchmark_commit_supplied,
+            "benchmark_commit_consistent": (
+                benchmark_commit_supplied == benchmark_commit_expected_value
+                if benchmark_commit_supplied and benchmark_commit_expected_value
+                else None
+            ),
         },
         "compilation": {
             "success": sum(row["compile_rc"] == 0 for row in rows),
             "failure": sum(row["compile_rc"] != 0 for row in rows),
-            "lowered_rules_nontrivial_description": sum(
-                int(row["lowered_rules"]) for row in nontrivial_description
+            "lowered_rules_nontrivial_description": lowered_rule_sum(
+                nontrivial_description
             ),
-            "lowered_rules_noop_description": sum(
-                int(row["lowered_rules"]) for row in description_rows if row["is_noop"]
+            "lowered_rules_noop_description": lowered_rule_sum(
+                [row for row in description_rows if row["is_noop"]]
             ),
         },
         "service_manifest_subset": {
