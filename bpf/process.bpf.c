@@ -1800,9 +1800,14 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 	return 0;
 }
 
-static __always_inline int te_handle_file_event(pid_t pid, const char *target,
-						struct file_id *fid, __u32 access,
-						__u32 mode)
+/* Shared noinline subprogram: verified once and called from every file-event
+ * handler. Inlining this body (eval setup + te_check_file_labels matcher +
+ * emit_violation + te_read/te_write_flow glue) into each tracepoint program
+ * multiplies 6.8 verifier state work past its 1M-insn complexity budget,
+ * which is what pushed trace_rename_exit (inlined twice, old+new path) over. */
+static __noinline int te_handle_file_event(pid_t pid, const char *target,
+					  struct file_id *fid, __u32 access,
+					  __u32 mode)
 {
 	struct eval_scratch *scratch = eval_scratch_buf();
 	struct te_rule_eval *eval;
@@ -1814,18 +1819,16 @@ static __always_inline int te_handle_file_event(pid_t pid, const char *target,
 	__builtin_memset(scratch, 0, sizeof(*scratch));
 	eval = &scratch->eval;
 	__u32 current_domain_id = cap_domain_for_pid(pid);
-	__u64 global_labels = te_labels_for_domain(pid, 0);
-	__u64 current_labels = te_labels_for_domain(pid, current_domain_id);
+	eval->global_labels = te_labels_for_domain(pid, 0);
+	eval->current_labels = te_labels_for_domain(pid, current_domain_id);
 	int candidate = -1;
 
 	if ((policy_features & TE_POLICY_FILE_FLOW) && (access & TE_ACCESS_READ)) {
-		global_labels |= te_file_labels_domain(fid, target, pid, 0);
-		current_labels |= te_file_labels_domain(fid, target, pid, current_domain_id);
+		eval->global_labels |= te_file_labels_domain(fid, target, pid, 0);
+		eval->current_labels |= te_file_labels_domain(fid, target, pid, current_domain_id);
 	}
 
 	eval->pid = pid;
-	eval->global_labels = global_labels;
-	eval->current_labels = current_labels;
 	eval->current_domain_id = current_domain_id;
 	eval->effect = TEFFECT_BLOCK;
 	eval->effect_mask = te_supported_effects(mode);
