@@ -14,9 +14,10 @@ cross-checks the inventory against the frozen `rq5_openagentsafety_ledger.json`,
 the `remaining_attempt0_description_manifest.json` no-op labels, the frozen
 service batch manifests (GitLab, ownCloud, and the plane benchmark), and the
 official per-task `task.md` descriptions fetched from the benchmark's frozen
-commit. Duplicate task IDs in the manifest or ledger are rejected, the
-description manifest's no-op labels are compared per task against the ledger's
-row values, and the official task root's provenance is recorded through the
+Duplicate task IDs in the manifest or ledger are rejected, the
+description manifest's no-op and status labels are compared per task
+against the ledger's row values, and the official task root's provenance
+is recorded through the
 frozen expected benchmark submodule commit. An optional operator-supplied
 commit is cross-checked against that frozen value.
 It does not reconstruct per-task end-to-end outcomes, grade policy meaning,
@@ -28,8 +29,8 @@ All 361 policies compiled with the pinned compiler (0 failures, exit 0).
 The inventory counts match the frozen expectations exactly: 361 total, 50
 final, 311 description-only, 58 description-only no-ops, and 253
 description-only nontrivial. The ledger task IDs match the policy filenames
-exactly, and every no-op label in the description manifest agrees with the
-ledger.
+exactly, and every no-op and status label in the description manifest
+agrees with the ledger.
 
 | Group | No-op | Compiled OK | Lowered rules |
 | --- | ---: | ---: | ---: |
@@ -105,7 +106,7 @@ were `summary.json` SHA-256
 pre-repair script itself was SHA-256
 `8e7e0f065bb0b910fb2d7f3b08fa7d8816a58b21e969de7c324ee74bed139472`. The
 repaired script is SHA-256
-`ed0a368428eb8515f7bc08aff1ff888536326d391f296ffc95ced5ae848cf351`.
+`5a362a778db20b50348e83f5f3f4501dbd5aba9f6a41f1f5f094523432bbf0eb`.
 
 ## Claim boundary
 

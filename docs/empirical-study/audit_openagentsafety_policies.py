@@ -241,7 +241,7 @@ def main() -> int:
             errors.append(f"{label}: expected {wanted}, found {actual}")
     if set(ledger_rows) != {path.stem for _, path, _ in policy_specs}:
         errors.append("ledger task IDs do not exactly match policy filenames")
-    noop_mismatches = []
+    label_mismatches = []
     for case in manifest_cases:
         task_id = case["task_id"]
         ledger_row = ledger_rows.get(task_id)
@@ -250,13 +250,22 @@ def main() -> int:
         manifest_noop = bool(case["is_noop"])
         ledger_noop = bool(ledger_row["is_noop"])
         if manifest_noop != ledger_noop:
-            noop_mismatches.append(
-                f"{task_id} (manifest={manifest_noop}, ledger={ledger_noop})"
+            label_mismatches.append(
+                f"{task_id} (manifest is_noop={manifest_noop}, ledger is_noop={ledger_noop})"
             )
-    if noop_mismatches:
+        if (
+            "status" in case
+            and "status" in ledger_row
+            and case["status"] != ledger_row["status"]
+        ):
+            label_mismatches.append(
+                f"{task_id} (manifest status={case['status']!r}, "
+                f"ledger status={ledger_row['status']!r})"
+            )
+    if label_mismatches:
         errors.append(
-            "description manifest and ledger no-op labels disagree: "
-            + ", ".join(noop_mismatches)
+            "description manifest and ledger no-op/status labels disagree: "
+            + ", ".join(label_mismatches)
         )
     benchmark_commit_supplied = args.benchmark_commit
     if (
