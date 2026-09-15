@@ -1,4 +1,4 @@
-case	expected_verdicts	expected_exit	
+case	expected_verdicts	expected_exit
 safety-applications.fire	>=1	137
 safety-applications.quiet	0	0
 safety-bloat.fire	>=1	137

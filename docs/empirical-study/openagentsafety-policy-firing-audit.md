@@ -68,32 +68,51 @@ sink operation (write or exec), and the matched target path or command.
 A live verdict can only be observed if the engine loads at all. The container
 that hosts the build cannot load BPF (the kernel API is seccomp-denied) and the
 host kernel does not perform the combined-subprogram-stack check that Linux 6.8
-does, so the guest is the only authoritative measurement. An earlier iteration
-of the engine was rejected on 6.8 with
+does, so the guest is the only authoritative measurement. A pre-fix run of the
+runner, retained as `results/oas-firing-audit-vm-k68b/console-rejection-excerpt.txt`,
+shows what the gate looks like when it binds. The production loader rejected
+`trace_openat_exit` with
 
 ```
+libbpf: prog 'trace_openat_exit': BPF program load failed: -EACCES
 combined stack size of 4 calls is 544. Too large
 ```
 
-because 6.8 sums the maximum per-frame stack depth across a subprogram call
-chain, and the policy-table scan collectors had grown deep. The fix keeps the
-scan target pointer, which the verifier must track with type provenance, in a
-one-field stack handle, and moves the scan parameters and running accumulators
-(all scalar) into a per-CPU scratch map. A pointer stored in a map value loses
-its pointee type on 6.8 (`invalid mem access 'scalar'`), which is why the split
-is by type rather than by convenience. The resulting global maximum frame chain
-is 480 bytes, below the 512-byte limit.
+and every one of the 18 cases then recorded `CASE_FAILURE ... loader-not-ready`.
+The kernel sums the maximum per-frame stack depth across a subprogram call chain
+(512-byte limit), and the policy-table scan collectors had grown to 544. The
+fix keeps the scan target pointer, which the verifier must track with type
+provenance, in a one-field stack handle, and moves the scan parameters and
+running accumulators (all scalar) into a per-CPU scratch map. A pointer stored
+in a map value loses its pointee type on 6.8 (`invalid mem access 'scalar'`),
+which is why the split is by type rather than by convenience.
 
-`run_oas_verifier_stats_vm.sh` records the same measurement directly: the
+`run_oas_verifier_stats_vm.sh` records the post-fix measurement directly: the
 diagnostic `vvload` loader loads each program of the engine skeleton separately
-with a level-1 verifier log, and the run confirms all 93 programs load with no
-`Too large` and no `invalid mem access`. The instruction totals are supporting
-evidence, not a gate. The largest programs are `handle_fork` (160,714 verified
-instructions) and the file-event exit handlers `trace_rename_exit_flow`,
-`trace_renameat_exit_flow`, and `trace_renameat2_exit_flow` (92,486 each). The
-instruction
-limit is one million, so the budget is not close to binding; the stack limit was
-the binding constraint.
+with a level-1 verifier log, and the committed run reports
+`VLOAD_DONE ok=93 fail=0 total=93` with no `Too large` and no
+`invalid mem access`. The runner now requires that summary to have exactly one
+zero-failure line and 93 matching `VSTAT` rows before it reports success, so a
+silently skipped program cannot pass. The instruction totals are supporting
+evidence, not a gate, and they are large enough that only the guest measurement
+is meaningful: the deepest programs are the file-event exit handlers
+`trace_rename_exit`, `trace_renameat_exit`, and `trace_renameat2_exit`
+(420,447 verified instructions each), followed by `trace_rename*_exit_flow`
+(214,790 each) and `handle_fork` (160,714). The instruction limit is one
+million, so the budget is not close to binding and the stack limit was the
+binding constraint.
+
+That the production program set is what the diagnostic measures depends on both
+loaders computing the same `policy_features` bits from the same policy, so the
+computation now lives in one shared header (`bpf/policy_features.h`) that both
+include, with unit coverage in `bpf/test_taint.c`. The earlier diagnostic copy
+in `vvload.c` omitted the path-match and open/write-rule bits, so its
+instruction totals understated the production programs; the committed
+`verifier-stats.tsv` is the corrected measurement. `vvload` now also fails
+closed: a non-`ENOSPC` load error or a missing program fd is reported as a
+`VLOAD_FAIL` line and counted in `fail`, and the process exits nonzero, where
+the pre-fix behavior printed `VLOAD_DONE ok=93 fail=0` even when every load had
+failed.
 
 ## Reproduction
 
@@ -102,10 +121,15 @@ guest first and fall back to TCG automatically, because the host has no usable
 hardware virtualization. A full firing-audit run is about three minutes of
 wall-clock time under TCG; the verifier-stats run is under a minute.
 
-Command (firing audit, from the repository root):
+`OAS_POLICY_DIR` must point at the frozen OpenAgentSafety `policies/actplane`
+directory; there is no portable default because the inventory lives outside this
+repository. Both commands are run from the repository root.
+
+Command (firing audit):
 
 ```sh
-ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic \
+OAS_POLICY_DIR=/path/to/OpenAgentSafety/policies/actplane \
+  ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic \
   ACTPLANE_VM_TIMEOUT=2400 \
   ACTPLANE_BIN=target/release/actplane \
   ACTPLANE_PROCESS_BIN=bpf/process \
@@ -116,11 +140,18 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic \
 Command (verifier statistics):
 
 ```sh
-ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic \
+OAS_POLICY_DIR=/path/to/OpenAgentSafety/policies/actplane \
+  ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic \
   ACTPLANE_VM_TIMEOUT=1800 \
   docs/empirical-study/run_oas_verifier_stats_vm.sh \
   docs/empirical-study/results/oas-verifier-stats-vm-k68
 ```
+
+Both runners now fail closed on incomplete evidence: the firing audit exits
+nonzero on any `CASE_FAILURE`, when the observed case set differs from the
+pre-registered `expectations.tsv`, or when it does not produce exactly 18 result
+rows, and the verifier runner requires the zero-failure `VLOAD_DONE` summary
+described above.
 
 Inputs and pinned coordinates:
 
@@ -129,24 +160,30 @@ Inputs and pinned coordinates:
 - pinned ActPlane CLI binary SHA-256
   `c109dd030cf8835159c3d639f312b0a952f5baf55831a9bbcc279f86a240a1b1`.
 - production loader `bpf/process` SHA-256
-  `41d071000affa34b7b84b54169e2a0dde85880b4f684bfee3cb90898fcf2eac0`.
+  `596a57f5970f1b0a0f4bc07e6986de7368d14eefce630a8609e86aa783fbb101`.
 - diagnostic loader `bpf/vvload` SHA-256
-  `893e407561bed86ad0e36305152e811488c68cdddf259961348477b8bafccfc8`.
+  `946a9af348b9363daf3bd8ca7833d55830f20bebd4b06fb31be9d2efdb9615ff`.
+  Both loaders rebuild byte-identically from the committed source.
 - policy inventory: the frozen `origin/artifact-ready` OpenAgentSafety
-  `policies/actplane` directory (the same one the compile audit uses); per-policy
-  SHA-256 digests are recorded in each run's `metadata.tsv`.
-- source commit: `a97722efe6782bcb77c52ba71a63fc6af28975ba` (the commit the
-  recorded `metadata.tsv` runs were taken at).
+  `policies/actplane` directory (the same one the compile audit uses),
+  supplied via `OAS_POLICY_DIR`; per-policy SHA-256 digests are recorded in
+  each run's `metadata.tsv`.
+- source commit: `6540f6c1` was HEAD when the recorded runs were taken, with the
+  loader sources clean (`loader_source_dirty no` in both `metadata.tsv` files),
+  so the CLI and loader digests above identify those committed sources exactly.
 
 Result directories:
 
 - `results/oas-firing-audit-vm-k68d/`: the passing firing audit.
   `counts.tsv` is the per-case table, `verdicts.ndjson` the raw matches,
-  `expectations.tsv` the pre-registered expectations, and `metadata.tsv` the
-  reproducibility coordinates. `console.clean.log` is the full guest console.
+  `expectations.tsv` the pre-registered expectations, `guest-console.txt` the
+  full cleaned guest console (kept under a tracked name because `*.log` is
+  gitignored), and `metadata.tsv` the reproducibility coordinates.
 - `results/oas-verifier-stats-vm-k68/`: the 6.8 verifier measurement.
   `verifier-stats.tsv` is the per-program instruction table and
   `verifier-console.txt` the summarized verifier lines.
+- `results/oas-firing-audit-vm-k68b/console-rejection-excerpt.txt`: the
+  pre-fix rejection excerpt quoted above, retained as committed evidence.
 
 ## Claim boundary
 
