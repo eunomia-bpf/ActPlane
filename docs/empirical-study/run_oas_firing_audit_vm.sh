@@ -26,6 +26,10 @@ PROC="${ACTPLANE_PROCESS_BIN:-$ROOT/bpf/process}"
 KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic | tail -1)}"
 OAS="${OAS_POLICY_DIR:-/workspaces/.agent-state/actplane-research/raw/openagentsafety-policy-compile-20260910T1438Z-verify20260911/tree/docs/OpenAgentSafety/policies/actplane}"
 OUT="${1:-$ROOT/docs/empirical-study/results/oas-firing-audit-vm}"
+# TCG execution is far slower than KVM, so the qemu wall-clock timeout is a
+# knob: a guest boot plus 18 policy load/attach/trigger cycles needs far more
+# than the KVM-friendly default when no hardware virtualization is available.
+VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-300}"
 WORK="$(mktemp -d /tmp/actplane-oas-firing-vm.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -147,7 +151,7 @@ run_case() {
   /process --config "/cfg_$policy.bin" --seed-pid "$trigger_pid" >"/tmp/$name.log" 2>&1 &
   loader_pid=$!
   tries=0
-  while [ "$tries" -lt 400 ]; do
+  while [ "$tries" -lt 20000 ]; do
     grep -q 'ActPlane: ready' "/tmp/$name.log" && break
     kill -0 "$loader_pid" 2>/dev/null || break
     tries=$((tries + 1)); sleep 0.01
@@ -217,12 +221,12 @@ for p in $POLICIES; do
   printf '%s\t%s\t%s\n' "$p.fire" ">=1" 137 >> "$OUT/expectations.tsv"
   printf '%s\t%s\t%s\n' "$p.quiet" "0" 0 >> "$OUT/expectations.tsv"
 done
-
 run_qemu() {
-  timeout 300 qemu-system-x86_64 -accel "$1" -m 1024 -smp 2 -nographic -no-reboot \
+  timeout "$VM_TIMEOUT" qemu-system-x86_64 -accel "$1" -m 1024 -smp 2 -nographic -no-reboot \
     -kernel "$KERNEL" -initrd "$WORK/initramfs.gz" \
     -append 'console=ttyS0 rdinit=/init panic=-1' >"$OUT/console.log" 2>"$OUT/qemu.stderr"
 }
+
 set +e
 acceleration=kvm
 run_qemu "$acceleration"; qemu_status=$?

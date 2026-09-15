@@ -1,0 +1,8 @@
+timestamp_utc 2026-09-15T03:02:38Z
+host_git_commit 73a715537314e8676b8c6e8bd3d11e19f5d69530
+guest_kernel vmlinuz-6.8.0-138-generic
+acceleration tcg
+policy safety-applications.yaml
+policy_sha256 64dcaaad0f28bb469007096875e043dd964d5cbf4aef8316f0db173e50448503
+actplane_bin_sha256 c109dd030cf8835159c3d639f312b0a952f5baf55831a9bbcc279f86a240a1b1
+vvload_bin_sha256 6350aca9fcad90868465542d769201f4b77601d4bfd13ab5c7c34d06748a4a89

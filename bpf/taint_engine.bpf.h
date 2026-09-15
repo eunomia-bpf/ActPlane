@@ -946,9 +946,33 @@ struct te_copy_file_to_proc_ctx {
 	struct file_domain_id fdom;
 	__u64 labels;
 };
+
+/* bpf_loop's context argument is stack-typed and stays spilled for the whole
+ * program, so the callback context lives in a per-CPU scratch map. The callback
+ * re-looks it up while the caller only passes a stack-resident count handle,
+ * which keeps the ctx struct off every caller's stack (see te_stamp). */
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct te_copy_file_to_proc_ctx);
+} ts_file_prov_scratch SEC(".maps");
+
+static __always_inline struct te_copy_file_to_proc_ctx *
+te_file_prov_scratch_buf(void)
+{
+	__u32 key = 0;
+
+	return bpf_map_lookup_elem(&ts_file_prov_scratch, &key);
+}
+
 static int te_copy_file_prov_to_proc_cb(__u32 i, void *vc)
 {
-	struct te_copy_file_to_proc_ctx *c = vc;
+	struct te_copy_file_to_proc_ctx *c = te_file_prov_scratch_buf();
+
+	(void)vc;
+	if (!c)
+		return 1;
 	if (i >= MAX_TAINT_LABELS)
 		return 1;
 	__u64 bit = 1ULL << i;
@@ -969,12 +993,15 @@ static int te_copy_file_prov_to_proc_cb(__u32 i, void *vc)
 static __noinline void te_copy_file_prov_to_proc(pid_t pid, struct file_domain_id *fdom,
 						 __u64 labels)
 {
-	struct te_copy_file_to_proc_ctx c = {
-		.pid = pid,
-		.fdom = *fdom,
-		.labels = labels,
-	};
-	bpf_loop(te_count(5), te_copy_file_prov_to_proc_cb, &c, 0);
+	struct te_copy_file_to_proc_ctx *c = te_file_prov_scratch_buf();
+	__u64 loop_ctx = 0;
+
+	if (!c)
+		return;
+	c->pid = pid;
+	c->fdom = *fdom;
+	c->labels = labels;
+	bpf_loop(te_count(5), te_copy_file_prov_to_proc_cb, &loop_ctx, 0);
 }
 
 struct te_copy_proc_to_file_ctx {
@@ -1309,19 +1336,61 @@ static __always_inline void te_fork(pid_t ppid, pid_t cpid)
 
 /* All policy table scans below run via bpf_loop() (count from ts_counts) so the
  * callback is verified once regardless of table size. The update table is the
- * single low-level IR for sources, xforms, gates, and since invalidators. */
-struct te_update_ctx {
-	pid_t pid;
-	__u32 domain_id;
-	unsigned int op;
+ * single low-level IR for sources, xforms, gates, and since invalidators.
+ *
+ * bpf_loop's context argument is stack-typed, and the verifier loses pointer
+ * provenance for a pointer stored in a map value, so the match target pointer
+ * stays in a one-field stack handle. Everything else (scan parameters and the
+ * running accumulators) is scalar and lives in a per-CPU scratch map: that
+ * keeps the collectors' stack frames far below the 512-byte limit on kernels
+ * that sum frames across subprograms. */
+struct te_scan {
 	const char *target;
-	__u32 ip;
+};
+
+struct te_acc {
 	__u64 add;
 	__u64 del;
 	__u64 gates;
 	__u64 exit_gates;
 	__u64 invals;
+	unsigned int op;
+	__u32 ip;
+	__u32 domain_id;
 };
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct te_acc);
+} ts_uctx_scratch SEC(".maps");
+
+static __always_inline struct te_acc *te_uctx_scratch_buf(void)
+{
+	__u32 key = 0;
+
+	return bpf_map_lookup_elem(&ts_uctx_scratch, &key);
+}
+
+/* Clear the accumulators and record this scan's parameters. */
+static __always_inline int te_scan_start(unsigned int op, __u32 domain_id,
+					 __u32 ip)
+{
+	struct te_acc *c = te_uctx_scratch_buf();
+
+	if (!c)
+		return 0;
+	c->add = 0;
+	c->del = 0;
+	c->gates = 0;
+	c->exit_gates = 0;
+	c->invals = 0;
+	c->op = op;
+	c->ip = ip;
+	c->domain_id = domain_id;
+	return 1;
+}
 
 static __always_inline int te_exec_simple_match(unsigned int kind,
 						const char *text,
@@ -1351,11 +1420,26 @@ static __always_inline int te_exec_simple_match(unsigned int kind,
 #define te_exec_rule_match taint_exec_match
 #endif
 
+static __always_inline void te_update_accum(struct te_acc *c,
+					    const struct taint_update *u)
+{
+	c->add |= u->add;
+	c->del |= u->del;
+	if (u->gate_exit_code == TAINT_GATE_IMMEDIATE)
+		c->gates |= u->gates;
+	else
+		c->exit_gates |= u->gates;
+	c->invals |= u->invals;
+}
+
 static int te_update_cb(__u32 i, void *vc)
 {
-	struct te_update_ctx *c = vc;
+	struct te_scan *s = vc;
+	struct te_acc *c = te_uctx_scratch_buf();
 	int match = 0;
 
+	if (!s || !c)
+		return 1;
 	i += te_update_start(c->op);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
@@ -1370,9 +1454,9 @@ static int te_update_cb(__u32 i, void *vc)
 	if (u.op == TOP_CONNECT)
 		match = ((c->ip & u.ipv4_mask) == u.ipv4);
 	else if (u.op == TOP_EXEC)
-		match = taint_exec_match(u.match, c->target, u.target);
+		match = taint_exec_match(u.match, s->target, u.target);
 	else
-		match = te_path_match(u.match, c->target, u.target);
+		match = te_path_match(u.match, s->target, u.target);
 	if (!match)
 		return 0;
 	/* For exec updates with an arg constraint, also check argv tokens. */
@@ -1381,20 +1465,17 @@ static int te_update_cb(__u32 i, void *vc)
 		if (!a || !taint_arg_match(a->slots, u.arg))
 			return 0;
 	}
-	c->add |= u.add;
-	c->del |= u.del;
-	if (u.gate_exit_code == TAINT_GATE_IMMEDIATE)
-		c->gates |= u.gates;
-	else
-		c->exit_gates |= u.gates;
-	c->invals |= u.invals;
+	te_update_accum(c, &u);
 	return 0;
 }
 
 static int te_exec_update_simple_cb(__u32 i, void *vc)
 {
-	struct te_update_ctx *c = vc;
+	struct te_scan *s = vc;
+	struct te_acc *c = te_uctx_scratch_buf();
 
+	if (!s || !c)
+		return 1;
 	i += te_update_start(TOP_EXEC);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
@@ -1406,7 +1487,7 @@ static int te_exec_update_simple_cb(__u32 i, void *vc)
 		return 0;
 	if (u.domain_id != c->domain_id)
 		return 0;
-	if (!te_exec_simple_match(u.match, c->target, u.target))
+	if (!te_exec_simple_match(u.match, s->target, u.target))
 		return 0;
 #ifndef ACTPLANE_LEGACY_KERNEL
 	if (u.arg[0] != '\0') {
@@ -1415,20 +1496,17 @@ static int te_exec_update_simple_cb(__u32 i, void *vc)
 			return 0;
 	}
 #endif
-	c->add |= u.add;
-	c->del |= u.del;
-	if (u.gate_exit_code == TAINT_GATE_IMMEDIATE)
-		c->gates |= u.gates;
-	else
-		c->exit_gates |= u.gates;
-	c->invals |= u.invals;
+	te_update_accum(c, &u);
 	return 0;
 }
 
 static int te_exec_update_prefix_cb(__u32 i, void *vc)
 {
-	struct te_update_ctx *c = vc;
+	struct te_scan *s = vc;
+	struct te_acc *c = te_uctx_scratch_buf();
 
+	if (!s || !c)
+		return 1;
 	i += te_update_start(TOP_EXEC);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
@@ -1442,32 +1520,24 @@ static int te_exec_update_prefix_cb(__u32 i, void *vc)
 		return 0;
 	if (u.match == TAINT_MATCH_EXACT || u.match == TAINT_MATCH_ANY)
 		return 0;
-	if (!taint_exec_match(u.match, c->target, u.target))
+	if (!taint_exec_match(u.match, s->target, u.target))
 		return 0;
 	if (u.arg[0] != '\0') {
 		struct te_argslots *a = te_argslots_buf();
 		if (!a || !taint_arg_match(a->slots, u.arg))
 			return 0;
 	}
-	c->add |= u.add;
-	c->del |= u.del;
-	if (u.gate_exit_code == TAINT_GATE_IMMEDIATE)
-		c->gates |= u.gates;
-	else
-		c->exit_gates |= u.gates;
-	c->invals |= u.invals;
+	te_update_accum(c, &u);
 	return 0;
-}
-
-static __always_inline void te_collect_updates(struct te_update_ctx *c)
-{
-	bpf_loop(te_update_count(c->op), te_update_cb, c, 0);
 }
 
 static int te_exec_update_no_args_cb(__u32 i, void *vc)
 {
-	struct te_update_ctx *c = vc;
+	struct te_scan *s = vc;
+	struct te_acc *c = te_uctx_scratch_buf();
 
+	if (!s || !c)
+		return 1;
 	i += te_update_start(TOP_EXEC);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
@@ -1481,43 +1551,19 @@ static int te_exec_update_no_args_cb(__u32 i, void *vc)
 		return 0;
 	if (u.arg[0] != '\0')
 		return 0;
-	if (!taint_exec_match(u.match, c->target, u.target))
+	if (!taint_exec_match(u.match, s->target, u.target))
 		return 0;
-	c->add |= u.add;
-	c->del |= u.del;
-	if (u.gate_exit_code == TAINT_GATE_IMMEDIATE)
-		c->gates |= u.gates;
-	else
-		c->exit_gates |= u.gates;
-	c->invals |= u.invals;
+	te_update_accum(c, &u);
 	return 0;
 }
 
-static __always_inline void te_collect_exec_updates_no_args(struct te_update_ctx *c)
-{
-	bpf_loop(te_update_count(TOP_EXEC), te_exec_update_no_args_cb, c, 0);
-}
-
-static __always_inline void te_update_accum(struct te_update_ctx *c,
-					    const struct taint_update *u)
-{
-	c->add |= u->add;
-	c->del |= u->del;
-	if (u->gate_exit_code == TAINT_GATE_IMMEDIATE)
-		c->gates |= u->gates;
-	else
-		c->exit_gates |= u->gates;
-	c->invals |= u->invals;
-}
-
-#ifdef ACTPLANE_LEGACY_KERNEL
-static int te_file_update_cb(__u32 i, struct te_update_ctx *vc)
-#else
 static int te_file_update_cb(__u32 i, void *vc)
-#endif
 {
-	struct te_update_ctx *c = vc;
+	struct te_scan *s = vc;
+	struct te_acc *c = te_uctx_scratch_buf();
 
+	if (!s || !c)
+		return 1;
 	i += te_update_start(c->op);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
@@ -1528,7 +1574,7 @@ static int te_file_update_cb(__u32 i, void *vc)
 #ifndef ACTPLANE_LEGACY_KERNEL
 	__u32 scratch_key = 0;
 	struct taint_update *local = bpf_map_lookup_elem(&ts_update_scratch,
-							       &scratch_key);
+							 &scratch_key);
 	if (!local)
 		return 1;
 	*local = *up;
@@ -1538,21 +1584,19 @@ static int te_file_update_cb(__u32 i, void *vc)
 		return 0;
 	if (u->domain_id != c->domain_id)
 		return 0;
-	if (!te_path_match(u->match, c->target, u->target))
+	if (!te_path_match(u->match, s->target, u->target))
 		return 0;
 	te_update_accum(c, u);
 	return 0;
 }
 
-static __always_inline void te_collect_file_updates(struct te_update_ctx *c)
-{
-	bpf_loop(te_update_count(c->op), te_file_update_cb, c, 0);
-}
-
 static int te_endpoint_update_cb(__u32 i, void *vc)
 {
-	struct te_update_ctx *c = vc;
+	struct te_scan *s = vc;
+	struct te_acc *c = te_uctx_scratch_buf();
 
+	if (!s || !c)
+		return 1;
 	i += te_update_start(c->op);
 	if (i >= MAX_TAINT_UPDATES)
 		return 1;
@@ -1570,9 +1614,39 @@ static int te_endpoint_update_cb(__u32 i, void *vc)
 	return 0;
 }
 
-static __always_inline void te_collect_endpoint_updates(struct te_update_ctx *c)
+static __always_inline void te_collect_updates(unsigned int op,
+					       struct te_scan *s)
 {
-	bpf_loop(te_update_count(c->op), te_endpoint_update_cb, c, 0);
+	bpf_loop(te_update_count(op), te_update_cb, s, 0);
+}
+
+static __always_inline void te_collect_file_updates(unsigned int op,
+						    struct te_scan *s)
+{
+	bpf_loop(te_update_count(op), te_file_update_cb, s, 0);
+}
+
+static __always_inline void te_collect_endpoint_updates(unsigned int op,
+							struct te_scan *s)
+{
+	bpf_loop(te_update_count(op), te_endpoint_update_cb, s, 0);
+}
+
+static __always_inline void te_collect_exec_updates_no_args(
+	struct te_scan *s)
+{
+	bpf_loop(te_update_count(TOP_EXEC), te_exec_update_no_args_cb, s, 0);
+}
+
+static __always_inline void te_collect_exec_updates(struct te_scan *s,
+						    __u32 prefix)
+{
+	if (prefix)
+		bpf_loop(te_update_count(TOP_EXEC), te_exec_update_prefix_cb, s,
+			 0);
+	else
+		bpf_loop(te_update_count(TOP_EXEC), te_exec_update_simple_cb, s,
+			 0);
 }
 
 /* on exec: apply compiled updates for labels, declassification, gates, and
@@ -1592,34 +1666,40 @@ static __always_inline void te_store_proc_domain(pid_t pid, __u32 domain_id,
 static __always_inline void te_exec_update_domain(pid_t pid, const char *comm,
 						  __u32 domain_id)
 {
-	struct te_update_ctx c = {
-		.pid = pid,
-		.domain_id = domain_id,
-		.op = TOP_EXEC,
-		.target = comm,
-	};
+	struct te_scan s = { .target = comm };
+	struct te_acc *c;
+	__u64 add, del, gates, exit_gates, invals;
+	struct proc_state *p;
+	struct proc_state ns = { 0 };
 
 	if (!te_pid_active(pid) || !cap_domain_matches_pid(pid, domain_id))
 		return;
-	te_collect_updates(&c);
-
-	struct proc_state *p = te_get_domain(pid, domain_id);
-	struct proc_state ns = { 0 };
+	if (!te_scan_start(TOP_EXEC, domain_id, 0))
+		return;
+	te_collect_updates(TOP_EXEC, &s);
+	c = te_uctx_scratch_buf();
+	if (!c)
+		return;
+	add = c->add;
+	del = c->del;
+	gates = c->gates;
+	exit_gates = c->exit_gates;
+	invals = c->invals;
+	p = te_get_domain(pid, domain_id);
 	if (p)
 		ns = *p;
-	ns.labels = (ns.labels | c.add) & ~c.del;
-	ns.lin_gates |= c.gates;
+	ns.labels = (ns.labels | add) & ~del;
 	te_store_proc_domain(pid, domain_id, &ns);
-	if (c.add)
-		te_record_proc_prov_mask(pid, domain_id, c.add, TOP_EXEC, comm, 0);
-	if (c.gates || c.exit_gates || c.invals) {
+	if (add)
+		te_record_proc_prov_mask(pid, domain_id, add, TOP_EXEC, comm, 0);
+	if (gates || exit_gates || invals) {
 		pid_t r = te_root(pid);
 		__u32 ep = te_tick(r, domain_id);
-		if (c.gates || c.invals)
-			te_stamp(r, domain_id, ep, c.gates, c.invals);
-		if (c.exit_gates) {
+		if (gates || invals)
+			te_stamp(r, domain_id, ep, gates, invals);
+		if (exit_gates) {
 			struct te_exit_gate_pending pending = {
-				.gates = c.exit_gates,
+				.gates = exit_gates,
 				.epoch = ep,
 			};
 			struct pid_domain_id key = {};
@@ -1641,34 +1721,41 @@ static __always_inline void te_exec_update_domain_no_args(pid_t pid,
 							  const char *comm,
 							  __u32 domain_id)
 {
-	struct te_update_ctx c = {
-		.pid = pid,
-		.domain_id = domain_id,
-		.op = TOP_EXEC,
-		.target = comm,
-	};
+	struct te_scan s = { .target = comm };
+	struct te_acc *c;
+	__u64 add, del, gates, exit_gates, invals;
+	struct proc_state *p;
+	struct proc_state ns = { 0 };
 
 	if (!te_pid_active(pid) || !cap_domain_matches_pid(pid, domain_id))
 		return;
-	te_collect_exec_updates_no_args(&c);
-
-	struct proc_state *p = te_get_domain(pid, domain_id);
-	struct proc_state ns = { 0 };
+	if (!te_scan_start(TOP_EXEC, domain_id, 0))
+		return;
+	te_collect_exec_updates_no_args(&s);
+	c = te_uctx_scratch_buf();
+	if (!c)
+		return;
+	add = c->add;
+	del = c->del;
+	gates = c->gates;
+	exit_gates = c->exit_gates;
+	invals = c->invals;
+	p = te_get_domain(pid, domain_id);
 	if (p)
 		ns = *p;
-	ns.labels = (ns.labels | c.add) & ~c.del;
-	ns.lin_gates |= c.gates;
+	ns.labels = (ns.labels | add) & ~del;
+	ns.lin_gates |= gates;
 	te_store_proc_domain(pid, domain_id, &ns);
-	if (c.add)
-		te_record_proc_prov_mask(pid, domain_id, c.add, TOP_EXEC, comm, 0);
-	if (c.gates || c.exit_gates || c.invals) {
+	if (add)
+		te_record_proc_prov_mask(pid, domain_id, add, TOP_EXEC, comm, 0);
+	if (gates || exit_gates || invals) {
 		pid_t r = te_root(pid);
 		__u32 ep = te_tick(r, domain_id);
-		if (c.gates || c.invals)
-			te_stamp(r, domain_id, ep, c.gates, c.invals);
-		if (c.exit_gates) {
+		if (gates || invals)
+			te_stamp(r, domain_id, ep, gates, invals);
+		if (exit_gates) {
 			struct te_exit_gate_pending pending = {
-				.gates = c.exit_gates,
+				.gates = exit_gates,
 				.epoch = ep,
 			};
 			struct pid_domain_id key = {};
@@ -1714,34 +1801,36 @@ static __noinline __u64 te_update_add_file_domain(unsigned int op,
 						  const char *target,
 						  pid_t pid, __u32 domain_id)
 {
-	struct te_update_ctx c = {
-		.pid = pid,
-		.domain_id = domain_id,
-		.op = op,
-		.target = target,
-	};
+	struct te_scan s = { .target = target };
+	struct te_acc *c;
 
 	if (!te_pid_active(pid) || !cap_domain_matches_pid(pid, domain_id))
 		return 0;
-	te_collect_file_updates(&c);
-	return c.add;
+	if (!te_scan_start(op, domain_id, 0))
+		return 0;
+	te_collect_file_updates(op, &s);
+	c = te_uctx_scratch_buf();
+	if (!c)
+		return 0;
+	return c->add;
 }
 
 static __noinline __u64 te_update_add_endpoint_domain(unsigned int op, __u32 ip,
 						      pid_t pid,
 						      __u32 domain_id)
 {
-	struct te_update_ctx c = {
-		.pid = pid,
-		.domain_id = domain_id,
-		.op = op,
-		.ip = ip,
-	};
+	struct te_scan s = {};
+	struct te_acc *c;
 
 	if (!te_pid_active(pid) || !cap_domain_matches_pid(pid, domain_id))
 		return 0;
-	te_collect_endpoint_updates(&c);
-	return c.add;
+	if (!te_scan_start(op, domain_id, ip))
+		return 0;
+	te_collect_endpoint_updates(op, &s);
+	c = te_uctx_scratch_buf();
+	if (!c)
+		return 0;
+	return c->add;
 }
 
 static __always_inline __u64 te_update_add_connect_domain(__u32 ip, pid_t pid,
@@ -1810,27 +1899,31 @@ static __always_inline void te_read_domain(pid_t pid, struct file_id *fid,
 	te_file_domain_key_for(domain_id, fid, fdom);
 	struct file_state *fs = bpf_map_lookup_elem(&ts_file, fdom);
 	__u64 file_labels = fs ? fs->labels : 0;
-	struct te_update_ctx u = {
-		.pid = pid,
-		.domain_id = domain_id,
-		.op = TOP_OPEN,
-		.target = path,
-	};
+	struct te_scan s = { .target = path };
+	struct te_acc *u;
+	__u64 src_labels, gates, invals;
 
-	te_collect_file_updates(&u);
-	__u64 src_labels = u.add;
+	if (!te_scan_start(TOP_OPEN, domain_id, 0))
+		return;
+	te_collect_file_updates(TOP_OPEN, &s);
+	u = te_uctx_scratch_buf();
+	if (!u)
+		return;
+	src_labels = u->add;
+	gates = u->gates;
+	invals = u->invals;
 	te_add_labels_domain(pid, domain_id, file_labels | src_labels);
 	if (file_labels)
 		te_copy_file_prov_to_proc(pid, fdom, file_labels);
 	if (src_labels)
 		te_record_proc_prov_mask(pid, domain_id, src_labels, TOP_OPEN, path, 0);
-	if (u.gates || u.invals) {
+	if (gates || invals) {
 		pid_t r = te_root(pid);
-		te_stamp(r, domain_id, te_tick(r, domain_id), u.gates, u.invals);
+		te_stamp(r, domain_id, te_tick(r, domain_id), gates, invals);
 	}
 }
 
-static __always_inline void te_read(pid_t pid, struct file_id *fid, const char *path)
+static __noinline void te_read(pid_t pid, struct file_id *fid, const char *path)
 {
 	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
 		__u32 domain_id = te_domain_for_depth(pid, i);
@@ -1850,38 +1943,31 @@ static __always_inline void te_write_flow_domain(pid_t pid, struct file_id *fid,
 {
 	if (!te_pid_active(pid) || !cap_domain_matches_pid(pid, domain_id))
 		return;
-	struct te_update_ctx u = {
-		.pid = pid,
-		.domain_id = domain_id,
-		.op = TOP_WRITE,
-		.target = path,
-	};
-	te_collect_file_updates(&u);
+	/* Nothing is compiled into the TOP_WRITE update table, so a write only
+	 * re-stamps `since write` invalidators: editing an unlabeled source file
+	 * must still invalidate a prior gate, hence the stamp is not gated on the
+	 * writer carrying labels. */
 	__u64 pl = te_labels_for_domain(pid, domain_id);
-	if (!u.gates && !u.invals && !pl)
+	if (!pl)
 		return;
 	pid_t r = te_root(pid);
 	__u32 ep = te_tick(r, domain_id);
-	if (u.gates || u.invals)
-		te_stamp(r, domain_id, ep, u.gates, u.invals);
-	if (pl) {
-		struct file_domain_id *fdom = te_file_domain_tmp();
-		if (!fdom)
-			return;
-		te_file_domain_key_for(domain_id, fid, fdom);
-		struct file_state *fs = bpf_map_lookup_elem(&ts_file, fdom);
-		if (fs) {
-			fs->labels |= pl;
-			fs->last_write_epoch = ep;
-		} else {
-			struct file_state ns = { .labels = pl, .last_write_epoch = ep };
-			bpf_map_update_elem(&ts_file, fdom, &ns, BPF_ANY);
-		}
-		te_copy_proc_prov_to_file(pid, fdom, pl);
+	struct file_domain_id *fdom = te_file_domain_tmp();
+	if (!fdom)
+		return;
+	te_file_domain_key_for(domain_id, fid, fdom);
+	struct file_state *fs = bpf_map_lookup_elem(&ts_file, fdom);
+	if (fs) {
+		fs->labels |= pl;
+		fs->last_write_epoch = ep;
+	} else {
+		struct file_state ns = { .labels = pl, .last_write_epoch = ep };
+		bpf_map_update_elem(&ts_file, fdom, &ns, BPF_ANY);
 	}
+	te_copy_proc_prov_to_file(pid, fdom, pl);
 }
 
-static __always_inline void te_write_flow(pid_t pid, struct file_id *fid,
+static __noinline void te_write_flow(pid_t pid, struct file_id *fid,
 					  const char *path)
 {
 	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
