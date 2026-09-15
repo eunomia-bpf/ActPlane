@@ -89,8 +89,9 @@ diagnostic `vvload` loader loads each program of the engine skeleton separately
 with a level-1 verifier log, and the run confirms all 93 programs load with no
 `Too large` and no `invalid mem access`. The instruction totals are supporting
 evidence, not a gate. The largest programs are `handle_fork` (160,714 verified
-instructions) and the file-event exit handlers `trace_rename_exit`,
-`trace_renameat_exit`, and `trace_renameat2_exit` (82,476 each). The instruction
+instructions) and the file-event exit handlers `trace_rename_exit_flow`,
+`trace_renameat_exit_flow`, and `trace_renameat2_exit_flow` (92,486 each). The
+instruction
 limit is one million, so the budget is not close to binding; the stack limit was
 the binding constraint.
 
@@ -128,13 +129,14 @@ Inputs and pinned coordinates:
 - pinned ActPlane CLI binary SHA-256
   `c109dd030cf8835159c3d639f312b0a952f5baf55831a9bbcc279f86a240a1b1`.
 - production loader `bpf/process` SHA-256
-  `2012be0c8ad550ef4777eceddbba8e1142fc60d3b149e45e0c79fdcfcee31681`.
+  `41d071000affa34b7b84b54169e2a0dde85880b4f684bfee3cb90898fcf2eac0`.
 - diagnostic loader `bpf/vvload` SHA-256
-  `6350aca9fcad90868465542d769201f4b77601d4bfd13ab5c7c34d06748a4a89`.
+  `893e407561bed86ad0e36305152e811488c68cdddf259961348477b8bafccfc8`.
 - policy inventory: the frozen `origin/artifact-ready` OpenAgentSafety
   `policies/actplane` directory (the same one the compile audit uses); per-policy
   SHA-256 digests are recorded in each run's `metadata.tsv`.
-- source commit: `73a715537314e8676b8c6e8bd3d11e19f5d69530`.
+- source commit: `a97722efe6782bcb77c52ba71a63fc6af28975ba` (the commit the
+  recorded `metadata.tsv` runs were taken at).
 
 Result directories:
 
