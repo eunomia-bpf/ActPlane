@@ -15,6 +15,11 @@
 # Expectations are pre-registered from the policy YAMLs + engine semantics
 # (written to the results dir before the guest runs), not read off the run.
 #
+# Required input: OAS_POLICY_DIR must point at the frozen OpenAgentSafety
+# `policies/actplane` directory (there is no portable default; the inventory
+# lives outside this repository). Optional knobs: ACTPLANE_BIN,
+# ACTPLANE_PROCESS_BIN, ACTPLANE_VM_KERNEL, ACTPLANE_VM_TIMEOUT.
+#
 # This is a live verdict-firing audit, not a per-task end-to-end or baseline
 # outcome. It establishes that the frozen OAS policies, as compiled by the
 # pinned ActPlane binary, produce kernel verdicts with the expected specificity.
@@ -23,8 +28,8 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ACT="${ACTPLANE_BIN:-$ROOT/target/release/actplane}"
 PROC="${ACTPLANE_PROCESS_BIN:-$ROOT/bpf/process}"
-KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic | tail -1)}"
-OAS="${OAS_POLICY_DIR:-/workspaces/.agent-state/actplane-research/raw/openagentsafety-policy-compile-20260910T1438Z-verify20260911/tree/docs/OpenAgentSafety/policies/actplane}"
+KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic 2>/dev/null | tail -1)}"
+OAS="${OAS_POLICY_DIR:-}"
 OUT="${1:-$ROOT/docs/empirical-study/results/oas-firing-audit-vm}"
 # TCG execution is far slower than KVM, so the qemu wall-clock timeout is a
 # knob: a guest boot plus 18 policy load/attach/trigger cycles needs far more
@@ -33,9 +38,11 @@ VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-300}"
 WORK="$(mktemp -d /tmp/actplane-oas-firing-vm.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 
+[ -n "$KERNEL" ] || { echo "set ACTPLANE_VM_KERNEL to a guest vmlinuz (no /boot/vmlinuz-*-generic found)" >&2; exit 2; }
 for file in "$ACT" "$PROC" "$KERNEL" /bin/busybox; do
   [ -e "$file" ] || { echo "missing $file" >&2; exit 2; }
 done
+[ -n "$OAS" ] || { echo "set OAS_POLICY_DIR to the OpenAgentSafety policies/actplane directory" >&2; exit 2; }
 [ -d "$OAS" ] || { echo "missing OAS policy dir $OAS" >&2; exit 2; }
 for command in qemu-system-x86_64 cpio gcc; do
   command -v "$command" >/dev/null || { echo "missing $command" >&2; exit 2; }
@@ -216,7 +223,7 @@ chmod +x "$WORK/root/init"
 # Pre-registered expectations, written before the guest runs. fire cases must
 # emit >=1 verdict and kill the trigger (137); quiet cases must emit exactly 0
 # and exit cleanly (0).
-printf '%s\t%s\t%s\t%s\n' case expected_verdicts expected_exit > "$OUT/expectations.tsv"
+printf '%s\t%s\t%s\n' case expected_verdicts expected_exit > "$OUT/expectations.tsv"
 for p in $POLICIES; do
   printf '%s\t%s\t%s\n' "$p.fire" ">=1" 137 >> "$OUT/expectations.tsv"
   printf '%s\t%s\t%s\n' "$p.quiet" "0" 0 >> "$OUT/expectations.tsv"
@@ -237,8 +244,13 @@ if [ "$qemu_status" -ne 0 ] && ! grep -q '^EXPERIMENT_DONE' "$OUT/console.log"; 
 fi
 set -e
 tr -d '\r' < "$OUT/console.log" > "$OUT/console.clean.log"
+# The committed evidence artifact: `*.log` is gitignored, so the cleaned guest
+# console is retained under a tracked name (mirroring verifier-console.txt) for
+# the results note to cite.
+cp "$OUT/console.clean.log" "$OUT/guest-console.txt"
 
-# Aggregate per-case verdict counts and trigger exits.
+# Aggregate per-case verdict counts and trigger exits. The truncating header
+# write resets counts.tsv so a rerun cannot accumulate stale rows.
 printf '%s\t%s\t%s\t%s\t%s\t%s\n' case kind trigger_exit expected_kind observed_kind verdict > "$OUT/counts.tsv"
 awk '
   /^CASE_BEGIN / { name=$2; kind=$3; observed=0; next }
@@ -262,18 +274,43 @@ grep '"event":"TAINT_VIOLATION"' "$OUT/console.clean.log" > "$OUT/verdicts.ndjso
   printf '%s\n' "actplane_bin_sha256 $(sha256sum "$ACT" | cut -d' ' -f1)"
   printf '%s\n' "process_bin_sha256 $(sha256sum "$PROC" | cut -d' ' -f1)"
   printf '%s\n' "oas_policy_dir $OAS"
+  # The loader binaries are the identity of the build under test; note whether
+  # their sources carried changes on top of host_git_commit so the run is not
+  # mistaken for a clean checkout of that commit.
+  if [ -n "$(git -C "$ROOT" status --porcelain -- bpf/process.c bpf/vvload.c bpf/policy_features.h 2>/dev/null)" ]; then
+    printf '%s\n' "loader_source_dirty yes"
+  else
+    printf '%s\n' "loader_source_dirty no"
+  fi
   for p in $POLICIES; do
     printf '%s\n' "policy_sha256_$p $(sha256sum "$OAS/$p.yaml" | cut -d' ' -f1)"
   done
 } > "$OUT/metadata.tsv"
 
 grep -q '^EXPERIMENT_DONE' "$OUT/console.clean.log" || { echo "guest experiment did not complete" >&2; exit 1; }
+
+# Fail closed on any harness failure: a CASE_FAILURE means a case never produced
+# a verdict/exit observation, so the run cannot be reported as passing.
 if grep -q '^CASE_FAILURE ' "$OUT/console.clean.log"; then
   echo "case harness failure detected:" >&2
   grep '^CASE_FAILURE ' "$OUT/console.clean.log" >&2 || true
+  exit 1
 fi
+
+# The pre-registered expectations must be exactly the observed case set: a
+# missing or extra row means the run did not exercise the frozen 18 cases and
+# must not be reported as 18/18.
+expected_cases="$(awk -F '\t' 'NR > 1 { print $1 }' "$OUT/expectations.tsv" | sort)"
+observed_cases="$(awk -F '\t' 'NR > 1 { print $1 }' "$OUT/counts.tsv" | sort)"
+if [ "$expected_cases" != "$observed_cases" ]; then
+  echo "observed cases do not match the pre-registered expectations" >&2
+  diff <(printf '%s\n' "$expected_cases") <(printf '%s\n' "$observed_cases") >&2 || true
+  exit 1
+fi
+rows="$(awk -F '\t' 'NR > 1' "$OUT/counts.tsv" | wc -l)"
+[ "$rows" -eq 18 ] || { echo "expected 18 result rows, observed $rows" >&2; exit 1; }
 
 fail=0
 awk -F '\t' 'NR>1 && $6=="FAIL" { f=1 } END { exit f }' "$OUT/counts.tsv" || fail=1
 [ "$fail" -eq 0 ] || { echo "one or more cases failed to meet expectations" >&2; exit 1; }
-echo "wrote successful OAS firing-audit VM run to $OUT"
+echo "wrote successful OAS firing-audit VM run ($rows/18 cases PASS) to $OUT"

@@ -21,6 +21,7 @@
  *   VLOAD_PROG <name> fd=<fd> err=<err>
  *   VSTAT <name> processed <N> insns (limit ...) ...
  *   VLOAD_DONE ok=<n> fail=<n> total=<n>
+ *   VLOAD_FAIL <name> <reason>   (stderr; a program failed to load)
  *
  * The dump happens BEFORE attach; rodata writes, map fills, and attach are not
  * needed for the diagnostic.
@@ -39,6 +40,7 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include "process.h"
+#include "policy_features.h"
 #include "process.skel.h"
 
 static struct env {
@@ -111,35 +113,6 @@ static bool bpf_lsm_active(void)
 	return active;
 }
 
-/* Mirrors process.c configure_*_autoload, but kept minimal: the purpose of
- * this build is to load (and dump the full verifier log of) every program
- * that the production loader would load. Reuse the production loader's
- * configure_tracepoint_autoload / configure_exec_tail_programs via the
- * identical feature-computation path. */
-static unsigned int config_features(const struct taint_config *cfg)
-{
-	unsigned int features = 0;
-	for (unsigned int i = 0; i < cfg->n_updates && i < MAX_TAINT_UPDATES; i++) {
-		if (cfg->updates[i].op == TOP_OPEN || cfg->updates[i].op == TOP_WRITE)
-			features |= TE_POLICY_FILE_FLOW;
-		if (cfg->updates[i].op == TOP_CONNECT)
-			features |= TE_POLICY_CONNECT;
-		if (cfg->updates[i].op == TOP_RECV)
-			features |= TE_POLICY_RECV;
-	}
-	for (unsigned int i = 0; i < cfg->n_rules && i < MAX_TAINT_RULES; i++) {
-		if (cfg->rules[i].effect != TEFFECT_BLOCK)
-			continue;
-		if (cfg->rules[i].op == TOP_EXEC)
-			features |= TE_POLICY_BLOCK_EXEC;
-		if (cfg->rules[i].op == TOP_OPEN || cfg->rules[i].op == TOP_WRITE)
-			features |= TE_POLICY_BLOCK_FILE;
-		if (cfg->rules[i].op == TOP_CONNECT)
-			features |= TE_POLICY_BLOCK_CONNECT;
-	}
-	return features;
-}
-
 /* Print only the summary/rejection lines of a verifier log, not the full
  * per-instruction trace. */
 static void emit_stats(const char *name, const char *log)
@@ -192,6 +165,16 @@ static int load_one(const char *want, int *log_level, size_t *log_size)
 		}
 	}
 	err = process_bpf__load(skel);
+	/* A non-ENOSPC load error is a real verifier rejection: report the
+	 * program as failed so the caller's VLOAD_DONE reflects it and exits
+	 * nonzero. Only -ENOSPC (log buffer too small) is retryable. */
+	if (err && err != -ENOSPC) {
+		fprintf(stderr, "VLOAD_FAIL %s load error %d\n", want, err);
+		fflush(stdout);
+		process_bpf__destroy(skel);
+		free(log);
+		return 1;
+	}
 	bpf_object__for_each_program(prog, skel->obj)
 	{
 		if (strcmp(bpf_program__name(prog), want))
@@ -206,6 +189,15 @@ static int load_one(const char *want, int *log_level, size_t *log_size)
 			process_bpf__destroy(skel);
 			free(log);
 			return 2;
+		}
+		/* A loaded program without an fd would silently drop out of the
+		 * measurement; treat it as a failure. */
+		if (fd < 0) {
+			fprintf(stderr, "VLOAD_FAIL %s no fd after load\n", want);
+			fflush(stdout);
+			process_bpf__destroy(skel);
+			free(log);
+			return 1;
 		}
 		emit_stats(want, log);
 	}

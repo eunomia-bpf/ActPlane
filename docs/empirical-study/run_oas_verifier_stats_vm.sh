@@ -14,13 +14,18 @@
 # ("Too large", "invalid mem access"). The result is supporting evidence for
 # the firing audit (run_oas_firing_audit_vm.sh), not a correctness claim of its
 # own.
+#
+# Required input: OAS_POLICY_DIR must point at the frozen OpenAgentSafety
+# `policies/actplane` directory (there is no portable default; the inventory
+# lives outside this repository). Optional knobs: ACTPLANE_VVLOAD_BIN,
+# ACTPLANE_BIN, ACTPLANE_VM_KERNEL, ACTPLANE_POLICY, ACTPLANE_VM_TIMEOUT.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VV="${ACTPLANE_VVLOAD_BIN:-$ROOT/bpf/vvload}"
 ACT="${ACTPLANE_BIN:-$ROOT/target/release/actplane}"
-KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic | tail -1)}"
-OAS="${OAS_POLICY_DIR:-/workspaces/.agent-state/actplane-research/raw/openagentsafety-policy-compile-20260910T1438Z-verify20260911/tree/docs/OpenAgentSafety/policies/actplane}"
+KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic 2>/dev/null | tail -1)}"
+OAS="${OAS_POLICY_DIR:-}"
 OUT="${1:-$ROOT/docs/empirical-study/results/oas-verifier-stats-vm}"
 POLICY="${ACTPLANE_POLICY:-safety-applications}"
 # A level-1 verifier log for the deepest programs is large and TCG is slow, so
@@ -29,9 +34,11 @@ VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-300}"
 WORK="$(mktemp -d /tmp/actplane-oas-verifier-vm.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 
+[ -n "$KERNEL" ] || { echo "set ACTPLANE_VM_KERNEL to a guest vmlinuz (no /boot/vmlinuz-*-generic found)" >&2; exit 2; }
 for file in "$VV" "$ACT" "$KERNEL" /bin/busybox; do
   [ -e "$file" ] || { echo "missing $file" >&2; exit 2; }
 done
+[ -n "$OAS" ] || { echo "set OAS_POLICY_DIR to the OpenAgentSafety policies/actplane directory" >&2; exit 2; }
 [ -f "$OAS/$POLICY.yaml" ] || { echo "missing policy $OAS/$POLICY.yaml" >&2; exit 2; }
 for command in qemu-system-x86_64 cpio; do
   command -v "$command" >/dev/null || { echo "missing $command" >&2; exit 2; }
@@ -97,6 +104,31 @@ tr -d '\r' < "$OUT/console.log" > "$OUT/console.clean.log"
 
 grep -E 'VSTAT|VLOAD_DONE|Too large|invalid mem access' "$OUT/console.clean.log" > "$OUT/verifier-console.txt" || true
 
+grep -q '^=====VLOAD_END=====' "$OUT/console.clean.log" || { echo "verifier run did not complete (no VLOAD_END marker)" >&2; exit 1; }
+
+# Exactly one summary line, and it must report zero failed programs with a
+# non-empty program set. A missing or ambiguous summary, or any nonzero fail
+# count, means a program was rejected and the measurement does not stand.
+done_lines="$(grep -c '^VLOAD_DONE ' "$OUT/console.clean.log" || true)"
+[ "$done_lines" -eq 1 ] || { echo "expected exactly one VLOAD_DONE line, found $done_lines" >&2; exit 1; }
+summary="$(grep '^VLOAD_DONE ' "$OUT/console.clean.log")"
+# shellcheck disable=SC2086
+set -- ${summary#VLOAD_DONE }
+ok=0 fail=- total=0
+for field in "$@"; do
+  case "$field" in
+    ok=*) ok=${field#ok=} ;;
+    fail=*) fail=${field#fail=} ;;
+    total=*) total=${field#total=} ;;
+  esac
+done
+case "$ok$fail$total" in
+  *[!0-9]*|'') echo "unparseable VLOAD_DONE summary: $summary" >&2; exit 1 ;;
+esac
+[ "$total" -gt 0 ] || { echo "VLOAD_DONE reports zero programs: $summary" >&2; exit 1; }
+[ "$fail" -eq 0 ] || { echo "VLOAD_DONE reports $fail failed program(s): $summary" >&2; exit 1; }
+[ "$ok" -eq "$total" ] || { echo "VLOAD_DONE ok/total mismatch: $summary" >&2; exit 1; }
+
 {
   printf '%s\n' "timestamp_utc $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf '%s\n' "host_git_commit $(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
@@ -106,12 +138,29 @@ grep -E 'VSTAT|VLOAD_DONE|Too large|invalid mem access' "$OUT/console.clean.log"
   printf '%s\n' "policy_sha256 $(sha256sum "$OAS/$POLICY.yaml" | cut -d' ' -f1)"
   printf '%s\n' "actplane_bin_sha256 $(sha256sum "$ACT" | cut -d' ' -f1)"
   printf '%s\n' "vvload_bin_sha256 $(sha256sum "$VV" | cut -d' ' -f1)"
+  # The loader binary is the identity of the build under test; note whether its
+  # source carried changes on top of host_git_commit.
+  if [ -n "$(git -C "$ROOT" status --porcelain -- bpf/vvload.c bpf/policy_features.h 2>/dev/null)" ]; then
+    printf '%s\n' "loader_source_dirty yes"
+  else
+    printf '%s\n' "loader_source_dirty no"
+  fi
+  printf '%s\n' "vload_done $summary"
 } > "$OUT/metadata.tsv"
 
-grep -q 'VLOAD_DONE' "$OUT/console.clean.log" || { echo "verifier run did not complete" >&2; exit 1; }
 if grep -qE 'Too large|invalid mem access' "$OUT/console.clean.log"; then
   echo "verifier rejected one or more programs:" >&2
   grep -E 'Too large|invalid mem access' "$OUT/console.clean.log" >&2
   exit 1
 fi
-echo "wrote verifier statistics to $OUT"
+if grep -q '^VLOAD_FAIL ' "$OUT/console.clean.log"; then
+  echo "vvload reported a load failure:" >&2
+  grep '^VLOAD_FAIL ' "$OUT/console.clean.log" >&2
+  exit 1
+fi
+
+# Every program must have contributed a stats row: a program that loaded but
+# emitted no VSTAT line would silently drop out of the instruction table.
+stat_rows="$(awk -F '\t' 'NR > 1' "$OUT/verifier-stats.tsv" | wc -l)"
+[ "$stat_rows" -eq "$total" ] || { echo "verifier-stats.tsv has $stat_rows rows, expected $total" >&2; exit 1; }
+echo "wrote verifier statistics to $OUT ($ok/$total programs, 0 failures)"

@@ -19,6 +19,7 @@
 #include <bpf/libbpf.h>
 #include "process.h"
 #include "process.skel.h"
+#include "policy_features.h"
 
 static struct env {
 	bool verbose;
@@ -138,59 +139,6 @@ static bool config_has_op(const struct taint_config *cfg, unsigned int op)
 			return true;
 	}
 	return false;
-}
-
-static unsigned int path_match_features(unsigned int match)
-{
-	switch (match) {
-	case TAINT_MATCH_CONTAINS: return TE_POLICY_PATH_CONTAINS;
-	case TAINT_MATCH_SUFFIX: return TE_POLICY_PATH_SUFFIX;
-	default: return 0;
-	}
-}
-
-static unsigned int config_features(const struct taint_config *cfg)
-{
-	unsigned int features = 0;
-
-	for (unsigned int i = 0; i < cfg->n_updates && i < MAX_TAINT_UPDATES; i++) {
-		if (cfg->updates[i].op == TOP_OPEN || cfg->updates[i].op == TOP_WRITE)
-			features |= TE_POLICY_FILE_FLOW |
-				    path_match_features(cfg->updates[i].match);
-		if (cfg->updates[i].op == TOP_CONNECT)
-			features |= TE_POLICY_CONNECT;
-		if (cfg->updates[i].op == TOP_RECV)
-			features |= TE_POLICY_RECV;
-	}
-	for (unsigned int i = 0; i < cfg->n_rules && i < MAX_TAINT_RULES; i++) {
-		if (cfg->rules[i].effect == TEFFECT_BLOCK) {
-			if (cfg->rules[i].op == TOP_EXEC && cfg->rules[i].arg[0] == '\0')
-				features |= TE_POLICY_BLOCK_EXEC;
-			if (cfg->rules[i].op == TOP_OPEN ||
-			    cfg->rules[i].op == TOP_WRITE)
-				features |= TE_POLICY_BLOCK_FILE;
-			if (cfg->rules[i].op == TOP_CONNECT)
-				features |= TE_POLICY_BLOCK_CONNECT;
-		}
-		if (cfg->rules[i].op == TOP_OPEN) {
-			features |= TE_POLICY_OPEN_RULES |
-				    path_match_features(cfg->rules[i].match);
-			if (cfg->rules[i].cond_kind == TCOND_TARGET)
-				features |= path_match_features(cfg->rules[i].cond_match);
-		}
-		if (cfg->rules[i].op == TOP_WRITE) {
-			features |= TE_POLICY_FILE_FLOW |
-				    TE_POLICY_WRITE_RULES |
-				    path_match_features(cfg->rules[i].match);
-			if (cfg->rules[i].cond_kind == TCOND_TARGET)
-				features |= path_match_features(cfg->rules[i].cond_match);
-		}
-		if (cfg->rules[i].op == TOP_CONNECT)
-			features |= TE_POLICY_CONNECT;
-		if (cfg->rules[i].op == TOP_RECV)
-			features |= TE_POLICY_RECV;
-	}
-	return features;
 }
 
 static bool config_has_file_write(const struct taint_config *cfg)
