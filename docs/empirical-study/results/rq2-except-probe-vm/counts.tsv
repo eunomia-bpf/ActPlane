@@ -1,4 +1,6 @@
 case	observed_verdicts
-dist_relative	1
-abs_dist	0
-src_relative	1
+except_dist_relative	1
+except_abs_dist	0
+except_src_relative	1
+sink_dist_relative	0
+sink_abs_dist	1

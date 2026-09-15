@@ -27,10 +27,13 @@ Two independent checks, both reproducible from committed code:
    reproduces the compiled blob exactly (0 mismatches across all frozen rules), and
    replays the historical lowering on the same event. Host-only, no kernel.
 2. **Live guest probe** (`docs/empirical-study/run_rq2_except_probe_vm.sh`). Runs
-   the frozen policy shape `notify write file "**/*.js" if AGENT unless target
-   "**/dist/**"` against three writes by an `exec python3`-labelled trigger in a
-   6.8 KVM/TCG guest with BPF. TCG is used because the host has no usable hardware
-   virtualization.
+   two frozen policy shapes against an `exec python3`-labelled trigger in a 6.8
+   KVM/TCG guest with BPF: the exception form `notify write file "**/*.js" if
+   AGENT unless target "**/dist/**"`, and the sink form `notify write file
+   "**/dist/**" if AGENT`. Each is exercised with a relative and an absolute
+   destination, so the probe measures both the exception over-fire and the sink
+   under-fire for the same lowering. TCG is used because the host has no usable
+   hardware virtualization.
 
 The recorded event string is the string the kernel matched: in tracepoint mode
 file events are resolved from the userspace path argument (`TE_REF_USER_PATH`) and
@@ -58,7 +61,7 @@ paths) still fire, but now via a correct extension match rather than a substring
 No row newly fires, and no row's classification depends on an unvalidated port:
 the HEAD lowering port agrees with the compiled blob for every rule.
 
-## Result: persisted relative-path exception miss
+## Result: persisted relative-path matching miss
 
 The NemoClaw `s02_no_new_javascript_sources` rule is
 
@@ -66,24 +69,29 @@ The NemoClaw `s02_no_new_javascript_sources` rule is
 notify write file "**/*.js" if AGENT or AGENT_ALT unless target "**/dist/**"
 ```
 
-Both the historical and the current compiler lower the repo-relative exception
+Both the historical and the current compiler lower the repo-relative
 `**/dist/**` to `CONTAINS("/dist/")`. That literal requires a slash before `dist`,
 so it matches an absolute `.../dist/...` path but not a relative `dist/...` path.
 Because tracepoint mode matches the recorded (possibly relative) path, the
-exception fails to exclude exactly when the tool used a relative path. The live
-guest probe confirms both directions with the frozen policy shape:
+lowering is wrong in both directions for relative paths. The live guest probe
+confirms both with the same trigger and destination, changing only the path form
+and the policy:
 
 | Case (write by `exec python3` trigger) | Expected | Observed |
 | --- | ---: | ---: |
-| `dist/agent-health/x.js` (relative, cwd `/work`) | 1 | 1 |
-| `/w/dist/agent-health/y.js` (absolute) | 0 | 0 |
-| `src/x.js` (relative, outside the exception) | 1 | 1 |
+| exception policy, `dist/agent-health/x.js` (relative) | 1 | 1 |
+| exception policy, `/w/dist/agent-health/y.js` (absolute) | 0 | 0 |
+| exception policy, `src/x.js` (relative, outside exception) | 1 | 1 |
+| sink policy `**/dist/**`, `dist/agent-health/x.js` (relative) | 0 | 0 |
+| sink policy `**/dist/**`, `/w/dist/agent-health/y.js` (absolute) | 1 | 1 |
 
-All three writes executed (trigger exit 0), so the counts are verdicts, not lost
-operations. This is a **mode- and path-form-dependent inconsistency**, not a
-blanket soundness failure: the same policy excludes the write under an absolute
-path and reports it under a relative path. It is the concrete form of Reviewer D's
-path-semantics concern, and it is unchanged by the current compiler.
+Every write executed (trigger exit 0), so the counts are verdicts, not lost
+operations. The first three rows are the exception over-firing on a relative path;
+the last two are the **mirror image: a `**/dist/**` sink misses enforcement on the
+same relative path**. The identical pattern excludes an absolute write and reports
+a relative one, so the same policy is both over- and under-inclusive depending on
+the path form. This is the concrete form of Reviewer D's path-semantics concern,
+and it is unchanged by the current compiler.
 
 ## Interpretation
 
@@ -94,8 +102,9 @@ historical-lowering FPs persist, and the dominant remaining cause is genuinely
 broad translated patterns (9 translation rows still fire on their recorded event),
 not a stale compiler defect. This supports the paper's end-to-end framing: the
 false positives are mostly translation- and harness-stage effects, and the one
-durable path-semantics issue is the repo-relative exception lowering, which is
-reproducible on demand.
+durable path-semantics issue is the repo-relative `**/dist/**` lowering, which is
+reproducible on demand and cuts both ways (an exception over-fires and a sink
+under-fires for the same relative path).
 
 ## Reproduction
 

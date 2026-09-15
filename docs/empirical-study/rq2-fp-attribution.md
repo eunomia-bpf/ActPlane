@@ -117,7 +117,8 @@ separately before claiming that any historical lowering defect remains.
 That separate evaluation is now done in `rq2-lowering-eval.md`
 (`replay_fp_lowering.py` plus the `run_rq2_except_probe_vm.sh` guest probe). It
 finds that one historical-lowering FP no longer reproduces (`**/*.js`
-`CONTAINS` -> `SUFFIX`), while the repo-relative exception `**/dist/**` still
-lowers to `CONTAINS("/dist/")` and misses relative paths in tracepoint mode; the
+`CONTAINS` -> `SUFFIX`), while the repo-relative `**/dist/**` still lowers to
+`CONTAINS("/dist/")` and mis-matches relative paths in tracepoint mode, so an
+exception over-fires and a sink under-fires on the same relative path. The
 remaining FPs are dominated by translation and harness-stage over-matching, not a
 stale compiler defect.

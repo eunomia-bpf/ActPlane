@@ -42,12 +42,19 @@ mkdir -p "$OUT" "$WORK/root"/{bin,dev,proc,sys,tmp,sink} \
          "$WORK/root/w/dist/agent-health"
 
 policy='source AGENT = exec "python3"
-rule probe:
+rule probe_except:
   notify write file "**/*.js" if AGENT unless target "**/dist/**"
   because "probe: repo-relative **/dist/** exception in tracepoint mode"'
-"$ACT" --rule "$policy" compile --out "$WORK/root/cfg.bin" --force >"$OUT/compile.stdout" 2>"$OUT/compile.stderr"
+sink_policy='source AGENT = exec "python3"
+rule probe_sink:
+  notify write file "**/dist/**" if AGENT
+  because "probe: repo-relative **/dist/** sink in tracepoint mode"'
+"$ACT" --rule "$policy" compile --out "$WORK/root/cfg_except.bin" --force >"$OUT/compile.stdout" 2>"$OUT/compile.stderr"
+"$ACT" --rule "$sink_policy" compile --out "$WORK/root/cfg_sink.bin" --force >>"$OUT/compile.stdout" 2>>"$OUT/compile.stderr"
 printf '%s\n' "$policy" > "$OUT/policy.dsl"
-cp "$WORK/root/cfg.bin" "$OUT/blob.bin"
+printf '%s\n' "$sink_policy" > "$OUT/sink-policy.dsl"
+cp "$WORK/root/cfg_except.bin" "$OUT/blob_except.bin"
+cp "$WORK/root/cfg_sink.bin" "$OUT/blob_sink.bin"
 
 cp "$PROC" "$WORK/root/process"
 cp /bin/busybox "$WORK/root/bin/busybox"
@@ -101,7 +108,7 @@ dmesg -n 1 2>/dev/null || true
 mkdir -p /tmp
 
 run_case() {
-  name="$1" cwd="$2" path="$3"
+  name="$1" cfg="$2" cwd="$3" path="$4"
   echo "CASE_BEGIN $name"
   ( cd "$cwd" && SELF_STOP=1 /trigger "$path" ) &
   trigger_pid=$!
@@ -116,7 +123,7 @@ run_case() {
     echo "CASE_END $name"
     return
   fi
-  /process --config /cfg.bin --seed-pid "$trigger_pid" >"/tmp/$name.log" 2>&1 &
+  /process --config "/$cfg" --seed-pid "$trigger_pid" >"/tmp/$name.log" 2>&1 &
   loader_pid=$!
   tries=0
   while [ "$tries" -lt 4000 ]; do
@@ -156,20 +163,28 @@ run_case() {
   echo "CASE_END $name"
 }
 
-run_case dist_relative /work dist/agent-health/x.js
-run_case abs_dist      /      /w/dist/agent-health/y.js
-run_case src_relative  /work src/x.js
+# Exception policy: repo-relative **/dist/** should exclude the write but cannot.
+run_case except_dist_relative cfg_except.bin /work dist/agent-health/x.js
+run_case except_abs_dist      cfg_except.bin /      /w/dist/agent-health/y.js
+run_case except_src_relative  cfg_except.bin /work src/x.js
+# Sink policy: a repo-relative **/dist/** sink should catch the write but cannot
+# for a relative path, i.e. the mirror image loses enforcement.
+run_case sink_dist_relative   cfg_sink.bin   /work dist/agent-health/x.js
+run_case sink_abs_dist        cfg_sink.bin   /      /w/dist/agent-health/y.js
 echo EXPERIMENT_DONE
 poweroff -f
 EOF
 chmod +x "$WORK/root/init"
 (cd "$WORK/root" && find . -print0 | cpio --null -o --format=newc | gzip -1 > "$WORK/initramfs.gz") 2>"$OUT/initramfs.stderr"
 
-# Pre-registered expectations, written before the guest runs.
+# Pre-registered expectations, written before the guest runs. The sink rows show
+# the mirror image: enforcement is lost exactly where the exception fails.
 printf '%s\t%s\n' case expected_verdicts > "$OUT/expectations.tsv"
-printf '%s\t%s\n' dist_relative 1 >> "$OUT/expectations.tsv"
-printf '%s\t%s\n' abs_dist 0 >> "$OUT/expectations.tsv"
-printf '%s\t%s\n' src_relative 1 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' except_dist_relative 1 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' except_abs_dist      0 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' except_src_relative  1 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' sink_dist_relative   0 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' sink_abs_dist        1 >> "$OUT/expectations.tsv"
 
 run_qemu() {
   timeout "$VM_TIMEOUT" qemu-system-x86_64 -accel "$1" -m 1024 -smp 2 -nographic -no-reboot \
@@ -207,7 +222,8 @@ awk '
   printf '%s\n' "guest_kernel $(basename "$KERNEL")"
   printf '%s\n' "acceleration $accel"
   printf '%s\n' "process_bin_sha256 $(sha256sum "$PROC" | cut -d' ' -f1)"
-  printf '%s\n' "policy_sha256 $(sha256sum "$OUT/policy.dsl" | cut -d' ' -f1)"
+  printf '%s\n' "except_policy_sha256 $(sha256sum "$OUT/policy.dsl" | cut -d' ' -f1)"
+  printf '%s\n' "sink_policy_sha256 $(sha256sum "$OUT/sink-policy.dsl" | cut -d' ' -f1)"
 } > "$OUT/metadata.tsv"
 
 grep -q '^EXPERIMENT_DONE' "$OUT/console.clean.log" || { echo "guest experiment did not complete" >&2; exit 1; }
