@@ -1943,28 +1943,44 @@ static __always_inline void te_write_flow_domain(pid_t pid, struct file_id *fid,
 {
 	if (!te_pid_active(pid) || !cap_domain_matches_pid(pid, domain_id))
 		return;
-	/* Nothing is compiled into the TOP_WRITE update table, so a write only
-	 * re-stamps `since write` invalidators: editing an unlabeled source file
-	 * must still invalidate a prior gate, hence the stamp is not gated on the
-	 * writer carrying labels. */
-	__u64 pl = te_labels_for_domain(pid, domain_id);
-	if (!pl)
+	struct te_scan s = { .target = path };
+	struct te_acc *u;
+	__u64 pl, gates, invals;
+
+	/* `since write` lowers to TOP_WRITE invalidators, so a write must scan the
+	 * write table to re-stamp them: editing an unlabeled source file must still
+	 * invalidate a prior gate, hence the scan is not gated on the writer
+	 * carrying labels. */
+	if (!te_scan_start(TOP_WRITE, domain_id, 0))
+		return;
+	te_collect_file_updates(TOP_WRITE, &s);
+	u = te_uctx_scratch_buf();
+	if (!u)
+		return;
+	gates = u->gates;
+	invals = u->invals;
+	pl = te_labels_for_domain(pid, domain_id);
+	if (!gates && !invals && !pl)
 		return;
 	pid_t r = te_root(pid);
 	__u32 ep = te_tick(r, domain_id);
-	struct file_domain_id *fdom = te_file_domain_tmp();
-	if (!fdom)
-		return;
-	te_file_domain_key_for(domain_id, fid, fdom);
-	struct file_state *fs = bpf_map_lookup_elem(&ts_file, fdom);
-	if (fs) {
-		fs->labels |= pl;
-		fs->last_write_epoch = ep;
-	} else {
-		struct file_state ns = { .labels = pl, .last_write_epoch = ep };
-		bpf_map_update_elem(&ts_file, fdom, &ns, BPF_ANY);
+	if (gates || invals)
+		te_stamp(r, domain_id, ep, gates, invals);
+	if (pl) {
+		struct file_domain_id *fdom = te_file_domain_tmp();
+		if (!fdom)
+			return;
+		te_file_domain_key_for(domain_id, fid, fdom);
+		struct file_state *fs = bpf_map_lookup_elem(&ts_file, fdom);
+		if (fs) {
+			fs->labels |= pl;
+			fs->last_write_epoch = ep;
+		} else {
+			struct file_state ns = { .labels = pl, .last_write_epoch = ep };
+			bpf_map_update_elem(&ts_file, fdom, &ns, BPF_ANY);
+		}
+		te_copy_proc_prov_to_file(pid, fdom, pl);
 	}
-	te_copy_proc_prov_to_file(pid, fdom, pl);
 }
 
 static __noinline void te_write_flow(pid_t pid, struct file_id *fid,
