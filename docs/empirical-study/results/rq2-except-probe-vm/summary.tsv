@@ -1,0 +1,4 @@
+case	expected_verdicts	observed_verdicts
+abs_dist	0	0
+dist_relative	1	1
+src_relative	1	1

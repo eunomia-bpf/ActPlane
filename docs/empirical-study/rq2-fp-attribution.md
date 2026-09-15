@@ -113,3 +113,11 @@ JSONL. Historical lowering is at
 `cc3a9b11:collector/src/dsl/lower.rs`, which is the repository state associated
 with the 2026-06-07 result lineage. The current implementation must be evaluated
 separately before claiming that any historical lowering defect remains.
+
+That separate evaluation is now done in `rq2-lowering-eval.md`
+(`replay_fp_lowering.py` plus the `run_rq2_except_probe_vm.sh` guest probe). It
+finds that one historical-lowering FP no longer reproduces (`**/*.js`
+`CONTAINS` -> `SUFFIX`), while the repo-relative exception `**/dist/**` still
+lowers to `CONTAINS("/dist/")` and misses relative paths in tracepoint mode; the
+remaining FPs are dominated by translation and harness-stage over-matching, not a
+stale compiler defect.

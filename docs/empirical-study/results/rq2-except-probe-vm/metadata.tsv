@@ -1,0 +1,6 @@
+timestamp_utc 2026-09-15T21:59:19Z
+host_git_commit 4c36aa54da2daf2b64de8782a38f77d5b76ec75a
+guest_kernel vmlinuz-6.8.0-138-generic
+acceleration tcg
+process_bin_sha256 596a57f5970f1b0a0f4bc07e6986de7368d14eefce630a8609e86aa783fbb101
+policy_sha256 b0cde614f962ca6744ce0e461901e0c7a63a320bf0d970ee51a28b231ffe0d3e
