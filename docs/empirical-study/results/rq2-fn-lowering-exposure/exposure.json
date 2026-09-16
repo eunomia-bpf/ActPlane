@@ -3,19 +3,14 @@
   "fn_rows_with_frozen_rule": 28,
   "exposures": [
     {
-      "repo": "alibaba/OpenSandbox",
-      "statement": "7",
-      "trace": "trace_script_visible_violation.jsonl",
-      "pattern": "**/server/**",
-      "lowered": "contains(/server/)",
-      "observed_path": "server/opensandbox_server/api/eval_pause_script.py"
-    },
-    {
       "repo": "rohitg00/agentmemory",
       "statement": "6",
       "trace": "trace_visible_violation.jsonl",
+      "role": "source",
       "pattern": "**/src/functions/**",
       "lowered": "contains(/src/functions/)",
+      "observed_tool": "Write",
+      "observed_op": "write",
       "observed_path": "src/functions/archive.ts"
     }
   ],

@@ -11,10 +11,15 @@ silent.
 
 This script asks the bounded follow-up question: among the 28 ActPlane false
 negatives in the frozen RQ2 artifact, how many use such a pattern in their frozen
-rule AND show a first-segment-relative action path in the recorded tool log,
-i.e. are *exposed* to the defect? It is static exposure analysis over the frozen
+rule AND show a first-segment-relative path for an action of the matching
+operation in the recorded tool log, i.e. are *exposed* to the defect?
+
+The audit is role-aware: a `file` pattern in a `source` is materialized on any
+successful open (read or write), while a `file` pattern in a rule target is a
+sink that only matches its own op. It is static exposure analysis over the frozen
 records. It does not observe what path string the frozen kernel actually matched
-(the artifact does not retain per-task kernel logs), so it identifies candidates
+(the artifact does not retain per-task kernel logs), and it cannot see paths
+written *inside* a script executed via Bash, so it identifies candidates
 consistent with the defect, not proven causation.
 
 Inputs (all read-only):
@@ -40,17 +45,30 @@ replay = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(replay)
 
 
-def action_paths(result: dict) -> set[str]:
-    """Paths the recorded tools acted on, from structured fields and commands."""
-    paths: set[str] = set()
+# Each recorded tool maps to the kernel op it produces. Only a `read`-op rule can
+# be missed by a file *source* (which matches on read/open), and only a
+# `write`-op rule by a write sink; conflating them produces false candidates.
+TOOL_OP_READ = {"Read", "Grep", "Glob"}
+TOOL_OP_WRITE = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+
+
+def action_paths(result: dict) -> list[dict]:
+    """Recorded actions as {"tool", "op", "path"} from structured fields and
+    commands. `op` is the kernel op the tool produces: read, write, exec, or
+    unknown."""
+    actions: list[dict] = []
     for step in result.get("tool_log") or []:
-        for key in ("file_path", "path"):
-            if step.get(key):
-                paths.add(step[key])
+        tool = step.get("tool") or ""
+        op = ("read" if tool in TOOL_OP_READ else
+              "write" if tool in TOOL_OP_WRITE else
+              "exec" if tool == "Bash" else "unknown")
+        raw = step.get("file_path") or step.get("path")
+        if raw:
+            actions.append({"tool": tool, "op": op, "path": raw})
         cmd = step.get("command") or ""
         for m in re.finditer(r"(?<![\w/.-])([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.*-]+)+)", cmd):
-            paths.add(m.group(1))
-    return paths
+            actions.append({"tool": tool, "op": "exec", "path": m.group(1)})
+    return actions
 
 
 def find_rule(corpus: Path, repo: str, statement: str) -> Path | None:
@@ -94,14 +112,23 @@ def main() -> int:
         if not rule_yaml:
             continue
         checked += 1
-        patterns = re.findall(r'file "([^"]+)"', rule_yaml.read_text())
-        for pattern in patterns:
+        # File *sources* (`source L = file PAT`) match on read/open, so only a
+        # read-op rule can be silenced by a missed source. A `file` pattern in a
+        # rule target is a write/open sink; record which role each belongs to.
+        rule_text = rule_yaml.read_text()
+        source_patterns = set(re.findall(r'source\s+\w+\s*=\s*file\s+"([^"]+)"', rule_text))
+        for pattern in re.findall(r'file "([^"]+)"', rule_text):
             kind, literal = replay.lower_path_current(pattern)
             if kind != replay.M_CONTAINS or not literal:
                 continue
             core = literal.lstrip("/")
-            for observed in action_paths(result):
-                if observed.startswith("/"):
+            role = "source" if pattern in source_patterns else "sink"
+            # `te_materialize_file_source` runs on any successful open, so a file
+            # source is matched on read *and* write opens; a sink only on its op.
+            want_ops = {"read", "write"} if role == "source" else {"write"}
+            for action in action_paths(result):
+                observed = action["path"]
+                if observed.startswith("/") or action["op"] not in want_ops:
                     continue
                 # The pattern intends a repo-relative match; the lowered literal
                 # misses it exactly when the recorded path is first-segment
@@ -111,8 +138,11 @@ def main() -> int:
                         "repo": result["repo"],
                         "statement": statement,
                         "trace": result.get("trace_file"),
+                        "role": role,
                         "pattern": pattern,
                         "lowered": f"{replay.lowered_name(kind)}({literal})",
+                        "observed_tool": action["tool"],
+                        "observed_op": action["op"],
                         "observed_path": observed,
                     })
 

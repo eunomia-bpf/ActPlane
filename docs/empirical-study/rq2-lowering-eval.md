@@ -146,21 +146,25 @@ enforcement without emitting any verdict.
 
 ### Does it explain frozen false negatives?
 
-The same lowering also appears in the frozen false-negative set. A static
-exposure audit (`audit_fn_lowering_exposure.py`) checks each of the 28 ActPlane
-false negatives: does its frozen rule use a repo-relative `**/dir/**` file
-pattern, and does the recorded tool log show a first-segment-relative action path
-that the lowered `CONTAINS("/dir/")` would miss? Two rows qualify:
+The same lowering also appears in the frozen false-negative set. A role-aware
+static exposure audit (`audit_fn_lowering_exposure.py`) checks each of the 28
+ActPlane false negatives: does its frozen rule use a repo-relative `**/dir/**`
+file pattern, and does the recorded tool log show a first-segment-relative path
+for an action of the matching operation (a `file` source is materialized on any
+open, read or write; a `file` sink matches only its own op)? One row qualifies:
 
-| Frozen FN row | Frozen pattern | Lowered | Recorded relative path |
-| --- | --- | --- | --- |
-| `rohitg00/agentmemory` `6`, direct | `**/src/functions/**` | `contains(/src/functions/)` | `src/functions/archive.ts` |
-| `alibaba/OpenSandbox` `7`, script | `**/server/**` | `contains(/server/)` | `server/opensandbox_server/api/eval_pause_script.py` |
+| Frozen FN row | Role | Frozen pattern | Lowered | Recorded relative path |
+| --- | --- | --- | --- | --- |
+| `rohitg00/agentmemory` `6`, direct | source | `**/src/functions/**` | `contains(/src/functions/)` | `src/functions/archive.ts` (Write) |
 
-Both rules gate on a `file` **source** (`source AUDIT_CHANGE = file
-"**/src/functions/**"` and `source SPEC_CONTEXT = file "**/server/**"`), so if the
-source misses, the dependent rule never fires: exactly the enforcement-losing
-direction the live probe demonstrates for `**/src/lib/**`.
+The rule gates on that file source (`source AUDIT_CHANGE = file
+"**/src/functions/**"`), so if the source misses, the dependent rule never fires:
+exactly the enforcement-losing direction the live probe demonstrates for
+`**/src/lib/**`. An earlier, op-blind version of the audit also flagged
+`alibaba/OpenSandbox` `7`, but that row's violating write happens inside a Bash
+script, so the only recorded path there was a `Read` against a write sink; the
+role-aware audit drops it. That is why the count moved from two candidates to
+one confirmed exposure.
 
 The guest probe then runs the **exact frozen policy** of the `rohitg00/agentmemory`
 row (`source AGENT = exec "claude"`, `source AUDIT_CHANGE = file
@@ -183,8 +187,8 @@ What remains attribution, not demonstration: the frozen 2026-06-07 run may have
 reached the engine through a different hook path string, and the artifact does not
 retain the kernel's per-task matched path, so this shows the current compiler
 reproduces the observed silence rather than proving the historical cause. The
-`alibaba/OpenSandbox` `7` row is reported as a static candidate only; its trace
-executes the guarded path through a script, which the probe did not replay.
+audit sees only paths recorded as tool arguments; a violating path written inside
+a Bash script (as in the `alibaba/OpenSandbox` row) is not visible to it.
 
 ### Remediation shape (not fixed here)
 
@@ -255,9 +259,9 @@ live verdict for all 18 rows. The live probe covers the exception, sink, and fil
 source shapes plus the exact `rohitg00/agentmemory` FN policy in tracepoint mode on
 Linux 6.8; it does not establish LSM-mode behavior, other policies, or per-task
 outcomes. It reproduces the `rohitg00/agentmemory` FN silence on the recorded path
-but does not prove the frozen 2026-06-07 run's kernel path string, and the
-`alibaba/OpenSandbox` row remains a static candidate. The miss is bounded to
-first-segment-relative paths. It does not re-derive the 78/28 or 18/26/28 counts,
-and it does not establish semantic policy correctness beyond the probe. The
-compiler is unchanged; the relative-path lowering is reported as a reproducible
-finding, not fixed here.
+but does not prove the frozen 2026-06-07 run's kernel path string; that row is the
+only confirmed static exposure, and paths written inside Bash scripts are outside
+the audit's view. The miss is bounded to first-segment-relative paths. It does not
+re-derive the 78/28 or 18/26/28 counts, and it does not establish semantic policy
+correctness beyond the probe. The compiler is unchanged; the relative-path
+lowering is reported as a reproducible finding, not fixed here.
