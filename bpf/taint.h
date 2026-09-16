@@ -81,7 +81,8 @@ enum taint_match {
 	TAINT_MATCH_PREFIX   = 1,
 	TAINT_MATCH_SUFFIX   = 2, /* text ends with pat (dotfiles, host suffixes) */
 	TAINT_MATCH_ANY      = 3, /* always matches (the bare star) */
-	TAINT_MATCH_CONTAINS = 4, /* text contains pat (**/dir/** → "/dir/") */
+	TAINT_MATCH_CONTAINS = 4, /* contains pat; a dir globstar lands as "/dir/" */
+	TAINT_MATCH_BASENAME = 5, /* basename glob: text == lit, or ends with "/" + lit */
 };
 
 /* sink operations */
@@ -255,6 +256,49 @@ static TAINT_NOINLINE int taint_suffix(const char *text, const char *suf)
 	return diff == 0;
 }
 
+/* Basename-glob matching (the leading-globstar form `**` + `/` + lit): true when
+ * `text` equals non-empty `lit`, or ends with `/lit` at a component boundary. So
+ * `.env` matches a bare root-level `.env`, `sub/.env` or `/a/.env`, but not
+ * `foo.env`. Unlike taint_contains this needs no scan: the only candidate start is
+ * off = |text| - |lit|, so it is taint_suffix plus one boundary byte. The
+ * slash-anchored suffix form required a slash and so missed bare root-level names. */
+static TAINT_NOINLINE int taint_basename(const char *text, const char *pat)
+{
+	int tn = 0, pn = 0;
+	long tlive = 1, plive = 1;
+	TAINT_UNROLL
+	for (int i = 0; i < TAINT_PAT_LEN; i++) {
+		tlive &= te_nzmask((unsigned char)text[i]) & 1;
+		tn += (int)tlive;
+		plive &= te_nzmask((unsigned char)pat[i]) & 1;
+		pn += (int)plive;
+	}
+	if (pn == 0 || pn > tn || pn > TAINT_SUF_MAX)
+		return 0;
+	int off = tn - pn;
+	char tail[TAINT_SUF_MAX] = {};
+	if (off < 0)
+		off = 0;
+	if (off > TAINT_PAT_LEN - 1)
+		off = TAINT_PAT_LEN - 1;
+	TE_COPY(tail, TAINT_SUF_MAX, text + off);
+	long diff = 0;
+	TAINT_UNROLL
+	for (int j = 0; j < TAINT_SUF_MAX; j++) {
+		long jm = -(long)(j < pn);
+		diff |= jm & (unsigned char)(tail[j] ^ (unsigned char)pat[j]);
+	}
+	/* Component boundary: the match starts the string (off == 0, a bare name)
+	 * or the byte before it is '/'. Read text[off-1] at a clamped index; the
+	 * off == 0 term dominates, so the clamped read is ignored for a bare name. */
+	int q = off > 0 ? off - 1 : 0;
+	unsigned char prev = 0;
+	TE_COPY(&prev, 1, text + q);
+	long bnd = te_iszero64((unsigned long)(prev ^ (unsigned char)'/')) |
+		   te_iszero64((unsigned long)(unsigned int)off);
+	return diff == 0 && bnd != 0;
+}
+
 /* taint_contains is implemented in taint_engine.bpf.h (needs bpf_loop).
  * In non-BPF contexts (test_taint.c), fall back to a simple strstr.
  * In BPF contexts, forward-declare; the real body is in taint_engine.bpf.h. */
@@ -286,6 +330,7 @@ static __always_inline int taint_match(unsigned int kind, const char *text,
 	case TAINT_MATCH_SUFFIX:   return taint_suffix(text, pat);
 	case TAINT_MATCH_ANY:      return 1;
 	case TAINT_MATCH_CONTAINS: return taint_contains(text, pat);
+	case TAINT_MATCH_BASENAME: return taint_basename(text, pat);
 	default:                   return taint_streq(text, pat);
 	}
 }

@@ -23,6 +23,7 @@ const M_PREFIX: u8 = 1;
 const M_SUFFIX: u8 = 2;
 const M_ANY: u8 = 3;
 const M_CONTAINS: u8 = 4;
+const M_BASENAME: u8 = 5;
 const MAX_CONTAINS_LITERAL: usize = 16; // mirrors TAINT_SUF_MAX in bpf/taint.h
 const OP_EXEC: u8 = 0;
 const OP_OPEN: u8 = 1;
@@ -168,7 +169,7 @@ fn lower_path(pat: &str) -> (u8, String) {
             return (M_SUFFIX, suffix.to_string());
         }
         if !inner.contains('*') {
-            return (M_SUFFIX, format!("/{inner}"));
+            return (M_BASENAME, inner.to_string());
         }
         return (M_CONTAINS, shorten_contains_literal(inner));
     }
@@ -255,7 +256,7 @@ mod tests {
             (M_CONTAINS, "i18n/locales/".into())
         );
         assert_eq!(lower_path("**/*.js"), (M_SUFFIX, ".js".into()));
-        assert_eq!(lower_path("**/sec.env"), (M_SUFFIX, "/sec.env".into()));
+        assert_eq!(lower_path("**/sec.env"), (M_BASENAME, "sec.env".into()));
         assert_eq!(lower_path("**/*"), (M_ANY, String::new()));
     }
 

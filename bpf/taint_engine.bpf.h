@@ -220,6 +220,10 @@ static __always_inline int te_path_match(unsigned int kind, const char *text,
 		if (!(policy_features & TE_POLICY_PATH_SUFFIX))
 			return 0;
 		return taint_suffix(text, pat);
+	case TAINT_MATCH_BASENAME:
+		if (!(policy_features & TE_POLICY_PATH_SUFFIX))
+			return 0;
+		return taint_basename(text, pat);
 	case TAINT_MATCH_ANY:
 		return 1;
 	case TAINT_MATCH_CONTAINS:

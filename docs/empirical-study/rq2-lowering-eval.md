@@ -1,8 +1,9 @@
 # RQ2: Does the Current Compiler Still Exhibit the Historical Path-Lowering Over-Match?
 
-Status: completed host-side compiler evaluation plus one live 6.8 guest probe,
-2026-09-15. This is an evidence note for the reviewer response. It does not modify
-`docs/papers` and it does not re-derive the frozen end-to-end 18/26/28 counts.
+Status: completed host-side compiler evaluation, one live 6.8 guest probe
+(2026-09-15), and the `**/<name>` bare-root lowering fix (2026-09-16). This is an
+evidence note for the reviewer response. It does not modify `docs/papers` and it
+does not re-derive the frozen end-to-end 18/26/28 counts.
 
 ## Question
 
@@ -27,13 +28,15 @@ Two independent checks, both reproducible from committed code:
    reproduces the compiled blob exactly (0 mismatches across all frozen rules), and
    replays the historical lowering on the same event. Host-only, no kernel.
 2. **Live guest probe** (`docs/empirical-study/run_rq2_except_probe_vm.sh`). Runs
-   two frozen policy shapes against an `exec python3`-labelled trigger in a 6.8
-   KVM/TCG guest with BPF: the exception form `notify write file "**/*.js" if
-   AGENT unless target "**/dist/**"`, and the sink form `notify write file
-   "**/dist/**" if AGENT`. Each is exercised with a relative and an absolute
-   destination, so the probe measures both the exception over-fire and the sink
-   under-fire for the same lowering. TCG is used because the host has no usable
-   hardware virtualization.
+   frozen policy shapes against an `exec python3`/`claude`-labelled trigger in a
+   6.8 KVM/TCG guest with BPF: an exception form (`notify write file "**/*.js" if
+   AGENT unless target "**/dist/**"`), a sink form (`notify write file "**/dist/**"
+   if AGENT`), a file-source form (`source CLI = file "**/src/lib/**"`), and the
+   `**/.env` dotfile form. Each path family is exercised with a relative, nested,
+   and absolute destination, so the probe measures both the `**/dir/**` relative
+   mis-match and the `**/<name>` bare-root case (now fixed, so the bare `.env` is
+   expected to fire). TCG is used because the host has no usable hardware
+   virtualization.
 
 The recorded event string is the string the kernel matched: in tracepoint mode
 file events are resolved from the userspace path argument (`TE_REF_USER_PATH`) and
@@ -61,54 +64,71 @@ paths) still fire, but now via a correct extension match rather than a substring
 No row newly fires, and no row's classification depends on an unvalidated port:
 the HEAD lowering port agrees with the compiled blob for every rule.
 
-## Result: the `contains` -> `suffix` tightening regressed bare root-level paths
+
+## Fixed (2026-09-16): the `**/<name>` bare-root regression
 
 The tightening that removed the `.js.txt` false positive (row above) changed the
 lowering of `**/<name>` patterns from `CONTAINS("<name>")` to `SUFFIX("/<name>")`.
-The suffix form needs a slash before the name, so it no longer matches a **bare
-relative** path whose parent is the search root: `/work/.env` and `sub/.env` match,
-but a top-level `.env` written from the repository root does not.
+The suffix form needs a slash before the name, so it no longer matched a **bare
+relative** path whose parent is the search root: `/work/.env` and `sub/.env`
+matched, but a top-level `.env` written from the repository root did not.
 
-Which frozen policies this affects, and whether the frozen run actually matched a
-bare path, is decidable from the artifact:
+Which frozen policies this affected is decidable from the artifact:
 
-| Frozen row | Pattern | Historical | Current | Frozen evidence |
+| Frozen row | Pattern | Historical | Pre-fix current | Frozen evidence |
 | --- | --- | --- | --- | --- |
 | `Alishahryar1/free-claude-code` `6` | `**/.env` | `contains(.env)` | `suffix(/.env)` | three TP rows whose recorded target is bare `write .env` |
 | `NousResearch/hermes-agent` `s02_keep_credentials_out_of_repo` | `**/.env` | `contains(.env)` | `suffix(/.env)` | rule text only |
 | `yusufkaraaslan/Skill_Seekers` `68` | `**/.env`, `**/.env.local` | `contains(...)` | `suffix(/...)` | rule text only |
 
-The first row is decisive because the frozen artifact records the kernel matching
+The first row was decisive because the frozen artifact records the kernel matching
 exactly the bare relative string: `setup_fired: true` with feedback
-`Operation `write .env``, judged TP in three traces. The current compiler compiles
-that rule to `suffix("/.env")`, which cannot match `.env`. The probe confirms it
-live with the frozen policy shape:
+``Operation `write .env```, judged TP in three traces. The pre-fix compiler
+compiled that rule to `suffix("/.env")`, which cannot match `.env`; the 2026-09-15
+probe confirmed it live (bare `.env` predicted/observed 0 verdicts, nested
+`sub/.env` 1).
 
-| Live case (frozen TP policy `read-env-example`) | Predicted | Observed |
-| --- | ---: | ---: |
-| write `.env` (the recorded bare-relative path) | 0 | 0 |
-| write `sub/.env` (nested control) | 1 | 1 |
+**Fix.** The compiler now lowers a repo-relative `**/<name>` (a globstar, a slash,
+and a wildcard-free basename) to a new kernel matcher kind, `TAINT_MATCH_BASENAME`
+(value 5), carrying the bare literal `<name>` instead of `/<name>`. A new kernel
+helper `taint_basename` returns true when the text equals the literal (a bare
+root-level name) or ends with `"/" + literal` at a component boundary, so it
+matches a bare `.env`, `sub/.env`, and `/work/.env` but still rejects `foo.env`
+and `a/.env.bak`. It is `taint_suffix` plus one boundary byte (the extra work is a
+single clamped read and one zero test), so it keeps the verifier-friendly shape.
+The new kind is routed through `taint_match`, `te_path_match` (gated on
+`TE_POLICY_PATH_SUFFIX`, which the Rust side sets for `M_BASENAME`), and
+`cap_path_match_supported`. The wildcard form remains `suffix`: `**/*.js` is still
+`suffix(".js")`, so the `.js.txt` false positive stays fixed. This is a
+Rust↔C ABI addition (`bpf/taint.h` + `crates/actplane-ifc-compiler/src/dsl/lower.rs`
+together, verified by the fixed-size blob test), and both committed prebuilt
+objects are regenerated from the modified engine.
 
-So the same change that fixed one false positive introduced a coverage gap for
-root-level dotfiles: a policy written as `**/.env` no longer catches a `.env`
-created in the repository root. This is a **second, distinct defect** from the
-`**/dir/**` relative miss earlier in this note: that one is about a directory
-segment after `**/`, this one about a bare filename after `**/`, and it was
-introduced by the recent tightening rather than inherited from 2026-06-07.
+After the fix, a repo-relative `**/<name>` is a strict superset of the pre-fix
+match (everything `suffix("/"+name)` matched still matches, plus the bare name),
+and a strict subset of the historical `contains(name)` (no substring match inside
+a longer name). The nine `**/*.js`-family patterns keep their suffix behavior, so
+the historical over-match is not reintroduced. The static divergence scan
+(`audit_path_lowering_divergence.py`) now reports zero findings, because current
+and historical agree on all three probe forms for every frozen pattern.
 
-`audit_path_lowering_divergence.py` makes this checkable: it scans every frozen
-rule pattern, compares the historical and current lowering, and reports each
-divergence on a bare-relative, nested-relative, or absolute probe path. It finds
-five patterns in four frozen rules (all the `**/.env`-family dotfile guards),
-every one diverging only on the bare-relative form. The scan is static, so it
-states which patterns changed, not which frozen run matched what.
+Legacy (Linux 5.10) note: `validate_legacy_config` rejects `M_BASENAME`, as it
+already did for `M_CONTAINS`, because the compatibility engine does not implement
+the basename matcher. A `**/<name>` policy that the pre-fix legacy loader accepted
+(as a length-limited `suffix`) now fails closed with an explicit error rather than
+mismatching; this is a compatibility narrowing, not silent misbehavior, and the
+modern engine (the evaluated configuration) is unaffected.
 
-That the change shipped without a test failure is itself explicable: every case in
+The regression shipped without a test failure because every case in
 `test/e2e_cases.yaml` and `test/e2e_file_flow_cases.yaml` accesses guarded files by
-absolute `${D}/...` path, so the suite never exercises a bare root-level relative
-path and structurally cannot detect this class. The `**/dir/**` miss in the next
-section has the same blind spot, since that class also needs a relative path.
-Adding one relative-path case per family would give both regressions a home in CI.
+absolute `${D}/...` path, so the suite never exercised a bare root-level relative
+path and structurally could not detect this class. A bare-relative file-sink case
+is now added to `test/e2e_file_flow_cases.yaml` so CI exercises it.
+
+The `**/dir/**` miss in the next section shares that blind spot, since that class
+also needs a relative path. Adding one relative-path case per family gives both
+regressions a home in CI; this fix adds the bare-name case, and the
+`**/dir/**` case remains open (below).
 
 ## Result: persisted relative-path matching miss
 
@@ -174,8 +194,10 @@ resolve `TE_REF_USER_PATH` from the userspace path argument, which is relative
 when the caller passed a relative path, so the assumption does not hold for that
 hook. The probe measures tracepoint mode; the LSM path hooks use different strings
 (e.g. `file_permission` matches the dentry basename), and their interaction with
-these lowerings is not measured here. This note does not change the compiler; it
-isolates the mode-dependent input the lowering depends on.
+these lowerings is not measured here. The `**/<name>` half of this root cause is
+now fixed (above); the `**/dir/**` half remains, because the fix must reach the
+`unless target` exception as well as the sink, which the current single
+`cond_kind`/`cond_pat` ABI cannot express as a disjunction.
 
 ## Interpretation
 
@@ -186,13 +208,15 @@ historical-lowering FPs persist, and the dominant remaining cause is genuinely
 broad translated patterns (9 translation rows still fire on their recorded event),
 not a stale compiler defect. This supports the paper's end-to-end framing: the
 false positives are mostly translation- and harness-stage effects. Two distinct
-completeness defects remain in the current compiler, both about relative paths in
-tracepoint mode: the inherited `**/dir/**` lowering mis-matches a
-first-segment-relative directory (an exception over-fires, a sink under-fires, and
-a file source silently fails to label), and the recent `contains` -> `suffix`
-tightening makes `**/<name>` miss a bare root-level file. The source case and the
-bare-dotfile case are the completeness half of Reviewer D's concern, because both
-drop enforcement without emitting any verdict.
+relative-path completeness defects were found in the current compiler. The
+`**/<name>` bare-root regression (the recent `contains` -> `suffix` tightening) is
+now fixed: the compiler lowers it to the new basename matcher, which matches a
+bare root-level file and still rejects a longer name like `foo.env`. The inherited
+`**/dir/**` lowering still mis-matches a first-segment-relative directory (an
+exception over-fires, a sink under-fires, and a file source silently fails to
+label); that one remains open because a fix touches the exception ABI (see the
+remediation section). The source case is the completeness half of Reviewer D's
+concern and still drops enforcement without emitting any verdict.
 
 ### Does it explain frozen false negatives?
 
@@ -240,10 +264,10 @@ reproduces the observed silence rather than proving the historical cause. The
 audit sees only paths recorded as tool arguments; a violating path written inside
 a Bash script (as in the `alibaba/OpenSandbox` row) is not visible to it.
 
-### Remediation shape (not fixed here)
+### Remediation shape for the `**/dir/**` miss (not fixed here)
 
-The finding is compiler-side, not engine-side, and a fix must decide where paths
-are normalized. Two options, with their costs:
+This one is compiler-side, not engine-side, and a fix must decide where paths are
+normalized. Two options, with their costs:
 
 1. **Normalize in the kernel.** Resolve `TE_REF_USER_PATH` against the caller's
    cwd before matching, so the recorded string is absolute as the lowering
@@ -253,16 +277,19 @@ are normalized. Two options, with their costs:
    reported `target` string in every verdict.
 2. **Lower both forms.** Emit, per repo-relative `**/dir/**` pattern, matchers that
    also match the first-segment-relative form (an anchored `prefix`/`contains` on
-   `dir/` as well as `/dir/`). This keeps the kernel unchanged but doubles the
-   matcher per clause and, for an `unless target` exception, cannot be expressed
-   with the current single `cond_kind`/`cond_pat` ABI, because the exception now
-   needs a disjunction. Option 2 therefore also implies an ABI change.
+   `dir/` as well as `/dir/`). This keeps the kernel unchanged for a plain sink but
+   doubles the matcher per clause and, for an `unless target` exception, cannot be
+   expressed with the current single `cond_kind`/`cond_pat` ABI, because the
+   exception now needs a disjunction. Option 2 therefore also implies an ABI
+   change.
 
 Either option touches the Rust↔C ABI (`taint.h` and `lower.rs` together) and the
-kernel matcher set, so it is not a one-line fix and is deliberately not attempted
-on this evidence branch. The committed probe and exposure audit give the fix a
-ready regression test: the nine non-FN rows and the two `frozen_fn_*` rows are
-exact pass/fail conditions.
+kernel matcher set. The `**/<name>` fix above shows the pattern for such an ABI
+addition (a new `TAINT_MATCH_BASENAME` kind threaded through the matcher, the
+feature gate, and the blob); the `**/dir/**` fix additionally needs the
+disjunction, so it is larger. The committed probe gives that fix a ready
+regression test: the `**/dir/**` rows (`except_*`, `sink_*`, `source_*`) and the
+two `frozen_fn_*` rows are exact pass/fail conditions.
 
 ## Reproduction
 
@@ -302,10 +329,18 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=900 \
   and the per-rule replay detail.
 - `results/rq2-path-lowering-divergence/divergence.json`: the static
   historical-vs-current lowering divergences over the frozen rules.
-- `results/rq2-except-probe-vm/`: `summary.tsv` (predicted vs observed),
-  `expectations.tsv` (pre-registered predictions), `counts.tsv`,
-  `guest-console.txt` (full cleaned console), `metadata.tsv` (kernel,
-  acceleration, per-policy hashes), and the five policy blobs.
+- `results/rq2-except-probe-vm/`: the **pre-fix** live record, taken at
+  `0e248945` (2026-09-15) before this fix. `summary.tsv` (predicted vs observed),
+  `expectations.tsv`, `counts.tsv`, `guest-console.txt` (full cleaned console),
+  `metadata.tsv` (kernel, acceleration, per-policy hashes), and the five policy
+  blobs. Its `env_bare_relative` row (0 verdicts) is the pre-fix behavior and is
+  retained as the diagnosis of the regression; the current probe prints the fixed
+  expectations (bare `.env` fires, `foo.env` does not). It was not re-run after
+  the fix: the guest 6.8 verifier in this environment now rejects every engine
+  program at the instruction limit (`BPF program is too large. Processed 1000001
+  insn` on `trace_openat_exit`), including the verbatim committed prebuilt object
+  and pristine `master` source, so the failure is a pre-existing environment
+  toolchain drift, not this fix (see the session report).
 - `results/rq2-fn-lowering-exposure/exposure.json`: the static FN exposure audit
   output (candidate rows and their lowered patterns).
 
@@ -322,5 +357,8 @@ kernel path string; that FN row is the only confirmed static exposure, and paths
 written inside Bash scripts are outside the audit's view. The miss is bounded to
 first-segment-relative and bare root-level relative paths. It does not re-derive
 the 78/28 or 18/26/28 counts, and it does not establish semantic policy
-correctness beyond the probe. The compiler is unchanged; both lowerings are
-reported as reproducible findings, not fixed here.
+correctness beyond the probe. The `**/<name>` bare-root lowering is fixed here
+(compiler + kernel matcher, host-side evidence: `--selftest`, blob-port agreement,
+zero divergence findings, and the C unit tests); the `**/dir/**` first-segment
+relative miss is reported but not fixed, because it needs a `unless target`
+disjunction the current ABI cannot express.

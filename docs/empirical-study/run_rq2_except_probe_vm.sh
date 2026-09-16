@@ -10,14 +10,16 @@
 # `contains("/dist/")`, which requires a slash before `dist` and so cannot match
 # a relative `dist/...` path.
 #
-# This probe runs the frozen policy shape against three writes by an
-# AGENT-labelled (`exec python3`) trigger, in a KVM/TCG guest with BPF:
+# The probe covers the repo-relative `**/dir/**` mis-match (an `unless target`
+# exception, a sink, and a file source) and the `**/<name>` bare-root dotfile
+# case that the `contains -> suffix` tightening regressed. It runs each policy
+# shape against one shared AGENT-labelled (`exec python3` / `claude`) trigger,
+# in a KVM/TCG guest with BPF. The `**/dir/**` rows still diverge for
+# first-segment-relative paths; the `.env` rows assert the `**/<name>` fix (the
+# bare root-level `.env` matches, the `foo.env` suffix does not).
 #
-#   dist_relative   write dist/agent-health/x.js    -> predicted verdicts: 1
-#   abs_dist        write /w/dist/agent-health/y.js -> predicted verdicts: 0
-#   src_relative    write src/x.js                  -> predicted verdicts: 1
-#
-# All expectations are pre-registered below before the guest boots.
+# All expectations are pre-registered below before the guest boots; the run
+# fails closed on any case-set or verdict-count drift.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -265,11 +267,14 @@ run_case sink_abs_dist        cfg_sink.bin   /      python3 write /w/dist/agent-
 # matches and fires. This bounds the finding to first-segment-relative paths.
 run_case sink_subdir_relative cfg_sink.bin   /work python3 write sub/dist/x.js
 # Frozen TP policy live (Alishahryar1/free-claude-code 6): the recorded
-# bare-relative `.env` write vs a nested control. Under the historical lowering
-# the bare `.env` fired; the current `suffix("/.env")` needs a slash, so only the
-# nested control should fire.
+# bare-relative `.env` write vs a nested control, plus a suffix control. Under
+# the historical `contains(".env")` lowering all three fired, but the historical
+# contains form also over-matched `foo.env`; the `**/<name>` basename lowering
+# fires the bare `.env` and the nested `sub/.env`, and correctly rejects the
+# `foo.env` suffix (a component-boundary match, not a substring).
 run_case env_bare_relative    cfg_env.bin    /work claude write .env
 run_case env_nested_relative  cfg_env.bin    /work claude write sub/.env
+run_case env_suffix_control   cfg_env.bin    /work claude write foo.env
 # File-source policy: reading a repo-relative **/src/lib/** file should label the
 # process so the later connect fires; if the source misses, enforcement is lost.
 run_case source_rel_read      cfg_source.bin /work python3 read_connect src/lib/cli.rs
@@ -287,10 +292,12 @@ chmod +x "$WORK/root/init"
 (cd "$WORK/root" && find . -print0 | cpio --null -o --format=newc | gzip -1 > "$WORK/initramfs.gz") 2>"$OUT/initramfs.stderr"
 
 # Pre-registered predictions, written before the guest runs. These are the
-# verdict counts the mechanism predicts (including the mis-match under test), not
-# the desired policy outcome: relative paths are predicted to diverge from their
-# absolute twin in both directions. The comparison therefore checks the mechanism
-# reproduces as diagnosed, and the note interprets which rows are the bug.
+# verdict counts the current mechanism predicts, so the comparison checks that
+# the engine matches the lowering under test (and fails closed on any drift).
+# The `**/dir/**` rows still diverge for first-segment-relative paths (that
+# defect is not fixed by the `**/<name>` basename change); the `.env` rows
+# assert the fix: the bare root-level `.env` now matches, and a longer name
+# like `foo.env` still does not (the basename form is not a substring match).
 printf '%s\t%s\n' case predicted_verdicts > "$OUT/expectations.tsv"
 printf '%s\t%s\n' except_dist_relative 1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' except_abs_dist      0 >> "$OUT/expectations.tsv"
@@ -298,8 +305,9 @@ printf '%s\t%s\n' except_src_relative  1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_dist_relative   0 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_abs_dist        1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_subdir_relative 1 >> "$OUT/expectations.tsv"
-printf '%s\t%s\n' env_bare_relative    0 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' env_bare_relative    1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' env_nested_relative  1 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' env_suffix_control   0 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' source_rel_read      0 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' source_nested_read   1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' source_abs_read      1 >> "$OUT/expectations.tsv"
@@ -355,8 +363,18 @@ if grep -q '^CASE_FAILURE ' "$OUT/console.clean.log"; then
   grep '^CASE_FAILURE ' "$OUT/console.clean.log" >&2 || true
   exit 1
 fi
-
-# Fail closed: observed verdicts must equal the pre-registered expectations.
+# Fail closed: the observed case set must equal the pre-registered set (a
+# missing or extra case means the guest did not run the frozen case list), and
+# every observed verdict count must equal its pre-registered prediction.
+# `join` above silently drops an unmatched expected case, so check the two case
+# columns explicitly before trusting the per-row comparison.
+expected_cases="$(awk -F '\t' 'NR > 1 { print $1 }' "$OUT/expectations.tsv" | sort)"
+observed_cases="$(awk -F '\t' 'NR > 1 { print $1 }' "$OUT/counts.tsv" | sort)"
+if [ "$expected_cases" != "$observed_cases" ]; then
+  echo "observed cases do not match the pre-registered expectations" >&2
+  diff <(printf '%s\n' "$expected_cases") <(printf '%s\n' "$observed_cases") >&2 || true
+  exit 1
+fi
 fail=0
 awk -F '\t' 'NR>1 && $2 != $3 { bad=1 } END { exit bad }' "$OUT/summary.tsv" || fail=1
 [ "$fail" -eq 0 ] || { echo "observed verdicts differ from pre-registered expectations" >&2; exit 1; }

@@ -121,4 +121,8 @@ finds that one historical-lowering FP no longer reproduces (`**/*.js`
 `CONTAINS("/dir/")` and mis-matches relative paths in tracepoint mode, so an
 exception over-fires, a sink under-fires, and a file source silently fails to
 label on the same relative path. The remaining FPs are dominated by translation
-and harness-stage over-matching, not a stale compiler defect.
+and harness-stage over-matching, not a stale compiler defect. The evaluation also
+found a second, distinct defect, the `**/<name>` bare-root regression from the
+`contains` -> `suffix` tightening, which has since been fixed in the compiler
+(`**/<name>` now lowers to the basename matcher); see that note for the fix and
+its evidence.

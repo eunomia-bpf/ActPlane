@@ -32,6 +32,7 @@ static int p_streq(const char *a, const char *b) { pad2(a, b); return taint_stre
 static int p_prefix(const char *t, const char *p) { pad2(t, p); return taint_prefix(pa_, pb_); }
 static int p_match(unsigned int k, const char *t, const char *p) { pad2(t, p); return taint_match(k, pa_, pb_); }
 static int p_exec_match(unsigned int k, const char *t, const char *p) { pad2(t, p); return taint_exec_match(k, pa_, pb_); }
+static int p_basename(const char *t, const char *p) { pad2(t, p); return taint_basename(pa_, pb_); }
 
 static void test_streq(void)
 {
@@ -65,6 +66,19 @@ static void test_match(void)
 	check(p_match(TAINT_MATCH_CONTAINS, "/server/start", "/server/") == 1, "match: contains at start");
 	check(p_match(TAINT_MATCH_CONTAINS, "/x/server/", "/server/") == 1, "match: contains at end");
 	check(p_match(TAINT_MATCH_CONTAINS, "server", "/server/") == 0, "match: contains no slashes");
+	check(p_basename(".env", ".env") == 1, "basename: bare root-level name matches");
+	check(p_basename("sub/.env", ".env") == 1, "basename: nested relative matches");
+	check(p_basename("/work/app/.env", ".env") == 1, "basename: absolute matches");
+	check(p_basename("foo.env", ".env") == 0, "basename: suffix is not a basename");
+	check(p_basename("env", ".env") == 0, "basename: shorter text misses");
+	check(p_basename("a/.env.bak", ".env") == 0, "basename: longer name misses");
+	check(p_basename("dist/x.js", "x.js") == 1, "basename: multi-char basename matches");
+	/* A basename literal may itself contain a slash for a dir/name pattern,
+	 * where the component boundary is the slash before the first segment. */
+	check(p_basename("specs/AGENTS.md", "specs/AGENTS.md") == 1, "basename: slash literal matches at root");
+	check(p_basename("a/specs/AGENTS.md", "specs/AGENTS.md") == 1, "basename: slash literal nested matches");
+	check(p_basename("notspecs/AGENTS.md", "specs/AGENTS.md") == 0, "basename: slash literal needs a component boundary");
+	check(p_match(TAINT_MATCH_BASENAME, "sub/.env", ".env") == 1, "match: basename kind routes");
 	check(p_exec_match(TAINT_MATCH_EXACT, "git", "git") == 1, "exec match: comm exact hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "redact", "redact") == 1, "exec match: argv0 exact hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "/tmp/ape/git", "git") == 0, "exec match: full path is not exact");

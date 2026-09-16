@@ -161,3 +161,21 @@ cases:
     expect:
       want: '"target":"9.9.9.11"'
       notwant: '"target":"9.9.9.12"'
+
+  - name: "F9 bare-relative dotfile sink matches without over-matching a suffix"
+    setup: |-
+      mkdir -p ${D}/flow
+      rm -f ${D}/flow/foo.env
+    policy: |-
+      source AGENT = exec "**/codex"
+      rule no-dotenv:
+        kill write file "**/.env" if AGENT
+        because "a repo-relative **/.env guard must catch a bare root-level .env"
+    trigger: |-
+      (exec -a codex ${D}/codex -c 'cd ${D}/flow && echo allowed > foo.env; echo blocked > .env')
+    expect:
+      # `**/.env` lowers to the basename matcher: it fires on the bare relative
+      # `.env` (the path the tool passed) but not on the `foo.env` suffix. The
+      # `foo.env` write runs first so the notwant is not vacuous.
+      want: '"target":"[.]env"'
+      notwant: '"target":"foo[.]env"'

@@ -144,7 +144,8 @@ static unsigned int path_match_features(unsigned int match)
 {
 	switch (match) {
 	case TAINT_MATCH_CONTAINS: return TE_POLICY_PATH_CONTAINS;
-	case TAINT_MATCH_SUFFIX: return TE_POLICY_PATH_SUFFIX;
+	case TAINT_MATCH_SUFFIX:
+	case TAINT_MATCH_BASENAME: return TE_POLICY_PATH_SUFFIX;
 	default: return 0;
 	}
 }
