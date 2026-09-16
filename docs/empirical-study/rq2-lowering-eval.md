@@ -107,8 +107,8 @@ objects are regenerated from the modified engine.
 After the fix, a repo-relative `**/<name>` is a strict superset of the pre-fix
 match (everything `suffix("/"+name)` matched still matches, plus the bare name),
 and a strict subset of the historical `contains(name)` (no substring match inside
-a longer name). The nine `**/*.js`-family patterns keep their suffix behavior, so
-the historical over-match is not reintroduced. The static divergence scan
+a longer name). The `**/*.js`-family patterns keep their suffix behavior, so the
+historical over-match is not reintroduced. The static divergence scan
 (`audit_path_lowering_divergence.py`) now reports zero findings, because current
 and historical agree on all three probe forms for every frozen pattern.
 
