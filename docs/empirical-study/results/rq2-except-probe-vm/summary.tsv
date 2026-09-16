@@ -1,6 +1,8 @@
-case	expected_verdicts	observed_verdicts
+case	predicted_verdicts	observed_verdicts
 except_abs_dist	0	0
 except_dist_relative	1	1
 except_src_relative	1	1
 sink_abs_dist	1	1
 sink_dist_relative	0	0
+source_abs_read	1	1
+source_rel_read	0	0

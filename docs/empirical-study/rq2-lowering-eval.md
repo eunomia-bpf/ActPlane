@@ -74,36 +74,49 @@ Both the historical and the current compiler lower the repo-relative
 so it matches an absolute `.../dist/...` path but not a relative `dist/...` path.
 Because tracepoint mode matches the recorded (possibly relative) path, the
 lowering is wrong in both directions for relative paths. The live guest probe
-confirms both with the same trigger and destination, changing only the path form
-and the policy:
+confirms this with the same trigger and destination, changing only the path form
+and the policy, and adds a third policy shape that uses the same
+`**/dir/**` family for a file **source**:
 
-| Case (write by `exec python3` trigger) | Expected | Observed |
+| Case (by one shared trigger) | Predicted | Observed |
 | --- | ---: | ---: |
 | exception policy, `dist/agent-health/x.js` (relative) | 1 | 1 |
 | exception policy, `/w/dist/agent-health/y.js` (absolute) | 0 | 0 |
 | exception policy, `src/x.js` (relative, outside exception) | 1 | 1 |
 | sink policy `**/dist/**`, `dist/agent-health/x.js` (relative) | 0 | 0 |
 | sink policy `**/dist/**`, `/w/dist/agent-health/y.js` (absolute) | 1 | 1 |
+| source policy `**/src/lib/**`, read `src/lib/cli.rs` (relative) | 0 | 0 |
+| source policy `**/src/lib/**`, read `/work/src/lib/cli.rs` (absolute) | 1 | 1 |
 
-Every write executed (trigger exit 0), so the counts are verdicts, not lost
-operations. The first three rows are the exception over-firing on a relative path;
-the last two are the **mirror image: a `**/dist/**` sink misses enforcement on the
-same relative path**. The identical pattern excludes an absolute write and reports
-a relative one, so the same policy is both over- and under-inclusive depending on
+Every operation executed (trigger exit 0), so the counts are verdicts, not lost
+operations. The rows show three consequences of the same lowering:
+
+- the `unless target` **exception over-fires** on a relative path (row 1) while
+  correctly excluding the absolute twin (row 2);
+- a `**/dist/**` **sink under-fires** on the same relative path (row 4) while
+  correctly firing on the absolute twin (row 5);
+- a `**/src/lib/**` **file source silently fails to label** a relative read
+  (row 6), because the source never matches, so any downstream sink that depends
+  on the label stays silent; the absolute twin labels and fires (row 7).
+
+Rows 4 and 6 are the enforcement-losing direction, and row 6 is the most
+consequential: a repo-relative source that reads relative paths never taints the
+process, so completeness (catching the violating action) is lost without any
+report. The same pattern is therefore both over- and under-inclusive depending on
 the path form. This is the concrete form of Reviewer D's path-semantics concern,
 and it is unchanged by the current compiler.
 
 Root cause: the compiler's repo-relative lowering assumes the runtime path is
 absolute. Its unit test is literally named
 `repo_relative_paths_match_absolute_runtime_paths`, and the `contains` lowering is
-chosen to match an absolute path (`**/dist/**` -> `CONTAINS("/dist/")`). In
-**tracepoint mode** the file hooks resolve `TE_REF_USER_PATH` from the userspace
-path argument, which is relative when the caller passed a relative path, so the
-assumption does not hold for that hook, and the relative write is mis-matched in
-both directions. The probe measures tracepoint mode; the LSM path hooks use
-different strings (e.g. `file_permission` matches the dentry basename), and their
-interaction with these lowerings is not measured here. This note does not change
-the compiler; it isolates the mode-dependent input the lowering depends on.
+chosen to match an absolute path (`**/dist/**` -> `CONTAINS("/dist/")`,
+`**/src/lib/**` -> `CONTAINS("/src/lib/")`). In **tracepoint mode** the file hooks
+resolve `TE_REF_USER_PATH` from the userspace path argument, which is relative
+when the caller passed a relative path, so the assumption does not hold for that
+hook. The probe measures tracepoint mode; the LSM path hooks use different strings
+(e.g. `file_permission` matches the dentry basename), and their interaction with
+these lowerings is not measured here. This note does not change the compiler; it
+isolates the mode-dependent input the lowering depends on.
 
 ## Interpretation
 
@@ -114,9 +127,12 @@ historical-lowering FPs persist, and the dominant remaining cause is genuinely
 broad translated patterns (9 translation rows still fire on their recorded event),
 not a stale compiler defect. This supports the paper's end-to-end framing: the
 false positives are mostly translation- and harness-stage effects, and the one
-durable path-semantics issue is the repo-relative `**/dist/**` lowering, which is
-reproducible on demand and cuts both ways (an exception over-fires and a sink
-under-fires for the same relative path).
+durable path-semantics issue is the repo-relative `**/dir/**` lowering, which is
+reproducible on demand and cuts three ways on a relative path: an exception
+over-fires, a sink under-fires, and a file source silently fails to label (so
+downstream enforcement is lost). The source case is the completeness half of the
+same defect and is the strongest form of Reviewer D's concern, because it drops
+enforcement without emitting any verdict.
 
 ## Reproduction
 
@@ -144,16 +160,18 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=900 \
 - `results/rq2-fp-current-lowering/replay.json`: per-row classification, the
   historical-vs-current lowering of each offending glob, the port-vs-blob checks,
   and the per-rule replay detail.
-- `results/rq2-except-probe-vm/`: `summary.tsv` (expected vs observed),
-  `expectations.tsv` (pre-registered), `counts.tsv`, `guest-console.txt` (full
-  cleaned console), `metadata.tsv` (kernel, acceleration, policy hashes).
+- `results/rq2-except-probe-vm/`: `summary.tsv` (predicted vs observed),
+  `expectations.tsv` (pre-registered predictions), `counts.tsv`,
+  `guest-console.txt` (full cleaned console), `metadata.tsv` (kernel,
+  acceleration, per-policy hashes), and the three policy blobs.
 
 ## Claim boundary
 
 The replay is host-side matcher evaluation on the recorded event strings, not a
-live verdict for all 18 rows. The live probe covers two policy shapes (exception
-and sink) in tracepoint mode on Linux 6.8; it does not establish LSM-mode
-behavior, other policies, or per-task outcomes. It does not re-derive the frozen
-78/28 or 18/26/28 counts, and it does not establish semantic policy correctness
-beyond the probe. The compiler is unchanged; the relative-path lowering is
-reported as a reproducible finding, not fixed here.
+live verdict for all 18 rows. The live probe covers three policy shapes (exception,
+sink, and file source) in tracepoint mode on Linux 6.8; it does not establish
+LSM-mode behavior, other policies, or per-task outcomes, and it does not establish
+that any frozen RQ2 false negative was caused by this lowering. It does not
+re-derive the frozen 78/28 or 18/26/28 counts, and it does not establish semantic
+policy correctness beyond the probe. The compiler is unchanged; the relative-path
+lowering is reported as a reproducible finding, not fixed here.
