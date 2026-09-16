@@ -4,5 +4,7 @@ except_abs_dist	0
 except_src_relative	1
 sink_dist_relative	0
 sink_abs_dist	1
+sink_subdir_relative	1
 source_rel_read	0
+source_nested_read	1
 source_abs_read	1

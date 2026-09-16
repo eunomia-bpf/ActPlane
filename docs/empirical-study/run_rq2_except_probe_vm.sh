@@ -39,6 +39,7 @@ done
 
 mkdir -p "$OUT" "$WORK/root"/{bin,dev,proc,sys,tmp,sink} \
          "$WORK/root/work/dist/agent-health" "$WORK/root/work/src/lib" \
+         "$WORK/root/work/sub/dist" "$WORK/root/work/nemoclaw/src/lib" \
          "$WORK/root/w/dist/agent-health"
 
 policy='source AGENT = exec "python3"
@@ -73,9 +74,9 @@ for a in sh mount grep sleep kill cat mkdir poweroff true ln awk; do ln -sf busy
 { ldd "$PROC"; } | awk '{for (i=1;i<=NF;i++) if ($i ~ /^\//) print $i}' | sort -u |
 while read -r lib; do [ -n "$lib" ] && cp --parents "$lib" "$WORK/root"; done
 
-# Fixture read by the file-source cases (relative and absolute refer to it).
+# Fixtures read by the file-source cases (relative and absolute refer to them).
 printf 'fn main() {}\n' > "$WORK/root/work/src/lib/cli.rs"
-
+printf 'fn main() {}\n' > "$WORK/root/work/nemoclaw/src/lib/cli.rs"
 # The trigger stops itself so the loader can attach, then execs /sink/python3
 # (labelled AGENT by the exec source) with a mode and a path. Modes:
 #   write <path>         open+write path
@@ -209,9 +210,14 @@ run_case except_src_relative  cfg_except.bin /work write src/x.js
 # for a relative path, i.e. the mirror image loses enforcement.
 run_case sink_dist_relative   cfg_sink.bin   /work write dist/agent-health/x.js
 run_case sink_abs_dist        cfg_sink.bin   /      write /w/dist/agent-health/y.js
+# Delimiting case: the miss needs the relative path to *start* with the pattern's
+# first segment; a preceding directory (`sub/dist/...`) supplies the slash, so it
+# matches and fires. This bounds the finding to first-segment-relative paths.
+run_case sink_subdir_relative cfg_sink.bin   /work write sub/dist/x.js
 # File-source policy: reading a repo-relative **/src/lib/** file should label the
 # process so the later connect fires; if the source misses, enforcement is lost.
 run_case source_rel_read      cfg_source.bin /work read_connect src/lib/cli.rs
+run_case source_nested_read   cfg_source.bin /work read_connect nemoclaw/src/lib/cli.rs
 run_case source_abs_read      cfg_source.bin /      read_connect /work/src/lib/cli.rs
 echo EXPERIMENT_DONE
 poweroff -f
@@ -230,7 +236,9 @@ printf '%s\t%s\n' except_abs_dist      0 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' except_src_relative  1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_dist_relative   0 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_abs_dist        1 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' sink_subdir_relative 1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' source_rel_read      0 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' source_nested_read   1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' source_abs_read      1 >> "$OUT/expectations.tsv"
 
 run_qemu() {

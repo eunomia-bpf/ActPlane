@@ -85,26 +85,36 @@ and the policy, and adds a third policy shape that uses the same
 | exception policy, `src/x.js` (relative, outside exception) | 1 | 1 |
 | sink policy `**/dist/**`, `dist/agent-health/x.js` (relative) | 0 | 0 |
 | sink policy `**/dist/**`, `/w/dist/agent-health/y.js` (absolute) | 1 | 1 |
+| sink policy `**/dist/**`, `sub/dist/x.js` (relative, nested) | 1 | 1 |
 | source policy `**/src/lib/**`, read `src/lib/cli.rs` (relative) | 0 | 0 |
+| source policy `**/src/lib/**`, read `nemoclaw/src/lib/cli.rs` (relative, nested) | 1 | 1 |
 | source policy `**/src/lib/**`, read `/work/src/lib/cli.rs` (absolute) | 1 | 1 |
 
 Every operation executed (trigger exit 0), so the counts are verdicts, not lost
-operations. The rows show three consequences of the same lowering:
+operations. The rows show three consequences of the same lowering, and two rows
+bound it:
 
 - the `unless target` **exception over-fires** on a relative path (row 1) while
   correctly excluding the absolute twin (row 2);
 - a `**/dist/**` **sink under-fires** on the same relative path (row 4) while
   correctly firing on the absolute twin (row 5);
 - a `**/src/lib/**` **file source silently fails to label** a relative read
-  (row 6), because the source never matches, so any downstream sink that depends
-  on the label stays silent; the absolute twin labels and fires (row 7).
+  (row 7), because the source never matches, so any downstream sink that depends
+  on the label stays silent; the absolute twin labels and fires (row 9).
 
-Rows 4 and 6 are the enforcement-losing direction, and row 6 is the most
-consequential: a repo-relative source that reads relative paths never taints the
+The miss is specific, not general, to relative paths: it needs the relative path
+to *start* with the pattern's first segment. A preceding directory supplies the
+slash the `contains` literal expects, so a nested relative path matches and
+behaves like the absolute case (rows 6 and 8). The defect therefore bites
+exactly when a tool addresses a guarded directory from the repository root,
+e.g. `dist/...` or `src/lib/...`, and not when it is invoked deeper.
+
+Rows 4, 7, and 8 are the enforcement-relevant direction, since rows 4 and 7 are
+where a guarded action proceeds and row 8 shows the same relative read working
+once a parent directory restores the slash. Row 7 is the most consequential: a
+repo-relative source that reads a first-segment-relative path never taints the
 process, so completeness (catching the violating action) is lost without any
-report. The same pattern is therefore both over- and under-inclusive depending on
-the path form. This is the concrete form of Reviewer D's path-semantics concern,
-and it is unchanged by the current compiler.
+verdict, while no over-report marks the gap.
 
 Root cause: the compiler's repo-relative lowering assumes the runtime path is
 absolute. Its unit test is literally named
@@ -168,10 +178,12 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=900 \
 ## Claim boundary
 
 The replay is host-side matcher evaluation on the recorded event strings, not a
-live verdict for all 18 rows. The live probe covers three policy shapes (exception,
-sink, and file source) in tracepoint mode on Linux 6.8; it does not establish
-LSM-mode behavior, other policies, or per-task outcomes, and it does not establish
-that any frozen RQ2 false negative was caused by this lowering. It does not
-re-derive the frozen 78/28 or 18/26/28 counts, and it does not establish semantic
-policy correctness beyond the probe. The compiler is unchanged; the relative-path
-lowering is reported as a reproducible finding, not fixed here.
+live verdict for all 18 rows. The live probe covers three policy shapes
+(exception, sink, and file source) in tracepoint mode on Linux 6.8; it does not
+establish LSM-mode behavior, other policies, or per-task outcomes, and it does
+not establish that any frozen RQ2 false negative was caused by this lowering. The
+miss is bounded to first-segment-relative paths; whether a given frozen
+execution triggered it is not audited here. It does not re-derive the frozen
+78/28 or 18/26/28 counts, and it does not establish semantic policy correctness
+beyond the probe. The compiler is unchanged; the relative-path lowering is
+reported as a reproducible finding, not fixed here.
