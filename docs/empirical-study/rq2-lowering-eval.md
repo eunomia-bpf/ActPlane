@@ -162,12 +162,29 @@ Both rules gate on a `file` **source** (`source AUDIT_CHANGE = file
 source misses, the dependent rule never fires: exactly the enforcement-losing
 direction the live probe demonstrates for `**/src/lib/**`.
 
-This is **static exposure, not proven causation**. The frozen artifact does not
-retain the kernel's per-task matched path, so the audit cannot confirm what string
-the frozen engine actually matched, and each frozen run used the 2026-06-07
-compiler whose exact `TE_REF_USER_PATH` handling is not re-run here. The audit
-identifies two candidates consistent with the defect and is deliberately reported
-as such.
+The guest probe then runs the **exact frozen policy** of the `rohitg00/agentmemory`
+row (`source AGENT = exec "claude"`, `source AUDIT_CHANGE = file
+"**/src/functions/**"`, `notify exec "git" "commit" if AGENT and AUDIT_CHANGE`)
+against a read-then-`git commit` trigger, with the recorded relative path and a
+nested control:
+
+| Live case (frozen FN policy) | Predicted | Observed |
+| --- | ---: | ---: |
+| read `src/functions/archive.ts` (the recorded relative path), then commit | 0 | 0 |
+| read `a/src/functions/archive.ts` (nested relative control), then commit | 1 | 1 |
+
+The commit runs in both cases (trigger exits 0). On the recorded relative path the
+file source never labels the process, so the `git commit` rule stays silent: the
+frozen false negative reproduces with the current compiler on Linux 6.8. The
+nested path supplies the slash the `CONTAINS("/src/functions/")` literal needs, so
+it labels and fires, which isolates the path form as the cause.
+
+What remains attribution, not demonstration: the frozen 2026-06-07 run may have
+reached the engine through a different hook path string, and the artifact does not
+retain the kernel's per-task matched path, so this shows the current compiler
+reproduces the observed silence rather than proving the historical cause. The
+`alibaba/OpenSandbox` `7` row is reported as a static candidate only; its trace
+executes the guarded path through a script, which the probe did not replay.
 
 ## Reproduction
 
@@ -203,20 +220,20 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=900 \
 - `results/rq2-except-probe-vm/`: `summary.tsv` (predicted vs observed),
   `expectations.tsv` (pre-registered predictions), `counts.tsv`,
   `guest-console.txt` (full cleaned console), `metadata.tsv` (kernel,
-  acceleration, per-policy hashes), and the three policy blobs.
+  acceleration, per-policy hashes), and the four policy blobs.
 - `results/rq2-fn-lowering-exposure/exposure.json`: the static FN exposure audit
   output (candidate rows and their lowered patterns).
 
 ## Claim boundary
 
 The replay is host-side matcher evaluation on the recorded event strings, not a
-live verdict for all 18 rows. The live probe covers three policy shapes
-(exception, sink, and file source) in tracepoint mode on Linux 6.8; it does not
-establish LSM-mode behavior, other policies, or per-task outcomes, and it does
-not establish that a specific frozen RQ2 false negative was caused by this
-lowering. The FN audit is static exposure over the recorded tool logs, not proof
-of causation; the artifact does not retain the kernel's per-task matched path.
-The miss is bounded to first-segment-relative paths. It does not re-derive the
-78/28 or 18/26/28 counts, and it does not establish semantic policy correctness
-beyond the probe. The compiler is unchanged; the relative-path lowering is
-reported as a reproducible finding, not fixed here.
+live verdict for all 18 rows. The live probe covers the exception, sink, and file
+source shapes plus the exact `rohitg00/agentmemory` FN policy in tracepoint mode on
+Linux 6.8; it does not establish LSM-mode behavior, other policies, or per-task
+outcomes. It reproduces the `rohitg00/agentmemory` FN silence on the recorded path
+but does not prove the frozen 2026-06-07 run's kernel path string, and the
+`alibaba/OpenSandbox` row remains a static candidate. The miss is bounded to
+first-segment-relative paths. It does not re-derive the 78/28 or 18/26/28 counts,
+and it does not establish semantic policy correctness beyond the probe. The
+compiler is unchanged; the relative-path lowering is reported as a reproducible
+finding, not fixed here.

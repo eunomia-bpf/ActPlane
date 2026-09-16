@@ -58,6 +58,15 @@ source_policy='source CLI = file "**/src/lib/**"
 rule probe_source:
   notify connect endpoint "*" if CLI
   because "probe: repo-relative **/src/lib/** file source in tracepoint mode"'
+# The exact frozen policy of RQ2 false-negative row `rohitg00/agentmemory` `6`:
+# a `file` source over a repo-relative dir pattern gates an exec sink. If the
+# source misses a relative read, the dependent `git commit` rule stays silent,
+# which is the recorded false negative.
+frozen_policy='source AGENT = exec "claude"
+source AUDIT_CHANGE = file "**/src/functions/**"
+rule update-types-for-audit-ops:
+  notify exec "git" "commit" if AGENT and AUDIT_CHANGE
+  because "When adding new audit operations, you must also update src/types.ts"'
 "$ACT" --rule "$policy" compile --out "$WORK/root/cfg_except.bin" --force >"$OUT/compile.stdout" 2>"$OUT/compile.stderr"
 "$ACT" --rule "$sink_policy" compile --out "$WORK/root/cfg_sink.bin" --force >>"$OUT/compile.stdout" 2>>"$OUT/compile.stderr"
 "$ACT" --rule "$source_policy" compile --out "$WORK/root/cfg_source.bin" --force >>"$OUT/compile.stdout" 2>>"$OUT/compile.stderr"
@@ -68,6 +77,9 @@ cp "$WORK/root/cfg_except.bin" "$OUT/blob_except.bin"
 cp "$WORK/root/cfg_sink.bin" "$OUT/blob_sink.bin"
 cp "$WORK/root/cfg_source.bin" "$OUT/blob_source.bin"
 
+"$ACT" --rule "$frozen_policy" compile --out "$WORK/root/cfg_frozen.bin" --force >>"$OUT/compile.stdout" 2>>"$OUT/compile.stderr"
+printf '%s\n' "$frozen_policy" > "$OUT/frozen-policy.dsl"
+cp "$WORK/root/cfg_frozen.bin" "$OUT/blob_frozen.bin"
 cp "$PROC" "$WORK/root/process"
 cp /bin/busybox "$WORK/root/bin/busybox"
 for a in sh mount grep sleep kill cat mkdir poweroff true ln awk; do ln -sf busybox "$WORK/root/bin/$a"; done
@@ -77,22 +89,30 @@ while read -r lib; do [ -n "$lib" ] && cp --parents "$lib" "$WORK/root"; done
 # Fixtures read by the file-source cases (relative and absolute refer to them).
 printf 'fn main() {}\n' > "$WORK/root/work/src/lib/cli.rs"
 printf 'fn main() {}\n' > "$WORK/root/work/nemoclaw/src/lib/cli.rs"
-# The trigger stops itself so the loader can attach, then execs /sink/python3
-# (labelled AGENT by the exec source) with a mode and a path. Modes:
+mkdir -p "$WORK/root/work/src/functions" "$WORK/root/work/a/src/functions"
+printf 'export const x = 1;\n' > "$WORK/root/work/src/functions/archive.ts"
+printf 'export const x = 1;\n' > "$WORK/root/work/a/src/functions/archive.ts"
+# The trigger stops itself so the loader can attach, then execs /sink/<agent>
+# (whose comm becomes the agent name, so the matching exec source labels it) with
+# a mode and a path. Modes:
 #   write <path>         open+write path
 #   read_connect <path>  open+read path, then connect to a closed loopback port
+#   read_commit <path>   open+read path, then exec `git commit`
 cat > "$WORK/trigger.c" <<'EOF'
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 int main(int argc, char **argv) {
-    const char *mode = argc > 1 ? argv[1] : "write";
-    const char *path = argc > 2 ? argv[2] : "";
+    const char *agent = argc > 1 ? argv[1] : "python3";
+    const char *mode = argc > 2 ? argv[2] : "write";
+    const char *path = argc > 3 ? argv[3] : "";
     if (getenv("SELF_STOP")) { unsetenv("SELF_STOP"); raise(SIGSTOP); }
-    char *args[] = { "python3", (char *)mode, (char *)path, NULL };
+    char bin[64];
+    snprintf(bin, sizeof(bin), "/sink/%s", agent);
+    char *args[] = { (char *)agent, (char *)mode, (char *)path, NULL };
     char *envp[] = { NULL };
-    execve("/sink/python3", args, envp);
+    execve(bin, args, envp);
     _exit(6);
 }
 EOF
@@ -113,17 +133,31 @@ static int do_connect(void) {
     close(fd);
     return 0;
 }
+static int read_file(const char *path) {
+    char buf[64];
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) { perror("open"); _exit(4); }
+    if (read(fd, buf, sizeof(buf)) < 0) { close(fd); _exit(5); }
+    close(fd);
+    return 0;
+}
 int main(int argc, char **argv) {
     const char *mode = argc > 1 ? argv[1] : "write";
     const char *path = argc > 2 ? argv[2] : "";
     if (!strcmp(mode, "read_connect")) {
-        char buf[64];
-        int fd = open(path, O_RDONLY);
-        if (fd < 0) { perror("open"); _exit(4); }
-        if (read(fd, buf, sizeof(buf)) < 0) { close(fd); _exit(5); }
-        close(fd);
+        read_file(path);
         do_connect();
         _exit(0);
+    }
+    if (!strcmp(mode, "read_commit")) {
+        /* Mirror the frozen trace: read the guarded file, then `git commit`.
+         * The commit is the guarded action; the rule fires only if the read
+         * labeled this lineage through the file source. */
+        read_file(path);
+        char *args[] = { "git", "commit", NULL };
+        char *envp[] = { NULL };
+        execve("/sink/git", args, envp);
+        _exit(7);
     }
     int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) { perror("open"); _exit(4); }
@@ -132,7 +166,13 @@ int main(int argc, char **argv) {
     _exit(0);
 }
 EOF
+# The sink binary is entered under the agent's name so comm matches the exec source.
 gcc -static -O2 "$WORK/sink.c" -o "$WORK/root/sink/python3"
+cp "$WORK/root/sink/python3" "$WORK/root/sink/claude"
+cat > "$WORK/git.c" <<'EOF'
+int main(void) { return 0; }
+EOF
+gcc -static -O2 "$WORK/git.c" -o "$WORK/root/sink/git"
 
 cat > "$WORK/root/init" <<'EOF'
 #!/bin/sh
@@ -147,9 +187,9 @@ dmesg -n 1 2>/dev/null || true
 mkdir -p /tmp
 
 run_case() {
-  name="$1" cfg="$2" cwd="$3" mode="$4" path="$5"
+  name="$1" cfg="$2" cwd="$3" agent="$4" mode="$5" path="$6"
   echo "CASE_BEGIN $name"
-  ( cd "$cwd" && SELF_STOP=1 /trigger "$mode" "$path" ) &
+  ( cd "$cwd" && SELF_STOP=1 /trigger "$agent" "$mode" "$path" ) &
   trigger_pid=$!
   tries=0
   while [ "$tries" -lt 200 ]; do
@@ -203,22 +243,27 @@ run_case() {
 }
 
 # Exception policy: repo-relative **/dist/** should exclude the write but cannot.
-run_case except_dist_relative cfg_except.bin /work write dist/agent-health/x.js
-run_case except_abs_dist      cfg_except.bin /      write /w/dist/agent-health/y.js
-run_case except_src_relative  cfg_except.bin /work write src/x.js
+run_case except_dist_relative cfg_except.bin /work python3 write dist/agent-health/x.js
+run_case except_abs_dist      cfg_except.bin /      python3 write /w/dist/agent-health/y.js
+run_case except_src_relative  cfg_except.bin /work python3 write src/x.js
 # Sink policy: a repo-relative **/dist/** sink should catch the write but cannot
 # for a relative path, i.e. the mirror image loses enforcement.
-run_case sink_dist_relative   cfg_sink.bin   /work write dist/agent-health/x.js
-run_case sink_abs_dist        cfg_sink.bin   /      write /w/dist/agent-health/y.js
+run_case sink_dist_relative   cfg_sink.bin   /work python3 write dist/agent-health/x.js
+run_case sink_abs_dist        cfg_sink.bin   /      python3 write /w/dist/agent-health/y.js
 # Delimiting case: the miss needs the relative path to *start* with the pattern's
 # first segment; a preceding directory (`sub/dist/...`) supplies the slash, so it
 # matches and fires. This bounds the finding to first-segment-relative paths.
-run_case sink_subdir_relative cfg_sink.bin   /work write sub/dist/x.js
+run_case sink_subdir_relative cfg_sink.bin   /work python3 write sub/dist/x.js
 # File-source policy: reading a repo-relative **/src/lib/** file should label the
 # process so the later connect fires; if the source misses, enforcement is lost.
-run_case source_rel_read      cfg_source.bin /work read_connect src/lib/cli.rs
-run_case source_nested_read   cfg_source.bin /work read_connect nemoclaw/src/lib/cli.rs
-run_case source_abs_read      cfg_source.bin /      read_connect /work/src/lib/cli.rs
+run_case source_rel_read      cfg_source.bin /work python3 read_connect src/lib/cli.rs
+run_case source_nested_read   cfg_source.bin /work python3 read_connect nemoclaw/src/lib/cli.rs
+run_case source_abs_read      cfg_source.bin /      python3 read_connect /work/src/lib/cli.rs
+# The frozen RQ2 false-negative policy, live. Under the defect the relative read
+# never taints, so the `git commit` rule stays silent; the nested relative read
+# is the control that labels and fires.
+run_case frozen_fn_rel_read   cfg_frozen.bin /work claude read_commit src/functions/archive.ts
+run_case frozen_fn_abs_read   cfg_frozen.bin /work claude read_commit a/src/functions/archive.ts
 echo EXPERIMENT_DONE
 poweroff -f
 EOF
@@ -235,6 +280,8 @@ printf '%s\t%s\n' except_dist_relative 1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' except_abs_dist      0 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' except_src_relative  1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_dist_relative   0 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' frozen_fn_rel_read   0 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' frozen_fn_abs_read   1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_abs_dist        1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_subdir_relative 1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' source_rel_read      0 >> "$OUT/expectations.tsv"
@@ -275,6 +322,7 @@ awk '
   printf '%s\n' "timestamp_utc $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf '%s\n' "host_git_commit $(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo no-git)"
   printf '%s\n' "guest_kernel $(basename "$KERNEL")"
+  printf '%s\n' "frozen_policy_sha256 $(sha256sum "$OUT/frozen-policy.dsl" | cut -d' ' -f1)"
   printf '%s\n' "acceleration $accel"
   printf '%s\n' "process_bin_sha256 $(sha256sum "$PROC" | cut -d' ' -f1)"
   printf '%s\n' "except_policy_sha256 $(sha256sum "$OUT/policy.dsl" | cut -d' ' -f1)"

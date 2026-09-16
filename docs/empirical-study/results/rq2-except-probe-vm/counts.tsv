@@ -8,3 +8,5 @@ sink_subdir_relative	1
 source_rel_read	0
 source_nested_read	1
 source_abs_read	1
+frozen_fn_rel_read	0
+frozen_fn_abs_read	1
