@@ -144,6 +144,31 @@ downstream enforcement is lost). The source case is the completeness half of the
 same defect and is the strongest form of Reviewer D's concern, because it drops
 enforcement without emitting any verdict.
 
+### Does it explain frozen false negatives?
+
+The same lowering also appears in the frozen false-negative set. A static
+exposure audit (`audit_fn_lowering_exposure.py`) checks each of the 28 ActPlane
+false negatives: does its frozen rule use a repo-relative `**/dir/**` file
+pattern, and does the recorded tool log show a first-segment-relative action path
+that the lowered `CONTAINS("/dir/")` would miss? Two rows qualify:
+
+| Frozen FN row | Frozen pattern | Lowered | Recorded relative path |
+| --- | --- | --- | --- |
+| `rohitg00/agentmemory` `6`, direct | `**/src/functions/**` | `contains(/src/functions/)` | `src/functions/archive.ts` |
+| `alibaba/OpenSandbox` `7`, script | `**/server/**` | `contains(/server/)` | `server/opensandbox_server/api/eval_pause_script.py` |
+
+Both rules gate on a `file` **source** (`source AUDIT_CHANGE = file
+"**/src/functions/**"` and `source SPEC_CONTEXT = file "**/server/**"`), so if the
+source misses, the dependent rule never fires: exactly the enforcement-losing
+direction the live probe demonstrates for `**/src/lib/**`.
+
+This is **static exposure, not proven causation**. The frozen artifact does not
+retain the kernel's per-task matched path, so the audit cannot confirm what string
+the frozen engine actually matched, and each frozen run used the 2026-06-07
+compiler whose exact `TE_REF_USER_PATH` handling is not re-run here. The audit
+identifies two candidates consistent with the defect and is deliberately reported
+as such.
+
 ## Reproduction
 
 ```sh
@@ -151,6 +176,11 @@ enforcement without emitting any verdict.
 python3 docs/empirical-study/replay_fp_lowering.py \
   /path/to/corpus-test /path/to/fp_rows.json target/release/actplane \
   --out docs/empirical-study/results/rq2-fp-current-lowering/replay.json
+
+# static exposure of the defect in the frozen false-negative set
+python3 docs/empirical-study/audit_fn_lowering_exposure.py \
+  /path/to/corpus-test /path/to/artifact/rq2-qwen-primary /path/to/fp_rows.json \
+  --out docs/empirical-study/results/rq2-fn-lowering-exposure/exposure.json
 
 # ported-lowering and kernel-matcher self-checks
 python3 docs/empirical-study/replay_fp_lowering.py --selftest
@@ -174,6 +204,8 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=900 \
   `expectations.tsv` (pre-registered predictions), `counts.tsv`,
   `guest-console.txt` (full cleaned console), `metadata.tsv` (kernel,
   acceleration, per-policy hashes), and the three policy blobs.
+- `results/rq2-fn-lowering-exposure/exposure.json`: the static FN exposure audit
+  output (candidate rows and their lowered patterns).
 
 ## Claim boundary
 
@@ -181,9 +213,10 @@ The replay is host-side matcher evaluation on the recorded event strings, not a
 live verdict for all 18 rows. The live probe covers three policy shapes
 (exception, sink, and file source) in tracepoint mode on Linux 6.8; it does not
 establish LSM-mode behavior, other policies, or per-task outcomes, and it does
-not establish that any frozen RQ2 false negative was caused by this lowering. The
-miss is bounded to first-segment-relative paths; whether a given frozen
-execution triggered it is not audited here. It does not re-derive the frozen
+not establish that a specific frozen RQ2 false negative was caused by this
+lowering. The FN audit is static exposure over the recorded tool logs, not proof
+of causation; the artifact does not retain the kernel's per-task matched path.
+The miss is bounded to first-segment-relative paths. It does not re-derive the
 78/28 or 18/26/28 counts, and it does not establish semantic policy correctness
 beyond the probe. The compiler is unchanged; the relative-path lowering is
 reported as a reproducible finding, not fixed here.
