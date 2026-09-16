@@ -186,6 +186,30 @@ reproduces the observed silence rather than proving the historical cause. The
 `alibaba/OpenSandbox` `7` row is reported as a static candidate only; its trace
 executes the guarded path through a script, which the probe did not replay.
 
+### Remediation shape (not fixed here)
+
+The finding is compiler-side, not engine-side, and a fix must decide where paths
+are normalized. Two options, with their costs:
+
+1. **Normalize in the kernel.** Resolve `TE_REF_USER_PATH` against the caller's
+   cwd before matching, so the recorded string is absolute as the lowering
+   assumes. This needs the tracepoint hooks to compute the absolute path, which
+   the current hooks deliberately avoid (they read the raw user argument because
+   `bpf_d_path` on the syscall path is not always available); it also changes the
+   reported `target` string in every verdict.
+2. **Lower both forms.** Emit, per repo-relative `**/dir/**` pattern, matchers that
+   also match the first-segment-relative form (an anchored `prefix`/`contains` on
+   `dir/` as well as `/dir/`). This keeps the kernel unchanged but doubles the
+   matcher per clause and, for an `unless target` exception, cannot be expressed
+   with the current single `cond_kind`/`cond_pat` ABI, because the exception now
+   needs a disjunction. Option 2 therefore also implies an ABI change.
+
+Either option touches the Rust↔C ABI (`taint.h` and `lower.rs` together) and the
+kernel matcher set, so it is not a one-line fix and is deliberately not attempted
+on this evidence branch. The committed probe and exposure audit give the fix a
+ready regression test: the nine non-FN rows and the two `frozen_fn_*` rows are
+exact pass/fail conditions.
+
 ## Reproduction
 
 ```sh
