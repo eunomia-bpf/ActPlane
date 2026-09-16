@@ -103,6 +103,13 @@ five patterns in four frozen rules (all the `**/.env`-family dotfile guards),
 every one diverging only on the bare-relative form. The scan is static, so it
 states which patterns changed, not which frozen run matched what.
 
+That the change shipped without a test failure is itself explicable: every case in
+`test/e2e_cases.yaml` and `test/e2e_file_flow_cases.yaml` accesses guarded files by
+absolute `${D}/...` path, so the suite never exercises a bare root-level relative
+path and structurally cannot detect this class. The `**/dir/**` miss in the next
+section has the same blind spot, since that class also needs a relative path.
+Adding one relative-path case per family would give both regressions a home in CI.
+
 ## Result: persisted relative-path matching miss
 
 The NemoClaw `s02_no_new_javascript_sources` rule is
