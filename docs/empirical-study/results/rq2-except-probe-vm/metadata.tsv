@@ -1,5 +1,6 @@
-timestamp_utc 2026-09-16T01:17:19Z
-host_git_commit f9eaeac924b2ea86d51ef7d35a4c136712dbf6f6
+timestamp_utc 2026-09-16T03:08:20Z
+env_policy_sha256 dd4506003a2ea99be091ef88a715002d1934de57f45fc3354f670090daea3622
+host_git_commit 0e248945b84bf59d3c2ab7066586d76871997eeb
 guest_kernel vmlinuz-6.8.0-138-generic
 frozen_policy_sha256 d0317fc72c9c18d65fa5d3d1c454b663ffc0f37b102b3f9af1d0e2e4fbeebfdd
 acceleration tcg

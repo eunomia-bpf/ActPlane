@@ -1,4 +1,6 @@
 case	predicted_verdicts	observed_verdicts
+env_bare_relative	0	0
+env_nested_relative	1	1
 except_abs_dist	0	0
 except_dist_relative	1	1
 except_src_relative	1	1

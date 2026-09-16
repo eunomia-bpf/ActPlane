@@ -61,6 +61,48 @@ paths) still fire, but now via a correct extension match rather than a substring
 No row newly fires, and no row's classification depends on an unvalidated port:
 the HEAD lowering port agrees with the compiled blob for every rule.
 
+## Result: the `contains` -> `suffix` tightening regressed bare root-level paths
+
+The tightening that removed the `.js.txt` false positive (row above) changed the
+lowering of `**/<name>` patterns from `CONTAINS("<name>")` to `SUFFIX("/<name>")`.
+The suffix form needs a slash before the name, so it no longer matches a **bare
+relative** path whose parent is the search root: `/work/.env` and `sub/.env` match,
+but a top-level `.env` written from the repository root does not.
+
+Which frozen policies this affects, and whether the frozen run actually matched a
+bare path, is decidable from the artifact:
+
+| Frozen row | Pattern | Historical | Current | Frozen evidence |
+| --- | --- | --- | --- | --- |
+| `Alishahryar1/free-claude-code` `6` | `**/.env` | `contains(.env)` | `suffix(/.env)` | three TP rows whose recorded target is bare `write .env` |
+| `NousResearch/hermes-agent` `s02_keep_credentials_out_of_repo` | `**/.env` | `contains(.env)` | `suffix(/.env)` | rule text only |
+| `yusufkaraaslan/Skill_Seekers` `68` | `**/.env`, `**/.env.local` | `contains(...)` | `suffix(/...)` | rule text only |
+
+The first row is decisive because the frozen artifact records the kernel matching
+exactly the bare relative string: `setup_fired: true` with feedback
+`Operation `write .env``, judged TP in three traces. The current compiler compiles
+that rule to `suffix("/.env")`, which cannot match `.env`. The probe confirms it
+live with the frozen policy shape:
+
+| Live case (frozen TP policy `read-env-example`) | Predicted | Observed |
+| --- | ---: | ---: |
+| write `.env` (the recorded bare-relative path) | 0 | 0 |
+| write `sub/.env` (nested control) | 1 | 1 |
+
+So the same change that fixed one false positive introduced a coverage gap for
+root-level dotfiles: a policy written as `**/.env` no longer catches a `.env`
+created in the repository root. This is a **second, distinct defect** from the
+`**/dir/**` relative miss earlier in this note: that one is about a directory
+segment after `**/`, this one about a bare filename after `**/`, and it was
+introduced by the recent tightening rather than inherited from 2026-06-07.
+
+`audit_path_lowering_divergence.py` makes this checkable: it scans every frozen
+rule pattern, compares the historical and current lowering, and reports each
+divergence on a bare-relative, nested-relative, or absolute probe path. It finds
+five patterns in four frozen rules (all the `**/.env`-family dotfile guards),
+every one diverging only on the bare-relative form. The scan is static, so it
+states which patterns changed, not which frozen run matched what.
+
 ## Result: persisted relative-path matching miss
 
 The NemoClaw `s02_no_new_javascript_sources` rule is
@@ -136,13 +178,14 @@ extension family was tightened from substring to suffix matching. The other thre
 historical-lowering FPs persist, and the dominant remaining cause is genuinely
 broad translated patterns (9 translation rows still fire on their recorded event),
 not a stale compiler defect. This supports the paper's end-to-end framing: the
-false positives are mostly translation- and harness-stage effects, and the one
-durable path-semantics issue is the repo-relative `**/dir/**` lowering, which is
-reproducible on demand and cuts three ways on a relative path: an exception
-over-fires, a sink under-fires, and a file source silently fails to label (so
-downstream enforcement is lost). The source case is the completeness half of the
-same defect and is the strongest form of Reviewer D's concern, because it drops
-enforcement without emitting any verdict.
+false positives are mostly translation- and harness-stage effects. Two distinct
+completeness defects remain in the current compiler, both about relative paths in
+tracepoint mode: the inherited `**/dir/**` lowering mis-matches a
+first-segment-relative directory (an exception over-fires, a sink under-fires, and
+a file source silently fails to label), and the recent `contains` -> `suffix`
+tightening makes `**/<name>` miss a bare root-level file. The source case and the
+bare-dotfile case are the completeness half of Reviewer D's concern, because both
+drop enforcement without emitting any verdict.
 
 ### Does it explain frozen false negatives?
 
@@ -222,6 +265,11 @@ python3 docs/empirical-study/replay_fp_lowering.py \
   /path/to/corpus-test /path/to/fp_rows.json target/release/actplane \
   --out docs/empirical-study/results/rq2-fp-current-lowering/replay.json
 
+# static historical-vs-current lowering divergence over the frozen rules
+python3 docs/empirical-study/audit_path_lowering_divergence.py \
+  /path/to/corpus-test \
+  --out docs/empirical-study/results/rq2-path-lowering-divergence/divergence.json
+
 # static exposure of the defect in the frozen false-negative set
 python3 docs/empirical-study/audit_fn_lowering_exposure.py \
   /path/to/corpus-test /path/to/artifact/rq2-qwen-primary /path/to/fp_rows.json \
@@ -245,23 +293,27 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=900 \
 - `results/rq2-fp-current-lowering/replay.json`: per-row classification, the
   historical-vs-current lowering of each offending glob, the port-vs-blob checks,
   and the per-rule replay detail.
+- `results/rq2-path-lowering-divergence/divergence.json`: the static
+  historical-vs-current lowering divergences over the frozen rules.
 - `results/rq2-except-probe-vm/`: `summary.tsv` (predicted vs observed),
   `expectations.tsv` (pre-registered predictions), `counts.tsv`,
   `guest-console.txt` (full cleaned console), `metadata.tsv` (kernel,
-  acceleration, per-policy hashes), and the four policy blobs.
+  acceleration, per-policy hashes), and the five policy blobs.
 - `results/rq2-fn-lowering-exposure/exposure.json`: the static FN exposure audit
   output (candidate rows and their lowered patterns).
 
 ## Claim boundary
 
 The replay is host-side matcher evaluation on the recorded event strings, not a
-live verdict for all 18 rows. The live probe covers the exception, sink, and file
-source shapes plus the exact `rohitg00/agentmemory` FN policy in tracepoint mode on
-Linux 6.8; it does not establish LSM-mode behavior, other policies, or per-task
-outcomes. It reproduces the `rohitg00/agentmemory` FN silence on the recorded path
-but does not prove the frozen 2026-06-07 run's kernel path string; that row is the
-only confirmed static exposure, and paths written inside Bash scripts are outside
-the audit's view. The miss is bounded to first-segment-relative paths. It does not
-re-derive the 78/28 or 18/26/28 counts, and it does not establish semantic policy
-correctness beyond the probe. The compiler is unchanged; the relative-path
-lowering is reported as a reproducible finding, not fixed here.
+live verdict for all 18 rows. The live probe covers the exception, sink, source,
+and bare-dotfile shapes plus the exact `rohitg00/agentmemory` FN policy and the
+`Alishahryar1/free-claude-code` TP policy in tracepoint mode on Linux 6.8; it does
+not establish LSM-mode behavior, other policies, or per-task outcomes. It
+reproduces the `rohitg00/agentmemory` FN silence and the free-claude-code TP
+regression on their recorded paths, but does not prove the frozen 2026-06-07 run's
+kernel path string; that FN row is the only confirmed static exposure, and paths
+written inside Bash scripts are outside the audit's view. The miss is bounded to
+first-segment-relative and bare root-level relative paths. It does not re-derive
+the 78/28 or 18/26/28 counts, and it does not establish semantic policy
+correctness beyond the probe. The compiler is unchanged; both lowerings are
+reported as reproducible findings, not fixed here.

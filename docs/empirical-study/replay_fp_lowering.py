@@ -349,6 +349,14 @@ def selftest() -> int:
     check(kernel_match(M_CONTAINS, "/w/dist/x.js", "/dist/") is True, "contains /dist/ hits absolute")
     check(kernel_match(M_CONTAINS, "dist/x.js", "/dist/") is False, "contains /dist/ misses relative dist/")
 
+    # The contains -> suffix tightening changed `**/<name>` from CONTAINS to
+    # SUFFIX, which stops matching a bare root-level relative file.
+    check(lower_path_current("**/.env") == (M_SUFFIX, "/.env"), "current **/.env -> suffix(/.env)")
+    check(lower_path_historical("**/.env") == (M_CONTAINS, ".env"), "historical **/.env -> contains(.env)")
+    check(kernel_match(M_SUFFIX, ".env", "/.env") is False, "suffix(/.env) misses bare .env")
+    check(kernel_match(M_CONTAINS, ".env", ".env") is True, "contains(.env) matches bare .env")
+    check(kernel_match(M_SUFFIX, "sub/.env", "/.env") is True, "suffix(/.env) matches nested .env")
+
     for ok, name in checks:
         print(f"[{'PASS' if ok else 'FAIL'}] {name}")
     failed = sum(1 for ok, _ in checks if not ok)

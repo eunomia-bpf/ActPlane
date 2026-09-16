@@ -67,19 +67,29 @@ source AUDIT_CHANGE = file "**/src/functions/**"
 rule update-types-for-audit-ops:
   notify exec "git" "commit" if AGENT and AUDIT_CHANGE
   because "When adding new audit operations, you must also update src/types.ts"'
+# The exact frozen policy of RQ2 TP row `Alishahryar1/free-claude-code` `6`. The
+# frozen engine fired it on a bare relative `write .env` under the historical
+# `contains(".env")` lowering; the current compiler lowers `**/.env` to
+# `suffix("/.env")`, which needs a slash and so cannot match a bare `.env`.
+env_policy='source AGENT = exec "claude"
+rule read-env-example:
+  notify write file "**/.env" if AGENT
+  because "Read .env.example before creating or modifying .env files"'
 "$ACT" --rule "$policy" compile --out "$WORK/root/cfg_except.bin" --force >"$OUT/compile.stdout" 2>"$OUT/compile.stderr"
 "$ACT" --rule "$sink_policy" compile --out "$WORK/root/cfg_sink.bin" --force >>"$OUT/compile.stdout" 2>>"$OUT/compile.stderr"
 "$ACT" --rule "$source_policy" compile --out "$WORK/root/cfg_source.bin" --force >>"$OUT/compile.stdout" 2>>"$OUT/compile.stderr"
-printf '%s\n' "$policy" > "$OUT/policy.dsl"
-printf '%s\n' "$sink_policy" > "$OUT/sink-policy.dsl"
+"$ACT" --rule "$frozen_policy" compile --out "$WORK/root/cfg_frozen.bin" --force >>"$OUT/compile.stdout" 2>>"$OUT/compile.stderr"
+"$ACT" --rule "$env_policy" compile --out "$WORK/root/cfg_env.bin" --force >>"$OUT/compile.stdout" 2>>"$OUT/compile.stderr"
+printf '%s\n' "$policy"        > "$OUT/policy.dsl"
+printf '%s\n' "$sink_policy"   > "$OUT/sink-policy.dsl"
 printf '%s\n' "$source_policy" > "$OUT/source-policy.dsl"
+printf '%s\n' "$frozen_policy" > "$OUT/frozen-policy.dsl"
+printf '%s\n' "$env_policy"    > "$OUT/env-policy.dsl"
 cp "$WORK/root/cfg_except.bin" "$OUT/blob_except.bin"
 cp "$WORK/root/cfg_sink.bin" "$OUT/blob_sink.bin"
 cp "$WORK/root/cfg_source.bin" "$OUT/blob_source.bin"
-
-"$ACT" --rule "$frozen_policy" compile --out "$WORK/root/cfg_frozen.bin" --force >>"$OUT/compile.stdout" 2>>"$OUT/compile.stderr"
-printf '%s\n' "$frozen_policy" > "$OUT/frozen-policy.dsl"
 cp "$WORK/root/cfg_frozen.bin" "$OUT/blob_frozen.bin"
+cp "$WORK/root/cfg_env.bin" "$OUT/blob_env.bin"
 cp "$PROC" "$WORK/root/process"
 cp /bin/busybox "$WORK/root/bin/busybox"
 for a in sh mount grep sleep kill cat mkdir poweroff true ln awk; do ln -sf busybox "$WORK/root/bin/$a"; done
@@ -254,6 +264,12 @@ run_case sink_abs_dist        cfg_sink.bin   /      python3 write /w/dist/agent-
 # first segment; a preceding directory (`sub/dist/...`) supplies the slash, so it
 # matches and fires. This bounds the finding to first-segment-relative paths.
 run_case sink_subdir_relative cfg_sink.bin   /work python3 write sub/dist/x.js
+# Frozen TP policy live (Alishahryar1/free-claude-code 6): the recorded
+# bare-relative `.env` write vs a nested control. Under the historical lowering
+# the bare `.env` fired; the current `suffix("/.env")` needs a slash, so only the
+# nested control should fire.
+run_case env_bare_relative    cfg_env.bin    /work claude write .env
+run_case env_nested_relative  cfg_env.bin    /work claude write sub/.env
 # File-source policy: reading a repo-relative **/src/lib/** file should label the
 # process so the later connect fires; if the source misses, enforcement is lost.
 run_case source_rel_read      cfg_source.bin /work python3 read_connect src/lib/cli.rs
@@ -280,13 +296,15 @@ printf '%s\t%s\n' except_dist_relative 1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' except_abs_dist      0 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' except_src_relative  1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_dist_relative   0 >> "$OUT/expectations.tsv"
-printf '%s\t%s\n' frozen_fn_rel_read   0 >> "$OUT/expectations.tsv"
-printf '%s\t%s\n' frozen_fn_abs_read   1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_abs_dist        1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' sink_subdir_relative 1 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' env_bare_relative    0 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' env_nested_relative  1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' source_rel_read      0 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' source_nested_read   1 >> "$OUT/expectations.tsv"
 printf '%s\t%s\n' source_abs_read      1 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' frozen_fn_rel_read   0 >> "$OUT/expectations.tsv"
+printf '%s\t%s\n' frozen_fn_abs_read   1 >> "$OUT/expectations.tsv"
 
 run_qemu() {
   timeout "$VM_TIMEOUT" qemu-system-x86_64 -accel "$1" -m 1024 -smp 2 -nographic -no-reboot \
@@ -320,6 +338,7 @@ awk '
 
 {
   printf '%s\n' "timestamp_utc $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '%s\n' "env_policy_sha256 $(sha256sum "$OUT/env-policy.dsl" | cut -d' ' -f1)"
   printf '%s\n' "host_git_commit $(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo no-git)"
   printf '%s\n' "guest_kernel $(basename "$KERNEL")"
   printf '%s\n' "frozen_policy_sha256 $(sha256sum "$OUT/frozen-policy.dsl" | cut -d' ' -f1)"

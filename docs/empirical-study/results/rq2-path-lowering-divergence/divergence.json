@@ -1,0 +1,76 @@
+{
+  "corpus": "/tmp/rq2frozen/docs/corpus-test",
+  "note": "Static lowering comparison over frozen rule patterns. A divergence means the current compiler matches a probe path differently from the historical one; it is not a statement about any frozen run's actual matched path.",
+  "findings": [
+    {
+      "rule": "Alishahryar1__free-claude-code/6/rule.yaml",
+      "pattern": "**/.env",
+      "historical": "contains(.env)",
+      "current": "suffix(/.env)",
+      "divergences": [
+        {
+          "form": "bare_relative",
+          "path": ".env",
+          "historical_fires": true,
+          "current_fires": false
+        }
+      ]
+    },
+    {
+      "rule": "Alishahryar1__free-claude-code/6/rule.yaml",
+      "pattern": "**/.env.example",
+      "historical": "contains(.env.example)",
+      "current": "suffix(/.env.example)",
+      "divergences": [
+        {
+          "form": "bare_relative",
+          "path": ".env.example",
+          "historical_fires": true,
+          "current_fires": false
+        }
+      ]
+    },
+    {
+      "rule": "NousResearch__hermes-agent/s02_keep_credentials_out_of_repo/rule.yaml",
+      "pattern": "**/.env",
+      "historical": "contains(.env)",
+      "current": "suffix(/.env)",
+      "divergences": [
+        {
+          "form": "bare_relative",
+          "path": ".env",
+          "historical_fires": true,
+          "current_fires": false
+        }
+      ]
+    },
+    {
+      "rule": "yusufkaraaslan__Skill_Seekers/68/rule.yaml",
+      "pattern": "**/.env",
+      "historical": "contains(.env)",
+      "current": "suffix(/.env)",
+      "divergences": [
+        {
+          "form": "bare_relative",
+          "path": ".env",
+          "historical_fires": true,
+          "current_fires": false
+        }
+      ]
+    },
+    {
+      "rule": "yusufkaraaslan__Skill_Seekers/68/rule.yaml",
+      "pattern": "**/.env.local",
+      "historical": "contains(.env.local)",
+      "current": "suffix(/.env.local)",
+      "divergences": [
+        {
+          "form": "bare_relative",
+          "path": ".env.local",
+          "historical_fires": true,
+          "current_fires": false
+        }
+      ]
+    }
+  ]
+}
