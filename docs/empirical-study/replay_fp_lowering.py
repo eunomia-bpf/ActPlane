@@ -81,14 +81,7 @@ def kernel_match(kind: int, text: str, pat: str) -> bool:
     if kind == M_PREFIX:
         return bool(pat) and text.startswith(pat)
     if kind == M_SUFFIX:
-        # taint_suffix: ordinary suffix, plus the slash-anchored bare-root form.
-        # The compiler lowers a globstar-basename pattern to "/<name>", which
-        # must also match the bare root-level name (text == pat[1:]).
-        if not pat or len(pat) > 16:
-            return False
-        if pat.startswith("/") and text == pat[1:]:
-            return True
-        return text.endswith(pat)
+        return bool(pat) and len(pat) <= 16 and text.endswith(pat)
     if kind == M_ANY:
         return True
     if kind == M_CONTAINS:
@@ -125,6 +118,20 @@ def shorten_repo_relative_exact_literal(path: str) -> str:
         parent = path.rsplit("/", 1)[0]
         return shorten_contains_literal(parent + "/")
     return shorten_contains_literal(path)
+
+
+
+def lower_path_bare(pat: str) -> str | None:
+    """Companion exact literal for a repo-relative `**/<name>` pattern, mirroring
+    crates/actplane-ifc-compiler/src/dsl/lower.rs::lower_path_bare. Returns the
+    bare basename (no leading slash) or None when the pattern has no bare form
+    (the wildcard form `**/*x`, or a non-globstar pattern)."""
+    if not pat.startswith("**/"):
+        return None
+    inner = pat[3:]
+    if not inner or "*" in inner:
+        return None
+    return inner
 
 
 def lower_path_current(pat: str) -> tuple[int, str]:
@@ -358,17 +365,20 @@ def selftest() -> int:
 
     # The contains -> suffix tightening changed `**/<name>` from CONTAINS to
     # SUFFIX("/<name>"), which stopped matching a bare root-level relative file
-    # (`suffix("/.env")` needs a slash). The fix folds the bare-root form into
-    # taint_suffix: a slash-anchored suffix also matches its literal without the
-    # leading slash, so both the bare name and the slash-anchored nested form
-    # match, with no new matcher kind (the inlined call graph is unchanged).
+    # (`suffix("/.env")` needs a slash). The fix pairs the suffix with a
+    # companion EXACT("<name>") entry, so the bare name matches via exact and the
+    # nested/absolute forms via suffix, with no kernel change.
     check(lower_path_current("**/.env") == (M_SUFFIX, "/.env"), "current **/.env -> suffix(/.env)")
+    check(lower_path_bare("**/.env") == ".env", "current **/.env -> companion exact(.env)")
+    check(lower_path_bare("**/*.js") is None, "current **/*.js -> no companion (wildcard form)")
     check(lower_path_historical("**/.env") == (M_CONTAINS, ".env"), "historical **/.env -> contains(.env)")
-    check(kernel_match(M_SUFFIX, ".env", "/.env") is True, "suffix(/.env) matches bare .env (fold)")
+    check(kernel_match(M_EXACT, ".env", ".env") is True, "exact(.env) matches bare .env")
+    check(kernel_match(M_EXACT, "sub/.env", ".env") is False, "exact(.env) rejects nested .env")
     check(kernel_match(M_SUFFIX, "sub/.env", "/.env") is True, "suffix(/.env) matches nested .env")
     check(kernel_match(M_SUFFIX, "/work/.env", "/.env") is True, "suffix(/.env) matches absolute .env")
+    check(kernel_match(M_SUFFIX, ".env", "/.env") is False, "suffix(/.env) alone misses bare .env (the regression)")
     check(kernel_match(M_SUFFIX, "foo.env", "/.env") is False, "suffix(/.env) rejects the foo.env suffix")
-    check(kernel_match(M_SUFFIX, "a/.env.bak", "/.env") is False, "suffix(/.env) rejects a longer name")
+    check(kernel_match(M_EXACT, "foo.env", ".env") is False, "exact(.env) rejects the foo.env suffix")
 
     for ok, name in checks:
         print(f"[{'PASS' if ok else 'FAIL'}] {name}")

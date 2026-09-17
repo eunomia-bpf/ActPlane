@@ -60,23 +60,6 @@ static void test_match(void)
 	check(p_match(TAINT_MATCH_SUFFIX, "/home/u/app.py", ".env") == 0, "match: suffix miss");
 	check(p_match(TAINT_MATCH_SUFFIX, "api.internal", ".internal") == 1, "match: host suffix");
 	check(p_match(TAINT_MATCH_ANY, "literally anything", "") == 1, "match: any");
-	/* A globstar-basename pattern lowers to the slash-anchored suffix
-	 * "/<name>"; it must fire on the bare root-level name as well as the
-	 * nested and absolute forms, while still rejecting a non-component
-	 * suffix like "foo.env". */
-	check(p_match(TAINT_MATCH_SUFFIX, "sec.env", "/sec.env") == 1, "suffix: bare root name matches slash form");
-	check(p_match(TAINT_MATCH_SUFFIX, "sub/sec.env", "/sec.env") == 1, "suffix: nested name matches slash form");
-	check(p_match(TAINT_MATCH_SUFFIX, "/work/sec.env", "/sec.env") == 1, "suffix: absolute name matches slash form");
-	check(p_match(TAINT_MATCH_SUFFIX, "foo.sec.env", "/sec.env") == 0, "suffix: non-component suffix still rejected");
-	check(p_match(TAINT_MATCH_SUFFIX, "sec.env.bak", "/sec.env") == 0, "suffix: longer name still rejected");
-	check(p_match(TAINT_MATCH_SUFFIX, ".env", "/.env") == 1, "suffix: bare dotfile matches");
-	check(p_match(TAINT_MATCH_SUFFIX, "app/.env", "/.env") == 1, "suffix: nested dotfile matches");
-	check(p_match(TAINT_MATCH_SUFFIX, "my.env", "/.env") == 0, "suffix: dotfile prefix not a component match");
-	/* A non-slash pattern is unaffected: the bare-root relaxation is gated on
-	 * the leading '/', so `*.js` (suffix ".js") never matches a bare name that
-	 * merely lacks the suffix. */
-	check(p_match(TAINT_MATCH_SUFFIX, "x.js", ".js") == 1, "suffix: plain suffix unchanged");
-	check(p_match(TAINT_MATCH_SUFFIX, "js", ".js") == 0, "suffix: non-slash pattern has no bare form");
 	check(p_match(TAINT_MATCH_CONTAINS, "/home/u/server/app/f", "/server/") == 1, "match: contains hit");
 	check(p_match(TAINT_MATCH_CONTAINS, "/home/u/client/app/f", "/server/") == 0, "match: contains miss");
 	check(p_match(TAINT_MATCH_CONTAINS, "/server/start", "/server/") == 1, "match: contains at start");

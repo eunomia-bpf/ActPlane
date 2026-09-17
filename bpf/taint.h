@@ -229,12 +229,7 @@ static TAINT_NOINLINE int taint_suffix(const char *text, const char *suf)
 		slive &= te_nzmask((unsigned char)suf[i]) & 1;
 		sn += (int)slive;
 	}
-	/* A slash-anchored suffix also matches the bare root-level name: the
-	 * compiler lowers a globstar-basename pattern to "/<name>", which must
-	 * fire on "name" as well as on "a/name" and "/a/name". Permit
-	 * tn == sn-1 so that case survives the length guard and the comparison
-	 * below decides it. */
-	if (sn == 0 || sn > TAINT_SUF_MAX || tn < sn - 1)
+	if (sn == 0 || sn > tn || sn > TAINT_SUF_MAX)
 		return 0;
 	int off = tn - sn;
 	/* Fetch the aligned tail (text[off .. off+sn)) with ONE bounded copy, then
@@ -245,30 +240,19 @@ static TAINT_NOINLINE int taint_suffix(const char *text, const char *suf)
 	/* Constant-size copy (verifier-friendly: no variable length). off is clamped
 	 * to [0, TAINT_PAT_LEN); callers pass TAINT_TEXT_BUF-sized buffers so reading
 	 * TAINT_SUF_MAX bytes at off stays in bounds. The compare below only honors
-	 * the first `sn` bytes, so the extra bytes are ignored. In the bare case off
-	 * was -1 and clamps to 0, so the copy starts at text[0]. */
+	 * the first `sn` bytes, so the extra bytes are ignored. */
 	if (off < 0)
 		off = 0;
 	if (off > TAINT_PAT_LEN - 1)
 		off = TAINT_PAT_LEN - 1;
 	TE_COPY(tail, TAINT_SUF_MAX, text + off);
-	/* Two constant-index comparisons in one loop. Keeping this inside the
-	 * noinline matcher (rather than a new kind routed through the inlined
-	 * te_path_match) leaves the inlined call graph unchanged, so the verifier
-	 * does not re-explore every path-match call site:
-	 *   diff: tail == suf        (the ordinary suffix form)
-	 *   bare: tail == suf + 1    (the bare root-level name) */
-	long diff = 0, bare = 0;
+	long diff = 0;
 	TAINT_UNROLL
 	for (int j = 0; j < TAINT_SUF_MAX; j++) {
 		long jm = -(long)(j < sn);
-		long jb = -(long)(j < sn - 1);
 		diff |= jm & (unsigned char)(tail[j] ^ (unsigned char)suf[j]);
-		bare |= jb & (unsigned char)(tail[j] ^ (unsigned char)suf[j + 1]);
 	}
-	long isbare = te_iszero64((unsigned long)((unsigned char)suf[0] ^ (unsigned char)'/'))
-		    & te_iszero64((unsigned long)(unsigned int)(tn - (sn - 1)));
-	return diff == 0 || (isbare != 0 && bare == 0);
+	return diff == 0;
 }
 
 /* taint_contains is implemented in taint_engine.bpf.h (needs bpf_loop).

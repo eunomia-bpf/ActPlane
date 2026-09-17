@@ -69,13 +69,19 @@ def main() -> int:
         for pattern in sorted(set(re.findall(r'file "([^"]+)"', text))):
             hist = replay.lower_path_historical(pattern)
             cur = replay.lower_path_current(pattern)
-            if hist == cur:
+            # The current compiler also emits a companion exact entry for a
+            # repo-relative `**/<name>` (so the bare root-level name matches);
+            # model the full current lowering, not just its primary form.
+            cur_extra = replay.lower_path_bare(pattern)
+            if hist == cur and cur_extra is None:
                 continue
             probes = probe_paths(pattern)
             diffs = []
             for form, path in probes.items():
                 h = bool(replay.kernel_match(hist[0], path, hist[1]))
                 c = bool(replay.kernel_match(cur[0], path, cur[1]))
+                if cur_extra is not None:
+                    c = c or bool(replay.kernel_match(replay.M_EXACT, path, cur_extra))
                 if h != c:
                     diffs.append({"form": form, "path": path,
                                   "historical_fires": h, "current_fires": c})
@@ -84,7 +90,9 @@ def main() -> int:
                     "rule": rel,
                     "pattern": pattern,
                     "historical": f"{replay.lowered_name(hist[0])}({hist[1]})",
-                    "current": f"{replay.lowered_name(cur[0])}({cur[1]})",
+                    "current": f"{replay.lowered_name(cur[0])}({cur[1]})"
+                               + (f"+{replay.lowered_name(replay.M_EXACT)}({cur_extra})"
+                                  if cur_extra is not None else ""),
                     "divergences": diffs,
                 })
 

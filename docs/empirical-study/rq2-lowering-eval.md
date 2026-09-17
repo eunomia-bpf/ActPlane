@@ -89,52 +89,51 @@ compiled that rule to `suffix("/.env")`, which cannot match `.env`; the 2026-09-
 probe confirmed it live (bare `.env` predicted/observed 0 verdicts, nested
 `sub/.env` 1).
 
-**Fix.** The bare-root form is folded into the existing `taint_suffix` matcher,
-with no new matcher kind. The compiler still lowers a repo-relative `**/<name>`
-(a globstar, a slash, and a wildcard-free basename) to `suffix("/"+name)`, exactly
-as before. The kernel change is inside `taint_suffix`: a slash-anchored suffix
-also matches the same literal without its leading slash, so `/sec.env` matches a
-bare `sec.env` as well as `sub/sec.env` and `/work/sec.env`, while `foo.sec.env`
-(no component boundary) still does not. The comparison is a second
-constant-index term in the existing unrolled loop, so the inlined `te_path_match`
-call graph and its verifier state count are unchanged. Concretely, the earlier
-attempt to route the pattern through a new `TAINT_MATCH_BASENAME` kind (0x5)
-added a branch to the inlined `te_path_match`, and its extra verifier state
-pushed `trace_openat_exit` over the 1,000,000-instruction limit on the CI kernel
-(12/12 e2e cases had passed before that change; the two `file "**/..."` source
-cases then failed to load with `-E2BIG`). Folding the fix into `taint_suffix`
-restores the pre-change verifier profile: on the 6.8 guest, `trace_openat_exit`
-loads at 517,041 instructions (master: 491,049) and the set of programs that fail
-to load is identical to master's (the three `trace_rename*_exit` handlers hit the
-1M limit and `trace_recvfrom_exit`/`trace_recvmsg_exit` are `-EACCES`, all
-pre-existing and none autoloaded by these policies).
+**Fix.** The compiler pairs the suffix form with a companion `exact` matcher, so
+both halves of the pattern are covered by existing kernel matchers and the
+engine is byte-identical to `master`. A repo-relative `**/<name>` (a globstar, a
+slash, and a wildcard-free basename) still lowers to `suffix("/"+name)`, which
+fires on `sub/.env` and `/work/.env`; a second entry, `exact("<name>")`, fires on
+the bare root-level name (`.env`) and on nothing else (`foo.env` is not equal to
+`.env`, and the suffix form rejects it too because it needs the leading slash).
+The two are mutually exclusive, so no event double-fires. Sources emit the pair
+as two `taint_update`s and sinks as two `taint_rule`s.
 
-The wildcard form remains `suffix`: `**/*.js` is still `suffix(".js")`, so the
-`.js.txt` false positive stays fixed. This is not a Rust↔C ABI change: `taint.h`'s
-`taint_suffix` is edited, `lower.rs` is unchanged from `master`, and both
-committed prebuilt objects are regenerated from the modified engine.
+Emitting an extra table entry is verifier-free because the update and rule scans
+run in `bpf_loop` callbacks, which the verifier checks once rather than per entry.
+This matters because the file-event hooks have almost no verifier headroom. Two
+earlier attempts were rejected on the CI kernel's 1,000,000-instruction budget
+(12/12 e2e cases had passed before either): a new `TAINT_MATCH_BASENAME` kind
+(0x5) added a branch to the inlined `te_path_match` and doubled its explored
+state, and folding the bare case into `taint_suffix` added ~26,000 instructions
+on the 6.8 guest (`trace_openat_exit` 491,049 -> 517,041), which the CI kernel's
+~2x state exploration pushed past the limit. The companion-entry form leaves
+`trace_openat_exit` at exactly `master`'s 491,049 on the 6.8 guest, and the set
+of programs that fail to load is identical to `master`'s (the three
+`trace_rename*_exit` handlers at the 1M limit; `trace_recvfrom_exit`/
+`trace_recvmsg_exit` are `-EACCES`), none autoloaded by these policies.
 
-After the fix, a repo-relative `**/<name>` is a strict superset of the pre-fix
-match (everything `suffix("/"+name)` matched still matches, plus the bare name),
-and a strict subset of the historical `contains(name)` (no substring match inside
-a longer name). The `**/*.js`-family patterns keep their suffix behavior, so the
-historical over-match is not reintroduced. The static divergence scan
-(`audit_path_lowering_divergence.py`) now reports zero findings, because current
-and historical agree on all three probe forms for every frozen pattern.
+This is not a Rust↔C ABI change and edits no kernel code: only
+`crates/actplane-ifc-compiler/src/dsl/lower.rs` changes, and both committed
+prebuilt objects stay at `master`. The wildcard form remains `suffix`
+(`**/*.js` -> `suffix(".js")`, so the `.js.txt` false positive stays fixed). The
+new match is a strict superset of the pre-fix form (everything `suffix("/"+name)`
+matched still matches, plus the bare name) and a strict subset of the historical
+`contains(name)` (no substring match inside a longer name). The static
+divergence scan (`audit_path_lowering_divergence.py`) reports zero findings,
+because current and historical agree on all three probe forms for every frozen
+pattern.
 
-Legacy (Linux 5.10) note: the legacy engine keys off the same `TAINT_MATCH_SUFFIX`
-kind it always did, so a `**/<name>` policy behaves there exactly as on `master`
-(no new incompatibility is introduced). The bare-root fold lives in the modern
-engine's `taint_suffix`; the legacy 5.10 path uses its own aligned-tail compare
-(`te_path_match` under `ACTPLANE_LEGACY_KERNEL`) and keeps the pre-fix
-slash-required semantics, so a bare `.env` remains unmatched there. This is the
-same behavior `master` shipped, not a new narrowing.
+Legacy (Linux 5.10) note: the legacy engine already implements `exact`, so the
+companion entry works there too. A `**/<name>` policy gains the bare-root match
+on both engines; nothing that matched before stops matching, so there is no
+compatibility narrowing.
 
 The regression shipped without a test failure because every case in
 `test/e2e_cases.yaml` and `test/e2e_file_flow_cases.yaml` accesses guarded files by
 absolute `${D}/...` path, so the suite never exercised a bare root-level relative
-path and structurally could not detect this class. A bare-relative file-sink case
-is now added to `test/e2e_file_flow_cases.yaml` so CI exercises it.
+path and structurally could not detect this class. A bare-relative file-source
+case (`F9`) is now added to `test/e2e_file_flow_cases.yaml` so CI exercises it.
 
 The `**/dir/**` miss in the next section shares that blind spot, since that class
 also needs a relative path. Adding one relative-path case per family gives both
@@ -296,7 +295,7 @@ normalized. Two options, with their costs:
 
 Either option touches the Rust↔C ABI (`taint.h` and `lower.rs` together) and the
 kernel matcher set. The `**/<name>` fix above did **not** need an ABI addition
-(it folds a bare-root term into the existing `taint_suffix`), so it is the cheaper
+(it pairs the existing `suffix` with an existing `exact`), so it is the cheaper
 template; the `**/dir/**` fix needs both a second matcher form and, for the
 exception, a disjunction, so it is larger. The committed probe gives that fix a
 ready regression test: the `**/dir/**` rows (`except_*`, `sink_*`, `source_*`)
@@ -358,9 +357,10 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=900 \
   source) emits exactly one verdict for a bare `.env` read then `connect 1.1.1.2`
   (`"target":"1.1.1.2"`, `provenance.target:".env"`, `effect":"kill"`), and none
   for a `foo.env` control read; the pre-fix `master` engine emits none for the
-  bare `.env` case, reproducing the regression. That earlier BASENAME attempt
-  (head `055e952c`) is what pushed `trace_openat_exit` over the limit; the folded
-  fix does not (E1's blob: master 491,049, fix 517,041 insns).
+  bare `.env` case, reproducing the regression. The companion-entry fix keeps
+  `trace_openat_exit` at exactly `master`'s 491,049 instructions on the 6.8
+  guest; the two rejected attempts (the `TAINT_MATCH_BASENAME` kind and the
+  `taint_suffix` fold) each pushed it over the CI limit.
 - `results/rq2-fn-lowering-exposure/exposure.json`: the static FN exposure audit
   output (candidate rows and their lowered patterns).
 
@@ -378,8 +378,9 @@ written inside Bash scripts are outside the audit's view. The miss is bounded to
 first-segment-relative and bare root-level relative paths. It does not re-derive
 the 78/28 or 18/26/28 counts, and it does not establish semantic policy
 correctness beyond the probe. The `**/<name>` bare-root lowering is fixed here
-(kernel `taint_suffix` fold; the compiler lowering is unchanged from `master`;
-evidence: `--selftest`, blob-port agreement, zero divergence findings, the C unit
-tests, the local 6.8 verifier oracle, and the live firing proof); the `**/dir/**`
+(compiler-only: the existing `suffix("/<name>")` is paired with an existing
+`exact("<name>")`, so the engine is byte-identical to `master`; evidence:
+`--selftest`, blob-port agreement, zero divergence findings, the C unit tests,
+the local 6.8 verifier oracle, and the live firing proof); the `**/dir/**`
 first-segment relative miss is reported but not fixed, because it needs a
 `unless target` disjunction the current ABI cannot express.
