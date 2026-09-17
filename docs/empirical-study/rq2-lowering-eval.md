@@ -69,9 +69,10 @@ the HEAD lowering port agrees with the compiled blob for every rule.
 
 The tightening that removed the `.js.txt` false positive (row above) changed the
 lowering of `**/<name>` patterns from `CONTAINS("<name>")` to `SUFFIX("/<name>")`.
-The suffix form needs a slash before the name, so it no longer matched a **bare
-relative** path whose parent is the search root: `/work/.env` and `sub/.env`
-matched, but a top-level `.env` written from the repository root did not.
+Before the fix, the suffix form required a slash before the name, so it no longer
+matched a **bare relative** path whose parent is the search root: `/work/.env` and
+`sub/.env` matched, but a top-level `.env` written from the repository root did
+not.
 
 Which frozen policies this affected is decidable from the artifact:
 
@@ -88,21 +89,30 @@ compiled that rule to `suffix("/.env")`, which cannot match `.env`; the 2026-09-
 probe confirmed it live (bare `.env` predicted/observed 0 verdicts, nested
 `sub/.env` 1).
 
-**Fix.** The compiler now lowers a repo-relative `**/<name>` (a globstar, a slash,
-and a wildcard-free basename) to a new kernel matcher kind, `TAINT_MATCH_BASENAME`
-(value 5), carrying the bare literal `<name>` instead of `/<name>`. A new kernel
-helper `taint_basename` returns true when the text equals the literal (a bare
-root-level name) or ends with `"/" + literal` at a component boundary, so it
-matches a bare `.env`, `sub/.env`, and `/work/.env` but still rejects `foo.env`
-and `a/.env.bak`. It is `taint_suffix` plus one boundary byte (the extra work is a
-single clamped read and one zero test), so it keeps the verifier-friendly shape.
-The new kind is routed through `taint_match`, `te_path_match` (gated on
-`TE_POLICY_PATH_SUFFIX`, which the Rust side sets for `M_BASENAME`), and
-`cap_path_match_supported`. The wildcard form remains `suffix`: `**/*.js` is still
-`suffix(".js")`, so the `.js.txt` false positive stays fixed. This is a
-Rust↔C ABI addition (`bpf/taint.h` + `crates/actplane-ifc-compiler/src/dsl/lower.rs`
-together, verified by the fixed-size blob test), and both committed prebuilt
-objects are regenerated from the modified engine.
+**Fix.** The bare-root form is folded into the existing `taint_suffix` matcher,
+with no new matcher kind. The compiler still lowers a repo-relative `**/<name>`
+(a globstar, a slash, and a wildcard-free basename) to `suffix("/"+name)`, exactly
+as before. The kernel change is inside `taint_suffix`: a slash-anchored suffix
+also matches the same literal without its leading slash, so `/sec.env` matches a
+bare `sec.env` as well as `sub/sec.env` and `/work/sec.env`, while `foo.sec.env`
+(no component boundary) still does not. The comparison is a second
+constant-index term in the existing unrolled loop, so the inlined `te_path_match`
+call graph and its verifier state count are unchanged. Concretely, the earlier
+attempt to route the pattern through a new `TAINT_MATCH_BASENAME` kind (0x5)
+added a branch to the inlined `te_path_match`, and its extra verifier state
+pushed `trace_openat_exit` over the 1,000,000-instruction limit on the CI kernel
+(12/12 e2e cases had passed before that change; the two `file "**/..."` source
+cases then failed to load with `-E2BIG`). Folding the fix into `taint_suffix`
+restores the pre-change verifier profile: on the 6.8 guest, `trace_openat_exit`
+loads at 517,041 instructions (master: 491,049) and the set of programs that fail
+to load is identical to master's (the three `trace_rename*_exit` handlers hit the
+1M limit and `trace_recvfrom_exit`/`trace_recvmsg_exit` are `-EACCES`, all
+pre-existing and none autoloaded by these policies).
+
+The wildcard form remains `suffix`: `**/*.js` is still `suffix(".js")`, so the
+`.js.txt` false positive stays fixed. This is not a Rust↔C ABI change: `taint.h`'s
+`taint_suffix` is edited, `lower.rs` is unchanged from `master`, and both
+committed prebuilt objects are regenerated from the modified engine.
 
 After the fix, a repo-relative `**/<name>` is a strict superset of the pre-fix
 match (everything `suffix("/"+name)` matched still matches, plus the bare name),
@@ -112,12 +122,13 @@ historical over-match is not reintroduced. The static divergence scan
 (`audit_path_lowering_divergence.py`) now reports zero findings, because current
 and historical agree on all three probe forms for every frozen pattern.
 
-Legacy (Linux 5.10) note: `validate_legacy_config` rejects `M_BASENAME`, as it
-already did for `M_CONTAINS`, because the compatibility engine does not implement
-the basename matcher. A `**/<name>` policy that the pre-fix legacy loader accepted
-(as a length-limited `suffix`) now fails closed with an explicit error rather than
-mismatching; this is a compatibility narrowing, not silent misbehavior, and the
-modern engine (the evaluated configuration) is unaffected.
+Legacy (Linux 5.10) note: the legacy engine keys off the same `TAINT_MATCH_SUFFIX`
+kind it always did, so a `**/<name>` policy behaves there exactly as on `master`
+(no new incompatibility is introduced). The bare-root fold lives in the modern
+engine's `taint_suffix`; the legacy 5.10 path uses its own aligned-tail compare
+(`te_path_match` under `ACTPLANE_LEGACY_KERNEL`) and keeps the pre-fix
+slash-required semantics, so a bare `.env` remains unmatched there. This is the
+same behavior `master` shipped, not a new narrowing.
 
 The regression shipped without a test failure because every case in
 `test/e2e_cases.yaml` and `test/e2e_file_flow_cases.yaml` accesses guarded files by
@@ -210,7 +221,7 @@ not a stale compiler defect. This supports the paper's end-to-end framing: the
 false positives are mostly translation- and harness-stage effects. Two distinct
 relative-path completeness defects were found in the current compiler. The
 `**/<name>` bare-root regression (the recent `contains` -> `suffix` tightening) is
-now fixed: the compiler lowers it to the new basename matcher, which matches a
+now fixed: the compiler lowers it to `suffix("/<name>")`, which now also matches a
 bare root-level file and still rejects a longer name like `foo.env`. The inherited
 `**/dir/**` lowering still mis-matches a first-segment-relative directory (an
 exception over-fires, a sink under-fires, and a file source silently fails to
@@ -284,12 +295,12 @@ normalized. Two options, with their costs:
    change.
 
 Either option touches the Rust↔C ABI (`taint.h` and `lower.rs` together) and the
-kernel matcher set. The `**/<name>` fix above shows the pattern for such an ABI
-addition (a new `TAINT_MATCH_BASENAME` kind threaded through the matcher, the
-feature gate, and the blob); the `**/dir/**` fix additionally needs the
-disjunction, so it is larger. The committed probe gives that fix a ready
-regression test: the `**/dir/**` rows (`except_*`, `sink_*`, `source_*`) and the
-two `frozen_fn_*` rows are exact pass/fail conditions.
+kernel matcher set. The `**/<name>` fix above did **not** need an ABI addition
+(it folds a bare-root term into the existing `taint_suffix`), so it is the cheaper
+template; the `**/dir/**` fix needs both a second matcher form and, for the
+exception, a disjunction, so it is larger. The committed probe gives that fix a
+ready regression test: the `**/dir/**` rows (`except_*`, `sink_*`, `source_*`)
+and the two `frozen_fn_*` rows are exact pass/fail conditions.
 
 ## Reproduction
 
@@ -334,13 +345,22 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=900 \
   `expectations.tsv`, `counts.tsv`, `guest-console.txt` (full cleaned console),
   `metadata.tsv` (kernel, acceleration, per-policy hashes), and the five policy
   blobs. Its `env_bare_relative` row (0 verdicts) is the pre-fix behavior and is
-  retained as the diagnosis of the regression; the current probe prints the fixed
-  expectations (bare `.env` fires, `foo.env` does not). It was not re-run after
-  the fix: the guest 6.8 verifier in this environment now rejects every engine
-  program at the instruction limit (`BPF program is too large. Processed 1000001
-  insn` on `trace_openat_exit`), including the verbatim committed prebuilt object
-  and pristine `master` source, so the failure is a pre-existing environment
-  toolchain drift, not this fix (see the session report).
+  retained as the diagnosis; the probe script now prints the fixed expectations
+  (bare `.env` fires, `foo.env` does not).
+
+  The fix was additionally re-validated live in a 6.8 guest in this environment.
+  A local verifier oracle (guest `vmlinuz-6.8.0-138-generic`, qemu/TCG, the
+  diagnostic loader) loads every engine program: `master` and the fixed engine
+  have the **same** failure set (the three `trace_rename*_exit` handlers at the
+  1M limit, `trace_recvfrom_exit`/`trace_recvmsg_exit` `-EACCES`), none autoloaded
+  by these policies. A `source SECRET = file "**/.env"` policy plus a connect sink
+  run through the **production** loader (`bpf/process` built from the fixed
+  source) emits exactly one verdict for a bare `.env` read then `connect 1.1.1.2`
+  (`"target":"1.1.1.2"`, `provenance.target:".env"`, `effect":"kill"`), and none
+  for a `foo.env` control read; the pre-fix `master` engine emits none for the
+  bare `.env` case, reproducing the regression. That earlier BASENAME attempt
+  (head `055e952c`) is what pushed `trace_openat_exit` over the limit; the folded
+  fix does not (E1's blob: master 491,049, fix 517,041 insns).
 - `results/rq2-fn-lowering-exposure/exposure.json`: the static FN exposure audit
   output (candidate rows and their lowered patterns).
 
@@ -358,7 +378,8 @@ written inside Bash scripts are outside the audit's view. The miss is bounded to
 first-segment-relative and bare root-level relative paths. It does not re-derive
 the 78/28 or 18/26/28 counts, and it does not establish semantic policy
 correctness beyond the probe. The `**/<name>` bare-root lowering is fixed here
-(compiler + kernel matcher, host-side evidence: `--selftest`, blob-port agreement,
-zero divergence findings, and the C unit tests); the `**/dir/**` first-segment
-relative miss is reported but not fixed, because it needs a `unless target`
-disjunction the current ABI cannot express.
+(kernel `taint_suffix` fold; the compiler lowering is unchanged from `master`;
+evidence: `--selftest`, blob-port agreement, zero divergence findings, the C unit
+tests, the local 6.8 verifier oracle, and the live firing proof); the `**/dir/**`
+first-segment relative miss is reported but not fixed, because it needs a
+`unless target` disjunction the current ABI cannot express.

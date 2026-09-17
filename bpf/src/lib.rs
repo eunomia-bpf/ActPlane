@@ -87,7 +87,6 @@ const LEGACY_MAX_RULES: usize = 32;
 const MAX_TAINT_LABELS: usize = 64;
 const M_SUFFIX: u8 = 2;
 const M_CONTAINS: u8 = 4;
-const M_BASENAME: u8 = 5;
 const OP_EXEC: u8 = 0;
 const OP_OPEN: u8 = 1;
 const OP_WRITE: u8 = 2;
@@ -1422,7 +1421,6 @@ fn validate_legacy_config(cfg: &CConfig) -> io::Result<()> {
             && arg == 0
             && op <= OP_CONNECT
             && m != M_CONTAINS
-            && m != M_BASENAME
             && (op != OP_EXEC || m != M_SUFFIX)
             && (m != M_SUFFIX || pat[16] == 0)
     };
@@ -1467,7 +1465,7 @@ fn group_legacy_config(cfg: &mut CConfig) -> [u32; 4] {
 
 fn path_match_features(m: u8) -> u32 {
     match m {
-        M_SUFFIX | M_BASENAME => FEAT_PATH_SUFFIX,
+        M_SUFFIX => FEAT_PATH_SUFFIX,
         M_CONTAINS => FEAT_PATH_CONTAINS,
         _ => 0,
     }

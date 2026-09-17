@@ -32,7 +32,6 @@ static int p_streq(const char *a, const char *b) { pad2(a, b); return taint_stre
 static int p_prefix(const char *t, const char *p) { pad2(t, p); return taint_prefix(pa_, pb_); }
 static int p_match(unsigned int k, const char *t, const char *p) { pad2(t, p); return taint_match(k, pa_, pb_); }
 static int p_exec_match(unsigned int k, const char *t, const char *p) { pad2(t, p); return taint_exec_match(k, pa_, pb_); }
-static int p_basename(const char *t, const char *p) { pad2(t, p); return taint_basename(pa_, pb_); }
 
 static void test_streq(void)
 {
@@ -61,24 +60,28 @@ static void test_match(void)
 	check(p_match(TAINT_MATCH_SUFFIX, "/home/u/app.py", ".env") == 0, "match: suffix miss");
 	check(p_match(TAINT_MATCH_SUFFIX, "api.internal", ".internal") == 1, "match: host suffix");
 	check(p_match(TAINT_MATCH_ANY, "literally anything", "") == 1, "match: any");
+	/* A globstar-basename pattern lowers to the slash-anchored suffix
+	 * "/<name>"; it must fire on the bare root-level name as well as the
+	 * nested and absolute forms, while still rejecting a non-component
+	 * suffix like "foo.env". */
+	check(p_match(TAINT_MATCH_SUFFIX, "sec.env", "/sec.env") == 1, "suffix: bare root name matches slash form");
+	check(p_match(TAINT_MATCH_SUFFIX, "sub/sec.env", "/sec.env") == 1, "suffix: nested name matches slash form");
+	check(p_match(TAINT_MATCH_SUFFIX, "/work/sec.env", "/sec.env") == 1, "suffix: absolute name matches slash form");
+	check(p_match(TAINT_MATCH_SUFFIX, "foo.sec.env", "/sec.env") == 0, "suffix: non-component suffix still rejected");
+	check(p_match(TAINT_MATCH_SUFFIX, "sec.env.bak", "/sec.env") == 0, "suffix: longer name still rejected");
+	check(p_match(TAINT_MATCH_SUFFIX, ".env", "/.env") == 1, "suffix: bare dotfile matches");
+	check(p_match(TAINT_MATCH_SUFFIX, "app/.env", "/.env") == 1, "suffix: nested dotfile matches");
+	check(p_match(TAINT_MATCH_SUFFIX, "my.env", "/.env") == 0, "suffix: dotfile prefix not a component match");
+	/* A non-slash pattern is unaffected: the bare-root relaxation is gated on
+	 * the leading '/', so `*.js` (suffix ".js") never matches a bare name that
+	 * merely lacks the suffix. */
+	check(p_match(TAINT_MATCH_SUFFIX, "x.js", ".js") == 1, "suffix: plain suffix unchanged");
+	check(p_match(TAINT_MATCH_SUFFIX, "js", ".js") == 0, "suffix: non-slash pattern has no bare form");
 	check(p_match(TAINT_MATCH_CONTAINS, "/home/u/server/app/f", "/server/") == 1, "match: contains hit");
 	check(p_match(TAINT_MATCH_CONTAINS, "/home/u/client/app/f", "/server/") == 0, "match: contains miss");
 	check(p_match(TAINT_MATCH_CONTAINS, "/server/start", "/server/") == 1, "match: contains at start");
 	check(p_match(TAINT_MATCH_CONTAINS, "/x/server/", "/server/") == 1, "match: contains at end");
 	check(p_match(TAINT_MATCH_CONTAINS, "server", "/server/") == 0, "match: contains no slashes");
-	check(p_basename(".env", ".env") == 1, "basename: bare root-level name matches");
-	check(p_basename("sub/.env", ".env") == 1, "basename: nested relative matches");
-	check(p_basename("/work/app/.env", ".env") == 1, "basename: absolute matches");
-	check(p_basename("foo.env", ".env") == 0, "basename: suffix is not a basename");
-	check(p_basename("env", ".env") == 0, "basename: shorter text misses");
-	check(p_basename("a/.env.bak", ".env") == 0, "basename: longer name misses");
-	check(p_basename("dist/x.js", "x.js") == 1, "basename: multi-char basename matches");
-	/* A basename literal may itself contain a slash for a dir/name pattern,
-	 * where the component boundary is the slash before the first segment. */
-	check(p_basename("specs/AGENTS.md", "specs/AGENTS.md") == 1, "basename: slash literal matches at root");
-	check(p_basename("a/specs/AGENTS.md", "specs/AGENTS.md") == 1, "basename: slash literal nested matches");
-	check(p_basename("notspecs/AGENTS.md", "specs/AGENTS.md") == 0, "basename: slash literal needs a component boundary");
-	check(p_match(TAINT_MATCH_BASENAME, "sub/.env", ".env") == 1, "match: basename kind routes");
 	check(p_exec_match(TAINT_MATCH_EXACT, "git", "git") == 1, "exec match: comm exact hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "redact", "redact") == 1, "exec match: argv0 exact hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "/tmp/ape/git", "git") == 0, "exec match: full path is not exact");

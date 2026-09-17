@@ -123,6 +123,7 @@ exception over-fires, a sink under-fires, and a file source silently fails to
 label on the same relative path. The remaining FPs are dominated by translation
 and harness-stage over-matching, not a stale compiler defect. The evaluation also
 found a second, distinct defect, the `**/<name>` bare-root regression from the
-`contains` -> `suffix` tightening, which has since been fixed in the compiler
-(`**/<name>` now lowers to the basename matcher); see that note for the fix and
-its evidence.
+`contains` -> `suffix` tightening, which has since been fixed by folding the
+bare-root form into the existing `taint_suffix` matcher (`**/<name>` still lowers
+to `suffix("/<name>")`, which now also matches the bare name); see that note for
+the fix and its evidence.

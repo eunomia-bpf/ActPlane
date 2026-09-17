@@ -54,8 +54,8 @@ RULE_FMT = f"<6B{PAT}s24s{PAT}s3QI"
 UPD_SIZE = 144
 UPDATE_FMT = f"<2B{PAT}s24s4Q"
 
-M_EXACT, M_PREFIX, M_SUFFIX, M_ANY, M_CONTAINS, M_BASENAME = 0, 1, 2, 3, 4, 5
-MATCH_NAMES = {0: "exact", 1: "prefix", 2: "suffix", 3: "any", 4: "contains", 5: "basename"}
+M_EXACT, M_PREFIX, M_SUFFIX, M_ANY, M_CONTAINS = 0, 1, 2, 3, 4
+MATCH_NAMES = {0: "exact", 1: "prefix", 2: "suffix", 3: "any", 4: "contains"}
 OP_NAMES = {0: "exec", 1: "open", 2: "write", 3: "connect", 4: "recv"}
 TCOND_TARGET = 3
 EFFECT_NAMES = {0: "notify", 1: "block", 2: "kill"}
@@ -81,11 +81,14 @@ def kernel_match(kind: int, text: str, pat: str) -> bool:
     if kind == M_PREFIX:
         return bool(pat) and text.startswith(pat)
     if kind == M_SUFFIX:
-        return bool(pat) and len(pat) <= 16 and text.endswith(pat)
-    if kind == M_BASENAME:
-        # taint_basename: text == pat (bare root-level name) or ends with
-        # "/"+pat at a component boundary.
-        return bool(pat) and len(pat) <= 16 and (text == pat or text.endswith("/" + pat))
+        # taint_suffix: ordinary suffix, plus the slash-anchored bare-root form.
+        # The compiler lowers a globstar-basename pattern to "/<name>", which
+        # must also match the bare root-level name (text == pat[1:]).
+        if not pat or len(pat) > 16:
+            return False
+        if pat.startswith("/") and text == pat[1:]:
+            return True
+        return text.endswith(pat)
     if kind == M_ANY:
         return True
     if kind == M_CONTAINS:
@@ -142,7 +145,7 @@ def lower_path_current(pat: str) -> tuple[int, str]:
         if inner.startswith("*"):
             return (M_SUFFIX, inner[1:])
         if "*" not in inner:
-            return (M_BASENAME, inner)
+            return (M_SUFFIX, "/" + inner)
         return (M_CONTAINS, shorten_contains_literal(inner))
     if pat.endswith("/**"):
         p = pat[:-3]
@@ -338,7 +341,7 @@ def selftest() -> int:
 
     # Current lowering, mirrored from lower.rs unit tests.
     check(lower_path_current("**/*.js") == (M_SUFFIX, ".js"), "current **/*.js -> suffix(.js)")
-    check(lower_path_current("**/sec.env") == (M_BASENAME, "sec.env"), "current **/sec.env -> basename(sec.env)")
+    check(lower_path_current("**/sec.env") == (M_SUFFIX, "/sec.env"), "current **/sec.env -> suffix(/sec.env)")
     check(lower_path_current("**/*") == (M_ANY, ""), "current **/* -> any")
     check(lower_path_current("**/dist/**") == (M_CONTAINS, "/dist/"), "current **/dist/** -> contains(/dist/)")
     check(lower_path_current("/tmp/guarded/**") == (M_PREFIX, "/tmp/guarded/"), "current absolute dir -> prefix")
@@ -355,17 +358,17 @@ def selftest() -> int:
 
     # The contains -> suffix tightening changed `**/<name>` from CONTAINS to
     # SUFFIX("/<name>"), which stopped matching a bare root-level relative file
-    # (`suffix("/.env")` needs a slash). The current compiler now lowers the
-    # bare-globstar form to BASENAME, which matches both the bare name and the
-    # slash-anchored nested form.
-    check(lower_path_current("**/.env") == (M_BASENAME, ".env"), "current **/.env -> basename(.env)")
+    # (`suffix("/.env")` needs a slash). The fix folds the bare-root form into
+    # taint_suffix: a slash-anchored suffix also matches its literal without the
+    # leading slash, so both the bare name and the slash-anchored nested form
+    # match, with no new matcher kind (the inlined call graph is unchanged).
+    check(lower_path_current("**/.env") == (M_SUFFIX, "/.env"), "current **/.env -> suffix(/.env)")
     check(lower_path_historical("**/.env") == (M_CONTAINS, ".env"), "historical **/.env -> contains(.env)")
-    check(kernel_match(M_SUFFIX, ".env", "/.env") is False, "suffix(/.env) misses bare .env (the old regression)")
-    check(kernel_match(M_BASENAME, ".env", ".env") is True, "basename(.env) matches bare .env")
-    check(kernel_match(M_BASENAME, "sub/.env", ".env") is True, "basename(.env) matches nested .env")
-    check(kernel_match(M_BASENAME, "/work/.env", ".env") is True, "basename(.env) matches absolute .env")
-    check(kernel_match(M_BASENAME, "foo.env", ".env") is False, "basename(.env) rejects the foo.env suffix")
-    check(kernel_match(M_BASENAME, "a/.env.bak", ".env") is False, "basename(.env) rejects a longer name")
+    check(kernel_match(M_SUFFIX, ".env", "/.env") is True, "suffix(/.env) matches bare .env (fold)")
+    check(kernel_match(M_SUFFIX, "sub/.env", "/.env") is True, "suffix(/.env) matches nested .env")
+    check(kernel_match(M_SUFFIX, "/work/.env", "/.env") is True, "suffix(/.env) matches absolute .env")
+    check(kernel_match(M_SUFFIX, "foo.env", "/.env") is False, "suffix(/.env) rejects the foo.env suffix")
+    check(kernel_match(M_SUFFIX, "a/.env.bak", "/.env") is False, "suffix(/.env) rejects a longer name")
 
     for ok, name in checks:
         print(f"[{'PASS' if ok else 'FAIL'}] {name}")

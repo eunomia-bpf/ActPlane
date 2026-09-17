@@ -222,7 +222,7 @@ static __always_inline int cap_path_match_supported(unsigned char match)
 	if (match == TAINT_MATCH_CONTAINS &&
 	    !(policy_features & TE_POLICY_PATH_CONTAINS))
 		return 0;
-	if ((match == TAINT_MATCH_SUFFIX || match == TAINT_MATCH_BASENAME) &&
+	if (match == TAINT_MATCH_SUFFIX &&
 	    !(policy_features & TE_POLICY_PATH_SUFFIX))
 		return 0;
 	return 1;
