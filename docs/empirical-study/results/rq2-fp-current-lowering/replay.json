@@ -8,10 +8,10 @@
       "/tmp/fp_rows.json",
       "target/release/actplane",
       "--out",
-      "/tmp/replay-new.json"
+      "/tmp/replay-final.json"
     ],
     "compiler_bin": "target/release/actplane",
-    "compiler_binary_sha256": "9ebc46a27d8ecc6db455a77ece1d7ce74bae0d7ace53c9588a28c5f2a8af9a26",
+    "compiler_binary_sha256": "032b1a46c325678dd89819c51c2c37d9bb56fdfec7e902682d8abc3e7af356ce",
     "corpus_root": "/tmp/rq2frozen/docs/corpus-test",
     "corpus_manifest": [
       {
@@ -126,7 +126,7 @@
     "fp_rows": "/tmp/fp_rows.json",
     "fp_rows_sha256": "f37ff9b94201a816ee0daf6ad0dd9d27137aad0023e0f483bb0e719f329348fa",
     "fp_row_count": 18,
-    "host_git_commit": "9c8c323ffff4bedd8819ce963d49e83dde45ac97",
+    "host_git_commit": "95e831ffc036ce6ed126794a976146942cb54420",
     "python": "3.13.5"
   },
   "summary": {
