@@ -122,9 +122,15 @@ prebuilt objects stay at `master`. The wildcard form remains `suffix`
 new match is a strict superset of the pre-fix form (everything `suffix("/"+name)`
 matched still matches, plus the bare name) and a strict subset of the historical
 `contains(name)` (no substring match inside a longer name). The static
-divergence scan (`audit_path_lowering_divergence.py`) reports zero findings,
-because current and historical agree on all three probe forms for every frozen
-pattern.
+divergence scan (`audit_path_lowering_divergence.py`) reports zero *target-role*
+findings, because current and historical agree on all three probe forms for every
+frozen pattern. Its `condition_findings` list records the exception-role residue
+separately: for `NVIDIA__NemoClaw/s02` (`unless target "**/dist/**"`) and
+`NousResearch__hermes-agent/29` (`unless target "**/scripts/**"`), the single
+condition stores only `contains("/dist/")`/`contains("/scripts/")`, so it misses
+the first-segment-relative form (`dist/x.js`, `scripts/x.js`) that the target
+matcher covers and the negated exception over-fires there. That residue is the
+open exception half, described below.
 
 Legacy (Linux 5.10) note: the legacy engine already implements `exact`, so the
 companion entry works there too. A `**/<name>` policy gains the bare-root match
@@ -373,6 +379,15 @@ the fix a ready regression test: the `**/dir/**` rows (`except_*`, `sink_*`,
 `source_*`) and the two `frozen_fn_*` rows are exact pass/fail conditions, and a
 first-segment-relative file-source case (`F10`) is added to the CI e2e suite.
 
+Because the exception half is a genuine ABI limitation, the compiler now makes it
+**discoverable** rather than silent. `repo_relative_condition_is_partial` is the
+single predicate for "this condition pattern carries a companion the condition
+role cannot express", and `compile --explain`/`--json` emit a
+`repo_relative_target_condition_partial` warning naming the over-firing form. The
+`condition_findings` list in the divergence scan names the two frozen rules it
+affects. An absolute exception (`unless target "/work/dist/**"`) has no companion
+and does not warn.
+
 
 ## Reproduction
 
@@ -382,7 +397,8 @@ python3 docs/empirical-study/replay_fp_lowering.py \
   /path/to/corpus-test /path/to/fp_rows.json target/release/actplane \
   --out docs/empirical-study/results/rq2-fp-current-lowering/replay.json
 
-# static historical-vs-current lowering divergence over the frozen rules
+# static historical-vs-current lowering divergence over the frozen rules (its
+# `condition_findings` list records the exception-role over-fire residue)
 python3 docs/empirical-study/audit_path_lowering_divergence.py \
   /path/to/corpus-test \
   --out docs/empirical-study/results/rq2-path-lowering-divergence/divergence.json
@@ -478,4 +494,6 @@ blob-port agreement (0 mismatches), the divergence scan, the C unit tests, the
 local 6.8 verifier oracle, the live firing proof, and the post-fix guest probe.
 Only the `unless target` exception half of the `**/dir/**` miss remains open,
 because it needs an ABI-level disjunction the current single `cond_kind`/`cond_pat`
-cannot express.
+cannot express. That half is no longer silent: the compiler flags it in
+`compile --explain`/`--json` and the divergence scan names the affected frozen
+rules, so the approximation is discoverable before rollout.

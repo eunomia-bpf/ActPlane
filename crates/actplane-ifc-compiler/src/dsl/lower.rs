@@ -190,6 +190,22 @@ fn lower_path_companions(pat: &str) -> Vec<(u8, String)> {
     }
     out
 }
+
+/// True when a repo-relative path pattern's primary matcher misses a form that
+/// the kernel's single `cond_kind`/`cond_pat` pair cannot also cover: a
+/// `**/<name>` basename (bare root-level file) or a `**/<dir>/**` / `**/<dir>/*`
+/// directory (first-segment-relative path). A rule *target* covers both forms by
+/// emitting a companion table entry, but an `unless target` **condition** has
+/// only one cond slot, so the exception cannot express the disjunction and
+/// mis-matches on the uncovered form (a negated condition over-fires there).
+///
+/// Callers use this to warn that the exception is approximate; the engine is not
+/// changed. Absolute patterns and pure wildcard forms have no companion and
+/// return `false`.
+pub fn repo_relative_condition_is_partial(pattern: &str) -> bool {
+    !pattern.starts_with('/') && !lower_path_companions(pattern).is_empty()
+}
+
 /// (match, literal) lowering for path patterns.
 fn lower_path(pat: &str) -> (u8, String) {
     if pat == "*" || pat == "**" || pat == "**/*" {
@@ -484,6 +500,23 @@ mod tests {
             .map(|r| (r.cond_kind, r.cond_match, txt(&r.cond_pat)))
             .collect();
         assert_eq!(conds, vec![(C_TARGET, M_CONTAINS, "/dist/".to_string())]);
+    }
+
+    #[test]
+    fn repo_relative_condition_is_partial_matches_companion_forms() {
+        // Repo-relative basename and directory patterns carry a companion that a
+        // single condition slot cannot express, so an `unless target` over them
+        // is approximate.
+        assert!(repo_relative_condition_is_partial("**/.env"));
+        assert!(repo_relative_condition_is_partial("**/sec.env"));
+        assert!(repo_relative_condition_is_partial("**/dist/**"));
+        assert!(repo_relative_condition_is_partial("**/src/lib/**"));
+        assert!(repo_relative_condition_is_partial("**/middle/*"));
+        // Absolute patterns and pure wildcard forms have no companion.
+        assert!(!repo_relative_condition_is_partial("/work/dist/**"));
+        assert!(!repo_relative_condition_is_partial("**/*.js"));
+        assert!(!repo_relative_condition_is_partial("/tmp/guarded/f.txt"));
+        assert!(!repo_relative_condition_is_partial("src/**"));
     }
 
     #[test]

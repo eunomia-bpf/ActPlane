@@ -9,7 +9,7 @@ pub mod parse;
 
 use std::collections::HashMap;
 
-pub use lower::{Compiled, RuleMeta, RuleSourceMeta, compile};
+pub use lower::{Compiled, RuleMeta, RuleSourceMeta, compile, repo_relative_condition_is_partial};
 
 /// Parse + compile DSL source text to a kernel config blob + reason table.
 pub fn compile_str(src: &str) -> Result<Compiled, String> {

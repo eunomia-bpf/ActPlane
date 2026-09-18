@@ -17,7 +17,10 @@ This scan reports, per frozen rule, whether a pattern's historical and current
 lowerings disagree on a *bare relative* path (single segment, no leading slash),
 a *first-segment-relative* path, or an *absolute* path, i.e. the concrete
 relative-path conditions. It is static: it compares lowerings and their matcher
-results, not a live kernel verdict.
+results, not a live kernel verdict. It also reports, under `condition_findings`,
+the `unless target` exception role, where a single cond_kind/cond_pat cannot
+carry the primary+companion disjunction and the negated exception therefore
+over-fires on the uncovered relative form.
 
 Input: --corpus, the extracted `docs/corpus-test` directory.
 """
@@ -137,6 +140,31 @@ def main() -> int:
                     "divergences": diffs,
                 })
 
+    # Separately, report the `unless target` exception role. A rule target covers
+    # both the primary and companion forms by emitting an extra table entry, but
+    # a condition has a single cond_kind/cond_pat, so a repo-relative exception
+    # cannot express the disjunction. Where the primary misses a probe form the
+    # target matcher covers, the negated condition over-fires the rule there.
+    condition_findings = []
+    for rule_yaml in sorted(glob.glob(str(corpus / "**" / "rule.yaml"), recursive=True)):
+        text = Path(rule_yaml).read_text()
+        rel = os.path.relpath(rule_yaml, corpus)
+        for pattern in sorted(set(re.findall(r'unless\s+target\s+"([^"]+)"', text))):
+            if not replay.lower_path_companions(pattern):
+                continue
+            cm, clit = replay.lower_path_current(pattern)
+            covered = []
+            for form, path in probe_paths(pattern).items():
+                if not replay.kernel_match(cm, path, clit):
+                    covered.append({"form": form, "path": path})
+            if covered:
+                condition_findings.append({
+                    "rule": rel,
+                    "pattern": pattern,
+                    "current": f"{replay.lowered_name(cm)}({clit})",
+                    "over_fires_on": covered,
+                })
+
     out = {
         "corpus": str(corpus),
         "note": ("Static lowering comparison over frozen rule patterns. A "
@@ -144,6 +172,7 @@ def main() -> int:
                  "differently from the historical one; it is not a statement "
                  "about any frozen run's actual matched path."),
         "findings": findings,
+        "condition_findings": condition_findings,
     }
     print(json.dumps(out, indent=2))
     if args.out:

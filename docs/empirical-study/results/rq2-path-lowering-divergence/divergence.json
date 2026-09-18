@@ -92,5 +92,29 @@
         }
       ]
     }
+  ],
+  "condition_findings": [
+    {
+      "rule": "NVIDIA__NemoClaw/s02_no_new_javascript_sources/rule.yaml",
+      "pattern": "**/dist/**",
+      "current": "contains(/dist/)",
+      "over_fires_on": [
+        {
+          "form": "first_segment_relative",
+          "path": "dist/x.js"
+        }
+      ]
+    },
+    {
+      "rule": "NousResearch__hermes-agent/29/rule.yaml",
+      "pattern": "**/scripts/**",
+      "current": "contains(/scripts/)",
+      "over_fires_on": [
+        {
+          "form": "first_segment_relative",
+          "path": "scripts/x.js"
+        }
+      ]
+    }
   ]
 }

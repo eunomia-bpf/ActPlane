@@ -129,6 +129,56 @@ rule host-connect:
 }
 
 #[test]
+fn compile_json_warns_that_repo_relative_target_exception_is_partial() {
+    // A repo-relative `unless target` over a `**/<dir>/**` pattern cannot express
+    // the primary+companion disjunction in one cond slot, so the exception
+    // over-fires on the first-segment-relative form. That must be discoverable,
+    // not silent.
+    let policy = r#"
+source AGENT = exec "claude"
+
+rule js-outside-dist:
+  notify write file "**/*.js" if AGENT unless target "**/dist/**"
+  because "new JS sources must be TypeScript"
+"#;
+    let output = run(&["--rule", policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "repo_relative_target_condition_partial"),
+        "expected partial-exception warning, got {}",
+        value["warnings"]
+    );
+
+    // An absolute exception has no companion and must not warn.
+    let abs = r#"
+source AGENT = exec "claude"
+
+rule js-outside-dist:
+  notify write file "**/*.js" if AGENT unless target "/work/dist/**"
+  because "new JS sources must be TypeScript"
+"#;
+    let output = run(&["--rule", abs, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "repo_relative_target_condition_partial"),
+        "absolute exception must not warn, got {}",
+        value["warnings"]
+    );
+}
+
+#[test]
 fn compile_json_reports_policy_load_errors_as_json() {
     let missing = "/tmp/actplane-definitely-missing-policy.yaml";
     let output = run(&["--policy", missing, "compile", "--json"]);
