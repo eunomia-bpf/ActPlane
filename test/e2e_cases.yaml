@@ -199,3 +199,23 @@ cases:
     expect:
       count: 1
       re: '"comm":"git"'
+
+  # `unless target not PAT` is the "allow-listed region" form (docs/rule-language.md
+  # §1.7): the rule fires only for objects that match PAT, i.e. the exception
+  # inverts to a positive scope. It was covered by neither the e2e suite nor
+  # `test/policies/*.yaml`, and it is the form the replay tool had dropped. A
+  # write inside the allow-listed region fires and one outside it does not, so a
+  # count of exactly one violation proves the region is positive scope rather
+  # than a true exception.
+  - name: "E14 unless target not is allow-listed-region scope"
+    policy: |-
+      source AGENT = exec "**/codex"
+      rule only-in-work:
+        notify write file "${D}/shared/**" if AGENT unless target not "${D}/shared/allowed/**"
+        because "only the allow-listed region is in scope"
+    setup: mkdir -p ${D}/shared/allowed
+    trigger: |-
+      exec -a codex ${D}/codex -c 'echo x > ${D}/shared/allowed/ok.txt; echo y > ${D}/shared/other.txt'
+    expect:
+      count: 1
+      re: '"target":"[^"]*shared/allowed/ok.txt"'
