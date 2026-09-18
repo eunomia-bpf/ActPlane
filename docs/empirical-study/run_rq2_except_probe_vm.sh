@@ -254,6 +254,10 @@ run_case() {
     kill -9 "$trigger_pid" 2>/dev/null || true
     wait "$trigger_pid" 2>/dev/null || true
     trigger_status=124
+    # A trigger still alive at the deadline did not stop on the policy verdict,
+    # so any verdict count it happened to emit before the kill is not evidence.
+    # Record it as a harness failure, which fails the run below.
+    echo "CASE_FAILURE $name trigger-timeout"
   else
     wait "$trigger_pid" 2>/dev/null
     trigger_status=$?

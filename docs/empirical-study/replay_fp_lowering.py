@@ -49,10 +49,18 @@ from pathlib import Path
 PAT = 64
 
 # struct offsets verified against bpf/taint.h with offsetof.
+#
+# Python's struct module applies no ABI alignment, so the padding the C
+# compiler inserts has to be modelled explicitly with `x` fields or every
+# field after it is read at the wrong offset. Two bytes sit after cond_pat, so
+# req/forbid/gate land at 160/168/176 and rule_id at 184. The formats below
+# read only the fields this replay uses; the record stride is RULE_SIZE/
+# UPD_SIZE, not calcsize. update: add/del/gates/invals at 96/104/112/120
+# (six bytes after arg).
 RULE_SIZE = 224
-RULE_FMT = f"<6B{PAT}s24s{PAT}s3QI"
+RULE_FMT = f"<6B{PAT}s24s{PAT}s2x3QI"
 UPD_SIZE = 144
-UPDATE_FMT = f"<2B{PAT}s24s4Q"
+UPDATE_FMT = f"<2B{PAT}s24s6x4Q4I"
 
 M_EXACT, M_PREFIX, M_SUFFIX, M_ANY, M_CONTAINS = 0, 1, 2, 3, 4
 MATCH_NAMES = {0: "exact", 1: "prefix", 2: "suffix", 3: "any", 4: "contains"}
