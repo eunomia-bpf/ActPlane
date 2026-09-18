@@ -150,9 +150,13 @@ def main() -> int:
         "fn_rows_total": len(fn_rows),
         "fn_rows_with_frozen_rule": checked,
         "exposures": exposures,
-        "note": ("Static exposure only. The artifact does not retain the kernel's "
-                 "per-task matched path, so these rows are candidates consistent "
-                 "with the lowering defect, not proven causation."),
+        "note": ("Static exposure only, computed against the pre-fix "
+                 "`contains(\"/dir/\")` primary. The artifact does not retain the "
+                 "kernel's per-task matched path, so these rows are candidates "
+                 "consistent with the lowering defect, not proven causation. The "
+                 "defect's source/sink/gate roles are now fixed by the companion "
+                 "`prefix(\"dir/\")` entry; this audit records which frozen FN rows "
+                 "were exposed to it."),
     }
     print(json.dumps(out, indent=2))
     if args.out:

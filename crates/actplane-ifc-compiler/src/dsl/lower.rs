@@ -159,6 +159,37 @@ fn lower_path_bare(pat: &str) -> Option<String> {
     (!inner.is_empty() && !inner.contains('*')).then(|| inner.to_string())
 }
 
+/// The first-segment-relative companion for a repo-relative `**/<dir>/**` or
+/// `**/<dir>/*` pattern. The primary lowering is `contains("/<dir>/")`, whose
+/// literal needs a slash before the directory, so it misses a path that begins
+/// at the pattern's directory (`dist/x.js`). The `prefix("<dir>/")` form covers
+/// exactly that case: a leading segment equal to the directory. Like the
+/// bare-name companion below, this is an existing match kind and adds only a
+/// table entry, so the file-event hooks are unaffected.
+fn lower_path_relative_prefix(pat: &str) -> Option<String> {
+    let dir = pat
+        .strip_prefix("**/")
+        .and_then(|r| r.strip_suffix("/**").or_else(|| r.strip_suffix("/*")))?;
+    (!dir.is_empty() && !dir.contains('*')).then(|| format!("{dir}/"))
+}
+
+/// All repo-relative companion matchers for a path pattern, in the order they
+/// should follow the primary lowering. A repo-relative pattern's primary form
+/// assumes an absolute runtime path, which does not hold in tracepoint mode
+/// where the kernel matches the userspace path argument verbatim. Emitting the
+/// extra table entries is verifier-free because the update and rule scans run
+/// in `bpf_loop` callbacks (verified once), unlike a new matcher kind or an
+/// edit inside an inlined matcher.
+fn lower_path_companions(pat: &str) -> Vec<(u8, String)> {
+    let mut out = Vec::new();
+    if let Some(bare) = lower_path_bare(pat) {
+        out.push((M_EXACT, bare));
+    }
+    if let Some(prefix) = lower_path_relative_prefix(pat) {
+        out.push((M_PREFIX, prefix));
+    }
+    out
+}
 /// (match, literal) lowering for path patterns.
 fn lower_path(pat: &str) -> (u8, String) {
     if pat == "*" || pat == "**" || pat == "**/*" {
@@ -355,12 +386,174 @@ mod tests {
     }
 
     #[test]
+    fn globstar_dir_gets_a_relative_prefix_companion() {
+        // `**/<dir>/**` and `**/<dir>/*` lower to contains("/<dir>/"), whose
+        // literal needs a slash before the directory and so misses a path that
+        // starts at the directory; the prefix("<dir>/") form covers it.
+        assert_eq!(
+            lower_path_relative_prefix("**/dist/**"),
+            Some("dist/".into())
+        );
+        assert_eq!(
+            lower_path_relative_prefix("**/src/lib/**"),
+            Some("src/lib/".into())
+        );
+        assert_eq!(
+            lower_path_relative_prefix("**/middle/*"),
+            Some("middle/".into())
+        );
+        // Wildcard directories, the `**/<name>` basename form, and absolute
+        // patterns have no first-segment companion.
+        assert_eq!(lower_path_relative_prefix("**/*.js"), None);
+        assert_eq!(lower_path_relative_prefix("**/sec.env"), None);
+        assert_eq!(lower_path_relative_prefix("/tmp/x/**"), None);
+        assert_eq!(lower_path_relative_prefix("src/**"), None);
+    }
+
+    #[test]
+    fn globstar_dir_source_emits_contains_and_prefix_updates() {
+        let pol =
+            crate::dsl::parse::parse(r#"source CLI = file "**/src/lib/**""#).expect("parse source");
+        let compiled = compile(&pol).expect("compile source");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let updates = &cfg.updates[..cfg.n_updates as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let pairs: Vec<(u8, u8, String)> = updates
+            .iter()
+            .map(|u| (u.op, u.m, txt(&u.target)))
+            .collect();
+        assert_eq!(
+            pairs,
+            vec![
+                (OP_OPEN, M_CONTAINS, "/src/lib/".to_string()),
+                (OP_OPEN, M_PREFIX, "src/lib/".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn globstar_dir_sink_emits_contains_and_prefix_rules() {
+        let pol = crate::dsl::parse::parse(
+            r#"rule r:
+                 notify write file "**/dist/**"
+                 because "first-segment-relative sink guard"
+               "#,
+        )
+        .expect("parse rule");
+        let compiled = compile(&pol).expect("compile rule");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let rules = &cfg.rules[..cfg.n_rules as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let targets: Vec<(u8, String)> = rules.iter().map(|r| (r.m, txt(&r.target))).collect();
+        assert_eq!(
+            targets,
+            vec![
+                (M_CONTAINS, "/dist/".to_string()),
+                (M_PREFIX, "dist/".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn globstar_dir_exception_stays_single_condition() {
+        // The `unless target` exception uses one cond_kind/cond_pat pair, which
+        // cannot hold a disjunction; the sink target gains a companion but the
+        // exception does not, so it keeps the absolute/nested form only.
+        let pol = crate::dsl::parse::parse(
+            r#"rule r:
+                 notify write file "**/*.js" if AGENT unless target "**/dist/**"
+                 because "js outside dist"
+               "#,
+        )
+        .expect("parse rule");
+        let compiled = compile(&pol).expect("compile rule");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let rules = &cfg.rules[..cfg.n_rules as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let conds: Vec<(u8, u8, String)> = rules
+            .iter()
+            .map(|r| (r.cond_kind, r.cond_match, txt(&r.cond_pat)))
+            .collect();
+        assert_eq!(conds, vec![(C_TARGET, M_CONTAINS, "/dist/".to_string())]);
+    }
+
+    #[test]
     fn exec_wildcard_patterns_match_any_comm() {
         assert_eq!(lower_exec("*"), (M_ANY, String::new()));
         assert_eq!(lower_exec("**"), (M_ANY, String::new()));
         assert_eq!(lower_exec("**/*"), (M_ANY, String::new()));
     }
 
+    #[test]
+    fn globstar_dir_gate_and_since_emit_companion_updates_with_shared_bits() {
+        // A `**/dir/**` pattern in an `after` gate or a `since` invalidator goes
+        // through the same lowering, so it must emit the same companion entry
+        // and share one bit across both forms (one condition/invalidator).
+        let pol = crate::dsl::parse::parse(
+            r#"rule r:
+                 notify exec "git" "commit" if AGENT unless after read "**/src/lib/**" since write "**/dist/**"
+                 because "gate and invalidator over repo-relative dirs"
+               "#,
+        )
+        .expect("parse rule");
+        let compiled = compile(&pol).expect("compile rule");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let updates = &cfg.updates[..cfg.n_updates as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        // The read gate is OP_OPEN; the write invalidator is OP_WRITE. Each
+        // pattern contributes a primary plus its first-segment companion.
+        let gate_updates: Vec<(u8, String)> = updates
+            .iter()
+            .filter(|u| u.op == OP_OPEN)
+            .map(|u| (u.m, txt(&u.target)))
+            .collect();
+        let inval_updates: Vec<(u8, String)> = updates
+            .iter()
+            .filter(|u| u.op == OP_WRITE)
+            .map(|u| (u.m, txt(&u.target)))
+            .collect();
+        assert_eq!(
+            gate_updates,
+            vec![
+                (M_CONTAINS, "/src/lib/".to_string()),
+                (M_PREFIX, "src/lib/".to_string()),
+            ]
+        );
+        assert_eq!(
+            inval_updates,
+            vec![
+                (M_CONTAINS, "/dist/".to_string()),
+                (M_PREFIX, "dist/".to_string()),
+            ]
+        );
+        // One gate bit and one invalidator bit, shared by primary + companion.
+        let gate_bits: Vec<u64> = updates
+            .iter()
+            .filter(|u| u.op == OP_OPEN)
+            .map(|u| u.gates)
+            .collect();
+        let inval_bits: Vec<u64> = updates
+            .iter()
+            .filter(|u| u.op == OP_WRITE)
+            .map(|u| u.invals)
+            .collect();
+        assert_eq!(gate_bits[0], gate_bits[1]);
+        assert_ne!(gate_bits[0], 0);
+        assert_eq!(inval_bits[0], inval_bits[1]);
+        assert_ne!(inval_bits[0], 0);
+    }
     #[test]
     fn endpoint_sources_lower_to_connect_and_recv_updates() {
         let pol = crate::dsl::parse::parse(r#"source NET = endpoint "127.0.0.1""#)
@@ -678,6 +871,25 @@ impl Ctx {
             ipv4_mask: 0,
             gate_exit_code: gate_exit.map(i32::from).unwrap_or(GATE_IMMEDIATE),
         })?;
+        // Gate companions: a repo-relative path gate also arms on the
+        // companion forms (same bit, so the gate is one condition).
+        if low_op != OP_EXEC {
+            for (cm, clit) in lower_path_companions(pat) {
+                self.add_update(UpdateSpec {
+                    op: low_op,
+                    m: cm,
+                    target: &clit,
+                    arg: "",
+                    add: 0,
+                    del: 0,
+                    gates: b,
+                    invals: 0,
+                    ipv4: 0,
+                    ipv4_mask: 0,
+                    gate_exit_code: GATE_IMMEDIATE,
+                })?;
+            }
+        }
         self.gate_bits.insert(key, (b, idx));
         Ok((b, idx))
     }
@@ -720,6 +932,25 @@ impl Ctx {
             ipv4_mask: 0,
             gate_exit_code: GATE_IMMEDIATE,
         })?;
+        // Invalidator companions: a repo-relative path `since` pattern also
+        // stamps the companion forms (same bit, so one invalidator).
+        if op != OP_EXEC {
+            for (cm, clit) in lower_path_companions(pat) {
+                self.add_update(UpdateSpec {
+                    op,
+                    m: cm,
+                    target: &clit,
+                    arg: arg_s,
+                    add: 0,
+                    del: 0,
+                    gates: 0,
+                    invals: bit,
+                    ipv4: 0,
+                    ipv4_mask: 0,
+                    gate_exit_code: GATE_IMMEDIATE,
+                })?;
+            }
+        }
         self.inval_slots.insert(key, idx);
         Ok(bit)
     }
@@ -996,14 +1227,17 @@ pub fn compile_with_labels(
             ipv4_mask,
             gate_exit_code: GATE_IMMEDIATE,
         })?;
-        // A repo-relative `**/<name>` also matches the bare root-level name; the
-        // suffix form alone needs a slash. Emit the companion exact matcher.
+        // Repo-relative companions. The primary lowering assumes an absolute
+        // runtime path; in tracepoint mode the kernel matches the userspace
+        // path argument verbatim, which is relative when the caller passed a
+        // relative path. Pair each primary form with its companion so both the
+        // absolute/nested and the bare/first-segment-relative forms match.
         if op == OP_OPEN {
-            if let Some(bare) = lower_path_bare(&s.pattern) {
+            for (cm, clit) in lower_path_companions(&s.pattern) {
                 ctx.add_update(UpdateSpec {
                     op,
-                    m: M_EXACT,
-                    target: &bare,
+                    m: cm,
+                    target: &clit,
                     arg: "",
                     add: bit,
                     del: 0,
@@ -1045,15 +1279,14 @@ pub fn compile_with_labels(
                 } else {
                     let (tm, tlit) = lower_target(op, cl.target.kind, &cl.target.pattern);
                     let mut v = vec![(tm, tlit, 0, 0)];
-                    // A repo-relative `**/<name>` sink also fires on the bare
-                    // root-level name; pair the suffix form with an exact match.
-                    // They are mutually exclusive (the suffix needs a leading
-                    // slash, the exact needs full equality), so no event fires
-                    // twice. An extra rule entry is verifier-free (the scans run
-                    // in bpf_loop callbacks).
+                    // Repo-relative companions for the sink target, mirroring
+                    // the file source. An extra rule entry is verifier-free
+                    // (the scans run in bpf_loop callbacks), and a companion
+                    // that co-matches costs no extra verdict: the scan keeps a
+                    // single best-effect match, so no event fires twice.
                     if op == OP_OPEN || op == OP_WRITE {
-                        if let Some(bare) = lower_path_bare(&cl.target.pattern) {
-                            v.push((M_EXACT, bare, 0, 0));
+                        for (cm, clit) in lower_path_companions(&cl.target.pattern) {
+                            v.push((cm, clit, 0, 0));
                         }
                     }
                     v

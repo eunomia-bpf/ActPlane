@@ -117,13 +117,16 @@ separately before claiming that any historical lowering defect remains.
 That separate evaluation is now done in `rq2-lowering-eval.md`
 (`replay_fp_lowering.py` plus the `run_rq2_except_probe_vm.sh` guest probe). It
 finds that one historical-lowering FP no longer reproduces (`**/*.js`
-`CONTAINS` -> `SUFFIX`), while the repo-relative `**/dir/**` still lowers to
-`CONTAINS("/dir/")` and mis-matches relative paths in tracepoint mode, so an
-exception over-fires, a sink under-fires, and a file source silently fails to
+`CONTAINS` -> `SUFFIX`), while the repo-relative `**/dir/**` lowered to
+`CONTAINS("/dir/")` and mis-matched relative paths in tracepoint mode, so an
+exception over-fired, a sink under-fired, and a file source silently failed to
 label on the same relative path. The remaining FPs are dominated by translation
 and harness-stage over-matching, not a stale compiler defect. The evaluation also
 found a second, distinct defect, the `**/<name>` bare-root regression from the
-`contains` -> `suffix` tightening, which has since been fixed by folding the
-bare-root form into the existing `taint_suffix` matcher (`**/<name>` still lowers
-to `suffix("/<name>")`, which now also matches the bare name); see that note for
-the fix and its evidence.
+`contains` -> `suffix` tightening. Both relative-path lowerings have since been
+fixed compiler-only, each by pairing the existing primary matcher with a
+companion entry: `**/<name>` keeps `suffix("/<name>")` and adds `exact("<name>")`
+for the bare root-level name, and `**/<dir>/**` keeps `contains("/<dir>/")` and
+adds `prefix("<dir>/")` for the first-segment-relative form. Only the `unless
+target` exception half of the `**/dir/**` miss remains open, because it needs an
+ABI-level disjunction; see that note for the fixes and their evidence.

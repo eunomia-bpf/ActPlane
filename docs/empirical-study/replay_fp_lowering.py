@@ -133,6 +133,36 @@ def lower_path_bare(pat: str) -> str | None:
         return None
     return inner
 
+def lower_path_relative_prefix(pat: str) -> str | None:
+    """Companion prefix literal for a repo-relative `**/<dir>/**` or
+    `**/<dir>/*` pattern, mirroring
+    crates/actplane-ifc-compiler/src/dsl/lower.rs::lower_path_relative_prefix.
+    Returns the directory with a trailing slash (no leading slash) or None when
+    the pattern has no first-segment-relative form (a wildcard directory, the
+    `**/<name>` basename form, or a non-globstar pattern)."""
+    if not pat.startswith("**/"):
+        return None
+    for suffix in ("/**", "/*"):
+        if pat.endswith(suffix):
+            inner = pat[3 : -len(suffix)]
+            if inner and "*" not in inner:
+                return inner + "/"
+            return None
+    return None
+
+
+def lower_path_companions(pat: str) -> list[tuple[int, str]]:
+    """All repo-relative companion matchers for a path pattern, in emission
+    order, mirroring lower.rs::lower_path_companions."""
+    out: list[tuple[int, str]] = []
+    bare = lower_path_bare(pat)
+    if bare is not None:
+        out.append((M_EXACT, bare))
+    prefix = lower_path_relative_prefix(pat)
+    if prefix is not None:
+        out.append((M_PREFIX, prefix))
+    return out
+
 
 def lower_path_current(pat: str) -> tuple[int, str]:
     """Current bpf/crates/actplane-ifc-compiler/src/dsl/lower.rs::lower_path."""
@@ -380,6 +410,23 @@ def selftest() -> int:
     check(kernel_match(M_SUFFIX, "foo.env", "/.env") is False, "suffix(/.env) rejects the foo.env suffix")
     check(kernel_match(M_EXACT, "foo.env", ".env") is False, "exact(.env) rejects the foo.env suffix")
 
+    # The `**/dir/**` and `**/dir/*` first-segment miss: the primary
+    # CONTAINS("/dir/") needs a slash before the directory, so a companion
+    # PREFIX("dir/") covers a path that starts at the directory. Absolute and
+    # nested relative forms still match via the primary.
+    check(lower_path_relative_prefix("**/dist/**") == "dist/", "current **/dist/** -> companion prefix(dist/)")
+    check(lower_path_relative_prefix("**/src/lib/**") == "src/lib/", "current **/src/lib/** -> companion prefix(src/lib/)")
+    check(lower_path_relative_prefix("**/middle/*") == "middle/", "current **/middle/* -> companion prefix(middle/)")
+    check(lower_path_relative_prefix("**/*.js") is None, "current **/*.js -> no dir companion")
+    check(lower_path_relative_prefix("**/sec.env") is None, "current **/sec.env -> no dir companion")
+    check(lower_path_relative_prefix("/tmp/x/**") is None, "absolute pattern -> no dir companion")
+    check(kernel_match(M_CONTAINS, "dist/x.js", "/dist/") is False, "contains /dist/ misses first-segment dist/")
+    check(kernel_match(M_PREFIX, "dist/x.js", "dist/") is True, "prefix dist/ hits first-segment dist/")
+    check(kernel_match(M_PREFIX, "sub/dist/x.js", "dist/") is False, "prefix dist/ bounds the miss (nested unaffected)")
+    check(kernel_match(M_PREFIX, "/w/dist/x.js", "dist/") is False, "prefix dist/ does not hit absolute (primary does)")
+    check(lower_path_companions("**/dist/**") == [(M_PREFIX, "dist/")], "**/dist/** -> only the dir companion")
+    check(lower_path_companions("**/.env") == [(M_EXACT, ".env")], "**/.env -> only the bare-name companion")
+
     for ok, name in checks:
         print(f"[{'PASS' if ok else 'FAIL'}] {name}")
     failed = sum(1 for ok, _ in checks if not ok)
@@ -435,22 +482,45 @@ def main() -> int:
         event_text = target.split(" ", 1)[1] if " " in target else ""
 
         # Validate the current lowering port against the compiled blob, and build
-        # the historical and current (match, literal) targets per rule.
+        # the historical and current (match, literal) targets per rule. The
+        # current compiler emits, for a repo-relative path pattern, its primary
+        # matcher plus repo-relative companion entries (the `**/<name>` bare
+        # name and the `**/<dir>/**` first-segment form). Each blob rule must be
+        # the primary or one of the companions of its glob; the historical
+        # compiler emitted only the primary, so companions replay as never-fires.
+        NEVER = (M_EXACT, "")
         port_rows, lowering_changes = [], []
         cur_targets, hist_targets, cur_unless, hist_unless = [], [], [], []
+        companions_seen = set()
         for idx, rule in enumerate(cfg["rules"]):
             glob = globs[idx] if idx < len(globs) else rule["target"]
             is_exec = rule["op"] == "exec"
-            cur = lower_exec_current(glob) if is_exec else lower_path_current(glob)
-            hist = lower_exec_historical(glob) if is_exec else lower_path_historical(glob)
-            cur_targets.append(cur)
-            hist_targets.append(hist)
-            ok = (cur[0] == rule["match_kind"] and cur[1] == rule["target"])
-            if not ok:
+            if is_exec:
+                expected_cur = [lower_exec_current(glob)]
+                expected_hist = [lower_exec_historical(glob)]
+            else:
+                expected_cur = [lower_path_current(glob)] + lower_path_companions(glob)
+                expected_hist = [lower_path_historical(glob)]
+            blob = (rule["match_kind"], rule["target"])
+            matched_pos = expected_cur.index(blob) if blob in expected_cur else None
+            if matched_pos is not None:
+                cur = blob
+                hist = expected_hist[matched_pos] if matched_pos < len(expected_hist) else NEVER
+                if matched_pos > 0:
+                    companions_seen.add((rule["op"], glob, blob))
+                ok = True
+            else:
+                cur = expected_cur[0]
+                hist = expected_hist[0]
+                ok = False
                 port_mismatches.append({"repo": r["repo"], "statement": stmt, "glob": glob,
                                         "blob": f"{rule['match']}({rule['target']})",
                                         "port": f"{lowered_name(cur[0])}({cur[1]})"})
-            if hist != cur:
+            cur_targets.append(cur)
+            hist_targets.append(hist)
+            # Only the primary (first) matcher carries the historical comparison;
+            # companions did not exist historically and are recorded separately.
+            if matched_pos in (None, 0) and hist != cur:
                 lowering_changes.append({"which": "target", "glob": glob, "op": rule["op"],
                                          "historical": f"{lowered_name(hist[0])}({hist[1]})",
                                          "current": f"{lowered_name(cur[0])}({cur[1]})"})
@@ -474,6 +544,22 @@ def main() -> int:
             port_rows.append({"glob": glob, "op": rule["op"], "unless_glob": ug,
                               "blob": f"{rule['match']}({rule['target']})",
                               "port": f"{lowered_name(cur[0])}({cur[1]})", "port_matches_blob": ok})
+
+        # Every repo-relative companion the current lowering defines for these
+        # globs must actually appear in the blob, so an omitted companion fails
+        # closed rather than silently weakening the audit.
+        want_companions = set()
+        for idx, rule in enumerate(cfg["rules"]):
+            glob = globs[idx] if idx < len(globs) else rule["target"]
+            if rule["op"] == "exec":
+                continue
+            for comp in lower_path_companions(glob):
+                want_companions.add((rule["op"], glob, comp))
+        for op, glob, comp in sorted(want_companions - companions_seen):
+            port_mismatches.append({"repo": r["repo"], "statement": stmt, "glob": glob,
+                                    "which": "companion",
+                                    "blob": "missing",
+                                    "port": f"{lowered_name(comp[0])}({comp[1]})"})
 
         # Today's matcher necessarily equals the compiled blob (validated above);
         # compare it against the historical lowering replayed on the same event.

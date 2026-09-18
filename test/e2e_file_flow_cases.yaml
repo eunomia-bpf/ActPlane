@@ -182,3 +182,26 @@ cases:
       # shape exceeds the 6.8 verifier instruction budget even unmodified.)
       want: '"target":"1.1.1.2"'
       notwant: '"target":"1.1.1.1"'
+
+  - name: "F10 first-segment-relative dir source matches via companion prefix"
+    setup: |-
+      mkdir -p ${D}/flow/src/lib ${D}/flow/src/libx
+      echo secret > ${D}/flow/src/lib/cli.rs
+      echo secret > ${D}/flow/src/libx/cli.rs
+    policy: |-
+      source CLI = file "**/src/lib/**"
+      rule no-exfil:
+        kill connect endpoint "*" if CLI
+        because "a repo-relative **/src/lib/** source must label a first-segment-relative read"
+    trigger: |-
+      (cd ${D}/flow && read x < src/libx/cli.rs; timeout 1 bash -c 'exec 3<>/dev/tcp/2.2.2.1/80'); (cd ${D}/flow && read y < src/lib/cli.rs; timeout 1 bash -c 'exec 4<>/dev/tcp/2.2.2.2/80')
+    expect:
+      # `**/src/lib/**` lowers to contains("/src/lib/"), whose literal needs a
+      # slash before `src`, plus a companion prefix("src/lib/") for the
+      # first-segment form a tool reaches from the repository root. The
+      # `src/libx/...` read runs first so the notwant is not vacuous: it must not
+      # label (the companion is a component-boundary prefix, not a substring).
+      # Only a file source is used: a write-rule sink autoloads the full file
+      # evaluator, which exceeds the 6.8 verifier budget even unmodified.
+      want: '"target":"2.2.2.2"'
+      notwant: '"target":"2.2.2.1"'
