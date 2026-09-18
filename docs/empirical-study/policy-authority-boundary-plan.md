@@ -26,14 +26,15 @@ identity, admission, audit, file-read, and final enforcement path together.
 
 ## One comparison matrix
 
-| Case | Actor and delta | Prediction | Meaning |
-|---|---|---|---|
-| Child declassification | Bound child, `declassify SECRET`, allowlisted-looking metadata | Reject | Child lacks `AUTH_DECLASSIFY` |
-| Parent mutation | Bound child targets the parent domain | Reject | Child cannot target its parent |
-| Child tightening | Bound child adds a local notify rule | Accept and fire | Delegation permits monotonic restriction |
-| Frozen behavior | Child reads a real file source, then executes the frozen sink | Notify | Rejected weakening did not remove the parent rule |
-| Missing approval | Trusted parent omits required metadata | Reject | Static approval gate is active |
-| Allowlisted metadata | Trusted parent supplies all allowlisted strings | Accept, audit `external_verified=false` | Metadata is declarative, not a signature |
+| Case | Runner case | Actor and delta | Prediction | Meaning |
+|---|---|---|---|---|
+| Child declassification | `child_declassify` | Bound child, `declassify SECRET`, allowlisted-looking metadata | Reject | Child lacks `AUTH_DECLASSIFY` |
+| Parent mutation | `child_parent_mutation` | Bound child targets the parent domain | Reject | Child cannot target its parent |
+| Child tightening accepted | `child_tighten` | Bound child adds a local notify rule | Accept | Delegation permits monotonic restriction |
+| Child tightening fires | `child_tightening` | The rule added by the child then matches | Notify | The added restriction is enforced, not just admitted |
+| Frozen behavior | `frozen_parent_enforcement` | Child reads a real file source, then executes the frozen sink | Notify | Rejected weakening did not remove the parent rule |
+| Missing approval | `trusted_parent_missing_metadata` | Trusted parent omits required metadata | Reject | Static approval gate is active |
+| Allowlisted metadata | `allowlisted_metadata` | Trusted parent supplies all allowlisted strings | Accept, audit `external_verified=false` | Metadata is declarative, not a signature |
 
 A fully positive result supports only the implemented authority boundary. If a
 child weakening is accepted or the frozen sink stops firing, the monotonicity
