@@ -28,7 +28,10 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ACT="${ACTPLANE_BIN:-$ROOT/target/release/actplane}"
 PROC="${ACTPLANE_PROCESS_BIN:-$ROOT/bpf/process}"
-KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic 2>/dev/null | tail -1)}"
+# Restrict the default to a 6.8 guest: the probe's claim (and metadata) is a
+# 6.8-kernel measurement, so silently selecting a newer generic kernel would
+# record evidence for a different kernel than the note states.
+KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-6.8.*-generic 2>/dev/null | tail -1)}"
 OUT="${1:-$ROOT/docs/empirical-study/results/rq2-except-probe-vm}"
 VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-900}"
 WORK="$(mktemp -d /tmp/actplane-except-probe.XXXXXX)"
@@ -97,7 +100,7 @@ cp "$WORK/root/cfg_frozen.bin" "$OUT/blob_frozen.bin"
 cp "$WORK/root/cfg_env.bin" "$OUT/blob_env.bin"
 cp "$PROC" "$WORK/root/process"
 cp /bin/busybox "$WORK/root/bin/busybox"
-for a in sh mount grep sleep kill cat mkdir poweroff true ln awk; do ln -sf busybox "$WORK/root/bin/$a"; done
+for a in sh mount grep sleep kill cat mkdir poweroff true ln awk date; do ln -sf busybox "$WORK/root/bin/$a"; done
 { ldd "$PROC"; } | awk '{for (i=1;i<=NF;i++) if ($i ~ /^\//) print $i}' | sort -u |
 while read -r lib; do [ -n "$lib" ] && cp --parents "$lib" "$WORK/root"; done
 
@@ -262,10 +265,22 @@ run_case() {
     wait "$trigger_pid" 2>/dev/null
     trigger_status=$?
   fi
+  # The loader must still be alive after the trigger runs. A loader that
+  # crashed after reporting ready would emit zero violations, which would
+  # spuriously satisfy a row whose expected count is zero (for example
+  # `except_abs_dist`); require liveness so a crash is a harness failure, not
+  # a passing observation.
+  loader_alive=0
+  if kill -0 "$loader_pid" 2>/dev/null; then
+    loader_alive=1
+  fi
   sleep 1
   kill "$loader_pid" 2>/dev/null || true
   wait "$loader_pid" 2>/dev/null || true
   cat "/tmp/$name.log"
+  if [ "$loader_alive" -eq 0 ]; then
+    echo "CASE_FAILURE $name loader-exited-before-count"
+  fi
   echo "CASE_TRIGGER $name $trigger_status"
   echo "CASE_END $name"
 }
@@ -377,6 +392,7 @@ awk '
   printf '%s\n' "guest_kernel $(basename "$KERNEL")"
   printf '%s\n' "frozen_policy_sha256 $(sha256sum "$OUT/frozen-policy.dsl" | cut -d' ' -f1)"
   printf '%s\n' "acceleration $accel"
+  printf '%s\n' "actplane_bin_sha256 $(sha256sum "$ACT" | cut -d' ' -f1)"
   printf '%s\n' "process_bin_sha256 $(sha256sum "$PROC" | cut -d' ' -f1)"
   printf '%s\n' "except_policy_sha256 $(sha256sum "$OUT/policy.dsl" | cut -d' ' -f1)"
   printf '%s\n' "sink_policy_sha256 $(sha256sum "$OUT/sink-policy.dsl" | cut -d' ' -f1)"

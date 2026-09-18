@@ -640,6 +640,53 @@ mod tests {
     }
 
     #[test]
+    fn compiled_bytes_are_deterministic_and_padding_is_zeroed() {
+        // The `repr(C)` update/rule structs are serialized as raw bytes over the
+        // whole struct, so uninitialized padding leaks into the blob and makes
+        // the same policy compile to different bytes (observed as 5 distinct
+        // hashes in 5 release runs before the fix). This asserts the invariant:
+        // two compiles are byte-identical and the pad bytes are zero. The
+        // pre-fix failure is optimization-dependent uninitialized-read UB, so it
+        // is not reproducible in a debug unit test; the release-level check is
+        // `actplane ... compile` run twice on the same policy.
+        let src = r#"
+            source AGENT = exec "python3"
+            rule probe_sink:
+              notify write file "**/dist/**" if AGENT
+              because "repo-relative dir sink"
+        "#;
+        let pol = crate::dsl::parse::parse(src).expect("parse policy");
+        let a = compile(&pol).expect("compile once").bytes;
+        let b = compile(&pol).expect("compile twice").bytes;
+        assert_eq!(
+            a, b,
+            "same policy compiled twice must produce identical bytes"
+        );
+        let cfg: CConfig = unsafe { std::ptr::read_unaligned(a.as_ptr() as *const CConfig) };
+        let upd_raw = unsafe {
+            std::slice::from_raw_parts(
+                cfg.updates.as_ptr() as *const u8,
+                std::mem::size_of::<CUpdate>() * cfg.n_updates as usize,
+            )
+        };
+        // Bytes 90..96 are the pad between `arg` and `add` in `taint_update`;
+        // bytes 158..160 are the pad between `cond_pat` and `req` in
+        // `taint_rule`.
+        assert_eq!(&upd_raw[90..96], &[0u8; 6], "update padding must be zeroed");
+        let rule_raw = unsafe {
+            std::slice::from_raw_parts(
+                cfg.rules.as_ptr() as *const u8,
+                std::mem::size_of::<CRule>() * cfg.n_rules as usize,
+            )
+        };
+        assert_eq!(
+            &rule_raw[158..160],
+            &[0u8; 2],
+            "rule padding must be zeroed"
+        );
+    }
+
+    #[test]
     fn wildcard_hostnames_are_not_resolved_as_exact_hosts() {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
@@ -816,20 +863,22 @@ impl Ctx {
                 MAX_UPDATES
             ));
         }
-        let mut u = CUpdate {
-            op: spec.op,
-            m: spec.m,
-            target: [0; PAT],
-            arg: [0; ARG],
-            add: spec.add,
-            del: spec.del,
-            gates: spec.gates,
-            invals: spec.invals,
-            ipv4: spec.ipv4,
-            ipv4_mask: spec.ipv4_mask,
-            gate_exit_code: spec.gate_exit_code,
-            domain_id: 0,
-        };
+        // Zero the whole struct first: the struct literal would leave the
+        // `repr(C)` padding between `arg` and `add` uninitialized, and the blob
+        // is serialized as raw bytes over the full struct, so that padding would
+        // leak into the compiled config and make identical policies produce
+        // different blobs (and hashes).
+        let mut u: CUpdate = unsafe { std::mem::zeroed() };
+        u.op = spec.op;
+        u.m = spec.m;
+        u.add = spec.add;
+        u.del = spec.del;
+        u.gates = spec.gates;
+        u.invals = spec.invals;
+        u.ipv4 = spec.ipv4;
+        u.ipv4_mask = spec.ipv4_mask;
+        u.gate_exit_code = spec.gate_exit_code;
+        u.domain_id = 0;
         set_pat(&mut u.target, spec.target);
         if !spec.arg.is_empty() {
             set_pat(&mut u.arg, spec.arg);
@@ -1384,28 +1433,26 @@ pub fn compile_with_labels(
                             clause_source_index: cl.source_index,
                             source: None,
                         });
-                        let mut cr = CRule {
-                            op,
-                            m: tm,
-                            cond_kind: ck,
-                            cond_neg: cneg,
-                            cond_match: cm,
-                            effect: lower_effect(cl.effect),
-                            target: [0; PAT],
-                            arg: [0; ARG],
-                            cond_pat: [0; PAT],
-                            req,
-                            forbid,
-                            gate,
-                            rule_id,
-                            ipv4,
-                            ipv4_mask,
-                            cond_ipv4: cipv4,
-                            cond_ipv4_mask: cipv4_mask,
-                            gate_idx,
-                            domain_id: 0,
-                            since_mask,
-                        };
+                        // Zero-init so `repr(C)` padding does not leak into the
+                        // serialized blob (see `add_update`).
+                        let mut cr: CRule = unsafe { std::mem::zeroed() };
+                        cr.op = op;
+                        cr.m = tm;
+                        cr.cond_kind = ck;
+                        cr.cond_neg = cneg;
+                        cr.cond_match = cm;
+                        cr.effect = lower_effect(cl.effect);
+                        cr.req = req;
+                        cr.forbid = forbid;
+                        cr.gate = gate;
+                        cr.rule_id = rule_id;
+                        cr.ipv4 = ipv4;
+                        cr.ipv4_mask = ipv4_mask;
+                        cr.cond_ipv4 = cipv4;
+                        cr.cond_ipv4_mask = cipv4_mask;
+                        cr.gate_idx = gate_idx;
+                        cr.domain_id = 0;
+                        cr.since_mask = since_mask;
                         set_pat(&mut cr.target, &tlit);
                         if let Some(a) = &cl.target.arg {
                             set_pat(&mut cr.arg, a);

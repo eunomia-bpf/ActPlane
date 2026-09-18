@@ -1,11 +1,14 @@
 # RQ2: Does the Current Compiler Still Exhibit the Historical Path-Lowering Over-Match?
 
 Status: completed host-side compiler evaluation, one live 6.8 guest probe
-(2026-09-15) and its post-fix re-run (2026-09-17), and both compiler-only
-lowering fixes: the `**/<name>` bare-root regression (2026-09-16) and the
-`**/dir/**` first-segment-relative miss (2026-09-17). This is an evidence note
-for the reviewer response. It does not modify `docs/papers` and it does not
-re-derive the frozen end-to-end 18/26/28 counts.
+(2026-09-15) and its post-fix re-run (2026-09-17), both compiler-only lowering
+fixes (the `**/<name>` bare-root regression, 2026-09-16, and the `**/dir/**`
+first-segment-relative miss, 2026-09-17), the exception-discoverability
+increment (2026-09-18), and an evidence-integrity correction pass on the replay
+tool and probe harness (2026-09-18). Both committed result directories are
+retained as **exploratory** product-branch evidence for the reviewer response.
+This does not modify `docs/papers` and it does not re-derive the frozen
+end-to-end 18/26/28 counts.
 
 ## Question
 
@@ -47,14 +50,16 @@ recorded verbatim, so a tool that passed a relative path yields a relative targe
 ## Result: current-compiler replay
 
 Classes over the 18 FP rows: **16 still fire**, **1 lowering defect is resolved**,
-**1 never fired**.
+**1 has no recorded event**. The last row recorded no ActPlane event at all, so
+there is no event string to replay; it is classified `no-recorded-event` rather
+than `never-fires`, because absence of a recorded event is not a matcher result.
 
 | FP-audit primary cause | Rows | Current matcher |
 | --- | ---: | --- |
 | translation over-approximation | 9 | still fires |
 | harness-tool interaction | 4 | still fires |
 | historical path lowering | 4 | 3 still fire, 1 resolved |
-| trajectory protocol/judge | 1 | never fired (consistent with the note: no setup intervention) |
+| trajectory protocol/judge | 1 | no recorded event (consistent with the note: no setup intervention) |
 
 One historical over-match is gone: the NemoClaw lookalike fixture
 `test/fixtures/src-lib-new-command.js.txt`. Historically `**/*.js` lowered to
@@ -192,11 +197,17 @@ lowering, not by a new verdict.
 
 ## Pre-fix diagnosis: the `**/dir/**` relative-path miss
 
-The NemoClaw `s02_no_new_javascript_sources` rule is
+The NemoClaw `s02_no_new_javascript_sources` rule is:
 
 ```
 notify write file "**/*.js" if AGENT or AGENT_ALT unless target "**/dist/**"
 ```
+
+The probe tests an **`AGENT`-only reduction** of this rule
+(`notify write file "**/*.js" if AGENT unless target "**/dist/**"`), which
+isolates the `**/dist/**` exception lowering under one source label; the
+`AGENT_ALT` disjunct and the exact frozen trigger set are covered by the replay,
+not by the live probe.
 
 The historical compiler and the pre-fix current compiler both lowered the
 repo-relative `**/dist/**` to `CONTAINS("/dist/")`. That literal requires a slash
@@ -387,6 +398,51 @@ role cannot express", and `compile --explain`/`--json` emit a
 `condition_findings` list in the divergence scan names the two frozen rules it
 affects. An absolute exception (`unless target "/work/dist/**"`) has no companion
 and does not warn.
+
+## Evidence-integrity corrections
+
+An independent review of this evidence found correctness gaps in the replay tool
+and the probe harness, all now fixed. They change how faithfully the tools model
+the kernel, not the headline result (16 still fire, 1 resolved, 1 no recorded
+event):
+
+- **Negated exceptions.** The replay only recognized `unless target "G"` and
+  dropped the supported `unless target not "G"` form, evaluating such a rule as
+  if it had no exception. `extract_unless` now preserves the negation bit and
+  `fires_with` applies it as the kernel does (`cond_neg ? !match : match`), so the
+  one frozen rule that uses it (`czlonkowski/n8n-mcp/no_committed_sensitive_test_env`)
+  is modelled faithfully. The condition port also now lowers through
+  `lower_target` (exec conditions use `lower_exec`), which the strict
+  blob-port check caught as a divergence.
+- **No-recorded-event.** A row whose frozen runner recorded no ActPlane event was
+  classified `never-fires`, conflating missing evidence with a negative matcher
+  result. It is now `no-recorded-event`, excluded from the matcher counts.
+- **Probe loader liveness.** `run_case` never rechecked the loader after it
+  reported ready, so a loader that crashed after ready would emit zero
+  violations and spuriously satisfy a zero-expected row (for example
+  `except_abs_dist`). The harness now records `CASE_FAILURE
+  <name> loader-exited-before-count` if the loader is dead before counting.
+- **Probe trigger timeout.** The guest enforced the 8-second trigger deadline
+  with `date`, which was not linked into the busybox applet set, so a hung
+  trigger could never reach the deadline. `date` is now linked.
+- **Probe kernel default.** The default kernel is now restricted to
+  `vmlinuz-6.8.*-generic`, so a run without `ACTPLANE_VM_KERNEL` cannot silently
+  measure a different kernel than the note claims.
+- **Provenance.** The committed `replay.json` now carries a `status` and a
+  `provenance` block (fixed argv, compiler binary hash, input `fp_rows` hash, a
+  per-row `rule.yaml` digest manifest, host commit, Python version) so the 18
+  rows can be tied to exact inputs, and the probe metadata now also records the
+  compiler (`actplane`) binary hash alongside the loader hash.
+- **Deterministic blobs (found while regenerating).** The `repr(C)`
+  `taint_update`/`taint_rule` structs used struct literals, leaving their
+  padding bytes uninitialized; the blob is serialized as raw bytes over the full
+  struct, so identical policies compiled to **different bytes** (5 distinct
+  hashes in 5 release runs, differing only in the `arg`→`add` and `cond_pat`→`req`
+  pads). Both structs are now `std::mem::zeroed()` before field assignment, so
+  compile is byte-deterministic, and a unit test asserts the zeroed pads. The
+  committed probe blobs were regenerated from the fixed compiler and are now
+  reproducible; the verdict counts are unchanged (the padding never affected
+  matching, only the serialized bytes and their hashes).
 
 
 ## Reproduction

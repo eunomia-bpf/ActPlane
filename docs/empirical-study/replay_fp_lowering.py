@@ -39,6 +39,7 @@ models the recorded event faithfully.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import struct
@@ -315,9 +316,35 @@ def lowered_name(kind: int) -> str:
 
 
 
-def extract_unless_glob(clause_text: str) -> str | None:
-    m = re.search(r'unless\s+target\s+"([^"]*)"', clause_text or "")
-    return m.group(1) if m else None
+def extract_unless(clause_text: str) -> tuple[str, bool] | None:
+    """The `unless target` exception as `(glob, negate)`.
+
+    The DSL supports both `unless target "G"` and the negated
+    `unless target not "G"`. The negate bit is part of the condition semantics
+    (`cond_neg`), so it must be preserved: dropping it would evaluate a negated
+    exception as if it had none and misclassify the row.
+    """
+    m = re.search(r'unless\s+target\s+(not\s+)?"([^"]*)"', clause_text or "")
+    if not m:
+        return None
+    return (m.group(2), bool(m.group(1)))
+
+
+def lower_cond_current(op: str, pat: str) -> tuple[int, str]:
+    """The `unless target` condition for an exec rule lowers through
+    `lower_exec`, and for a file op through `lower_path` (compiler
+    `lower_target`); it is not always a path pattern. Mirrored here so the
+    condition port matches the blob.
+    """
+    if op == "exec":
+        return lower_exec_current(pat)
+    return lower_path_current(pat)
+
+
+def lower_cond_historical(op: str, pat: str) -> tuple[int, str]:
+    if op == "exec":
+        return lower_exec_historical(pat)
+    return lower_path_historical(pat)
 
 
 # ---- blob parse ------------------------------------------------------------
@@ -349,7 +376,13 @@ def parse_config(blob: bytes) -> dict:
 
 def fires_with(rules, targets, unlesses, event_op, event_text):
     """Does any rule fire for the event, given per-rule (match, literal) targets
-    and unless conditions? `rules[i]['op']` supplies the operation."""
+    and `(match, literal, negate)` unless conditions? `rules[i]['op']` supplies
+    the operation.
+
+    Mirrors `te_rule_effect`/`te_cond_satisfied`: a rule fires when its target
+    matches and its target condition is *not* satisfied, where the condition is
+    satisfied by `cond_neg ? !match : match`.
+    """
     cands = [event_text]
     if event_op == "exec":
         cands = [event_text.rsplit("/", 1)[-1], event_text]
@@ -360,13 +393,14 @@ def fires_with(rules, targets, unlesses, event_op, event_text):
         kind, lit = targets[i]
         fired = any(kernel_match(kind, c, lit) for c in cands)
         entry = {"rule_index": i, "lowered_as": f"{lowered_name(kind)}(\"{lit}\")", "target_match": fired}
-        uk = None
         if unlesses and unlesses[i]:
-            ukind, ulit = unlesses[i]
+            ukind, ulit, uneg = unlesses[i]
             hit = any(kernel_match(ukind, c, ulit) for c in cands)
             entry["unless_lowered_as"] = f"{lowered_name(ukind)}(\"{ulit}\")"
+            entry["unless_negate"] = uneg
             entry["unless_match"] = hit
-            fired = fired and not hit
+            cond_satisfied = (not hit) if uneg else hit
+            fired = fired and not cond_satisfied
         entry["fires"] = fired
         hits.append(entry)
     return any(h["fires"] for h in hits), hits
@@ -435,11 +469,73 @@ def selftest() -> int:
     check(lower_path_companions("**/dist/**") == [(M_PREFIX, "dist/")], "**/dist/** -> only the dir companion")
     check(lower_path_companions("**/.env") == [(M_EXACT, ".env")], "**/.env -> only the bare-name companion")
 
+    # The `unless target not` negation bit must survive extraction and the
+    # condition evaluation, since dropping it evaluates a negated exception as
+    # if it had none (the misleading case in the frozen corpus).
+    check(extract_unless('notify write file "**/*.js" if A unless target "**/dist/**"') == ("**/dist/**", False),
+          "extract_unless reads a plain target exception")
+    check(extract_unless('notify write file ".env.test" if A unless target not ".env.test"') == (".env.test", True),
+          "extract_unless preserves the negated form")
+    check(extract_unless("notify write file \"**\" if A") is None,
+          "extract_unless returns None without an exception")
+    check(extract_unless('unless target "**/dist/**"') is not None, "extract_unless matches bare clause text")
+    _rules = [{"op": "write"}]
+    _tgt = [(M_ANY, "")]
+    # cond_neg=false: exception matches -> condition satisfied -> rule suppressed.
+    _hit, _ = fires_with(_rules, _tgt, [(M_SUFFIX, ".env.test", False)], "write", ".env.test")
+    check(_hit is False, "plain exception that matches suppresses the rule")
+    # cond_neg=true: exception matches -> condition NOT satisfied -> rule fires.
+    _hit, _ = fires_with(_rules, _tgt, [(M_SUFFIX, ".env.test", True)], "write", ".env.test")
+    check(_hit is True, "negated exception that matches lets the rule fire")
+    # cond_neg=true, exception does not match -> condition satisfied -> suppressed.
+    _hit, _ = fires_with(_rules, _tgt, [(M_SUFFIX, ".env.test", True)], "write", "/tmp/other")
+    check(_hit is False, "negated exception that misses suppresses the rule")
+
+
     for ok, name in checks:
         print(f"[{'PASS' if ok else 'FAIL'}] {name}")
     failed = sum(1 for ok, _ in checks if not ok)
     print(f"\n{len(checks) - failed} passed, {failed} failed")
     return 1 if failed else 0
+
+def sha256_file(path: str) -> str:
+    """SHA-256 of a file, or `"missing"` if it cannot be read."""
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except OSError:
+        return "missing"
+
+
+def git_commit() -> str:
+    """The repository HEAD, or `"no-git"` when unavailable."""
+    try:
+        out = subprocess.run(["git", "-C", str(Path(__file__).resolve().parent), "rev-parse", "HEAD"],
+                             check=True, capture_output=True, text=True)
+        return out.stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "no-git"
+
+
+def corpus_manifest(corpus: Path, out_rows: list) -> list:
+    """Per-row rule.yaml path and digest, so the 18-row input set is pinned."""
+    manifest = []
+    for row in out_rows:
+        repo_key = row["repo"].replace("/", "__")
+        stmt = row["statement"]
+        rule_yaml = next((c for c in corpus.rglob("rule.yaml")
+                          if c.parent.name == stmt and c.parent.parent.name == repo_key), None)
+        manifest.append({
+            "repo": row["repo"],
+            "statement": stmt,
+            "rule_yaml": str(rule_yaml) if rule_yaml else None,
+            "rule_yaml_sha256": sha256_file(str(rule_yaml)) if rule_yaml else "missing",
+        })
+    return manifest
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
@@ -483,7 +579,7 @@ def main() -> int:
                                            check=True, capture_output=True).stdout)
         json_rules = report.get("rules", [])
         globs = [rule.get("target_pattern") for rule in json_rules]
-        unless_globs = [extract_unless_glob(rule.get("clause_text", "")) for rule in json_rules]
+        unless_conds = [extract_unless(rule.get("clause_text", "")) for rule in json_rules]
 
         target = (r.get("target") or "").strip()
         event_op = target.split(" ", 1)[0] if target else ""
@@ -532,24 +628,27 @@ def main() -> int:
                 lowering_changes.append({"which": "target", "glob": glob, "op": rule["op"],
                                          "historical": f"{lowered_name(hist[0])}({hist[1]})",
                                          "current": f"{lowered_name(cur[0])}({cur[1]})"})
-            ug = unless_globs[idx] if idx < len(unless_globs) else None
+            ug = unless_conds[idx] if idx < len(unless_conds) else None
             if ug and rule["cond_kind"] == TCOND_TARGET:
-                ucur, uhist = lower_path_current(ug), lower_path_historical(ug)
-                cur_unless.append(ucur)
-                hist_unless.append(uhist)
-                if not (ucur[0] == rule["cond_match_kind"] and ucur[1] == rule["cond_pat"]):
-                    port_mismatches.append({"repo": r["repo"], "statement": stmt, "glob": ug,
+                uglob, uneg = ug
+                ucur, uhist = lower_cond_current(rule["op"], uglob), lower_cond_historical(rule["op"], uglob)
+                cur_unless.append((ucur[0], ucur[1], uneg))
+                hist_unless.append((uhist[0], uhist[1], uneg))
+                if not (ucur[0] == rule["cond_match_kind"] and ucur[1] == rule["cond_pat"]
+                        and uneg == rule["cond_neg"]):
+                    port_mismatches.append({"repo": r["repo"], "statement": stmt, "glob": uglob,
                                             "which": "unless",
-                                            "blob": f"{rule['cond_match']}({rule['cond_pat']})",
-                                            "port": f"{lowered_name(ucur[0])}({ucur[1]})"})
+                                            "blob": f"{rule['cond_match']}({rule['cond_pat']}) neg={rule['cond_neg']}",
+                                            "port": f"{lowered_name(ucur[0])}({ucur[1]}) neg={uneg}"})
                 if uhist != ucur:
-                    lowering_changes.append({"which": "unless", "glob": ug, "op": rule["op"],
+                    lowering_changes.append({"which": "unless", "glob": uglob, "op": rule["op"],
                                              "historical": f"{lowered_name(uhist[0])}({uhist[1]})",
                                              "current": f"{lowered_name(ucur[0])}({ucur[1]})"})
             else:
                 cur_unless.append(None)
                 hist_unless.append(None)
-            port_rows.append({"glob": glob, "op": rule["op"], "unless_glob": ug,
+            port_rows.append({"glob": glob, "op": rule["op"], "unless_glob": ug[0] if ug else None,
+                              "unless_negate": ug[1] if ug else None,
                               "blob": f"{rule['match']}({rule['target']})",
                               "port": f"{lowered_name(cur[0])}({cur[1]})", "port_matches_blob": ok})
 
@@ -568,6 +667,27 @@ def main() -> int:
                                     "which": "companion",
                                     "blob": "missing",
                                     "port": f"{lowered_name(comp[0])}({comp[1]})"})
+
+        if not target:
+            # No ActPlane event was recorded for this row (the frozen runner's
+            # setup produced no intervention), so there is no event string to
+            # replay. Absence of a recorded event is not a negative matcher
+            # result, so it gets a distinct classification and is excluded from
+            # the matcher counts rather than counted as "never-fires".
+            out_rows.append({
+                "repo": r["repo"],
+                "statement": stmt,
+                "trace": r["trace"],
+                "observed_event": "",
+                "historical_lowering_fires": None,
+                "current_lowering_fires": None,
+                "lowering_changes": lowering_changes,
+                "classification": "no-recorded-event",
+                "port_check": port_rows,
+                "current_detail": [],
+                "historical_detail": [],
+            })
+            continue
 
         # Today's matcher necessarily equals the compiled blob (validated above);
         # compare it against the historical lowering replayed on the same event.
@@ -602,7 +722,24 @@ def main() -> int:
     summary: dict[str, int] = {}
     for row in out_rows:
         summary[row.get("classification", "error")] = summary.get(row.get("classification", "error"), 0) + 1
+    # Provenance, so the committed result satisfies the artifact Non-Cite Rule
+    # (fixed command, inputs, environment, status) and a reviewer can tie the 18
+    # rows to the exact compiler and frozen inputs.
     result = {
+        "status": "exploratory",
+        "provenance": {
+            "tool": "docs/empirical-study/replay_fp_lowering.py",
+            "argv": sys.argv,
+            "compiler_bin": args.cli,
+            "compiler_binary_sha256": sha256_file(args.cli),
+            "corpus_root": str(corpus),
+            "corpus_manifest": corpus_manifest(corpus, out_rows),
+            "fp_rows": str(Path(args.fp_rows)),
+            "fp_rows_sha256": sha256_file(args.fp_rows),
+            "fp_row_count": len(fps),
+            "host_git_commit": git_commit(),
+            "python": sys.version.split()[0],
+        },
         "summary": summary,
         "port_mismatches": port_mismatches,
         "rows": out_rows,
