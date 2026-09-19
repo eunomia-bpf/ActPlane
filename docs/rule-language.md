@@ -79,6 +79,7 @@ rule NAME:
   EFFECT OP-PATTERN if Φ [unless COND]
   because "..."
 ```
+
 - `EFFECT` is the action verb that starts each clause: `notify`, `block`, or `kill`.
 - `OP-PATTERN` is the operation plus its target pattern: `exec PAT [ARG]`,
   `open file PAT`, `read file PAT`, `write file PAT`, `unlink file PAT`,
@@ -91,6 +92,8 @@ rule NAME:
   - `target PAT` — only when the object also matches PAT (positive scope), or `target not PAT` (allow-listed region).
   - `lineage-includes exec G` — **mandatory mediation**: allowed iff an ancestor (incl. self) exec'd `G`.
   - `after exec G [exits N] [since EV…]` — **temporal**: allowed iff `exec G` happened earlier in this process's lineage. With `exits N`, the gate opens only after the matching process exits normally with status `N`. Plain `after` is *latching* (satisfied once `G` ever ran). The optional `since EV…` tail makes the gate go **stale** when a later invalidating event `EV` occurs (§1.9).
+
+`because` is what the corrective-feedback chain forwards to the agent when the rule matches (see [`design/feedback-design.md`](design/feedback-design.md)), so it is effectively required in practice even though the grammar marks it optional: a rule without one still enforces, but a match forwards an empty reason, telling the agent it was stopped and not why. `actplane compile --explain`/`--json` report `rule_missing_because` for such a rule.
 
 **Rule match**: event `op(s, o)` matches clause `EFFECT op pat if Φ unless cond` iff
 `match(o, pat) ∧ Φ(σ(s)) ∧ ¬cond(s, o, history)`.

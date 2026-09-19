@@ -2032,6 +2032,21 @@ fn backend_support_warnings(
         }
     }
     for rule in &policy.rules {
+        // The rule's `because` string is what the corrective-feedback chain
+        // forwards to the agent (see design/feedback-design.md). The grammar
+        // makes it optional, but without it the violation carries an empty
+        // reason, so the agent sees that it was stopped and not why. The kernel
+        // effect still fires, so this is a feedback gap rather than a
+        // correctness bug.
+        if rule.reason.trim().is_empty() {
+            warnings.push(BackendWarning {
+                code: "rule_missing_because",
+                message: format!(
+                    "{}: rule has no `because` string, so a match forwards an empty reason to the agent. Add `because \"...\"` explaining why the rule exists.",
+                    rule.name
+                ),
+            });
+        }
         for clause in &rule.clauses {
             if matches!(clause.op, Op::Connect | Op::Recv)
                 && clause.target.kind == Kind::Endpoint

@@ -344,6 +344,43 @@ fn compile_json_warns_that_an_argv_token_on_a_non_exec_clause_is_ignored() {
 }
 
 #[test]
+fn compile_json_warns_when_a_rule_has_no_because() {
+    // The `because` string is the payload forwarded to the agent on a match.
+    // Without it a violation carries an empty reason, so the agent learns it was
+    // stopped but not why.
+    let policy = "rule r:\n  block exec \"git\" if A\n";
+    let output = run(&["--rule", policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "rule_missing_because"),
+        "expected missing-because warning, got {}",
+        value["warnings"]
+    );
+
+    // A rule with a reason must not warn.
+    let with_reason = "rule r:\n  kill exec \"git\" if A\n  because \"explain\"\n";
+    let output = run(&["--rule", with_reason, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "rule_missing_because"),
+        "reasoned rule must not warn, got {}",
+        value["warnings"]
+    );
+}
+
+#[test]
 fn compile_json_reports_policy_load_errors_as_json() {
     let missing = "/tmp/actplane-definitely-missing-policy.yaml";
     let output = run(&["--policy", missing, "compile", "--json"]);
