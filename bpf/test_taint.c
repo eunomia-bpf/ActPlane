@@ -180,14 +180,34 @@ static void test_abi_constants(void)
 	      "abi: MAX_TAINT_INVALS is a power of two (kernel masks with N-1)");
 }
 
+/* Enum discriminants are serialized into the blob as u8/i32 fields, so they are
+ * ABI values. Match abi_enum_values_match_the_c_header in
+ * crates/actplane-ifc-compiler/src/dsl/lower.rs; changing a value here changes
+ * the wire format and must be mirrored on the Rust side. */
+static void test_abi_enum_values(void)
+{
+	check(TAINT_MATCH_EXACT == 0 && TAINT_MATCH_PREFIX == 1 &&
+	      TAINT_MATCH_SUFFIX == 2 && TAINT_MATCH_ANY == 3 &&
+	      TAINT_MATCH_CONTAINS == 4, "abi: enum taint_match");
+	check(TOP_EXEC == 0 && TOP_OPEN == 1 && TOP_WRITE == 2 &&
+	      TOP_CONNECT == 3 && TOP_RECV == 4, "abi: enum taint_op");
+	check(TCOND_NONE == 0 && TCOND_LINEAGE == 1 && TCOND_AFTER == 2 &&
+	      TCOND_TARGET == 3, "abi: enum taint_cond");
+	check(TEFFECT_NOTIFY == 0 && TEFFECT_BLOCK == 1 && TEFFECT_KILL == 2,
+	      "abi: enum taint_effect");
+	check(TAINT_GATE_IMMEDIATE == -1, "abi: TAINT_GATE_IMMEDIATE");
+}
+
 int main(void)
 {
 	printf("=== ActPlane taint predicate tests ===\n");
 	test_streq();
 	test_prefix();
 	test_match();
+	test_mask();
 	test_abi_layout();
 	test_abi_constants();
+	test_abi_enum_values();
 	printf("\n%d passed, %d failed\n", passed, failed);
 	return failed == 0 ? 0 : 1;
 }

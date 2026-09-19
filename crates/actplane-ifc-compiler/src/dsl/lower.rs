@@ -836,6 +836,37 @@ mod tests {
         );
     }
 
+    /// The enum discriminants below are written into the blob as `u8`/`i32`
+    /// fields, so they are ABI values, not internal names. A drift here is
+    /// silent and dangerous: making `M_CONTAINS` equal `M_ANY`'s 3 turns every
+    /// `contains` matcher into match-anything, and changing an `OP_*` value
+    /// makes the kernel index the wrong update/rule table. `bpf/test_taint.c`'s
+    /// `test_abi_enum_values` asserts the same numbers from the C side.
+    #[test]
+    fn abi_enum_values_match_the_c_header() {
+        assert_eq!(
+            [M_EXACT, M_PREFIX, M_SUFFIX, M_ANY, M_CONTAINS],
+            [0, 1, 2, 3, 4],
+            "enum taint_match"
+        );
+        assert_eq!(
+            [OP_EXEC, OP_OPEN, OP_WRITE, OP_CONNECT, OP_RECV],
+            [0, 1, 2, 3, 4],
+            "enum taint_op"
+        );
+        assert_eq!(
+            [C_NONE, C_LINEAGE, C_AFTER, C_TARGET],
+            [0, 1, 2, 3],
+            "enum taint_cond"
+        );
+        assert_eq!(
+            [EFFECT_NOTIFY, EFFECT_BLOCK, EFFECT_KILL],
+            [0, 1, 2],
+            "enum taint_effect"
+        );
+        assert_eq!(GATE_IMMEDIATE, -1, "TAINT_GATE_IMMEDIATE");
+    }
+
     #[test]
     fn wildcard_hostnames_are_not_resolved_as_exact_hosts() {
         assert_eq!(hostname_candidate("*.internal"), None);

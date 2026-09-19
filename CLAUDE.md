@@ -139,6 +139,14 @@ tests do not cover them: `abi_constants_match_the_c_header` in `lower.rs` and
 equal on both sides and a power of two (the kernel masks slot indices with
 `N - 1`), and `MAX_CONTAINS_LITERAL` must equal `TAINT_SUF_MAX`.
 
+The enum discriminants are ABI values too, since `op`, `match`, `cond_kind`,
+`effect`, and `gate_exit_code` are `u8`/`i32` fields written into the blob.
+`abi_enum_values_match_the_c_header` in `lower.rs` and `test_abi_enum_values` in
+`bpf/test_taint.c` pin `taint_match`, `taint_op`, `taint_cond`, `taint_effect`,
+and `TAINT_GATE_IMMEDIATE`. A drift is silent: a `contains` matcher given
+`ANY`'s value matches everything, and an `op` value change makes the kernel index
+the wrong table.
+
 ## eBPF verifier gotchas (see bpf/README.md for detail)
 
 - Mark deep helpers `__noinline` (own stack frame); keep `te_check_labels` small.
