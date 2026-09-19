@@ -479,11 +479,13 @@ Fix: both objects were regenerated from the committed source. Re-measured live o
 the same 6.8 guest, the loader embedding the regenerated object matches the
 from-source result (8 measured / 6 skipped, `sink_*` no longer failing).
 `script/check_prebuilt_fresh.sh` rebuilds both objects and fails if the committed
-object lacks a function the fresh build defines, naming the missing symbols; it
-is symbol-based rather than byte-based because the committed blobs' exact bytes
-track the clang/LLVM that produced them (clang 17/18/19 each differ). It is wired
-into CI's `Build and Test` job, and it was confirmed to fail on the stale object
-and pass on the regenerated one.
+object lacks an `__noinline` function the source defines, naming the missing
+symbols. The check is source-derived rather than byte-based because the committed
+blobs' exact bytes and even their raw symbol tables track the clang/LLVM that
+produced them (clang 17/18/19 each differ in size, and the CI compiler emits
+basic-block labels as local symbols). It is wired into CI's `Build and Test` job,
+and it was confirmed to fail on the stale object (naming `te_record_file_prov_mask`)
+and pass on the regenerated one, on clang 17, 18, and 19.
 
 ## Reproduction
 

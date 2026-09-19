@@ -111,8 +111,10 @@ gap rather than a cosmetic mismatch: commit `8298d23a` added
 object, so `master` shipped an engine missing that fix (and one whose
 `trace_rename_exit` fails the Linux 6.8 verifier where a fresh build loads). CI
 enforces `script/check_prebuilt_fresh.sh`, which rebuilds both objects and
-requires the committed object to define every function a fresh build defines
-(symbol-based, so it does not depend on the exact clang/LLVM version).
+requires the committed object to define every `__noinline` function the source
+defines. The check is source-derived rather than byte-based, so it does not
+depend on the exact clang/LLVM version (nor on whether that compiler emits
+basic-block labels as local symbols).
 
 ## Binary config format
 

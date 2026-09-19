@@ -8,12 +8,15 @@
 # engine that omitted the committed file-source-provenance fix (and whose
 # `trace_rename_exit` failed the Linux 6.8 verifier where a fresh build loads).
 #
-# The check is symbol-based, not byte-based. The prebuilt objects are committed
-# binaries, and their exact bytes depend on the clang/LLVM that produced them
-# (clang 17, 18, and 19 each yield a different size), so a byte-identity gate
-# fails spuriously on a checkout whose CI toolchain differs from the
-# committer's. What must hold regardless of toolchain is that the object defines
-# every function the current source defines; byte drift is reported as a note.
+# The check is symbol-based, and deliberately only over names that come from the
+# C source, not over every object symbol. Exact object bytes track the clang/LLVM
+# that produced them (clang 17, 18, and 19 each yield a different size), and even
+# the raw symbol table is toolchain-dependent: some clang builds emit basic-block
+# labels (LBB0_*) as local symbols and others do not. What must hold regardless
+# of toolchain is that the object defines every function the source marks
+# `__noinline` (and that a build of the source actually emits). Those names come
+# from the source text, so the check is stable across compilers while still
+# catching a stale object that predates a new source function.
 #
 # Usage: bash script/check_prebuilt_fresh.sh   (needs clang, llvm, libbpf, bpftool)
 set -eu
@@ -30,7 +33,15 @@ done
 # Rebuild both objects from the current source.
 make -C bpf .output/process.bpf.o .output/process-legacy.bpf.o >/dev/null
 
-# Defined functions in an object.
+# Functions the current source marks `__noinline`. These are emitted as named
+# symbols rather than inlined, and the names are source text, so they are stable
+# across clang/LLVM versions.
+source_noinline() {
+  grep -rh '__noinline' bpf/*.h bpf/*.c \
+    | grep -oE '[A-Za-z_][A-Za-z0-9_]*\(' | tr -d '(' \
+    | grep -vx '__attribute__' | sort -u
+}
+# Defined function symbols in an object.
 object_functions() {
   "$NM" --defined-only "$1" 2>/dev/null \
     | awk '$2=="T" || $2=="t" { print $3 }' | sort -u
@@ -38,32 +49,35 @@ object_functions() {
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+source_noinline > "$tmp/src.funcs"
 
 status=0
 for obj in process process-legacy; do
   built="bpf/.output/$obj.bpf.o"
   committed="bpf/prebuilt/$obj.bpf.o"
 
-  object_functions "$built" > "$tmp/built.funcs"
+  object_functions "$built"     > "$tmp/built.funcs"
   object_functions "$committed" > "$tmp/committed.funcs"
 
-  # Every function a fresh build defines must exist in the committed object. A
-  # non-__noinline helper can be inlined away, so a symbol present in only one
-  # object is normal in that direction; a symbol the committed object lacks that
-  # a build has is the staleness signature (or a different toolchain).
-  missing="$(comm -13 "$tmp/committed.funcs" "$tmp/built.funcs" || true)"
+  # Only require functions the source marks __noinline AND that a build of the
+  # source actually emits (a __noinline function that is never referenced may be
+  # dropped). Intersecting keeps the required set source-derived and portable.
+  comm -12 "$tmp/src.funcs" "$tmp/built.funcs" > "$tmp/required.funcs"
+
+  missing="$(comm -23 "$tmp/required.funcs" "$tmp/committed.funcs" || true)"
   if [ -n "$missing" ]; then
     status=1
-    echo "STALE $committed lacks functions a fresh build defines:" >&2
+    echo "STALE $committed lacks __noinline functions the source defines:" >&2
     printf '  %s\n' $missing >&2
   else
-    echo "ok   $committed defines every function a fresh build defines"
+    echo "ok   $committed defines every __noinline function the source defines" \
+         "($(wc -l < "$tmp/required.funcs") checked)"
   fi
 
-  # Byte drift alone is not a failure: it can be a toolchain difference.
+  # Byte drift alone is not a failure: it can be a toolchain difference. Report
+  # it so a maintainer can see that the object was produced elsewhere.
   if ! cmp -s "$built" "$committed"; then
-    echo "note $committed differs in bytes from a local rebuild" \
-         "(toolchain-dependent; see the function sets above):" \
+    echo "note $committed differs in bytes from a local rebuild (toolchain-dependent):" \
          "committed=$(stat -c%s "$committed") built=$(stat -c%s "$built")" >&2
   fi
 done
@@ -78,8 +92,8 @@ stale binary). Regenerate and commit:
 
     ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine
 
-or `make -C bpf process .output/process-legacy.bpf.o` and copy `.output/*.bpf.o`
-over `prebuilt/`.
+or `make -C bpf .output/process.bpf.o .output/process-legacy.bpf.o` and copy
+`.output/*.bpf.o` over `prebuilt/`.
 EOF
   exit 1
 fi
