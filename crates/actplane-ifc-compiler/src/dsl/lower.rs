@@ -867,6 +867,28 @@ mod tests {
         assert_eq!(GATE_IMMEDIATE, -1, "TAINT_GATE_IMMEDIATE");
     }
 
+    /// The DSL has four file ops but the kernel carries only two access kinds:
+    /// `read`/`open` lower to `OP_OPEN`, `write`/`unlink` to `OP_WRITE`. That
+    /// collapse is intentional (a policy that confines writes pairs `write` and
+    /// `unlink` clauses deliberately), but it is a real semantic narrowing: an
+    /// `unlink` clause also fires on writes to the same pattern and vice versa.
+    /// Pin the mapping so a change is deliberate: routing `unlink` to `OP_OPEN`
+    /// would put deletes on the read path, and swapping `write`/`unlink` would
+    /// invert which access kind the kernel checks.
+    #[test]
+    fn dsl_file_ops_map_to_the_expected_kernel_access_kind() {
+        assert_eq!(op_lowers(Op::Read).unwrap(), &[OP_OPEN]);
+        assert_eq!(op_lowers(Op::Open).unwrap(), &[OP_OPEN]);
+        assert_eq!(op_lowers(Op::Write).unwrap(), &[OP_WRITE]);
+        assert_eq!(op_lowers(Op::Unlink).unwrap(), &[OP_WRITE]);
+        assert_eq!(op_lowers(Op::Exec).unwrap(), &[OP_EXEC]);
+        assert_eq!(op_lowers(Op::Connect).unwrap(), &[OP_CONNECT]);
+        assert_eq!(op_lowers(Op::Recv).unwrap(), &[OP_RECV]);
+        // The read side and the write side must not be cross-wired.
+        assert_ne!(op_lowers(Op::Unlink).unwrap(), op_lowers(Op::Read).unwrap());
+        assert_ne!(op_lowers(Op::Read).unwrap(), op_lowers(Op::Write).unwrap());
+    }
+
     #[test]
     fn wildcard_hostnames_are_not_resolved_as_exact_hosts() {
         assert_eq!(hostname_candidate("*.internal"), None);

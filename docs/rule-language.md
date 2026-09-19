@@ -84,6 +84,7 @@ rule NAME:
 - `OP-PATTERN` is the operation plus its target pattern: `exec PAT [ARG]`,
   `open file PAT`, `read file PAT`, `write file PAT`, `unlink file PAT`,
   `connect endpoint PAT`, or `recv endpoint PAT`.
+- The four file ops collapse onto two kernel access kinds: `read` and `open` both lower to the read/open event, and `write` and `unlink` both lower to the write event. The engine carries only the access kind, not the specific operation, so two clauses that differ only in the verb lower to the **same** kernel rule and each one fires on both operations over the same pattern. This is why write-confinement policies state the pair explicitly (`block write file "/**"` **and** `block unlink file "/**"`): the two clauses are interchangeable rather than one covering the other, so writing only one is not a mistake in effect, but writing both is redundant. If a policy genuinely needs deletes treated differently from writes, the current ABI cannot express it.
 - `ARG` is optional and is a single quoted argv token for `exec` clauses
   (e.g. `exec "git" "commit"` matches git with an argv token `commit`).
   This is not a separate argument to `block` or `kill`.
