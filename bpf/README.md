@@ -133,8 +133,13 @@ side of the binary conflict.
 ## Binary config format
 
 The compiler writes a fixed-size `taint_config` blob. The struct layout is
-defined in `taint.h` and mirrored byte-for-byte in Rust (`lower.rs`). It
-contains:
+defined in `taint.h` and mirrored byte-for-byte in Rust (`lower.rs`). Because the
+blob is read straight into BPF rodata, both sides assert the exact field offsets,
+not just the total size: `bpf/test_taint.c`'s `test_abi_layout` checks the C
+layout and `abi_layout_matches_the_c_header` in `lower.rs` checks the Rust mirror
+against the same numbers. A same-width field reorder passes a total-size check
+while reinterpreting every field, so both layouts must be updated together when
+either changes. The blob contains:
 
 - `n_updates` plus up to 320 `taint_update` entries. Updates cover sources,
   declassify/endorse transforms, temporal gates, and `since` invalidators.

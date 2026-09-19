@@ -686,6 +686,59 @@ mod tests {
         );
     }
 
+    /// The `repr(C)` structs here are byte-identical to `bpf/taint.h`; the blob is
+    /// read directly into BPF rodata. `config_blob_is_fixed_size` pins only the
+    /// total, so a field reorder of the same width would pass it while
+    /// reinterpreting every field. Pin each field offset and size, matching the
+    /// values `bpf/test_taint.c`'s `test_abi_layout` asserts from the C side; a
+    /// change to either layout must update both.
+    #[test]
+    fn abi_layout_matches_the_c_header() {
+        use std::mem::{offset_of, size_of};
+
+        assert_eq!(offset_of!(CUpdate, op), 0);
+        assert_eq!(offset_of!(CUpdate, m), 1);
+        assert_eq!(offset_of!(CUpdate, target), 2);
+        assert_eq!(offset_of!(CUpdate, arg), 66);
+        assert_eq!(offset_of!(CUpdate, add), 96);
+        assert_eq!(offset_of!(CUpdate, del), 104);
+        assert_eq!(offset_of!(CUpdate, gates), 112);
+        assert_eq!(offset_of!(CUpdate, invals), 120);
+        assert_eq!(offset_of!(CUpdate, ipv4), 128);
+        assert_eq!(offset_of!(CUpdate, ipv4_mask), 132);
+        assert_eq!(offset_of!(CUpdate, gate_exit_code), 136);
+        assert_eq!(offset_of!(CUpdate, domain_id), 140);
+        assert_eq!(size_of::<CUpdate>(), 144);
+
+        assert_eq!(offset_of!(CRule, op), 0);
+        assert_eq!(offset_of!(CRule, m), 1);
+        assert_eq!(offset_of!(CRule, cond_kind), 2);
+        assert_eq!(offset_of!(CRule, cond_neg), 3);
+        assert_eq!(offset_of!(CRule, cond_match), 4);
+        assert_eq!(offset_of!(CRule, effect), 5);
+        assert_eq!(offset_of!(CRule, target), 6);
+        assert_eq!(offset_of!(CRule, arg), 70);
+        assert_eq!(offset_of!(CRule, cond_pat), 94);
+        assert_eq!(offset_of!(CRule, req), 160);
+        assert_eq!(offset_of!(CRule, forbid), 168);
+        assert_eq!(offset_of!(CRule, gate), 176);
+        assert_eq!(offset_of!(CRule, rule_id), 184);
+        assert_eq!(offset_of!(CRule, ipv4), 188);
+        assert_eq!(offset_of!(CRule, ipv4_mask), 192);
+        assert_eq!(offset_of!(CRule, cond_ipv4), 196);
+        assert_eq!(offset_of!(CRule, cond_ipv4_mask), 200);
+        assert_eq!(offset_of!(CRule, gate_idx), 204);
+        assert_eq!(offset_of!(CRule, domain_id), 208);
+        assert_eq!(offset_of!(CRule, since_mask), 216);
+        assert_eq!(size_of::<CRule>(), 224);
+
+        assert_eq!(offset_of!(CConfig, n_updates), 0);
+        assert_eq!(offset_of!(CConfig, n_rules), 4);
+        assert_eq!(offset_of!(CConfig, updates), 8);
+        assert_eq!(offset_of!(CConfig, rules), 46088);
+        assert_eq!(size_of::<CConfig>(), 74_760);
+    }
+
     #[test]
     fn wildcard_hostnames_are_not_resolved_as_exact_hosts() {
         assert_eq!(hostname_candidate("*.internal"), None);
