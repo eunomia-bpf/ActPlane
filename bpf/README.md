@@ -112,12 +112,13 @@ object, so `master` shipped an engine missing that fix (and one whose
 `trace_rename_exit` fails the Linux 6.8 verifier where a fresh build loads). CI
 enforces `script/check_prebuilt_fresh.sh`, which applies two checks because no
 single portable one covers both failure modes. First, it compares a
-source-provenance digest (`prebuilt/source.sha256`, over the kernel C that the
-objects were built from) against the current source, so any source edit, even
-one that only changes a function body, fails until the objects and the stamp are
-regenerated together. Second, it rebuilds both objects and requires the
-committed object to define every `__noinline` function the source defines, which
-names the specific missing function when an object predates a newly added one.
+source-provenance digest (`prebuilt/source.sha256`, over the kernel C and the
+`Makefile` whose flags determine codegen) against the current tree, so any edit
+there, even one that only changes a function body or a compile flag, fails until
+the objects and the stamp are regenerated together. Second, it rebuilds both
+objects and requires the committed object to define every `__noinline` function
+the source defines, which names the specific missing function when an object
+predates a newly added one.
 Both checks are source-derived rather than byte-based, so they do not depend on
 the exact clang/LLVM version (nor on whether that compiler emits `LBB0_*`
 basic-block labels as local symbols).

@@ -480,18 +480,19 @@ the same 6.8 guest, the loader embedding the regenerated object matches the
 from-source result (8 measured / 6 skipped, `sink_*` no longer failing).
 `script/check_prebuilt_fresh.sh` guards against recurrence with two checks,
 because no single portable one covers both failure modes. It compares a
-source-provenance digest (`prebuilt/source.sha256`, over the kernel C the objects
-were built from) against the current source, so any edit, including a body-only
-change that adds no function, fails until the objects and the stamp are
-regenerated together (the first version of the check had exactly that gap: it
-passed with an edited source). It also rebuilds both objects and fails if the
-committed object lacks an `__noinline` function the source defines, naming the
-missing symbol. Both are source-derived rather than byte-based because the
-committed blobs' exact bytes and even their raw symbol tables track the
-clang/LLVM that produced them (clang 17/18/19 each differ in size, and the CI
+source-provenance digest (`prebuilt/source.sha256`, over the kernel C and the
+`Makefile`, whose flags determine codegen) against the current tree, so any edit
+there, including a body-only change that adds no function or a compile-flag
+change, fails until the objects and the stamp are regenerated together (the
+first version of the check had exactly that gap: it passed with an edited
+source, then with a changed build flag). It also rebuilds both objects and fails
+if the committed object lacks an `__noinline` function the source defines,
+naming the missing symbol. Both are source-derived rather than byte-based
+because the committed blobs' exact bytes and even their raw symbol tables track
+the clang/LLVM that produced them (clang 17/18/19 each differ in size, and the CI
 compiler emits basic-block labels as local symbols). `ACTPLANE_REBUILD_BPF=1
-cargo build -p ebpf-ifc-engine` now refreshes the stamp alongside the objects, so
-the normal regeneration path keeps them consistent. It is wired into CI's
+cargo build -p ebpf-ifc-engine` refreshes the stamp alongside the objects, so the
+normal regeneration path keeps them consistent. It is wired into CI's
 `Build and Test` job, and both checks were confirmed to fail on the stale object
 (naming `te_record_file_prov_mask`) and on the edited source respectively, and to
 pass on the regenerated objects, on clang 17, 18, and 19.

@@ -37,11 +37,13 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-# The kernel C that defines the engine, matching bpf/build.rs's rerun inputs
-# minus the Makefile (build flags, not source) and vmlinux.h (generated, host
-# BTF, not committed).
+# The inputs that determine the committed object: the kernel C and the Makefile
+# that holds the compile flags. `vmlinux.h` is generated from the host BTF and is
+# not committed, so it is excluded. This is `bpf/build.rs`'s rerun-input list
+# minus `vmlinux.h`; `build.rs` itself only orchestrates and is not a codegen
+# input.
 SOURCES=(bpf/process.bpf.c bpf/process.h bpf/taint.h bpf/taint_engine.bpf.h \
-         bpf/capability.bpf.h bpf/channel.bpf.h)
+         bpf/capability.bpf.h bpf/channel.bpf.h bpf/Makefile)
 STAMP="bpf/prebuilt/source.sha256"
 
 # Digest over each source path and its content, in a fixed order.
