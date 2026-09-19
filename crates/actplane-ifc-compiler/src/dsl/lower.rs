@@ -813,6 +813,29 @@ mod tests {
         assert_eq!(size_of::<CConfig>(), 74_760);
     }
 
+    /// Constants shared with the kernel that do not appear in `taint_config`,
+    /// so the offset/size assertions above do not transitively pin them. Each is
+    /// load-bearing: the gate/invalidator epoch arrays are indexed by the
+    /// compiler's slot number and masked with `N - 1` in the kernel (so `N` must
+    /// stay a power of two that both sides agree on), and `MAX_CONTAINS_LITERAL`
+    /// must equal `TAINT_SUF_MAX` or the matcher-length warning reports the wrong
+    /// bound. `bpf/test_taint.c`'s `test_abi_constants` asserts the same values
+    /// from the C side; keep the two in step with `bpf/taint.h`.
+    #[test]
+    fn abi_constants_match_the_c_header() {
+        assert_eq!(PAT, 64, "TAINT_PAT_LEN");
+        assert_eq!(ARG, 24, "TAINT_ARG_LEN");
+        assert_eq!(MAX_UPDATES, 320, "MAX_TAINT_UPDATES");
+        assert_eq!(MAX_RULES, 128, "MAX_TAINT_RULES");
+        assert_eq!(MAX_GATES, 64, "MAX_TAINT_GATES");
+        assert_eq!(MAX_INVALS, 64, "MAX_TAINT_INVALS");
+        assert_eq!(MAX_CONTAINS_LITERAL, 16, "TAINT_SUF_MAX");
+        assert!(
+            MAX_GATES.is_power_of_two() && MAX_INVALS.is_power_of_two(),
+            "the kernel masks gate/invalidator slot indices with `N - 1`"
+        );
+    }
+
     #[test]
     fn wildcard_hostnames_are_not_resolved_as_exact_hosts() {
         assert_eq!(hostname_candidate("*.internal"), None);

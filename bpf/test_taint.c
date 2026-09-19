@@ -161,14 +161,33 @@ static void test_abi_layout(void)
 	check(sizeof(struct taint_config) == 74760, "abi: sizeof taint_config");
 }
 
+/* Constants shared with the Rust compiler that are not part of struct
+ * taint_config, so test_abi_layout does not transitively pin them. Match
+ * abi_constants_match_the_c_header in crates/actplane-ifc-compiler/src/dsl/lower.rs;
+ * a change here must be mirrored in bpf/taint.h and on the Rust side. */
+static void test_abi_constants(void)
+{
+	check(TAINT_PAT_LEN == 64, "abi: TAINT_PAT_LEN == 64");
+	check(TAINT_ARG_LEN == 24, "abi: TAINT_ARG_LEN == 24");
+	check(MAX_TAINT_UPDATES == 320, "abi: MAX_TAINT_UPDATES == 320");
+	check(MAX_TAINT_RULES == 128, "abi: MAX_TAINT_RULES == 128");
+	check(MAX_TAINT_GATES == 64, "abi: MAX_TAINT_GATES == 64");
+	check(MAX_TAINT_INVALS == 64, "abi: MAX_TAINT_INVALS == 64");
+	check(TAINT_SUF_MAX == 16, "abi: TAINT_SUF_MAX == 16");
+	check((MAX_TAINT_GATES & (MAX_TAINT_GATES - 1)) == 0,
+	      "abi: MAX_TAINT_GATES is a power of two (kernel masks with N-1)");
+	check((MAX_TAINT_INVALS & (MAX_TAINT_INVALS - 1)) == 0,
+	      "abi: MAX_TAINT_INVALS is a power of two (kernel masks with N-1)");
+}
+
 int main(void)
 {
 	printf("=== ActPlane taint predicate tests ===\n");
 	test_streq();
 	test_prefix();
 	test_match();
-	test_mask();
 	test_abi_layout();
+	test_abi_constants();
 	printf("\n%d passed, %d failed\n", passed, failed);
 	return failed == 0 ? 0 : 1;
 }
