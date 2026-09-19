@@ -115,6 +115,26 @@ fn set_pat_reported(dst: &mut [u8], s: &str, what: &str, out: &mut Vec<String>) 
     set_pat(dst, s);
 }
 
+/// Report a `SUFFIX`/`CONTAINS` literal that the kernel matcher cannot use.
+///
+/// `taint_suffix` and `taint_contains` both return 0 when the pattern is longer
+/// than `TAINT_SUF_MAX`, because their tail/window copy is a fixed
+/// `TAINT_SUF_MAX` bytes and the compare only honors up to that many. A longer
+/// literal therefore makes the matcher reject every text, so a rule spelled
+/// `**/<long basename>` never fires. `CONTAINS` literals are capped by
+/// `shorten_contains_literal`, so in practice this catches `SUFFIX`, but both
+/// are checked because the kernel bound is shared.
+fn check_matcher_literal_bound(kind: u8, lit: &str, what: &str, out: &mut Vec<String>) {
+    if matches!(kind, M_SUFFIX | M_CONTAINS) && lit.len() > MAX_CONTAINS_LITERAL {
+        out.push(format!(
+            "{what} \"{lit}\" lowers to a {}-byte {} literal, but the kernel matcher rejects any literal longer than {} bytes, so the pattern can never match. Use a shorter basename pattern, or an absolute pattern with a wildcard.",
+            lit.len(),
+            if kind == M_SUFFIX { "suffix" } else { "contains" },
+            MAX_CONTAINS_LITERAL
+        ));
+    }
+}
+
 /// (match, literal) lowering for exec-side patterns (matched on comm).
 fn lower_exec(pat: &str) -> (u8, String) {
     if pat == "*" || pat == "**" || pat == "**/*" {
@@ -874,6 +894,8 @@ struct Ctx {
     endpoint_resolutions: HashMap<String, Vec<String>>,
     /// Literals that did not fit their kernel pattern buffer and were truncated.
     truncations: Vec<String>,
+    /// `SUFFIX`/`CONTAINS` literals past the kernel matcher's bound.
+    matcher_rejections: Vec<String>,
 }
 impl Ctx {
     fn endpoint_matches(&mut self, pat: &str) -> Vec<(u32, u32)> {
@@ -962,6 +984,12 @@ impl Ctx {
             &mut self.truncations,
         );
         set_pat_reported(&mut u.arg, spec.arg, "event arg", &mut self.truncations);
+        check_matcher_literal_bound(
+            spec.m,
+            spec.target,
+            "event target",
+            &mut self.matcher_rejections,
+        );
         self.updates.push(u);
         Ok(())
     }
@@ -1260,14 +1288,15 @@ pub struct Compiled {
     pub reasons: Vec<String>, // indexed by lowered rule_id
     pub meta: Vec<RuleMeta>,  // indexed by lowered rule_id
     pub labels: HashMap<String, u64>,
-    /// Exact hostname endpoint patterns that were resolved at compile time.
-    /// Non-empty values are the IPv4 A records expanded into kernel matchers;
-    /// an empty value means resolution was attempted but yielded no IPv4.
     pub endpoint_resolutions: HashMap<String, Vec<String>>,
     /// Literals that did not fit their fixed kernel pattern buffer and were
     /// truncated (sorted, deduplicated). A truncated literal silently changes
     /// what the compiled rule matches, so the CLI surfaces these as warnings.
     pub pattern_truncations: Vec<String>,
+    /// `SUFFIX`/`CONTAINS` literals longer than the kernel matcher's fixed
+    /// bound, which makes the matcher reject every text, so the rule can never
+    /// fire. Sorted and deduplicated, like `pattern_truncations`.
+    pub pattern_matcher_rejections: Vec<String>,
 }
 
 fn collect_label_names(pol: &Policy) -> Vec<String> {
@@ -1339,6 +1368,7 @@ pub fn compile_with_labels(
         endpoint_cache: HashMap::new(),
         endpoint_resolutions: HashMap::new(),
         truncations: Vec::new(),
+        matcher_rejections: Vec::new(),
     };
     for name in &sorted_labels {
         ctx.label_bit(name)?;
@@ -1346,6 +1376,7 @@ pub fn compile_with_labels(
     let mut rules: Vec<CRule> = Vec::new();
     let mut reasons: Vec<String> = Vec::new();
     let mut meta: Vec<RuleMeta> = Vec::new();
+    let mut matcher_rejections: Vec<String> = Vec::new();
     let mut truncations: Vec<String> = Vec::new();
 
     for s in &pol.sources {
@@ -1539,6 +1570,12 @@ pub fn compile_with_labels(
                         cr.domain_id = 0;
                         cr.since_mask = since_mask;
                         set_pat_reported(&mut cr.target, &tlit, "rule target", &mut truncations);
+                        check_matcher_literal_bound(
+                            tm,
+                            &tlit,
+                            "rule target",
+                            &mut matcher_rejections,
+                        );
                         if let Some(a) = &cl.target.arg {
                             set_pat_reported(&mut cr.arg, a, "rule arg", &mut truncations);
                         }
@@ -1547,6 +1584,12 @@ pub fn compile_with_labels(
                             &clit,
                             "rule condition pattern",
                             &mut truncations,
+                        );
+                        check_matcher_literal_bound(
+                            cm,
+                            &clit,
+                            "rule condition pattern",
+                            &mut matcher_rejections,
                         );
                         rules.push(cr);
                     }
@@ -1584,6 +1627,9 @@ pub fn compile_with_labels(
     truncations.extend(ctx.truncations);
     truncations.sort();
     truncations.dedup();
+    matcher_rejections.extend(ctx.matcher_rejections);
+    matcher_rejections.sort();
+    matcher_rejections.dedup();
     Ok(Compiled {
         bytes,
         reasons,
@@ -1591,6 +1637,7 @@ pub fn compile_with_labels(
         labels: ctx.labels,
         endpoint_resolutions: ctx.endpoint_resolutions,
         pattern_truncations: truncations,
+        pattern_matcher_rejections: matcher_rejections,
     })
 }
 

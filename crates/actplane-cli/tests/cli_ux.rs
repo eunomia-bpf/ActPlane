@@ -221,6 +221,54 @@ fn compile_json_warns_when_a_pattern_literal_is_truncated() {
 }
 
 #[test]
+fn compile_json_warns_when_a_suffix_literal_exceeds_the_matcher_bound() {
+    // The kernel's `taint_suffix` rejects any literal longer than TAINT_SUF_MAX
+    // (16 bytes), so `**/<long basename>` lowers to a literal that can never
+    // match: the rule is dead. That must be discoverable, and reported as its own
+    // code rather than as buffer truncation.
+    let policy =
+        "rule r:\n  block write file \"**/*config.production.json\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_matcher_length_exceeded"),
+        "expected matcher-length warning, got {}",
+        value["warnings"]
+    );
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_literal_truncated"),
+        "a 22-byte literal fits the 63-byte buffer, so it is not a truncation: {}",
+        value["warnings"]
+    );
+
+    // An in-bound basename pattern must not warn.
+    let short = "rule r:\n  notify write file \"**/.env\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", short, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_matcher_length_exceeded"),
+        "in-bound suffix must not warn, got {}",
+        value["warnings"]
+    );
+}
+
+#[test]
 fn compile_json_reports_policy_load_errors_as_json() {
     let missing = "/tmp/actplane-definitely-missing-policy.yaml";
     let output = run(&["--policy", missing, "compile", "--json"]);

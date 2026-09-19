@@ -2019,6 +2019,15 @@ fn backend_support_warnings(
             message: message.clone(),
         });
     }
+    // A SUFFIX/CONTAINS literal past the kernel matcher's fixed bound makes the
+    // matcher reject every text, so the pattern can never match. That is a dead
+    // rule, not an approximation, so report it distinctly from truncation.
+    for message in &compiled.pattern_matcher_rejections {
+        warnings.push(BackendWarning {
+            code: "pattern_matcher_length_exceeded",
+            message: message.clone(),
+        });
+    }
     for source in &policy.sources {
         if source.kind == Kind::Endpoint && !endpoint_pattern_supported(compiled, &source.pattern) {
             let (_, reason, _) = endpoint_support_detail(compiled, &source.pattern, "source");

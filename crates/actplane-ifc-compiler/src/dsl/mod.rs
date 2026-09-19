@@ -649,6 +649,41 @@ rule secret:
     }
 
     #[test]
+    fn over_bound_suffix_literal_is_reported() {
+        // `taint_suffix` rejects any literal longer than TAINT_SUF_MAX (16), so a
+        // `**/<long name>` pattern lowers to a literal the matcher can never
+        // accept, i.e. a rule that never fires. That must be reported, and it is
+        // a distinct failure from truncation.
+        let compiled = ok(
+            "rule r:\n  block write file \"**/*config.production.json\" if A\n  because \"x\"\n",
+        );
+        assert_eq!(
+            compiled.pattern_matcher_rejections.len(),
+            1,
+            "one over-bound literal expected: {:?}",
+            compiled.pattern_matcher_rejections
+        );
+        assert!(
+            compiled.pattern_matcher_rejections[0].contains("config.production.json"),
+            "message should name the literal: {}",
+            compiled.pattern_matcher_rejections[0]
+        );
+        assert!(
+            compiled.pattern_truncations.is_empty(),
+            "16-byte-bounded literal is not a buffer truncation: {:?}",
+            compiled.pattern_truncations
+        );
+
+        // A basename within the bound lowers to a usable suffix literal.
+        let short = ok("rule r:\n  notify write file \"**/.env\" if A\n  because \"x\"\n");
+        assert!(
+            short.pattern_matcher_rejections.is_empty(),
+            "in-bound suffix must not be reported: {:?}",
+            short.pattern_matcher_rejections
+        );
+    }
+
+    #[test]
     #[ignore = "run test/policy-corpus.sh for the release microbench"]
     fn policy_corpus_compile_perf() {
         let policies = corpus_policy_sources();
