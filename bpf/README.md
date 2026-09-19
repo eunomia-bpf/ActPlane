@@ -102,6 +102,18 @@ Or via cargo:
 ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine
 ```
 
+The committed object is what production loads: `ebpf-ifc-engine` embeds
+`prebuilt/process.bpf.o` with `include_bytes!`, so it must be regenerated (and
+committed) whenever the kernel C under `bpf/` changes. If it is not, the shipped
+engine silently runs code that lacks the current source, which is a correctness
+gap rather than a cosmetic mismatch: commit `8298d23a` added
+`te_record_file_prov_mask` to `taint_engine.bpf.h` without regenerating the
+object, so `master` shipped an engine missing that fix (and one whose
+`trace_rename_exit` fails the Linux 6.8 verifier where a fresh build loads). CI
+enforces `script/check_prebuilt_fresh.sh`, which rebuilds both objects and
+requires the committed object to define every function a fresh build defines
+(symbol-based, so it does not depend on the exact clang/LLVM version).
+
 ## Binary config format
 
 The compiler writes a fixed-size `taint_config` blob. The struct layout is

@@ -37,6 +37,9 @@ jobs:
       - name: Build BPF C programs
         run: make -C bpf
 
+      - name: Check committed eBPF objects match the source
+        run: bash script/check_prebuilt_fresh.sh
+
       - name: Check Rust workspace
         run: cargo check --workspace --locked
 

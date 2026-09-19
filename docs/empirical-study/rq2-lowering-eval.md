@@ -121,8 +121,10 @@ of programs that fail to load is identical to `master`'s (the three
 `trace_recvmsg_exit` are `-EACCES`), none autoloaded by these policies.
 
 This is not a Rust↔C ABI change and edits no kernel code: only
-`crates/actplane-ifc-compiler/src/dsl/lower.rs` changes, and both committed
-prebuilt objects stay at `master`. The wildcard form remains `suffix`
+`crates/actplane-ifc-compiler/src/dsl/lower.rs` changes in this fix. (The
+committed prebuilt objects were regenerated in a later commit for an unrelated
+staleness fix; see "Committed eBPF objects were stale" below.) The wildcard form
+remains `suffix`
 (`**/*.js` -> `suffix(".js")`, so the `.js.txt` false positive stays fixed). The
 new match is a strict superset of the pre-fix form (everything `suffix("/"+name)`
 matched still matches, plus the bare name) and a strict subset of the historical
@@ -177,10 +179,10 @@ pair and therefore still over-fires on the first-segment-relative form; that hal
 still needs an ABI-level disjunction and is recorded as open.
 
 Like the `**/<name>` fix, this is compiler-only: it edits no kernel code and only
-`crates/actplane-ifc-compiler/src/dsl/lower.rs`; both committed prebuilt objects
-stay at `master`. An extra table entry is verifier-free because the update and
-rule scans run in `bpf_loop` callbacks (verified once). The engine's rule scan
-keeps a single best-effect match (`te_record_best`), so a companion that co-matches
+`crates/actplane-ifc-compiler/src/dsl/lower.rs`. An extra table entry is
+verifier-free because the update and rule scans run in `bpf_loop` callbacks
+(verified once). The engine's rule scan keeps a
+single best-effect match (`te_record_best`), so a companion that co-matches
 the same event costs no duplicate verdict.
 
 Evidence: the `--selftest` pins the companion and matcher semantics; the replay
@@ -445,6 +447,44 @@ event):
   matching, only the serialized bytes and their hashes).
 
 
+## Committed eBPF objects were stale (fixed)
+
+While checking whether the probe's `skip(engine-budget)` rows were a host artifact,
+the committed prebuilt eBPF objects were found to be **stale relative to the
+committed kernel C**, which is a production correctness gap rather than a
+measurement artifact.
+
+`ebpf-ifc-engine` embeds `bpf/prebuilt/process.bpf.o` with `include_bytes!`, so
+that object is the engine the product loads. The committed object was last written
+at `60c151a7` (2026-09-10 03:14), but `bpf/taint_engine.bpf.h` gained 51 lines at
+`8298d23a` (04:08) adding `te_record_file_prov_mask` and its call site inside
+`te_materialize_file_source_domain` (the file-source-provenance-across-rename
+fix). Neither object was regenerated, so `master` shipped an engine that omits
+that fix. The gap is observable in the object itself: the shipped
+`prebuilt/process.bpf.o` has **no** `te_record_file_prov_*` symbol, a build from
+the committed source has two. A fresh `make -C bpf` build is deterministic
+(`c5d03068...`, 1,509,800 bytes, stable across repeated builds) but never matched
+the committed object (`f0eb04e6...`, 1,721,560 bytes) or `process-legacy.bpf.o`
+(`c9d3b7f7...` vs `4bd0b0c8...`).
+
+This also explains part of the probe's skip set. On the 6.8 guest, the loader
+embedding the committed object fails `trace_openat_exit` **and**
+`trace_rename_exit` with `-E2BIG`, skipping 9 of 14 rows; the loader embedding a
+from-source build fails only `trace_openat_exit`, skipping 6. So the "under this
+host's engine build (clang 19)" reading of that caveat was incomplete: the
+committed shipped object had the **larger** verifier footprint, not the local
+rebuild.
+
+Fix: both objects were regenerated from the committed source. Re-measured live on
+the same 6.8 guest, the loader embedding the regenerated object matches the
+from-source result (8 measured / 6 skipped, `sink_*` no longer failing).
+`script/check_prebuilt_fresh.sh` rebuilds both objects and fails if the committed
+object lacks a function the fresh build defines, naming the missing symbols; it
+is symbol-based rather than byte-based because the committed blobs' exact bytes
+track the clang/LLVM that produced them (clang 17/18/19 each differ). It is wired
+into CI's `Build and Test` job, and it was confirmed to fail on the stale object
+and pass on the regenerated one.
+
 ## Reproduction
 
 ```sh
@@ -502,12 +542,14 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=3000 \
   suffix **write-rule** shapes (`except_*` = `notify write file "**/*.js" ...`,
   `env_*` = `notify write file "**/.env"`). Those autoload the full file
   evaluator, whose `trace_openat_exit` exceeds this guest's 1,000,000-instruction
-  limit under this host's engine build (clang 19); the guest reports `-E2BIG`,
+  limit under the from-source engine build; the guest reports `-E2BIG`,
   the probe records the case as unmeasurable, and it is excluded from the
-  pass/fail comparison. That budget condition is pre-existing and unrelated to
+  pass/fail comparison. The committed **shipped** object was worse still at the
+  time (it also failed `trace_rename_exit`, skipping 9 rows); see "Committed
+  eBPF objects were stale" above. This budget condition is unrelated to
   this compiler-only change: an engine built from the **pristine pre-fix**
   source (`0e248945`) also rejects the **committed pre-fix** `except`/`env`
-  blobs on this host, and both engine sources are byte-identical to `master`.
+  blobs on this host, and the engine source is byte-identical to `master`.
   The skipped rows are the sole exception/suffix shapes; every `contains`/
   `prefix` row the fix changes loads and fires.
 
