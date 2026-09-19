@@ -306,6 +306,44 @@ fn compile_json_warns_when_a_pattern_lowers_to_an_empty_literal() {
 }
 
 #[test]
+fn compile_json_warns_that_an_argv_token_on_a_non_exec_clause_is_ignored() {
+    // The kernel consults `@arg` only for exec clauses (argv exists only after
+    // exec). On any other op the token is stored but never checked, so the
+    // clause silently matches every target the pattern names: an over-match, not
+    // a narrower rule.
+    let policy = "rule r:\n  block write file \"/y/**\" \"tok\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "argv_token_ignored_for_non_exec"),
+        "expected ignored-argv warning, got {}",
+        value["warnings"]
+    );
+
+    // An exec clause with an argv token is the supported form and must not warn.
+    let exec = "rule r:\n  kill exec \"git\" \"push\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", exec, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "argv_token_ignored_for_non_exec"),
+        "exec argv must not warn, got {}",
+        value["warnings"]
+    );
+}
+
+#[test]
 fn compile_json_reports_policy_load_errors_as_json() {
     let missing = "/tmp/actplane-definitely-missing-policy.yaml";
     let output = run(&["--policy", missing, "compile", "--json"]);

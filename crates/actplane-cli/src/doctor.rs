@@ -2068,6 +2068,22 @@ fn backend_support_warnings(
                     ),
                 });
             }
+            // The kernel applies an @arg token only for `TOP_EXEC` (argv exists
+            // only after exec). On any other op the token is stored but never
+            // consulted, so the clause matches every target the pattern names,
+            // silently ignoring the token the policy wrote.
+            if clause.op != Op::Exec && clause.target.arg.is_some() {
+                warnings.push(BackendWarning {
+                    code: "argv_token_ignored_for_non_exec",
+                    message: format!(
+                        "{}: `{} {}` has an argv token, but argv is only available for `exec` clauses, so the kernel ignores it and this matches every {} target the pattern names. Remove the token, or split the exec restriction into its own `exec` clause.",
+                        rule.name,
+                        op_name(clause.op),
+                        clause.target.pattern,
+                        op_name(clause.op)
+                    ),
+                });
+            }
             if clause.effect == Effect::Block && !lsm_bpf {
                 warnings.push(BackendWarning {
                     code: "bpf_lsm_inactive_for_block",

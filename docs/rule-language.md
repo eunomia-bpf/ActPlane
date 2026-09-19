@@ -122,6 +122,8 @@ For all three, shorten the literal or use a wildcard form that lowers to a usabl
 
 `unless target` **conditions** have one `cond_kind`/`cond_pat` pair, so a repo-relative exception over `**/<name>` or `**/<dir>/**` cannot cover both the primary and first-segment-relative/bare forms the way a rule *target* does (a target emits a companion table entry). The exception therefore over-fires on the uncovered form, and `actplane compile --explain`/`--json` report a `repo_relative_target_condition_partial` warning. Use an absolute pattern (for example `unless target "/work/dist/**"`) to avoid the approximation.
 
+An `exec` **argv token** (`exec "git" "push"`) matches only the first 16 argv tokens (`MAX_ARG_SLOTS`) within the first 128 bytes of argv (`TAINT_ARGV_CAP`); the kernel tokenizes that window once per exec. A token appearing later than either bound never matches, so a rule using it silently never fires. Keep the token near the start of the command line, or match a different token. Note also that the token is only consulted for `exec` clauses: given on any other op it is ignored, and `actplane compile --explain`/`--json` report `argv_token_ignored_for_non_exec` because the clause then matches every target its pattern names rather than the narrower set the policy intended.
+
 ### 1.9 Staleness (`since`): gates that re-arm when their inputs change
 
 Plain `after exec G` is **latching**: run the gate once and it stays satisfied
