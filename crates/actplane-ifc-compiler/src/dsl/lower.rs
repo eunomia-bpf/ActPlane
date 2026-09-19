@@ -600,6 +600,23 @@ mod tests {
         assert_eq!(lower_exec("**/*"), (M_ANY, String::new()));
     }
 
+    /// Exec patterns match a basename: the directory part is dropped, so
+    /// `exec "/usr/bin/git"`, `exec "git"`, and `exec "**/git"` all lower to the
+    /// same matcher. This is easy to misread as "a pattern with `/` is an exact
+    /// path" (an earlier version of `docs/rule-language.md` said so), and a
+    /// policy that relies on the directory would silently match a same-named
+    /// executable elsewhere.
+    #[test]
+    fn exec_patterns_reduce_to_the_basename() {
+        assert_eq!(lower_exec("/usr/bin/git"), (M_EXACT, "git".into()));
+        assert_eq!(lower_exec("git"), (M_EXACT, "git".into()));
+        assert_eq!(lower_exec("**/git"), (M_EXACT, "git".into()));
+        assert_eq!(lower_exec("a/b/c"), (M_EXACT, "c".into()));
+        // A trailing wildcard becomes a prefix over the basename.
+        assert_eq!(lower_exec("**/deploy*"), (M_PREFIX, "deploy".into()));
+        assert_eq!(lower_exec("/opt/bin/deploy*"), (M_PREFIX, "deploy".into()));
+    }
+
     #[test]
     fn globstar_dir_gate_and_since_emit_companion_updates_with_shared_bits() {
         // A `**/dir/**` pattern in an `after` gate or a `since` invalidator goes
