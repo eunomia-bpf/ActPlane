@@ -98,7 +98,7 @@ probe confirmed it live (bare `.env` predicted/observed 0 verdicts, nested
 
 **Fix.** The compiler pairs the suffix form with a companion `exact` matcher, so
 both halves of the pattern are covered by existing kernel matchers and the
-engine is byte-identical to `master`. A repo-relative `**/<name>` (a globstar, a
+engine source is byte-identical to `master`. A repo-relative `**/<name>` (a globstar, a
 slash, and a wildcard-free basename) still lowers to `suffix("/"+name)`, which
 fires on `sub/.env` and `/work/.env`; a second entry, `exact("<name>")`, fires on
 the bare root-level name (`.env`) and on nothing else (`foo.env` is not equal to
@@ -586,7 +586,7 @@ static exposure, and paths written inside Bash scripts are outside the audit's
 view. The miss is bounded to first-segment-relative and bare root-level relative
 paths. It does not re-derive the 78/28 or 18/26/28 counts, and it does not
 establish semantic policy correctness beyond the probe. Both lowerings are now
-fixed compiler-only, so the engine is byte-identical to `master`: the
+fixed compiler-only, so the engine source is byte-identical to `master`: the
 `**/<name>` bare-root form pairs the existing `suffix("/<name>")` with
 `exact("<name>")`, and the `**/dir/**` first-segment form pairs the existing
 `contains("/<dir>/")` with `prefix("<dir>/")`. Evidence for both: `--selftest`,
