@@ -30,7 +30,8 @@
 #
 # Usage:
 #   bash script/check_prebuilt_fresh.sh            # verify (rebuilds, then checks)
-#   bash script/check_prebuilt_fresh.sh --update   # record the current source (after regenerating)
+#   bash script/check_prebuilt_fresh.sh --update   # restamp, only if the committed
+#                                                  # objects byte-match a fresh build
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -56,6 +57,20 @@ NM="${LLVM_NM:-llvm-nm}"
 if [ "${1:-}" = "--update" ]; then
   for f in "${SOURCES[@]}"; do
     [ -f "$f" ] || { echo "missing source: $f" >&2; exit 2; }
+  done
+  # Refuse to stamp unless the committed objects are exactly what a build of the
+  # current source produces, so `--update` cannot silence the gate by stamping an
+  # object that was never regenerated. Run right after regenerating (as
+  # bpf/build.rs does), the bytes match; run on an edited source with stale
+  # objects, they do not.
+  make -C bpf .output/process.bpf.o .output/process-legacy.bpf.o >/dev/null
+  for obj in process process-legacy; do
+    if ! cmp -s "bpf/.output/$obj.bpf.o" "bpf/prebuilt/$obj.bpf.o"; then
+      echo "refusing to update the stamp: bpf/prebuilt/$obj.bpf.o differs from a" >&2
+      echo "fresh build of the source. Regenerate the committed objects first:" >&2
+      echo "    ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine" >&2
+      exit 1
+    fi
   done
   printf '%s\n' "$(source_digest)" > "$STAMP"
   echo "recorded source stamp for the committed prebuilt objects in $STAMP"
