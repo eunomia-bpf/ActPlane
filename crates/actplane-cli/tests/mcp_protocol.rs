@@ -149,6 +149,10 @@ impl McpProcess {
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    std::thread::sleep(Duration::from_millis(50));
+                    while let Ok(line) = self.stderr_rx.try_recv() {
+                        stderr.push(line);
+                    }
                     panic!("MCP stdout closed waiting for response id {id}; stderr: {stderr:?}");
                 }
             }
@@ -654,6 +658,276 @@ policy: |
 
 #[test]
 #[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
+fn mcp_policy_authority_boundary_matrix_privileged() {
+    reset_bpf_pin_root();
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let secret = tmp.path().join("authority-secret.txt");
+    let frozen_hit = tmp.path().join("apfrozenhit");
+    let tighter_hit = tmp.path().join("apchildtight");
+    std::fs::write(&secret, "frozen-policy-secret\n").expect("write secret");
+    std::fs::copy("/bin/true", &frozen_hit).expect("copy frozen marker");
+    std::fs::copy("/bin/true", &tighter_hit).expect("copy tighter marker");
+
+    let child_sources = tmp.path().join("child-sources.dsl");
+    let child_declassify = tmp.path().join("child-declassify.dsl");
+    let parent_mutation = tmp.path().join("parent-mutation.dsl");
+    let child_tighten = tmp.path().join("child-tighten.dsl");
+    std::fs::write(
+        &child_sources,
+        format!(
+            "source COMMAND = exec \"**\"\nsource SECRET = file \"{}\"\n",
+            secret.display()
+        ),
+    )
+    .expect("write child source delta");
+    std::fs::write(&child_declassify, "declassify SECRET by exec \"**/true\"\n")
+        .expect("write child declassify delta");
+    std::fs::write(
+        &parent_mutation,
+        "rule child-mutates-parent:\n  notify exec \"__actplane_never__\"\n  because \"child attempted to mutate its parent\"\n",
+    )
+    .expect("write parent mutation delta");
+    std::fs::write(
+        &child_tighten,
+        "rule child-tighten:\n  notify exec \"apchildtight\"\n  because \"child may add a local restriction\"\n",
+    )
+    .expect("write child tightening delta");
+
+    let policy = tmp.path().join("actplane.yaml");
+    std::fs::write(
+        &policy,
+        format!(
+            r#"
+version: 1
+runtime:
+  approval:
+    append_delta:
+      required: true
+      require_approval_ref: true
+      require_generated_by: true
+      allowed_approvers:
+        - repo-supervisor
+policy: |
+  source COMMAND = exec "**"
+  source SECRET = file "{}"
+  rule frozen-parent:
+    notify exec "apfrozenhit" if SECRET
+    because "the trusted parent policy remains in force"
+"#,
+            secret.display()
+        ),
+    )
+    .expect("write authority policy");
+
+    let Some(mut mcp) = McpProcess::start_auto_attach(&policy, tmp.path()) else {
+        eprintln!(
+            "skipping privileged authority boundary e2e: no root/CAP_BPF or passwordless sudo"
+        );
+        return;
+    };
+    initialize_mcp(&mut mcp, 1, "actplane-authority-boundary-test");
+    let control_state = tmp.path().join(".actplane").join("control.json");
+    wait_for_control_state(&mut mcp, &control_state);
+    let control_state: Value =
+        serde_json::from_str(&std::fs::read_to_string(&control_state).expect("read control state"))
+            .expect("parse control state");
+
+    let child_id = test_child_id(300);
+    let parent_domain_id = control_state["parent_domain_id"]
+        .as_u64()
+        .and_then(|id| u32::try_from(id).ok())
+        .expect("parent domain id");
+    let script = format!(
+        r#"
+set +e
+self_out="$({actplane} --policy {policy} control delta add --target-id {child_id} --delta {child_declassify} --approved-by repo-supervisor --approval-ref injected-self --generated-by injected-child 2>&1)"
+self_rc=$?
+echo AUTHORITY_CASE_BEGIN child_declassify
+printf 'AUTHORITY_CASE child_declassify expected=reject observed_rc=%s\n' "$self_rc"
+printf '%s\n' "$self_out"
+echo AUTHORITY_CASE_END child_declassify
+
+parent_out="$({actplane} --policy {policy} control delta add --target-id {parent_domain_id} --delta {parent_mutation} --approved-by repo-supervisor --approval-ref injected-parent --generated-by injected-child 2>&1)"
+parent_rc=$?
+echo AUTHORITY_CASE_BEGIN child_parent_mutation
+printf 'AUTHORITY_CASE child_parent_mutation expected=reject observed_rc=%s\n' "$parent_rc"
+printf '%s\n' "$parent_out"
+echo AUTHORITY_CASE_END child_parent_mutation
+
+tighten_out="$({actplane} --policy {policy} control delta add --target-id {child_id} --delta {child_tighten} --approved-by repo-supervisor --approval-ref child-tighten --generated-by injected-child 2>&1)"
+tighten_rc=$?
+echo AUTHORITY_CASE_BEGIN child_tighten
+printf 'AUTHORITY_CASE child_tighten expected=accept observed_rc=%s\n' "$tighten_rc"
+printf '%s\n' "$tighten_out"
+echo AUTHORITY_CASE_END child_tighten
+
+read -r _ < {secret}
+{tighter_hit}
+{frozen_hit}
+echo AUTHORITY_MATRIX_DONE
+sleep 2
+"#,
+        actplane = actplane(),
+        policy = policy.display(),
+        child_id = child_id,
+        parent_domain_id = parent_domain_id,
+        child_declassify = child_declassify.display(),
+        parent_mutation = parent_mutation.display(),
+        child_tighten = child_tighten.display(),
+        secret = secret.display(),
+        tighter_hit = tighter_hit.display(),
+        frozen_hit = frozen_hit.display(),
+    );
+
+    let mut next_id = 2;
+    let launch = call_tool(
+        &mut mcp,
+        &mut next_id,
+        "launch_child_domain",
+        json!({
+            "child_id": child_id,
+            "cmd": ["/bin/sh", "-c", script],
+            "policy": std::fs::read_to_string(&child_sources).expect("read child sources"),
+            "policy_ref": "file://child-sources.dsl",
+            "approved_by": "repo-supervisor",
+            "approval_ref": "trusted-launch",
+            "generated_by": "authority-boundary-test"
+        }),
+    );
+    assert!(
+        tool_text(&launch).contains(&format!("child domain {child_id}")),
+        "launch response: {launch}"
+    );
+
+    let logs = poll_child_stdout(&mut mcp, &mut next_id, child_id, "AUTHORITY_MATRIX_DONE");
+    let stdout = logs["stdout"]["content"].as_str().unwrap_or("");
+    let child_declassify_evidence = delimited_case(stdout, "child_declassify");
+    let child_parent_evidence = delimited_case(stdout, "child_parent_mutation");
+    let child_tighten_evidence = delimited_case(stdout, "child_tighten");
+    assert!(
+        child_declassify_evidence
+            .contains("AUTHORITY_CASE child_declassify expected=reject observed_rc=1")
+            && child_declassify_evidence.contains("lacks runtime authority 0x20"),
+        "child declassification was not authority-rejected: {logs}"
+    );
+    assert!(
+        child_parent_evidence
+            .contains("AUTHORITY_CASE child_parent_mutation expected=reject observed_rc=1")
+            && child_parent_evidence.contains("cannot target runtime domain"),
+        "child parent mutation was not target-rejected: {logs}"
+    );
+    assert!(
+        child_tighten_evidence
+            .contains("AUTHORITY_CASE child_tighten expected=accept observed_rc=0")
+            && child_tighten_evidence.contains("Appended policy delta"),
+        "child monotonic tightening was not accepted: {logs}"
+    );
+    let child_declassify_ref = child_declassify.display().to_string();
+    let parent_mutation_ref = parent_mutation.display().to_string();
+    let child_tighten_ref = child_tighten.display().to_string();
+    let child_declassify_audit =
+        poll_audit_append_delta_ref_status(tmp.path(), &child_declassify_ref, "rejected");
+    assert_eq!(child_declassify_audit["target_id"], child_id);
+    assert_eq!(
+        child_declassify_audit["approval_chain"]["decision"],
+        "accepted"
+    );
+    assert!(
+        child_declassify_audit["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("lacks runtime authority 0x20")
+    );
+    assert_ne!(
+        child_declassify_audit["caller_pid"],
+        child_declassify_audit["engine_parent_pid"]
+    );
+    let parent_mutation_audit =
+        poll_audit_append_delta_ref_status(tmp.path(), &parent_mutation_ref, "rejected");
+    assert_eq!(parent_mutation_audit["target_id"], parent_domain_id);
+    assert_eq!(
+        parent_mutation_audit["approval_chain"]["decision"],
+        "accepted"
+    );
+    assert!(
+        parent_mutation_audit["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("cannot target runtime domain")
+    );
+    let child_tighten_audit = poll_audit_append_delta_ref(tmp.path(), &child_tighten_ref);
+    assert_eq!(child_tighten_audit["target_id"], child_id);
+    assert_eq!(child_tighten_audit["rule_count"], 1);
+    eprintln!(
+        "AUTHORITY_CHILD_AUDITS {}",
+        json!({
+            "declassify": child_declassify_audit,
+            "parent_mutation": parent_mutation_audit,
+            "tighten": child_tighten_audit,
+        })
+    );
+    eprintln!("AUTHORITY_CHILD_STDOUT {}", stdout.replace('\n', "\\n"));
+    eprintln!();
+    eprintln!("AUTHORITY_CASE child_declassify expected=reject observed=reject");
+    eprintln!("AUTHORITY_CASE child_parent_mutation expected=reject observed=reject");
+    eprintln!("AUTHORITY_CASE child_tighten expected=accept observed=accept");
+
+    let feedback = poll_feedback(tmp.path(), "the trusted parent policy remains in force");
+    assert!(
+        feedback.contains("child may add a local restriction"),
+        "accepted child restriction did not fire: {feedback}"
+    );
+
+    let missing = call_tool_raw(
+        &mut mcp,
+        &mut next_id,
+        "append_policy_delta",
+        json!({
+            "target_id": child_id,
+            "policy": "rule parent-missing-approval:\n  notify exec \"__actplane_never__\"\n  because \"missing approval\"\n",
+            "policy_ref": "inline://parent-missing-approval"
+        }),
+    );
+    assert!(
+        missing.to_string().contains("requires approval metadata"),
+        "trusted parent mutation without metadata was not rejected: {missing}"
+    );
+    let approved = call_tool(
+        &mut mcp,
+        &mut next_id,
+        "append_policy_delta",
+        json!({
+            "target_id": child_id,
+            "policy": "rule parent-approved-tighten:\n  notify exec \"__actplane_never__\"\n  because \"approved parent tightening\"\n",
+            "policy_ref": "inline://parent-approved-tighten",
+            "approved_by": "repo-supervisor",
+            "approval_ref": "ticket-authority-1",
+            "generated_by": "authority-boundary-test"
+        }),
+    );
+    assert!(
+        tool_text(&approved).contains("Appended policy delta"),
+        "trusted approved parent mutation failed: {approved}"
+    );
+    let approved_audit =
+        poll_audit_append_delta_ref(tmp.path(), "inline://parent-approved-tighten");
+    assert_eq!(approved_audit["approval_chain"]["enforced"], true);
+    assert_eq!(approved_audit["approval_chain"]["external_verified"], false);
+    assert_eq!(approved_audit["approval_chain"]["signature"], Value::Null);
+    eprintln!("AUTHORITY_APPROVAL_AUDIT {approved_audit}");
+    eprintln!("AUTHORITY_FEEDBACK {}", feedback.replace('\n', "\\n"));
+
+    eprintln!("AUTHORITY_CASE frozen_parent_enforcement expected=notify observed=notify");
+    eprintln!("AUTHORITY_CASE child_tightening expected=notify observed=notify");
+    eprintln!("AUTHORITY_CASE trusted_parent_missing_metadata expected=reject observed=reject");
+    eprintln!(
+        "AUTHORITY_CASE allowlisted_metadata expected=accept observed=accept \
+         external_verified=false signature=null"
+    );
+}
+
+#[test]
+#[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
 fn mcp_append_delta_requires_configured_approval_privileged() {
     reset_bpf_pin_root();
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -1069,6 +1343,18 @@ fn tool_text(response: &Value) -> &str {
 
 fn tool_json(response: &Value) -> Value {
     serde_json::from_str(tool_text(response)).expect("tool JSON content")
+}
+
+fn delimited_case<'a>(text: &'a str, name: &str) -> &'a str {
+    let begin = format!("AUTHORITY_CASE_BEGIN {name}\n");
+    let end = format!("AUTHORITY_CASE_END {name}");
+    let (_, after_begin) = text
+        .split_once(&begin)
+        .unwrap_or_else(|| panic!("missing case boundary {begin:?} in {text}"));
+    let (evidence, _) = after_begin
+        .split_once(&end)
+        .unwrap_or_else(|| panic!("missing case boundary {end:?} in {text}"));
+    evidence
 }
 
 fn poll_child_stdout(
