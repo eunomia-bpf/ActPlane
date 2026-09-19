@@ -467,17 +467,22 @@ the committed source has two. A fresh `make -C bpf` build is deterministic
 the committed object (`f0eb04e6...`, 1,721,560 bytes) or `process-legacy.bpf.o`
 (`c9d3b7f7...` vs `4bd0b0c8...`).
 
-This also explains part of the probe's skip set. On the 6.8 guest, the loader
-embedding the committed object fails `trace_openat_exit` **and**
-`trace_rename_exit` with `-E2BIG`, skipping 9 of 14 rows; the loader embedding a
-from-source build fails only `trace_openat_exit`, skipping 6. So the "under this
-host's engine build (clang 19)" reading of that caveat was incomplete: the
-committed shipped object had the **larger** verifier footprint, not the local
-rebuild.
+This also explains part of the probe's skip set. On the 6.8 guest, a loader whose
+`bpf/process` binary was linked against the committed object (loader SHA-256
+`0803d51c...`) fails `trace_openat_exit` **and** `trace_rename_exit` with
+`-E2BIG`, skipping 9 of 14 rows; a loader built from source (`ea2d9d11...`) fails
+only `trace_openat_exit`, skipping 6. The run and both loader digests are recorded
+in `results/rq2-probe-prebuilt-object/` (`case-outcomes.txt`, `summary.tsv`,
+`metadata.tsv`), and rebuilding each way reproduces those two loader hashes. So
+the "under this host's engine build (clang 19)" reading of that caveat was
+incomplete: the committed shipped object had the **larger** verifier footprint,
+not the local rebuild.
 
-Fix: both objects were regenerated from the committed source. Re-measured live on
-the same 6.8 guest, the loader embedding the regenerated object matches the
-from-source result (8 measured / 6 skipped, `sink_*` no longer failing).
+After the objects were regenerated, the regenerated object is byte-identical to
+the from-source build on this host, so the from-source result (`8` measured /
+`6` skipped) is the measurement for the regenerated object as well; no separate
+guest run was needed or made.
+
 `script/check_prebuilt_fresh.sh` guards against recurrence with two checks,
 because no single portable one covers both failure modes. It compares a
 source-provenance digest (`prebuilt/source.sha256`, over the kernel C and the
@@ -557,7 +562,8 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=3000 \
   limit under the from-source engine build; the guest reports `-E2BIG`,
   the probe records the case as unmeasurable, and it is excluded from the
   pass/fail comparison. The committed **shipped** object was worse still at the
-  time (it also failed `trace_rename_exit`, skipping 9 rows); see "Committed
+  time (it also failed `trace_rename_exit`, skipping 9 rows; evidence in
+  `results/rq2-probe-prebuilt-object/`); see "Committed
   eBPF objects were stale" above. This budget condition is unrelated to
   this compiler-only change: an engine built from the **pristine pre-fix**
   source (`0e248945`) also rejects the **committed pre-fix** `except`/`env`
