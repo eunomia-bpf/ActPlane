@@ -8,50 +8,97 @@
 # engine that omitted the committed file-source-provenance fix (and whose
 # `trace_rename_exit` failed the Linux 6.8 verifier where a fresh build loads).
 #
-# The check is symbol-based, and deliberately only over names that come from the
-# C source, not over every object symbol. Exact object bytes track the clang/LLVM
-# that produced them (clang 17, 18, and 19 each yield a different size), and even
-# the raw symbol table is toolchain-dependent: some clang builds emit basic-block
-# labels (LBB0_*) as local symbols and others do not. What must hold regardless
-# of toolchain is that the object defines every function the source marks
-# `__noinline` (and that a build of the source actually emits). Those names come
-# from the source text, so the check is stable across compilers while still
-# catching a stale object that predates a new source function.
+# Two checks, because no single portable one covers both failure modes:
 #
-# Usage: bash script/check_prebuilt_fresh.sh   (needs clang, llvm, libbpf, bpftool)
+#   1. A source-provenance stamp. `bpf/prebuilt/source.sha256` records a digest
+#      over the kernel C the committed objects were built from. Any source edit
+#      (including a body-only change that adds no function) changes the digest,
+#      so the gate fails until the objects and the stamp are regenerated
+#      together. The digest is over source bytes, not compiler output, so it is
+#      independent of the clang/LLVM version.
+#
+#   2. A source-derived symbol check. Every function the source marks `__noinline`
+#      (and that a build of the source actually emits) must be defined in the
+#      committed object. This is what names the specific missing function when an
+#      object predates a *new* source function, which is the exact 8298d23a
+#      failure mode; it also catches an object and stamp that were regenerated
+#      from different sources.
+#
+# Exact object bytes cannot be the gate: they track the toolchain (clang 17, 18,
+# and 19 each yield a different size), as does even the raw symbol table (some
+# builds emit basic-block labels `LBB0_*` as local symbols and others do not).
+#
+# Usage:
+#   bash script/check_prebuilt_fresh.sh            # verify (rebuilds, then checks)
+#   bash script/check_prebuilt_fresh.sh --update   # record the current source (after regenerating)
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# The kernel C that defines the engine, matching bpf/build.rs's rerun inputs
+# minus the Makefile (build flags, not source) and vmlinux.h (generated, host
+# BTF, not committed).
+SOURCES=(bpf/process.bpf.c bpf/process.h bpf/taint.h bpf/taint_engine.bpf.h \
+         bpf/capability.bpf.h bpf/channel.bpf.h)
+STAMP="bpf/prebuilt/source.sha256"
+
+# Digest over each source path and its content, in a fixed order.
+source_digest() {
+  for f in "${SOURCES[@]}"; do
+    printf '%s\n' "$f"
+    cat "$f"
+  done | sha256sum | awk '{ print $1 }'
+}
+
 NM="${LLVM_NM:-llvm-nm}"
+
+if [ "${1:-}" = "--update" ]; then
+  for f in "${SOURCES[@]}"; do
+    [ -f "$f" ] || { echo "missing source: $f" >&2; exit 2; }
+  done
+  printf '%s\n' "$(source_digest)" > "$STAMP"
+  echo "recorded source stamp for the committed prebuilt objects in $STAMP"
+  exit 0
+fi
+
 command -v "$NM" >/dev/null || { echo "missing llvm-nm (install llvm)" >&2; exit 2; }
-for f in bpf/prebuilt/process.bpf.o bpf/prebuilt/process-legacy.bpf.o; do
-  [ -f "$f" ] || { echo "missing committed object: $f" >&2; exit 2; }
+for f in bpf/prebuilt/process.bpf.o bpf/prebuilt/process-legacy.bpf.o "$STAMP"; do
+  [ -f "$f" ] || { echo "missing committed file: $f" >&2; exit 2; }
 done
 
-# Rebuild both objects from the current source.
-make -C bpf .output/process.bpf.o .output/process-legacy.bpf.o >/dev/null
-
-# Functions the current source marks `__noinline`. These are emitted as named
-# symbols rather than inlined, and the names are source text, so they are stable
-# across clang/LLVM versions.
+# Functions the current source marks `__noinline`; these are emitted as named
+# symbols and their names come from the source text, so the check is stable
+# across compilers.
 source_noinline() {
   grep -rh '__noinline' bpf/*.h bpf/*.c \
     | grep -oE '[A-Za-z_][A-Za-z0-9_]*\(' | tr -d '(' \
     | grep -vx '__attribute__' | sort -u
 }
-# Defined function symbols in an object.
 object_functions() {
   "$NM" --defined-only "$1" 2>/dev/null \
     | awk '$2=="T" || $2=="t" { print $3 }' | sort -u
 }
 
+stale=0
+
+# 1. Source-provenance stamp.
+want="$(source_digest)"
+have="$(cat "$STAMP")"
+if [ "$want" != "$have" ]; then
+  stale=1
+  echo "STALE the committed objects were built from a different source:" >&2
+  echo "      stamp says $have" >&2
+  echo "      source is  $want" >&2
+fi
+
+# 2. Rebuild and require every emitted __noinline function to be defined.
+make -C bpf .output/process.bpf.o .output/process-legacy.bpf.o >/dev/null
+
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 source_noinline > "$tmp/src.funcs"
 
-status=0
 for obj in process process-legacy; do
   built="bpf/.output/$obj.bpf.o"
   committed="bpf/prebuilt/$obj.bpf.o"
@@ -60,40 +107,41 @@ for obj in process process-legacy; do
   object_functions "$committed" > "$tmp/committed.funcs"
 
   # Only require functions the source marks __noinline AND that a build of the
-  # source actually emits (a __noinline function that is never referenced may be
-  # dropped). Intersecting keeps the required set source-derived and portable.
+  # source actually emits (an unreferenced __noinline function may be dropped).
   comm -12 "$tmp/src.funcs" "$tmp/built.funcs" > "$tmp/required.funcs"
 
   missing="$(comm -23 "$tmp/required.funcs" "$tmp/committed.funcs" || true)"
   if [ -n "$missing" ]; then
-    status=1
+    stale=1
     echo "STALE $committed lacks __noinline functions the source defines:" >&2
     printf '  %s\n' $missing >&2
-  else
+  elif [ "$stale" -eq 0 ]; then
     echo "ok   $committed defines every __noinline function the source defines" \
          "($(wc -l < "$tmp/required.funcs") checked)"
   fi
 
-  # Byte drift alone is not a failure: it can be a toolchain difference. Report
-  # it so a maintainer can see that the object was produced elsewhere.
+  # Byte drift alone is not a failure: it can be a toolchain difference.
   if ! cmp -s "$built" "$committed"; then
     echo "note $committed differs in bytes from a local rebuild (toolchain-dependent):" \
          "committed=$(stat -c%s "$committed") built=$(stat -c%s "$built")" >&2
   fi
 done
 
-if [ "$status" -ne 0 ]; then
+if [ "$stale" -ne 0 ]; then
   cat >&2 <<'EOF'
 
-The committed prebuilt eBPF object(s) do not contain the current kernel C source.
-Because `ebpf-ifc-engine` embeds the committed object, production would load
-engine code that lacks the current source (a silent correctness gap, not just a
-stale binary). Regenerate and commit:
+The committed prebuilt eBPF object(s) do not correspond to the current kernel C
+source. Because `ebpf-ifc-engine` embeds the committed object, production would
+load engine code that lacks the current source (a silent correctness gap, not
+just a stale binary). Regenerate and commit both the objects and the stamp:
 
     ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine
 
-or `make -C bpf .output/process.bpf.o .output/process-legacy.bpf.o` and copy
-`.output/*.bpf.o` over `prebuilt/`.
+or
+
+    make -C bpf .output/process.bpf.o .output/process-legacy.bpf.o &&
+      cp bpf/.output/process.bpf.o bpf/.output/process-legacy.bpf.o bpf/prebuilt/ &&
+      bash script/check_prebuilt_fresh.sh --update
 EOF
   exit 1
 fi

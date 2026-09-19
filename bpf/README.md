@@ -110,11 +110,24 @@ gap rather than a cosmetic mismatch: commit `8298d23a` added
 `te_record_file_prov_mask` to `taint_engine.bpf.h` without regenerating the
 object, so `master` shipped an engine missing that fix (and one whose
 `trace_rename_exit` fails the Linux 6.8 verifier where a fresh build loads). CI
-enforces `script/check_prebuilt_fresh.sh`, which rebuilds both objects and
-requires the committed object to define every `__noinline` function the source
-defines. The check is source-derived rather than byte-based, so it does not
-depend on the exact clang/LLVM version (nor on whether that compiler emits
+enforces `script/check_prebuilt_fresh.sh`, which applies two checks because no
+single portable one covers both failure modes. First, it compares a
+source-provenance digest (`prebuilt/source.sha256`, over the kernel C that the
+objects were built from) against the current source, so any source edit, even
+one that only changes a function body, fails until the objects and the stamp are
+regenerated together. Second, it rebuilds both objects and requires the
+committed object to define every `__noinline` function the source defines, which
+names the specific missing function when an object predates a newly added one.
+Both checks are source-derived rather than byte-based, so they do not depend on
+the exact clang/LLVM version (nor on whether that compiler emits `LBB0_*`
 basic-block labels as local symbols).
+
+Because the objects are binary and every branch that touches the kernel C
+regenerates them from its own base, two such branches always conflict in
+`bpf/prebuilt/*.bpf.o`. Resolve by rebuilding from the merged source (`make -C
+bpf` then copy `.output/*.bpf.o` over `prebuilt/`, or `ACTPLANE_REBUILD_BPF=1
+cargo build -p ebpf-ifc-engine`, which also refreshes the stamp); do not pick a
+side of the binary conflict.
 
 ## Binary config format
 
