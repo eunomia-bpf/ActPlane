@@ -94,7 +94,7 @@ struct CConfig {
 /// that prefix (an `EXACT` literal then never matches the intended target, and a
 /// `PREFIX`/`SUFFIX` literal matches a broader set). Callers that want the
 /// mismatch reported use [`set_pat_reported`], which records it in
-/// `Compiled::pattern_truncations` for the CLI to surface.
+/// `Compiled::pattern_warnings` for the CLI to surface.
 fn set_pat(dst: &mut [u8], s: &str) {
     let b = s.as_bytes();
     let n = b.len().min(dst.len() - 1);
@@ -102,36 +102,69 @@ fn set_pat(dst: &mut [u8], s: &str) {
     dst[n] = 0;
 }
 
-/// [`set_pat`] plus, when the literal did not fit, a human-readable note naming
-/// what was truncated and the effective limit. The message is built here because
-/// this module owns the buffer sizes.
-fn set_pat_reported(dst: &mut [u8], s: &str, what: &str, out: &mut Vec<String>) {
+/// [`set_pat`] plus, when the literal did not fit, a warning naming what was
+/// truncated and the effective limit. The message is built here because this
+/// module owns the buffer sizes.
+fn set_pat_reported(dst: &mut [u8], s: &str, what: &str, out: &mut Vec<PatternWarning>) {
     if !s.is_empty() && s.len() > dst.len() - 1 {
-        out.push(format!(
-            "{what} \"{s}\" is longer than the kernel pattern buffer ({} bytes) and was truncated to a prefix; the compiled rule matches that prefix, not the intended target. Shorten it, or use a wildcard form that lowers to a shorter literal.",
-            dst.len() - 1
-        ));
+        out.push(PatternWarning {
+            code: PATTERN_TRUNCATED,
+            message: format!(
+                "{what} \"{s}\" is longer than the kernel pattern buffer ({} bytes) and was truncated to a prefix; the compiled rule matches that prefix, not the intended target. Shorten it, or use a wildcard form that lowers to a shorter literal.",
+                dst.len() - 1
+            ),
+        });
     }
     set_pat(dst, s);
 }
 
-/// Report a `SUFFIX`/`CONTAINS` literal that the kernel matcher cannot use.
+/// Report a literal that the kernel matcher cannot use, for a pattern that
+/// therefore never matches. Two independent ways that happens:
 ///
-/// `taint_suffix` and `taint_contains` both return 0 when the pattern is longer
-/// than `TAINT_SUF_MAX`, because their tail/window copy is a fixed
-/// `TAINT_SUF_MAX` bytes and the compare only honors up to that many. A longer
-/// literal therefore makes the matcher reject every text, so a rule spelled
-/// `**/<long basename>` never fires. `CONTAINS` literals are capped by
-/// `shorten_contains_literal`, so in practice this catches `SUFFIX`, but both
-/// are checked because the kernel bound is shared.
-fn check_matcher_literal_bound(kind: u8, lit: &str, what: &str, out: &mut Vec<String>) {
+/// * An empty literal for a non-`ANY` kind. `taint_streq` and `taint_prefix`
+///   both return 0 for an empty pattern (exact: the text would have to be empty;
+///   prefix: `anynz` stays 0, and the comment on `taint_prefix` states an empty
+///   prefix never matches). A pattern such as `exec "src/*"` or `exec "foo/"`
+///   lowers to an empty literal, so the rule never fires. `ANY` is exempt by
+///   construction: its literal is meant to be empty and it always matches.
+/// * A `SUFFIX`/`CONTAINS` literal past `TAINT_SUF_MAX`. Both matchers return 0
+///   when the pattern is longer than their fixed 16-byte tail/window copy, so
+fn check_matcher_literal_bound(kind: u8, lit: &str, what: &str, out: &mut Vec<PatternWarning>) {
+    if kind == M_ANY {
+        return;
+    }
+    if lit.is_empty() {
+        out.push(PatternWarning {
+            code: PATTERN_EMPTY_LITERAL,
+            message: format!(
+                "{what} \"\" lowers to an empty {} literal, and the kernel matcher rejects an empty pattern, so this can never match. Use a concrete name, or `*` / `**/*` to match anything.",
+                match_kind_name(kind)
+            ),
+        });
+        return;
+    }
     if matches!(kind, M_SUFFIX | M_CONTAINS) && lit.len() > MAX_CONTAINS_LITERAL {
-        out.push(format!(
-            "{what} \"{lit}\" lowers to a {}-byte {} literal, but the kernel matcher rejects any literal longer than {} bytes, so the pattern can never match. Use a shorter basename pattern, or an absolute pattern with a wildcard.",
-            lit.len(),
-            if kind == M_SUFFIX { "suffix" } else { "contains" },
-            MAX_CONTAINS_LITERAL
-        ));
+        out.push(PatternWarning {
+            code: PATTERN_MATCHER_LENGTH,
+            message: format!(
+                "{what} \"{lit}\" lowers to a {}-byte {} literal, but the kernel matcher rejects any literal longer than {} bytes, so the pattern can never match. Use a shorter basename pattern, or an absolute pattern with a wildcard.",
+                lit.len(),
+                match_kind_name(kind),
+                MAX_CONTAINS_LITERAL
+            ),
+        });
+    }
+}
+
+/// Human-readable name of a kernel match kind, for warnings.
+fn match_kind_name(kind: u8) -> &'static str {
+    match kind {
+        M_EXACT => "exact",
+        M_PREFIX => "prefix",
+        M_SUFFIX => "suffix",
+        M_ANY => "any",
+        M_CONTAINS => "contains",
+        _ => "unknown",
     }
 }
 
@@ -892,10 +925,8 @@ struct Ctx {
     next_inval: u32,
     endpoint_cache: HashMap<String, Vec<(u32, u32)>>,
     endpoint_resolutions: HashMap<String, Vec<String>>,
-    /// Literals that did not fit their kernel pattern buffer and were truncated.
-    truncations: Vec<String>,
-    /// `SUFFIX`/`CONTAINS` literals past the kernel matcher's bound.
-    matcher_rejections: Vec<String>,
+    /// Pattern-lowering warnings from source/xform updates.
+    warnings: Vec<PatternWarning>,
 }
 impl Ctx {
     fn endpoint_matches(&mut self, pat: &str) -> Vec<(u32, u32)> {
@@ -981,15 +1012,10 @@ impl Ctx {
             &mut u.target,
             spec.target,
             "event target",
-            &mut self.truncations,
+            &mut self.warnings,
         );
-        set_pat_reported(&mut u.arg, spec.arg, "event arg", &mut self.truncations);
-        check_matcher_literal_bound(
-            spec.m,
-            spec.target,
-            "event target",
-            &mut self.matcher_rejections,
-        );
+        set_pat_reported(&mut u.arg, spec.arg, "event arg", &mut self.warnings);
+        check_matcher_literal_bound(spec.m, spec.target, "event target", &mut self.warnings);
         self.updates.push(u);
         Ok(())
     }
@@ -1283,20 +1309,29 @@ pub struct RuleSourceMeta {
     pub clause_text: Option<String>,
 }
 
+/// A pattern-lowering warning: the literal the compiler produced does not mean
+/// what the policy wrote, so the rule either matches something else or can never
+/// match. The compiler owns the message (it knows the buffer and matcher
+/// bounds); `code` is the stable identifier the CLI reports.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PatternWarning {
+    pub code: &'static str,
+    pub message: String,
+}
+
+/// Stable codes for [`PatternWarning`].
+pub const PATTERN_TRUNCATED: &str = "pattern_literal_truncated";
+pub const PATTERN_EMPTY_LITERAL: &str = "pattern_empty_literal";
+pub const PATTERN_MATCHER_LENGTH: &str = "pattern_matcher_length_exceeded";
+
 pub struct Compiled {
     pub bytes: Vec<u8>,
     pub reasons: Vec<String>, // indexed by lowered rule_id
     pub meta: Vec<RuleMeta>,  // indexed by lowered rule_id
     pub labels: HashMap<String, u64>,
     pub endpoint_resolutions: HashMap<String, Vec<String>>,
-    /// Literals that did not fit their fixed kernel pattern buffer and were
-    /// truncated (sorted, deduplicated). A truncated literal silently changes
-    /// what the compiled rule matches, so the CLI surfaces these as warnings.
-    pub pattern_truncations: Vec<String>,
-    /// `SUFFIX`/`CONTAINS` literals longer than the kernel matcher's fixed
-    /// bound, which makes the matcher reject every text, so the rule can never
-    /// fire. Sorted and deduplicated, like `pattern_truncations`.
-    pub pattern_matcher_rejections: Vec<String>,
+    /// Pattern-lowering warnings (sorted, deduplicated), for the CLI to surface.
+    pub pattern_warnings: Vec<PatternWarning>,
 }
 
 fn collect_label_names(pol: &Policy) -> Vec<String> {
@@ -1367,8 +1402,7 @@ pub fn compile_with_labels(
         next_inval: 0,
         endpoint_cache: HashMap::new(),
         endpoint_resolutions: HashMap::new(),
-        truncations: Vec::new(),
-        matcher_rejections: Vec::new(),
+        warnings: Vec::new(),
     };
     for name in &sorted_labels {
         ctx.label_bit(name)?;
@@ -1376,8 +1410,7 @@ pub fn compile_with_labels(
     let mut rules: Vec<CRule> = Vec::new();
     let mut reasons: Vec<String> = Vec::new();
     let mut meta: Vec<RuleMeta> = Vec::new();
-    let mut matcher_rejections: Vec<String> = Vec::new();
-    let mut truncations: Vec<String> = Vec::new();
+    let mut warnings: Vec<PatternWarning> = Vec::new();
 
     for s in &pol.sources {
         let bit = ctx.label_bit(&s.label)?;
@@ -1569,28 +1602,29 @@ pub fn compile_with_labels(
                         cr.gate_idx = gate_idx;
                         cr.domain_id = 0;
                         cr.since_mask = since_mask;
-                        set_pat_reported(&mut cr.target, &tlit, "rule target", &mut truncations);
-                        check_matcher_literal_bound(
-                            tm,
-                            &tlit,
-                            "rule target",
-                            &mut matcher_rejections,
-                        );
+                        set_pat_reported(&mut cr.target, &tlit, "rule target", &mut warnings);
+                        check_matcher_literal_bound(tm, &tlit, "rule target", &mut warnings);
                         if let Some(a) = &cl.target.arg {
-                            set_pat_reported(&mut cr.arg, a, "rule arg", &mut truncations);
+                            set_pat_reported(&mut cr.arg, a, "rule arg", &mut warnings);
                         }
-                        set_pat_reported(
-                            &mut cr.cond_pat,
-                            &clit,
-                            "rule condition pattern",
-                            &mut truncations,
-                        );
-                        check_matcher_literal_bound(
-                            cm,
-                            &clit,
-                            "rule condition pattern",
-                            &mut matcher_rejections,
-                        );
+                        // Only a `target` condition on a path/exec op stores a
+                        // pattern; `connect`/`recv` store the condition as a
+                        // numeric IPv4 (`cond_ipv4`), and every other condition
+                        // kind leaves `cond_pat` empty by design.
+                        if ck == C_TARGET && !matches!(op, OP_CONNECT | OP_RECV) {
+                            set_pat_reported(
+                                &mut cr.cond_pat,
+                                &clit,
+                                "rule condition pattern",
+                                &mut warnings,
+                            );
+                            check_matcher_literal_bound(
+                                cm,
+                                &clit,
+                                "rule condition pattern",
+                                &mut warnings,
+                            );
+                        }
                         rules.push(cr);
                     }
                 }
@@ -1624,20 +1658,16 @@ pub fn compile_with_labels(
         )
     }
     .to_vec();
-    truncations.extend(ctx.truncations);
-    truncations.sort();
-    truncations.dedup();
-    matcher_rejections.extend(ctx.matcher_rejections);
-    matcher_rejections.sort();
-    matcher_rejections.dedup();
+    warnings.extend(ctx.warnings);
+    warnings.sort();
+    warnings.dedup();
     Ok(Compiled {
         bytes,
         reasons,
         meta,
         labels: ctx.labels,
         endpoint_resolutions: ctx.endpoint_resolutions,
-        pattern_truncations: truncations,
-        pattern_matcher_rejections: matcher_rejections,
+        pattern_warnings: warnings,
     })
 }
 

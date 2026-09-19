@@ -2009,23 +2009,14 @@ fn backend_support_warnings(
     lsm_bpf: bool,
 ) -> Vec<BackendWarning> {
     let mut warnings = Vec::new();
-    // A pattern literal that did not fit the kernel's fixed buffer was truncated
-    // to a prefix of what the policy wrote, so the compiled rule matches
-    // something different from the intended target. The compiler builds the
-    // message (it owns the buffer sizes); report each distinct one.
-    for message in &compiled.pattern_truncations {
+    // The compiler reports every pattern-lowering warning it found: a literal
+    // truncated to fit the kernel buffer, one lowered to an empty literal the
+    // matcher rejects, or one past the matcher's length bound. Each message names
+    // the literal and why the compiled rule differs from what the policy wrote.
+    for warning in &compiled.pattern_warnings {
         warnings.push(BackendWarning {
-            code: "pattern_literal_truncated",
-            message: message.clone(),
-        });
-    }
-    // A SUFFIX/CONTAINS literal past the kernel matcher's fixed bound makes the
-    // matcher reject every text, so the pattern can never match. That is a dead
-    // rule, not an approximation, so report it distinctly from truncation.
-    for message in &compiled.pattern_matcher_rejections {
-        warnings.push(BackendWarning {
-            code: "pattern_matcher_length_exceeded",
-            message: message.clone(),
+            code: warning.code,
+            message: warning.message.clone(),
         });
     }
     for source in &policy.sources {

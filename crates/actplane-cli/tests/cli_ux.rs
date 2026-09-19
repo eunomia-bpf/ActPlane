@@ -269,6 +269,43 @@ fn compile_json_warns_when_a_suffix_literal_exceeds_the_matcher_bound() {
 }
 
 #[test]
+fn compile_json_warns_when_a_pattern_lowers_to_an_empty_literal() {
+    // An exec pattern whose basename is `*` (e.g. `exec "src/*"`) lowers to a
+    // PREFIX matcher with an empty literal, and the kernel rejects an empty
+    // pattern, so the rule can never match.
+    let policy = "rule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_empty_literal"),
+        "expected empty-literal warning, got {}",
+        value["warnings"]
+    );
+
+    // `*` is ANY and always matches, so it must not warn.
+    let any = "rule r:\n  kill exec \"*\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", any, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_empty_literal"),
+        "ANY must not warn, got {}",
+        value["warnings"]
+    );
+}
+
+#[test]
 fn compile_json_reports_policy_load_errors_as_json() {
     let missing = "/tmp/actplane-definitely-missing-policy.yaml";
     let output = run(&["--policy", missing, "compile", "--json"]);
