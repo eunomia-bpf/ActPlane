@@ -617,6 +617,38 @@ rule secret:
     }
 
     #[test]
+    fn long_pattern_literal_is_reported_as_truncated() {
+        // Kernel pattern fields hold 63 usable bytes, so a longer literal is
+        // stored as a prefix. For an exact absolute path that means the rule can
+        // never match the intended target, so the compiler must report it rather
+        // than silently compiling a different rule.
+        let long = "/var/lib/some/deeply/nested/directory/structure/that/is/very/long/target.txt";
+        assert!(long.len() > 63);
+        let compiled = ok(&format!(
+            "rule r:\n  block write file \"{long}\" if A\n  because \"x\"\n"
+        ));
+        assert_eq!(
+            compiled.pattern_truncations.len(),
+            1,
+            "one truncated literal expected: {:?}",
+            compiled.pattern_truncations
+        );
+        assert!(
+            compiled.pattern_truncations[0].contains(long),
+            "message should name the literal: {}",
+            compiled.pattern_truncations[0]
+        );
+
+        // A literal that fits is stored whole and reported not at all.
+        let short = ok("rule r:\n  block write file \"/tmp/short.txt\" if A\n  because \"x\"\n");
+        assert!(
+            short.pattern_truncations.is_empty(),
+            "short literal must not be reported: {:?}",
+            short.pattern_truncations
+        );
+    }
+
+    #[test]
     #[ignore = "run test/policy-corpus.sh for the release microbench"]
     fn policy_corpus_compile_perf() {
         let policies = corpus_policy_sources();

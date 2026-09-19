@@ -2009,6 +2009,16 @@ fn backend_support_warnings(
     lsm_bpf: bool,
 ) -> Vec<BackendWarning> {
     let mut warnings = Vec::new();
+    // A pattern literal that did not fit the kernel's fixed buffer was truncated
+    // to a prefix of what the policy wrote, so the compiled rule matches
+    // something different from the intended target. The compiler builds the
+    // message (it owns the buffer sizes); report each distinct one.
+    for message in &compiled.pattern_truncations {
+        warnings.push(BackendWarning {
+            code: "pattern_literal_truncated",
+            message: message.clone(),
+        });
+    }
     for source in &policy.sources {
         if source.kind == Kind::Endpoint && !endpoint_pattern_supported(compiled, &source.pattern) {
             let (_, reason, _) = endpoint_support_detail(compiled, &source.pattern, "source");

@@ -87,11 +87,32 @@ struct CConfig {
     rules: [CRule; MAX_RULES],
 }
 
+/// Copy `s` into a fixed kernel pattern buffer, truncating to `dst.len() - 1`.
+///
+/// Truncation is silent to the kernel: the stored literal is a prefix of the
+/// intended one, so a rule meant to match a long path or comm instead matches
+/// that prefix (an `EXACT` literal then never matches the intended target, and a
+/// `PREFIX`/`SUFFIX` literal matches a broader set). Callers that want the
+/// mismatch reported use [`set_pat_reported`], which records it in
+/// `Compiled::pattern_truncations` for the CLI to surface.
 fn set_pat(dst: &mut [u8], s: &str) {
     let b = s.as_bytes();
     let n = b.len().min(dst.len() - 1);
     dst[..n].copy_from_slice(&b[..n]);
     dst[n] = 0;
+}
+
+/// [`set_pat`] plus, when the literal did not fit, a human-readable note naming
+/// what was truncated and the effective limit. The message is built here because
+/// this module owns the buffer sizes.
+fn set_pat_reported(dst: &mut [u8], s: &str, what: &str, out: &mut Vec<String>) {
+    if !s.is_empty() && s.len() > dst.len() - 1 {
+        out.push(format!(
+            "{what} \"{s}\" is longer than the kernel pattern buffer ({} bytes) and was truncated to a prefix; the compiled rule matches that prefix, not the intended target. Shorten it, or use a wildcard form that lowers to a shorter literal.",
+            dst.len() - 1
+        ));
+    }
+    set_pat(dst, s);
 }
 
 /// (match, literal) lowering for exec-side patterns (matched on comm).
@@ -851,6 +872,8 @@ struct Ctx {
     next_inval: u32,
     endpoint_cache: HashMap<String, Vec<(u32, u32)>>,
     endpoint_resolutions: HashMap<String, Vec<String>>,
+    /// Literals that did not fit their kernel pattern buffer and were truncated.
+    truncations: Vec<String>,
 }
 impl Ctx {
     fn endpoint_matches(&mut self, pat: &str) -> Vec<(u32, u32)> {
@@ -932,10 +955,13 @@ impl Ctx {
         u.ipv4_mask = spec.ipv4_mask;
         u.gate_exit_code = spec.gate_exit_code;
         u.domain_id = 0;
-        set_pat(&mut u.target, spec.target);
-        if !spec.arg.is_empty() {
-            set_pat(&mut u.arg, spec.arg);
-        }
+        set_pat_reported(
+            &mut u.target,
+            spec.target,
+            "event target",
+            &mut self.truncations,
+        );
+        set_pat_reported(&mut u.arg, spec.arg, "event arg", &mut self.truncations);
         self.updates.push(u);
         Ok(())
     }
@@ -1238,6 +1264,10 @@ pub struct Compiled {
     /// Non-empty values are the IPv4 A records expanded into kernel matchers;
     /// an empty value means resolution was attempted but yielded no IPv4.
     pub endpoint_resolutions: HashMap<String, Vec<String>>,
+    /// Literals that did not fit their fixed kernel pattern buffer and were
+    /// truncated (sorted, deduplicated). A truncated literal silently changes
+    /// what the compiled rule matches, so the CLI surfaces these as warnings.
+    pub pattern_truncations: Vec<String>,
 }
 
 fn collect_label_names(pol: &Policy) -> Vec<String> {
@@ -1308,6 +1338,7 @@ pub fn compile_with_labels(
         next_inval: 0,
         endpoint_cache: HashMap::new(),
         endpoint_resolutions: HashMap::new(),
+        truncations: Vec::new(),
     };
     for name in &sorted_labels {
         ctx.label_bit(name)?;
@@ -1315,6 +1346,7 @@ pub fn compile_with_labels(
     let mut rules: Vec<CRule> = Vec::new();
     let mut reasons: Vec<String> = Vec::new();
     let mut meta: Vec<RuleMeta> = Vec::new();
+    let mut truncations: Vec<String> = Vec::new();
 
     for s in &pol.sources {
         let bit = ctx.label_bit(&s.label)?;
@@ -1506,11 +1538,16 @@ pub fn compile_with_labels(
                         cr.gate_idx = gate_idx;
                         cr.domain_id = 0;
                         cr.since_mask = since_mask;
-                        set_pat(&mut cr.target, &tlit);
+                        set_pat_reported(&mut cr.target, &tlit, "rule target", &mut truncations);
                         if let Some(a) = &cl.target.arg {
-                            set_pat(&mut cr.arg, a);
+                            set_pat_reported(&mut cr.arg, a, "rule arg", &mut truncations);
                         }
-                        set_pat(&mut cr.cond_pat, &clit);
+                        set_pat_reported(
+                            &mut cr.cond_pat,
+                            &clit,
+                            "rule condition pattern",
+                            &mut truncations,
+                        );
                         rules.push(cr);
                     }
                 }
@@ -1544,12 +1581,16 @@ pub fn compile_with_labels(
         )
     }
     .to_vec();
+    truncations.extend(ctx.truncations);
+    truncations.sort();
+    truncations.dedup();
     Ok(Compiled {
         bytes,
         reasons,
         meta,
         labels: ctx.labels,
         endpoint_resolutions: ctx.endpoint_resolutions,
+        pattern_truncations: truncations,
     })
 }
 
