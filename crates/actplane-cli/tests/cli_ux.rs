@@ -129,6 +129,183 @@ rule host-connect:
 }
 
 #[test]
+fn compile_json_warns_that_repo_relative_target_exception_is_partial() {
+    // A repo-relative `unless target` over a `**/<dir>/**` pattern cannot express
+    // the primary+companion disjunction in one cond slot, so the exception
+    // over-fires on the first-segment-relative form. That must be discoverable,
+    // not silent.
+    let policy = r#"
+source AGENT = exec "claude"
+
+rule js-outside-dist:
+  notify write file "**/*.js" if AGENT unless target "**/dist/**"
+  because "new JS sources must be TypeScript"
+"#;
+    let output = run(&["--rule", policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "repo_relative_target_condition_partial"),
+        "expected partial-exception warning, got {}",
+        value["warnings"]
+    );
+
+    // An absolute exception has no companion and must not warn.
+    let abs = r#"
+source AGENT = exec "claude"
+
+rule js-outside-dist:
+  notify write file "**/*.js" if AGENT unless target "/work/dist/**"
+  because "new JS sources must be TypeScript"
+"#;
+    let output = run(&["--rule", abs, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "repo_relative_target_condition_partial"),
+        "absolute exception must not warn, got {}",
+        value["warnings"]
+    );
+}
+
+#[test]
+fn compile_json_warns_when_a_pattern_literal_is_truncated() {
+    // Kernel pattern fields are 64 bytes (63 usable), so a longer literal is
+    // stored as a prefix of what the policy wrote. For an exact absolute path
+    // that means the rule can never match the intended target, which must be
+    // discoverable rather than silent.
+    let long = "/var/lib/some/deeply/nested/directory/structure/that/is/very/long/target.txt";
+    assert!(long.len() > 63);
+    let policy = format!("rule r:\n  block write file \"{long}\" if A\n  because \"x\"\n");
+    let output = run(&["--rule", &policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    let warning = value["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|warning| warning["code"] == "pattern_literal_truncated")
+        .unwrap_or_else(|| panic!("expected truncation warning, got {}", value["warnings"]));
+    assert!(
+        warning["message"].as_str().unwrap().contains(long),
+        "warning should name the literal: {}",
+        warning["message"]
+    );
+
+    // A literal that fits must not warn.
+    let short = format!("rule r:\n  block write file \"/tmp/short.txt\" if A\n  because \"x\"\n");
+    let output = run(&["--rule", &short, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_literal_truncated"),
+        "short literal must not warn, got {}",
+        value["warnings"]
+    );
+}
+
+#[test]
+fn compile_json_warns_when_a_suffix_literal_exceeds_the_matcher_bound() {
+    // The kernel's `taint_suffix` rejects any literal longer than TAINT_SUF_MAX
+    // (16 bytes), so `**/<long basename>` lowers to a literal that can never
+    // match: the rule is dead. That must be discoverable, and reported as its own
+    // code rather than as buffer truncation.
+    let policy =
+        "rule r:\n  block write file \"**/*config.production.json\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_matcher_length_exceeded"),
+        "expected matcher-length warning, got {}",
+        value["warnings"]
+    );
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_literal_truncated"),
+        "a 22-byte literal fits the 63-byte buffer, so it is not a truncation: {}",
+        value["warnings"]
+    );
+
+    // An in-bound basename pattern must not warn.
+    let short = "rule r:\n  notify write file \"**/.env\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", short, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_matcher_length_exceeded"),
+        "in-bound suffix must not warn, got {}",
+        value["warnings"]
+    );
+}
+
+#[test]
+fn compile_json_warns_when_a_pattern_lowers_to_an_empty_literal() {
+    // An exec pattern whose basename is `*` (e.g. `exec "src/*"`) lowers to a
+    // PREFIX matcher with an empty literal, and the kernel rejects an empty
+    // pattern, so the rule can never match.
+    let policy = "rule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_empty_literal"),
+        "expected empty-literal warning, got {}",
+        value["warnings"]
+    );
+
+    // `*` is ANY and always matches, so it must not warn.
+    let any = "rule r:\n  kill exec \"*\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", any, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "pattern_empty_literal"),
+        "ANY must not warn, got {}",
+        value["warnings"]
+    );
+}
+
+#[test]
 fn compile_json_reports_policy_load_errors_as_json() {
     let missing = "/tmp/actplane-definitely-missing-policy.yaml";
     let output = run(&["--policy", missing, "compile", "--json"]);

@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-
+#include <stddef.h>
 #include "taint.h"
 
 #define RESET "\033[0m"
@@ -109,6 +109,95 @@ static void test_arg(void)
 	check(arg_m(slots2, "push") == 0, "arg: push absent");
 }
 
+/* The config blob is memcpy'd from the Rust `repr(C)` mirror into this struct and
+ * read out of BPF rodata, so a field reorder silently reinterprets every field
+ * even though the total size is unchanged (the `fixed-size` Rust test only pins
+ * the total). Pin the field layout, both structs' sizes, and the nested table
+ * offsets. These values are what crates/actplane-ifc-compiler/src/dsl/lower.rs
+ * asserts from its own side (`abi_layout_matches_the_c_header`); if this header
+ * changes, both must be updated together. */
+static void test_abi_layout(void)
+{
+	check(offsetof(struct taint_update, op) == 0, "abi: update.op @0");
+	check(offsetof(struct taint_update, match) == 1, "abi: update.match @1");
+	check(offsetof(struct taint_update, target) == 2, "abi: update.target @2");
+	check(offsetof(struct taint_update, arg) == 66, "abi: update.arg @66");
+	check(offsetof(struct taint_update, add) == 96, "abi: update.add @96");
+	check(offsetof(struct taint_update, del) == 104, "abi: update.del @104");
+	check(offsetof(struct taint_update, gates) == 112, "abi: update.gates @112");
+	check(offsetof(struct taint_update, invals) == 120, "abi: update.invals @120");
+	check(offsetof(struct taint_update, ipv4) == 128, "abi: update.ipv4 @128");
+	check(offsetof(struct taint_update, ipv4_mask) == 132, "abi: update.ipv4_mask @132");
+	check(offsetof(struct taint_update, gate_exit_code) == 136, "abi: update.gate_exit_code @136");
+	check(offsetof(struct taint_update, domain_id) == 140, "abi: update.domain_id @140");
+
+	check(offsetof(struct taint_rule, op) == 0, "abi: rule.op @0");
+	check(offsetof(struct taint_rule, match) == 1, "abi: rule.match @1");
+	check(offsetof(struct taint_rule, cond_kind) == 2, "abi: rule.cond_kind @2");
+	check(offsetof(struct taint_rule, cond_neg) == 3, "abi: rule.cond_neg @3");
+	check(offsetof(struct taint_rule, cond_match) == 4, "abi: rule.cond_match @4");
+	check(offsetof(struct taint_rule, effect) == 5, "abi: rule.effect @5");
+	check(offsetof(struct taint_rule, target) == 6, "abi: rule.target @6");
+	check(offsetof(struct taint_rule, arg) == 70, "abi: rule.arg @70");
+	check(offsetof(struct taint_rule, cond_pat) == 94, "abi: rule.cond_pat @94");
+	check(offsetof(struct taint_rule, req) == 160, "abi: rule.req @160");
+	check(offsetof(struct taint_rule, forbid) == 168, "abi: rule.forbid @168");
+	check(offsetof(struct taint_rule, gate) == 176, "abi: rule.gate @176");
+	check(offsetof(struct taint_rule, rule_id) == 184, "abi: rule.rule_id @184");
+	check(offsetof(struct taint_rule, ipv4) == 188, "abi: rule.ipv4 @188");
+	check(offsetof(struct taint_rule, ipv4_mask) == 192, "abi: rule.ipv4_mask @192");
+	check(offsetof(struct taint_rule, cond_ipv4) == 196, "abi: rule.cond_ipv4 @196");
+	check(offsetof(struct taint_rule, cond_ipv4_mask) == 200, "abi: rule.cond_ipv4_mask @200");
+	check(offsetof(struct taint_rule, gate_idx) == 204, "abi: rule.gate_idx @204");
+	check(offsetof(struct taint_rule, domain_id) == 208, "abi: rule.domain_id @208");
+	check(offsetof(struct taint_rule, since_mask) == 216, "abi: rule.since_mask @216");
+
+	check(sizeof(struct taint_update) == 144, "abi: sizeof taint_update");
+	check(sizeof(struct taint_rule) == 224, "abi: sizeof taint_rule");
+	check(offsetof(struct taint_config, n_updates) == 0, "abi: config.n_updates @0");
+	check(offsetof(struct taint_config, n_rules) == 4, "abi: config.n_rules @4");
+	check(offsetof(struct taint_config, updates) == 8, "abi: config.updates @8");
+	check(offsetof(struct taint_config, rules) == 46088, "abi: config.rules @46088");
+	check(sizeof(struct taint_config) == 74760, "abi: sizeof taint_config");
+}
+
+/* Constants shared with the Rust compiler that are not part of struct
+ * taint_config, so test_abi_layout does not transitively pin them. Match
+ * abi_constants_match_the_c_header in crates/actplane-ifc-compiler/src/dsl/lower.rs;
+ * a change here must be mirrored in bpf/taint.h and on the Rust side. */
+static void test_abi_constants(void)
+{
+	check(TAINT_PAT_LEN == 64, "abi: TAINT_PAT_LEN == 64");
+	check(TAINT_ARG_LEN == 24, "abi: TAINT_ARG_LEN == 24");
+	check(MAX_TAINT_UPDATES == 320, "abi: MAX_TAINT_UPDATES == 320");
+	check(MAX_TAINT_RULES == 128, "abi: MAX_TAINT_RULES == 128");
+	check(MAX_TAINT_GATES == 64, "abi: MAX_TAINT_GATES == 64");
+	check(MAX_TAINT_INVALS == 64, "abi: MAX_TAINT_INVALS == 64");
+	check(TAINT_SUF_MAX == 16, "abi: TAINT_SUF_MAX == 16");
+	check((MAX_TAINT_GATES & (MAX_TAINT_GATES - 1)) == 0,
+	      "abi: MAX_TAINT_GATES is a power of two (kernel masks with N-1)");
+	check((MAX_TAINT_INVALS & (MAX_TAINT_INVALS - 1)) == 0,
+	      "abi: MAX_TAINT_INVALS is a power of two (kernel masks with N-1)");
+}
+
+/* Enum discriminants are serialized into the blob as u8/i32 fields, so they are
+ * ABI values. Match abi_enum_values_match_the_c_header in
+ * crates/actplane-ifc-compiler/src/dsl/lower.rs; changing a value here changes
+ * the wire format and must be mirrored on the Rust side. */
+static void test_abi_enum_values(void)
+{
+	check(TAINT_MATCH_EXACT == 0 && TAINT_MATCH_PREFIX == 1 &&
+	      TAINT_MATCH_SUFFIX == 2 && TAINT_MATCH_ANY == 3 &&
+	      TAINT_MATCH_CONTAINS == 4, "abi: enum taint_match");
+	check(TOP_EXEC == 0 && TOP_OPEN == 1 && TOP_WRITE == 2 &&
+	      TOP_CONNECT == 3 && TOP_RECV == 4, "abi: enum taint_op");
+	check(TCOND_NONE == 0 && TCOND_LINEAGE == 1 && TCOND_AFTER == 2 &&
+	      TCOND_TARGET == 3, "abi: enum taint_cond");
+	check(TEFFECT_NOTIFY == 0 && TEFFECT_BLOCK == 1 && TEFFECT_KILL == 2,
+	      "abi: enum taint_effect");
+	check(TAINT_GATE_IMMEDIATE == -1, "abi: TAINT_GATE_IMMEDIATE");
+}
+
 int main(void)
 {
 	printf("=== ActPlane taint predicate tests ===\n");
@@ -116,7 +205,9 @@ int main(void)
 	test_prefix();
 	test_match();
 	test_mask();
-	test_arg();
+	test_abi_layout();
+	test_abi_constants();
+	test_abi_enum_values();
 	printf("\n%d passed, %d failed\n", passed, failed);
 	return failed == 0 ? 0 : 1;
 }

@@ -125,8 +125,27 @@ Full semantics and 12 examples: `docs/rule-language.md`.
 `crates/actplane-ifc-compiler/src/dsl/lower.rs`'s `#[repr(C)]` structs are **byte-identical** to the C
 structs in `bpf/taint.h`. The blob is serialized with `from_raw_parts` and read
 directly into the BPF rodata. Any change to `taint.h` MUST be mirrored in
-`lower.rs` (and vice versa). The `fixed-size` test in `dsl/mod.rs` guards total
-`CConfig` size against drift.
+`lower.rs` (and vice versa). Guards: the `fixed-size` test in `dsl/mod.rs` pins
+total `CConfig` size, and `abi_layout_matches_the_c_header` in `lower.rs` plus
+`test_abi_layout` in `bpf/test_taint.c` pin every field offset on both sides. The
+size test alone does not catch a same-width field reorder, which reinterprets
+every serialized field, so update both the offsets and the sizes together.
+
+Constants shared outside `taint_config` are pinned separately, because the offset
+tests do not cover them: `abi_constants_match_the_c_header` in `lower.rs` and
+`test_abi_constants` in `bpf/test_taint.c` assert `TAINT_PAT_LEN`,
+`TAINT_ARG_LEN`, `MAX_TAINT_UPDATES`, `MAX_TAINT_RULES`, `MAX_TAINT_GATES`,
+`MAX_TAINT_INVALS`, and `TAINT_SUF_MAX`. The gate/invalidator limits must stay
+equal on both sides and a power of two (the kernel masks slot indices with
+`N - 1`), and `MAX_CONTAINS_LITERAL` must equal `TAINT_SUF_MAX`.
+
+The enum discriminants are ABI values too, since `op`, `match`, `cond_kind`,
+`effect`, and `gate_exit_code` are `u8`/`i32` fields written into the blob.
+`abi_enum_values_match_the_c_header` in `lower.rs` and `test_abi_enum_values` in
+`bpf/test_taint.c` pin `taint_match`, `taint_op`, `taint_cond`, `taint_effect`,
+and `TAINT_GATE_IMMEDIATE`. A drift is silent: a `contains` matcher given
+`ANY`'s value matches everything, and an `op` value change makes the kernel index
+the wrong table.
 
 ## eBPF verifier gotchas (see bpf/README.md for detail)
 

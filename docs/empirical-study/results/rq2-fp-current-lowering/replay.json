@@ -1,0 +1,1719 @@
+{
+  "status": "exploratory",
+  "provenance": {
+    "tool": "docs/empirical-study/replay_fp_lowering.py",
+    "argv": [
+      "docs/empirical-study/replay_fp_lowering.py",
+      "/tmp/rq2frozen/docs/corpus-test",
+      "/tmp/fp_rows.json",
+      "target/release/actplane",
+      "--out",
+      "/tmp/replay-final.json"
+    ],
+    "compiler_bin": "target/release/actplane",
+    "compiler_binary_sha256": "032b1a46c325678dd89819c51c2c37d9bb56fdfec7e902682d8abc3e7af356ce",
+    "corpus_root": "/tmp/rq2frozen/docs/corpus-test",
+    "corpus_manifest": [
+      {
+        "repo": "Alishahryar1/free-claude-code",
+        "statement": "s01_use_uv_run",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/Alishahryar1__free-claude-code/s01_use_uv_run/rule.yaml",
+        "rule_yaml_sha256": "e494aeecf26a6c9fb7397ea02e78515cd54fd869356fd7c8bbc23233b3293073"
+      },
+      {
+        "repo": "NVIDIA/NemoClaw",
+        "statement": "s02_no_new_javascript_sources",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/NVIDIA__NemoClaw/s02_no_new_javascript_sources/rule.yaml",
+        "rule_yaml_sha256": "e62b4e3e9a148108e8afe1163faa0026a09333d3b5f5102c9aa4a133a9345e88"
+      },
+      {
+        "repo": "NVIDIA/NemoClaw",
+        "statement": "s02_no_new_javascript_sources",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/NVIDIA__NemoClaw/s02_no_new_javascript_sources/rule.yaml",
+        "rule_yaml_sha256": "e62b4e3e9a148108e8afe1163faa0026a09333d3b5f5102c9aa4a133a9345e88"
+      },
+      {
+        "repo": "NousResearch/hermes-agent",
+        "statement": "29",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/NousResearch__hermes-agent/29/rule.yaml",
+        "rule_yaml_sha256": "39f103002a5d681c9903d50ef19512ea40352911ffc519acb7bd641e20d77852"
+      },
+      {
+        "repo": "NousResearch/hermes-agent",
+        "statement": "29",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/NousResearch__hermes-agent/29/rule.yaml",
+        "rule_yaml_sha256": "39f103002a5d681c9903d50ef19512ea40352911ffc519acb7bd641e20d77852"
+      },
+      {
+        "repo": "OpenPipe/ART",
+        "statement": "uv_managed_dependencies",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/OpenPipe__ART/uv_managed_dependencies/rule.yaml",
+        "rule_yaml_sha256": "c917a389fa7383b581aa03fe37ca0de0fbe589b73833a55a92dcabfc2b5c49c8"
+      },
+      {
+        "repo": "alibaba/OpenSandbox",
+        "statement": "sdk_generated_output_not_only_fix",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/alibaba__OpenSandbox/sdk_generated_output_not_only_fix/rule.yaml",
+        "rule_yaml_sha256": "1d7ceff41483cf46e4d557c0b43929c2a7a8b3aec5d19253733cd5e311b75b60"
+      },
+      {
+        "repo": "code-yeongyu/oh-my-openagent",
+        "statement": "platform-binaries-generated",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/code-yeongyu__oh-my-openagent/platform-binaries-generated/rule.yaml",
+        "rule_yaml_sha256": "0570fe63446d6172720f21e752872dbb93f19d7a3eda18b18bc9df374b01e101"
+      },
+      {
+        "repo": "czlonkowski/n8n-mcp",
+        "statement": "41",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/czlonkowski__n8n-mcp/41/rule.yaml",
+        "rule_yaml_sha256": "93a827d15559386238ea83b51bdf32f7b2cf7ed5d68d1ea3cdf52011b39cd6a6"
+      },
+      {
+        "repo": "czlonkowski/n8n-mcp",
+        "statement": "no_committed_sensitive_test_env",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/czlonkowski__n8n-mcp/no_committed_sensitive_test_env/rule.yaml",
+        "rule_yaml_sha256": "b18b52b88b21d60517a1c1a1ccddaccd4fdfb21c2c003bdd3441e7c45e3b764a"
+      },
+      {
+        "repo": "openai/openai-agents-python",
+        "statement": "repo-python-through-uv",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/openai__openai-agents-python/repo-python-through-uv/rule.yaml",
+        "rule_yaml_sha256": "79d6831762ce62453c791762d15c37119ea6b80d75f56716822833141bbaac90"
+      },
+      {
+        "repo": "openai/openai-agents-python",
+        "statement": "repo-python-through-uv",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/openai__openai-agents-python/repo-python-through-uv/rule.yaml",
+        "rule_yaml_sha256": "79d6831762ce62453c791762d15c37119ea6b80d75f56716822833141bbaac90"
+      },
+      {
+        "repo": "openclaw/openclaw",
+        "statement": "release-changelog-protection",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/openclaw__openclaw/release-changelog-protection/rule.yaml",
+        "rule_yaml_sha256": "9e7c6a4795552c8213ec30fb36a36eef6a53765a3e987b99a926920107921515"
+      },
+      {
+        "repo": "ruvnet/ruflo",
+        "statement": "29",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/ruvnet__ruflo/29/rule.yaml",
+        "rule_yaml_sha256": "5ba8c50012e94b902e2d81d62b7a1a7085dd2c531db25132dd80145ed85d8701"
+      },
+      {
+        "repo": "ruvnet/ruflo",
+        "statement": "no-root-workfiles",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/ruvnet__ruflo/no-root-workfiles/rule.yaml",
+        "rule_yaml_sha256": "6b0b28c4c33ed33793f17c74bc838401efaf9649c3a6088ab482c9f10899c39d"
+      },
+      {
+        "repo": "ruvnet/ruflo",
+        "statement": "no-root-workfiles",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/ruvnet__ruflo/no-root-workfiles/rule.yaml",
+        "rule_yaml_sha256": "6b0b28c4c33ed33793f17c74bc838401efaf9649c3a6088ab482c9f10899c39d"
+      },
+      {
+        "repo": "ruvnet/ruflo",
+        "statement": "read-before-edit",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/ruvnet__ruflo/read-before-edit/rule.yaml",
+        "rule_yaml_sha256": "b3f08c4a90aa4acc10c4511d551d0812fa0e6297fc3666ee726191d07396a374"
+      },
+      {
+        "repo": "ruvnet/ruflo",
+        "statement": "read-before-edit",
+        "rule_yaml": "/tmp/rq2frozen/docs/corpus-test/ruvnet__ruflo/read-before-edit/rule.yaml",
+        "rule_yaml_sha256": "b3f08c4a90aa4acc10c4511d551d0812fa0e6297fc3666ee726191d07396a374"
+      }
+    ],
+    "fp_rows": "/tmp/fp_rows.json",
+    "fp_rows_sha256": "f37ff9b94201a816ee0daf6ad0dd9d27137aad0023e0f483bb0e719f329348fa",
+    "fp_row_count": 18,
+    "host_git_commit": "95e831ffc036ce6ed126794a976146942cb54420",
+    "python": "3.13.5"
+  },
+  "summary": {
+    "still-fires": 16,
+    "defect-resolved": 1,
+    "no-recorded-event": 1
+  },
+  "port_mismatches": [],
+  "rows": [
+    {
+      "repo": "Alishahryar1/free-claude-code",
+      "statement": "s01_use_uv_run",
+      "trace": "trace_lookalike_compliant.jsonl",
+      "observed_event": "exec /usr/bin/python3",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "**/python",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(python)",
+          "port": "exact(python)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/python3",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(python3)",
+          "port": "exact(python3)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/pytest",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(pytest)",
+          "port": "exact(pytest)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "exact(\"python\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "exact(\"python3\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 2,
+          "lowered_as": "exact(\"pytest\")",
+          "target_match": false,
+          "fires": false
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "exact(\"python\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "exact(\"python3\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 2,
+          "lowered_as": "exact(\"pytest\")",
+          "target_match": false,
+          "fires": false
+        }
+      ]
+    },
+    {
+      "repo": "NVIDIA/NemoClaw",
+      "statement": "s02_no_new_javascript_sources",
+      "trace": "trace_allowed_effect_compliant.jsonl",
+      "observed_event": "write dist/agent-health/agent-health-check.js",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [
+        {
+          "which": "target",
+          "glob": "**/*.js",
+          "op": "write",
+          "historical": "contains(.js)",
+          "current": "suffix(.js)"
+        },
+        {
+          "which": "target",
+          "glob": "**/*.js",
+          "op": "write",
+          "historical": "contains(.js)",
+          "current": "suffix(.js)"
+        }
+      ],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "**/*.js",
+          "op": "write",
+          "unless_glob": "**/dist/**",
+          "unless_negate": false,
+          "blob": "suffix(.js)",
+          "port": "suffix(.js)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/*.js",
+          "op": "write",
+          "unless_glob": "**/dist/**",
+          "unless_negate": false,
+          "blob": "suffix(.js)",
+          "port": "suffix(.js)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "suffix(\".js\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"/dist/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "suffix(\".js\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"/dist/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\".js\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"/dist/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\".js\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"/dist/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "NVIDIA/NemoClaw",
+      "statement": "s02_no_new_javascript_sources",
+      "trace": "trace_lookalike_compliant.jsonl",
+      "observed_event": "write test/fixtures/src-lib-new-command.js.txt",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": false,
+      "lowering_changes": [
+        {
+          "which": "target",
+          "glob": "**/*.js",
+          "op": "write",
+          "historical": "contains(.js)",
+          "current": "suffix(.js)"
+        },
+        {
+          "which": "target",
+          "glob": "**/*.js",
+          "op": "write",
+          "historical": "contains(.js)",
+          "current": "suffix(.js)"
+        }
+      ],
+      "classification": "defect-resolved",
+      "port_check": [
+        {
+          "glob": "**/*.js",
+          "op": "write",
+          "unless_glob": "**/dist/**",
+          "unless_negate": false,
+          "blob": "suffix(.js)",
+          "port": "suffix(.js)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/*.js",
+          "op": "write",
+          "unless_glob": "**/dist/**",
+          "unless_negate": false,
+          "blob": "suffix(.js)",
+          "port": "suffix(.js)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "suffix(\".js\")",
+          "target_match": false,
+          "unless_lowered_as": "contains(\"/dist/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "suffix(\".js\")",
+          "target_match": false,
+          "unless_lowered_as": "contains(\"/dist/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": false
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\".js\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"/dist/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\".js\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"/dist/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "NousResearch/hermes-agent",
+      "statement": "29",
+      "trace": "trace_allowed_effect_compliant.jsonl",
+      "observed_event": "write /tmp/actplane-tool-lf82212g/file_change_tool.py",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [
+        {
+          "which": "target",
+          "glob": "**/*.sh",
+          "op": "write",
+          "historical": "contains(.sh)",
+          "current": "suffix(.sh)"
+        },
+        {
+          "which": "target",
+          "glob": "**/*.py",
+          "op": "write",
+          "historical": "contains(.py)",
+          "current": "suffix(.py)"
+        }
+      ],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "**/*.sh",
+          "op": "write",
+          "unless_glob": "**/scripts/**",
+          "unless_negate": false,
+          "blob": "suffix(.sh)",
+          "port": "suffix(.sh)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/*.py",
+          "op": "write",
+          "unless_glob": "**/scripts/**",
+          "unless_negate": false,
+          "blob": "suffix(.py)",
+          "port": "suffix(.py)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "suffix(\".sh\")",
+          "target_match": false,
+          "unless_lowered_as": "contains(\"/scripts/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "suffix(\".py\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"/scripts/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\".sh\")",
+          "target_match": false,
+          "unless_lowered_as": "contains(\"/scripts/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\".py\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"/scripts/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "NousResearch/hermes-agent",
+      "statement": "29",
+      "trace": "trace_lookalike_compliant.jsonl",
+      "observed_event": "write /tmp/actplane-tool-i_qya5kz/file_change_tool.py",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [
+        {
+          "which": "target",
+          "glob": "**/*.sh",
+          "op": "write",
+          "historical": "contains(.sh)",
+          "current": "suffix(.sh)"
+        },
+        {
+          "which": "target",
+          "glob": "**/*.py",
+          "op": "write",
+          "historical": "contains(.py)",
+          "current": "suffix(.py)"
+        }
+      ],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "**/*.sh",
+          "op": "write",
+          "unless_glob": "**/scripts/**",
+          "unless_negate": false,
+          "blob": "suffix(.sh)",
+          "port": "suffix(.sh)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/*.py",
+          "op": "write",
+          "unless_glob": "**/scripts/**",
+          "unless_negate": false,
+          "blob": "suffix(.py)",
+          "port": "suffix(.py)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "suffix(\".sh\")",
+          "target_match": false,
+          "unless_lowered_as": "contains(\"/scripts/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "suffix(\".py\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"/scripts/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\".sh\")",
+          "target_match": false,
+          "unless_lowered_as": "contains(\"/scripts/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\".py\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"/scripts/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "OpenPipe/ART",
+      "statement": "uv_managed_dependencies",
+      "trace": "trace_allowed_effect_compliant.jsonl",
+      "observed_event": "write pyproject.toml",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "pyproject.toml",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(pyproject.toml)",
+          "port": "contains(pyproject.toml)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "pyproject.toml",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(pyproject.toml)",
+          "port": "contains(pyproject.toml)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "uv.lock",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(uv.lock)",
+          "port": "contains(uv.lock)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "uv.lock",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(uv.lock)",
+          "port": "contains(uv.lock)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "requirements*.txt",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(requirements)",
+          "port": "contains(requirements)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "requirements*.txt",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(requirements)",
+          "port": "contains(requirements)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\"pyproject.toml\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\"pyproject.toml\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 2,
+          "lowered_as": "contains(\"uv.lock\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 3,
+          "lowered_as": "contains(\"uv.lock\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 4,
+          "lowered_as": "contains(\"requirements\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 5,
+          "lowered_as": "contains(\"requirements\")",
+          "target_match": false,
+          "fires": false
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\"pyproject.toml\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\"pyproject.toml\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 2,
+          "lowered_as": "contains(\"uv.lock\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 3,
+          "lowered_as": "contains(\"uv.lock\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 4,
+          "lowered_as": "contains(\"requirements\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 5,
+          "lowered_as": "contains(\"requirements\")",
+          "target_match": false,
+          "fires": false
+        }
+      ]
+    },
+    {
+      "repo": "alibaba/OpenSandbox",
+      "statement": "sdk_generated_output_not_only_fix",
+      "trace": "trace_allowed_effect_compliant.jsonl",
+      "observed_event": "write sdks/sandbox/python/src/opensandbox/api/lifecycle/models/resource_limits.py",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "sdks/sandbox/python/src/opensandbox/api/**",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(opensandbox/api/)",
+          "port": "contains(opensandbox/api/)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "sdks/sandbox/python/src/opensandbox/api/**",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(opensandbox/api/)",
+          "port": "contains(opensandbox/api/)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "sdks/sandbox/javascript/src/api/*.ts",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(src/api/)",
+          "port": "contains(src/api/)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "sdks/sandbox/javascript/src/api/*.ts",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(src/api/)",
+          "port": "contains(src/api/)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "sdks/sandbox/kotlin/sandbox-api/build/generated/**",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(build/generated/)",
+          "port": "contains(build/generated/)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "sdks/sandbox/kotlin/sandbox-api/build/generated/**",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(build/generated/)",
+          "port": "contains(build/generated/)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\"opensandbox/api/\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\"opensandbox/api/\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 2,
+          "lowered_as": "contains(\"src/api/\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 3,
+          "lowered_as": "contains(\"src/api/\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 4,
+          "lowered_as": "contains(\"build/generated/\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 5,
+          "lowered_as": "contains(\"build/generated/\")",
+          "target_match": false,
+          "fires": false
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\"opensandbox/api/\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\"opensandbox/api/\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 2,
+          "lowered_as": "contains(\"src/api/\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 3,
+          "lowered_as": "contains(\"src/api/\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 4,
+          "lowered_as": "contains(\"build/generated/\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 5,
+          "lowered_as": "contains(\"build/generated/\")",
+          "target_match": false,
+          "fires": false
+        }
+      ]
+    },
+    {
+      "repo": "code-yeongyu/oh-my-openagent",
+      "statement": "platform-binaries-generated",
+      "trace": "trace_allowed_effect_compliant.jsonl",
+      "observed_event": "write tmp/build-binaries-fixture/packages/oh-my-opencode-linux-x64/bin/oh-my-opencode",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "packages/oh-my-opencode-*/bin/**",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(oh-my-opencode-)",
+          "port": "contains(oh-my-opencode-)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "packages/oh-my-opencode-*/bin/**",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(oh-my-opencode-)",
+          "port": "contains(oh-my-opencode-)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\"oh-my-opencode-\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\"oh-my-opencode-\")",
+          "target_match": true,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\"oh-my-opencode-\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\"oh-my-opencode-\")",
+          "target_match": true,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "czlonkowski/n8n-mcp",
+      "statement": "41",
+      "trace": "trace_lookalike_compliant.jsonl",
+      "observed_event": "write /dev/null",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "**",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "any()",
+          "port": "any()",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "czlonkowski/n8n-mcp",
+      "statement": "no_committed_sensitive_test_env",
+      "trace": "trace_allowed_effect_compliant.jsonl",
+      "observed_event": "write .env.test.local",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": ".env.test",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(.env.test)",
+          "port": "contains(.env.test)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": ".env.test",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(.env.test)",
+          "port": "contains(.env.test)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/git",
+          "op": "exec",
+          "unless_glob": ".env.test",
+          "unless_negate": true,
+          "blob": "exact(git)",
+          "port": "exact(git)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/git",
+          "op": "exec",
+          "unless_glob": ".env.test",
+          "unless_negate": true,
+          "blob": "exact(git)",
+          "port": "exact(git)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\".env.test\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\".env.test\")",
+          "target_match": true,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\".env.test\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\".env.test\")",
+          "target_match": true,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "openai/openai-agents-python",
+      "statement": "repo-python-through-uv",
+      "trace": "trace_allowed_effect_compliant.jsonl",
+      "observed_event": "",
+      "historical_lowering_fires": null,
+      "current_lowering_fires": null,
+      "lowering_changes": [],
+      "classification": "no-recorded-event",
+      "port_check": [
+        {
+          "glob": "**/python",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(python)",
+          "port": "exact(python)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/python3",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(python3)",
+          "port": "exact(python3)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/pytest",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(pytest)",
+          "port": "exact(pytest)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/ruff",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(ruff)",
+          "port": "exact(ruff)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/mypy",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(mypy)",
+          "port": "exact(mypy)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/pyright",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(pyright)",
+          "port": "exact(pyright)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/coverage",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(coverage)",
+          "port": "exact(coverage)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [],
+      "historical_detail": []
+    },
+    {
+      "repo": "openai/openai-agents-python",
+      "statement": "repo-python-through-uv",
+      "trace": "trace_lookalike_compliant.jsonl",
+      "observed_event": "exec /usr/bin/python3",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "**/python",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(python)",
+          "port": "exact(python)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/python3",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(python3)",
+          "port": "exact(python3)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/pytest",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(pytest)",
+          "port": "exact(pytest)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/ruff",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(ruff)",
+          "port": "exact(ruff)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/mypy",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(mypy)",
+          "port": "exact(mypy)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/pyright",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(pyright)",
+          "port": "exact(pyright)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/coverage",
+          "op": "exec",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "exact(coverage)",
+          "port": "exact(coverage)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "exact(\"python\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "exact(\"python3\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 2,
+          "lowered_as": "exact(\"pytest\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 3,
+          "lowered_as": "exact(\"ruff\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 4,
+          "lowered_as": "exact(\"mypy\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 5,
+          "lowered_as": "exact(\"pyright\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 6,
+          "lowered_as": "exact(\"coverage\")",
+          "target_match": false,
+          "fires": false
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "exact(\"python\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "exact(\"python3\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 2,
+          "lowered_as": "exact(\"pytest\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 3,
+          "lowered_as": "exact(\"ruff\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 4,
+          "lowered_as": "exact(\"mypy\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 5,
+          "lowered_as": "exact(\"pyright\")",
+          "target_match": false,
+          "fires": false
+        },
+        {
+          "rule_index": 6,
+          "lowered_as": "exact(\"coverage\")",
+          "target_match": false,
+          "fires": false
+        }
+      ]
+    },
+    {
+      "repo": "openclaw/openclaw",
+      "statement": "release-changelog-protection",
+      "trace": "trace_allowed_effect_compliant.jsonl",
+      "observed_event": "write CHANGELOG.md",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "CHANGELOG.md",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(CHANGELOG.md)",
+          "port": "contains(CHANGELOG.md)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "CHANGELOG.md",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "contains(CHANGELOG.md)",
+          "port": "contains(CHANGELOG.md)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\"CHANGELOG.md\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\"CHANGELOG.md\")",
+          "target_match": true,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "contains(\"CHANGELOG.md\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "contains(\"CHANGELOG.md\")",
+          "target_match": true,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "ruvnet/ruflo",
+      "statement": "29",
+      "trace": "trace_lookalike_compliant.jsonl",
+      "observed_event": "write /dev/null",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "/*",
+          "op": "write",
+          "unless_glob": "/src/**",
+          "unless_negate": false,
+          "blob": "prefix(/)",
+          "port": "prefix(/)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "/*",
+          "op": "write",
+          "unless_glob": "/tests/**",
+          "unless_negate": false,
+          "blob": "prefix(/)",
+          "port": "prefix(/)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "/*",
+          "op": "write",
+          "unless_glob": "/docs/**",
+          "unless_negate": false,
+          "blob": "prefix(/)",
+          "port": "prefix(/)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "/*",
+          "op": "write",
+          "unless_glob": "/config/**",
+          "unless_negate": false,
+          "blob": "prefix(/)",
+          "port": "prefix(/)",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "/*",
+          "op": "write",
+          "unless_glob": "/scripts/**",
+          "unless_negate": false,
+          "blob": "prefix(/)",
+          "port": "prefix(/)",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "prefix(\"/\")",
+          "target_match": true,
+          "unless_lowered_as": "prefix(\"/src/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "prefix(\"/\")",
+          "target_match": true,
+          "unless_lowered_as": "prefix(\"/tests/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 2,
+          "lowered_as": "prefix(\"/\")",
+          "target_match": true,
+          "unless_lowered_as": "prefix(\"/docs/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 3,
+          "lowered_as": "prefix(\"/\")",
+          "target_match": true,
+          "unless_lowered_as": "prefix(\"/config/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 4,
+          "lowered_as": "prefix(\"/\")",
+          "target_match": true,
+          "unless_lowered_as": "prefix(\"/scripts/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "prefix(\"/\")",
+          "target_match": true,
+          "unless_lowered_as": "prefix(\"/src/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "prefix(\"/\")",
+          "target_match": true,
+          "unless_lowered_as": "prefix(\"/tests/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 2,
+          "lowered_as": "prefix(\"/\")",
+          "target_match": true,
+          "unless_lowered_as": "prefix(\"/docs/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 3,
+          "lowered_as": "prefix(\"/\")",
+          "target_match": true,
+          "unless_lowered_as": "prefix(\"/config/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 4,
+          "lowered_as": "prefix(\"/\")",
+          "target_match": true,
+          "unless_lowered_as": "prefix(\"/scripts/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "ruvnet/ruflo",
+      "statement": "no-root-workfiles",
+      "trace": "trace_allowed_effect_compliant.jsonl",
+      "observed_event": "write /dev/null",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "*",
+          "op": "write",
+          "unless_glob": "docs/**",
+          "unless_negate": false,
+          "blob": "any()",
+          "port": "any()",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "*",
+          "op": "write",
+          "unless_glob": "docs/**",
+          "unless_negate": false,
+          "blob": "any()",
+          "port": "any()",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"docs/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"docs/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"docs/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"docs/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "ruvnet/ruflo",
+      "statement": "no-root-workfiles",
+      "trace": "trace_lookalike_compliant.jsonl",
+      "observed_event": "write /dev/null",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "*",
+          "op": "write",
+          "unless_glob": "docs/**",
+          "unless_negate": false,
+          "blob": "any()",
+          "port": "any()",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "*",
+          "op": "write",
+          "unless_glob": "docs/**",
+          "unless_negate": false,
+          "blob": "any()",
+          "port": "any()",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"docs/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"docs/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"docs/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "unless_lowered_as": "contains(\"docs/\")",
+          "unless_negate": false,
+          "unless_match": false,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "ruvnet/ruflo",
+      "statement": "read-before-edit",
+      "trace": "trace_allowed_effect_compliant.jsonl",
+      "observed_event": "write /dev/null",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "**/*",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "any()",
+          "port": "any()",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/*",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "any()",
+          "port": "any()",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "fires": true
+        }
+      ]
+    },
+    {
+      "repo": "ruvnet/ruflo",
+      "statement": "read-before-edit",
+      "trace": "trace_lookalike_compliant.jsonl",
+      "observed_event": "write /dev/null",
+      "historical_lowering_fires": true,
+      "current_lowering_fires": true,
+      "lowering_changes": [],
+      "classification": "still-fires",
+      "port_check": [
+        {
+          "glob": "**/*",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "any()",
+          "port": "any()",
+          "port_matches_blob": true
+        },
+        {
+          "glob": "**/*",
+          "op": "write",
+          "unless_glob": null,
+          "unless_negate": null,
+          "blob": "any()",
+          "port": "any()",
+          "port_matches_blob": true
+        }
+      ],
+      "current_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "fires": true
+        }
+      ],
+      "historical_detail": [
+        {
+          "rule_index": 0,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "fires": true
+        },
+        {
+          "rule_index": 1,
+          "lowered_as": "any(\"\")",
+          "target_match": true,
+          "fires": true
+        }
+      ]
+    }
+  ]
+}

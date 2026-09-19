@@ -102,11 +102,44 @@ Or via cargo:
 ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine
 ```
 
+The committed object is what production loads: `ebpf-ifc-engine` embeds
+`prebuilt/process.bpf.o` with `include_bytes!`, so it must be regenerated (and
+committed) whenever the kernel C under `bpf/` changes. If it is not, the shipped
+engine silently runs code that lacks the current source, which is a correctness
+gap rather than a cosmetic mismatch: commit `8298d23a` added
+`te_record_file_prov_mask` to `taint_engine.bpf.h` without regenerating the
+object, so `master` shipped an engine missing that fix (and one whose
+`trace_rename_exit` fails the Linux 6.8 verifier where a fresh build loads). CI
+enforces `script/check_prebuilt_fresh.sh`, which applies two checks because no
+single portable one covers both failure modes. First, it compares a
+source-provenance digest (`prebuilt/source.sha256`, over the kernel C and the
+`Makefile` whose flags determine codegen) against the current tree, so any edit
+there, even one that only changes a function body or a compile flag, fails until
+the objects and the stamp are regenerated together. Second, it rebuilds both
+objects and requires the committed object to define every `__noinline` function
+the source defines, which names the specific missing function when an object
+predates a newly added one.
+Both checks are source-derived rather than byte-based, so they do not depend on
+the exact clang/LLVM version (nor on whether that compiler emits `LBB0_*`
+basic-block labels as local symbols).
+
+Because the objects are binary and every branch that touches the kernel C
+regenerates them from its own base, two such branches always conflict in
+`bpf/prebuilt/*.bpf.o`. Resolve by rebuilding from the merged source (`make -C
+bpf` then copy `.output/*.bpf.o` over `prebuilt/`, or `ACTPLANE_REBUILD_BPF=1
+cargo build -p ebpf-ifc-engine`, which also refreshes the stamp); do not pick a
+side of the binary conflict.
+
 ## Binary config format
 
 The compiler writes a fixed-size `taint_config` blob. The struct layout is
-defined in `taint.h` and mirrored byte-for-byte in Rust (`lower.rs`). It
-contains:
+defined in `taint.h` and mirrored byte-for-byte in Rust (`lower.rs`). Because the
+blob is read straight into BPF rodata, both sides assert the exact field offsets,
+not just the total size: `bpf/test_taint.c`'s `test_abi_layout` checks the C
+layout and `abi_layout_matches_the_c_header` in `lower.rs` checks the Rust mirror
+against the same numbers. A same-width field reorder passes a total-size check
+while reinterpreting every field, so both layouts must be updated together when
+either changes. The blob contains:
 
 - `n_updates` plus up to 320 `taint_update` entries. Updates cover sources,
   declassify/endorse transforms, temporal gates, and `since` invalidators.

@@ -1981,6 +1981,25 @@ fn clause_condition_warnings(
             }),
         }
     }
+    // A repo-relative `unless target` over a `**/<name>` or `**/<dir>/**`
+    // pattern cannot express the primary+companion disjunction in the engine's
+    // single cond_kind/cond_pat pair. The condition therefore misses the
+    // bare/first-segment-relative form, so a negated exception over-fires the
+    // rule there (the mirror of the target-side companion). Warn so the
+    // approximation is discoverable rather than silent.
+    if !matches!(clause.op, Op::Connect | Op::Recv)
+        && let Some(Cond::Target { negate, pattern }) = &clause.unless
+        && dsl::repo_relative_condition_is_partial(pattern)
+    {
+        warnings.push(ClauseConditionWarning {
+            code: "repo_relative_target_condition_partial",
+            message: format!(
+                "unless target{} \"{}\" is a repo-relative `**/<name>` or `**/<dir>/**` pattern; the condition stores one matcher, so it does not cover the bare/first-segment-relative form the target matcher does. The exception therefore over-fires on that form (a relative path is not excluded as intended). Use an absolute pattern, or split the exception into an explicit form.",
+                if *negate { " not" } else { "" },
+                pattern
+            ),
+        });
+    }
     warnings
 }
 
@@ -1990,6 +2009,16 @@ fn backend_support_warnings(
     lsm_bpf: bool,
 ) -> Vec<BackendWarning> {
     let mut warnings = Vec::new();
+    // The compiler reports every pattern-lowering warning it found: a literal
+    // truncated to fit the kernel buffer, one lowered to an empty literal the
+    // matcher rejects, or one past the matcher's length bound. Each message names
+    // the literal and why the compiled rule differs from what the policy wrote.
+    for warning in &compiled.pattern_warnings {
+        warnings.push(BackendWarning {
+            code: warning.code,
+            message: warning.message.clone(),
+        });
+    }
     for source in &policy.sources {
         if source.kind == Kind::Endpoint && !endpoint_pattern_supported(compiled, &source.pattern) {
             let (_, reason, _) = endpoint_support_detail(compiled, &source.pattern, "source");

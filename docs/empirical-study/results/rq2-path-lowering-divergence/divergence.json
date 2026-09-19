@@ -1,0 +1,120 @@
+{
+  "corpus": "/tmp/rq2frozen/docs/corpus-test",
+  "note": "Static lowering comparison over frozen rule patterns. A divergence means the current compiler matches a probe path differently from the historical one; it is not a statement about any frozen run's actual matched path.",
+  "findings": [
+    {
+      "rule": "NVIDIA__NemoClaw/19/rule.yaml",
+      "pattern": "**/src/lib/**",
+      "historical": "contains(/src/lib/)",
+      "current": "contains(/src/lib/)+prefix(src/lib/)",
+      "directions": [
+        "expansion"
+      ],
+      "divergences": [
+        {
+          "form": "first_segment_relative",
+          "path": "src/lib/x.js",
+          "historical_fires": false,
+          "current_fires": true,
+          "direction": "expansion"
+        }
+      ]
+    },
+    {
+      "rule": "NousResearch__hermes-agent/s02_keep_credentials_out_of_repo/rule.yaml",
+      "pattern": "**/config/**",
+      "historical": "contains(/config/)",
+      "current": "contains(/config/)+prefix(config/)",
+      "directions": [
+        "expansion"
+      ],
+      "divergences": [
+        {
+          "form": "first_segment_relative",
+          "path": "config/x.js",
+          "historical_fires": false,
+          "current_fires": true,
+          "direction": "expansion"
+        }
+      ]
+    },
+    {
+      "rule": "alibaba__OpenSandbox/7/rule.yaml",
+      "pattern": "**/sdks/**",
+      "historical": "contains(/sdks/)",
+      "current": "contains(/sdks/)+prefix(sdks/)",
+      "directions": [
+        "expansion"
+      ],
+      "divergences": [
+        {
+          "form": "first_segment_relative",
+          "path": "sdks/x.js",
+          "historical_fires": false,
+          "current_fires": true,
+          "direction": "expansion"
+        }
+      ]
+    },
+    {
+      "rule": "alibaba__OpenSandbox/7/rule.yaml",
+      "pattern": "**/server/**",
+      "historical": "contains(/server/)",
+      "current": "contains(/server/)+prefix(server/)",
+      "directions": [
+        "expansion"
+      ],
+      "divergences": [
+        {
+          "form": "first_segment_relative",
+          "path": "server/x.js",
+          "historical_fires": false,
+          "current_fires": true,
+          "direction": "expansion"
+        }
+      ]
+    },
+    {
+      "rule": "rohitg00__agentmemory/6/rule.yaml",
+      "pattern": "**/src/functions/**",
+      "historical": "contains(/src/functions/)",
+      "current": "contains(/src/functions/)+prefix(src/functions/)",
+      "directions": [
+        "expansion"
+      ],
+      "divergences": [
+        {
+          "form": "first_segment_relative",
+          "path": "src/functions/x.js",
+          "historical_fires": false,
+          "current_fires": true,
+          "direction": "expansion"
+        }
+      ]
+    }
+  ],
+  "condition_findings": [
+    {
+      "rule": "NVIDIA__NemoClaw/s02_no_new_javascript_sources/rule.yaml",
+      "pattern": "**/dist/**",
+      "current": "contains(/dist/)",
+      "over_fires_on": [
+        {
+          "form": "first_segment_relative",
+          "path": "dist/x.js"
+        }
+      ]
+    },
+    {
+      "rule": "NousResearch__hermes-agent/29/rule.yaml",
+      "pattern": "**/scripts/**",
+      "current": "contains(/scripts/)",
+      "over_fires_on": [
+        {
+          "form": "first_segment_relative",
+          "path": "scripts/x.js"
+        }
+      ]
+    }
+  ]
+}

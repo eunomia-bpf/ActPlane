@@ -9,7 +9,10 @@ pub mod parse;
 
 use std::collections::HashMap;
 
-pub use lower::{Compiled, RuleMeta, RuleSourceMeta, compile};
+pub use lower::{
+    Compiled, PATTERN_EMPTY_LITERAL, PATTERN_MATCHER_LENGTH, PATTERN_TRUNCATED, PatternWarning,
+    RuleMeta, RuleSourceMeta, compile, repo_relative_condition_is_partial,
+};
 
 /// Parse + compile DSL source text to a kernel config blob + reason table.
 pub fn compile_str(src: &str) -> Result<Compiled, String> {
@@ -614,6 +617,101 @@ rule secret:
             }
         }
         assert!(checked >= 1, "expected domain policies in corpus");
+    }
+
+    /// Codes present in a compiled policy's pattern warnings.
+    fn warning_codes(c: &Compiled) -> Vec<&'static str> {
+        c.pattern_warnings.iter().map(|w| w.code).collect()
+    }
+
+    #[test]
+    fn long_pattern_literal_is_reported_as_truncated() {
+        // Kernel pattern fields hold 63 usable bytes, so a longer literal is
+        // stored as a prefix. For an exact absolute path that means the rule can
+        // never match the intended target, so the compiler must report it rather
+        // than silently compiling a different rule.
+        let long = "/var/lib/some/deeply/nested/directory/structure/that/is/very/long/target.txt";
+        assert!(long.len() > 63);
+        let compiled = ok(&format!(
+            "rule r:\n  block write file \"{long}\" if A\n  because \"x\"\n"
+        ));
+        assert_eq!(
+            warning_codes(&compiled),
+            vec![lower::PATTERN_TRUNCATED],
+            "one truncation expected: {:?}",
+            compiled.pattern_warnings
+        );
+        assert!(
+            compiled.pattern_warnings[0].message.contains(long),
+            "message should name the literal: {}",
+            compiled.pattern_warnings[0].message
+        );
+
+        // A literal that fits is stored whole and reported not at all.
+        let short = ok("rule r:\n  block write file \"/tmp/short.txt\" if A\n  because \"x\"\n");
+        assert!(
+            short.pattern_warnings.is_empty(),
+            "short literal must not be reported: {:?}",
+            short.pattern_warnings
+        );
+    }
+
+    #[test]
+    fn over_bound_suffix_literal_is_reported() {
+        // `taint_suffix` rejects any literal longer than TAINT_SUF_MAX (16), so a
+        // `**/<long name>` pattern lowers to a literal the matcher can never
+        // accept, i.e. a rule that never fires. That must be reported, and it is
+        // a distinct failure from truncation.
+        let compiled = ok(
+            "rule r:\n  block write file \"**/*config.production.json\" if A\n  because \"x\"\n",
+        );
+        assert_eq!(
+            warning_codes(&compiled),
+            vec![lower::PATTERN_MATCHER_LENGTH],
+            "one over-bound literal expected: {:?}",
+            compiled.pattern_warnings
+        );
+        assert!(
+            compiled.pattern_warnings[0]
+                .message
+                .contains("config.production.json"),
+            "message should name the literal: {}",
+            compiled.pattern_warnings[0].message
+        );
+
+        // A basename within the bound lowers to a usable suffix literal.
+        let short = ok("rule r:\n  notify write file \"**/.env\" if A\n  because \"x\"\n");
+        assert!(
+            short.pattern_warnings.is_empty(),
+            "in-bound suffix must not be reported: {:?}",
+            short.pattern_warnings
+        );
+    }
+
+    #[test]
+    fn empty_literal_pattern_is_reported() {
+        // `taint_streq` and `taint_prefix` both reject an empty pattern, so a
+        // pattern that lowers to an empty literal can never fire: `exec "src/*"`
+        // and `exec "foo/"` both do. `*` is not affected, since ANY always
+        // matches and is meant to carry an empty literal.
+        for policy in [
+            "rule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n",
+            "rule r:\n  kill exec \"foo/\" if A\n  because \"x\"\n",
+        ] {
+            let compiled = ok(policy);
+            assert_eq!(
+                warning_codes(&compiled),
+                vec![lower::PATTERN_EMPTY_LITERAL],
+                "{policy:?} should report one empty literal: {:?}",
+                compiled.pattern_warnings
+            );
+        }
+        let any = ok("rule r:\n  kill exec \"*\" if A\n  because \"x\"\n");
+        assert!(
+            any.pattern_warnings.is_empty(),
+            "ANY is exempt: {:?}",
+            any.pattern_warnings
+        );
     }
 
     #[test]

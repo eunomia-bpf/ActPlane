@@ -87,11 +87,85 @@ struct CConfig {
     rules: [CRule; MAX_RULES],
 }
 
+/// Copy `s` into a fixed kernel pattern buffer, truncating to `dst.len() - 1`.
+///
+/// Truncation is silent to the kernel: the stored literal is a prefix of the
+/// intended one, so a rule meant to match a long path or comm instead matches
+/// that prefix (an `EXACT` literal then never matches the intended target, and a
+/// `PREFIX`/`SUFFIX` literal matches a broader set). Callers that want the
+/// mismatch reported use [`set_pat_reported`], which records it in
+/// `Compiled::pattern_warnings` for the CLI to surface.
 fn set_pat(dst: &mut [u8], s: &str) {
     let b = s.as_bytes();
     let n = b.len().min(dst.len() - 1);
     dst[..n].copy_from_slice(&b[..n]);
     dst[n] = 0;
+}
+
+/// [`set_pat`] plus, when the literal did not fit, a warning naming what was
+/// truncated and the effective limit. The message is built here because this
+/// module owns the buffer sizes.
+fn set_pat_reported(dst: &mut [u8], s: &str, what: &str, out: &mut Vec<PatternWarning>) {
+    if !s.is_empty() && s.len() > dst.len() - 1 {
+        out.push(PatternWarning {
+            code: PATTERN_TRUNCATED,
+            message: format!(
+                "{what} \"{s}\" is longer than the kernel pattern buffer ({} bytes) and was truncated to a prefix; the compiled rule matches that prefix, not the intended target. Shorten it, or use a wildcard form that lowers to a shorter literal.",
+                dst.len() - 1
+            ),
+        });
+    }
+    set_pat(dst, s);
+}
+
+/// Report a literal that the kernel matcher cannot use, for a pattern that
+/// therefore never matches. Two independent ways that happens:
+///
+/// * An empty literal for a non-`ANY` kind. `taint_streq` and `taint_prefix`
+///   both return 0 for an empty pattern (exact: the text would have to be empty;
+///   prefix: `anynz` stays 0, and the comment on `taint_prefix` states an empty
+///   prefix never matches). A pattern such as `exec "src/*"` or `exec "foo/"`
+///   lowers to an empty literal, so the rule never fires. `ANY` is exempt by
+///   construction: its literal is meant to be empty and it always matches.
+/// * A `SUFFIX`/`CONTAINS` literal past `TAINT_SUF_MAX`. Both matchers return 0
+///   when the pattern is longer than their fixed 16-byte tail/window copy, so
+fn check_matcher_literal_bound(kind: u8, lit: &str, what: &str, out: &mut Vec<PatternWarning>) {
+    if kind == M_ANY {
+        return;
+    }
+    if lit.is_empty() {
+        out.push(PatternWarning {
+            code: PATTERN_EMPTY_LITERAL,
+            message: format!(
+                "{what} \"\" lowers to an empty {} literal, and the kernel matcher rejects an empty pattern, so this can never match. Use a concrete name, or `*` / `**/*` to match anything.",
+                match_kind_name(kind)
+            ),
+        });
+        return;
+    }
+    if matches!(kind, M_SUFFIX | M_CONTAINS) && lit.len() > MAX_CONTAINS_LITERAL {
+        out.push(PatternWarning {
+            code: PATTERN_MATCHER_LENGTH,
+            message: format!(
+                "{what} \"{lit}\" lowers to a {}-byte {} literal, but the kernel matcher rejects any literal longer than {} bytes, so the pattern can never match. Use a shorter basename pattern, or an absolute pattern with a wildcard.",
+                lit.len(),
+                match_kind_name(kind),
+                MAX_CONTAINS_LITERAL
+            ),
+        });
+    }
+}
+
+/// Human-readable name of a kernel match kind, for warnings.
+fn match_kind_name(kind: u8) -> &'static str {
+    match kind {
+        M_EXACT => "exact",
+        M_PREFIX => "prefix",
+        M_SUFFIX => "suffix",
+        M_ANY => "any",
+        M_CONTAINS => "contains",
+        _ => "unknown",
+    }
 }
 
 /// (match, literal) lowering for exec-side patterns (matched on comm).
@@ -143,6 +217,67 @@ fn shorten_repo_relative_exact_literal(path: &str) -> String {
         return shorten_contains_literal(&format!("{}/", parent));
     }
     shorten_contains_literal(path)
+}
+
+/// The bare root-level companion for a repo-relative `**/<name>` pattern (a
+/// globstar, a slash, and a wildcard-free basename). The `suffix("/<name>")`
+/// form requires a leading slash, so it misses a top-level file addressed from
+/// the repository root (`write .env`); pairing it with an `exact("<name>")`
+/// covers that case without over-matching (`foo.env` is not a match). Emitting
+/// an extra table entry is verifier-free because the update and rule scans run
+/// in `bpf_loop` callbacks (verified once), unlike a new matcher kind or an edit
+/// inside an inlined matcher, either of which pushed the file-event hooks over
+/// the 1,000,000-instruction limit on the CI kernel.
+fn lower_path_bare(pat: &str) -> Option<String> {
+    let inner = pat.strip_prefix("**/")?;
+    (!inner.is_empty() && !inner.contains('*')).then(|| inner.to_string())
+}
+
+/// The first-segment-relative companion for a repo-relative `**/<dir>/**` or
+/// `**/<dir>/*` pattern. The primary lowering is `contains("/<dir>/")`, whose
+/// literal needs a slash before the directory, so it misses a path that begins
+/// at the pattern's directory (`dist/x.js`). The `prefix("<dir>/")` form covers
+/// exactly that case: a leading segment equal to the directory. Like the
+/// bare-name companion below, this is an existing match kind and adds only a
+/// table entry, so the file-event hooks are unaffected.
+fn lower_path_relative_prefix(pat: &str) -> Option<String> {
+    let dir = pat
+        .strip_prefix("**/")
+        .and_then(|r| r.strip_suffix("/**").or_else(|| r.strip_suffix("/*")))?;
+    (!dir.is_empty() && !dir.contains('*')).then(|| format!("{dir}/"))
+}
+
+/// All repo-relative companion matchers for a path pattern, in the order they
+/// should follow the primary lowering. A repo-relative pattern's primary form
+/// assumes an absolute runtime path, which does not hold in tracepoint mode
+/// where the kernel matches the userspace path argument verbatim. Emitting the
+/// extra table entries is verifier-free because the update and rule scans run
+/// in `bpf_loop` callbacks (verified once), unlike a new matcher kind or an
+/// edit inside an inlined matcher.
+fn lower_path_companions(pat: &str) -> Vec<(u8, String)> {
+    let mut out = Vec::new();
+    if let Some(bare) = lower_path_bare(pat) {
+        out.push((M_EXACT, bare));
+    }
+    if let Some(prefix) = lower_path_relative_prefix(pat) {
+        out.push((M_PREFIX, prefix));
+    }
+    out
+}
+
+/// True when a repo-relative path pattern's primary matcher misses a form that
+/// the kernel's single `cond_kind`/`cond_pat` pair cannot also cover: a
+/// `**/<name>` basename (bare root-level file) or a `**/<dir>/**` / `**/<dir>/*`
+/// directory (first-segment-relative path). A rule *target* covers both forms by
+/// emitting a companion table entry, but an `unless target` **condition** has
+/// only one cond slot, so the exception cannot express the disjunction and
+/// mis-matches on the uncovered form (a negated condition over-fires there).
+///
+/// Callers use this to warn that the exception is approximate; the engine is not
+/// changed. Absolute patterns and pure wildcard forms have no companion and
+/// return `false`.
+pub fn repo_relative_condition_is_partial(pattern: &str) -> bool {
+    !pattern.starts_with('/') && !lower_path_companions(pattern).is_empty()
 }
 
 /// (match, literal) lowering for path patterns.
@@ -246,6 +381,7 @@ mod tests {
             lower_path("packages/oh-my-opencode-*/bin/**"),
             (M_CONTAINS, "oh-my-opencode-".into())
         );
+
         assert_eq!(
             lower_path("src/browser_harness/**"),
             (M_CONTAINS, "browser_harness/".into())
@@ -272,12 +408,259 @@ mod tests {
     }
 
     #[test]
+    fn globstar_basename_gets_a_bare_exact_companion() {
+        // `**/<name>` lowers to suffix("/<name>"), which needs a leading slash;
+        // the bare root-level form is covered by a companion exact matcher.
+        assert_eq!(lower_path_bare("**/sec.env"), Some("sec.env".into()));
+        assert_eq!(lower_path_bare("**/.env"), Some(".env".into()));
+        assert_eq!(
+            lower_path_bare("**/specs/AGENTS.md"),
+            Some("specs/AGENTS.md".into())
+        );
+        // The wildcard form and absolute/relative non-globstar patterns have no
+        // bare companion (they are already suffix/prefix/contains, not "/name").
+        assert_eq!(lower_path_bare("**/*.js"), None);
+        assert_eq!(lower_path_bare("/tmp/x/**"), None);
+        assert_eq!(lower_path_bare("src/**"), None);
+        assert_eq!(lower_path_bare("**/"), None);
+    }
+
+    #[test]
+    fn globstar_basename_source_emits_suffix_and_exact_updates() {
+        let pol =
+            crate::dsl::parse::parse(r#"source SECRET = file "**/.env""#).expect("parse source");
+        let compiled = compile(&pol).expect("compile source");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let updates = &cfg.updates[..cfg.n_updates as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let pairs: Vec<(u8, u8, String)> = updates
+            .iter()
+            .map(|u| (u.op, u.m, txt(&u.target)))
+            .collect();
+        assert_eq!(
+            pairs,
+            vec![
+                (OP_OPEN, M_SUFFIX, "/.env".to_string()),
+                (OP_OPEN, M_EXACT, ".env".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn globstar_basename_sink_emits_suffix_and_exact_rules() {
+        let pol = crate::dsl::parse::parse(
+            r#"rule r:
+                 notify write file "**/.env"
+                 because "bare-relative dotfile guard"
+               "#,
+        )
+        .expect("parse rule");
+        let compiled = compile(&pol).expect("compile rule");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let rules = &cfg.rules[..cfg.n_rules as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let targets: Vec<(u8, String)> = rules.iter().map(|r| (r.m, txt(&r.target))).collect();
+        assert_eq!(
+            targets,
+            vec![
+                (M_SUFFIX, "/.env".to_string()),
+                (M_EXACT, ".env".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn globstar_dir_gets_a_relative_prefix_companion() {
+        // `**/<dir>/**` and `**/<dir>/*` lower to contains("/<dir>/"), whose
+        // literal needs a slash before the directory and so misses a path that
+        // starts at the directory; the prefix("<dir>/") form covers it.
+        assert_eq!(
+            lower_path_relative_prefix("**/dist/**"),
+            Some("dist/".into())
+        );
+        assert_eq!(
+            lower_path_relative_prefix("**/src/lib/**"),
+            Some("src/lib/".into())
+        );
+        assert_eq!(
+            lower_path_relative_prefix("**/middle/*"),
+            Some("middle/".into())
+        );
+        // Wildcard directories, the `**/<name>` basename form, and absolute
+        // patterns have no first-segment companion.
+        assert_eq!(lower_path_relative_prefix("**/*.js"), None);
+        assert_eq!(lower_path_relative_prefix("**/sec.env"), None);
+        assert_eq!(lower_path_relative_prefix("/tmp/x/**"), None);
+        assert_eq!(lower_path_relative_prefix("src/**"), None);
+    }
+
+    #[test]
+    fn globstar_dir_source_emits_contains_and_prefix_updates() {
+        let pol =
+            crate::dsl::parse::parse(r#"source CLI = file "**/src/lib/**""#).expect("parse source");
+        let compiled = compile(&pol).expect("compile source");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let updates = &cfg.updates[..cfg.n_updates as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let pairs: Vec<(u8, u8, String)> = updates
+            .iter()
+            .map(|u| (u.op, u.m, txt(&u.target)))
+            .collect();
+        assert_eq!(
+            pairs,
+            vec![
+                (OP_OPEN, M_CONTAINS, "/src/lib/".to_string()),
+                (OP_OPEN, M_PREFIX, "src/lib/".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn globstar_dir_sink_emits_contains_and_prefix_rules() {
+        let pol = crate::dsl::parse::parse(
+            r#"rule r:
+                 notify write file "**/dist/**"
+                 because "first-segment-relative sink guard"
+               "#,
+        )
+        .expect("parse rule");
+        let compiled = compile(&pol).expect("compile rule");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let rules = &cfg.rules[..cfg.n_rules as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let targets: Vec<(u8, String)> = rules.iter().map(|r| (r.m, txt(&r.target))).collect();
+        assert_eq!(
+            targets,
+            vec![
+                (M_CONTAINS, "/dist/".to_string()),
+                (M_PREFIX, "dist/".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn globstar_dir_exception_stays_single_condition() {
+        // The `unless target` exception uses one cond_kind/cond_pat pair, which
+        // cannot hold a disjunction; the sink target gains a companion but the
+        // exception does not, so it keeps the absolute/nested form only.
+        let pol = crate::dsl::parse::parse(
+            r#"rule r:
+                 notify write file "**/*.js" if AGENT unless target "**/dist/**"
+                 because "js outside dist"
+               "#,
+        )
+        .expect("parse rule");
+        let compiled = compile(&pol).expect("compile rule");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let rules = &cfg.rules[..cfg.n_rules as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let conds: Vec<(u8, u8, String)> = rules
+            .iter()
+            .map(|r| (r.cond_kind, r.cond_match, txt(&r.cond_pat)))
+            .collect();
+        assert_eq!(conds, vec![(C_TARGET, M_CONTAINS, "/dist/".to_string())]);
+    }
+
+    #[test]
+    fn repo_relative_condition_is_partial_matches_companion_forms() {
+        // Repo-relative basename and directory patterns carry a companion that a
+        // single condition slot cannot express, so an `unless target` over them
+        // is approximate.
+        assert!(repo_relative_condition_is_partial("**/.env"));
+        assert!(repo_relative_condition_is_partial("**/sec.env"));
+        assert!(repo_relative_condition_is_partial("**/dist/**"));
+        assert!(repo_relative_condition_is_partial("**/src/lib/**"));
+        assert!(repo_relative_condition_is_partial("**/middle/*"));
+        // Absolute patterns and pure wildcard forms have no companion.
+        assert!(!repo_relative_condition_is_partial("/work/dist/**"));
+        assert!(!repo_relative_condition_is_partial("**/*.js"));
+        assert!(!repo_relative_condition_is_partial("/tmp/guarded/f.txt"));
+        assert!(!repo_relative_condition_is_partial("src/**"));
+    }
+
+    #[test]
     fn exec_wildcard_patterns_match_any_comm() {
         assert_eq!(lower_exec("*"), (M_ANY, String::new()));
         assert_eq!(lower_exec("**"), (M_ANY, String::new()));
         assert_eq!(lower_exec("**/*"), (M_ANY, String::new()));
     }
 
+    #[test]
+    fn globstar_dir_gate_and_since_emit_companion_updates_with_shared_bits() {
+        // A `**/dir/**` pattern in an `after` gate or a `since` invalidator goes
+        // through the same lowering, so it must emit the same companion entry
+        // and share one bit across both forms (one condition/invalidator).
+        let pol = crate::dsl::parse::parse(
+            r#"rule r:
+                 notify exec "git" "commit" if AGENT unless after read "**/src/lib/**" since write "**/dist/**"
+                 because "gate and invalidator over repo-relative dirs"
+               "#,
+        )
+        .expect("parse rule");
+        let compiled = compile(&pol).expect("compile rule");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let updates = &cfg.updates[..cfg.n_updates as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        // The read gate is OP_OPEN; the write invalidator is OP_WRITE. Each
+        // pattern contributes a primary plus its first-segment companion.
+        let gate_updates: Vec<(u8, String)> = updates
+            .iter()
+            .filter(|u| u.op == OP_OPEN)
+            .map(|u| (u.m, txt(&u.target)))
+            .collect();
+        let inval_updates: Vec<(u8, String)> = updates
+            .iter()
+            .filter(|u| u.op == OP_WRITE)
+            .map(|u| (u.m, txt(&u.target)))
+            .collect();
+        assert_eq!(
+            gate_updates,
+            vec![
+                (M_CONTAINS, "/src/lib/".to_string()),
+                (M_PREFIX, "src/lib/".to_string()),
+            ]
+        );
+        assert_eq!(
+            inval_updates,
+            vec![
+                (M_CONTAINS, "/dist/".to_string()),
+                (M_PREFIX, "dist/".to_string()),
+            ]
+        );
+        // One gate bit and one invalidator bit, shared by primary + companion.
+        let gate_bits: Vec<u64> = updates
+            .iter()
+            .filter(|u| u.op == OP_OPEN)
+            .map(|u| u.gates)
+            .collect();
+        let inval_bits: Vec<u64> = updates
+            .iter()
+            .filter(|u| u.op == OP_WRITE)
+            .map(|u| u.invals)
+            .collect();
+        assert_eq!(gate_bits[0], gate_bits[1]);
+        assert_ne!(gate_bits[0], 0);
+        assert_eq!(inval_bits[0], inval_bits[1]);
+        assert_ne!(inval_bits[0], 0);
+    }
     #[test]
     fn endpoint_sources_lower_to_connect_and_recv_updates() {
         let pol = crate::dsl::parse::parse(r#"source NET = endpoint "127.0.0.1""#)
@@ -328,6 +711,160 @@ mod tests {
         assert_eq!(cfg.n_rules, 1);
         assert_eq!(cfg.rules[0].ipv4, localhost);
         assert_eq!(cfg.rules[0].ipv4_mask, mask);
+    }
+
+    #[test]
+    fn compiled_bytes_are_deterministic_and_padding_is_zeroed() {
+        // The `repr(C)` update/rule structs are serialized as raw bytes over the
+        // whole struct, so uninitialized padding leaks into the blob and makes
+        // the same policy compile to different bytes (observed as 5 distinct
+        // hashes in 5 release runs before the fix). This asserts the invariant:
+        // two compiles are byte-identical and the pad bytes are zero. The
+        // pre-fix failure is optimization-dependent uninitialized-read UB, so it
+        // is not reproducible in a debug unit test; the release-level check is
+        // `actplane ... compile` run twice on the same policy.
+        let src = r#"
+            source AGENT = exec "python3"
+            rule probe_sink:
+              notify write file "**/dist/**" if AGENT
+              because "repo-relative dir sink"
+        "#;
+        let pol = crate::dsl::parse::parse(src).expect("parse policy");
+        let a = compile(&pol).expect("compile once").bytes;
+        let b = compile(&pol).expect("compile twice").bytes;
+        assert_eq!(
+            a, b,
+            "same policy compiled twice must produce identical bytes"
+        );
+        let cfg: CConfig = unsafe { std::ptr::read_unaligned(a.as_ptr() as *const CConfig) };
+        let upd_raw = unsafe {
+            std::slice::from_raw_parts(
+                cfg.updates.as_ptr() as *const u8,
+                std::mem::size_of::<CUpdate>() * cfg.n_updates as usize,
+            )
+        };
+        // Bytes 90..96 are the pad between `arg` and `add` in `taint_update`;
+        // bytes 158..160 are the pad between `cond_pat` and `req` in
+        // `taint_rule`.
+        assert_eq!(&upd_raw[90..96], &[0u8; 6], "update padding must be zeroed");
+        let rule_raw = unsafe {
+            std::slice::from_raw_parts(
+                cfg.rules.as_ptr() as *const u8,
+                std::mem::size_of::<CRule>() * cfg.n_rules as usize,
+            )
+        };
+        assert_eq!(
+            &rule_raw[158..160],
+            &[0u8; 2],
+            "rule padding must be zeroed"
+        );
+    }
+
+    /// The `repr(C)` structs here are byte-identical to `bpf/taint.h`; the blob is
+    /// read directly into BPF rodata. `config_blob_is_fixed_size` pins only the
+    /// total, so a field reorder of the same width would pass it while
+    /// reinterpreting every field. Pin each field offset and size, matching the
+    /// values `bpf/test_taint.c`'s `test_abi_layout` asserts from the C side; a
+    /// change to either layout must update both.
+    #[test]
+    fn abi_layout_matches_the_c_header() {
+        use std::mem::{offset_of, size_of};
+
+        assert_eq!(offset_of!(CUpdate, op), 0);
+        assert_eq!(offset_of!(CUpdate, m), 1);
+        assert_eq!(offset_of!(CUpdate, target), 2);
+        assert_eq!(offset_of!(CUpdate, arg), 66);
+        assert_eq!(offset_of!(CUpdate, add), 96);
+        assert_eq!(offset_of!(CUpdate, del), 104);
+        assert_eq!(offset_of!(CUpdate, gates), 112);
+        assert_eq!(offset_of!(CUpdate, invals), 120);
+        assert_eq!(offset_of!(CUpdate, ipv4), 128);
+        assert_eq!(offset_of!(CUpdate, ipv4_mask), 132);
+        assert_eq!(offset_of!(CUpdate, gate_exit_code), 136);
+        assert_eq!(offset_of!(CUpdate, domain_id), 140);
+        assert_eq!(size_of::<CUpdate>(), 144);
+
+        assert_eq!(offset_of!(CRule, op), 0);
+        assert_eq!(offset_of!(CRule, m), 1);
+        assert_eq!(offset_of!(CRule, cond_kind), 2);
+        assert_eq!(offset_of!(CRule, cond_neg), 3);
+        assert_eq!(offset_of!(CRule, cond_match), 4);
+        assert_eq!(offset_of!(CRule, effect), 5);
+        assert_eq!(offset_of!(CRule, target), 6);
+        assert_eq!(offset_of!(CRule, arg), 70);
+        assert_eq!(offset_of!(CRule, cond_pat), 94);
+        assert_eq!(offset_of!(CRule, req), 160);
+        assert_eq!(offset_of!(CRule, forbid), 168);
+        assert_eq!(offset_of!(CRule, gate), 176);
+        assert_eq!(offset_of!(CRule, rule_id), 184);
+        assert_eq!(offset_of!(CRule, ipv4), 188);
+        assert_eq!(offset_of!(CRule, ipv4_mask), 192);
+        assert_eq!(offset_of!(CRule, cond_ipv4), 196);
+        assert_eq!(offset_of!(CRule, cond_ipv4_mask), 200);
+        assert_eq!(offset_of!(CRule, gate_idx), 204);
+        assert_eq!(offset_of!(CRule, domain_id), 208);
+        assert_eq!(offset_of!(CRule, since_mask), 216);
+        assert_eq!(size_of::<CRule>(), 224);
+
+        assert_eq!(offset_of!(CConfig, n_updates), 0);
+        assert_eq!(offset_of!(CConfig, n_rules), 4);
+        assert_eq!(offset_of!(CConfig, updates), 8);
+        assert_eq!(offset_of!(CConfig, rules), 46088);
+        assert_eq!(size_of::<CConfig>(), 74_760);
+    }
+
+    /// Constants shared with the kernel that do not appear in `taint_config`,
+    /// so the offset/size assertions above do not transitively pin them. Each is
+    /// load-bearing: the gate/invalidator epoch arrays are indexed by the
+    /// compiler's slot number and masked with `N - 1` in the kernel (so `N` must
+    /// stay a power of two that both sides agree on), and `MAX_CONTAINS_LITERAL`
+    /// must equal `TAINT_SUF_MAX` or the matcher-length warning reports the wrong
+    /// bound. `bpf/test_taint.c`'s `test_abi_constants` asserts the same values
+    /// from the C side; keep the two in step with `bpf/taint.h`.
+    #[test]
+    fn abi_constants_match_the_c_header() {
+        assert_eq!(PAT, 64, "TAINT_PAT_LEN");
+        assert_eq!(ARG, 24, "TAINT_ARG_LEN");
+        assert_eq!(MAX_UPDATES, 320, "MAX_TAINT_UPDATES");
+        assert_eq!(MAX_RULES, 128, "MAX_TAINT_RULES");
+        assert_eq!(MAX_GATES, 64, "MAX_TAINT_GATES");
+        assert_eq!(MAX_INVALS, 64, "MAX_TAINT_INVALS");
+        assert_eq!(MAX_CONTAINS_LITERAL, 16, "TAINT_SUF_MAX");
+        assert!(
+            MAX_GATES.is_power_of_two() && MAX_INVALS.is_power_of_two(),
+            "the kernel masks gate/invalidator slot indices with `N - 1`"
+        );
+    }
+
+    /// The enum discriminants below are written into the blob as `u8`/`i32`
+    /// fields, so they are ABI values, not internal names. A drift here is
+    /// silent and dangerous: making `M_CONTAINS` equal `M_ANY`'s 3 turns every
+    /// `contains` matcher into match-anything, and changing an `OP_*` value
+    /// makes the kernel index the wrong update/rule table. `bpf/test_taint.c`'s
+    /// `test_abi_enum_values` asserts the same numbers from the C side.
+    #[test]
+    fn abi_enum_values_match_the_c_header() {
+        assert_eq!(
+            [M_EXACT, M_PREFIX, M_SUFFIX, M_ANY, M_CONTAINS],
+            [0, 1, 2, 3, 4],
+            "enum taint_match"
+        );
+        assert_eq!(
+            [OP_EXEC, OP_OPEN, OP_WRITE, OP_CONNECT, OP_RECV],
+            [0, 1, 2, 3, 4],
+            "enum taint_op"
+        );
+        assert_eq!(
+            [C_NONE, C_LINEAGE, C_AFTER, C_TARGET],
+            [0, 1, 2, 3],
+            "enum taint_cond"
+        );
+        assert_eq!(
+            [EFFECT_NOTIFY, EFFECT_BLOCK, EFFECT_KILL],
+            [0, 1, 2],
+            "enum taint_effect"
+        );
+        assert_eq!(GATE_IMMEDIATE, -1, "TAINT_GATE_IMMEDIATE");
     }
 
     #[test]
@@ -442,6 +979,8 @@ struct Ctx {
     next_inval: u32,
     endpoint_cache: HashMap<String, Vec<(u32, u32)>>,
     endpoint_resolutions: HashMap<String, Vec<String>>,
+    /// Pattern-lowering warnings from source/xform updates.
+    warnings: Vec<PatternWarning>,
 }
 impl Ctx {
     fn endpoint_matches(&mut self, pat: &str) -> Vec<(u32, u32)> {
@@ -507,24 +1046,30 @@ impl Ctx {
                 MAX_UPDATES
             ));
         }
-        let mut u = CUpdate {
-            op: spec.op,
-            m: spec.m,
-            target: [0; PAT],
-            arg: [0; ARG],
-            add: spec.add,
-            del: spec.del,
-            gates: spec.gates,
-            invals: spec.invals,
-            ipv4: spec.ipv4,
-            ipv4_mask: spec.ipv4_mask,
-            gate_exit_code: spec.gate_exit_code,
-            domain_id: 0,
-        };
-        set_pat(&mut u.target, spec.target);
-        if !spec.arg.is_empty() {
-            set_pat(&mut u.arg, spec.arg);
-        }
+        // Zero the whole struct first: the struct literal would leave the
+        // `repr(C)` padding between `arg` and `add` uninitialized, and the blob
+        // is serialized as raw bytes over the full struct, so that padding would
+        // leak into the compiled config and make identical policies produce
+        // different blobs (and hashes).
+        let mut u: CUpdate = unsafe { std::mem::zeroed() };
+        u.op = spec.op;
+        u.m = spec.m;
+        u.add = spec.add;
+        u.del = spec.del;
+        u.gates = spec.gates;
+        u.invals = spec.invals;
+        u.ipv4 = spec.ipv4;
+        u.ipv4_mask = spec.ipv4_mask;
+        u.gate_exit_code = spec.gate_exit_code;
+        u.domain_id = 0;
+        set_pat_reported(
+            &mut u.target,
+            spec.target,
+            "event target",
+            &mut self.warnings,
+        );
+        set_pat_reported(&mut u.arg, spec.arg, "event arg", &mut self.warnings);
+        check_matcher_literal_bound(spec.m, spec.target, "event target", &mut self.warnings);
         self.updates.push(u);
         Ok(())
     }
@@ -595,6 +1140,25 @@ impl Ctx {
             ipv4_mask: 0,
             gate_exit_code: gate_exit.map(i32::from).unwrap_or(GATE_IMMEDIATE),
         })?;
+        // Gate companions: a repo-relative path gate also arms on the
+        // companion forms (same bit, so the gate is one condition).
+        if low_op != OP_EXEC {
+            for (cm, clit) in lower_path_companions(pat) {
+                self.add_update(UpdateSpec {
+                    op: low_op,
+                    m: cm,
+                    target: &clit,
+                    arg: "",
+                    add: 0,
+                    del: 0,
+                    gates: b,
+                    invals: 0,
+                    ipv4: 0,
+                    ipv4_mask: 0,
+                    gate_exit_code: GATE_IMMEDIATE,
+                })?;
+            }
+        }
         self.gate_bits.insert(key, (b, idx));
         Ok((b, idx))
     }
@@ -637,6 +1201,25 @@ impl Ctx {
             ipv4_mask: 0,
             gate_exit_code: GATE_IMMEDIATE,
         })?;
+        // Invalidator companions: a repo-relative path `since` pattern also
+        // stamps the companion forms (same bit, so one invalidator).
+        if op != OP_EXEC {
+            for (cm, clit) in lower_path_companions(pat) {
+                self.add_update(UpdateSpec {
+                    op,
+                    m: cm,
+                    target: &clit,
+                    arg: arg_s,
+                    add: 0,
+                    del: 0,
+                    gates: 0,
+                    invals: bit,
+                    ipv4: 0,
+                    ipv4_mask: 0,
+                    gate_exit_code: GATE_IMMEDIATE,
+                })?;
+            }
+        }
         self.inval_slots.insert(key, idx);
         Ok(bit)
     }
@@ -780,15 +1363,29 @@ pub struct RuleSourceMeta {
     pub clause_text: Option<String>,
 }
 
+/// A pattern-lowering warning: the literal the compiler produced does not mean
+/// what the policy wrote, so the rule either matches something else or can never
+/// match. The compiler owns the message (it knows the buffer and matcher
+/// bounds); `code` is the stable identifier the CLI reports.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PatternWarning {
+    pub code: &'static str,
+    pub message: String,
+}
+
+/// Stable codes for [`PatternWarning`].
+pub const PATTERN_TRUNCATED: &str = "pattern_literal_truncated";
+pub const PATTERN_EMPTY_LITERAL: &str = "pattern_empty_literal";
+pub const PATTERN_MATCHER_LENGTH: &str = "pattern_matcher_length_exceeded";
+
 pub struct Compiled {
     pub bytes: Vec<u8>,
     pub reasons: Vec<String>, // indexed by lowered rule_id
     pub meta: Vec<RuleMeta>,  // indexed by lowered rule_id
     pub labels: HashMap<String, u64>,
-    /// Exact hostname endpoint patterns that were resolved at compile time.
-    /// Non-empty values are the IPv4 A records expanded into kernel matchers;
-    /// an empty value means resolution was attempted but yielded no IPv4.
     pub endpoint_resolutions: HashMap<String, Vec<String>>,
+    /// Pattern-lowering warnings (sorted, deduplicated), for the CLI to surface.
+    pub pattern_warnings: Vec<PatternWarning>,
 }
 
 fn collect_label_names(pol: &Policy) -> Vec<String> {
@@ -859,6 +1456,7 @@ pub fn compile_with_labels(
         next_inval: 0,
         endpoint_cache: HashMap::new(),
         endpoint_resolutions: HashMap::new(),
+        warnings: Vec::new(),
     };
     for name in &sorted_labels {
         ctx.label_bit(name)?;
@@ -866,6 +1464,7 @@ pub fn compile_with_labels(
     let mut rules: Vec<CRule> = Vec::new();
     let mut reasons: Vec<String> = Vec::new();
     let mut meta: Vec<RuleMeta> = Vec::new();
+    let mut warnings: Vec<PatternWarning> = Vec::new();
 
     for s in &pol.sources {
         let bit = ctx.label_bit(&s.label)?;
@@ -913,6 +1512,28 @@ pub fn compile_with_labels(
             ipv4_mask,
             gate_exit_code: GATE_IMMEDIATE,
         })?;
+        // Repo-relative companions. The primary lowering assumes an absolute
+        // runtime path; in tracepoint mode the kernel matches the userspace
+        // path argument verbatim, which is relative when the caller passed a
+        // relative path. Pair each primary form with its companion so both the
+        // absolute/nested and the bare/first-segment-relative forms match.
+        if op == OP_OPEN {
+            for (cm, clit) in lower_path_companions(&s.pattern) {
+                ctx.add_update(UpdateSpec {
+                    op,
+                    m: cm,
+                    target: &clit,
+                    arg: "",
+                    add: bit,
+                    del: 0,
+                    gates: 0,
+                    invals: 0,
+                    ipv4: 0,
+                    ipv4_mask: 0,
+                    gate_exit_code: GATE_IMMEDIATE,
+                })?;
+            }
+        }
     }
     for x in &pol.xforms {
         let bit = ctx.label_bit(&x.label)?;
@@ -942,7 +1563,18 @@ pub fn compile_with_labels(
                         .collect::<Vec<_>>()
                 } else {
                     let (tm, tlit) = lower_target(op, cl.target.kind, &cl.target.pattern);
-                    vec![(tm, tlit, 0, 0)]
+                    let mut v = vec![(tm, tlit, 0, 0)];
+                    // Repo-relative companions for the sink target, mirroring
+                    // the file source. An extra rule entry is verifier-free
+                    // (the scans run in bpf_loop callbacks), and a companion
+                    // that co-matches costs no extra verdict: the scan keeps a
+                    // single best-effect match, so no event fires twice.
+                    if op == OP_OPEN || op == OP_WRITE {
+                        for (cm, clit) in lower_path_companions(&cl.target.pattern) {
+                            v.push((cm, clit, 0, 0));
+                        }
+                    }
+                    v
                 };
                 for (tm, tlit, ipv4, ipv4_mask) in target_matches {
                     // condition
@@ -1004,33 +1636,49 @@ pub fn compile_with_labels(
                             clause_source_index: cl.source_index,
                             source: None,
                         });
-                        let mut cr = CRule {
-                            op,
-                            m: tm,
-                            cond_kind: ck,
-                            cond_neg: cneg,
-                            cond_match: cm,
-                            effect: lower_effect(cl.effect),
-                            target: [0; PAT],
-                            arg: [0; ARG],
-                            cond_pat: [0; PAT],
-                            req,
-                            forbid,
-                            gate,
-                            rule_id,
-                            ipv4,
-                            ipv4_mask,
-                            cond_ipv4: cipv4,
-                            cond_ipv4_mask: cipv4_mask,
-                            gate_idx,
-                            domain_id: 0,
-                            since_mask,
-                        };
-                        set_pat(&mut cr.target, &tlit);
+                        // Zero-init so `repr(C)` padding does not leak into the
+                        // serialized blob (see `add_update`).
+                        let mut cr: CRule = unsafe { std::mem::zeroed() };
+                        cr.op = op;
+                        cr.m = tm;
+                        cr.cond_kind = ck;
+                        cr.cond_neg = cneg;
+                        cr.cond_match = cm;
+                        cr.effect = lower_effect(cl.effect);
+                        cr.req = req;
+                        cr.forbid = forbid;
+                        cr.gate = gate;
+                        cr.rule_id = rule_id;
+                        cr.ipv4 = ipv4;
+                        cr.ipv4_mask = ipv4_mask;
+                        cr.cond_ipv4 = cipv4;
+                        cr.cond_ipv4_mask = cipv4_mask;
+                        cr.gate_idx = gate_idx;
+                        cr.domain_id = 0;
+                        cr.since_mask = since_mask;
+                        set_pat_reported(&mut cr.target, &tlit, "rule target", &mut warnings);
+                        check_matcher_literal_bound(tm, &tlit, "rule target", &mut warnings);
                         if let Some(a) = &cl.target.arg {
-                            set_pat(&mut cr.arg, a);
+                            set_pat_reported(&mut cr.arg, a, "rule arg", &mut warnings);
                         }
-                        set_pat(&mut cr.cond_pat, &clit);
+                        // Only a `target` condition on a path/exec op stores a
+                        // pattern; `connect`/`recv` store the condition as a
+                        // numeric IPv4 (`cond_ipv4`), and every other condition
+                        // kind leaves `cond_pat` empty by design.
+                        if ck == C_TARGET && !matches!(op, OP_CONNECT | OP_RECV) {
+                            set_pat_reported(
+                                &mut cr.cond_pat,
+                                &clit,
+                                "rule condition pattern",
+                                &mut warnings,
+                            );
+                            check_matcher_literal_bound(
+                                cm,
+                                &clit,
+                                "rule condition pattern",
+                                &mut warnings,
+                            );
+                        }
                         rules.push(cr);
                     }
                 }
@@ -1064,12 +1712,16 @@ pub fn compile_with_labels(
         )
     }
     .to_vec();
+    warnings.extend(ctx.warnings);
+    warnings.sort();
+    warnings.dedup();
     Ok(Compiled {
         bytes,
         reasons,
         meta,
         labels: ctx.labels,
         endpoint_resolutions: ctx.endpoint_resolutions,
+        pattern_warnings: warnings,
     })
 }
 

@@ -11,5 +11,5 @@ pub mod dsl;
 
 pub use dsl::{
     Compiled, RuleMeta, RuleSourceMeta, ast, compile, compile_str, compile_str_with_labels, lower,
-    parse,
+    parse, repo_relative_condition_is_partial,
 };
