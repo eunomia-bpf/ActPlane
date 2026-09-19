@@ -114,7 +114,7 @@ such as `git commit` or `git push`, prefer `kill exec "git" "commit"` or
 **Exec patterns match a basename.** Every exec target pattern is reduced to its final path segment before lowering, so `exec "git"`, `exec "/usr/bin/git"`, and `exec "**/git"` all lower to the same `EXACT "git"` matcher and therefore all match `/usr/bin/git`, `/opt/bin/git`, and a bare `git`. A wildcard suffix becomes a prefix over that segment: `exec "**/deploy*"` lowers to `PREFIX "deploy"` and matches any basename starting with `deploy`. The directory part of an exec pattern is *not* enforced, so a policy cannot distinguish two executables that share a basename; match a distinct `@arg` token instead. The kernel target itself differs by hook mode: the LSM hook supplies the executable's basename, while the tracepoint hook supplies `comm` (kernel-truncated to 15 characters) or the executable path when it can read `argv[0]`, so a basename longer than 15 characters is reliable under LSM but not under tracepoints.
 
 ### 1.8 Pattern matching
-`PAT` is a glob over the relevant attribute: process `exe`/`comm`/`arg`, file `path`, endpoint `host`. `**` = any path span, `*` = one segment / any chars, exact otherwise. Kernel endpoint matching is numeric IPv4 prefix/host matching, such as `"10.0.0."`, `"10.0.0.5"`, or `"*"`. Exact endpoint hostnames such as `"api.example.com"` are resolved by the compiler/loader to their IPv4 A records and expanded into numeric kernel matchers. DNS is not performed in kernel, and DNS changes require reloading the policy. Hostname globs such as `"*.internal"`, IPv6, and endpoint wildcard patterns other than `"*"` are accepted by the surface syntax but are reported as unsupported by `actplane compile --json` and `actplane compile --explain`. Endpoint `unless target` conditions can store one IPv4 address in the current ABI, so hostname exceptions are supported only when the name resolves to one IPv4 address. For exec targets, a pattern without `/` is implicitly treated as a basename match (see §1.7).
+`PAT` is a glob over the relevant attribute: process `exe`/`comm`/`arg`, file `path`, endpoint `host`. `**` = any path span, `*` = one segment / any chars, exact otherwise. Kernel endpoint matching is numeric IPv4 prefix/host matching, such as `"10.0.0."`, `"10.0.0.5"`, or `"*"`. Exact endpoint hostnames such as `"api.example.com"` are resolved by the compiler/loader to their IPv4 A records and expanded into numeric kernel matchers. DNS is not performed in kernel, and DNS changes require reloading the policy. Hostname globs such as `"*.internal"`, IPv6, and endpoint wildcard patterns other than `"*"` are accepted by the surface syntax but are reported as unsupported by `actplane compile --json` and `actplane compile --explain`. Endpoint `unless target` conditions can store one IPv4 address in the current ABI, so hostname exceptions are supported only when the name resolves to one IPv4 address. Exec patterns always match on the final path segment regardless of whether they contain `/` (see §1.7).
 
 Three kernel-matcher properties can make a compiled pattern mean something other than what the policy wrote, and each is reported by `actplane compile --explain`/`--json` (the compiler records all of them in `Compiled::pattern_warnings`):
 
@@ -233,8 +233,9 @@ Each clause starts with the action verb (`notify`, `block`, or `kill`) — there
 no separate `deny` keyword or `effect` line. `open` matches file-open operations
 (the kernel's `TOP_OPEN` hook). An optional quoted string after an exec target
 pattern is a single argv-token predicate (e.g. `exec "git" "push"` requires token
-`push` in argv). For exec targets, a pattern without `/` is treated as basename
-matching: `exec "git"` is equivalent to `exec "**/git"`.
+`push` in argv). Exec targets always match on the final path segment, so
+`exec "git"` and `exec "**/git"` are equivalent and `exec "/usr/bin/git"` matches
+any `git` (see §1.7).
 
 `declassify` and `endorse` are label transforms. `declassify L by exec G`
 removes label `L` when the process runs gate `G`; `endorse L by exec G` adds

@@ -126,8 +126,12 @@ impl P {
             return Err("expected node kind in target".into());
         };
         let mut pattern = self.string()?;
-        // Implicit basename matching: if the pattern contains no '/', treat it
-        // as a basename match by prepending "**/".
+        // Normalize a bare exec name to the globstar form, so `exec "git"` and
+        // `exec "**/git"` are the same pattern everywhere downstream (notably in
+        // the `target_pattern` metadata that policy-approval signatures compare).
+        // This does NOT decide the kernel matcher: `lower_exec` reduces every
+        // exec pattern to its final path segment, so `exec "/usr/bin/git"` also
+        // lowers to `EXACT "git"` and the directory is never enforced.
         if kind == Kind::Exec && !pattern.contains('/') {
             pattern = format!("**/{}", pattern);
         }
