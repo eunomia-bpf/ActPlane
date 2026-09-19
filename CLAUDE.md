@@ -131,6 +131,14 @@ total `CConfig` size, and `abi_layout_matches_the_c_header` in `lower.rs` plus
 size test alone does not catch a same-width field reorder, which reinterprets
 every serialized field, so update both the offsets and the sizes together.
 
+Constants shared outside `taint_config` are pinned separately, because the offset
+tests do not cover them: `abi_constants_match_the_c_header` in `lower.rs` and
+`test_abi_constants` in `bpf/test_taint.c` assert `TAINT_PAT_LEN`,
+`TAINT_ARG_LEN`, `MAX_TAINT_UPDATES`, `MAX_TAINT_RULES`, `MAX_TAINT_GATES`,
+`MAX_TAINT_INVALS`, and `TAINT_SUF_MAX`. The gate/invalidator limits must stay
+equal on both sides and a power of two (the kernel masks slot indices with
+`N - 1`), and `MAX_CONTAINS_LITERAL` must equal `TAINT_SUF_MAX`.
+
 ## eBPF verifier gotchas (see bpf/README.md for detail)
 
 - Mark deep helpers `__noinline` (own stack frame); keep `te_check_labels` small.
