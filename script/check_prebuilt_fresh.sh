@@ -65,6 +65,7 @@ if [ "${1:-}" = "--update" ]; then
   # object that was never regenerated. Run right after regenerating (as
   # bpf/build.rs does), the bytes match; run on an edited source with stale
   # objects, they do not.
+  rm -f bpf/.output/process.bpf.o bpf/.output/process-legacy.bpf.o
   make -C bpf .output/process.bpf.o .output/process-legacy.bpf.o >/dev/null
   for obj in process process-legacy; do
     if ! cmp -s "bpf/.output/$obj.bpf.o" "bpf/prebuilt/$obj.bpf.o"; then
@@ -110,6 +111,12 @@ if [ "$want" != "$have" ]; then
 fi
 
 # 2. Rebuild and require every emitted __noinline function to be defined.
+# Remove the two objects first: `make` decides staleness by timestamp, and a
+# leftover `bpf/.output/` (gitignored, so it survives checkouts) can be newer
+# than an edited source and be reused unchanged, which would compare the
+# committed object against the wrong build. Removing just these two targets
+# forces their rules without rebuilding libbpf/bpftool.
+rm -f bpf/.output/process.bpf.o bpf/.output/process-legacy.bpf.o
 make -C bpf .output/process.bpf.o .output/process-legacy.bpf.o >/dev/null
 
 tmp="$(mktemp -d)"
