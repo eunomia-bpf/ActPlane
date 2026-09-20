@@ -28,7 +28,11 @@ Two independent checks, both reproducible from committed code:
    the 18 frozen FP rows, compile the frozen `rule.yaml` with the pinned `actplane`
    binary into the kernel ABI blob (`struct taint_config`, see `bpf/taint.h`),
    parse the lowered matchers out of the blob, and replay the recorded event
-   through a faithful port of the kernel matcher predicates. The script also ports
+   through the kernel's target matcher (`taint_match`/`taint_suffix`), plus the
+   unless-target condition. The replay is deliberately label-neutral: it does not
+   apply `taint_mask_ok(req, forbid)` or the exec `@arg` gate, because it holds no
+   per-event label or argv state, and every row compares two lowerings on the same
+   event so gating would suppress both alike. The script also ports
    `lower_path`/`lower_exec` at both `cc3a9b11` and HEAD, asserts the HEAD port
    reproduces the compiled blob exactly (0 mismatches across all frozen rules), and
    replays the historical lowering on the same event. Host-only, no kernel.
@@ -535,7 +539,16 @@ ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic ACTPLANE_VM_TIMEOUT=3000 \
 `fp_rows.json` is the `rows` array emitted by
 `node docs/empirical-study/audit_rq2_verdicts.js ARTIFACT_ROOT` on the frozen
 `origin/artifact-ready` export; the corpus root is the extracted
-`docs/corpus-test`. Raw evidence:
+`docs/corpus-test`.
+
+The replay couples the `compile --json` rule order to the compiled blob's rule
+order, so it first requires the two to agree in count (the blob's `n_rules`, which
+is what the kernel loads) and exits 1 naming both counts if they do not. Without
+that check a truncated or reordered report would only be caught downstream, as a
+port mismatch on whichever rule the two orders disagree on, which points at the
+port rather than at the report.
+
+Raw evidence:
 
 - `results/rq2-fp-current-lowering/replay.json`: per-row classification, the
   historical-vs-current lowering of each offending glob, the port-vs-blob checks,
