@@ -147,21 +147,35 @@ contexts in per-CPU scratch maps (`te_*_scratch_buf()`) and pass only a
 stack-resident handle, which keeps the exit handlers small enough to sum under
 512.
 
-This is not hypothetical. An object in which the collectors pass their contexts
-on the stack reaches `combined stack size of 6 calls is 576. Too large` for
-`trace_recvfrom_exit` and `trace_recvmsg_exit`; an object built with the contexts
-in scratch maps loads all 93 programs with no rejection. Those two programs are
-autoloaded only for `TE_POLICY_RECV` (or file-flow with advanced tracepoints), so
-the failure is easy to miss: an exec-only or connect-only policy loads fine, but
-a policy that uses `recv` together with a file source or a file rule sets both
-features and the engine then fails to load entirely, even though the policy
-compiles to a valid blob.
+This is not hypothetical, and it is not limited to policies that use `recv`. The
+committed object on `master` reaches `combined stack size of 6 calls is 576. Too
+large` for `trace_recvfrom_exit` (frame 216, from the verifier's own
+`stack depth` line), while an object built with the collector contexts in
+scratch maps loads every program with no rejection. The severity depends on who
+autoloads the program:
 
-Verify with a guest boot rather than the host. Recent kernels no longer perform
-the combined-stack walk that 6.8 does, so a host load can succeed where a 6.8
-guest rejects. The diagnostic `vvload` loads every program and reports
-`VLOAD_DONE ok=<n> fail=<n>` per config, naming the offending program where the
-production loader only reports that the skeleton failed.
+- The C loader (`bpf/process`) gates those two programs behind `TE_POLICY_RECV`
+  (or file-flow with advanced tracepoints), so a static policy reaches the
+  failure only when it uses `recv` together with a file source or file rule.
+- The Rust pinned-engine path does not gate: `HookReserve::full_profile()` sets
+  `PINNED_POLICY_FEATURES`, which is `ALL_HOOK_FEATURES` and so always includes
+  recv. `actplane run`, `watch`, and MCP go through that path, so on Linux 6.8
+  the engine fails to install *for any policy at all*, and the process reports
+  `open ActPlane singleton: trace_recvfrom_exit.load: ... Permission denied`.
+  Measured in a 6.8 guest: the same `actplane --policy p.yaml run -- /bin/true`
+  that fails with the committed object prints `ActPlane: running pid ...` and
+  exits 0 when the object is rebuilt from a source that keeps the collector
+  contexts off the stack.
+
+Verify with a guest boot of the kernel you mean to support. A load that succeeds
+on one kernel is not evidence for another: the limit is enforced per kernel
+version, and the container this repo is developed in denies `bpf()` outright, so
+its own host can neither confirm nor refute a 6.8 rejection. The diagnostic
+`vvload` loads every program and reports `VLOAD_DONE ok=<n> fail=<n>` per config,
+naming the offending program where the production loader only reports that the
+skeleton failed. The privileged CI job does not cover this: it runs on a kernel
+that does not reject the program, and its recv smokes use a recv-only config that
+never sets `TE_POLICY_FILE_FLOW`.
 
 ## Binary config format
 
