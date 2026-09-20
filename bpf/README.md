@@ -148,11 +148,14 @@ stack-resident handle, which keeps the exit handlers small enough to sum under
 512.
 
 This is not hypothetical, and it is not limited to policies that use `recv`. The
-committed object on `master` reaches `combined stack size of 6 calls is 576. Too
-large` for `trace_recvfrom_exit` (frame 216, from the verifier's own
-`stack depth` line), while an object built with the collector contexts in
-scratch maps loads every program with no rejection. The severity depends on who
-autoloads the program:
+committed object on `master` is rejected on 6.8 with `combined stack size of 6
+calls is 608. Too large` for `trace_recvfrom_exit`; the object committed on the
+RQ2 branch (`experiments/rq2-lowering-eval-20260915`) is rejected with `576`,
+because its per-frame sizes differ slightly. In both, the verifier's own
+`stack depth` line starts `216+...`, naming `trace_recvfrom_exit`'s 216-byte
+frame. An object built from a source that keeps the collector `bpf_loop`
+contexts in per-CPU scratch maps loads every program with no rejection. The
+severity depends on who autoloads the program:
 
 - The C loader (`bpf/process`) gates those two programs behind `TE_POLICY_RECV`
   (or file-flow with advanced tracepoints), so a static policy reaches the
@@ -162,10 +165,10 @@ autoloads the program:
   recv. `actplane run`, `watch`, and MCP go through that path, so on Linux 6.8
   the engine fails to install *for any policy at all*, and the process reports
   `open ActPlane singleton: trace_recvfrom_exit.load: ... Permission denied`.
-  Measured in a 6.8 guest: the same `actplane --policy p.yaml run -- /bin/true`
-  that fails with the committed object prints `ActPlane: running pid ...` and
-  exits 0 when the object is rebuilt from a source that keeps the collector
-  contexts off the stack.
+  Measured in a 6.8 guest, same binary and command, swapping only the embedded
+  object: `origin/master` fails with `608`, the RQ2 branch with `576`, and an
+  object with the collector contexts off the stack prints
+  `ActPlane: running pid ...` and exits 0.
 
 Verify with a guest boot of the kernel you mean to support. A load that succeeds
 on one kernel is not evidence for another: the limit is enforced per kernel
