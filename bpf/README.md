@@ -130,6 +130,39 @@ bpf` then copy `.output/*.bpf.o` over `prebuilt/`, or `ACTPLANE_REBUILD_BPF=1
 cargo build -p ebpf-ifc-engine`, which also refreshes the stamp); do not pick a
 side of the binary conflict.
 
+## Summed-stack budget (the 6.8 verifier limit)
+
+From Linux 6.8 the verifier sums the maximum stack depth across every frame in a
+call chain and rejects a program whose total exceeds 512 bytes, with
+`combined stack size of N calls is M. Too large`. A helper can therefore pass on
+one kernel and fail here even though its own frame is small, because the limit is
+on the chain. The two ways to stay under it are to inline (fewer, larger frames
+usually sum lower than many small ones) and to keep `bpf_loop` contexts off the
+stack entirely.
+
+The latter matters for the scan collectors. A `bpf_loop` context argument is a
+stack-typed value that stays spilled for the whole program, so a context struct
+passed to `bpf_loop` raises every caller's frame. The collectors can keep their
+contexts in per-CPU scratch maps (`te_*_scratch_buf()`) and pass only a
+stack-resident handle, which keeps the exit handlers small enough to sum under
+512.
+
+This is not hypothetical. An object in which the collectors pass their contexts
+on the stack reaches `combined stack size of 6 calls is 576. Too large` for
+`trace_recvfrom_exit` and `trace_recvmsg_exit`; an object built with the contexts
+in scratch maps loads all 93 programs with no rejection. Those two programs are
+autoloaded only for `TE_POLICY_RECV` (or file-flow with advanced tracepoints), so
+the failure is easy to miss: an exec-only or connect-only policy loads fine, but
+a policy that uses `recv` together with a file source or a file rule sets both
+features and the engine then fails to load entirely, even though the policy
+compiles to a valid blob.
+
+Verify with a guest boot rather than the host. Recent kernels no longer perform
+the combined-stack walk that 6.8 does, so a host load can succeed where a 6.8
+guest rejects. The diagnostic `vvload` loads every program and reports
+`VLOAD_DONE ok=<n> fail=<n>` per config, naming the offending program where the
+production loader only reports that the skeleton failed.
+
 ## Binary config format
 
 The compiler writes a fixed-size `taint_config` blob. The struct layout is
