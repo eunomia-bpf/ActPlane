@@ -1336,6 +1336,36 @@ fn lsm_needed(
     }
 }
 
+/// Extra guidance for a program-load failure that the kernel's verifier caused.
+///
+/// A verifier rejection is reported by libbpf as a permission error whose text
+/// names the reason, and the reason is the actionable part: a `Too large`
+/// rejection for the summed stack looks like a privilege problem and sends the
+/// reader to check capabilities. Recognize the cases that need a specific hint
+/// and leave everything else untouched.
+fn verifier_load_hint(program: &str, error: &str) -> String {
+    let mut hint = String::new();
+    if error.contains("Too large") && error.contains("combined stack size") {
+        // Linux 6.8 sums the maximum stack depth along a call chain against a
+        // 512-byte limit, so a chain that loads on other kernels can be rejected
+        // here. The program name is the useful datum: it says which handler grew.
+        hint.push_str(&format!(
+            "\n  hint: `{program}` was rejected by the kernel verifier's summed-stack \
+             limit (Linux 6.8 sums the maximum stack depth along a call chain, 512 bytes \
+             total). This is a stack budget in the BPF program, not a privilege problem. \
+             Rebuild bpf/prebuilt/process.bpf.o so the deep helpers keep their `bpf_loop` \
+             contexts off the stack, and re-check in a guest boot of the kernel you target; \
+             the limit is enforced per kernel version."
+        ));
+    } else if error.contains("invalid mem access") {
+        hint.push_str(&format!(
+            "\n  hint: `{program}` failed the verifier on a memory access; check bound \
+             guards on map lookups and pattern buffers rather than raising privileges."
+        ));
+    }
+    hint
+}
+
 fn load_exec_tail_programs(bpf: &mut Ebpf) -> io::Result<()> {
     let mut fds: Vec<(u32, ProgramFd)> = Vec::new();
 
@@ -1345,7 +1375,13 @@ fn load_exec_tail_programs(bpf: &mut Ebpf) -> io::Result<()> {
             .ok_or_else(|| err(format!("program {name} missing")))?
             .try_into()
             .map_err(|e| err(format!("{name} not a tracepoint: {e}")))?;
-        p.load().map_err(|e| err(format!("{name}.load: {e}")))?;
+        p.load().map_err(|e| {
+            let msg = e.to_string();
+            err(format!(
+                "{name}.load: {msg}{}",
+                verifier_load_hint(name, &msg)
+            ))
+        })?;
         let fd = p
             .fd()
             .map_err(|e| err(format!("{name}.fd: {e}")))?
@@ -2014,8 +2050,14 @@ impl Loader {
                 .ok_or_else(|| err(format!("program {} missing", spec.name)))?
                 .try_into()
                 .map_err(|e| err(format!("{} not a tracepoint: {e}", spec.name)))?;
-            p.load()
-                .map_err(|e| err(format!("{}.load: {e}", spec.name)))?;
+            p.load().map_err(|e| {
+                let msg = e.to_string();
+                err(format!(
+                    "{}.load: {msg}{}",
+                    spec.name,
+                    verifier_load_hint(spec.name, &msg)
+                ))
+            })?;
             let link_id = p
                 .attach(spec.category, spec.event)
                 .map_err(|e| err(format!("{}.attach: {e}", spec.name)))?;
@@ -2050,8 +2092,13 @@ impl Loader {
                     .ok_or_else(|| err(format!("program {name} missing")))?
                     .try_into()
                     .map_err(|e| err(format!("{name} not an lsm: {e}")))?;
-                p.load(hook, &btf)
-                    .map_err(|e| err(format!("{name}.load: {e}")))?;
+                p.load(hook, &btf).map_err(|e| {
+                    let msg = e.to_string();
+                    err(format!(
+                        "{name}.load: {msg}{}",
+                        verifier_load_hint(name, &msg)
+                    ))
+                })?;
                 let link_id = p.attach().map_err(|e| err(format!("{name}.attach: {e}")))?;
                 if pin_paths.is_some() {
                     let link = p
@@ -2939,6 +2986,29 @@ mod tests {
     const EFFECT_NOTIFY: u8 = 0;
     const EFFECT_KILL: u8 = 2;
 
+    // The summed-stack rejection arrives as a permission error whose text is the
+    // only clue; the hint must key on the verifier's wording and name the program.
+    #[test]
+    fn verifier_hint_names_the_summed_stack_cause() {
+        let real = "the BPF_PROG_LOAD syscall returned Permission denied (os error 13). \
+                    Verifier output: combined stack size of 6 calls is 576. Too large";
+        let hint = verifier_load_hint("trace_recvfrom_exit", real);
+        assert!(hint.contains("trace_recvfrom_exit"), "{hint}");
+        assert!(hint.contains("summed-stack"), "{hint}");
+        assert!(hint.contains("not a privilege problem"), "{hint}");
+
+        // A bound-guard rejection is a different fix, so it gets its own hint.
+        let mem = "Verifier output: invalid mem access 'inv'";
+        let hint = verifier_load_hint("trace_recvfrom_exit", mem);
+        assert!(hint.contains("bound guards"), "{hint}");
+        assert!(!hint.contains("summed-stack"), "{hint}");
+
+        // Anything else stays untouched: no hint may be invented for it.
+        assert_eq!(
+            verifier_load_hint("trace_recvfrom_exit", "some other error"),
+            ""
+        );
+    }
     // The Rust ABI mirror must match the C struct sizes the object was built
     // with. These are the documented sizes from bpf/taint.h.
     #[test]
