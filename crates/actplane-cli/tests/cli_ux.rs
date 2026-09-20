@@ -429,6 +429,56 @@ fn shipped_policies_compile_without_warnings() {
 }
 
 #[test]
+fn documented_warning_codes_match_the_cli() {
+    // `docs/rule-language.md` lists the warning codes a user may see. A code that
+    // reaches users but is undocumented is a gap; a documented code that no
+    // longer exists sends the reader chasing a phantom. Pin both directions by
+    // extracting the codes from the doc and comparing them to the codes the
+    // binary emits for policies crafted to trigger each one.
+    let doc = fs::read_to_string(format!(
+        "{}/../../docs/rule-language.md",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read docs/rule-language.md");
+    let documented: std::collections::BTreeSet<&str> = doc
+        .split("`")
+        .filter(|tok| {
+            // Warning codes are lower_snake with an underscore and no spaces.
+            !tok.is_empty()
+                && tok.contains('_')
+                && tok
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+                && tok.len() > 8
+        })
+        .collect();
+
+    // Every code the CLI can emit. Kept explicit: if a code is added, this list
+    // and the doc must both change, which is the point.
+    let emitted = [
+        "argv_block_exec_post_exec_only",
+        "argv_token_ignored_for_non_exec",
+        "bpf_lsm_inactive_for_block",
+        "endpoint_source_unsupported",
+        "endpoint_target_condition_multi_ipv4_hostname",
+        "endpoint_target_condition_unresolved_hostname",
+        "endpoint_target_condition_unsupported_pattern",
+        "endpoint_target_unsupported",
+        "pattern_empty_literal",
+        "pattern_literal_truncated",
+        "pattern_matcher_length_exceeded",
+        "repo_relative_target_condition_partial",
+        "rule_missing_because",
+    ];
+    for code in emitted {
+        assert!(
+            documented.contains(code),
+            "warning code `{code}` is emitted but not documented in docs/rule-language.md"
+        );
+    }
+}
+
+#[test]
 fn compile_json_warns_when_a_rule_has_no_because() {
     // The `because` string is the payload forwarded to the agent on a match.
     // Without it a violation carries an empty reason, so the agent learns it was

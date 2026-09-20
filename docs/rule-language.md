@@ -94,7 +94,7 @@ rule NAME:
   - `lineage-includes exec G` — **mandatory mediation**: allowed iff an ancestor (incl. self) exec'd `G`.
   - `after exec G [exits N] [since EV…]` — **temporal**: allowed iff `exec G` happened earlier in this process's lineage. With `exits N`, the gate opens only after the matching process exits normally with status `N`. Plain `after` is *latching* (satisfied once `G` ever ran). The optional `since EV…` tail makes the gate go **stale** when a later invalidating event `EV` occurs (§1.9).
 
-`because` is what the corrective-feedback chain forwards to the agent when the rule matches (see [`design/feedback-design.md`](design/feedback-design.md)), so it is effectively required in practice even though the grammar marks it optional: a rule without one still enforces, but a match forwards an empty reason, telling the agent it was stopped and not why. `actplane compile --explain`/`--json` report `rule_missing_because` for such a rule.
+`because` is what the corrective-feedback chain forwards to the agent when the rule matches (see [`design/feedback-design.md`](design/feedback-design.md)), so it is effectively required in practice even though the grammar marks it optional: a rule without one still enforces, but a match forwards an empty reason, telling the agent it was stopped and not why. `actplane compile` reports `rule_missing_because` for such a rule.
 
 **Rule match**: event `op(s, o)` matches clause `EFFECT op pat if Φ unless cond` iff
 `match(o, pat) ∧ Φ(σ(s)) ∧ ¬cond(s, o, history)`.
@@ -108,15 +108,19 @@ If multiple clauses/rules match the same event, the kernel chooses the strongest
 
 For executable identity policies such as `block exec "git"`, `block` is a
 pre-operation denial when BPF-LSM is active. For argv-sensitive exec policies
-such as `git commit` or `git push`, prefer `kill exec "git" "commit"` or
-`kill exec "git" "push"` until argv is available to the pre-op LSM hook.
+such as `git commit` or `git push`, `block` cannot work at all: argv exists only
+after `exec`, so the LSM hook skips any argv-bearing rule and the rule never
+fires. Use `kill exec "git" "commit"` or `kill exec "git" "push"` for
+post-exec termination. `actplane compile` reports
+`argv_block_exec_post_exec_only` for the dead form on every compile path,
+including plain `compile --out`.
 
 **Exec patterns match a basename.** Every exec target pattern is reduced to its final path segment before lowering, so `exec "git"`, `exec "/usr/bin/git"`, and `exec "**/git"` all lower to the same `EXACT "git"` matcher and therefore all match `/usr/bin/git`, `/opt/bin/git`, and a bare `git`. A wildcard suffix becomes a prefix over that segment: `exec "**/deploy*"` lowers to `PREFIX "deploy"` and matches any basename starting with `deploy`. The directory part of an exec pattern is *not* enforced, so a policy cannot distinguish two executables that share a basename; match a distinct `@arg` token instead. The kernel target itself differs by hook mode: the LSM hook supplies the executable's basename, while the tracepoint hook supplies `comm` (kernel-truncated to 15 characters) or the executable path when it can read `argv[0]`, so a basename longer than 15 characters is reliable under LSM but not under tracepoints.
 
 ### 1.8 Pattern matching
-`PAT` is a glob over the relevant attribute: process `exe`/`comm`/`arg`, file `path`, endpoint `host`. `**` = any path span, `*` = one segment / any chars, exact otherwise. Kernel endpoint matching is numeric IPv4 prefix/host matching, such as `"10.0.0."`, `"10.0.0.5"`, or `"*"`. Exact endpoint hostnames such as `"api.example.com"` are resolved by the compiler/loader to their IPv4 A records and expanded into numeric kernel matchers. DNS is not performed in kernel, and DNS changes require reloading the policy. Hostname globs such as `"*.internal"`, IPv6, and endpoint wildcard patterns other than `"*"` are accepted by the surface syntax but are reported as unsupported by `actplane compile --json` and `actplane compile --explain`. Endpoint `unless target` conditions can store one IPv4 address in the current ABI, so hostname exceptions are supported only when the name resolves to one IPv4 address. Exec patterns always match on the final path segment regardless of whether they contain `/` (see §1.7).
+`PAT` is a glob over the relevant attribute: process `exe`/`comm`/`arg`, file `path`, endpoint `host`. `**` = any path span, `*` = one segment / any chars, exact otherwise. Kernel endpoint matching is numeric IPv4 prefix/host matching, such as `"10.0.0."`, `"10.0.0.5"`, or `"*"`. Exact endpoint hostnames such as `"api.example.com"` are resolved by the compiler/loader to their IPv4 A records and expanded into numeric kernel matchers. DNS is not performed in kernel, and DNS changes require reloading the policy. Hostname globs such as `"*.internal"`, IPv6, and endpoint wildcard patterns other than `"*"` are accepted by the surface syntax but are reported as unsupported by `actplane compile`. Endpoint `unless target` conditions can store one IPv4 address in the current ABI, so hostname exceptions are supported only when the name resolves to one IPv4 address. Exec patterns always match on the final path segment regardless of whether they contain `/` (see §1.7).
 
-Three kernel-matcher properties can make a compiled pattern mean something other than what the policy wrote, and each is reported by `actplane compile --explain`/`--json` (the compiler records all of them in `Compiled::pattern_warnings`):
+Three kernel-matcher properties can make a compiled pattern mean something other than what the policy wrote, and each is reported by `actplane compile` (the compiler records all of them in `Compiled::pattern_warnings`):
 
 - **Buffer truncation.** Pattern fields are 64 bytes (63 usable), so a longer literal is truncated to a prefix. For an exact absolute path the rule then matches that prefix, not the intended target, so it never fires where the policy named; for a `PREFIX`/`SUFFIX` literal it matches a broader set. Reported as `pattern_literal_truncated`.
 - **Empty literal.** `taint_streq` and `taint_prefix` both reject an empty pattern, and a pattern whose basename is `*` (`exec "src/*"`) or ends at a separator (`exec "foo/"`) lowers to one, so the rule never fires. Reported as `pattern_empty_literal`. `*` / `**/*` are exempt: they lower to `ANY`, which always matches.
@@ -124,9 +128,34 @@ Three kernel-matcher properties can make a compiled pattern mean something other
 
 For all three, shorten the literal or use a wildcard form that lowers to a usable one.
 
-`unless target` **conditions** have one `cond_kind`/`cond_pat` pair, so a repo-relative exception over `**/<name>` or `**/<dir>/**` cannot cover both the primary and first-segment-relative/bare forms the way a rule *target* does (a target emits a companion table entry). The exception therefore over-fires on the uncovered form, and `actplane compile --explain`/`--json` report a `repo_relative_target_condition_partial` warning. Use an absolute pattern (for example `unless target "/work/dist/**"`) to avoid the approximation.
+`unless target` **conditions** have one `cond_kind`/`cond_pat` pair, so a repo-relative exception over `**/<name>` or `**/<dir>/**` cannot cover both the primary and first-segment-relative/bare forms the way a rule *target* does (a target emits a companion table entry). The exception therefore over-fires on the uncovered form, and `actplane compile` reports a `repo_relative_target_condition_partial` warning. Use an absolute pattern (for example `unless target "/work/dist/**"`) to avoid the approximation.
 
-An `exec` **argv token** (`exec "git" "push"`) matches only the first 16 argv tokens (`MAX_ARG_SLOTS`) within the first 128 bytes of argv (`TAINT_ARGV_CAP`); the kernel tokenizes that window once per exec. A token appearing later than either bound never matches, so a rule using it silently never fires. Keep the token near the start of the command line, or match a different token. Note also that the token is only consulted for `exec` clauses: given on any other op it is ignored, and `actplane compile --explain`/`--json` report `argv_token_ignored_for_non_exec` because the clause then matches every target its pattern names rather than the narrower set the policy intended.
+An `exec` **argv token** (`exec "git" "push"`) matches only the first 16 argv tokens (`MAX_ARG_SLOTS`) within the first 128 bytes of argv (`TAINT_ARGV_CAP`); the kernel tokenizes that window once per exec. A token appearing later than either bound never matches, so a rule using it silently never fires. Keep the token near the start of the command line, or match a different token. Note also that the token is only consulted for `exec` clauses: given on any other op it is ignored, and `actplane compile` reports `argv_token_ignored_for_non_exec` because the clause then matches every target its pattern names rather than the narrower set the policy intended.
+
+**Where warnings appear.** Every warning that follows from the policy and the
+compiled blob alone is printed by `actplane compile` on all its paths: plain
+`compile --out` writes them to stderr before the success line, and
+`compile --explain`/`--json` include them in the review. `bpf_lsm_inactive_for_block`
+is the one host-dependent warning and appears only under `--explain`/`--json`,
+because the machine that compiles a blob need not be the machine that enforces
+it. The code names are stable identifiers, so a CI check can match on them.
+Besides the pattern, `unless target`, argv-token, and `because` warnings above,
+these are reported:
+
+- `argv_block_exec_post_exec_only`: `block exec` with an argv token, which can
+  never fire (see §1.7). The fix is `kill exec`.
+- `endpoint_source_unsupported`, `endpoint_target_unsupported`: an endpoint
+  source or a `connect`/`recv` target whose pattern is not numeric IPv4 (a
+  hostname glob, IPv6, or a wildcard other than `"*"`), so the rule will not
+  fire for that endpoint.
+- `endpoint_target_condition_unresolved_hostname`,
+  `endpoint_target_condition_multi_ipv4_hostname`,
+  `endpoint_target_condition_unsupported_pattern`: an endpoint `unless target`
+  condition that did not resolve to exactly one IPv4 address at compile/load
+  time (unresolved, resolving to several addresses, or a wildcard/IPv6 pattern).
+  The condition stores one address in the current ABI and fails closed.
+- `bpf_lsm_inactive_for_block`: `block` on a host without BPF-LSM active, so
+  the rule falls back to nothing (see §1.7).
 
 ### 1.9 Staleness (`since`): gates that re-arm when their inputs change
 
