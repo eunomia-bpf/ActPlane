@@ -16,9 +16,17 @@ host, with no live kernel:
   3. port both `lower_path` implementations (historical at commit `cc3a9b11`,
      current at HEAD) to Python, assert the current port reproduces the blob
      byte-for-byte, then diff the two on every frozen FP target glob;
-  4. replay the observed FP event through a faithful port of the kernel matcher
-     predicates (bpf/taint.h) to state whether today's compiled matcher still
-     fires on that event.
+  4. replay the observed FP event through the kernel's *target* matcher
+     (bpf/taint.h `taint_match`/`taint_suffix`) to state whether today's
+     compiled matcher still fires on that event.
+
+The replay models target and unless-target matching only. It does not apply the
+kernel's other two predicates, `taint_mask_ok(req, forbid)` and the exec
+`@arg`/`taint_arg_match` gate, because it holds no per-event label or argv state.
+That is deliberate and does not weaken the conclusion: every row compares two
+lowerings on the *same* recorded event, so label/argv gating would suppress both
+alike, and the claim is about which lowering over-matches the target, not about a
+kernel verdict for that row.
 
 Deliverable: per FP row, whether today's compiled matcher still fires on the
 recorded event ("still-fires"), no longer fires ("defect-resolved"), or newly
