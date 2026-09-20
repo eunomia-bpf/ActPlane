@@ -129,22 +129,26 @@ policy: |
     because "Protocol schema changed — generated code may be stale. Run `make proto` to regenerate, then commit."
 
   rule test-before-commit:
-    block exec "git" "commit"
+    kill exec "git" "commit"
       if AGENT unless after exec "pnpm" "test" since write "src/**"
     because "Source files changed since last test run. Run `pnpm test:changed`, then commit."
 ```
 
-Three rules, three effects, three patterns:
+Three rules, three patterns:
 
 - **`no-git-branch`** (kill): per-event rule — anything in the agent's
-  process tree that tries `git branch` is terminated immediately.
+  process tree that tries `git branch` or `git worktree` is terminated
+  immediately.
 - **`regenerate-after-schema`** (notify): cross-event conditional — if
   the agent modified a `.proto` file, ActPlane reminds it to run `protoc`
   before committing. The `since` clause re-arms the gate whenever the
   schema changes again.
-- **`test-before-commit`** (block): cross-event temporal with staleness —
+- **`test-before-commit`** (kill): cross-event temporal with staleness —
   the agent must run tests before committing, and editing any `src/`
-  file invalidates the previous test run.
+  file invalidates the previous test run. The argv token (`commit`) is why
+  this is a `kill` and not a `block`: argv exists only after `exec`, so the
+  pre-op LSM hook cannot see it. `block` applies to non-argv targets, such as
+  the file and endpoint clauses in `docs/rule-language.md`.
 
 See [`docs/rule-language.md`](docs/rule-language.md) for the full rule language and
 worked examples.

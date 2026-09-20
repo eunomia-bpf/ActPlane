@@ -389,6 +389,46 @@ fn compile_to_blob_reports_policy_warnings_on_stderr() {
 }
 
 #[test]
+fn shipped_policies_compile_without_warnings() {
+    // Every policy the repo ships or documents is a worked example. If one uses
+    // a form the kernel cannot enforce, the example teaches a policy that does
+    // not do what it says (the `block exec "git" "commit"` trap: argv exists only
+    // after exec, so the pre-op hook skips the rule). Compile each one and fail
+    // on any warning, so a dead rule or a truncating literal cannot re-enter.
+    let dir = format!("{}/../../test/policies", env!("CARGO_MANIFEST_DIR"));
+    let mut checked = 0usize;
+    for entry in fs::read_dir(&dir).unwrap_or_else(|e| panic!("read {dir}: {e}")) {
+        let path = entry.expect("policy dir entry").path();
+        if path.extension().is_none_or(|e| e != "yaml") {
+            continue;
+        }
+        let out = std::env::temp_dir().join("actplane-corpus-warn-check.bin");
+        let output = run(&[
+            "--policy",
+            path.to_str().unwrap(),
+            "compile",
+            "--out",
+            out.to_str().unwrap(),
+            "--force",
+        ]);
+        assert!(
+            output.status.success(),
+            "{} failed to compile: {}",
+            path.display(),
+            stderr(&output)
+        );
+        let err = stderr(&output);
+        assert!(
+            !err.contains("ActPlane: warning"),
+            "{} compiles with a warning, so the example may not enforce what it states:\n{err}",
+            path.display()
+        );
+        checked += 1;
+    }
+    assert!(checked >= 10, "expected the policy corpus, found {checked}");
+}
+
+#[test]
 fn compile_json_warns_when_a_rule_has_no_because() {
     // The `because` string is the payload forwarded to the agent on a match.
     // Without it a violation carries an empty reason, so the agent learns it was
