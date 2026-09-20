@@ -586,6 +586,15 @@ def main() -> int:
         report = json.loads(subprocess.run([args.cli, "compile", "--policy", str(rule_yaml), "--json"],
                                            check=True, capture_output=True).stdout)
         json_rules = report.get("rules", [])
+        # `globs[idx]` couples the report's rule order to the blob's, so require
+        # them to agree in count before indexing. Without this the coupling is
+        # only caught downstream, as a derived port mismatch on whichever rule
+        # the two orders happen to disagree on, which names the wrong cause. The
+        # blob's n_rules is authoritative: it is what the kernel will load.
+        if len(json_rules) != cfg["n_rules"]:
+            print(f"ERROR: {rule_yaml}: compile --json reports {len(json_rules)} rule(s) "
+                  f"but the compiled blob carries {cfg['n_rules']}", file=sys.stderr)
+            return 1
         globs = [rule.get("target_pattern") for rule in json_rules]
         unless_conds = [extract_unless(rule.get("clause_text", "")) for rule in json_rules]
 
