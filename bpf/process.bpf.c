@@ -259,6 +259,16 @@ struct {
 	__type(value, struct fileptr_ref);
 } ts_fileptr SEC(".maps");
 
+/* A `fileptr_ref` is 160 bytes, so building one on the stack for a map update
+ * costs every caller that frame and pushes deep exit handlers over the 6.8
+ * verifier's summed-stack limit. Build it in per-CPU scratch instead. */
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct fileptr_ref);
+} ts_fileptr_scratch SEC(".maps");
+
 struct {
 	__uint(type, BPF_MAP_TYPE_LRU_HASH);
 	__uint(max_entries, 65536);
@@ -533,6 +543,13 @@ static __always_inline struct fd_scratch *fd_scratch_buf(void)
 	return bpf_map_lookup_elem(&ts_fd_scratch, &key);
 }
 
+static __always_inline struct fileptr_ref *fileptr_scratch_buf(void)
+{
+	__u32 key = 0;
+
+	return bpf_map_lookup_elem(&ts_fileptr_scratch, &key);
+}
+
 static __always_inline struct mmap_ref *mmap_scratch_buf(void)
 {
 	__u32 key = 0;
@@ -561,16 +578,17 @@ static __always_inline int te_file_id_equal(const struct file_id *a,
 static __noinline void te_store_fileptr_ref(struct file *file,
 					    const struct fd_ref *ref)
 {
-	struct fileptr_ref fpref = {};
+	struct fileptr_ref *fpref = fileptr_scratch_buf();
 	__u64 key;
 
-	if (!file)
+	if (!file || !fpref)
 		return;
-	if (te_resolve_file_id_from_file(file, &fpref.backing) < 0)
+	__builtin_memset(fpref, 0, sizeof(*fpref));
+	if (te_resolve_file_id_from_file(file, &fpref->backing) < 0)
 		return;
-	fpref.ref = *ref;
+	fpref->ref = *ref;
 	key = (__u64)file;
-	bpf_map_update_elem(&ts_fileptr, &key, &fpref, BPF_ANY);
+	bpf_map_update_elem(&ts_fileptr, &key, fpref, BPF_ANY);
 }
 
 static __always_inline struct fileptr_ref *te_lookup_fileptr_ref(struct file *file)
