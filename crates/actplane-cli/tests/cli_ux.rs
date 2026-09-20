@@ -344,35 +344,45 @@ fn compile_json_warns_that_an_argv_token_on_a_non_exec_clause_is_ignored() {
 }
 
 #[test]
-fn compile_to_blob_reports_pattern_warnings_on_stderr() {
+fn compile_to_blob_reports_policy_warnings_on_stderr() {
     // The minimal `compile --out` path (the documented way to produce a blob)
     // must not write a blob containing a dead rule and report success silently.
-    // Pattern warnings come from lowering alone, so they are valid on any host.
+    // Every warning it prints is derived from the policy and the blob alone, so
+    // it holds wherever the blob is enforced.
     let dir = std::env::temp_dir().join("actplane-plain-compile-warn");
     std::fs::create_dir_all(&dir).unwrap();
     let out = dir.join("policy.bin");
     let out_s = out.to_str().unwrap();
 
-    let bad = "rule r:\n  block write file \"/y/**\" \"toolongtoolongtoolongtoolongtoolongtoolongtoolongtoolongtoolong\" if A\n  because \"x\"\n";
-    let output = run(&["--rule", bad, "compile", "--out", out_s, "--force"]);
+    // `block exec` with an argv token can never block: argv exists only after
+    // exec, so the LSM pre-op hook skips the rule. This is the highest-value
+    // warning to surface, because the policy reads as an enforcement it is not.
+    let dead = "rule r:\n  block exec \"git\" \"push\" if A\n  because \"x\"\n";
+    let output = run(&["--rule", dead, "compile", "--out", out_s, "--force"]);
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     let err = stderr(&output);
     assert!(
-        err.contains("pattern_literal_truncated"),
-        "expected a pattern warning on stderr, got: {err}"
+        err.contains("argv_block_exec_post_exec_only"),
+        "expected the dead-clause warning on stderr, got: {err}"
     );
-    // The machine-readable success line on stdout is unchanged for consumers.
     assert!(
-        stdout(&output).contains("compiled") || err.contains("compiled"),
+        err.contains("compiled"),
         "compile should still report the blob it wrote"
     );
 
-    // A policy with no pattern hazard stays quiet.
+    // The host-dependent BPF-LSM warning must NOT appear here: this machine may
+    // not be the one enforcing the blob, so a warning about its LSM is noise.
+    assert!(
+        !err.contains("bpf_lsm_inactive_for_block"),
+        "host-dependent warning leaked into the portable path: {err}"
+    );
+
+    // A policy with nothing to warn about stays quiet.
     let good = "rule r:\n  kill exec \"git\" if A\n  because \"x\"\n";
     let output = run(&["--rule", good, "compile", "--out", out_s, "--force"]);
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     assert!(
-        !stderr(&output).contains("pattern_"),
+        !stderr(&output).contains("ActPlane: warning"),
         "clean policy must not warn, got: {}",
         stderr(&output)
     );

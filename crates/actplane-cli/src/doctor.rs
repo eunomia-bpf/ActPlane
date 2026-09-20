@@ -122,7 +122,7 @@ pub(crate) fn check_policy(
     for line in backend_support_lines(&parsed, &compiled, lsm_bpf) {
         println!("  - {}", line);
     }
-    let warns = backend_support_warnings(&parsed, &compiled, lsm_bpf);
+    let warns = backend_support_warnings(&parsed, &compiled, Some(lsm_bpf));
     if warns.is_empty() {
         println!("\n✓ no warnings.");
     } else {
@@ -389,7 +389,7 @@ fn render_rollout_plan(
         }
     }
 
-    let warns = backend_support_warnings(parsed, compiled, lsm_bpf);
+    let warns = backend_support_warnings(parsed, compiled, Some(lsm_bpf));
     if !warns.is_empty() {
         writeln!(&mut out, "\nstatic warnings to resolve before promotion:").unwrap();
         for warning in warns {
@@ -1284,7 +1284,7 @@ fn render_check_json(
     lsm_bpf: bool,
     force_tracepoint: bool,
 ) -> Result<String> {
-    let warnings = backend_support_warnings(parsed, compiled, lsm_bpf)
+    let warnings = backend_support_warnings(parsed, compiled, Some(lsm_bpf))
         .into_iter()
         .map(|w| {
             json!({
@@ -1541,7 +1541,7 @@ fn render_check_explain(
     )
     .unwrap();
 
-    let warns = backend_support_warnings(parsed, compiled, lsm_bpf);
+    let warns = backend_support_warnings(parsed, compiled, Some(lsm_bpf));
     if warns.is_empty() {
         writeln!(&mut out, "\nwarnings: none").unwrap();
     } else {
@@ -2003,10 +2003,18 @@ fn clause_condition_warnings(
     warnings
 }
 
+/// Warnings about a policy and its compiled blob.
+///
+/// Every warning here except `bpf_lsm_inactive_for_block` is derived from the
+/// policy and the compiled blob alone, so it holds wherever the blob is
+/// enforced. `lsm_bpf` is the only host input: `Some(active)` includes the
+/// host-dependent BPF-LSM warning, `None` omits it for callers that produce a
+/// blob on a machine that need not be the one enforcing it (the minimal
+/// `compile --out` path).
 fn backend_support_warnings(
     policy: &Policy,
     compiled: &dsl::Compiled,
-    lsm_bpf: bool,
+    lsm_bpf: Option<bool>,
 ) -> Vec<BackendWarning> {
     let mut warnings = Vec::new();
     // The compiler reports every pattern-lowering warning it found: a literal
@@ -2099,7 +2107,7 @@ fn backend_support_warnings(
                     ),
                 });
             }
-            if clause.effect == Effect::Block && !lsm_bpf {
+            if lsm_bpf == Some(false) {
                 warnings.push(BackendWarning {
                     code: "bpf_lsm_inactive_for_block",
                     message: format!(
@@ -2112,6 +2120,22 @@ fn backend_support_warnings(
         }
     }
     warnings
+}
+
+/// Host-independent warnings for an already-parsed policy and compiled blob, for
+/// the minimal `compile --out` path.
+///
+/// The `lsm_bpf` host input is deliberately `None`: the machine that compiles a
+/// blob need not be the machine that enforces it, so the BPF-LSM warning would
+/// be about the wrong host.
+pub(crate) fn host_independent_warnings(
+    policy: &Policy,
+    compiled: &dsl::Compiled,
+) -> Vec<(String, String)> {
+    backend_support_warnings(policy, compiled, None)
+        .into_iter()
+        .map(|w| (w.code.to_string(), w.message))
+        .collect()
 }
 
 fn clause_support(

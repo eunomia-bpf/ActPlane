@@ -1042,6 +1042,7 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
     let policy = policy_input(cli);
     let loaded = config::load_policy(&policy)?;
     let resolved = config::resolve_policy(&loaded, policy.domain.as_deref())?;
+    let parsed = dsl::parse::parse(&resolved.source)?;
     let compiled = dsl::compile_str(&resolved.source)?;
     write_binary_output_file(out, &compiled.bytes, args.force)?;
     if let Some(domain) = &resolved.domain {
@@ -1051,12 +1052,13 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
             format_domain_policy_rules(domain)
         );
     }
-    // `pattern_warnings` come from lowering alone (no host probe), so they hold
-    // wherever the blob is used. A rule whose literal was truncated, emptied, or
-    // pushed past a matcher bound does not mean what the policy wrote, and this
-    // minimal path would otherwise write the blob and report success silently.
-    for warning in &compiled.pattern_warnings {
-        eprintln!("ActPlane: warning [{}]: {}", warning.code, warning.message);
+    // Warnings derived from the policy and the blob alone hold wherever the blob
+    // is enforced; the host-dependent BPF-LSM warning is excluded, since this
+    // machine may not be the one enforcing it. Printing them keeps the minimal
+    // path from writing a blob whose rules do not mean what the policy wrote and
+    // reporting success silently.
+    for (code, message) in doctor::host_independent_warnings(&parsed, &compiled) {
+        eprintln!("ActPlane: warning [{}]: {}", code, message);
     }
     eprintln!(
         "ActPlane: compiled {} rule(s) to {}",
