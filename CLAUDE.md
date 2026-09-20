@@ -49,7 +49,7 @@ PR/CI handoff guidance.
 ```bash
 make                                    # build bpf/ then the ActPlane CLI
 make test                               # bpf C unit tests + Rust workspace tests
-sudo bash script/e2e_examples.sh        # live policy match of all 12 examples (E1–E12)
+sudo bash script/e2e_examples.sh        # live policy match of every case in test/e2e_cases.yaml
 
 # individual components
 make -C bpf                             # eBPF programs + loaders
@@ -118,7 +118,7 @@ endpoint IP). Propagation: fork→inherit, exec→apply source/xform/gate, read�
 labels into proc, write→proc labels into file, connect→proc labels to endpoint.
 Sinks match a label mask (`req` AND / `forbid` NOT, DNF-expanded) + target pattern
 + optional positional argument + optional condition (lineage-includes / after / target-scope).
-Full semantics and 12 examples: `docs/rule-language.md`.
+Full semantics and worked examples: `docs/rule-language.md`.
 
 ## Critical: the Rust↔C ABI
 

@@ -1,6 +1,6 @@
 #!/bin/bash
-# ActPlane end-to-end example driver. The default test cases (E1–E12 from
-# docs/taint-dsl.md) live in test/e2e_cases.yaml; this script is only the
+# ActPlane end-to-end example driver. The default test cases live in
+# test/e2e_cases.yaml; this script is only the
 # driver: it seeds fixtures, then for each case compiles the case's DSL policy,
 # runs the real eBPF enforcer, fires the trigger, and checks the expected
 # violation fires (and the allowed/declassified case is suppressed). Run as root:
