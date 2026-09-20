@@ -68,7 +68,8 @@ make -C bpf debug                       # AddressSanitizer build of the loaders
 # compile + apply a policy
 sudo ./target/release/actplane --rule "$(cat policy.dsl)" run <cmd>
 
-# compile only -> kernel config blob
+# compile only -> kernel config blob (pattern hazards are printed to stderr;
+# `compile --explain` for the full review)
 ./target/release/actplane --rule "$(cat policy.dsl)" compile --out policy.bin
 
 # run the kernel engine directly against a compiled blob

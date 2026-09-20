@@ -1051,6 +1051,13 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
             format_domain_policy_rules(domain)
         );
     }
+    // `pattern_warnings` come from lowering alone (no host probe), so they hold
+    // wherever the blob is used. A rule whose literal was truncated, emptied, or
+    // pushed past a matcher bound does not mean what the policy wrote, and this
+    // minimal path would otherwise write the blob and report success silently.
+    for warning in &compiled.pattern_warnings {
+        eprintln!("ActPlane: warning [{}]: {}", warning.code, warning.message);
+    }
     eprintln!(
         "ActPlane: compiled {} rule(s) to {}",
         compiled.reasons.len(),
