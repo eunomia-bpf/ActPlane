@@ -136,11 +136,14 @@ From Linux 6.8 the verifier sums the maximum stack depth across every frame in a
 call chain and rejects a program whose total exceeds 512 bytes, with
 `combined stack size of N calls is M. Too large`. A helper can therefore pass on
 one kernel and fail here even though its own frame is small, because the limit is
-on the chain. The two ways to stay under it are to inline (fewer, larger frames
-usually sum lower than many small ones) and to keep `bpf_loop` contexts off the
-stack entirely.
+on the chain. The two ways to stay under it are to inline and to keep `bpf_loop`
+contexts off the stack entirely. Inlining is the counter-intuitive one: a
+`__noinline` annotation adds a frame to every chain that reaches the helper, and
+measured on this engine marking `handle_io_exit_addr` `__noinline` moved
+`trace_recvfrom_exit` from `6 calls is 576` to `7 calls is 640`, farther over the
+limit. Reach for `__noinline` only when one helper's own frame is the problem.
 
-The latter matters for the scan collectors. A `bpf_loop` context argument is a
+Scratch contexts matter for the scan collectors. A `bpf_loop` context argument is a
 stack-typed value that stays spilled for the whole program, so a context struct
 passed to `bpf_loop` raises every caller's frame. The collectors can keep their
 contexts in per-CPU scratch maps (`te_*_scratch_buf()`) and pass only a

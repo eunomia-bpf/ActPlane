@@ -150,7 +150,15 @@ the wrong table.
 
 ## eBPF verifier gotchas (see bpf/README.md for detail)
 
-- Mark deep helpers `__noinline` (own stack frame); keep `te_check_labels` small.
+- Keep the per-frame stack small; prefer inlining over `__noinline` for deep
+  helpers. The 6.8 verifier sums the maximum depth along a call chain against 512
+  bytes, so a helper marked `__noinline` adds a frame to every chain that reaches
+  it: measured on this engine, marking `handle_io_exit_addr` `__noinline` took
+  `trace_recvfrom_exit` from `6 calls is 576` to `7 calls is 640` (worse). The
+  real lever is keeping `bpf_loop` contexts in per-CPU scratch maps rather than on
+  the stack. Use `__noinline` only when a single helper's own frame is the
+  problem, and re-check in a guest boot of the target kernel because the limit is
+  per kernel version. Also keep `te_check_labels` small.
 - Copy each rodata rule into a non-volatile local before matching; matchers take
   `const char *`, not `const volatile char *`.
 - Use explicit `if (idx < N)` bound guards, never `idx & (N-1)` (pointer-OR reject).
