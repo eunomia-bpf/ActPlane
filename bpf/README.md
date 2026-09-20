@@ -150,28 +150,40 @@ contexts in per-CPU scratch maps (`te_*_scratch_buf()`) and pass only a
 stack-resident handle, which keeps the exit handlers small enough to sum under
 512.
 
+The same rule applies to map values. A `struct fileptr_ref` is 160 bytes; building
+one on the stack in `te_store_fileptr_ref` just to hand it to `bpf_map_update_elem`
+added that frame to every open/rename/read exit chain. Build it in a per-CPU
+scratch map instead (`ts_fileptr_scratch`), so the function's own frame drops to
+8 bytes. Measured in a 6.8 guest with the production loader, a `recv` rule with a
+file source: before, `trace_recvfrom_exit` is rejected
+
+```
+combined stack size of 6 calls is 576. Too large
+stack depth 216+16+32+56+24+16+168+8+...
+```
+
+and the skeleton fails to load; after, the same policy prints `ActPlane: ready`.
+
 This is not hypothetical, and it is not limited to policies that use `recv`. The
 committed object on `master` is rejected on 6.8 with `combined stack size of 6
-calls is 608. Too large` for `trace_recvfrom_exit`; the object committed on the
-RQ2 branch (`experiments/rq2-lowering-eval-20260915`) is rejected with `576`,
-because its per-frame sizes differ slightly. In both, the verifier's own
-`stack depth` line starts `216+...`, naming `trace_recvfrom_exit`'s 216-byte
-frame. An object built from a source that keeps the collector `bpf_loop`
-contexts in per-CPU scratch maps loads every program with no rejection. The
-severity depends on who autoloads the program:
+calls is 608. Too large` for `trace_recvfrom_exit`, and the verifier's own
+`stack depth` line starts `216+...`, naming that program's 216-byte frame. The
+RQ2 branch (`experiments/rq2-lowering-eval-20260915`) had the same failure at
+`576`; the `fileptr_ref` scratch fix above clears it, and its committed object now
+loads the program. The severity depends on who autoloads the program:
 
 - The C loader (`bpf/process`) gates those two programs behind `TE_POLICY_RECV`
   (or file-flow with advanced tracepoints), so a static policy reaches the
   failure only when it uses `recv` together with a file source or file rule.
 - The Rust pinned-engine path does not gate: `HookReserve::full_profile()` sets
   `PINNED_POLICY_FEATURES`, which is `ALL_HOOK_FEATURES` and so always includes
-  recv. `actplane run`, `watch`, and MCP go through that path, so on Linux 6.8
-  the engine fails to install *for any policy at all*, and the process reports
+  recv. `actplane run`, `watch`, and MCP go through that path, so on a 6.8 kernel
+  that still carries a stack-heavy frame the engine fails to install *for any
+  policy at all*, and the process reports
   `open ActPlane singleton: trace_recvfrom_exit.load: ... Permission denied`.
   Measured in a 6.8 guest, same binary and command, swapping only the embedded
-  object: `origin/master` fails with `608`, the RQ2 branch with `576`, and an
-  object with the collector contexts off the stack prints
-  `ActPlane: running pid ...` and exits 0.
+  object: `origin/master` fails with `608`, and an object without the stack-heavy
+  frame prints `ActPlane: running pid ...` and exits 0.
 
 Verify with a guest boot of the kernel you mean to support. A load that succeeds
 on one kernel is not evidence for another: the limit is enforced per kernel
