@@ -586,10 +586,23 @@ Raw evidence:
 
   The fix was additionally re-validated live in a 6.8 guest in this environment.
   A local verifier oracle (guest `vmlinuz-6.8.0-138-generic`, qemu/TCG, the
-  diagnostic loader) loads every engine program: `master` and both fixed engines
-  have the **same** failure set (the three `trace_rename*_exit` handlers at the
-  1M limit, `trace_recvfrom_exit`/`trace_recvmsg_exit` `-EACCES`), none autoloaded
-  by these policies. A `source SECRET = file "**/.env"` policy plus a connect sink
+  diagnostic loader) loads the engine programs per config. Two separate verifier
+  budgets show up, and they were fixed at different times:
+
+  - The summed-stack limit (512 bytes along a call chain) rejected
+    `trace_recvfrom_exit` and `trace_recvmsg_exit` `-EACCES` on `master` and on
+    the engines of that era. `f315e600` removed it by keeping `fileptr_ref` off
+    the stack, so on this branch those two now load; the full cross-check across
+    three engine objects is in `rq2-engine-budget-crossval.md`.
+  - The 1M instruction-processing limit still rejects the file-event handlers.
+    On this branch the diagnostic loader is `VLOAD_DONE ok=85 fail=8`, and all
+    eight failures are the file exit handlers (`trace_openat_exit` and its
+    open/creat/truncate/rename siblings) at "BPF program is too large": the
+    policies these probes use do not autoload them, so the exit-handler failure
+    does not affect the probe rows that load. PR44's engine restructure clears
+    this budget (its object loads `ok=93 fail=0`), which this branch does not.
+
+  A `source SECRET = file "**/.env"` policy plus a connect sink
   run through the **production** loader (`bpf/process` built from the fixed
   source) emits exactly one verdict for a bare `.env` read then `connect 1.1.1.2`
   (`"target":"1.1.1.2"`, `provenance.target:".env"`, `effect":"kill"`), and none
