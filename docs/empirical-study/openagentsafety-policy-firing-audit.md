@@ -172,7 +172,15 @@ Inputs and pinned coordinates:
   `596a57f5970f1b0a0f4bc07e6986de7368d14eefce630a8609e86aa783fbb101`.
 - diagnostic loader `bpf/vvload` SHA-256
   `946a9af348b9363daf3bd8ca7833d55830f20bebd4b06fb31be9d2efdb9615ff`.
-  Both loaders rebuild byte-identically from the committed source.
+  These digests name the loaders the recorded runs actually used, and each
+  result directory's `metadata.tsv` records the same values. They are not
+  reproducible byte-for-byte on another host: the loaders are built with `-g`
+  and embed the compiler identity and absolute include paths (for example
+  `GCC: (Debian 14.2.0-19)`), so rebuilding from the identical committed source
+  with a different `cc` produces a different digest. Rebuilding the committed
+  source twice on one host is deterministic, but a rebuild here does not
+  reproduce these values. What is reproducible is the source they were built
+  from (`loader_source_dirty no`) and the behavior they produce.
 - policy inventory: the frozen `origin/artifact-ready` OpenAgentSafety
   `policies/actplane` directory (the same one the compile audit uses),
   supplied via `OAS_POLICY_DIR`; per-policy SHA-256 digests are recorded in
