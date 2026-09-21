@@ -46,6 +46,12 @@ compiler.
 - `candidate_rules_144.tsv`: aggregate candidate-line extraction with repo,
   file family, line number, category guess, and source text.
 - `figures/`: generated summary figures for the empirical study.
+- `results/policy-authority-boundary-vm/`: the policy-authority boundary matrix
+  re-run and committed as reviewer-verifiable evidence (`counts.tsv` has the
+  seven asserted outcomes, `guest-console.txt` the full cleaned guest console,
+  and `metadata.tsv` the guest kernel, acceleration, and the two wait knobs).
+  Unlike the earlier 2026-09-10 run under KVM, this run is TCG-accelerated, and
+  its `counts.tsv` matches the KVM run row for row.
 
 The raw corpus, raw traces, intermediate coding notes, old evaluation drafts,
 and exploratory scripts are intentionally not kept in the product branch.
