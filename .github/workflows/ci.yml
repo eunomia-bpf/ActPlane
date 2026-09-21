@@ -40,6 +40,9 @@ jobs:
       - name: Check committed eBPF objects match the source
         run: bash script/check_prebuilt_fresh.sh
 
+      - name: Check committed evidence TSVs are well-formed
+        run: bash script/check_evidence_tsv.sh
+
       - name: Check Rust workspace
         run: cargo check --workspace --locked
 

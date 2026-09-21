@@ -30,4 +30,10 @@ test:
 	make -C bpf test
 	cargo test --workspace
 
-.PHONY: build build-bpf build-rust clean install test
+# Lint the committed empirical-study evidence. Separate from `test` because it
+# validates committed data rather than building or exercising code.
+check-evidence:
+	bash script/check_evidence_tsv.sh
+
+
+.PHONY: build build-bpf build-rust clean install test check-evidence

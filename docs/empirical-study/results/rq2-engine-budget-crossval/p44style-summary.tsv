@@ -1,14 +1,4 @@
+metric	value
 ok	82
 fail	11
 total	93
-failed	trace_creat_exit	combined stack size of 7 calls is 544
-failed	trace_open_exit	combined stack size of 7 calls is 544
-failed	trace_openat2_exit	combined stack size of 7 calls is 544
-failed	trace_openat_exit	combined stack size of 7 calls is 544
-failed	trace_read	combined stack size of 5 calls is 544
-failed	trace_recvfrom	combined stack size of 5 calls is 544
-failed	trace_recvmsg	combined stack size of 5 calls is 544
-failed	trace_rename_exit	BPF program is too large (1M complexity)
-failed	trace_renameat2_exit	BPF program is too large (1M complexity)
-failed	trace_renameat_exit	BPF program is too large (1M complexity)
-failed	trace_truncate_exit	combined stack size of 7 calls is 544

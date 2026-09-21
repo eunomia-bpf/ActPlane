@@ -41,9 +41,10 @@ either kind appears in that run. Raw per-program lines:
 For comparison, the same policy on this branch (`079e1247`, object
 `56de86c9...`) is `ok=85 fail=8`: the eight failures are the open/creat/truncate/
 rename exit handlers, all "BPF program is too large". `branch-baseline-guest-console.txt`
-and `branch-baseline-summary.tsv` record that run, so the three objects above are
-compared on identical inputs. PR44's object is a
-genuine improvement under this budget, not a difference in reporting.
+and `branch-baseline-summary.tsv` record that run, whose failing programs are
+listed per row in `branch-baseline-failures.tsv`. The three objects are compared
+on identical inputs, so PR44's object is a genuine improvement under this budget
+rather than a difference in reporting.
 
 ## A partial port was measured and rejected
 
@@ -55,9 +56,10 @@ with the label accumulators folded into scratch, plus `te_read` and
 VLOAD_DONE ok=82 fail=11 total=93
 ```
 
-`p44style-guest-console.txt` and `p44style-summary.tsv` record it. The tradeoff is
-the point: making those three helpers `__noinline` gives the handlers a shared
-subprogram, which does remove the complexity rejection for the
+`p44style-guest-console.txt` and `p44style-summary.tsv` record it, with the eleven
+failing programs and their two rejection kinds in `p44style-failures.tsv`. The
+tradeoff is the point: making those three helpers `__noinline` gives the handlers
+a shared subprogram, which does remove the complexity rejection for the
 open/creat/truncate exit handlers, but each helper's own frame is then added to
 every chain that reaches it, and on this source those frames are still too large.
 So the failure moves from the complexity budget to the summed-stack limit
@@ -88,3 +90,21 @@ The remedy is PR44's engine restructure (or an equivalent that shrinks the same
 frames), not a local edit here. This does not affect the rows that *are* measured:
 the probe's `skip(engine-budget)` rows are excluded from its count comparison, and
 the replay's rows are host-side matcher evaluation with no kernel involvement.
+
+## Evidence format, and a guard against the malformation found here
+
+These files are parsed by row, so a row whose field count differs from its
+header has no defined meaning. The first revision of this directory's summaries
+had exactly that defect: `ok`/`fail`/`total` were two-field rows beside
+three-field `failed` rows, and the file had no header, so `awk -F '\t' '$2 ==
+"..."'` would read the wrong thing depending on the row. It is fixed here by
+splitting the two shapes (`*-summary.tsv` is `metric`/`value`,
+`*-failures.tsv` is `program`/`load_error`/`reason`, each with a header).
+
+The same class appeared in review on PR44, where an `expectations.tsv` had a
+four-field header and three-field rows from a `printf` placeholder/argument
+mismatch. Because it is a recurring shape and the files are machine-read,
+`script/check_evidence_tsv.sh` now fails when a committed evidence TSV has a row
+whose field count differs from its header, or when the directory holds no TSV at
+all. It runs in CI's Build and Test job and as `make check-evidence`. Both
+shapes above were confirmed to fail it, and the corrected files pass.
