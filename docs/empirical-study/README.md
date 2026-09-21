@@ -52,17 +52,30 @@ and exploratory scripts are intentionally not kept in the product branch.
 
 ### RQ2 lowering-evaluation results (exploratory)
 
-Results supporting the RQ2 reviewer evaluation (`rq2-lowering-eval.md`):
-`results/rq2-fp-current-lowering/replay.json` (host-side compiler replay, with a
-`status` and a `provenance` block naming the compiler binary hash, the input
-`fp_rows` hash, and a per-row `rule.yaml` digest manifest),
-`results/rq2-except-probe-vm-postfix/` (a live 6.8 guest probe, with
-`metadata.tsv` recording the guest kernel, both binaries' hashes, and the policy
-hashes), and `results/rq2-engine-budget-crossval/` (the 6.8 verifier's
-1M-instruction budget measured against three engine objects, described in
-`rq2-engine-budget-crossval.md`). All are **exploratory** evidence for the
-reviewer response, not promoted paper results; they are retained on the product
-branch because each is self-contained and carries the fixed command, inputs,
-environment, summary, and
-status the artifact Non-Cite Rule requires. The DSL-specific frozen corpus and
-raw model runs still live only on the artifact ref.
+Results supporting the RQ2 reviewer evaluation (`rq2-lowering-eval.md`). Each
+directory is self-contained and carries the command, inputs, environment, and
+summary the artifact Non-Cite Rule requires:
+
+- `results/rq2-fp-current-lowering/replay.json`: host-side compiler replay, with a
+  `status` and a `provenance` block naming the compiler binary hash, the input
+  `fp_rows` hash, and a per-row `rule.yaml` digest manifest.
+- `results/rq2-path-lowering-divergence/divergence.json`: the static
+  historical-vs-current lowering divergences over the frozen rules, with the input
+  coordinate under `provenance`.
+- `results/rq2-fn-lowering-exposure/exposure.json`: the static audit of which
+  frozen false negatives were exposed to the repo-relative `**/dir/**` miss.
+- `results/rq2-except-probe-vm/`: the **pre-fix** live 6.8 guest probe.
+- `results/rq2-except-probe-vm-postfix/`: the same probe after the fix, with
+  `metadata.tsv` recording the guest kernel, both binaries' hashes, and the policy
+  hashes.
+- `results/rq2-except-probe-vm-pr44-engine/`: that probe re-run with a
+  lower-budget engine so its six suffix write-rule rows become measurable;
+  `metadata.tsv` names the engine source and the reason for the swap.
+- `results/rq2-probe-prebuilt-object/`: the probe outcome with the then-committed
+  (stale) prebuilt object, kept as the evidence for that finding.
+- `results/rq2-engine-budget-crossval/`: the 6.8 verifier's 1M-instruction budget
+  measured against three engine objects, described in `rq2-engine-budget-crossval.md`.
+
+All are **exploratory** evidence for the reviewer response, not promoted paper
+results. The DSL-specific frozen corpus and raw model runs still live only on the
+artifact ref.

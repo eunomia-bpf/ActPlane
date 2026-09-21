@@ -39,6 +39,15 @@ A scan for the same class over `script/`, `test/`, `bpf/`, and `crates/` found
 only those two false positives, so widening the pattern would add noise without
 catching real staleness. `docs/` is where the citations are meant to be followed.
 
+The second check runs the other way: every committed directory under
+`docs/empirical-study/results/` must be named in the reviewer-facing index
+(`docs/empirical-study/README.md`). Evidence a reader cannot find is evidence that
+does not count, and the index had listed three of the eight committed directories
+before this was written. The directory set comes from `git ls-files` rather than a
+filesystem walk, because this checkout can hold untracked result dirs from other
+branches and CI checks out only what is committed; a walk would make the local and
+CI verdicts differ.
+
 Usage: python3 script/check_doc_refs.py
 """
 
@@ -85,6 +94,12 @@ REF_QUALIFIERS = (
 )
 WINDOW = 240
 
+# The reviewer-facing index for the retained evidence, and the tree it indexes.
+# Every committed directory under RESULTS_DIR must be named in INDEX, so a reader
+# can find evidence that the product branch retains.
+RESULTS_DIR = "docs/empirical-study/results"
+INDEX = "docs/empirical-study/README.md"
+
 
 def committed_files() -> list[str]:
     out = subprocess.run(
@@ -98,7 +113,8 @@ def main() -> int:
     problems: list[tuple[str, str]] = []
     checked = 0
 
-    for name in committed_files():
+    files = committed_files()
+    for name in files:
         if name.endswith("/") or not name.endswith(SUFFIXES):
             continue
         if name.startswith(SKIP_PREFIXES) or name == SELF:
@@ -121,19 +137,65 @@ def main() -> int:
             line = text.count("\n", 0, match.start()) + 1
             problems.append((f"{name}:{line}", ref))
 
-    if problems:
+    # Reverse direction: a committed evidence directory that no doc names is
+    # evidence a reader cannot find. The results tree had eight committed
+    # directories while its index listed three, so this is checked rather than
+    # assumed. `INDEX` is the reviewer-facing index.
+    #
+    # The directory list comes from `git ls-files`, not from walking the
+    # filesystem: the working tree can hold untracked evidence (this checkout has
+    # gitignored `oas-*` result dirs from another branch), and CI checks out only
+    # what is committed. Using the tracked set keeps the local and CI verdicts
+    # identical, which a filesystem walk would not.
+    unindexed = []
+    tracked = files
+    index_path = root / INDEX
+    index_text = (
+        index_path.read_text(encoding="utf-8", errors="replace")
+        if index_path.is_file()
+        else ""
+    )
+    prefix = RESULTS_DIR + "/"
+    dirs = set()
+    for name in tracked:
+        if not name.startswith(prefix):
+            continue
+        rest = name[len(prefix) :]
+        if "/" in rest:  # a file at the top level of results/ has no dir
+            dirs.add(rest.split("/", 1)[0])
+    # The index lives inside `docs/empirical-study/`, so it names directories as
+    # `results/<dir>/`; a doc elsewhere would use the full `docs/...` path. Accept
+    # either, since both point a reader at the same place.
+    for entry in sorted(dirs):
+        if not (
+            f"{RESULTS_DIR}/{entry}/" in index_text
+            or f"results/{entry}/" in index_text
+        ):
+            unindexed.append(f"{RESULTS_DIR}/{entry}/")
+
+    if problems or unindexed:
         for where, ref in problems:
             print(f"{where}: {ref} does not exist", file=sys.stderr)
-        print(
-            f"\n{len(problems)} doc reference(s) point at a path that is not in the "
-            "tree. Update the citation to the file's current path, or, if the file "
-            "lives on an artifact ref, name that ref in the surrounding text so the "
-            "reader is told where it is.",
-            file=sys.stderr,
-        )
+        for ref in unindexed:
+            print(f"{ref}: committed evidence dir is not named in {INDEX}", file=sys.stderr)
+        if problems:
+            print(
+                f"\n{len(problems)} doc reference(s) point at a path that is not in the "
+                "tree. Update the citation to the file's current path, or, if the file "
+                "lives on an artifact ref, name that ref in the surrounding text so the "
+                "reader is told where it is.",
+                file=sys.stderr,
+            )
+        if unindexed:
+            print(
+                f"\n{len(unindexed)} committed evidence dir(s) are missing from "
+                f"{INDEX}. Add them, so the index a reader uses to find the evidence "
+                "stays complete as directories are added.",
+                file=sys.stderr,
+            )
         return 1
 
-    print(f"ok   doc references resolve ({checked} checked)")
+    print(f"ok   doc references resolve ({checked} checked); evidence dirs indexed")
     return 0
 
 
