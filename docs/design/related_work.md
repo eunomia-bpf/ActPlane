@@ -238,7 +238,9 @@ accessing vital resources via protection rules.
 network intruders, it predates eBPF (kernel-modification based), and it is not agent-aware, has
 no agent feedback, and is not a general typed cross-channel DSL.
 
-**Production OSS enforcers** (no academic PDF; surveyed in `docs/reference/oss-landscape.md`):
+**Production OSS enforcers** (no academic PDF; the longer survey was moved off the
+product branch with the rest of the paper-only material, and lives on
+`backup/2026-06-14-master` as `docs/reference/oss-landscape.md`):
 **Cilium Tetragon** (BPF-LSM/kprobe, `Sigkill`/`Override` errno, and `matchBinaries` +
 `followChildren` which propagates a *per-binary lineage flag* to descendants in a BPF map —
 [selectors](https://tetragon.io/docs/concepts/tracing-policy/selectors/)); **KubeArmor** (BPF-LSM

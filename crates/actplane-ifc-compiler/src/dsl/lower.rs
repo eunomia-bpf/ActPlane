@@ -1372,7 +1372,7 @@ fn lower_effect(effect: Effect) -> u8 {
 }
 
 /// Per-lowered-rule metadata, indexed by `rule_id`, kept Rust-side for building
-/// the corrective-feedback payload (docs/feedback-design.md §6).
+/// the corrective-feedback payload (docs/design/feedback-design.md).
 #[derive(Clone)]
 pub struct RuleMeta {
     pub name: String,

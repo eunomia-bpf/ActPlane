@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 eunomia-bpf org.
 
-//! Corrective-feedback payload (docs/feedback-design.md §6).
+//! Corrective-feedback payload (docs/design/feedback-design.md).
 //!
 //! Turns a violation the *kernel* detected (rule + target, looked up via
 //! `RuleMeta`) into the model-facing, actionable feedback string written to the
@@ -31,7 +31,7 @@ pub struct PayloadInput<'a> {
     pub provenance: Option<&'a Provenance>,
 }
 
-/// Build the model-facing corrective-feedback string (docs/feedback-design.md §6).
+/// Build the model-facing corrective-feedback string (docs/design/feedback-design.md).
 /// `op`/`target` describe the blocked operation; the rest comes from the rule.
 pub fn format_payload(input: PayloadInput<'_>) -> String {
     let PayloadInput {

@@ -2,7 +2,7 @@
 
 把 ActPlane **内核强制器**(eBPF 污点传播 + LSM)检测到的违规理由,回灌进
 agent 的上下文,让合作型 agent 自我纠正、换路重试,而不是被一个干巴巴的
-`Permission denied` 卡死。完整设计见 [`../docs/feedback-design.md`](../docs/feedback-design.md)。
+`Permission denied` 卡死。完整设计见 [`../docs/design/feedback-design.md`](../docs/design/feedback-design.md)。
 
 > **判定永远在内核**:要不要拦、污点怎么传,全部由 eBPF + LSM 在 syscall 层决定
 > ——这正是 ActPlane 不可绕过(`bash -c`、subprocess、直接 syscall 都拦得到)的根因。
@@ -14,8 +14,8 @@ agent 的上下文,让合作型 agent 自我纠正、换路重试,而不是被�
 `.actplane/runs/<run-id>/feedback.txt`,并把
 `ACTPLANE_FEEDBACK_FILE` / `ACTPLANE_HOOK_STATE` 传给被运行的 agent。
 `hook-state.json` 会记录本次 run 的 root pid,因此 hook 只会消费属于同一
-agent 进程树的反馈。每条**内核检测到的**违规按 `docs/feedback-design.md`
-§6 模板写入该 mailbox:
+agent 进程树的反馈。每条**内核检测到的**违规按 `docs/design/feedback-design.md`
+的模板写入该 mailbox:
 
 ```bash
 sudo -E actplane run codex --cd /work

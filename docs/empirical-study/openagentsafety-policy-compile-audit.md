@@ -67,7 +67,8 @@ The audit script and its inputs are deterministic. The script is
 `docs/empirical-study/audit_openagentsafety_policies.py`. Inputs:
 
 - artifact tree: frozen `origin/artifact-ready` OpenAgentSafety checkout
-  (`docs/OpenAgentSafety`) plus `docs/artifact/rq5_openagentsafety_ledger.json`.
+  (`docs/OpenAgentSafety`), plus `docs/artifact/rq5_openagentsafety_ledger.json`
+  from that same ref.
 - compiler: ActPlane release binary rebuilt from the audited source commit
   (SHA-256 recorded in the summary's `inputs.compiler_sha256`).
 - official task root: flat directory of `<task-id>.md` files for the 359
