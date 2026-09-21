@@ -46,6 +46,12 @@ SUFFIXES = (".md", ".rs", ".sh", ".yaml", ".yml", ".c", ".h", ".toml", ".py", ".
 # Trees that belong to something else (separate repo, vendored, or generated).
 SKIP_PREFIXES = ("docs/papers/", "libbpf/", "bpftool/", "target/", "bpf/.output/")
 
+# This checker is excluded because its docstring enumerates the dead references it
+# exists to catch, so it names paths that do not exist by design. That is the one
+# file where a missing path is the point rather than a defect; excluding the file
+# is narrower than weakening the rule for the rest of the tree.
+SELF = "script/check_doc_refs.py"
+
 # A reference is allowed to be absent when the surrounding text says which ref
 # holds it, which is how this repo documents material deliberately kept off the
 # product branch (see docs/ARTIFACT.md). The window covers the whole line and a
@@ -83,7 +89,7 @@ def main() -> int:
     for name in committed_files():
         if name.endswith("/") or not name.endswith(SUFFIXES):
             continue
-        if name.startswith(SKIP_PREFIXES):
+        if name.startswith(SKIP_PREFIXES) or name == SELF:
             continue
         path = root / name
         try:
