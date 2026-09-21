@@ -12,6 +12,19 @@ fn actplane() -> &'static str {
     env!("CARGO_BIN_EXE_actplane")
 }
 
+/// Deadline for an MCP response or a side effect it triggers. The first
+/// `initialize` covers a live engine attach, which dominates the run, and inside
+/// the TCG-emulated 6.8 guest the boundary matrix is measured in it exceeds a
+/// KVM-sized constant (a passing matrix run measures ~31s, so a fixed 30s
+/// deadline fails intermittently). CI on real hardware keeps the default; the VM
+/// runner raises it through the environment.
+fn mcp_wait_timeout() -> Duration {
+    std::env::var("ACTPLANE_MCP_WAIT_SECS")
+        .ok()
+        .and_then(|secs| secs.parse().ok())
+        .map(Duration::from_secs)
+        .unwrap_or(Duration::from_secs(30))
+}
 struct McpProcess {
     child: Child,
     stdin: Option<ChildStdin>,
@@ -128,7 +141,7 @@ impl McpProcess {
     }
 
     fn response(&self, id: i64) -> Value {
-        let deadline = Instant::now() + Duration::from_secs(30);
+        let deadline = Instant::now() + mcp_wait_timeout();
         let mut stderr = Vec::new();
         let mut seen = Vec::new();
         loop {

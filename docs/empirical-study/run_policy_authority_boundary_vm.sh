@@ -3,9 +3,9 @@
 #
 # The guest boots the 6.8 kernel the matrix targets and runs the ignored
 # `mcp_policy_authority_boundary_matrix_privileged` test. Optional knobs:
-# ACTPLANE_VM_KERNEL (a 6.8 vmlinuz; defaults to /boot/vmlinuz-6.8.*-generic)
-# and ACTPLANE_VM_TIMEOUT (qemu wall-clock bound in seconds, for the slower TCG
-# fallback path).
+# ACTPLANE_VM_KERNEL (a 6.8 vmlinuz; defaults to /boot/vmlinuz-6.8.*-generic),
+# ACTPLANE_VM_TIMEOUT (qemu wall-clock bound in seconds, for the slower TCG
+# fallback path), and ACTPLANE_MCP_WAIT_SECS (the in-guest MCP response deadline).
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -22,6 +22,9 @@ trap 'rm -rf "$WORK"' EXIT
 # TCG is far slower than KVM, so the qemu wall-clock bound is a knob rather than
 # a fixed KVM-sized constant; default with headroom and let the operator override.
 VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-1800}"
+# The guest's first MCP request covers a live engine attach, which dominates the
+# run; give it room under TCG and record the value that produced the run.
+MCP_WAIT_SECS="${ACTPLANE_MCP_WAIT_SECS:-300}"
 
 # Fail with an actionable message rather than the bare `missing ` an empty
 # KERNEL produced.
@@ -70,6 +73,10 @@ mount -t tracefs tracefs /sys/kernel/tracing 2>/dev/null || true
 mount -t bpf bpf /sys/fs/bpf 2>/dev/null || true
 dmesg -n 1 2>/dev/null || true
 cd /workspaces/repository
+# The first MCP request covers a live engine attach, which dominates the run and
+# exceeds the test's KVM-sized 30s default inside a TCG-emulated guest (a passing
+# matrix run measures ~31s, so the default fails intermittently). Raise it.
+export ACTPLANE_MCP_WAIT_SECS=$MCP_WAIT_SECS
 "$test_bin" mcp_policy_authority_boundary_matrix_privileged \
   --ignored --exact --nocapture --test-threads=1
 test_status=\$?
@@ -95,6 +102,10 @@ if [ "$qemu_status" -ne 0 ] && ! grep -q '^EXPERIMENT_DONE' "$OUT/console.log"; 
 fi
 set -e
 tr -d '\r' <"$OUT/console.log" >"$OUT/console.clean.log"
+# Keep the full cleaned guest console under a tracked name, because `*.log` is
+# gitignored so the committed evidence is reviewer-verifiable rather than only a
+# host-local path.
+cp "$OUT/console.clean.log" "$OUT/guest-console.txt"
 
 printf '%s\t%s\t%s\n' case expected observed >"$OUT/counts.tsv"
 awk '
@@ -115,6 +126,7 @@ awk '
   printf 'acceleration\t%s\n' "$acceleration"
   printf 'qemu_status\t%s\n' "$qemu_status"
   printf 'qemu_timeout_s\t%s\n' "$VM_TIMEOUT"
+  printf 'mcp_wait_secs\t%s\n' "$MCP_WAIT_SECS"
   printf 'test_source_sha256\t%s\n' "$(sha256sum "$ROOT/crates/actplane-cli/tests/mcp_protocol.rs" | cut -d' ' -f1)"
   printf 'test_binary_sha256\t%s\n' "$(sha256sum "$test_bin" | cut -d' ' -f1)"
   printf 'actplane_binary_sha256\t%s\n' "$(sha256sum "$actplane_bin" | cut -d' ' -f1)"
