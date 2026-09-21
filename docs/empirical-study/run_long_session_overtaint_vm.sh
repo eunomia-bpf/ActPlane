@@ -8,6 +8,10 @@ PROC="${ACTPLANE_PROCESS_BIN:-$ROOT/bpf/process}"
 KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic 2>/dev/null | tail -1)}"
 OUT="${1:-$ROOT/docs/empirical-study/results/long-session-overtaint-vm}"
 WORK="$(mktemp -d /tmp/actplane-long-session-vm.XXXXXX)"
+# Seven cases each wait up to ~40s for the loader under TCG (measured ~38s to
+# `ActPlane: ready`), so a 300s cap expires mid-experiment and truncates the run.
+# Default with headroom and let the operator override, as the probe runner does.
+VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-1800}"
 trap 'rm -rf "$WORK"' EXIT
 
 # Fail with an actionable message rather than the bare `missing ` (and a raw ls
@@ -137,8 +141,13 @@ run_case() {
     /process --config /config.bin --seed-pid "$trigger_pid" --seed-label "$seed_label" >"/tmp/$name.log" 2>&1 &
   fi
   loader_pid=$!
+  # Under TCG the loader needs far longer to finish verifying and attaching than
+  # under KVM: measured 37.9s to print `ActPlane: ready` in this guest, against a
+  # 4s budget here (400 x 0.01), so every case failed `loader-not-ready` before
+  # the loader got there. The probe runner waits 4000 x 0.01 = 40s for the same
+  # message on the same guest; match it, since the measured need is ~38s.
   tries=0
-  while [ "$tries" -lt 400 ]; do
+  while [ "$tries" -lt 4000 ]; do
     grep -q 'ActPlane: ready' "/tmp/$name.log" && break
     kill -0 "$loader_pid" 2>/dev/null || break
     tries=$((tries + 1)); sleep 0.01
@@ -185,7 +194,7 @@ chmod +x "$WORK/root/init"
 (cd "$WORK/root" && find . -print0 | cpio --null -o --format=newc | gzip -1 > "$WORK/initramfs.gz") 2>"$OUT/initramfs.stderr"
 
 run_qemu() {
-  timeout 300 qemu-system-x86_64 -accel "$1" -m 1024 -smp 2 -nographic -no-reboot \
+  timeout "$VM_TIMEOUT" qemu-system-x86_64 -accel "$1" -m 1024 -smp 2 -nographic -no-reboot \
     -kernel "$KERNEL" -initrd "$WORK/initramfs.gz" \
     -append 'console=ttyS0 rdinit=/init panic=-1' >"$OUT/console.log" 2>"$OUT/qemu.stderr"
 }

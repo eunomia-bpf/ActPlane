@@ -50,11 +50,12 @@ compiler.
 The raw corpus, raw traces, intermediate coding notes, old evaluation drafts,
 and exploratory scripts are intentionally not kept in the product branch.
 
-### RQ2 lowering-evaluation results (exploratory)
+### RQ2 and long-session results (exploratory)
 
-Results supporting the RQ2 reviewer evaluation (`rq2-lowering-eval.md`). Each
-directory is self-contained and carries the command, inputs, environment, and
-summary the artifact Non-Cite Rule requires:
+Results supporting the RQ2 reviewer evaluation (`rq2-lowering-eval.md`) and the
+long-session over-taint experiment (`rq2-reviewer-audit-plan.md`). Each directory
+is self-contained and carries the command, inputs, environment, and summary the
+artifact Non-Cite Rule requires:
 
 - `results/rq2-fp-current-lowering/replay.json`: host-side compiler replay, with a
   `status` and a `provenance` block naming the compiler binary hash, the input
@@ -75,6 +76,11 @@ summary the artifact Non-Cite Rule requires:
   (stale) prebuilt object, kept as the evidence for that finding.
 - `results/rq2-engine-budget-crossval/`: the 6.8 verifier's 1M-instruction budget
   measured against three engine objects, described in `rq2-engine-budget-crossval.md`.
+- `results/long-session-overtaint-vm/`: the long-session over-taint experiment
+  re-run under TCG (`counts.tsv` matches the preregistered row set, `metadata.tsv`
+  records the kernel, acceleration, and the three input hashes). The runner needed
+  a longer loader wait than its original KVM run, so this is also the record that
+  the TCG path works.
 
 All are **exploratory** evidence for the reviewer response, not promoted paper
 results. The DSL-specific frozen corpus and raw model runs still live only on the

@@ -221,6 +221,17 @@ while write-rule policies retain the full sink evaluator. These failures are
 engineering evidence, not experimental observations. Build success and loader
 readiness remain prerequisites, not results.
 
+The guest path was re-run on 2026-09-21 and reproduces the same seven rows
+(`0,1,5,20,0,5,1`), with the same policy hash, under TCG rather than KVM
+(`results/long-session-overtaint-vm/`). Reproducing it exposed a runner defect on
+that path: the loader wait was `400 x 0.01 = 4s`, sized for the original KVM run,
+but under TCG `ActPlane: ready` took a measured 37.9s, so every case failed
+`loader-not-ready` before the loader finished. The wait now matches the sibling
+probe runner (4000 x 0.01 = 40s), and the qemu cap is an env-overridable
+`ACTPLANE_VM_TIMEOUT` (default 1800s) instead of a fixed 300s that seven ~40s
+loads would exhaust. So the experiment is reproducible on the container's
+available acceleration, not only under KVM.
+
 The first independent Codex review blocked the follow-up because the Rust loader
 did not select the new flow-only exits and the runner did not fail closed. After
 the loader fix, a second review confirmed hook selection and hashes but retained a
