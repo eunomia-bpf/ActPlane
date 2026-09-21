@@ -119,7 +119,16 @@ failed.
 Both runners are deterministic given their inputs. They try a KVM-accelerated
 guest first and fall back to TCG automatically, because the host has no usable
 hardware virtualization. A full firing-audit run is about three minutes of
-wall-clock time under TCG; the verifier-stats run is under a minute.
+wall-clock time under TCG; the verifier-stats run is under a minute. A
+re-measurement on 2026-09-21 timed the firing audit at 320s under TCG, so both
+runners' default `ACTPLANE_VM_TIMEOUT` was raised to the values shown below
+(2400s and 1800s). The firing audit's earlier 300s default expired mid-run on
+exactly the TCG fallback path this host uses, and the runners also defaulted to
+the lexicographically-newest `/boot/vmlinuz-*-generic` rather than a 6.8 kernel,
+which on a host with a newer generic kernel would have recorded a `guest_kernel`
+other than the 6.8 this note and their `metadata.tsv` claim. Both now default to
+`vmlinuz-6.8.*-generic` and fail closed when none is present, so a run without
+`ACTPLANE_VM_KERNEL` cannot silently measure the wrong kernel.
 
 `OAS_POLICY_DIR` must point at the frozen OpenAgentSafety `policies/actplane`
 directory; there is no portable default because the inventory lives outside this

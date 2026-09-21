@@ -28,17 +28,24 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ACT="${ACTPLANE_BIN:-$ROOT/target/release/actplane}"
 PROC="${ACTPLANE_PROCESS_BIN:-$ROOT/bpf/process}"
-KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic 2>/dev/null | tail -1)}"
+# Restrict the default to a 6.8 guest: the recorded `guest_kernel` and the
+# results note are both a 6.8 measurement, so the lexicographically-newest
+# generic kernel is the wrong default. On a host whose `/boot` carries a newer
+# generic kernel this silently boots it, records it as `guest_kernel`, and
+# measures a kernel where the 6.8 summed-subprogram-stack limit does not apply.
+KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-6.8.*-generic 2>/dev/null | tail -1)}"
 OAS="${OAS_POLICY_DIR:-}"
 OUT="${1:-$ROOT/docs/empirical-study/results/oas-firing-audit-vm}"
 # TCG execution is far slower than KVM, so the qemu wall-clock timeout is a
-# knob: a guest boot plus 18 policy load/attach/trigger cycles needs far more
-# than the KVM-friendly default when no hardware virtualization is available.
-VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-300}"
+# knob. A measured full TCG run (18 policy load/attach/trigger cycles after
+# boot) took 320s, so the old 300s default expired mid-experiment and truncated
+# the run on exactly the fallback path this host uses. Default with headroom to
+# the value the results note documents, and let the operator override.
+VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-2400}"
 WORK="$(mktemp -d /tmp/actplane-oas-firing-vm.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 
-[ -n "$KERNEL" ] || { echo "set ACTPLANE_VM_KERNEL to a guest vmlinuz (no /boot/vmlinuz-*-generic found)" >&2; exit 2; }
+[ -n "$KERNEL" ] || { echo "set ACTPLANE_VM_KERNEL to a 6.8 guest vmlinuz (no /boot/vmlinuz-6.8.*-generic found)" >&2; exit 2; }
 for file in "$ACT" "$PROC" "$KERNEL" /bin/busybox; do
   [ -e "$file" ] || { echo "missing $file" >&2; exit 2; }
 done

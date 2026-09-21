@@ -24,17 +24,24 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VV="${ACTPLANE_VVLOAD_BIN:-$ROOT/bpf/vvload}"
 ACT="${ACTPLANE_BIN:-$ROOT/target/release/actplane}"
-KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic 2>/dev/null | tail -1)}"
+# Restrict the default to a 6.8 guest: this measurement exists to record the 6.8
+# summed-subprogram-stack verdict, and the results note claims a 6.8 kernel, so
+# the lexicographically-newest generic kernel is the wrong default. On a host
+# whose `/boot` carries a newer generic kernel this silently measures a kernel
+# that does not perform the combined-stack walk at all.
+KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-6.8.*-generic 2>/dev/null | tail -1)}"
 OAS="${OAS_POLICY_DIR:-}"
 OUT="${1:-$ROOT/docs/empirical-study/results/oas-verifier-stats-vm}"
 POLICY="${ACTPLANE_POLICY:-safety-applications}"
 # A level-1 verifier log for the deepest programs is large and TCG is slow, so
-# the wall-clock bound is a knob.
-VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-300}"
+# the wall-clock bound is a knob. A measured TCG run took 199s, leaving thin
+# margin under 300s on a slower host, so default to the value the results note
+# documents and let the operator override.
+VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-1800}"
 WORK="$(mktemp -d /tmp/actplane-oas-verifier-vm.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 
-[ -n "$KERNEL" ] || { echo "set ACTPLANE_VM_KERNEL to a guest vmlinuz (no /boot/vmlinuz-*-generic found)" >&2; exit 2; }
+[ -n "$KERNEL" ] || { echo "set ACTPLANE_VM_KERNEL to a 6.8 guest vmlinuz (no /boot/vmlinuz-6.8.*-generic found)" >&2; exit 2; }
 for file in "$VV" "$ACT" "$KERNEL" /bin/busybox; do
   [ -e "$file" ] || { echo "missing $file" >&2; exit 2; }
 done
