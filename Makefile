@@ -35,5 +35,10 @@ test:
 check-evidence:
 	bash script/check_evidence_tsv.sh
 
+# Lint committed doc references. Like `check-evidence`, this validates committed
+# text rather than building or exercising code, so it stays out of `test`.
+check-docs:
+	python3 script/check_doc_refs.py
 
-.PHONY: build build-bpf build-rust clean install test check-evidence
+
+.PHONY: build build-bpf build-rust clean install test check-evidence check-docs

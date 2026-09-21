@@ -43,6 +43,9 @@ jobs:
       - name: Check committed evidence TSVs are well-formed
         run: bash script/check_evidence_tsv.sh
 
+      - name: Check doc references resolve
+        run: python3 script/check_doc_refs.py
+
       - name: Check Rust workspace
         run: cargo check --workspace --locked
 
