@@ -1,13 +1,15 @@
 #!/bin/bash
 # Fail if the committed empirical-study TSV evidence is malformed.
 #
-# The result directories under `docs/empirical-study/results/` are the retained
-# evidence for the reviewer-facing findings, and several are parsed by row: the
+# The `docs/empirical-study/` tree holds the retained evidence for the
+# reviewer-facing findings, and several of its tables are parsed by row: the
 # probe's `counts.tsv`/`expectations.tsv`/`summary.tsv` are compared case by
-# case, and the runners write them in ground-truth order. A row with a different
-# number of tab-separated fields than its header has no defined field meaning, so
-# an `awk -F '\t' '$3 == ...'`-style check either misses the row or reads the
-# wrong field. This has happened twice: an `expectations.tsv` was committed with a
+# case, and the runners write them in ground-truth order. The whole tree is
+# checked, not only `results/`, because row-oriented evidence also lives beside
+# it (`candidate_rules_144.tsv`). A row with a different number of tab-separated
+# fields than its neighbours has no defined field meaning, so an
+# `awk -F '\t' '$3 == ...'`-style check either misses the row or reads the wrong
+# field. This has happened twice: an `expectations.tsv` was committed with a
 # 4-field header and 3-field data rows (a `printf` placeholders-vs-arguments
 # mismatch, flagged in review on PR44), and a hand-assembled summary was committed
 # with 2-field metric rows beside 3-field failure rows and no header at all.
@@ -30,7 +32,10 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-DIRS=(docs/empirical-study/results)
+# Everything under the empirical-study tree, not just `results/`: the retained
+# artifacts include row-oriented TSVs outside it (`candidate_rules_144.tsv`), and
+# an evidence file should be checked wherever it is committed.
+DIRS=(docs/empirical-study)
 bad=0
 checked=0
 
