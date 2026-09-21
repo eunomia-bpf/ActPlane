@@ -119,10 +119,16 @@ earlier attempts were rejected on the CI kernel's 1,000,000-instruction budget
 state, and folding the bare case into `taint_suffix` added ~26,000 instructions
 on the 6.8 guest (`trace_openat_exit` 491,049 -> 517,041), which the CI kernel's
 ~2x state exploration pushed past the limit. The companion-entry form leaves
-`trace_openat_exit` at exactly `master`'s 491,049 on the 6.8 guest, and the set
-of programs that fail to load is identical to `master`'s (the three
-`trace_rename*_exit` handlers at the 1M limit; `trace_recvfrom_exit`/
-`trace_recvmsg_exit` are `-EACCES`), none autoloaded by these policies.
+`trace_openat_exit` at exactly `master`'s 491,049 on the 6.8 guest. The failing
+set is unchanged by this fix: on this branch the diagnostic loader reports
+`VLOAD_DONE ok=85 fail=8`, all eight file exit handlers (`trace_openat_exit` and
+its open/creat/truncate/rename siblings) at the 1M instruction limit. This fix
+adds none of them. It does matter for the probe: the six skipped cases are the
+suffix **write-rule** shapes (`except_*`, `env_*`), which autoload the file
+evaluator and so hit this budget (see the post-fix note below). The summed-stack
+rejections that `master` carried for `trace_recvfrom_exit`/`trace_recvmsg_exit`
+are gone here since `f315e600`; the cross-check across engine objects, on a
+different config, is in `rq2-engine-budget-crossval.md`.
 
 This is not a Rust↔C ABI change and edits no kernel code: only
 `crates/actplane-ifc-compiler/src/dsl/lower.rs` changes in this fix. (The
@@ -597,10 +603,11 @@ Raw evidence:
   - The 1M instruction-processing limit still rejects the file-event handlers.
     On this branch the diagnostic loader is `VLOAD_DONE ok=85 fail=8`, and all
     eight failures are the file exit handlers (`trace_openat_exit` and its
-    open/creat/truncate/rename siblings) at "BPF program is too large": the
-    policies these probes use do not autoload them, so the exit-handler failure
-    does not affect the probe rows that load. PR44's engine restructure clears
-    this budget (its object loads `ok=93 fail=0`), which this branch does not.
+    open/creat/truncate/rename siblings) at "BPF program is too large". This
+    budget is why the probe's six suffix write-rule cases are reported
+    `skip(engine-budget)`: those shapes autoload the file evaluator, whose
+    `trace_openat_exit` exceeds the limit. PR44's engine restructure clears this
+    budget (its object loads `ok=93 fail=0`), which this branch does not.
 
   A `source SECRET = file "**/.env"` policy plus a connect sink
   run through the **production** loader (`bpf/process` built from the fixed
