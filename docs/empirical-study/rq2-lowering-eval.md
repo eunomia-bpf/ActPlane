@@ -201,11 +201,12 @@ blob for every frozen rule (0 port mismatches) with the FP classifications
 unchanged; the divergence scan reports the five frozen `**/dir/**` patterns as
 first-segment *expansions*; and the live 6.8 guest probe flips the source,
 sink, and frozen-FN rows to fire on the first-segment-relative path. The
-exception row (`except_dist_relative`) is not measurable on this host: like
-every suffix write-rule shape it exceeds the guest's instruction budget and is
-reported `skip(engine-budget)` (see the post-fix evidence below), so its
-remaining over-fire is established by the pre-fix probe and the unchanged
-lowering, not by a new verdict.
+exception row (`except_dist_relative`) exceeds the guest's instruction budget
+under this branch's engine build, so the first post-fix run reported it
+`skip(engine-budget)` (see the post-fix evidence below). It was then measured with
+a lower-budget engine: that row fires (`1`), as do the other five rows of the same
+shape, and its remaining over-fire is therefore a live verdict rather than an
+inference from the pre-fix probe and the unchanged lowering.
 
 ## Pre-fix diagnosis: the `**/dir/**` relative-path miss
 
@@ -271,9 +272,10 @@ repo-relative source that reads a first-segment-relative path never taints the
 process, so completeness (catching the violating action) is lost without any
 verdict, while no over-report marks the gap.
 
-The 2026-09-18 post-fix re-run measures the rows the fix targets, with the
-remaining suffix write-rule rows unmeasurable on this host (engine budget, see
-the evidence list):
+The 2026-09-18 post-fix re-run measures the rows the fix targets. The suffix
+write-rule rows were unmeasurable under this branch's engine build, so their
+"post-fix" values below come from the lower-budget engine re-run of the same probe
+(`results/rq2-except-probe-vm-pr44-engine/`) rather than the branch's own engine:
 
 | Case (same trigger) | Pre-fix | Post-fix |
 | --- | ---: | ---: |
@@ -283,8 +285,9 @@ the evidence list):
 | sink `**/dist/**`, write `dist/agent-health/x.js` (first-segment) | 0 | 1 |
 | sink `**/dist/**`, write `/w/dist/agent-health/y.js` (absolute) | 1 | 1 |
 | sink `**/dist/**`, write `sub/dist/x.js` (nested) | 1 | 1 |
-| exception, `except_*` (suffix write rule) | 1/0/1 | skip |
-| dotfile `env_*` (suffix write rule) | 0/1/0 | skip |
+| exception, `except_*` (suffix write rule) | `1/0/1` | `1/0/1` |
+| dotfile `env_bare_relative` / `env_nested_relative` | `0/1` | `1/1` |
+| dotfile `env_suffix_control` (added post-fix) | n/a | `0` |
 
 Every measured row now matches its prediction: the first-segment source and sink
 flip to 1 while the nested and absolute controls stay 1, so the fix adds exactly

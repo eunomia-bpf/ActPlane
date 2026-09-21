@@ -1,12 +1,12 @@
 # The 1M complexity limit, cross-validated against PR44's object
 
-The RQ2 probe and the OAS runs both carry a caveat: several cases are
-unmeasurable on this host because the engine's file-event handlers exceed the
+The RQ2 probe and the OAS runs both carry a caveat: several cases were
+unmeasurable with this branch's engine because its file-event handlers exceed the
 Linux 6.8 verifier's 1M-instruction processing limit (`-E2BIG`, "BPF program is
-too large"). Those rows are recorded as `skip(engine-budget)` rather than
-pass/fail. This note records what was measured about that limit, and in
-particular an independent check of the claim that PR44's engine object does not
-hit it.
+too large"), and those rows were recorded as `skip(engine-budget)` rather than
+pass/fail. The probe's six are now measured (see "What this means for the
+branch"). This note records what was measured about that limit, and in particular
+an independent check of the claim that PR44's engine object does not hit it.
 
 ## The two limits are different, and this one is state explosion
 
@@ -114,13 +114,18 @@ and the bounded attempts to fix it locally do not hold. It affects:
 
 - the static C loader with policies that pull in file sink rules and path
   matchers (all eight failing handlers above); and
-- the RQ2 probe's six `skip(engine-budget)` rows, which stay unmeasurable on this
-  engine build.
+- the RQ2 probe's six suffix write-rule rows, which that engine build cannot
+  measure. These have since been measured with PR44's lower-budget engine, which
+  is the remedy working: `measured 14, skipped 0` with every pre-registered
+  expectation met (see `rq2-lowering-eval.md` and
+  `results/rq2-except-probe-vm-pr44-engine/`).
 
-The remedy is PR44's engine restructure (or an equivalent that shrinks the same
-frames), not a local edit here. This does not affect the rows that *are* measured:
-the probe's `skip(engine-budget)` rows are excluded from its count comparison, and
-the replay's rows are host-side matcher evaluation with no kernel involvement.
+So the remedy is PR44's engine restructure (or an equivalent that shrinks the same
+frames), not a local edit here, and it has been demonstrated on the probe rather
+than left as the expected consequence. It does not affect the rows that the
+branch's own engine *does* measure: those are compared against their
+pre-registered counts, and the replay's rows are host-side matcher evaluation with
+no kernel involvement.
 
 ## Evidence format, and a guard against the malformation found here
 
@@ -143,4 +148,4 @@ no TSV at all, so a moved directory cannot pass silently. It covers the whole
 evidence also lives beside it (`candidate_rules_144.tsv`). It runs in CI's Build
 and Test job and as `make check-evidence`. Both shapes above were confirmed to
 fail it, as were a blank leading line, a comment/blank mix, and a one-column
-file; the committed evidence passes, 17 files checked.
+file; the committed evidence passes (the check reports the count it scanned).
