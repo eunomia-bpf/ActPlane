@@ -52,11 +52,17 @@ Run the real Ubuntu guest matrix from the repository root:
 bash docs/empirical-study/run_policy_authority_boundary_vm.sh /path/to/raw-output
 ```
 
-The runner builds the exact ignored integration test, boots the newest local
-generic kernel under KVM (with a TCG fallback), runs the seven asserted outcomes,
-and writes `console.log`, `console.clean.log`, `counts.tsv`, build logs, QEMU
-stderr, and binary/source hashes. A build, boot, or partial matrix is retained as
-failure evidence and is not reported as a research result.
+The runner builds the exact ignored integration test, boots a **6.8** kernel
+(the kernel the matrix targets, and the `guest_kernel` this note and the run's
+`metadata.tsv` record) under KVM with a TCG fallback, runs the seven asserted
+outcomes, and writes `console.log`, `console.clean.log`, `counts.tsv`, build
+logs, QEMU stderr, and binary/source hashes. `ACTPLANE_VM_KERNEL` selects a
+specific 6.8 `vmlinuz`; the default is the newest local
+`/boot/vmlinuz-6.8.*-generic`, and the runner fails closed (exit 2) when none is
+present, so a run cannot silently measure a newer kernel whose combined-stack
+behaviour differs. `ACTPLANE_VM_TIMEOUT` bounds each qemu attempt and defaults to
+1800s, which covers the slower TCG fallback path. A build, boot, or partial
+matrix is retained as failure evidence and is not reported as a research result.
 
 The OpenAgentSafety artifact was considered first for an unseen non-coding
 independent-baseline experiment. Its runner exposes only `baseline` and

@@ -1,12 +1,31 @@
 #!/bin/bash
 # Run the policy-authority boundary matrix in a minimal privileged guest.
+#
+# The guest boots the 6.8 kernel the matrix targets and runs the ignored
+# `mcp_policy_authority_boundary_matrix_privileged` test. Optional knobs:
+# ACTPLANE_VM_KERNEL (a 6.8 vmlinuz; defaults to /boot/vmlinuz-6.8.*-generic)
+# and ACTPLANE_VM_TIMEOUT (qemu wall-clock bound in seconds, for the slower TCG
+# fallback path).
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic | sort -V | tail -1)}"
+# Restrict the default to a 6.8 guest: the recorded `guest_kernel` and the plan's
+# result are both a 6.8 measurement, so "newest generic kernel" is the wrong
+# default. Version sorting alone still picks a newer generic kernel when one is
+# installed, which would record a `guest_kernel` other than the 6.8 the plan
+# claims and would not exercise the 6.8 combined-subprogram-stack behaviour this
+# matrix exists to test.
+KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-6.8.*-generic 2>/dev/null | tail -1)}"
 OUT="${1:-$ROOT/docs/empirical-study/results/policy-authority-boundary-vm}"
 WORK="$(mktemp -d /tmp/actplane-authority-vm.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
+# TCG is far slower than KVM, so the qemu wall-clock bound is a knob rather than
+# a fixed KVM-sized constant; default with headroom and let the operator override.
+VM_TIMEOUT="${ACTPLANE_VM_TIMEOUT:-1800}"
+
+# Fail with an actionable message rather than the bare `missing ` an empty
+# KERNEL produced.
+[ -n "$KERNEL" ] || { echo "set ACTPLANE_VM_KERNEL to a 6.8 guest vmlinuz (no /boot/vmlinuz-6.8.*-generic found)" >&2; exit 2; }
 
 for file in "$KERNEL" /bin/busybox; do
   [ -e "$file" ] || { echo "missing $file" >&2; exit 2; }
@@ -63,7 +82,7 @@ chmod +x "$WORK/root/init"
   2>"$OUT/initramfs.stderr"
 
 run_qemu() {
-  timeout 420 qemu-system-x86_64 -accel "$1" -m 1536 -smp 2 -nographic -no-reboot \
+  timeout "$VM_TIMEOUT" qemu-system-x86_64 -accel "$1" -m 1536 -smp 2 -nographic -no-reboot \
     -kernel "$KERNEL" -initrd "$WORK/initramfs.gz" \
     -append 'console=ttyS0 rdinit=/init panic=-1' >"$OUT/console.log" 2>"$OUT/qemu.stderr"
 }
@@ -95,6 +114,7 @@ awk '
   printf 'guest_kernel\t%s\n' "$(basename "$KERNEL" | sed 's/^vmlinuz-//')"
   printf 'acceleration\t%s\n' "$acceleration"
   printf 'qemu_status\t%s\n' "$qemu_status"
+  printf 'qemu_timeout_s\t%s\n' "$VM_TIMEOUT"
   printf 'test_source_sha256\t%s\n' "$(sha256sum "$ROOT/crates/actplane-cli/tests/mcp_protocol.rs" | cut -d' ' -f1)"
   printf 'test_binary_sha256\t%s\n' "$(sha256sum "$test_bin" | cut -d' ' -f1)"
   printf 'actplane_binary_sha256\t%s\n' "$(sha256sum "$actplane_bin" | cut -d' ' -f1)"
