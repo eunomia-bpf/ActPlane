@@ -593,6 +593,22 @@ Raw evidence:
   The skipped rows are the sole exception/suffix shapes; every `contains`/
   `prefix` row the fix changes loads and fires.
 
+  The six skipped rows were then measured, using a lower-budget engine as the
+  caveat above anticipated: the probe re-run with PR44's committed engine object
+  (linked into `bpf/process` from
+  `origin/experiments/oas-firing-audit-20260915`) reports `measured 14,
+  skipped 0`. The engine swap is valid rather than a different measurement: the
+  ABI header (`bpf/taint.h`) is byte-identical between the branches, so this
+  branch's compiled blobs load in it, and `te_path_match` (the matcher the probe
+  exercises) is byte-identical too. All 14 rows then match their pre-registered
+  expectations, including the six that were unmeasurable here:
+  `except_dist_relative` 1, `except_abs_dist` 0, `except_src_relative` 1,
+  `env_bare_relative` 1, `env_nested_relative` 1, `env_suffix_control` 0. So the
+  exception over-fire asserted by the pre-fix probe and the unchanged lowering is
+  now confirmed live, not left inferred. Evidence:
+  `results/rq2-except-probe-vm-pr44-engine/` (its `metadata.tsv` names the engine
+  source and the reason for the swap).
+
   The fix was additionally re-validated live in a 6.8 guest in this environment.
   A local verifier oracle (guest `vmlinuz-6.8.0-138-generic`, qemu/TCG, the
   diagnostic loader) loads the engine programs per config. Two separate verifier
