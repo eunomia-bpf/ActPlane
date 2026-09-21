@@ -5,11 +5,14 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ACT="${ACTPLANE_BIN:-$ROOT/target/release/actplane}"
 PROC="${ACTPLANE_PROCESS_BIN:-$ROOT/bpf/process}"
-KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic | tail -1)}"
+KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic 2>/dev/null | tail -1)}"
 OUT="${1:-$ROOT/docs/empirical-study/results/long-session-overtaint-vm}"
 WORK="$(mktemp -d /tmp/actplane-long-session-vm.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 
+# Fail with an actionable message rather than the bare `missing ` (and a raw ls
+# error) that an empty KERNEL produced, matching the probe runner's guard.
+[ -n "$KERNEL" ] || { echo "set ACTPLANE_VM_KERNEL to a guest vmlinuz" >&2; exit 2; }
 for file in "$ACT" "$PROC" "$KERNEL" /bin/busybox; do
   [ -e "$file" ] || { echo "missing $file" >&2; exit 2; }
 done
