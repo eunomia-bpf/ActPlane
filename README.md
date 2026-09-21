@@ -278,7 +278,7 @@ Run the tests:
 
 ```bash
 make test                          # bpf C unit tests + Rust workspace unit tests
-sudo bash script/e2e_examples.sh   # live E1–E12 enforcement
+sudo bash script/e2e_examples.sh   # live e2e enforcement (the cases in test/e2e_cases.yaml)
 ```
 
 ## LICENSE

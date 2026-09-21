@@ -1,4 +1,5 @@
-# ActPlane end-to-end example cases (E1–E12 from docs/taint-dsl.md).
+# ActPlane end-to-end example cases, mirroring the worked examples in
+# docs/rule-language.md (the DSL spec, renamed from docs/taint-dsl.md).
 # Data for script/e2e_examples.sh — the shell script is only the driver.
 #
 # Each case:
@@ -159,8 +160,8 @@ cases:
       count: 1
       re: '"comm":"git"'
 
-  # v2 staleness (docs/taint-dsl-v2.md). `since` makes the pytest gate go stale
-  # when work/** is edited again — which v1's latching `after` (E5) misses.
+  # Staleness (docs/rule-language.md §1.9). `since` makes the pytest gate go stale
+  # when work/** is edited again — which the latching `after` of E5 misses.
   #  session 1: pytest -> commit                  => FRESH, allowed (no kill)
   #  session 2: pytest -> edit work/foo -> commit => STALE, killed
   # exactly one git violation proves both the allow-path and the staleness-path.

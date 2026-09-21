@@ -1,5 +1,6 @@
 # Additional live eBPF cases for file-object label flow. These are intentionally
-# separate from test/e2e_cases.yaml, which mirrors the E1-E12 examples.
+# separate from test/e2e_cases.yaml, which mirrors the worked examples in
+# docs/rule-language.md.
 
 cases:
   - name: "F1 source label follows rename"
