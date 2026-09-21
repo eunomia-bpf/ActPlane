@@ -64,6 +64,19 @@ behaviour differs. `ACTPLANE_VM_TIMEOUT` bounds each qemu attempt and defaults t
 1800s, which covers the slower TCG fallback path. A build, boot, or partial
 matrix is retained as failure evidence and is not reported as a research result.
 
+The passing run is committed as
+`results/policy-authority-boundary-vm/`: `counts.tsv` is the per-case table,
+`guest-console.txt` the full cleaned guest console (tracked under that name
+because `*.log` is gitignored), and `metadata.tsv` the reproducibility
+coordinates (commit, kernels, acceleration, and the two wait knobs).
+
+`ACTPLANE_MCP_WAIT_SECS` raises the in-guest MCP response deadline, which the
+first `initialize` spends on a live engine attach. The harness default is 30s,
+which is fine on real hardware but marginal under TCG, where a passing run
+measures 30-38s; without the override the test failed intermittently
+(`timed out waiting for MCP response id 1`). The runner exports 300s into the
+guest and records it as `mcp_wait_secs`.
+
 The OpenAgentSafety artifact was considered first for an unseen non-coding
 independent-baseline experiment. Its runner exposes only `baseline` and
 `actplane`, the official task checkout is not present in the current tree, and
