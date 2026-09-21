@@ -1,5 +1,17 @@
 {
-  "corpus": "/tmp/rq2frozen/docs/corpus-test",
+  "provenance": {
+    "tool": "docs/empirical-study/audit_path_lowering_divergence.py",
+    "argv": [
+      "docs/empirical-study/audit_path_lowering_divergence.py",
+      "/tmp/artcorpus/docs/corpus-test",
+      "--out",
+      "docs/empirical-study/results/rq2-path-lowering-divergence/divergence.json"
+    ],
+    "corpus_root": "/tmp/artcorpus/docs/corpus-test",
+    "rule_yaml_count": 38,
+    "host_git_commit": "1b28b9561cbcb848d17e2162e13e13ff29c21bfc",
+    "python": "3.13.5"
+  },
   "note": "Static lowering comparison over frozen rule patterns. A divergence means the current compiler matches a probe path differently from the historical one; it is not a statement about any frozen run's actual matched path.",
   "findings": [
     {

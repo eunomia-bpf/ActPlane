@@ -33,6 +33,7 @@ import importlib.util
 import json
 import os
 import re
+import sys
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
@@ -165,8 +166,20 @@ def main() -> int:
                     "over_fires_on": covered,
                 })
 
+    # The corpus path is host-specific, so it belongs in `provenance` beside the
+    # other run coordinates rather than as a top-level field next to the findings:
+    # a reader (or a diff of two runs) should see the findings as the data and the
+    # input path as the coordinate that produced them. `replay_fp_lowering.py`
+    # already splits its output this way.
     out = {
-        "corpus": str(corpus),
+        "provenance": {
+            "tool": "docs/empirical-study/audit_path_lowering_divergence.py",
+            "argv": sys.argv,
+            "corpus_root": str(corpus),
+            "rule_yaml_count": len(glob.glob(str(corpus / "**" / "rule.yaml"), recursive=True)),
+            "host_git_commit": replay.git_commit(),
+            "python": sys.version.split()[0],
+        },
         "note": ("Static lowering comparison over frozen rule patterns. A "
                  "divergence means the current compiler matches a probe path "
                  "differently from the historical one; it is not a statement "

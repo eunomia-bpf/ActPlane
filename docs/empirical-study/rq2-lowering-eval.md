@@ -561,7 +561,10 @@ Raw evidence:
   and the per-rule replay detail.
 - `results/rq2-path-lowering-divergence/divergence.json`: the static
   historical-vs-current lowering divergences over the frozen rules (the five
-  `**/dir/**` first-segment expansions and the `**/<name>` narrowing).
+  `**/dir/**` first-segment expansions and the `**/<name>` narrowing), with the
+  input coordinate under `provenance` (tool, argv, corpus root, rule count, host
+  commit) rather than beside the findings. Findings and note are unchanged by that
+  split; it keeps the host-specific input path out of the data a reader compares.
 - `results/rq2-except-probe-vm/`: the **pre-fix** live record, taken at
   `0e248945` (2026-09-15). `summary.tsv` (predicted vs observed),
   `expectations.tsv`, `counts.tsv`, `guest-console.txt` (full cleaned console),
