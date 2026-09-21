@@ -5,7 +5,12 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ACT="${ACTPLANE_BIN:-$ROOT/target/release/actplane}"
 PROC="${ACTPLANE_PROCESS_BIN:-$ROOT/bpf/process}"
-KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-*-generic 2>/dev/null | tail -1)}"
+# Restrict the default to a 6.8 guest, as the probe runner does: the recorded
+# `guest_kernel` and the audit-plan claim are both a 6.8 measurement, so the
+# lexicographically-newest generic kernel is the wrong default. On a host whose
+# `/boot` carries a newer generic kernel this silently measures a kernel where
+# the 6.8 summed-subprogram-stack limit does not apply, so require the override.
+KERNEL="${ACTPLANE_VM_KERNEL:-$(ls -1 /boot/vmlinuz-6.8.*-generic 2>/dev/null | tail -1)}"
 OUT="${1:-$ROOT/docs/empirical-study/results/long-session-overtaint-vm}"
 WORK="$(mktemp -d /tmp/actplane-long-session-vm.XXXXXX)"
 # Seven cases each wait up to ~40s for the loader under TCG (measured ~38s to
@@ -16,7 +21,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 # Fail with an actionable message rather than the bare `missing ` (and a raw ls
 # error) that an empty KERNEL produced, matching the probe runner's guard.
-[ -n "$KERNEL" ] || { echo "set ACTPLANE_VM_KERNEL to a guest vmlinuz" >&2; exit 2; }
+[ -n "$KERNEL" ] || { echo "set ACTPLANE_VM_KERNEL to a 6.8 guest vmlinuz" >&2; exit 2; }
 for file in "$ACT" "$PROC" "$KERNEL" /bin/busybox; do
   [ -e "$file" ] || { echo "missing $file" >&2; exit 2; }
 done

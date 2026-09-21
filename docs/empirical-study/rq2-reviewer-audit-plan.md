@@ -232,6 +232,16 @@ probe runner (4000 x 0.01 = 40s), and the qemu cap is an env-overridable
 loads would exhaust. So the experiment is reproducible on the container's
 available acceleration, not only under KVM.
 
+The runner's default guest kernel was also corrected. It selected the
+lexicographically-newest `/boot/vmlinuz-*-generic`, so on a host carrying a newer
+generic kernel it would silently record a `guest_kernel` other than the 6.8 this
+note and the metadata claim, on a kernel where the 6.8 summed-subprogram-stack
+limit does not even apply. It now defaults only to `vmlinuz-6.8.*-generic` and
+fails closed with an actionable message when no such kernel is present (exit 2),
+matching the sibling probe runner. A run with an explicit
+`ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic` reproduces the committed
+`counts.tsv` byte-for-byte and records `guest_kernel 6.8.0-138-generic`.
+
 The first independent Codex review blocked the follow-up because the Rust loader
 did not select the new flow-only exits and the runner did not fail closed. After
 the loader fix, a second review confirmed hook selection and hashes but retained a
