@@ -7,8 +7,10 @@ first-segment-relative miss, 2026-09-17), the exception-discoverability
 increment (2026-09-18), and an evidence-integrity correction pass on the replay
 tool and probe harness (2026-09-18). Both committed result directories are
 retained as **exploratory** product-branch evidence for the reviewer response.
-This does not modify `docs/papers` and it does not re-derive the frozen
-end-to-end 18/26/28 counts.
+This does not modify `docs/papers`. It does not re-derive the paper's full
+18/26/28 triple (18 end-to-end false positives, 26 of 28 false negatives repaired,
+28 false negatives), but it does re-derive the two label counts that triple rests
+on, from the official verifier: see "The frozen labels re-derive" below.
 
 ## Question
 
@@ -643,6 +645,35 @@ Raw evidence:
 - `results/rq2-fn-lowering-exposure/exposure.json`: the static FN exposure audit
   output (candidate rows and their lowered patterns).
 
+## The frozen labels re-derive
+
+The paper's RQ2 numbers rest on the frozen per-trace labels, which live on the
+artifact ref rather than in this tree, so they had not been re-derived here. They
+can be, with the official verifier: export `docs/artifact/rq2-qwen-primary`,
+`docs/eval_runs/full/deepseek_rq1_20260607T193612Z_v4_pro`, and `docs/eval_scripts`
+from `origin/artifact-ready`, then run the ref's own
+`docs/artifact/verify_results.py rq2`.
+
+Both settings reproduce, exit 0:
+
+| setting | system | correct/scored | TP | TN | FP | FN |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Qwen3.6-27B (primary) | actplane | 144/190 (75.8%) | 86 | 58 | **18** | **28** |
+| Qwen3.6-27B (primary) | actplane-opaque | 102/190 (53.7%) | 27 | 75 | 1 | 87 |
+| DeepSeek-Pro V4 (replication) | actplane | 144/186 (77.4%) | 82 | 62 | 14 | 28 |
+
+The primary setting's `FP=18` and `FN=28` are the two counts the paper's 18/26/28
+triple names; the third (26 of those 28 false negatives repaired) comes from the
+repair experiment, not from label re-derivation, and is not claimed here. The
+verifier also recomputes all four baselines and asserts each tuple, so a label
+drift on the artifact ref fails it rather than passing silently.
+
+The branch's copy of the verifier (`docs/empirical-study/verify_results.py`) is a
+reduced form of the ref's: it checks the DeepSeek setting from the product tree's
+paths and omits the Qwen setting and the RQ4/RQ5 audits. Its expected tuples were
+compared against the ref's and are equal for every shared system, so the two agree
+on the DeepSeek numbers; the Qwen numbers above come from the ref's own script.
+
 ## Claim boundary
 
 The replay is host-side matcher evaluation on the recorded event strings, not a
@@ -655,7 +686,8 @@ free-claude-code TP regression on their recorded paths, but does not prove the
 frozen 2026-06-07 run's kernel path string; that FN row is the only confirmed
 static exposure, and paths written inside Bash scripts are outside the audit's
 view. The miss is bounded to first-segment-relative and bare root-level relative
-paths. It does not re-derive the 78/28 or 18/26/28 counts, and it does not
+paths. It re-derives the primary setting's `FP=18`/`FN=28` labels (above) but not
+the 26-of-28 repair half of the triple, and it does not
 establish semantic policy correctness beyond the probe. Both lowerings are now
 fixed compiler-only, so the engine source is byte-identical to `master`: the
 `**/<name>` bare-root form pairs the existing `suffix("/<name>")` with
