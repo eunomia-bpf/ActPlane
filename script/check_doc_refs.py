@@ -27,6 +27,18 @@ correct and must not fail.
 Skipped: the `docs/papers` submodule (a separate repository), vendored trees, and
 build output, whose contents are not this repo's to keep in sync.
 
+Scope is `docs/` paths only, and that was checked rather than assumed. The other
+path classes a citation could name do not carry the same failure mode:
+
+  * `#include <bpf/bpf.h>`-style names resolve through `-I` at build time, so
+    they are not repo-relative even when the text looks like a path;
+  * `crates/.../dsl/lower.rs` is a deliberate abbreviation in one docstring, not
+    a citation to follow.
+
+A scan for the same class over `script/`, `test/`, `bpf/`, and `crates/` found
+only those two false positives, so widening the pattern would add noise without
+catching real staleness. `docs/` is where the citations are meant to be followed.
+
 Usage: python3 script/check_doc_refs.py
 """
 
