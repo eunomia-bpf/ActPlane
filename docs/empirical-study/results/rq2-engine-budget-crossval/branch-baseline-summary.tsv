@@ -1,0 +1,11 @@
+ok	85
+fail	8
+total	93
+failed	trace_creat_exit	BPF program is too large (1M complexity)
+failed	trace_open_exit	BPF program is too large (1M complexity)
+failed	trace_openat2_exit	BPF program is too large (1M complexity)
+failed	trace_openat_exit	BPF program is too large (1M complexity)
+failed	trace_rename_exit	BPF program is too large (1M complexity)
+failed	trace_renameat2_exit	BPF program is too large (1M complexity)
+failed	trace_renameat_exit	BPF program is too large (1M complexity)
+failed	trace_truncate_exit	BPF program is too large (1M complexity)
