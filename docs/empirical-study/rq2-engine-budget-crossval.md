@@ -46,6 +46,37 @@ listed per row in `branch-baseline-failures.tsv`. The three objects are compared
 on identical inputs, so PR44's object is a genuine improvement under this budget
 rather than a difference in reporting.
 
+## The `fileptr_ref` fix, measured on one blob against master's source
+
+The cross-validation above uses one policy per run and compares several engine
+objects, which shows what each object can load but not what the fix changed.
+This section holds the policy blob fixed (the probe's `except` blob, which pulls
+in the file evaluator) and varies only the engine, including `origin/master`'s
+**source**, since master's *committed* object is stale (the note
+`rq2-lowering-eval.md` documents what that object omits).
+
+| engine | object | `VLOAD_DONE` |
+|---|---|---|
+| this branch (`97e72dfd`) | committed | `ok=82 fail=11` |
+| `origin/master` source | fresh build | `ok=80 fail=13` |
+| `origin/master` committed (stale) | committed | `ok=83 fail=10` |
+
+The fix removes exactly the two summed-stack rejections and adds none: master's
+source fails `trace_recvfrom_exit` and `trace_recvmsg_exit` (`combined stack size
+of 6 calls is 576`) and the branch does not, while both share the same eleven
+complexity failures (`trace_openat_exit` and its open/creat/truncate/rename
+siblings, including the three `_flow` variants). Per-program lines and summaries:
+`committed-on-except-blob-*`, `mastersrc-on-except-blob-*`,
+`master-committed-stale-on-except-blob-*`.
+
+The third row is the reason this section exists: comparing against master's
+committed object reports `ok=83 fail=10`, which looks *better* than master's own
+source and would misattribute the difference to the fix. Master's committed
+object is stale, so the from-source build is the only valid baseline; taking the
+committed one at face value would have suggested this branch regressed three
+programs when it did not.
+
+
 ## A partial port was measured and rejected
 
 Applying only part of PR44's treatment (`te_handle_file_event` made `__noinline`
