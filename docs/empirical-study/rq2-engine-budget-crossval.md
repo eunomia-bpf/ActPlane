@@ -104,7 +104,10 @@ splitting the two shapes (`*-summary.tsv` is `metric`/`value`,
 The same class appeared in review on PR44, where an `expectations.tsv` had a
 four-field header and three-field rows from a `printf` placeholder/argument
 mismatch. Because it is a recurring shape and the files are machine-read,
-`script/check_evidence_tsv.sh` now fails when a committed evidence TSV has a row
-whose field count differs from its header, or when the directory holds no TSV at
-all. It runs in CI's Build and Test job and as `make check-evidence`. Both
-shapes above were confirmed to fail it, and the corrected files pass.
+`script/check_evidence_tsv.sh` now fails when a committed evidence TSV has rows
+whose field counts disagree (the reference is the first data row, so a file with
+no header but consistent rows still passes), and exits 2 when the directory holds
+no TSV at all, so a moved directory cannot pass silently. It runs in CI's Build
+and Test job and as `make check-evidence`. Both shapes above were confirmed to
+fail it, as were a blank leading line, a comment/blank mix, and a one-column
+file; the corrected evidence passes, 16 files checked.
