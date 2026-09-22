@@ -191,7 +191,15 @@ version, and the container this repo is developed in denies `bpf()` outright, so
 its own host can neither confirm nor refute a 6.8 rejection. The diagnostic
 `vvload` loads every program and reports `VLOAD_DONE ok=<n> fail=<n>` per config,
 naming the offending program where the production loader only reports that the
-skeleton failed. The privileged CI job does not cover this: it runs on a kernel
+skeleton failed. To assert the whole engine installs rather than inspect one
+program, `docs/empirical-study/run_engine_install_smoke_vm.sh` boots a 6.8 guest
+and runs `actplane run` against a policy that names no `recv`, requiring
+`ActPlane: running`; it fails closed on a rejection and prints the verifier text.
+With `f315e600` the smoke passes on this branch, while the same smoke against a
+binary built from `origin/master` fails with `combined stack size of 6 calls is
+608. Too large` and `stack depth 216+...168+...`, which is the failure described
+above.
+The privileged CI job does not cover this: it runs on a kernel
 that does not reject the program, and its recv smokes use a recv-only config that
 never sets `TE_POLICY_FILE_FLOW`.
 

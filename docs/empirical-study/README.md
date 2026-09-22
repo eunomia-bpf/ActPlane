@@ -81,6 +81,12 @@ artifact Non-Cite Rule requires:
   records the kernel, acceleration, and the three input hashes). The runner needed
   a longer loader wait than its original KVM run, so this is also the record that
   the TCG path works.
+- `results/engine-install-smoke-vm/`: the pinned-engine install smoke
+  (`run_engine_install_smoke_vm.sh`), which boots a 6.8 guest and requires
+  `actplane run` to install the engine for a policy that names no `recv`. It is
+  the regression guard for the release-blocking summed-stack install failure:
+  the same smoke against a binary built from `origin/master` fails with
+  `combined stack size of 6 calls is 608. Too large`.
 
 All are **exploratory** evidence for the reviewer response, not promoted paper
 results. The DSL-specific frozen corpus and raw model runs still live only on the
