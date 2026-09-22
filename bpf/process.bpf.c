@@ -259,9 +259,6 @@ struct {
 	__type(value, struct fileptr_ref);
 } ts_fileptr SEC(".maps");
 
-/* A `fileptr_ref` is 160 bytes, so building one on the stack for a map update
- * costs every caller that frame and pushes deep exit handlers over the 6.8
- * verifier's summed-stack limit. Build it in per-CPU scratch instead. */
 struct {
 	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
 	__uint(max_entries, 1);
