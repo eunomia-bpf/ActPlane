@@ -14,11 +14,13 @@
 #   returned Permission denied (os error 13). Verifier output: combined stack size
 #   of 6 calls is 608. Too large ...
 #
-# This is a release blocker rather than a policy-semantics problem, and CI cannot
-# see it: the privileged job runs on a kernel that does not perform the combined
-# walk, and its smokes use no recv or file-flow config. The host is no help
-# either, since this container denies `bpf()`. A guest boot of the kernel you mean
-# to support is the only authority, which is what this runner does.
+# This is a release blocker rather than a policy-semantics problem, and CI does not
+# catch it: the privileged job runs `6.17.0-azure` (measured from its log) and
+# never exercises this program, and its smokes use no recv or file-flow config.
+# Whether that kernel would reject the program is unmeasured here, since only a 6.8
+# guest is available, and the host is no help either because this container denies
+# `bpf()`. A guest boot of the kernel you mean to support is the only authority,
+# which is what this runner does.
 #
 # The runner asserts the success side: the engine installs and the command reports
 # `ActPlane: running`. A rejection prints the verifier text and fails closed.

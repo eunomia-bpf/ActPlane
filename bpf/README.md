@@ -199,9 +199,12 @@ With `f315e600` the smoke passes on this branch, while the same smoke against a
 binary built from `origin/master` fails with `combined stack size of 6 calls is
 608. Too large` and `stack depth 216+...168+...`, which is the failure described
 above.
-The privileged CI job does not cover this: it runs on a kernel
-that does not reject the program, and its recv smokes use a recv-only config that
-never sets `TE_POLICY_FILE_FLOW`.
+The privileged CI job does not cover this, and its kernel is not the one the claim
+is about: it runs `6.17.0-azure` (measured from the job log), which is above 6.8
+and is never exercised against the rejected program, and its recv smokes use a
+recv-only config that never sets `TE_POLICY_FILE_FLOW`. Whether that kernel would
+reject the program is unmeasured here, since only a 6.8 guest is available, so
+this smoke is the check rather than the CI job.
 
 ## Binary config format
 
