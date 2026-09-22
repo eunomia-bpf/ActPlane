@@ -60,6 +60,11 @@ cargo test -p actplane-runtime          # runtime/control tests
 cargo test -p actplane <name>           # a single CLI test/filter
 
 make -C bpf debug                       # AddressSanitizer build of the loaders
+
+# CI gates (run by the "Build and Test" job; run them before committing too)
+bash script/check_prebuilt_fresh.sh     # committed eBPF objects match the source
+bash script/check_evidence_tsv.sh       # committed evidence TSVs are well-formed
+python3 script/check_doc_refs.py        # doc references resolve; evidence indexed
 ```
 
 ## Running
@@ -147,6 +152,20 @@ The enum discriminants are ABI values too, since `op`, `match`, `cond_kind`,
 and `TAINT_GATE_IMMEDIATE`. A drift is silent: a `contains` matcher given
 `ANY`'s value matches everything, and an `op` value change makes the kernel index
 the wrong table.
+
+The committed objects are tied to the source by `bpf/prebuilt/source.sha256`, a
+digest over the kernel C and `bpf/Makefile` (the build input set minus the
+generated, uncommitted `vmlinux.h`). `script/check_prebuilt_fresh.sh` fails if
+that digest no longer matches, or if a committed object omits a `__noinline`
+function the source defines. `ebpf-ifc-engine` embeds `prebuilt/process.bpf.o`,
+so a stale object ships a broken engine: `master` currently ships one whose
+`trace_openat_exit` and rename siblings fail to load on Linux 6.8. After editing
+any kernel C, regenerate both objects and the stamp together with
+`ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine` (which runs the guard's
+`--update`), and never edit the stamp by hand: `--update` refuses to stamp unless
+the committed objects byte-match a fresh build. The gate keys on source and
+symbols rather than object bytes, because bytes track the clang that produced
+them.
 
 ## eBPF verifier gotchas (see bpf/README.md for detail)
 
