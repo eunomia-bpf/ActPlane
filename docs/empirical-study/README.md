@@ -83,10 +83,12 @@ artifact Non-Cite Rule requires:
   the TCG path works.
 - `results/engine-install-smoke-vm/`: the pinned-engine install smoke
   (`run_engine_install_smoke_vm.sh`), which boots a 6.8 guest and requires
-  `actplane run` to install the engine for a policy that names no `recv`. It is
-  the regression guard for the release-blocking summed-stack install failure:
-  the same smoke against a binary built from `origin/master` fails with
-  `combined stack size of 6 calls is 608. Too large`.
+  `actplane run` to install the engine for a policy that names no `recv`. It
+  reproduces the release-blocking summed-stack install failure on demand: the same
+  smoke against a binary built from `origin/master` fails with
+  `combined stack size of 6 calls is 608. Too large`. Like the other `run_*_vm.sh`
+  runners it is run by hand, not by CI, because the failure only reproduces on a
+  kernel that performs the combined-stack walk.
 
 All are **exploratory** evidence for the reviewer response, not promoted paper
 results. The DSL-specific frozen corpus and raw model runs still live only on the
