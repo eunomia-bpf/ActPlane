@@ -75,9 +75,9 @@ static PARAM_TEST_BEFORE_COMMIT: &[TemplateParam] = &[
     },
     TemplateParam {
         name: "test_exec",
-        value_name: "EXEC_GLOB",
+        value_name: "EXEC_GLOB [ARGV_TOKEN]",
         default: "**/pytest",
-        description: "exec glob for the successful test command",
+        description: "exec glob for the successful test command, plus an optional argv token for subcommand-style commands (e.g. `**/pnpm test`)",
     },
     TemplateParam {
         name: "changed_paths",
@@ -96,9 +96,9 @@ static PARAM_DEPENDENCY_UPDATE_GATE: &[TemplateParam] = &[
     },
     TemplateParam {
         name: "test_exec",
-        value_name: "EXEC_GLOB",
+        value_name: "EXEC_GLOB [ARGV_TOKEN]",
         default: "**/pytest",
-        description: "exec glob for the successful validation command",
+        description: "exec glob for the successful validation command, plus an optional argv token for subcommand-style commands (e.g. `**/cargo test`)",
     },
     TemplateParam {
         name: "dependency_paths",
@@ -266,7 +266,7 @@ declassify SECRET by exec "{{redactor_exec}}"
         summary: "Requires pytest to exit 0 after source/test edits before git commit.",
         notes: &[
             "Uses kill for the argv-sensitive git commit predicate.",
-            "Replace pytest and path globs with the repo's real test command and source roots.",
+            "Replace pytest and path globs with the repo's real test command and source roots. For a subcommand-style runner, add the token (e.g. `test_exec=**/pnpm test`) so a plain `pnpm install` does not arm the gate.",
             "With `actplane run` or `watch`, the protected root is also seeded with the AGENT label. Standalone users can narrow `exec \"**\"` to their agent executable.",
         ],
         params: PARAM_TEST_BEFORE_COMMIT,
@@ -274,7 +274,7 @@ declassify SECRET by exec "{{redactor_exec}}"
 
 rule test-before-commit:
   kill exec "git" "commit" if AGENT
-    unless after exec "{{test_exec}}" exits 0 since {{changed_write_events}}
+    unless after {{test_gate}} exits 0 since {{changed_write_events}}
   because "Source or test files changed since the last successful test run. Run {{test_exec}} before committing."
 "#,
     },
@@ -296,7 +296,7 @@ rule test-before-commit:
 
 rule dependency-update-gate:
   kill exec "{{git_exec}}" "{{commit_arg}}" if AGENT
-    unless after exec "{{test_exec}}" exits 0 since {{dependency_write_events}}
+    unless after {{test_gate}} exits 0 since {{dependency_write_events}}
   because "A commit needs successful validation, and dependency manifests or lockfiles make validation stale. Run {{test_exec}} before committing."
 "#,
     },
@@ -457,6 +457,10 @@ pub(crate) fn render_dsl(template: &PolicyTemplate, overrides: &[String]) -> Res
         );
     }
 
+    if let Some(test_exec) = values.get("test_exec") {
+        replacements.insert("test_gate".into(), render_exec_gate(test_exec)?);
+    }
+
     let mut out = template.dsl.to_string();
     for (key, value) in replacements {
         out = out.replace(&format!("{{{{{key}}}}}"), &value);
@@ -469,6 +473,22 @@ pub(crate) fn render_dsl(template: &PolicyTemplate, overrides: &[String]) -> Res
         .into());
     }
     Ok(out)
+}
+
+/// Render a template `test_exec` value (an exec glob plus an optional argv
+/// token) as the body of an `after exec G [ARG]` gate. Accepting the token here
+/// lets a subcommand-style runner (`pnpm test`, `cargo test`) restrict the gate
+/// to that subcommand, so a sibling subcommand (`pnpm install`) leaves it shut.
+fn render_exec_gate(spec: &str) -> Result<String> {
+    let parts = spec.split_whitespace().collect::<Vec<_>>();
+    match parts.as_slice() {
+        [glob] => Ok(format!("exec \"{glob}\"")),
+        [glob, arg] => Ok(format!("exec \"{glob}\" \"{arg}\"")),
+        _ => Err(format!(
+            "template parameter `test_exec` accepts an exec glob plus at most one argv token, got `{spec}`"
+        )
+        .into()),
+    }
 }
 
 pub(crate) fn render_yaml(template: &PolicyTemplate, overrides: &[String]) -> Result<String> {
@@ -631,15 +651,26 @@ mod tests {
             get("test-before-commit").unwrap(),
             &[
                 "agent_exec=codex".into(),
-                "test_exec=**/pnpm".into(),
+                "test_exec=**/pnpm test".into(),
                 "changed_paths=packages/**,src/**".into(),
             ],
         )
         .unwrap();
         assert!(rendered.contains("source AGENT = exec \"codex\""));
-        assert!(rendered.contains("after exec \"**/pnpm\""));
+        assert!(rendered.contains("after exec \"**/pnpm\" \"test\""));
         assert!(rendered.contains("write \"packages/**\" or write \"src/**\""));
         dsl::compile_str(&rendered).unwrap();
+    }
+
+    #[test]
+    fn test_exec_rejects_more_than_one_argv_token() {
+        let err = render_dsl(
+            get("test-before-commit").unwrap(),
+            &["test_exec=**/pnpm test --runInBand".into()],
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("at most one argv token"), "{err}");
     }
 
     #[test]
