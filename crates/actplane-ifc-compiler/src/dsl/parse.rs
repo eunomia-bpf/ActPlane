@@ -224,7 +224,11 @@ impl P {
                         let op = P::op(&self.word()?)?;
                         let pat = self.string()?;
                         let arg = if matches!(self.peek(), Some(Tok::Str(_))) {
-                            Some(self.string()?)
+                            let a = self.string()?;
+                            if op != Op::Exec {
+                                return Err("a gate argument is only valid on `exec` gates".into());
+                            }
+                            Some(a)
                         } else {
                             None
                         };

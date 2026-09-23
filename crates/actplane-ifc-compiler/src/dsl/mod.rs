@@ -458,6 +458,22 @@ rule secret:
     }
 
     #[test]
+    fn since_argv_token_is_only_valid_for_exec() {
+        // The kernel matches a `since` update's `arg` only on exec events
+        // (taint_engine.bpf.h te_file_update_cb ignores it), so an ARG on a
+        // path invalidator would lower into the blob and then never match.
+        // Reject it so the miscompile is not silent.
+        assert!(compile_str(
+            "rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\" since write \"src/**\" \"token\"\n  because \"x\"\n"
+        )
+        .is_err());
+        // The exec form stays valid and carries the token.
+        ok(
+            "rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\" since exec \"pnpm\" \"test\"\n  because \"x\"\n",
+        );
+    }
+
+    #[test]
     fn exits_is_only_valid_for_exec_gates() {
         assert!(compile_str(
             "rule r:\n  block exec \"git\" if A unless after read \"src/**\" exits 0\n  because \"x\"\n"

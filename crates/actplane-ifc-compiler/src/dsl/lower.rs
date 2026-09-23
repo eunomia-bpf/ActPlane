@@ -1254,6 +1254,9 @@ impl Ctx {
         pat: &str,
         arg: Option<&str>,
     ) -> Result<u64, String> {
+        if arg.is_some() && op != OP_EXEC {
+            return Err("a gate argument is only valid on `exec` gates".into());
+        }
         let (m, lit) = if op == OP_EXEC {
             lower_exec(pat)
         } else {
