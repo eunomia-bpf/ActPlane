@@ -56,6 +56,15 @@ filesystem walk, because this checkout can hold untracked result dirs from other
 branches and CI checks out only what is committed; a walk would make the local and
 CI verdicts differ.
 
+A third class is checked because it drifted the same way. The skill files under
+`.claude/skills/` cite each other by slash-command (`/paper-review`), which names a
+skill directory rather than a path, so no path-shaped rule saw it: one skill told
+the reader to run `/paper-fix`, and no skill or command by that name exists
+anywhere in the tree. The check is scoped to that tree, the only place that cites
+commands this way, and requires a hyphenated name, because the prose slashes in
+those files (`/sections`, `/figure`) are not commands. A reference is correct when
+it names a skill directory that exists.
+
 Usage: python3 script/check_doc_refs.py
 """
 
@@ -125,6 +134,16 @@ UP_REF = re.compile(
     r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
     r"\.(?:md|yaml|yml|json|sh|py|rs|c|h|toml)"
 )
+
+# A slash-command citation inside a skill file, such as `/paper-review`. Skills
+# cross-reference each other by command name, and `.claude/skills/paper-logic/
+# SKILL.md` told the reader to run `/paper-fix`, which names no skill and no
+# command anywhere in the tree, while the guard stayed green. Requiring a
+# hyphenated name keeps prose slashes (`/sections`, `/figure`) out of the check
+# (all three real command names are hyphenated), and the check is scoped to the
+# skills tree, the one place that cites commands this way.
+SLASH_CMD = re.compile(r"(?<![A-Za-z0-9_.`/-])/[a-z][a-z0-9]*(?:-[a-z0-9]+)+")
+SKILLS_DIR = ".claude/skills/"
 
 
 def tracked_dirs(files: list[str]) -> set[str]:
@@ -248,6 +267,31 @@ def main() -> int:
                 continue
             line = text.count("\n", 0, match.start()) + 1
             problems.append((f"{name}:{line}", ref))
+
+    # Slash-command citations in the skills tree (`/paper-review`). These name a
+    # skill by its directory rather than a path, so `REF` never sees them: a
+    # reference to `/paper-fix` resolved to no skill and the guard still passed.
+    # A command typo'd without its hyphen is prose and stays unchecked; this
+    # catches the shape that actually drifted.
+    skills = {
+        Path(n).parts[2]
+        for n in files
+        if n.startswith(SKILLS_DIR) and len(Path(n).parts) > 2
+    }
+    for name in files:
+        if not name.startswith(SKILLS_DIR) or not name.endswith(SUFFIXES):
+            continue
+        try:
+            text = (root / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for match in SLASH_CMD.finditer(text):
+            command = match.group(0)[1:]
+            checked += 1
+            if command in skills:
+                continue
+            line = text.count("\n", 0, match.start()) + 1
+            problems.append((f"{name}:{line}", match.group(0)))
 
     # Reverse direction: a committed evidence directory that no doc names is
     # evidence a reader cannot find. The results tree had eight committed
