@@ -40,7 +40,9 @@ actplane feedback-hook
 
 When a rule has matched since the last hook invocation, the hook returns an
 `additionalContext` payload to the next model turn. That context contains the
-rule name, effect, target process, and `because` reason from the policy.
+rule name, the target operation, and the `because` reason from the policy. The
+effect appears in the trailing machine-readable tag rather than as a named
+field in the prose.
 
 Verify:
 
@@ -155,18 +157,23 @@ session. `actplane doctor` warns when it sees both.
 For a new repository:
 
 ```bash
-actplane init --template no-git-branch --out actplane.yaml
-actplane init --all
+actplane init --template no-git-branch --out actplane.yaml --all
 actplane compile --explain --report-out docs/actplane-review.txt
 actplane doctor
 ```
 
-`--all` writes project policy integration files:
+`init` writes the policy file (default `actplane.yaml`) and then runs the
+integration setup, so `--all` must be passed on the same `init` invocation that
+writes the policy. A separate `actplane init --all` afterwards fails with
+`actplane.yaml already exists` unless `--force` is also given. `--all` writes
+project policy integration files:
 
 - `.codex/hooks.json` for `actplane feedback-hook`.
 - `.mcp.json` for `actplane mcp --auto-attach-parent`.
 - `AGENTS.md` guidance telling agents to treat ActPlane feedback as
-  authoritative.
+  authoritative. When `AGENTS.md` or `CLAUDE.md` already exists, the existing
+  file is kept (`AGENTS.md` becomes a symlink to `CLAUDE.md`), and the stub is
+  written only when neither is present.
 
 Use `--force` only when replacing ActPlane-managed setup files is intentional.
 
@@ -179,9 +186,10 @@ During enforced runs, ActPlane writes:
 .actplane/feedback-hook.state.json
 ```
 
-`last-violation.txt` is human-readable. It records the latest rule match and
-the corrective reason that hooks forward to the agent. The hook state file
-tracks offsets so the agent receives only new feedback.
+`last-violation.txt` is human-readable. It is truncated at the start of each
+run, then appended to on every rule match, so it holds all matches from the
+current run. The hook forwards only the final block to the agent, and the hook
+state file tracks offsets so the agent receives only new feedback.
 
 Useful environment overrides:
 
@@ -257,6 +265,9 @@ Run:
 actplane doctor
 actplane compile --explain --report-out docs/actplane-review.txt
 ```
+
+`--report-out` refuses to overwrite an existing file, so add `--force` when
+regenerating a report that is already on disk.
 
 Common findings:
 
