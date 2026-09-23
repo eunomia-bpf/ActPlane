@@ -15,14 +15,22 @@ times on this branch:
   * `docs/reference/oss-landscape.md`, removed from the product branch as
     paper-only material while `docs/design/related_work.md` still cited it.
 
-The check is: every `docs/<path>` reference in a committed text file resolves, or
-is explicitly qualified as living somewhere else. A reference is allowed to be
-absent when the text says where it actually is, which is how this repo documents
-material kept on the artifact refs (`artifact-ready`, `backup/...`) rather than on
-the product branch. The signal for that is a ref name in the surrounding text, so
-the check reads a window before the match rather than the whole line: prose like
-"lives on `backup/2026-06-14-master` as `docs/reference/oss-landscape.md`" is
-correct and must not fail.
+The check is: every file and directory citation under `docs/` in a committed text
+file resolves, or is explicitly qualified as living somewhere else. A reference
+is allowed to be absent when the text says where it actually is, which is how this
+repo documents material kept on the artifact refs (`artifact-ready`,
+`backup/...`) rather than on the product branch. The signal for that is a ref name
+in the surrounding text, so the check reads a window before the match rather than
+the whole line: prose like "lives on `backup/2026-06-14-master` as
+`docs/reference/oss-landscape.md`" is correct and must not fail.
+
+File and directory citations are checked by different rules. A file citation
+(`REF`, extension-bearing) must resolve, because a file has one path per branch. A
+directory citation is checked only for the moved-deeper case (`DIR_REF` plus
+`moved_deeper`): it flags a citation when a tracked directory path ends with it,
+while a directory the branch deliberately keeps elsewhere or a generated output
+dir passes. That split exists because a directory named in `docs/ARTIFACT.md` may
+resolve on a different ref but not on the one being read.
 
 Skipped: the `docs/papers` submodule (a separate repository), vendored trees, and
 build output, whose contents are not this repo's to keep in sync.
@@ -94,6 +102,40 @@ REF_QUALIFIERS = (
 )
 WINDOW = 240
 
+# A directory citation. `REF` requires a file extension, so the four citations to
+# `docs/rq2-performance/` in `docs/ARTIFACT.md` went unchecked while that directory
+# gained a `design/` segment, and the guard reported green. Checking every
+# directory citation directly would flag the many refs that name a directory the
+# branch deliberately keeps elsewhere (`docs/corpus-test/`, `docs/eval_runs/`,
+# `docs/artifact/`), so the check is narrower: flag a directory ref only when a
+# tracked directory path *ends with* it, which is the signature of a directory
+# that moved deeper while the citation kept the old head. A ref that resolves,
+# names a generated output dir (`results/`, `tmp/`), or points at another branch
+# matches nothing and passes.
+DIR_REF = re.compile(r"docs/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*/")
+
+
+def tracked_dirs(files: list[str]) -> set[str]:
+    """Every directory path in the committed tree, with a trailing slash."""
+    dirs: set[str] = set()
+    for name in files:
+        for parent in Path(name).parents:
+            if str(parent) != ".":
+                dirs.add(str(parent) + "/")
+    return dirs
+
+
+def moved_deeper(ref: str, dirs: set[str]) -> bool:
+    """True when a tracked directory path ends with `ref` minus its `docs/` head.
+
+    `docs/rq2-performance/` is shadowed by `docs/design/rq2-performance/`, so the
+    citation kept the pre-move head. The trailing-slash form keeps this from
+    matching a directory that merely shares a name prefix.
+    """
+    tail = "/" + ref[len("docs/") :]
+    return any(d.endswith(tail) and d != "docs/" + ref[len("docs/") :] for d in dirs)
+
+
 # The reviewer-facing index for the retained evidence, and the tree it indexes.
 # Every committed directory under RESULTS_DIR must be named in INDEX, so a reader
 # can find evidence that the product branch retains.
@@ -137,6 +179,39 @@ def main() -> int:
             line = text.count("\n", 0, match.start()) + 1
             problems.append((f"{name}:{line}", ref))
 
+    # Directory citations, checked separately because `REF` needs a file
+    # extension and so never sees them (see `DIR_REF`).
+    dirs = tracked_dirs(files)
+    for name in files:
+        if name.endswith("/") or not name.endswith(SUFFIXES):
+            continue
+        if name.startswith(SKIP_PREFIXES) or name == SELF:
+            continue
+        try:
+            text = (root / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for match in DIR_REF.finditer(text):
+            end = match.end()
+            if end < len(text) and text[end] == "*":
+                continue  # a glob such as `docs/corpus-test/*/*/rule.yaml`
+            start = match.start()
+            while start > 0 and not text[start - 1].isspace():
+                start -= 1
+            if "://" in text[start : match.start()]:
+                continue  # a URL such as `https://tetragon.io/docs/.../selectors/`
+            ref = match.group(0)
+            checked += 1
+            if (root / ref).exists():
+                continue
+            if not moved_deeper(ref, dirs):
+                continue
+            window = text[max(0, match.start() - WINDOW) : end + WINDOW]
+            if any(q in window for q in REF_QUALIFIERS):
+                continue
+            line = text.count("\n", 0, match.start()) + 1
+            problems.append((f"{name}:{line}", ref))
+
     # Reverse direction: a committed evidence directory that no doc names is
     # evidence a reader cannot find. The results tree had eight committed
     # directories while its index listed three, so this is checked rather than
@@ -156,17 +231,17 @@ def main() -> int:
         else ""
     )
     prefix = RESULTS_DIR + "/"
-    dirs = set()
+    result_dirs = set()
     for name in tracked:
         if not name.startswith(prefix):
             continue
         rest = name[len(prefix) :]
         if "/" in rest:  # a file at the top level of results/ has no dir
-            dirs.add(rest.split("/", 1)[0])
+            result_dirs.add(rest.split("/", 1)[0])
     # The index lives inside `docs/empirical-study/`, so it names directories as
     # `results/<dir>/`; a doc elsewhere would use the full `docs/...` path. Accept
     # either, since both point a reader at the same place.
-    for entry in sorted(dirs):
+    for entry in sorted(result_dirs):
         if not (
             f"{RESULTS_DIR}/{entry}/" in index_text
             or f"results/{entry}/" in index_text
@@ -181,8 +256,8 @@ def main() -> int:
         if problems:
             print(
                 f"\n{len(problems)} doc reference(s) point at a path that is not in the "
-                "tree. Update the citation to the file's current path, or, if the file "
-                "lives on an artifact ref, name that ref in the surrounding text so the "
+                "tree. Update the citation to the path's current location, or, if it "
+                "lives on another ref, name that ref in the surrounding text so the "
                 "reader is told where it is.",
                 file=sys.stderr,
             )
