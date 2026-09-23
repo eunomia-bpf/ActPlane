@@ -251,14 +251,14 @@ actplane control delta add --target-id <id> --delta policy.dsl
 cat .actplane/last-violation.txt
 ```
 
-MCP 保持 resource-first:
+MCP 保持 resource-first。当前暴露两个 resource:
 
 ```text
-actplane:///status
-actplane:///policy
-actplane:///feedback
-actplane:///audit
+actplane:///policy     # 已实现
+actplane:///feedback   # 已实现
 ```
+
+`actplane:///status` 与 `actplane:///audit` 是后续目标,尚未实现。
 
 MCP 不应该默认提供大量 policy-mutating tools。修改 policy、创建 delegation、发放
 approval 这类动作应该走 ActPlane control plane，并验证 authority 和 monotonicity。
@@ -282,7 +282,7 @@ data-flow enforcement + delegation + feedback + audit**。
 建议路线:
 
 1. Stabilize setup, doctor, feedback hook, MCP auto-attach.
-2. Add `status` and `explain last`.
+2. Add `explain last` (`actplane control status` 已实现).
 3. Add built-in control-plane self-protection.
 4. Add policy layer metadata and effective policy hash.
 5. Add `delegate` for subagent contracts.
