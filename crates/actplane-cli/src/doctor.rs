@@ -2118,7 +2118,17 @@ fn backend_support_warnings(
                     ),
                 });
             }
-            if lsm_bpf == Some(false) {
+            // Only `block` needs BPF-LSM: `notify` and `kill` use tracepoint
+            // paths, so an inactive LSM does not affect them
+            // (`clause_support_detail`, which selects the LSM backend only for
+            // `Effect::Block`). A `block exec` with an argv token is unsupported
+            // for the argv reason first and foremost, so the LSM warning would
+            // misdirect to a fix (enable LSM) that still cannot block; mirror
+            // `clause_support_detail`'s precedence and stay silent there.
+            if lsm_bpf == Some(false)
+                && clause.effect == Effect::Block
+                && !(clause.op == Op::Exec && clause.target.arg.is_some())
+            {
                 warnings.push(BackendWarning {
                     code: "bpf_lsm_inactive_for_block",
                     message: format!(

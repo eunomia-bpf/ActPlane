@@ -412,6 +412,54 @@ fn compile_to_blob_reports_policy_warnings_on_stderr() {
 }
 
 #[test]
+fn lsm_inactive_warning_applies_only_to_block_clauses() {
+    // Only `block` needs BPF-LSM: `notify` and `kill` run on tracepoint paths,
+    // so an inactive LSM does not affect them. The warning message names
+    // "`block <op>`", so firing it on a `notify`/`kill` clause both misdescribes
+    // the clause and points at a fix (enable LSM) irrelevant to it.
+    let warnings_for = |rule: &str| -> Vec<String> {
+        let output = run(&["--rule", rule, "compile", "--json"]);
+        assert!(output.status.success(), "stderr: {}", stderr(&output));
+        let value: serde_json::Value =
+            serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|w| w["code"].as_str().map(str::to_string))
+            .collect()
+    };
+
+    for (effect, rule) in [
+        (
+            "notify",
+            "rule r:\n  notify exec \"git\"\n  because \"x\"\n",
+        ),
+        ("kill", "rule r:\n  kill exec \"git\"\n  because \"x\"\n"),
+        (
+            "block+argv",
+            "rule r:\n  block exec \"git\" \"push\"\n  because \"x\"\n",
+        ),
+    ] {
+        let codes = warnings_for(rule);
+        assert!(
+            !codes.iter().any(|c| c == "bpf_lsm_inactive_for_block"),
+            "`{effect}` does not depend on BPF-LSM, so it must not warn; got {codes:?}"
+        );
+    }
+
+    // The `block exec` with an argv token is unsupported for the argv reason,
+    // which is host-independent and should be the warning reported.
+    let argv_codes = warnings_for("rule r:\n  block exec \"git\" \"push\"\n  because \"x\"\n");
+    assert!(
+        argv_codes
+            .iter()
+            .any(|c| c == "argv_block_exec_post_exec_only"),
+        "argv-token block is dead regardless of LSM; got {argv_codes:?}"
+    );
+}
+
+#[test]
 fn shipped_policies_compile_without_warnings() {
     // Every policy the repo ships or documents is a worked example. If one uses
     // a form the kernel cannot enforce, the example teaches a policy that does
