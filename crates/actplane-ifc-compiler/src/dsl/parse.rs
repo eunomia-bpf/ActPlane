@@ -193,6 +193,17 @@ impl P {
             "after" => {
                 let gate_op = P::op(&self.word()?)?;
                 let gate_pattern = self.string()?;
+                // Optional positional argument, mirroring `op_pattern`/`since_event`.
+                // A `Tok::Str` can only be the gate arg here: `exits` and `since`
+                // are words, so this never swallows them.
+                let gate_arg = if matches!(self.peek(), Some(Tok::Str(_))) {
+                    Some(self.string()?)
+                } else {
+                    None
+                };
+                if gate_arg.is_some() && gate_op != Op::Exec {
+                    return Err("a gate argument is only valid on `after exec` gates".into());
+                }
                 let gate_exit = if self.is_word("exits") {
                     self.next();
                     if gate_op != Op::Exec {
@@ -228,6 +239,7 @@ impl P {
                 Ok(Cond::After {
                     gate_op,
                     gate_pattern,
+                    gate_arg,
                     gate_exit,
                     since,
                 })

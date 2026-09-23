@@ -678,6 +678,45 @@ mod tests {
         assert_eq!(inval_bits[0], inval_bits[1]);
         assert_ne!(inval_bits[0], 0);
     }
+
+    #[test]
+    fn exec_gate_arg_restricts_the_arming_token() {
+        // `after exec "pnpm" "test"` must lower to an exec gate update whose
+        // `arg` is "test", and a bare `after exec "pnpm"` gate must keep an
+        // empty arg. The kernel matches `arg` against argv tokens
+        // (taint_engine.bpf.h te_exec_update_* callbacks), so the two gates must
+        // be distinct updates with distinct bits; sharing one would arm the
+        // argv-restricted gate on every `pnpm` subcommand.
+        let pol = crate::dsl::parse::parse(
+            r#"rule narrow:
+                 kill exec "git" "commit" if AGENT unless after exec "pnpm" "test"
+                 because "only pnpm test arms this gate"
+               rule broad:
+                 kill exec "git" "commit" if AGENT unless after exec "pnpm"
+                 because "any pnpm subcommand arms this gate"
+               "#,
+        )
+        .expect("parse policy");
+        let compiled = compile(&pol).expect("compile policy");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let updates = &cfg.updates[..cfg.n_updates as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        let gates: Vec<(String, u64)> = updates
+            .iter()
+            .filter(|u| u.op == OP_EXEC && u.gates != 0)
+            .map(|u| (txt(&u.arg), u.gates))
+            .collect();
+        assert_eq!(gates.len(), 2, "one exec gate update per rule: {gates:?}");
+        assert_eq!(gates[0], ("test".to_string(), gates[0].1));
+        assert_eq!(gates[1], (String::new(), gates[1].1));
+        assert_ne!(
+            gates[0].1, gates[1].1,
+            "argv-restricted and bare gates must not share a bit"
+        );
+    }
     #[test]
     fn endpoint_sources_lower_to_connect_and_recv_updates() {
         let pol = crate::dsl::parse::parse(r#"source NET = endpoint "127.0.0.1""#)
@@ -1012,7 +1051,7 @@ struct Ctx {
     labels: HashMap<String, u64>,
     used_labels: u64,
     updates: Vec<CUpdate>,
-    gate_bits: HashMap<(u8, u8, String, Option<u8>), (u64, u32)>,
+    gate_bits: HashMap<(u8, u8, String, Option<String>, Option<u8>), (u64, u32)>,
     next_gate: u32,
     inval_slots: HashMap<(u8, u8, String, String), u32>,
     next_inval: u32,
@@ -1131,6 +1170,7 @@ impl Ctx {
         &mut self,
         gate_op: Op,
         pat: &str,
+        arg: Option<&str>,
         gate_exit: Option<u8>,
     ) -> Result<(u64, u32), String> {
         let (low_op, m, lit) = match gate_op {
@@ -1153,10 +1193,13 @@ impl Ctx {
                 ));
             }
         };
+        if arg.is_some() && low_op != OP_EXEC {
+            return Err("a gate argument is only valid on `after exec` gates".into());
+        }
         if gate_exit.is_some() && low_op != OP_EXEC {
             return Err("`exits` is only valid on `after exec` gates".into());
         }
-        let key = (low_op, m, lit.clone(), gate_exit);
+        let key = (low_op, m, lit.clone(), arg.map(str::to_string), gate_exit);
         if let Some(b) = self.gate_bits.get(&key) {
             return Ok(*b);
         }
@@ -1170,7 +1213,7 @@ impl Ctx {
             op: low_op,
             m,
             target: &lit,
-            arg: "",
+            arg: arg.unwrap_or(""),
             add: 0,
             del: 0,
             gates: b,
@@ -1639,17 +1682,23 @@ pub fn compile_with_labels(
                         }
                         Some(Cond::LineageIncludes { exec }) => {
                             ck = C_LINEAGE;
-                            let (b, _idx) = ctx.gate_bit(Op::Exec, exec, None)?;
+                            let (b, _idx) = ctx.gate_bit(Op::Exec, exec, None, None)?;
                             gate = b;
                         }
                         Some(Cond::After {
                             gate_op,
                             gate_pattern,
+                            gate_arg,
                             gate_exit,
                             since,
                         }) => {
                             ck = C_AFTER;
-                            let (b, idx) = ctx.gate_bit(*gate_op, gate_pattern, *gate_exit)?;
+                            let (b, idx) = ctx.gate_bit(
+                                *gate_op,
+                                gate_pattern,
+                                gate_arg.as_deref(),
+                                *gate_exit,
+                            )?;
                             gate = b;
                             gate_idx = idx;
                             for (op, pat, arg) in since {

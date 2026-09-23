@@ -1190,6 +1190,7 @@ fn render_dsl_cond(cond: &Cond) -> String {
         Cond::After {
             gate_op,
             gate_pattern,
+            gate_arg,
             gate_exit,
             since,
         } => {
@@ -1198,6 +1199,9 @@ fn render_dsl_cond(cond: &Cond) -> String {
                 op_name(*gate_op),
                 dsl_literal(gate_pattern)
             );
+            if let Some(arg) = gate_arg {
+                out.push_str(&format!(" \"{}\"", dsl_literal(arg)));
+            }
             if let Some(exit) = gate_exit {
                 out.push_str(&format!(" exits {}", exit));
             }
@@ -2269,10 +2273,14 @@ fn cond_summary(cond: &Cond) -> String {
         Cond::After {
             gate_op,
             gate_pattern,
+            gate_arg,
             gate_exit,
             since,
         } => {
             let mut out = format!("after {} \"{}\"", op_name(*gate_op), gate_pattern);
+            if let Some(arg) = gate_arg {
+                out.push_str(&format!(" \"{}\"", arg));
+            }
             if let Some(exit) = gate_exit {
                 out.push_str(&format!(" exits {}", exit));
             }

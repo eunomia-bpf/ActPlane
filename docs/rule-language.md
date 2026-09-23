@@ -92,7 +92,7 @@ rule NAME:
 - `COND` (optional) relaxes the rule:
   - `target PAT` — only when the object also matches PAT (positive scope), or `target not PAT` (allow-listed region).
   - `lineage-includes exec G` — **mandatory mediation**: allowed iff an ancestor (incl. self) exec'd `G`.
-  - `after exec G [exits N] [since EV…]` — **temporal**: allowed iff `exec G` happened earlier in this process's lineage. With `exits N`, the gate opens only after the matching process exits normally with status `N`. Plain `after` is *latching* (satisfied once `G` ever ran). The optional `since EV…` tail makes the gate go **stale** when a later invalidating event `EV` occurs (§1.9).
+  - `after exec G [ARG] [exits N] [since EV…]` — **temporal**: allowed iff `exec G` happened earlier in this process's lineage. An optional `ARG` restricts the gate to a matching argv token (`after exec "pnpm" "test"` arms only on `pnpm test`, not every `pnpm` subcommand). With `exits N`, the gate opens only after the matching process exits normally with status `N`. Plain `after` is *latching* (satisfied once `G` ever ran). The optional `since EV…` tail makes the gate go **stale** when a later invalidating event `EV` occurs (§1.9).
 
 `because` is what the corrective-feedback chain forwards to the agent when the rule matches (see [`design/feedback-design.md`](design/feedback-design.md)), so it is effectively required in practice even though the grammar marks it optional: a rule without one still enforces, but a match forwards an empty reason, telling the agent it was stopped and not why. `actplane compile` reports `rule_missing_because` for such a rule.
 
@@ -253,7 +253,8 @@ term        := ["not"] IDENT | "true"
 cond        := "target" ["not"] PATTERN
              | "lineage-includes" "exec" PATTERN
              | "after" gate_event [ "exits" EXIT_CODE ] [ "since" since_event ("or" since_event)* ]
-gate_event  := ("exec"|"read"|"write"|"open"|"unlink") PATTERN
+gate_event  := ("exec" PATTERN [ARG])
+             | (("read"|"write"|"open"|"unlink") PATTERN)
 since_event := ("exec" PATTERN [ARG])
              | (("read"|"write"|"open"|"unlink") PATTERN)
 PATTERN, ARG, STRING := quoted string
@@ -272,11 +273,12 @@ label `L` when the process runs gate `G`. A common pattern is to label external
 input as `UNTRUST`, then `endorse REVIEWED by exec "**/human-approve"` so later
 rules can require `REVIEWED`.
 
-The `exits N` qualifier is only valid on `after exec`; it makes the gate open on
-process exit rather than at exec time, and only for normal exit status `N`. The
-`since EV…` tail on `after` is the staleness primitive defined in §1.9:
-`after exec "**/pytest" exits 0 since write "src/**"` means "tests must have
-passed after your last edit to src". Multiple invalidators are joined with `or`.
+The `exits N` qualifier and the optional `ARG` are only valid on `after exec`.
+`exits N` makes the gate open on process exit rather than at exec time, and only
+for normal exit status `N`. `ARG` restricts the gate to a matching argv token,
+so `after exec "pnpm" "test"` arms only when `pnpm test` runs, not on every
+`pnpm` subcommand. The `since EV…` tail on `after` is the staleness primitive
+defined in §1.9:
 
 The effect is compiled into the kernel ABI and is the source of truth for what
 happens on a match. `because` stays Rust-side and shapes the corrective-feedback
