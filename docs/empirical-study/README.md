@@ -21,6 +21,14 @@ aggregate outputs, not the full raw corpus.
 | ActPlane-related candidate lines | 529 |
 | Repositories with at least one ActPlane-related candidate | 101 |
 
+The last three rows are reproducible from the committed
+`candidate_rules_144.tsv`: 3,762 is its data-row count, 529 is the count of rows
+carrying a non-`unclassified` `category_guess`, and 101 is the number of
+distinct repositories holding at least one such row. The repository, file, and
+line counts above them come from the full raw corpus, which is retained on an
+artifact ref, so the committed TSV alone reproduces the candidate-line figures
+but not the corpus totals.
+
 The candidate-line counts are keyword/category extraction results and should be
 read as aggregate evidence for prevalence, not as a hand-labeled ground truth.
 The product branch keeps the aggregate study outputs that are independent of
