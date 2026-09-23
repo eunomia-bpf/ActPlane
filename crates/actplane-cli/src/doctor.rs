@@ -1718,6 +1718,28 @@ struct ClauseConditionWarning {
     message: String,
 }
 
+/// True when a clause is unsupported *because* BPF-LSM is inactive, matching the
+/// precedence in `clause_support_detail`. `notify` and `kill` use tracepoint
+/// paths and never depend on LSM, and a `block` clause that is unsupported for
+/// another reason first (an argv token on `exec`, or an endpoint pattern the
+/// ABI cannot hold) reports that reason instead. Enabling LSM would not fix
+/// either, so the LSM warning would misdirect.
+fn lsm_is_the_blocker(compiled: &dsl::Compiled, clause: &Clause) -> bool {
+    if clause.effect != Effect::Block {
+        return false;
+    }
+    if clause.op == Op::Exec && clause.target.arg.is_some() {
+        return false;
+    }
+    if matches!(clause.op, Op::Connect | Op::Recv)
+        && clause.target.kind == Kind::Endpoint
+        && !endpoint_pattern_supported(compiled, &clause.target.pattern)
+    {
+        return false;
+    }
+    true
+}
+
 fn clause_support_detail(
     compiled: &dsl::Compiled,
     effect: Effect,
@@ -2118,17 +2140,10 @@ fn backend_support_warnings(
                     ),
                 });
             }
-            // Only `block` needs BPF-LSM: `notify` and `kill` use tracepoint
-            // paths, so an inactive LSM does not affect them
-            // (`clause_support_detail`, which selects the LSM backend only for
-            // `Effect::Block`). A `block exec` with an argv token is unsupported
-            // for the argv reason first and foremost, so the LSM warning would
-            // misdirect to a fix (enable LSM) that still cannot block; mirror
-            // `clause_support_detail`'s precedence and stay silent there.
-            if lsm_bpf == Some(false)
-                && clause.effect == Effect::Block
-                && !(clause.op == Op::Exec && clause.target.arg.is_some())
-            {
+            // `lsm_is_the_blocker` mirrors `clause_support_detail`'s
+            // precedence: only `block` needs BPF-LSM, and a `block` clause that
+            // is unsupported for another reason first reports that reason.
+            if lsm_bpf == Some(false) && lsm_is_the_blocker(compiled, clause) {
                 warnings.push(BackendWarning {
                     code: "bpf_lsm_inactive_for_block",
                     message: format!(

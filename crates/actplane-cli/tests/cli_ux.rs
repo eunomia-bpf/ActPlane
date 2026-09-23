@@ -440,6 +440,10 @@ fn lsm_inactive_warning_applies_only_to_block_clauses() {
             "block+argv",
             "rule r:\n  block exec \"git\" \"push\"\n  because \"x\"\n",
         ),
+        (
+            "block+unsupported-endpoint",
+            "rule r:\n  block connect endpoint \"*.example.com\"\n  because \"x\"\n",
+        ),
     ] {
         let codes = warnings_for(rule);
         assert!(
