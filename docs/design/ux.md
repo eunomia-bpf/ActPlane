@@ -144,9 +144,9 @@ Library:
 
 ```rust
 actplane_ifc_compiler::dsl::compile_str(src: &str) -> Result<Compiled, String>
-PinnedEngine::load(config_blob: &[u8]) -> io::Result<PinnedEngine>
+PinnedEngine::open_or_install_singleton() -> io::Result<PinnedEngine>
 engine.run(&stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()>
-engine.submit_delta(req: DeltaRequest) -> io::Result<()>
+reload_handle.append_policy_delta(caller_pid: i32, target_id: u32, delta_blob: &[u8]) -> io::Result<()>
 ```
 
 Violations are delivered through the `run` callback rather than an iterator; the
