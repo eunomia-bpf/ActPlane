@@ -504,6 +504,17 @@ rule secret:
     }
 
     #[test]
+    fn rule_without_clauses_is_rejected() {
+        // The grammar is `clause+`, but the parser accepted a `rule` with only
+        // a `because` (or nothing), which lowered to zero kernel matchers and
+        // enforced nothing with no warning. Reject it so the silent no-op
+        // becomes a compile error.
+        assert!(compile_str("rule r:\n  because \"x\"\n").is_err());
+        assert!(compile_str("rule r:\n").is_err());
+        ok("rule r:\n  notify exec \"git\"\n  because \"x\"\n");
+    }
+
+    #[test]
     fn e6_research_readonly() {
         ok(r#"
             source RESEARCH = exec "**/research-agent"

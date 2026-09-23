@@ -384,6 +384,11 @@ pub fn parse(src: &str) -> Result<Policy, String> {
                         break;
                     }
                 }
+                if clauses.is_empty() {
+                    return Err(format!(
+                        "rule `{name}` has no clauses; the grammar requires at least one (`clause+`), and a clause-less rule lowers to zero kernel matchers"
+                    ));
+                }
                 if pol.rules.iter().any(|rule| rule.name == name) {
                     return Err(format!("duplicate rule name `{name}`"));
                 }
