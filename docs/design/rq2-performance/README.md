@@ -10,7 +10,7 @@ policies, and performance summaries do not change the compliance dataset.
 
 - `open`: `open(path, O_RDONLY|O_CLOEXEC)`, with `close` outside the timed region
 - `write`: `write(fd, 4096B)` to an already-open temp file
-- `connect`: UDP `connect(127.0.0.1:9)` on an already-created socket
+- `connect`: UDP `connect(127.0.0.1:9)`, with the socket created and closed outside the timed region
 - `fork`: `fork()` plus parent `waitpid()`
 - `exec`: `fork()` plus child `execve("/bin/true")` plus parent `waitpid()`
 
