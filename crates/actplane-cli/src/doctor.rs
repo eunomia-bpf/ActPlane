@@ -1910,7 +1910,9 @@ fn endpoint_support_detail(
         None => (
             false,
             format!("endpoint {role} pattern is not numeric IPv4 or an exact resolvable hostname"),
-            vec!["wildcard hostnames and IPv6 are not enforced in-kernel"],
+            vec![
+                "wildcard hostnames, IPv6, and malformed numeric forms are not enforced in-kernel",
+            ],
         ),
     }
 }
