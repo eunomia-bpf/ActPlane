@@ -56,6 +56,28 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
     Ok(out)
 }
 
+/// Canonical keyword for a DSL op, for diagnostics.
+fn op_word(op: Op) -> &'static str {
+    match op {
+        Op::Exec => "exec",
+        Op::Read => "read",
+        Op::Open => "open",
+        Op::Write => "write",
+        Op::Unlink => "unlink",
+        Op::Connect => "connect",
+        Op::Recv => "recv",
+    }
+}
+
+/// Canonical keyword for a target kind, for diagnostics.
+fn kind_word(kind: Kind) -> &'static str {
+    match kind {
+        Kind::File => "file",
+        Kind::Endpoint => "endpoint",
+        Kind::Exec => "exec",
+    }
+}
+
 struct P {
     t: Vec<Tok>,
     i: usize,
@@ -125,6 +147,19 @@ impl P {
         } else {
             return Err("expected node kind in target".into());
         };
+        let want = match op {
+            Op::Exec => Kind::Exec,
+            Op::Read | Op::Write | Op::Unlink | Op::Open => Kind::File,
+            Op::Connect | Op::Recv => Kind::Endpoint,
+        };
+        if kind != want {
+            return Err(format!(
+                "`{}` targets require the `{}` kind, got `{}`",
+                op_word(op),
+                kind_word(want),
+                kind_word(kind)
+            ));
+        }
         let mut pattern = self.string()?;
         // Normalize a bare exec name to the globstar form, so `exec "git"` and
         // `exec "**/git"` are the same pattern everywhere downstream (notably in

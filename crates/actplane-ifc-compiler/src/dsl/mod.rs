@@ -482,6 +482,28 @@ rule secret:
     }
 
     #[test]
+    fn target_kind_must_match_the_operation() {
+        // The grammar pairs each op with one kind (`connect`/`recv` with
+        // `endpoint`, file/exec ops with `file`/`exec`). The kind word drives
+        // the endpoint_support warnings and the approval signature, so a wrong
+        // word would lower to the same blob while skipping the diagnostics that
+        // the correct spelling reports. Reject the mismatch instead.
+        for bad in [
+            "rule r:\n  notify connect file \"/work/**\"\n  because \"x\"\n",
+            "rule r:\n  notify recv file \"**\"\n  because \"x\"\n",
+            "rule r:\n  notify read endpoint \"*\"\n  because \"x\"\n",
+            "rule r:\n  notify write endpoint \"*\"\n  because \"x\"\n",
+            "rule r:\n  notify exec file \"git\"\n  because \"x\"\n",
+        ] {
+            assert!(compile_str(bad).is_err(), "should reject: {bad}");
+        }
+        // The grammar's pairings still compile, including the bare exec form.
+        ok(
+            "rule r:\n  notify connect endpoint \"**\"\n  because \"x\"\nrule s:\n  notify read file \"**\"\n  because \"y\"\nrule t:\n  notify exec \"git\"\n  because \"z\"\n",
+        );
+    }
+
+    #[test]
     fn e6_research_readonly() {
         ok(r#"
             source RESEARCH = exec "**/research-agent"
