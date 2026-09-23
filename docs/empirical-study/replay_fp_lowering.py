@@ -182,7 +182,7 @@ def lower_path_companions(pat: str) -> list[tuple[int, str]]:
 
 
 def lower_path_current(pat: str) -> tuple[int, str]:
-    """Current bpf/crates/actplane-ifc-compiler/src/dsl/lower.rs::lower_path."""
+    """Current lower_path (crates/.../dsl/lower.rs::lower_path)."""
     if pat in ("*", "**", "**/*"):
         return (M_ANY, "")
     repo_relative = not pat.startswith("/")

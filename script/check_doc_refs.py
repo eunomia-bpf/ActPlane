@@ -40,8 +40,8 @@ path classes a citation could name do not carry the same failure mode:
 
   * `#include <bpf/bpf.h>`-style names resolve through `-I` at build time, so
     they are not repo-relative even when the text looks like a path;
-  * `crates/.../dsl/lower.rs` is a deliberate abbreviation in one docstring, not
-    a citation to follow.
+  * `crates/.../dsl/lower.rs` is a deliberate abbreviation in the docstrings of
+    `docs/empirical-study/replay_fp_lowering.py`, not a citation to follow.
 
 A scan for the same class over `script/`, `test/`, `bpf/`, and `crates/` found
 only those two false positives, so widening the pattern would add noise without
