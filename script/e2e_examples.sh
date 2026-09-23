@@ -30,7 +30,7 @@ fi
 
 # --- fixtures --------------------------------------------------------------
 rm -rf "$D"; mkdir -p "$D/work" "$D/downloads" "$D/customers" "$D/data" "$D/shared"
-for h in codex research-agent task-a task-b human-approve confirm redact migrate pytest; do cp /bin/bash "$D/$h"; done
+for h in codex research-agent task-a task-b human-approve confirm redact migrate pytest pnpm; do cp /bin/bash "$D/$h"; done
 cp /bin/true "$D/git"; cp /bin/true "$D/deploy"
 echo secret > "$D/sec.env"; echo inject > "$D/downloads/inj"
 echo pii > "$D/customers/rec"; echo db > "$D/data/prod.db"
