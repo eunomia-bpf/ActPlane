@@ -176,6 +176,29 @@ rule js-outside-dist:
         "absolute exception must not warn, got {}",
         value["warnings"]
     );
+
+    // An `exec` clause has no companion forms: both the target and the
+    // condition lower through `lower_exec`, which matches the basename on
+    // `comm`, so `**/pytest` and `pytest` are identical and the exception
+    // covers every form. Warning there would be a false positive.
+    let exec_clause = r#"
+rule tests-not-pytest:
+  notify exec "**/git" unless target "**/pytest"
+  because "git must not be replaced by pytest"
+"#;
+    let output = run(&["--rule", exec_clause, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "repo_relative_target_condition_partial"),
+        "an exec clause has no companion form, so the exception is exact; got {}",
+        value["warnings"]
+    );
 }
 
 #[test]

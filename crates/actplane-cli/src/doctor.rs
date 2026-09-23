@@ -1991,7 +1991,14 @@ fn clause_condition_warnings(
     // bare/first-segment-relative form, so a negated exception over-fires the
     // rule there (the mirror of the target-side companion). Warn so the
     // approximation is discoverable rather than silent.
-    if !matches!(clause.op, Op::Connect | Op::Recv)
+    //
+    // Only a path op has companion matchers, and only there does the condition
+    // fall short: `lower_target` emits companions for read/open/write/unlink
+    // (`lower.rs`), while an `exec` target and condition both lower through
+    // `lower_exec`, which drops the directory and matches the basename on
+    // `comm`, so `**/pytest` and `pytest` lower identically and there is no
+    // uncovered form. Warning on `exec` would be a false positive.
+    if matches!(clause.op, Op::Read | Op::Open | Op::Write | Op::Unlink)
         && let Some(Cond::Target { negate, pattern }) = &clause.unless
         && dsl::repo_relative_condition_is_partial(pattern)
     {
