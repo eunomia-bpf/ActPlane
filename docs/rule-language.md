@@ -153,7 +153,8 @@ these are reported:
   `endpoint_target_condition_multi_ipv4_hostname`,
   `endpoint_target_condition_unsupported_pattern`: an endpoint `unless target`
   condition that did not resolve to exactly one IPv4 address at compile/load
-  time (unresolved, resolving to several addresses, or a wildcard/IPv6 pattern).
+  time (unresolved, resolving to several addresses, or a wildcard, IPv6, or
+  malformed-numeric pattern such as `"1.2.3.4.5"`).
   The condition stores one address in the current ABI and fails closed.
 - `bpf_lsm_inactive_for_block`: `block` on a host without BPF-LSM active, so
   the rule falls back to nothing (see §1.7).

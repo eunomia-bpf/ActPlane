@@ -2000,7 +2000,7 @@ fn clause_condition_warnings(
             None => warnings.push(ClauseConditionWarning {
                 code: "endpoint_target_condition_unsupported_pattern",
                 message: format!(
-                    "unless target{} \"{}\" uses a wildcard hostname or IPv6 pattern; endpoint target conditions support numeric IPv4 or a single resolved IPv4 hostname.",
+                    "unless target{} \"{}\" is a wildcard hostname, an IPv6 pattern, or a malformed numeric form; endpoint target conditions support numeric IPv4 or a single resolved IPv4 hostname.",
                     if *negate { " not" } else { "" },
                     pattern
                 ),
