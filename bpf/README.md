@@ -228,7 +228,9 @@ object.
 
 ## Requirements
 
-- Linux kernel 5.8+ with BTF (`/sys/kernel/btf/vmlinux`)
+- Linux kernel 5.10+ with BTF (`/sys/kernel/btf/vmlinux`). The runtime rejects
+  anything older: the static compatibility engine requires 5.10, and the pinned
+  singleton engine requires 6.1.
 - Root or `CAP_BPF` + `CAP_SYS_ADMIN`
 - BPF-LSM active for `block` effect (`bpf` in `/sys/kernel/security/lsm`)
 

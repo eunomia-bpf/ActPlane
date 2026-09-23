@@ -81,7 +81,7 @@ sudo ./target/release/actplane --rule "$(cat policy.dsl)" run <cmd>
 sudo ./bpf/process --config policy.bin
 ```
 
-Requires `sudo` (or `CAP_BPF` + `CAP_SYS_ADMIN`) and a recent kernel (5.8+,
+Requires `sudo` (or `CAP_BPF` + `CAP_SYS_ADMIN`) and a recent kernel (5.10+,
 developed on 6.15).
 
 ## Architecture
