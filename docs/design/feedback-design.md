@@ -15,9 +15,14 @@ eBPF/BPF-LSM match
   -> project hook or MCP integration forwards the reason to the agent
 ```
 
-The user-facing feedback file names the rule, effect, target, process, reason,
-and the expected alternative. This is the corrective-feedback payload consumed
-by Codex/Claude Code hooks and by humans inspecting the last violation.
+The user-facing feedback file names the rule, effect, target, reason, and the
+expected alternative, and adds a `Provenance` line naming the PID at which a
+label was acquired when that context is available. The violating process's own
+comm and pid are not part of this payload; they are carried by the machine-tag
+path only. This is the corrective-feedback payload consumed by the Codex hook
+(`actplane init --with-codex`) and by humans inspecting the last violation. The
+Claude Code integration is a manual `CLAUDE.md` snippet rather than an installed
+hook.
 
 ## Effects
 

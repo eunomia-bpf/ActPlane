@@ -64,7 +64,7 @@ Minimum YAML shape:
 ```yaml
 version: 1
 
-ifc: |
+policy: |
   source TESTED = exec "**/pytest"
 
   rule test-before-commit:
@@ -77,27 +77,40 @@ Optional dynamic update shape:
 ```yaml
 version: 1
 
-domain:
-  id: build
-  parent: session
-  scope:
-    files: ["./src/**", "./target/**"]
+rules:
+  no-network:
+    policy: |
+      rule no-network:
+        kill connect endpoint "*"
+        because "network is disabled by default"
 
-authority:
-  apply_to_self: true
-  apply_to_child: false
+  no-build-output-network:
+    policy: |
+      source BUILD_OUTPUT = file "./target/**"
 
-ifc: |
-  source BUILD_OUTPUT = file "./target/**"
+      rule no-build-output-network:
+        kill connect endpoint "*" if BUILD_OUTPUT
+        because "build output cannot be sent to the network"
 
-  rule no-build-output-network:
-    kill connect any if BUILD_OUTPUT
-    because "build output cannot be sent to the network"
+domains:
+  session:
+    bind:
+      - rule: no-network
+        mode: locked
+
+  build:
+    parent: session
+    bind:
+      - rule: no-build-output-network
+        mode: locked
 ```
 
-`domain` is just a name that compiles to a small id. The kernel only sees ids,
-masks, and scope ids. Some low-level ABI fields still use `target_id`; in the
-security model that id is a domain id.
+A domain is a named policy boundary that compiles to a small id. Each domain is
+a key under `domains:`, with an optional `parent`, a `bind` list attaching named
+rules from `rules:` (each `mode: locked` or `default`), and a `disable` list
+removing rules inherited from a parent. The kernel only sees ids, masks, and
+scope ids. Some low-level ABI fields still use `target_id`; in the security
+model that id is a domain id.
 
 ## API
 
@@ -115,32 +128,35 @@ actplane control delta add --target-id <id> --delta policy.dsl
 actplane doctor
 ```
 
-The CLI should always tell the user which domain was selected:
+On the plain-compile path, when a domain actually resolves, the CLI reports
+which domain was selected (`doctor.rs`):
 
 ```text
 domain: review
 parent: session
 policy: no-git-branch, readonly
-local additions: none
 ```
 
-That makes the runtime choice visible before anything needs privileges.
+The `--json` and `--explain` paths report the same choice in their own form. That
+makes the runtime choice visible before anything needs privileges.
 
 Library:
 
 ```rust
-compile(yaml) -> Ir
-load(ir) -> Engine
-run(engine, command) -> Process
-apply_delta(engine, domain, delta) -> Result
-events(engine) -> Iterator<Event>
+actplane_ifc_compiler::dsl::compile_str(src: &str) -> Result<Compiled, String>
+PinnedEngine::load(config_blob: &[u8]) -> io::Result<PinnedEngine>
+engine.run(&stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()>
+engine.submit_delta(req: DeltaRequest) -> io::Result<()>
 ```
+
+Violations are delivered through the `run` callback rather than an iterator; the
+engine owns the ring-buffer drain.
 
 Kernel request:
 
 ```text
 caller_pid
-domain_id
+target_id
 required_mask
 add_label_mask
 add_restrict_mask
