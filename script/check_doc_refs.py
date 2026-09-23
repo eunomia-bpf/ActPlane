@@ -141,8 +141,9 @@ UP_REF = re.compile(
 # command anywhere in the tree, while the guard stayed green. Requiring a
 # hyphenated name keeps prose slashes (`/sections`, `/figure`) out of the check
 # (all three real command names are hyphenated), and the check is scoped to the
-# skills tree, the one place that cites commands this way.
-SLASH_CMD = re.compile(r"(?<![A-Za-z0-9_.`/-])/[a-z][a-z0-9]*(?:-[a-z0-9]+)+")
+# skills tree, the one place that cites commands this way. A backtick may precede
+# the command, which is how the drifted reference was written.
+SLASH_CMD = re.compile(r"(?<![A-Za-z0-9_./-])/[a-z][a-z0-9]*(?:-[a-z0-9]+)+")
 SKILLS_DIR = ".claude/skills/"
 
 
