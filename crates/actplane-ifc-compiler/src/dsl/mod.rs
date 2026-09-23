@@ -11,7 +11,8 @@ use std::collections::HashMap;
 
 pub use lower::{
     Compiled, PATTERN_EMPTY_LITERAL, PATTERN_MATCHER_LENGTH, PATTERN_TRUNCATED, PatternWarning,
-    RuleMeta, RuleSourceMeta, compile, repo_relative_condition_is_partial,
+    RuleMeta, RuleSourceMeta, compile, is_numeric_endpoint_pattern,
+    repo_relative_condition_is_partial,
 };
 
 /// Parse + compile DSL source text to a kernel config blob + reason table.

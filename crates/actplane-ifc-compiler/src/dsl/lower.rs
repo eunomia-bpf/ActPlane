@@ -950,6 +950,42 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// A fifth octet must not be truncated to the first four. The old `break`
+    /// at `k >= 4` compiled `1.2.3.4.5` to a /32 on `1.2.3.4`, so the rule
+    /// fired for `1.2.3.4` while `actplane doctor` (whose numeric predicate
+    /// requires 1..=4 octets) reported the pattern as unsupported and
+    /// non-firing. The two must agree, and the fail-closed `(0, u32::MAX)`
+    /// matcher is what the doctor's "will not fire" claim describes.
+    #[test]
+    fn a_fifth_octet_is_not_truncated_to_a_numeric_ipv4_match() {
+        assert_eq!(
+            lower_numeric_ipv4("1.2.3.4"),
+            lower_numeric_ipv4("1.2.3.4.")
+        );
+        assert_eq!(lower_numeric_ipv4("1.2.3.4.5"), None);
+        assert!(!is_numeric_endpoint_pattern("1.2.3.4.5"));
+        assert!(is_numeric_endpoint_pattern("1.2.3.4"));
+        // `*` stays match-any, and a 4-octet pattern stays a /32.
+        assert!(is_numeric_endpoint_pattern("*"));
+
+        let pol = crate::dsl::parse::parse(
+            r#"
+            rule too_many_octets:
+              kill connect endpoint "1.2.3.4.5"
+              because "malformed numeric endpoint must fail closed"
+            "#,
+        )
+        .expect("parse endpoint rule");
+        let compiled = compile(&pol).expect("compile endpoint rule");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        assert_eq!(cfg.n_rules, 1);
+        // Fail closed: net 0 with a full mask is the literal `0.0.0.0`, not a
+        // /32 on the truncated `1.2.3.4` (which would be 0x04030201).
+        assert_eq!(cfg.rules[0].ipv4, 0);
+        assert_eq!(cfg.rules[0].ipv4_mask, u32::MAX);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
@@ -984,28 +1020,44 @@ fn looks_like_ipv4_prefix(pat: &str) -> bool {
 /// Lower an IPv4 prefix/host pattern to (net, mask) in the same byte order as
 /// the kernel's `sin_addr.s_addr` (octet k at bit 8*k). "*" -> match-any (0,0).
 /// "10.0.0." -> /24, "10.0.0.5" -> /32.
+///
+/// A fifth octet is rejected rather than truncated to the first four. The old
+/// `break` at `k >= 4` made `1.2.3.4.5` compile to a /32 on `1.2.3.4`, so the
+/// rule fired for `1.2.3.4`, while `actplane doctor` reported the same pattern
+/// as unsupported and non-firing (its numeric predicate requires 1..=4
+/// octets). Rejecting it routes through `hostname_candidate`
+/// (`looks_like_ipv4_prefix` is true, so no hostname) to the `(0, u32::MAX)`
+/// fail-closed matcher, matching the doctor/`--explain` claim exactly.
 fn lower_numeric_ipv4(pat: &str) -> Option<(u32, u32)> {
     if pat == "*" {
         return Some((0, 0));
     }
-    let body = pat.strip_suffix('.').unwrap_or(pat);
+    let body = pat.trim_end_matches('.');
     let mut net: u32 = 0;
     let mut mask: u32 = 0;
     let mut k = 0u32;
     for tok in body.split('.') {
         if k >= 4 {
-            break;
+            return None;
         }
-        match tok.parse::<u8>() {
-            Ok(o) => {
-                net |= (o as u32) << (8 * k);
-                mask |= 0xffu32 << (8 * k);
-                k += 1;
-            }
-            Err(_) => return None,
-        }
+        let Ok(o) = tok.parse::<u8>() else {
+            return None;
+        };
+        net |= (o as u32) << (8 * k);
+        mask |= 0xffu32 << (8 * k);
+        k += 1;
     }
     if k == 0 { None } else { Some((net, mask)) }
+}
+
+/// True for a pattern the kernel can match as numeric IPv4 (or `"*"`). This is
+/// the single source of truth for "is this endpoint pattern supported", shared
+/// with `actplane doctor`, so the two cannot disagree: a pattern this rejects
+/// (a hostname glob, IPv6, or a malformed numeric form such as `1.2.3.4.5`)
+/// has no numeric matcher, so a rule using it does not fire for the endpoints
+/// it names.
+pub fn is_numeric_endpoint_pattern(pat: &str) -> bool {
+    lower_numeric_ipv4(pat).is_some()
 }
 
 #[cfg(test)]

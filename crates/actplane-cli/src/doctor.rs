@@ -2399,19 +2399,14 @@ fn op_name(op: Op) -> &'static str {
     }
 }
 
+/// Whether the kernel can match this endpoint pattern numerically. Delegates
+/// to the compiler's `is_numeric_endpoint_pattern` so the two cannot drift:
+/// the doctor and the compiled blob must agree on which endpoint patterns
+/// fire. The earlier local copy accepted 1..=4 octets while the compiler
+/// truncated at 4, so `1.2.3.4.5` was reported non-firing here yet compiled to
+/// a /32 on `1.2.3.4` that did fire.
 fn endpoint_pattern_is_numeric_ipv4(pat: &str) -> bool {
-    if pat == "*" {
-        return true;
-    }
-    let body = pat.trim_end_matches('.');
-    let mut count = 0usize;
-    for octet in body.split('.') {
-        if octet.is_empty() || octet.parse::<u8>().is_err() {
-            return false;
-        }
-        count += 1;
-    }
-    (1..=4).contains(&count)
+    dsl::is_numeric_endpoint_pattern(pat)
 }
 
 pub(crate) fn doctor(cli: &PolicyInput) -> Result<i32> {

@@ -591,6 +591,44 @@ fn compile_json_warns_when_a_rule_has_no_because() {
 }
 
 #[test]
+fn compile_json_warns_that_a_malformed_numeric_endpoint_does_not_fire() {
+    // A `connect`/`recv` target with more than four octets has no numeric
+    // matcher. The compiler must agree with the doctor and report it, rather
+    // than silently truncating `1.2.3.4.5` to a /32 on `1.2.3.4` that then
+    // fires for `1.2.3.4` while the doctor says the rule will not fire.
+    let policy = "rule r:\n  kill connect endpoint \"1.2.3.4.5\"\n  because \"y\"\n";
+    let output = run(&["--rule", policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "endpoint_target_unsupported"),
+        "expected endpoint_target_unsupported for a 5-octet pattern, got {}",
+        value["warnings"]
+    );
+
+    // A well-formed 4-octet address must stay silent.
+    let ok = "rule r:\n  kill connect endpoint \"1.2.3.4\"\n  because \"y\"\n";
+    let output = run(&["--rule", ok, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    assert!(
+        !value["warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == "endpoint_target_unsupported"),
+        "a numeric IPv4 target must not warn, got {}",
+        value["warnings"]
+    );
+}
+
+#[test]
 fn compile_json_reports_policy_load_errors_as_json() {
     let missing = "/tmp/actplane-definitely-missing-policy.yaml";
     let output = run(&["--policy", missing, "compile", "--json"]);

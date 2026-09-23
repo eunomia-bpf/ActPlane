@@ -146,8 +146,9 @@ these are reported:
   never fire (see §1.7). The fix is `kill exec`.
 - `endpoint_source_unsupported`, `endpoint_target_unsupported`: an endpoint
   source or a `connect`/`recv` target whose pattern is not numeric IPv4 (a
-  hostname glob, IPv6, or a wildcard other than `"*"`), so the rule will not
-  fire for that endpoint.
+  hostname glob, IPv6, a wildcard other than `"*"`, or a malformed numeric form
+  such as `"1.2.3.4.5"` with more than four octets), so the rule will not fire
+  for that endpoint.
 - `endpoint_target_condition_unresolved_hostname`,
   `endpoint_target_condition_multi_ipv4_hostname`,
   `endpoint_target_condition_unsupported_pattern`: an endpoint `unless target`
