@@ -227,8 +227,10 @@ codex exec --dangerously-bypass-approvals-and-sandbox "<prompt>"
 ## Common Issues
 
 - **eBPF permission errors**: needs `sudo` or `CAP_BPF` + `CAP_SYS_ADMIN`.
-- **No rule matches fire**: confirm the loader printed `ActPlane: N sources, N rules,
-  ...` (rodata loaded) and that exec patterns match `comm` (basename, ≤ 15 chars),
-  not the full path.
+- **No rule matches fire**: confirm the loader reached `ActPlane: ready`
+  (`bpf/process.c:756`, printed after the programs attach; the earlier
+  `ActPlane: N updates, N rules` at `678` prints before the load, so it alone
+  does not prove the rodata took). Then check that exec patterns match `comm`
+  (basename, ≤ 15 chars), not the full path.
 - **ABI size mismatch on load** ("config size mismatch"): `lower.rs` and `taint.h`
   drifted — re-sync the structs.
