@@ -35,7 +35,7 @@ sudo -E actplane --policy policies/readonly.yaml run claude -p "review"
 
 ### Codex
 
-`actplane init` / `actplane setup` 会写入 `.codex/hooks.json`; Codex 会在
+`actplane init --with-codex` 会写入 `.codex/hooks.json`; Codex 会在
 每次工具调用后自动运行 `actplane feedback-hook`。
 
 Codex CLI 支持 `PostToolUse` hook。把下面内容写入 `.codex/hooks.json`
@@ -72,7 +72,7 @@ ActPlane 的 MCP server 暴露两个 resource:
 - `actplane:///policy`: 当前 `actplane.yaml` 的编译/校验结果。
 - `actplane:///feedback`: 最新 `.actplane/last-violation.txt` 纠偏反馈。
 
-优先使用项目 `.mcp.json`: `actplane setup` 会自动写好,之后进入 Codex session
+优先使用项目 `.mcp.json`: `actplane init --with-mcp` 会自动写好,之后进入 Codex session
 时会自动启动。如果你的 Codex 版本不读取项目 `.mcp.json`,再用下面命令注册
 global MCP:
 

@@ -114,6 +114,18 @@ WINDOW = 240
 # matches nothing and passes.
 DIR_REF = re.compile(r"docs/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*/")
 
+# A citation that climbs the tree, such as `../../test/policies/` from a crate
+# README. `REF` anchors on `docs/`, so every relative citation went unchecked;
+# `crates/actplane-cli/README.md` had two that were one level short (its own
+# `../actplane-ifc-compiler/` anchor shows the base is the citing file's
+# directory, not the repo root). Resolve each against the citing file's
+# directory rather than the root, which is what a reader's tooling does.
+UP_REF = re.compile(
+    r"(?<![A-Za-z0-9_./-])(?:\.\./)+"
+    r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
+    r"\.(?:md|yaml|yml|json|sh|py|rs|c|h|toml)"
+)
+
 
 def tracked_dirs(files: list[str]) -> set[str]:
     """Every directory path in the committed tree, with a trailing slash."""
@@ -207,6 +219,31 @@ def main() -> int:
             if not moved_deeper(ref, dirs):
                 continue
             window = text[max(0, match.start() - WINDOW) : end + WINDOW]
+            if any(q in window for q in REF_QUALIFIERS):
+                continue
+            line = text.count("\n", 0, match.start()) + 1
+            problems.append((f"{name}:{line}", ref))
+
+    # Tree-climbing citations (`../...`), checked relative to the citing file's
+    # own directory. `REF` and `DIR_REF` both anchor on `docs/`, so a relative
+    # citation was invisible to the guard; two in `crates/actplane-cli/README.md`
+    # had drifted one level short while the guard reported green.
+    for name in files:
+        if name.endswith("/") or not name.endswith(SUFFIXES):
+            continue
+        if name.startswith(SKIP_PREFIXES) or name == SELF:
+            continue
+        base = (root / name).parent
+        try:
+            text = (root / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for match in UP_REF.finditer(text):
+            ref = match.group(0).rstrip(".,);`'\"")
+            checked += 1
+            if (base / ref).resolve().exists():
+                continue
+            window = text[max(0, match.start() - WINDOW) : match.end() + WINDOW]
             if any(q in window for q in REF_QUALIFIERS):
                 continue
             line = text.count("\n", 0, match.start()) + 1
