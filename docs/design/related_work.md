@@ -14,8 +14,9 @@ against some active misuse.
 
 This document situates ActPlane against the literature, grouped by theme. Each entry gives a
 short summary and an explicit **vs ActPlane** line stating what it shares and what it lacks. A
-comparison table and an honest synthesis of the remaining gap follow. Local PDFs are in
-`docs/reference/`; web sources are linked inline.
+comparison table and an honest synthesis of the remaining gap follow. Local PDFs live on the
+`backup/2026-06-14-master` ref under `docs/reference/` (they are off the product branch, like the
+longer OSS survey noted in §4); web sources are linked inline.
 
 The dimensions that matter throughout:
 
