@@ -96,15 +96,16 @@ policy.dsl ─▶ actplane-ifc-compiler ─▶ struct taint_config ─▶ eBPF e
 
 - `taint.h` — the rule **ABI** (shared, byte-for-byte, with the Rust compiler) and
   the matching predicates. Structs: `taint_update`, `taint_rule`,
-  `taint_config`. Enums: `taint_match` (EXACT/PREFIX/SUFFIX/ANY),
-  `taint_op` (EXEC/OPEN/WRITE/CONNECT), `taint_cond`
-  (NONE/LINEAGE/AFTER/TARGET). Matchers: `taint_streq/prefix/suffix/match`,
-  `taint_mask_ok`, `taint_arg_match`.
+  `taint_config`. Enums: `taint_match` (EXACT/PREFIX/SUFFIX/ANY/CONTAINS),
+  `taint_op` (EXEC/OPEN/WRITE/CONNECT/RECV), `taint_cond`
+  (NONE/LINEAGE/AFTER/TARGET). Matchers:
+  `taint_streq/prefix/suffix/contains/match`, `taint_mask_ok`,
+  `taint_arg_match`.
 - `taint_engine.bpf.h` — engine state + `te_*` helpers. Maps: `ts_proc`
   (pid → labels + lineage gates), `ts_root`, `ts_sess`, `ts_file` (fnv1a(path) →
   labels), `ts_endp` (IPv4 → labels). Rodata update/rule tables filled by the loader.
-- `process.bpf.c` — the hooks (fork/exec/exit/open/unlink/rename/connect). The only
-  output channel is `emit_violation()`.
+- `process.bpf.c` — the hooks (fork/exec/exit/open/read/write/unlink/rename/
+  mmap/connect/recv). The only output channel is `emit_violation()`.
 - `process.c` — loader: `--config` reads the blob into rodata, attaches, prints
   `TAINT_VIOLATION` as NDJSON.
 
@@ -121,7 +122,8 @@ policy.dsl ─▶ actplane-ifc-compiler ─▶ struct taint_config ─▶ eBPF e
 
 Each node carries a `u64` label mask. Sources add labels (exec comm / file path /
 endpoint IP). Propagation: fork→inherit, exec→apply source/xform/gate, read→file
-labels into proc, write→proc labels into file, connect→proc labels to endpoint.
+labels into proc, write→proc labels into file, connect→proc labels to endpoint,
+recv→endpoint labels into proc.
 Sinks match a label mask (`req` AND / `forbid` NOT, DNF-expanded) + target pattern
 + optional positional argument + optional condition (lineage-includes / after / target-scope).
 Full semantics and worked examples: `docs/rule-language.md`.
