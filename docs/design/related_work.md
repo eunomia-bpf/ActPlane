@@ -574,11 +574,11 @@ without enforcement.
 enforcement for coding agents. AgentDojo tests injection resistance; OpenAgentSafety and
 ODCV-Bench test inherent agent unsafety; neither provides runtime enforcement hooks or
 project-defined workflow policies (the "run tests before committing" class of rules that
-ActPlane targets). ActPlane's evaluation uses 580 policies extracted from 64 real agent
-projects — the first corpus of OS-level policies — plus Terminal-Bench (89 tasks)
-as an external capability benchmark. This combination tests the specific claim (kernel
-enforcement + feedback improves policy compliance) that no existing benchmark is designed to
-measure.
+ActPlane targets). ActPlane's evaluation uses the 607 OS-enforceable policies drawn from
+64 real agent projects — the first corpus of OS-level policies — plus external capability
+and safety benchmarks (OctoBench, 217 coding tasks; OpenAgentSafety, 361 safety tasks).
+This combination tests the specific claim (kernel enforcement + feedback improves policy
+compliance) that no existing benchmark is designed to measure.
 
 ---
 
