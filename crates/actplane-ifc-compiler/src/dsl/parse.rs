@@ -10,6 +10,8 @@ enum Tok {
     Str(String),
     Colon,
     Eq,
+    LParen,
+    RParen,
 }
 
 fn lex(src: &str) -> Result<Vec<Tok>, String> {
@@ -41,11 +43,17 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
         } else if c == '=' {
             out.push(Tok::Eq);
             i += 1;
+        } else if c == '(' {
+            out.push(Tok::LParen);
+            i += 1;
+        } else if c == ')' {
+            out.push(Tok::RParen);
+            i += 1;
         } else {
             let start = i;
             while i < b.len() {
                 let d = b[i] as char;
-                if d.is_whitespace() || d == '"' || d == ':' || d == '=' {
+                if d.is_whitespace() || d == '"' || d == ':' || d == '=' || d == '(' || d == ')' {
                     break;
                 }
                 i += 1;
@@ -180,6 +188,10 @@ impl P {
         Ok(Target { kind, pattern, arg })
     }
 
+    /// `expr := term (("and"|"or") term)*`, so the two connectives have equal
+    /// precedence and associate to the left: `A or B and C` is `(A or B) and C`.
+    /// Parentheses override this, which is the readable form for a mixed
+    /// condition (`A or (B and C)`); see `docs/rule-language.md` §1.8 and §2.
     fn expr(&mut self) -> Result<Expr, String> {
         let mut lhs = self.term()?;
         loop {
@@ -195,13 +207,30 @@ impl P {
         }
         Ok(lhs)
     }
+    /// `term := ["not"] IDENT | "true" | "(" expr ")"`. A parenthesized group is
+    /// returned as-is (no wrapper node), so `if (A)` and `if A` lower to the same
+    /// label set. `not` still binds a single identifier, because `Expr::Not`
+    /// carries a label name rather than a sub-expression: `not (A or B)` is
+    /// spelled `not A and not B`.
     fn term(&mut self) -> Result<Expr, String> {
         if self.is_word("not") {
             self.next();
+            if matches!(self.peek(), Some(Tok::LParen)) {
+                return Err(
+                    "`not` binds a single label, so `not (...)` is not accepted; write the negation of each label, as in `not A and not B`".into(),
+                );
+            }
             Ok(Expr::Not(self.word()?))
         } else if self.is_word("true") {
             self.next();
             Ok(Expr::True)
+        } else if matches!(self.peek(), Some(Tok::LParen)) {
+            self.next();
+            let inner = self.expr()?;
+            match self.next() {
+                Some(Tok::RParen) => Ok(inner),
+                o => Err(format!("expected ')', got {:?}", o)),
+            }
         } else {
             Ok(Expr::Label(self.word()?))
         }

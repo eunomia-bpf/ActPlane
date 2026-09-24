@@ -811,6 +811,44 @@ rule secret:
     }
 
     #[test]
+    fn parentheses_group_and_and_or_have_equal_precedence() {
+        // The lexer used to glue `(A` and `B)` into single words, so `if (A)`
+        // introduced a phantom label `(A` that no `source` can set: the clause
+        // was silently dead. Grouping is now explicit. The blob is the enforced
+        // artifact, so equality of blobs is the observable claim (`labels` alone
+        // would not catch a wrong association order that happens to reuse names).
+        let blob = |when: &str| {
+            let src = format!(
+                "source A = exec \"a\"\nsource B = exec \"b\"\nsource C = exec \"c\"\nrule r:\n  kill open file \"**/s\" if {when}\n  because \"x\"\n"
+            );
+            ok(&src).bytes
+        };
+        // Redundant grouping is a no-op, so `(A)` must lower exactly like `A`.
+        assert_eq!(blob("A"), blob("(A)"));
+        assert_eq!(blob("not A"), blob("(not A)"));
+        // `and` and `or` are equal precedence and left-associative, so the
+        // unparenthesized `A or B and C` is `(A or B) and C`. Pin that, and pin
+        // that parenthesizing the other way is a different policy: a reader who
+        // wants `A or (B and C)` gets it only with the parens.
+        assert_eq!(blob("A or B and C"), blob("(A or B) and C"));
+        assert_ne!(blob("A or B and C"), blob("A or (B and C)"));
+        // An unbalanced paren is a loud error, not a phantom label.
+        for bad in ["(A", "A)", "(A or B"] {
+            let src = format!("rule r:\n  kill open file \"**/s\" if {bad}\n  because \"x\"\n");
+            assert!(compile_str(&src).is_err(), "{bad:?} should fail to parse");
+        }
+        // `Expr::Not` carries a label name, not a sub-expression, so a negated
+        // group is rejected with the De Morgan spelling rather than parsed as
+        // `not ` plus a group.
+        let err =
+            match compile_str("rule r:\n  kill exec \"git\" if not (A or B)\n  because \"x\"\n") {
+                Ok(_) => panic!("`not (...)` should be rejected"),
+                Err(e) => e,
+            };
+        assert!(err.contains("not A and not B"), "unhelpful error: {err}");
+    }
+
+    #[test]
     #[ignore = "run test/policy-corpus.sh for the release microbench"]
     fn policy_corpus_compile_perf() {
         let policies = corpus_policy_sources();

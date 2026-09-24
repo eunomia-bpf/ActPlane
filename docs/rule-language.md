@@ -88,7 +88,7 @@ rule NAME:
 - `ARG` is optional and is a single quoted argv token for `exec` clauses
   (e.g. `exec "git" "commit"` matches git with an argv token `commit`).
   This is not a separate argument to `block` or `kill`.
-- `Φ` is a boolean over labels of the **subject**: `L`, `not L`, `Φ and Φ`, `Φ or Φ`, `true`.
+- `Φ` is a boolean over labels of the **subject**: `L`, `not L`, `Φ and Φ`, `Φ or Φ`, `true`, and parenthesized groups `(Φ)`. `and` and `or` have **equal precedence** and associate to the **left**, so `A or B and C` means `(A or B) and C` and the two readings are not interchangeable (the parenthesized `A or (B and C)` enforces a different condition). Write the parentheses whenever a condition mixes the two connectives, because the left-to-right reading is rarely the one a reader assumes. `not` binds a single label name, and because it is not a general negation over the grammar, `not (A or B)` is not accepted: write `not A and not B` (equivalent by De Morgan). A parenthesized group is otherwise transparent, so `(A)` lowers to the same label set as `A`.
 - `COND` (optional) relaxes the rule:
   - `target PAT` — only when the object also matches PAT (positive scope), or `target not PAT` (allow-listed region).
   - `lineage-includes exec G` — **mandatory mediation**: allowed iff an ancestor (incl. self) exec'd `G`.
@@ -272,8 +272,8 @@ OP          := "exec"|"read"|"write"|"unlink"|"connect"|"recv"|"open"
 op_pattern  := "exec" PATTERN [ARG]
              | ("read"|"write"|"unlink"|"open") "file" PATTERN
              | ("connect"|"recv") "endpoint" PATTERN
-expr        := term (("and"|"or") term)*
-term        := ["not"] IDENT | "true"
+expr        := term (("and"|"or") term)*            # equal precedence, left-assoc
+term        := ["not"] IDENT | "true" | "(" expr ")"
 cond        := "target" ["not"] PATTERN
              | "lineage-includes" "exec" PATTERN
              | "after" gate_event [ "exits" EXIT_CODE ] [ "since" since_event ("or" since_event)* ]
