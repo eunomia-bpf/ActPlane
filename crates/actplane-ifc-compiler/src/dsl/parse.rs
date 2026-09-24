@@ -18,10 +18,16 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
     let b = src.as_bytes();
     let mut i = 0;
     let mut out = Vec::new();
+    // Step by char, not by byte: a continuation byte decoded on its own can
+    // look like whitespace (`∅`, U+2205, ends in `0x85`, U+0085 NEL), and
+    // slicing the word at that byte would split a char boundary and panic.
+    // Every delimiter and whitespace test below is ASCII, and no ASCII byte
+    // appears inside a multi-byte sequence, so byte comparisons stay valid.
     while i < b.len() {
-        let c = b[i] as char;
+        let c = src[i..].chars().next().expect("i is a char boundary");
+        let clen = c.len_utf8();
         if c.is_whitespace() {
-            i += 1;
+            i += clen;
         } else if c == '#' {
             while i < b.len() && b[i] != b'\n' {
                 i += 1;
@@ -52,11 +58,11 @@ fn lex(src: &str) -> Result<Vec<Tok>, String> {
         } else {
             let start = i;
             while i < b.len() {
-                let d = b[i] as char;
+                let d = src[i..].chars().next().expect("i is a char boundary");
                 if d.is_whitespace() || d == '"' || d == ':' || d == '=' || d == '(' || d == ')' {
                     break;
                 }
-                i += 1;
+                i += d.len_utf8();
             }
             out.push(Tok::Word(src[start..i].to_string()));
         }

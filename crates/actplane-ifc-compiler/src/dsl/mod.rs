@@ -888,6 +888,31 @@ rule secret:
     }
 
     #[test]
+    fn non_ascii_bytes_are_tokenized_on_char_boundaries() {
+        // The lexer used to advance and slice on raw bytes, so a word containing
+        // a non-ASCII char whose trailing byte is ASCII whitespace (`∅`, U+2205,
+        // ends in `0x85` = U+0085 NEL) sliced mid-char and panicked. `docs/`
+        // embeds exactly that char, so any policy text carrying it crashed the
+        // compiler instead of reporting a normal parse error.
+        let bad = "source AGENT = exec \"**/codex\"\nrule r:\n  kill exec \"git\" if AGENT \u{2205}\n  because \"b\"\n";
+        let err = match compile_str(bad) {
+            Ok(_) => panic!("a bare non-ASCII word is not a label"),
+            Err(e) => e,
+        };
+        assert!(
+            err.contains('\u{2205}'),
+            "the error must name the token: {err}"
+        );
+        // Inside a string literal the byte is ordinary payload, so the rule
+        // compiles and the literal is stored whole.
+        let quoted = "source AGENT = exec \"**/codex\"\nrule r:\n  kill exec \"git\u{2205}\" if AGENT\n  because \"b\"\n";
+        assert!(compile_str(quoted).is_ok(), "quoted non-ASCII is payload");
+        // A non-ASCII rule name is a word like any other, not a crash.
+        let named = "source AGENT = exec \"**/codex\"\nrule r\u{2205}:\n  kill exec \"git\" if AGENT\n  because \"b\"\n";
+        assert!(compile_str(named).is_ok(), "a non-ASCII rule name parses");
+    }
+
+    #[test]
     #[ignore = "run test/policy-corpus.sh for the release microbench"]
     fn policy_corpus_compile_perf() {
         let policies = corpus_policy_sources();
