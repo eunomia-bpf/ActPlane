@@ -430,24 +430,26 @@ fn match_kind_name(kind: u8) -> &'static str {
 }
 
 /// Record a [`RULE_CONDITION_LABEL_WITHOUT_PRODUCER`] warning when a clause's
-/// `when` references a label that no `source` or `xform` in this policy (or an
-/// earlier delta, via `existing_labels`) produces.
+/// `when` references a label that nothing in this policy (or an earlier delta,
+/// via `existing_labels`) ever sets.
 ///
 /// `label_bit` allocates a bit for a label the moment it is seen, whether from a
 /// source, an xform, or a condition reference, so a policy that only ever
 /// *names* a label still compiles to a rule whose `req`/`forbid` mask holds that
-/// bit. Nothing then writes it: only a source or xform update sets a label bit,
-/// so the bit is zero in every process state. `taint_mask_ok` therefore rejects
-/// the plain form (`req` unmet, the rule never fires) and accepts the negated
-/// form (`forbid` clear, the rule fires on every event its target accepts).
+/// bit. Nothing then sets it: a `source` adds the bit and an `endorse` xform
+/// adds it, but a `declassify` xform *clears* it (`del = bit`), so a policy whose
+/// only mention of the label is a `declassify` still has no producer. The bit is
+/// then zero in every process state, so `taint_mask_ok` rejects the plain form
+/// (`req` unmet, the rule never fires) and accepts the negated form (`forbid`
+/// clear, the rule fires on every event its target accepts).
 ///
-/// `produced` holds the names a source or xform defines, plus the labels an
+/// `produced` holds the names an adding update defines, plus the labels an
 /// earlier delta already allocated, since that bit is live in the domain even
 /// though no local update writes it. [`RUNTIME_SEEDED_LABELS`] are exempt: the
 /// runner seeds them into the protected pid itself.
 ///
-/// Emitted once per clause, naming the first such label, because the fix is the
-/// same for every reference in the clause: declare the source, or drop the term.
+/// Emitted once per clause, naming every such label, because the fix is the
+/// same for each reference in the clause: declare a producer, or drop the term.
 fn warn_condition_label_without_producer(
     when: &Expr,
     produced: &BTreeSet<&str>,
@@ -480,7 +482,7 @@ fn warn_condition_label_without_producer(
     out.push(PatternWarning {
         code: RULE_CONDITION_LABEL_WITHOUT_PRODUCER,
         message: format!(
-            "rule {}: the condition references label `{label}`{also}, which no `source` or `xform` in this policy defines, so no update ever sets its bit. The plain form `if {label}` never fires, and the negated form `if not {label}` fires on every event the rule's target accepts. Declare a `source {label} = ...` (or an `xform`) for it, or drop the term.",
+            "rule {}: the condition references label `{label}`{also}, which nothing in this policy sets, so no update ever puts its bit in a label mask. The plain form `if {label}` never fires, and the negated form `if not {label}` fires on every event the rule's target accepts. Declare a `source {label} = ...` for it (an `endorse` xform also sets it, but a `declassify` clears it), or drop the term.",
             if reason.is_empty() {
                 "(no `because`)".to_string()
             } else {
@@ -2259,14 +2261,14 @@ pub const RULE_CONDITION_CONTRADICTION: &str = "rule_condition_contradiction";
 /// through the same `Compiled::pattern_warnings` channel.
 pub const RULE_CONDITION_COVERS_TARGET: &str = "rule_condition_covers_target";
 
-/// A condition that references a label no `source` or `xform` in the policy
-/// produces, so no update in the compiled blob ever sets that bit and the
-/// kernel's label mask never contains it.
+/// A condition that references a label no update in the policy ever *sets*, so
+/// the compiled blob never puts that bit in a process's label mask.
 ///
-/// A `source`/`xform` is the only way a label reaches a process: `label_bit`
-/// assigns a bit on first sight, and a condition reference allocates one too,
-/// but only a source or xform update writes it. With no producer the plain
-/// form (`if L`) never fires, and the negated form (`if not L`) is satisfied
+/// `label_bit` assigns a bit on first sight, and a condition reference allocates
+/// one too, but only a `source` or an `endorse` xform writes it. (`declassify`
+/// lowers to `del`, so it clears the bit rather than setting it, and does not
+/// make the label reachable.) With no such producer the plain form (`if L`)
+/// never fires, and the negated form (`if not L`) is satisfied
 /// for every event the clause's target accepts, so it fires on all of them.
 ///
 /// Distinct from [`RULE_CONDITION_CONTRADICTION`] (a dead mask built from
@@ -2465,13 +2467,22 @@ pub fn compile_with_labels(
         })?;
     }
     // Labels an update in the blob (or an earlier delta in the same domain)
-    // actually writes. A condition reference alone allocates a bit without
+    // actually *sets*. A condition reference alone allocates a bit without
     // producing it, which is what the warning below reports.
+    //
+    // Only an `endorse` xform counts: `declassify` lowers to `del`, i.e. it
+    // clears the bit, so `declassify L by exec G` does not make `if L` reachable
+    // (it makes it less reachable). A source always adds.
     let produced: BTreeSet<&str> = pol
         .sources
         .iter()
         .map(|s| s.label.as_str())
-        .chain(pol.xforms.iter().map(|x| x.label.as_str()))
+        .chain(
+            pol.xforms
+                .iter()
+                .filter(|x| x.endorse)
+                .map(|x| x.label.as_str()),
+        )
         .chain(existing_labels.keys().map(String::as_str))
         .collect();
     for rule in &pol.rules {

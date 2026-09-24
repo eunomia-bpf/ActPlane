@@ -1008,9 +1008,9 @@ rule secret:
     #[test]
     fn condition_label_without_a_producer_is_reported() {
         // `label_bit` allocates a bit for a label the moment a condition names
-        // it, but only a `source`/`xform` update writes that bit. With no
-        // producer the plain form never fires and the negated form fires on
-        // every event the target accepts, so both must be reported.
+        // it, but only an adding update sets it. With no producer the plain form
+        // never fires and the negated form fires on every event the target
+        // accepts, so both must be reported.
         let warn = |when: &str| {
             let src = format!(
                 "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if {when}\n  because \"x\"\n"
@@ -1054,6 +1054,41 @@ rule secret:
                 "{quiet:?} names a declared label and must not warn"
             );
         }
+    }
+
+    #[test]
+    fn only_an_adding_xform_counts_as_a_producer() {
+        // `endorse L` lowers to `add = bit` and sets the label, so it is a
+        // producer. `declassify L` lowers to `del = bit` and *clears* it, so a
+        // policy whose only mention of `L` is a `declassify` still has no
+        // producer: `if L` never fires there, and `if not L` fires on every
+        // event the target accepts. Counting every xform as a producer was the
+        // bug; the two forms are opposite operations.
+        let codes = |src: &str| warning_codes(&ok(src));
+        let endorse = "endorse MCP by exec \"**/trust\"\nrule r:\n  kill exec \"git\" if MCP\n  because \"x\"\n";
+        assert!(
+            !codes(endorse).contains(&RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+            "`endorse` sets the label, so it is a producer: {:?}",
+            codes(endorse)
+        );
+        for when in ["MCP", "not MCP"] {
+            let src = format!(
+                "declassify MCP by exec \"**/trust\"\nrule r:\n  kill exec \"git\" if {when}\n  because \"x\"\n"
+            );
+            assert!(
+                codes(&src).contains(&RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+                "`declassify` clears the label, so `{when}` has no producer: {:?}",
+                codes(&src)
+            );
+        }
+        // A source alongside the `declassify` is a producer, so the pair is
+        // quiet: the label can be present before the gate clears it.
+        let both = "source MCP = exec \"a\"\ndeclassify MCP by exec \"**/trust\"\nrule r:\n  kill exec \"git\" if MCP\n  because \"x\"\n";
+        assert!(
+            !codes(both).contains(&RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+            "a source still produces the label: {:?}",
+            codes(both)
+        );
     }
 
     #[test]

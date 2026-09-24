@@ -175,17 +175,21 @@ these are reported:
   entry), the message says "one of the rule's target matcher entries" rather
   than claiming the whole rule is dead. The fix is to drop the `unless target`
   clause or narrow it to a sub-path the target names.
-- `rule_condition_label_without_producer`: a condition names a label that no
-  `source` or `xform` in the policy defines, as in `kill exec "git" if NOPE`
-  with no `source NOPE = ...`. A label bit is allocated the moment a condition
-  references it, but only a `source` or `xform` update ever sets it, so the bit
-  is zero in every process state. The plain form `if NOPE` then never fires,
-  while the negated form `if not NOPE` is satisfied for every event the rule's
-  target accepts, so it fires on all of them. `COMMAND` and `AGENT` are exempt,
-  because `actplane run`/`watch` seed the protected process with that label
-  before any `exec` update runs. A label carried in from an earlier runtime
-  delta is also exempt, since its bit is live in the domain. The fix is to
-  declare the `source` or `xform`, or drop the term.
+- `rule_condition_label_without_producer`: a condition names a label that
+  nothing in the policy sets, as in `kill exec "git" if NOPE` with no
+  `source NOPE = ...`. A label bit is allocated the moment a condition
+  references it, but only an adding update ever sets it: a `source` adds the
+  bit, and an `endorse` xform adds it. A `declassify` xform is *not* a producer,
+  because it removes the label (`declassify L by exec G` lowers to clearing the
+  bit, so a policy whose only mention of `L` is a `declassify` still leaves
+  `if L` unreachable). With no producer the bit is zero in every process state:
+  the plain form `if NOPE` then never fires, while the negated form `if not
+  NOPE` is satisfied for every event the rule's target accepts, so it fires on
+  all of them. `COMMAND` and `AGENT` are exempt, because `actplane
+  run`/`watch` seed the protected process with that label before any `exec`
+  update runs. A label carried in from an earlier runtime delta is also exempt,
+  since its bit is live in the domain. The fix is to declare a `source`, or drop
+  the term.
 - `argv_block_exec_post_exec_only`: `block exec` with an argv token, which can
   never fire (see §1.7). The fix is `kill exec`.
 - `endpoint_source_unsupported`, `endpoint_target_unsupported`: an endpoint
