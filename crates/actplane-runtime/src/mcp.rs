@@ -234,6 +234,12 @@ impl ActPlaneMcp {
                         m.reason
                     ));
                 }
+                for warning in &compiled.pattern_warnings {
+                    out.push_str(&format!(
+                        "warning [{}]: {}\n",
+                        warning.code, warning.message
+                    ));
+                }
                 out
             }
             Err(e) => format!("Policy compile error: {}", e),
@@ -2990,6 +2996,56 @@ mod tests {
             *loaded_record.status.lock().expect("status"),
             ChildStatus::Running
         ));
+        let _ = std::fs::remove_dir_all(project_dir);
+    }
+
+    #[test]
+    fn validate_resource_reports_pattern_lowering_warnings() {
+        let project_dir = std::env::temp_dir().join(format!(
+            "actplane-mcp-validate-warn-test-{}-{}",
+            std::process::id(),
+            child_launch_id()
+        ));
+        std::fs::create_dir_all(&project_dir).expect("project dir");
+        std::fs::write(
+            project_dir.join("actplane.yaml"),
+            r#"
+version: 1
+policy: |
+  source COMMAND = file "**/src/lib/**"
+  rule noop:
+    notify exec "__actplane_never__" if COMMAND
+    because "noop"
+"#,
+        )
+        .expect("write policy");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project_dir.clone()));
+
+        let clean = server.load_and_validate();
+        assert!(clean.contains("Policy valid"), "{clean}");
+        assert!(!clean.contains("warning ["), "unexpected warning: {clean}");
+
+        // A `contains` literal longer than the kernel's 16-byte window is
+        // shortened, which widens the matcher, so validate must say so.
+        std::fs::write(
+            project_dir.join("actplane.yaml"),
+            r#"
+version: 1
+policy: |
+  source COMMAND = file "**/alpha/beta/gamma/delta/**"
+  rule noop:
+    notify exec "__actplane_never__" if COMMAND
+    because "noop"
+"#,
+        )
+        .expect("rewrite policy");
+        let warned = server.load_and_validate();
+        assert!(warned.contains("pattern_contains_capped"), "{warned}");
+        assert!(
+            warned.contains("**/alpha/beta/gamma/delta/**"),
+            "warning did not name the widened pattern: {warned}"
+        );
+
         let _ = std::fs::remove_dir_all(project_dir);
     }
 }

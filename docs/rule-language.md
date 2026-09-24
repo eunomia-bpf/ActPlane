@@ -141,10 +141,12 @@ compiled blob alone is printed by `actplane compile` on all its paths: plain
 `compile --explain`/`--json` include them in the review. The same
 pattern-lowering warnings (`pattern_literal_truncated`, `pattern_empty_literal`,
 `pattern_matcher_length_exceeded`, `pattern_literal_widened`,
-`pattern_contains_capped`) are stored in `Compiled::pattern_warnings` and printed
-to stderr by the enforcement paths that compile and load the blob themselves,
-`actplane run`, `actplane watch`, and MCP auto-attach, so a matcher the compiler
-widened to fit the kernel window is not enforced silently.
+`pattern_contains_capped`) are stored in `Compiled::pattern_warnings`. The
+enforcement paths that compile and load the blob themselves (`actplane run`,
+`actplane watch`, and MCP auto-attach) print them to stderr, and the MCP policy
+resource lists them under its `Policy valid` text, so a matcher the compiler
+widened to fit the kernel window is neither enforced nor reported as valid
+silently.
 `bpf_lsm_inactive_for_block` is the one host-dependent warning and appears only
 under `--explain`/`--json`, because the machine that compiles a blob need not be
 the machine that enforces
