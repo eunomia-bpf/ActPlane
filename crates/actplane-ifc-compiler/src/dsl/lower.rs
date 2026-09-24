@@ -252,6 +252,171 @@ fn warn_condition_contradiction(
     });
 }
 
+/// Does the kernel matcher `(kind, lit)` accept the concrete text `text`? Mirrors
+/// `taint_match` in bpf/taint.h: `ANY` accepts everything, and the other kinds
+/// reject an empty literal (an empty `exact` literal still accepts the empty
+/// text, which is only reachable for an empty comm, so the asymmetry is kept).
+fn matcher_hits(kind: u8, lit: &str, text: &str) -> bool {
+    match kind {
+        M_ANY => true,
+        M_EXACT => lit == text,
+        M_PREFIX => !lit.is_empty() && text.starts_with(lit),
+        M_SUFFIX => !lit.is_empty() && text.ends_with(lit),
+        M_CONTAINS => !lit.is_empty() && text.contains(lit),
+        _ => false,
+    }
+}
+
+/// True when the matcher `(kind, lit)` has an empty text set, so it never fires:
+/// the kernel's `prefix`/`suffix`/`contains` all return 0 for an empty literal.
+/// `EXACT` is excluded because it accepts the empty text.
+fn matcher_is_dead(kind: u8, lit: &str) -> bool {
+    lit.is_empty() && matches!(kind, M_PREFIX | M_SUFFIX | M_CONTAINS)
+}
+
+/// `L(tm, tlit) ⊆ L(cm, clit)`: every text the rule's target matcher accepts is
+/// also accepted by the condition matcher. Used for `unless target PAT`, where
+/// the kernel suppresses the rule whenever the condition holds.
+fn target_subset_of_condition(tm: u8, tlit: &str, cm: u8, clit: &str) -> bool {
+    if cm == M_ANY || matcher_is_dead(tm, tlit) {
+        return true;
+    }
+    if matcher_is_dead(cm, clit) {
+        // The condition matches nothing, so it never suppresses.
+        return false;
+    }
+    match tm {
+        // A singleton: test the literal itself against the condition.
+        M_EXACT => matcher_hits(cm, clit, tlit),
+        M_PREFIX => match cm {
+            M_PREFIX => tlit.starts_with(clit),
+            M_CONTAINS => tlit.contains(clit),
+            _ => false,
+        },
+        M_SUFFIX => match cm {
+            M_SUFFIX => tlit.ends_with(clit),
+            M_CONTAINS => tlit.contains(clit),
+            _ => false,
+        },
+        M_CONTAINS => cm == M_CONTAINS && tlit.contains(clit),
+        // `ANY` accepts every text, so it is a subset only of `ANY`, handled above.
+        _ => false,
+    }
+}
+
+/// `L(tm, tlit) ∩ L(cm, clit) = ∅`: no text is accepted by both matchers. Used
+/// for `unless target not PAT`, where the rule fires only where the condition
+/// matcher is false, so an empty intersection means it never fires.
+fn target_disjoint_from_condition(tm: u8, tlit: &str, cm: u8, clit: &str) -> bool {
+    if matcher_is_dead(tm, tlit) || matcher_is_dead(cm, clit) {
+        // An empty target or condition set intersects nothing.
+        return true;
+    }
+    if cm == M_ANY || tm == M_ANY {
+        // `ANY` is the whole line, so it intersects every non-empty set.
+        return false;
+    }
+    // A singleton is disjoint from the other matcher exactly when the other
+    // matcher rejects its literal.
+    if tm == M_EXACT {
+        return !matcher_hits(cm, clit, tlit);
+    }
+    if cm == M_EXACT {
+        return !matcher_hits(tm, tlit, clit);
+    }
+    // Both sets are then infinite. Any prefix/suffix/contains pair intersects
+    // (the concatenation `p + s` has prefix `p`, suffix `s`, and contains both).
+    // Two prefixes intersect iff one is a prefix of the other: if neither is,
+    // the shorter diverges before the longer ends, so no text has both.
+    if tm == M_PREFIX && cm == M_PREFIX {
+        return !tlit.starts_with(clit) && !clit.starts_with(tlit);
+    }
+    false
+}
+
+/// Whether a `unless target` condition leaves the rule's target matcher dead.
+/// `negate` is `target not PAT`; without it the rule fires only where the
+/// condition is false, so it dies when the target is a subset of the condition.
+fn condition_covers_target(tm: u8, tlit: &str, cm: u8, clit: &str, negate: bool) -> bool {
+    if negate {
+        target_disjoint_from_condition(tm, tlit, cm, clit)
+    } else {
+        target_subset_of_condition(tm, tlit, cm, clit)
+    }
+}
+
+/// Endpoint form of [`condition_covers_target`]. The entry matches when
+/// `(ip & tmask) == taddr` and the condition when `(ip & cmask) == caddr`
+/// (bpf/taint.h `te_cond_satisfied`).
+fn endpoint_condition_covers_target(
+    taddr: u32,
+    tmask: u32,
+    caddr: u32,
+    cmask: u32,
+    negate: bool,
+) -> bool {
+    if negate {
+        // Disjoint: the two masked equalities cannot hold at once, which is
+        // exactly when they disagree on the bits both constrain. (No bit is a
+        // free bit of both, so agreement on the shared mask decides it.)
+        (taddr & cmask) != (caddr & tmask)
+    } else {
+        // The condition must accept every address the target accepts. Those
+        // addresses range only over the target's free bits, so the condition
+        // may constrain only bits the target already fixes, and its fixed
+        // values must agree with the target's.
+        cmask & !tmask == 0 && (taddr & cmask) == caddr
+    }
+}
+
+/// Record a [`RULE_CONDITION_COVERS_TARGET`] warning when an `unless target`
+/// condition is satisfied by every event the rule's own target accepts, so the
+/// kernel's `te_cond_satisfied` gate (`return -1`, bpf/taint_engine.bpf.h)
+/// suppresses the rule before it can fire.
+///
+/// `all_rows_dead` distinguishes a wholly dead rule from a target pattern that
+/// also emits a repo-relative companion entry the exception does not cover, as
+/// `open file "**/secret" unless target "**/secret"` does: the suffix entry is
+/// suppressed, the bare-name companion still fires. The reader's fix differs,
+/// so the wording does too.
+fn warn_condition_covers_target(
+    target_pat: &str,
+    cond_pat: &str,
+    negate: bool,
+    all_rows_dead: bool,
+    reason: &str,
+    out: &mut Vec<PatternWarning>,
+) {
+    let why = if negate {
+        // `target not PAT` is satisfied exactly where the `PAT` matcher is
+        // false. Disjointness means `PAT` is false for every text the target
+        // accepts, so the condition holds everywhere and suppresses them all.
+        format!(
+            "the exception `unless target not \"{cond_pat}\"` holds for every event the rule's own target \"{target_pat}\" accepts, because the `\"{cond_pat}\"` matcher rejects all of them, and the kernel suppresses a rule whose `target` condition holds"
+        )
+    } else {
+        format!(
+            "the exception `unless target \"{cond_pat}\"` holds for every event the rule's own target \"{target_pat}\" accepts, and the kernel suppresses a rule whose `target` condition holds"
+        )
+    };
+    let what = if all_rows_dead {
+        "so the rule can never fire"
+    } else {
+        "so one of the rule's target matcher entries can never fire (the target pattern also emits a companion entry this exception does not cover)"
+    };
+    out.push(PatternWarning {
+        code: RULE_CONDITION_COVERS_TARGET,
+        message: format!(
+            "rule {}: {why}, {what}. Remove the `unless target` clause, or make it narrower than the target (a sub-path the target names).",
+            if reason.is_empty() {
+                "(no `because`)".to_string()
+            } else {
+                format!("\"{reason}\"")
+            }
+        ),
+    });
+}
+
 /// Human-readable name of a kernel match kind, for warnings.
 fn match_kind_name(kind: u8) -> &'static str {
     match kind {
@@ -2022,6 +2187,17 @@ pub const PATTERN_WARNING_CODES: [&str; 5] = [
 /// `Compiled::pattern_warnings` channel so every surface prints it.
 pub const RULE_CONDITION_CONTRADICTION: &str = "rule_condition_contradiction";
 
+/// An `unless target` condition that is satisfied by every event the rule's own
+/// target accepts, so the kernel's condition gate suppresses the rule and it
+/// never fires.
+///
+/// Distinct from [`RULE_CONDITION_CONTRADICTION`] (the label mask is dead) and
+/// from the five `pattern_*` codes (the matcher differs from the glob). Here the
+/// target and the condition are each lowered correctly; it is their relationship
+/// that kills the rule. Kept out of [`PATTERN_WARNING_CODES`] and reported
+/// through the same `Compiled::pattern_warnings` channel.
+pub const RULE_CONDITION_COVERS_TARGET: &str = "rule_condition_covers_target";
+
 pub struct Compiled {
     pub bytes: Vec<u8>,
     pub reasons: Vec<String>, // indexed by lowered rule_id
@@ -2220,6 +2396,14 @@ pub fn compile_with_labels(
                     &mut warnings,
                 );
             }
+            // An `unless target` condition is tested against the same event
+            // text as the rule's own target, so a condition that covers the
+            // target suppresses every event and kills the rule. Track coverage
+            // across the row loop (a target pattern can emit a companion entry
+            // the exception does not cover) and warn once per clause.
+            let mut cond_rows_total = 0usize;
+            let mut cond_rows_dead = 0usize;
+            let mut cond_reported: Option<(String, bool)> = None;
             for op in op_lowers(cl.op)? {
                 let op = *op;
                 let target_matches = if op == OP_CONNECT || op == OP_RECV {
@@ -2307,6 +2491,20 @@ pub fn compile_with_labels(
                             }
                         }
                     }
+                    if let Some(Cond::Target { negate, pattern }) = &cl.unless {
+                        let dead = if op == OP_CONNECT || op == OP_RECV {
+                            endpoint_condition_covers_target(
+                                ipv4, ipv4_mask, cipv4, cipv4_mask, *negate,
+                            )
+                        } else {
+                            condition_covers_target(tm, &tlit, cm, &clit, *negate)
+                        };
+                        cond_rows_total += 1;
+                        cond_rows_dead += dead as usize;
+                        if dead && cond_reported.is_none() {
+                            cond_reported = Some((pattern.clone(), *negate));
+                        }
+                    }
                     for (req, forbid) in &terms {
                         let rule_id = meta.len() as u32;
                         reasons.push(rule.reason.clone());
@@ -2369,6 +2567,16 @@ pub fn compile_with_labels(
                         rules.push(cr);
                     }
                 }
+            }
+            if let Some((pattern, negate)) = cond_reported {
+                warn_condition_covers_target(
+                    &cl.target.pattern,
+                    &pattern,
+                    negate,
+                    cond_rows_dead == cond_rows_total,
+                    &rule.reason,
+                    &mut warnings,
+                );
             }
         }
     }

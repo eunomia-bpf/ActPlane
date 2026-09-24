@@ -11,8 +11,9 @@ use std::collections::HashMap;
 
 pub use lower::{
     Compiled, PATTERN_EMPTY_LITERAL, PATTERN_MATCHER_LENGTH, PATTERN_TRUNCATED,
-    PATTERN_WARNING_CODES, PatternWarning, RULE_CONDITION_CONTRADICTION, RuleMeta, RuleSourceMeta,
-    compile, is_numeric_endpoint_pattern, repo_relative_condition_is_partial,
+    PATTERN_WARNING_CODES, PatternWarning, RULE_CONDITION_CONTRADICTION,
+    RULE_CONDITION_COVERS_TARGET, RuleMeta, RuleSourceMeta, compile, is_numeric_endpoint_pattern,
+    repo_relative_condition_is_partial,
 };
 
 /// Parse + compile DSL source text to a kernel config blob + reason table.
@@ -910,6 +911,93 @@ rule secret:
         // A non-ASCII rule name is a word like any other, not a crash.
         let named = "source AGENT = exec \"**/codex\"\nrule r\u{2205}:\n  kill exec \"git\" if AGENT\n  because \"b\"\n";
         assert!(compile_str(named).is_ok(), "a non-ASCII rule name parses");
+    }
+
+    #[test]
+    fn exception_covering_the_whole_target_is_reported() {
+        // `te_cond_satisfied` suppresses a rule whose `target` condition holds,
+        // so an exception that accepts every event the rule's own target accepts
+        // makes the rule never fire. Reported per clause, once.
+        let codes = |src: &str| warning_codes(&ok(src));
+        let warned = [
+            // Exact target and exact condition: the same single address.
+            "rule r:\n  kill exec \"git\" unless target \"git\"\n  because \"x\"\n",
+            // A prefix condition accepts the exact target.
+            "rule r:\n  kill exec \"git\" unless target \"g*\"\n  because \"x\"\n",
+            // `ANY` accepts everything.
+            "rule r:\n  kill exec \"git\" unless target \"**\"\n  because \"x\"\n",
+            // `contains` accepts its own literal, which is the whole target set.
+            "rule r:\n  kill open file \"*.log\" unless target \"*.log\"\n  because \"x\"\n",
+            // A `**/x` target also emits a companion exact-basename entry, so at
+            // least one entry is dead even though the message is qualified.
+            "rule r:\n  kill open file \"**/*.log\" unless target \"*.log\"\n  because \"x\"\n",
+            // Exact target under a broad path prefix.
+            "rule r:\n  kill open file \"/work/a\" unless target \"/work/**\"\n  because \"x\"\n",
+        ];
+        for src in warned {
+            assert_eq!(
+                codes(src),
+                vec![RULE_CONDITION_COVERS_TARGET],
+                "{src:?} should report a covering exception"
+            );
+        }
+        // A branch of the condition that survives means the rule can still fire,
+        // so the same inputs must stay quiet.
+        let quiet = [
+            // The condition is a strict sub-path: some targets are not covered.
+            "rule r:\n  kill open file \"/work/**\" unless target \"/work\"\n  because \"x\"\n",
+            "rule r:\n  kill open file \"/work/**\" unless target \"/work/\"\n  because \"x\"\n",
+            // Target set is the subset, so the condition is not implied.
+            "rule r:\n  kill exec \"g*\" unless target \"git\"\n  because \"x\"\n",
+            "rule r:\n  kill exec \"git\" unless target \"*t\"\n  because \"x\"\n",
+            "rule r:\n  kill open file \"/work/tmp/\" unless target \"/work/tmp/a\"\n  because \"x\"\n",
+            // No condition, or a non-target condition.
+            "rule r:\n  kill exec \"git\" if A\n  because \"x\"\n",
+            "rule r:\n  kill exec \"git\" unless after exec \"**/pytest\"\n  because \"x\"\n",
+        ];
+        for src in quiet {
+            // Other codes (`pattern_empty_literal` for `*t`) are orthogonal; this
+            // test claims only that coverage is not reported.
+            let got = codes(src);
+            assert!(
+                !got.contains(&RULE_CONDITION_COVERS_TARGET),
+                "{src:?} should not report coverage: {got:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn negated_exception_is_reported_when_the_target_misses_the_condition() {
+        // `unless target not PAT` fires only where the condition matcher is
+        // false, so it dies when the target set is disjoint from the
+        // condition's. The example is the allow-list shape: `not "/work/"`
+        // accepts nothing under `/work/`, so a rule targeting `/work/a` never
+        // fires.
+        let src =
+            "rule r:\n  kill open file \"/work/a\" unless target not \"/work/\"\n  because \"x\"\n";
+        assert_eq!(warning_codes(&ok(src)), vec![RULE_CONDITION_COVERS_TARGET]);
+        // Two prefixes that share no text are disjoint, so nothing the target
+        // accepts can satisfy the negated condition.
+        let disjoint = "rule r:\n  kill open file \"/work/**\" unless target not \"/other/\"\n  because \"x\"\n";
+        assert_eq!(
+            warning_codes(&ok(disjoint)),
+            vec![RULE_CONDITION_COVERS_TARGET]
+        );
+        // A target strictly under the negated prefix still has texts outside it,
+        // so the rule fires for those and stays quiet.
+        let overlapping = "rule r:\n  kill open file \"/work/**\" unless target not \"/work/\"\n  because \"x\"\n";
+        assert!(warning_codes(&ok(overlapping)).is_empty());
+        // Endpoints: a numeric pattern reduces to net/mask, and the coverage
+        // test is the masked-equality argument.
+        let endpoint = "rule r:\n  kill recv endpoint \"1.2.3.4\" unless target \"1.2.3.4\"\n  because \"x\"\n";
+        assert_eq!(
+            warning_codes(&ok(endpoint)),
+            vec![RULE_CONDITION_COVERS_TARGET]
+        );
+        // `*` is unconstrained, so the condition covers the whole target.
+        let endpoint_quiet =
+            "rule r:\n  kill connect endpoint \"*\" unless target \"127.\"\n  because \"x\"\n";
+        assert!(warning_codes(&ok(endpoint_quiet)).is_empty());
     }
 
     #[test]

@@ -161,6 +161,20 @@ these are reported:
   fires. The warning names the label and, when one `or` branch still survives,
   says so instead of claiming the whole rule is dead. The fix is to drop one side
   or replace the negated term with the label it should exclude.
+- `rule_condition_covers_target`: an `unless target PAT` whose pattern accepts
+  every event the rule's own target already accepts, as in `kill exec "git"
+  unless target "git"` or `kill open file "/work/a" unless target "/work/**"`.
+  The kernel suppresses a rule whose `target` condition holds, so the exception
+  swallows the whole rule and it never fires. This is distinct from
+  `rule_condition_contradiction` (which kills a label mask) and from the
+  `pattern_*` codes (which report a matcher that differs from the glob written):
+  here both patterns lower correctly, and the defect is their relation. The
+  negated form `unless target not PAT` is an allow-list, so it is reported when
+  the condition's set and the target's are disjoint. When the target pattern
+  emits a companion entry (a `**/name` pattern also emits an exact-basename
+  entry), the message says "one of the rule's target matcher entries" rather
+  than claiming the whole rule is dead. The fix is to drop the `unless target`
+  clause or narrow it to a sub-path the target names.
 - `argv_block_exec_post_exec_only`: `block exec` with an argv token, which can
   never fire (see §1.7). The fix is `kill exec`.
 - `endpoint_source_unsupported`, `endpoint_target_unsupported`: an endpoint
