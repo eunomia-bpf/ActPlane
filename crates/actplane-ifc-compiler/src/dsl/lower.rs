@@ -174,11 +174,42 @@ fn lower_exec(pat: &str) -> (u8, String) {
         return (M_ANY, String::new());
     }
     let base = pat.rsplit('/').next().unwrap_or(pat);
-    if let Some(stripped) = base.strip_suffix('*') {
+    // A basename that is the recursive wildcard matches any comm. Without this
+    // the parser's `exec "**"` normalization to `**/**`, and a written
+    // `exec "src/**"`, both reduce to a `PREFIX "*"` literal, and no comm starts
+    // with `*`, so the rule silently never fires. `exec "*"` already reaches
+    // the ANY branch above.
+    if base == "**" {
+        return (M_ANY, String::new());
+    }
+    let lowered = if let Some(stripped) = base.strip_suffix('*') {
         (M_PREFIX, stripped.to_string())
     } else {
         (M_EXACT, base.to_string())
+    };
+    strip_wildcard_literal(lowered.0, lowered.1)
+}
+
+/// Remove any `*` left in a matcher literal, widening to the concrete span the
+/// matcher can actually use. The kernel compares bytes, so a literal containing
+/// `*` only ever matches a real asterisk byte and the rule silently never
+/// fires (`exec "g*t"` lowered to `exact("g*t")`). Each match kind has an exact
+/// superset that keeps the concrete text: a prefix keeps everything before the
+/// first wildcard, a suffix everything after the last, and a substring test the
+/// run leading up to the first. The result can be empty (a wildcard in the head
+/// or tail position), which the caller reports as an empty-literal warning.
+fn strip_wildcard_literal(kind: u8, lit: String) -> (u8, String) {
+    if kind == M_ANY || !lit.contains('*') {
+        return (kind, lit);
     }
+    if kind == M_SUFFIX {
+        return (kind, lit.rsplit('*').next().unwrap_or("").to_string());
+    }
+    let head = lit[..lit.find('*').unwrap()].to_string();
+    if kind == M_EXACT {
+        return (M_PREFIX, head);
+    }
+    (kind, head)
 }
 
 fn shorten_contains_literal(lit: &str) -> String {
@@ -280,12 +311,40 @@ pub fn repo_relative_condition_is_partial(pattern: &str) -> bool {
     !pattern.starts_with('/') && !lower_path_companions(pattern).is_empty()
 }
 
-/// (match, literal) lowering for path patterns.
+/// (match, literal) lowering for path patterns. The raw lowering can leave a
+/// `*` in the literal (an interior wildcard, e.g. `**/a*b` to `contains("a*b")`);
+/// [`strip_wildcard_literal`] removes it so the kernel byte comparison can match.
 fn lower_path(pat: &str) -> (u8, String) {
+    let (kind, lit) = lower_path_raw(pat);
+    strip_wildcard_literal(kind, lit)
+}
+
+/// Path-pattern lowering before the wildcard-literal cleanup in [`lower_path`].
+fn lower_path_raw(pat: &str) -> (u8, String) {
     if pat == "*" || pat == "**" || pat == "**/*" {
         return (M_ANY, String::new());
     }
     let repo_relative = !pat.starts_with('/');
+    // A repo-relative pattern made only of wildcard and separator characters
+    // has no literal for a PREFIX/SUFFIX/EXACT/CONTAINS matcher to hold, so the
+    // `*` would be matched as an ordinary byte and the rule would silently
+    // never fire (`**/**` lowered to `suffix("*")`, `*/*` to `contains("/*")`).
+    // Every such form contains an interior `/` (a lone `*` or `**`, and `**/*`,
+    // are caught by the ANY guard above), and every path it can match has a
+    // separator, so `contains("/")` is the exact approximation.
+    if repo_relative && pat.chars().all(|c| c == '*' || c == '/') {
+        return (M_CONTAINS, "/".to_string());
+    }
+    // An absolute pattern is a genuine prefix match whose literal is everything
+    // before the first wildcard. Handling it here keeps a `*` out of the
+    // literal: the suffix branches below would otherwise return `PREFIX
+    // "/tmp/**/"` for `/tmp/**/*`, and that literal requires a real `**` byte.
+    if !repo_relative {
+        return match pat.find('*') {
+            Some(idx) => (M_PREFIX, pat[..idx].to_string()),
+            None => (M_EXACT, pat.to_string()),
+        };
+    }
     // **/middle/** → contains "/middle/" (substring search)
     if let Some(inner) = pat.strip_prefix("**/").and_then(|r| r.strip_suffix("/**")) {
         if !inner.contains('*') {
@@ -308,51 +367,30 @@ fn lower_path(pat: &str) -> (u8, String) {
         return (M_CONTAINS, shorten_contains_literal(inner));
     }
     if let Some(p) = pat.strip_suffix("/**") {
-        if repo_relative {
-            if !p.contains('*') {
-                return (M_CONTAINS, shorten_contains_literal(&format!("{}/", p)));
-            }
-        } else {
-            return (M_PREFIX, format!("{}/", p));
+        if !p.contains('*') {
+            return (M_CONTAINS, shorten_contains_literal(&format!("{}/", p)));
         }
     }
     if let Some(p) = pat.strip_suffix("**") {
-        if repo_relative {
-            if !p.contains('*') {
-                return (M_CONTAINS, shorten_contains_literal(p));
-            }
-        } else {
-            return (M_PREFIX, p.to_string());
+        if !p.contains('*') {
+            return (M_CONTAINS, shorten_contains_literal(p));
         }
     }
     if let Some(p) = pat.strip_suffix("/*") {
-        if repo_relative {
-            if !p.contains('*') {
-                return (M_CONTAINS, shorten_contains_literal(&format!("{}/", p)));
-            }
-        } else {
-            return (M_PREFIX, format!("{}/", p));
+        if !p.contains('*') {
+            return (M_CONTAINS, shorten_contains_literal(&format!("{}/", p)));
         }
     }
     if let Some(p) = pat.strip_prefix('*') {
-        if repo_relative {
-            return (M_CONTAINS, shorten_contains_literal(p));
-        }
-        return (M_SUFFIX, p.to_string());
+        return (M_CONTAINS, shorten_contains_literal(p));
     }
     if let Some(idx) = pat.find('*') {
-        if repo_relative {
-            return (M_CONTAINS, shorten_contains_literal(&pat[..idx]));
-        }
-        return (M_PREFIX, pat[..idx].to_string());
+        return (M_CONTAINS, shorten_contains_literal(&pat[..idx]));
     }
-    if repo_relative && pat.contains('/') {
+    if pat.contains('/') {
         return (M_CONTAINS, shorten_repo_relative_exact_literal(pat));
     }
-    if repo_relative {
-        return (M_CONTAINS, shorten_contains_literal(pat));
-    }
-    (M_EXACT, pat.to_string())
+    (M_CONTAINS, shorten_contains_literal(pat))
 }
 
 #[cfg(test)]
@@ -598,6 +636,38 @@ mod tests {
         assert_eq!(lower_exec("*"), (M_ANY, String::new()));
         assert_eq!(lower_exec("**"), (M_ANY, String::new()));
         assert_eq!(lower_exec("**/*"), (M_ANY, String::new()));
+        // A recursive wildcard may appear only as the basename, after a
+        // directory prefix. `exec "a/**"` means "a comm matching any basename
+        // under `a`", and exec matching drops the directory, so it is ANY too.
+        assert_eq!(lower_exec("a/**"), (M_ANY, String::new()));
+        assert_eq!(lower_exec("a/b/**"), (M_ANY, String::new()));
+        assert_eq!(lower_exec("**/a/**"), (M_ANY, String::new()));
+    }
+
+    /// The direct `lower_exec` inputs above skip the parser, which rewrites a
+    /// slash-free exec pattern to `**/<pattern>` (parse.rs `P::target`). That
+    /// rewrite turned a clause target `exec "**"` into `**/**` before lowering,
+    /// so the whole-pattern ANY guard did not see it and the rule lowered to
+    /// `PREFIX "*"`. No comm starts with `*`, so a valid catch-all silently
+    /// never fired. Pin the parsed clause target's rule rows, not just the
+    /// direct-call result.
+    #[test]
+    fn clause_exec_globstar_target_lowers_to_any() {
+        for pattern in ["**", "**/**", "a/**"] {
+            let src = format!("rule r:\n  kill exec \"{pattern}\"\n  because \"catch-all\"\n");
+            let pol = crate::dsl::parse::parse(&src).expect("parse rule");
+            let compiled = compile(&pol).expect("compile rule");
+            let cfg =
+                unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+            let rules = &cfg.rules[..cfg.n_rules as usize];
+            assert_eq!(rules.len(), 1, "one rule per pattern: {pattern}");
+            assert_eq!(
+                (rules[0].m, String::new()),
+                (M_ANY, String::new()),
+                "clause exec {pattern} must lower to ANY, got m={}",
+                rules[0].m
+            );
+        }
     }
 
     /// Exec patterns match a basename: the directory part is dropped, so
@@ -615,6 +685,24 @@ mod tests {
         // A trailing wildcard becomes a prefix over the basename.
         assert_eq!(lower_exec("**/deploy*"), (M_PREFIX, "deploy".into()));
         assert_eq!(lower_exec("/opt/bin/deploy*"), (M_PREFIX, "deploy".into()));
+    }
+
+    /// An interior wildcard must not survive into the matcher literal. The
+    /// kernel compares bytes (`taint_streq`/`taint_prefix`/`taint_contains`),
+    /// so `exact("g*t")` only matches a comm literally named `g*t`; the rule
+    /// silently never fired. Keep the concrete span before the first wildcard
+    /// as the widest matcher of the same kind.
+    #[test]
+    fn interior_wildcards_do_not_reach_the_matcher_literal() {
+        assert_eq!(lower_exec("g*t"), (M_PREFIX, "g".into()));
+        assert_eq!(lower_exec("g*t*"), (M_PREFIX, "g".into()));
+        assert_eq!(lower_exec("g**"), (M_PREFIX, "g".into()));
+        // A wildcard in the head position has no concrete prefix, so the
+        // literal is empty and the caller reports `pattern_empty_literal`
+        // rather than silently matching a `*` byte.
+        assert_eq!(lower_exec("*g*t"), (M_PREFIX, String::new()));
+        assert_eq!(lower_path("**/a*b"), (M_CONTAINS, "a".into()));
+        assert_eq!(lower_path("**/*t"), (M_SUFFIX, "t".into()));
     }
 
     #[test]
