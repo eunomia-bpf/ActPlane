@@ -539,7 +539,7 @@ fn documented_warning_codes_match_the_cli() {
         "endpoint_target_condition_unresolved_hostname",
         "endpoint_target_condition_unsupported_pattern",
         "endpoint_target_unsupported",
-        "pattern_empty_literal",
+        "pattern_contains_capped",
         "pattern_literal_truncated",
         "pattern_literal_widened",
         "pattern_matcher_length_exceeded",

@@ -172,6 +172,23 @@ fn warn_widened_literal(pat: &str, widened: bool, what: &str, out: &mut Vec<Patt
     });
 }
 
+/// Record a [`PATTERN_CONTAINS_CAPPED`] warning when the 16-byte `contains`
+/// window forced the literal to a contiguous proper substring of the natural
+/// one, so the compiled matcher matches strictly more than the glob names.
+/// `pat` is the pattern as the policy wrote it, which is what the reader needs
+/// to fix, not the shortened literal.
+fn warn_capped_literal(pat: &str, capped: bool, what: &str, out: &mut Vec<PatternWarning>) {
+    if !capped {
+        return;
+    }
+    out.push(PatternWarning {
+        code: PATTERN_CONTAINS_CAPPED,
+        message: format!(
+            "{what} \"{pat}\" lowers to a `contains` literal longer than the kernel's {MAX_CONTAINS_LITERAL}-byte window, so the compiler shortened it to a contiguous substring of that literal; the compiled matcher now matches strictly more than the glob names. Use a shorter directory pattern so the literal fits, or match a distinct basename instead."
+        ),
+    });
+}
+
 /// Human-readable name of a kernel match kind, for warnings.
 fn match_kind_name(kind: u8) -> &'static str {
     match kind {
@@ -189,15 +206,20 @@ fn match_kind_name(kind: u8) -> &'static str {
 /// so the widening warning reaches `Compiled::pattern_warnings`.
 #[cfg(test)]
 fn lower_exec(pat: &str) -> (u8, String) {
-    let (m, l, _) = lower_exec_reported(pat);
-    (m, l)
+    let l = lower_exec_reported(pat);
+    (l.kind, l.lit)
 }
 
 /// [`lower_exec`] plus whether the wildcard-literal cleanup dropped concrete
 /// text, which makes the compiled matcher match strictly more than the glob.
-fn lower_exec_reported(pat: &str) -> (u8, String, bool) {
+fn lower_exec_reported(pat: &str) -> Lowered {
     if pat == "*" || pat == "**" || pat == "**/*" {
-        return (M_ANY, String::new(), false);
+        return Lowered {
+            kind: M_ANY,
+            lit: String::new(),
+            widened: false,
+            capped: false,
+        };
     }
     let base = pat.rsplit('/').next().unwrap_or(pat);
     // A basename that is the recursive wildcard matches any comm. Without this
@@ -206,14 +228,41 @@ fn lower_exec_reported(pat: &str) -> (u8, String, bool) {
     // with `*`, so the rule silently never fires. `exec "*"` already reaches
     // the ANY branch above.
     if base == "**" {
-        return (M_ANY, String::new(), false);
+        return Lowered {
+            kind: M_ANY,
+            lit: String::new(),
+            widened: false,
+            capped: false,
+        };
     }
     let lowered = if let Some(stripped) = base.strip_suffix('*') {
         (M_PREFIX, stripped.to_string())
     } else {
         (M_EXACT, base.to_string())
     };
-    strip_wildcard_literal_widening(lowered.0, lowered.1)
+    let (kind, lit, widened) = strip_wildcard_literal_widening(lowered.0, lowered.1);
+    Lowered {
+        kind,
+        lit,
+        widened,
+        capped: false,
+    }
+}
+
+/// One pattern's lowering plus the two independent ways the compiled matcher
+/// can end up wider than the glob the policy wrote. Each has its own warning
+/// code, so they are tracked separately: [`PATTERN_LITERAL_WIDENED`] for the
+/// wildcard-literal cleanup, [`PATTERN_CONTAINS_CAPPED`] for the 16-byte
+/// `contains` window.
+struct Lowered {
+    /// Kernel match kind.
+    kind: u8,
+    /// Literal that reaches the matcher table.
+    lit: String,
+    /// The wildcard-literal cleanup dropped concrete text.
+    widened: bool,
+    /// The `contains` cap shortened the literal to a proper substring.
+    capped: bool,
 }
 
 /// Remove any `*` left in a matcher literal, widening to the concrete span the
@@ -250,40 +299,54 @@ fn strip_wildcard_literal_widening(kind: u8, lit: String) -> (u8, String, bool) 
     (kind, head, widened)
 }
 
-fn shorten_contains_literal(lit: &str) -> String {
+/// Shorten a `contains` literal to fit the kernel's 16-byte window
+/// (`MAX_CONTAINS_LITERAL`), returning the literal and whether the window
+/// forced a shortening.
+///
+/// Every branch past the length check returns a contiguous proper substring of
+/// the natural literal (`lit`), so the kernel's substring test matches a strict
+/// superset of the glob: the glob required bytes the matcher no longer checks.
+/// Unlike the wildcard cleanup the discarded text can be entirely concrete, so
+/// the caller warns whenever the boolean is true.
+fn shorten_contains_literal(lit: &str) -> (String, bool) {
     if lit.len() <= MAX_CONTAINS_LITERAL {
-        return lit.to_string();
+        return (lit.to_string(), false);
     }
     let trimmed = lit.trim_start_matches('/');
     if trimmed.len() <= MAX_CONTAINS_LITERAL {
-        return trimmed.to_string();
+        return (trimmed.to_string(), true);
     }
     for (idx, _) in trimmed.match_indices('/') {
         let candidate = &trimmed[idx + 1..];
         if !candidate.is_empty() && candidate.len() <= MAX_CONTAINS_LITERAL {
-            return candidate.to_string();
+            return (candidate.to_string(), true);
         }
     }
     let last = trimmed.rsplit('/').next().unwrap_or(trimmed);
     if !last.is_empty() && last.len() <= MAX_CONTAINS_LITERAL {
-        return last.to_string();
+        return (last.to_string(), true);
     }
     let start = trimmed.len().saturating_sub(MAX_CONTAINS_LITERAL);
-    trimmed[start..].to_string()
+    (trimmed[start..].to_string(), true)
 }
 
-fn shorten_repo_relative_exact_literal(path: &str) -> String {
+/// The repo-relative exact-path companion of [`shorten_contains_literal`]: the
+/// same window, walked from the front and then falling back to the parent
+/// directory. Every branch returns a contiguous proper substring of `path`, so
+/// the result is likewise a strict widening of the glob and reported the same.
+fn shorten_repo_relative_exact_literal(path: &str) -> (String, bool) {
     if path.len() <= MAX_CONTAINS_LITERAL {
-        return path.to_string();
+        return (path.to_string(), false);
     }
     for (idx, _) in path.match_indices('/') {
         let candidate = &path[idx + 1..];
         if candidate.contains('/') && candidate.len() <= MAX_CONTAINS_LITERAL {
-            return candidate.to_string();
+            return (candidate.to_string(), true);
         }
     }
     if let Some((parent, _base)) = path.rsplit_once('/') {
-        return shorten_contains_literal(&format!("{}/", parent));
+        let (lit, _) = shorten_contains_literal(&format!("{}/", parent));
+        return (lit, true);
     }
     shorten_contains_literal(path)
 }
@@ -356,15 +419,20 @@ pub fn repo_relative_condition_is_partial(pattern: &str) -> bool {
 /// [`lower_path_reported`] so the widening warning is recorded.
 #[cfg(test)]
 fn lower_path(pat: &str) -> (u8, String) {
-    let (kind, lit, _) = lower_path_reported(pat);
-    (kind, lit)
+    let l = lower_path_reported(pat);
+    (l.kind, l.lit)
 }
 
 /// [`lower_path`] plus whether the wildcard-literal cleanup widened the matcher.
-fn lower_path_reported(pat: &str) -> (u8, String, bool) {
-    let (kind, lit) = lower_path_raw(pat);
+fn lower_path_reported(pat: &str) -> Lowered {
+    let (kind, lit, capped) = lower_path_raw(pat);
     let (kind, lit, widened) = strip_wildcard_literal_widening(kind, lit);
-    (kind, lit, widened || absolute_prefix_widens(pat))
+    Lowered {
+        kind,
+        lit,
+        widened: widened || absolute_prefix_widens(pat),
+        capped,
+    }
 }
 
 /// The absolute branch of [`lower_path_raw`] cuts at the first wildcard, so a
@@ -384,9 +452,9 @@ fn absolute_prefix_widens(pat: &str) -> bool {
 }
 
 /// Path-pattern lowering before the wildcard-literal cleanup in [`lower_path`].
-fn lower_path_raw(pat: &str) -> (u8, String) {
+fn lower_path_raw(pat: &str) -> (u8, String, bool) {
     if pat == "*" || pat == "**" || pat == "**/*" {
-        return (M_ANY, String::new());
+        return (M_ANY, String::new(), false);
     }
     let repo_relative = !pat.starts_with('/');
     // A repo-relative pattern made only of wildcard and separator characters
@@ -397,7 +465,7 @@ fn lower_path_raw(pat: &str) -> (u8, String) {
     // are caught by the ANY guard above), and every path it can match has a
     // separator, so `contains("/")` is the exact approximation.
     if repo_relative && pat.chars().all(|c| c == '*' || c == '/') {
-        return (M_CONTAINS, "/".to_string());
+        return (M_CONTAINS, "/".to_string(), false);
     }
     // An absolute pattern is a genuine prefix match whose literal is everything
     // before the first wildcard. Handling it here keeps a `*` out of the
@@ -405,56 +473,66 @@ fn lower_path_raw(pat: &str) -> (u8, String) {
     // "/tmp/**/"` for `/tmp/**/*`, and that literal requires a real `**` byte.
     if !repo_relative {
         return match pat.find('*') {
-            Some(idx) => (M_PREFIX, pat[..idx].to_string()),
-            None => (M_EXACT, pat.to_string()),
+            Some(idx) => (M_PREFIX, pat[..idx].to_string(), false),
+            None => (M_EXACT, pat.to_string(), false),
         };
     }
     // **/middle/** → contains "/middle/" (substring search)
     if let Some(inner) = pat.strip_prefix("**/").and_then(|r| r.strip_suffix("/**")) {
         if !inner.contains('*') {
-            return (M_CONTAINS, shorten_contains_literal(&format!("/{inner}/")));
+            let (lit, capped) = shorten_contains_literal(&format!("/{inner}/"));
+            return (M_CONTAINS, lit, capped);
         }
     }
     // **/middle/* → contains "/middle/" (files directly inside)
     if let Some(inner) = pat.strip_prefix("**/").and_then(|r| r.strip_suffix("/*")) {
         if !inner.contains('*') {
-            return (M_CONTAINS, shorten_contains_literal(&format!("/{inner}/")));
+            let (lit, capped) = shorten_contains_literal(&format!("/{inner}/"));
+            return (M_CONTAINS, lit, capped);
         }
     }
     if let Some(inner) = pat.strip_prefix("**/") {
         if let Some(suffix) = inner.strip_prefix('*') {
-            return (M_SUFFIX, suffix.to_string());
+            return (M_SUFFIX, suffix.to_string(), false);
         }
         if !inner.contains('*') {
-            return (M_SUFFIX, format!("/{inner}"));
+            return (M_SUFFIX, format!("/{inner}"), false);
         }
-        return (M_CONTAINS, shorten_contains_literal(inner));
+        let (lit, capped) = shorten_contains_literal(inner);
+        return (M_CONTAINS, lit, capped);
     }
     if let Some(p) = pat.strip_suffix("/**") {
         if !p.contains('*') {
-            return (M_CONTAINS, shorten_contains_literal(&format!("{}/", p)));
+            let (lit, capped) = shorten_contains_literal(&format!("{}/", p));
+            return (M_CONTAINS, lit, capped);
         }
     }
     if let Some(p) = pat.strip_suffix("**") {
         if !p.contains('*') {
-            return (M_CONTAINS, shorten_contains_literal(p));
+            let (lit, capped) = shorten_contains_literal(p);
+            return (M_CONTAINS, lit, capped);
         }
     }
     if let Some(p) = pat.strip_suffix("/*") {
         if !p.contains('*') {
-            return (M_CONTAINS, shorten_contains_literal(&format!("{}/", p)));
+            let (lit, capped) = shorten_contains_literal(&format!("{}/", p));
+            return (M_CONTAINS, lit, capped);
         }
     }
     if let Some(p) = pat.strip_prefix('*') {
-        return (M_CONTAINS, shorten_contains_literal(p));
+        let (lit, capped) = shorten_contains_literal(p);
+        return (M_CONTAINS, lit, capped);
     }
     if let Some(idx) = pat.find('*') {
-        return (M_CONTAINS, shorten_contains_literal(&pat[..idx]));
+        let (lit, capped) = shorten_contains_literal(&pat[..idx]);
+        return (M_CONTAINS, lit, capped);
     }
     if pat.contains('/') {
-        return (M_CONTAINS, shorten_repo_relative_exact_literal(pat));
+        let (lit, capped) = shorten_repo_relative_exact_literal(pat);
+        return (M_CONTAINS, lit, capped);
     }
-    (M_CONTAINS, shorten_contains_literal(pat))
+    let (lit, capped) = shorten_contains_literal(pat);
+    (M_CONTAINS, lit, capped)
 }
 
 #[cfg(test)]
@@ -492,6 +570,16 @@ mod tests {
             lower_path("ui/src/i18n/locales/*.ts"),
             (M_CONTAINS, "i18n/locales/".into())
         );
+        // The repo-relative literals above are longer than the 16-byte
+        // `contains` window and are shortened, which is a strict widening of the
+        // glob. The caller warns, so pin the boolean alongside the literal.
+        assert!(
+            lower_path_reported("src/google/adk/agents/config_schemas/AgentConfig.json").capped
+        );
+        assert!(lower_path_reported("codex-rs/app-server-protocol/schema/typescript/v2/**").capped);
+        assert!(lower_path_reported("ui/src/i18n/locales/*.ts").capped);
+        assert!(lower_path_reported("packages/oh-my-opencode-*/bin/**").capped);
+
         assert_eq!(lower_path("**/*.js"), (M_SUFFIX, ".js".into()));
         assert_eq!(lower_path("**/sec.env"), (M_SUFFIX, "/sec.env".into()));
         assert_eq!(lower_path("**/*"), (M_ANY, String::new()));
@@ -777,7 +865,7 @@ mod tests {
     /// literal, because it is what decides whether the user is told.
     #[test]
     fn wildcard_literal_cleanup_reports_only_a_strict_widening() {
-        let widened = |pat: &str| lower_exec_reported(pat).2;
+        let widened = |pat: &str| lower_exec_reported(pat).widened;
         assert!(widened("g*t"), "the `t` after the wildcard is discarded");
         assert!(widened("g*t*"), "the `t` after the wildcard is discarded");
         assert!(widened("a*b"), "the `b` after the wildcard is discarded");
@@ -793,31 +881,40 @@ mod tests {
         assert!(!widened("*"), "ANY has no literal");
         // Path patterns go through the same cleanup, including the SUFFIX kind,
         // which discards the head before the last wildcard.
-        assert!(lower_path_reported("**/a*b").2, "the `b` is discarded");
-        assert!(lower_path_reported("**/*b/*").2, "the `b` is discarded");
         assert!(
-            !lower_path_reported("**/*t").2,
+            lower_path_reported("**/a*b").widened,
+            "the `b` is discarded"
+        );
+        assert!(
+            lower_path_reported("**/*b/*").widened,
+            "the `b` is discarded"
+        );
+        assert!(
+            !lower_path_reported("**/*t").widened,
             "no concrete byte is dropped"
         );
         assert!(
-            !lower_path_reported("/tmp/guarded/**").2,
+            !lower_path_reported("/tmp/guarded/**").widened,
             "prefix keeps all text"
         );
         // An absolute pattern cuts at its first wildcard before any literal
         // cleanup, so the same criterion is applied to the pattern itself.
         assert!(
-            lower_path_reported("/tmp/*b/*").2,
+            lower_path_reported("/tmp/*b/*").widened,
             "the `b` tail is discarded"
         );
         assert!(
-            lower_path_reported("/tmp/*/x").2,
+            lower_path_reported("/tmp/*/x").widened,
             "the `x` tail is discarded"
         );
         assert!(
-            !lower_path_reported("/tmp/guarded/**").2,
+            !lower_path_reported("/tmp/guarded/**").widened,
             "only wildcards are cut"
         );
-        assert!(!lower_path_reported("/tmp/guarded").2, "no wildcard to cut");
+        assert!(
+            !lower_path_reported("/tmp/guarded").widened,
+            "no wildcard to cut"
+        );
     }
 
     /// The warning must reach `Compiled::pattern_warnings` through the parser
@@ -850,6 +947,79 @@ mod tests {
                 .any(|w| w.code == PATTERN_LITERAL_WIDENED),
             "a trailing wildcard discards no concrete text: {:?}",
             compiled.pattern_warnings
+        );
+    }
+
+    /// The 16-byte `contains` window (`MAX_CONTAINS_LITERAL`) shortens a long
+    /// repo-relative directory literal to a contiguous substring of it, and the
+    /// kernel's substring test then matches a strict superset of the glob
+    /// (`**/aaa/bbb/ccc/ddd/**` lowers to `contains("aaa/bbb/ccc/ddd/")`, which
+    /// `abaaa/bbb/ccc/ddd/` also matches). Pin the boolean for the shortening
+    /// branches, and pin silence when the natural literal already fits, because
+    /// a false positive here would flag every ordinary policy.
+    #[test]
+    fn contains_window_shortening_reports_a_strict_widening() {
+        let capped = |pat: &str| lower_path_reported(pat).capped;
+        assert!(capped("**/aaa/bbb/ccc/ddd/**"), "the slash trim shortens");
+        assert!(
+            capped("**/alpha/beta/gamma/delta/**"),
+            "the slash walk shortens"
+        );
+        assert!(
+            capped("**/src/components/deep/nested/**"),
+            "the slash walk shortens"
+        );
+        assert!(
+            capped("src/google/adk/agents/config_schemas/AgentConfig.json"),
+            "the last-segment walk shortens"
+        );
+        // The natural literal already fits the window: no shortening, no
+        // warning, and the matcher is exactly the glob the policy wrote.
+        assert!(!capped("**/a/b/**"), "`/a/b/` is 5 bytes");
+        assert!(!capped("**/src/lib/**"), "`/src/lib/` is 9 bytes");
+        // A suffix lowering is never passed through the contains shortener.
+        assert!(!capped("**/*.js"), "suffix keeps its natural literal");
+        assert!(!capped("**/sec.env"), "suffix keeps its natural literal");
+    }
+
+    /// The shortening warning must reach `Compiled::pattern_warnings` from a
+    /// clause target, a file source, and an `unless target` condition, since
+    /// each is lowered on a different path. A capped `unless target` exception
+    /// in particular over-matches, so its rule fires in places the policy
+    /// excepted: silence there is an under-enforcement the warning closes.
+    #[test]
+    fn contains_window_shortening_warns_through_the_compiler() {
+        let has_capped = |src: &str| {
+            let pol = crate::dsl::parse::parse(src).expect("parse");
+            let compiled = compile(&pol).expect("compile");
+            compiled
+                .pattern_warnings
+                .iter()
+                .any(|w| w.code == PATTERN_CONTAINS_CAPPED)
+        };
+        assert!(
+            has_capped(
+                "rule r:\n  kill read file \"**/src/components/deep/nested/**\"\n  because \"x\"\n"
+            ),
+            "a clause target is shortened"
+        );
+        assert!(
+            has_capped(
+                "source S = file \"**/alpha/beta/gamma/delta/**\"\nrule r:\n  kill read file \"**/z\" if S\n  because \"x\"\n"
+            ),
+            "a file source is shortened"
+        );
+        assert!(
+            has_capped(
+                "rule r:\n  kill read file \"**/src/lib/**\" unless target \"**/aaa/bbb/ccc/ddd/**\"\n  because \"x\"\n"
+            ),
+            "an `unless target` condition is shortened"
+        );
+        // A pattern whose literal fits the window stays quiet through the whole
+        // compile path, so an ordinary policy does not gain a warning.
+        assert!(
+            !has_capped("rule r:\n  kill read file \"**/src/lib/**\"\n  because \"x\"\n"),
+            "a short literal is not shortened"
         );
     }
 
@@ -1461,18 +1631,18 @@ impl Ctx {
         arg: Option<&str>,
         gate_exit: Option<u8>,
     ) -> Result<(u64, u32), String> {
-        let (low_op, m, lit, widened) = match gate_op {
+        let (low_op, m, lit, widened, capped) = match gate_op {
             Op::Exec => {
-                let (m, l, w) = lower_exec_reported(pat);
-                (OP_EXEC, m, l, w)
+                let l = lower_exec_reported(pat);
+                (OP_EXEC, l.kind, l.lit, l.widened, l.capped)
             }
             Op::Read | Op::Open => {
-                let (m, l, w) = lower_path_reported(pat);
-                (OP_OPEN, m, l, w)
+                let l = lower_path_reported(pat);
+                (OP_OPEN, l.kind, l.lit, l.widened, l.capped)
             }
             Op::Write | Op::Unlink => {
-                let (m, l, w) = lower_path_reported(pat);
-                (OP_WRITE, m, l, w)
+                let l = lower_path_reported(pat);
+                (OP_WRITE, l.kind, l.lit, l.widened, l.capped)
             }
             other => {
                 return Err(format!(
@@ -1482,6 +1652,7 @@ impl Ctx {
             }
         };
         warn_widened_literal(pat, widened, "gate target", &mut self.warnings);
+        warn_capped_literal(pat, capped, "gate target", &mut self.warnings);
         if arg.is_some() && low_op != OP_EXEC {
             return Err("a gate argument is only valid on `after exec` gates".into());
         }
@@ -1546,12 +1717,14 @@ impl Ctx {
         if arg.is_some() && op != OP_EXEC {
             return Err("a gate argument is only valid on `exec` gates".into());
         }
-        let (m, lit, widened) = if op == OP_EXEC {
+        let l = if op == OP_EXEC {
             lower_exec_reported(pat)
         } else {
             lower_target_reported(op, kind, pat)
         };
+        let (m, lit, widened, capped) = (l.kind, l.lit, l.widened, l.capped);
         warn_widened_literal(pat, widened, "invalidator target", &mut self.warnings);
+        warn_capped_literal(pat, capped, "invalidator target", &mut self.warnings);
         let arg_s = arg.unwrap_or("");
         let key = (op, m, lit.clone(), arg_s.to_string());
         if let Some(i) = self.inval_slots.get(&key) {
@@ -1690,12 +1863,17 @@ fn inval_op(op: Op) -> Result<u8, String> {
     }
 }
 
-/// Whether the wildcard-literal cleanup widened the matcher.
-fn lower_target_reported(op: u8, kind: Kind, pat: &str) -> (u8, String, bool) {
+/// Lower a target pattern for the given op, carrying both widening causes.
+fn lower_target_reported(op: u8, kind: Kind, pat: &str) -> Lowered {
     let _ = kind;
     match op {
         OP_EXEC => lower_exec_reported(pat),
-        OP_CONNECT | OP_RECV => (M_ANY, String::new(), false),
+        OP_CONNECT | OP_RECV => Lowered {
+            kind: M_ANY,
+            lit: String::new(),
+            widened: false,
+            capped: false,
+        },
         _ => lower_path_reported(pat),
     }
 }
@@ -1754,6 +1932,7 @@ pub const PATTERN_TRUNCATED: &str = "pattern_literal_truncated";
 pub const PATTERN_EMPTY_LITERAL: &str = "pattern_empty_literal";
 pub const PATTERN_MATCHER_LENGTH: &str = "pattern_matcher_length_exceeded";
 pub const PATTERN_LITERAL_WIDENED: &str = "pattern_literal_widened";
+pub const PATTERN_CONTAINS_CAPPED: &str = "pattern_contains_capped";
 
 pub struct Compiled {
     pub bytes: Vec<u8>,
@@ -1845,14 +2024,14 @@ pub fn compile_with_labels(
 
     for s in &pol.sources {
         let bit = ctx.label_bit(&s.label)?;
-        let (op, m, lit, ipv4, ipv4_mask, widened) = match s.kind {
+        let (op, m, lit, ipv4, ipv4_mask, widened, capped) = match s.kind {
             Kind::Exec => {
-                let (m, lit, w) = lower_exec_reported(&s.pattern);
-                (OP_EXEC, m, lit, 0, 0, w)
+                let l = lower_exec_reported(&s.pattern);
+                (OP_EXEC, l.kind, l.lit, 0, 0, l.widened, l.capped)
             }
             Kind::File => {
-                let (m, lit, w) = lower_path_reported(&s.pattern);
-                (OP_OPEN, m, lit, 0, 0, w)
+                let l = lower_path_reported(&s.pattern);
+                (OP_OPEN, l.kind, l.lit, 0, 0, l.widened, l.capped)
             }
             Kind::Endpoint => {
                 let endpoints = ctx.endpoint_matches(&s.pattern);
@@ -1877,6 +2056,7 @@ pub fn compile_with_labels(
             }
         };
         warn_widened_literal(&s.pattern, widened, "source target", &mut ctx.warnings);
+        warn_capped_literal(&s.pattern, capped, "source target", &mut ctx.warnings);
         ctx.add_update(UpdateSpec {
             op,
             m,
@@ -1915,8 +2095,10 @@ pub fn compile_with_labels(
     }
     for x in &pol.xforms {
         let bit = ctx.label_bit(&x.label)?;
-        let (m, lit, widened) = lower_exec_reported(&x.gate);
+        let l = lower_exec_reported(&x.gate);
+        let (m, lit, widened, capped) = (l.kind, l.lit, l.widened, l.capped);
         warn_widened_literal(&x.gate, widened, "transform gate", &mut ctx.warnings);
+        warn_capped_literal(&x.gate, capped, "transform gate", &mut ctx.warnings);
         ctx.add_update(UpdateSpec {
             op: OP_EXEC,
             m,
@@ -1941,9 +2123,10 @@ pub fn compile_with_labels(
                         .map(|(ipv4, ipv4_mask)| (M_ANY, String::new(), ipv4, ipv4_mask))
                         .collect::<Vec<_>>()
                 } else {
-                    let (tm, tlit, widened) =
-                        lower_target_reported(op, cl.target.kind, &cl.target.pattern);
+                    let l = lower_target_reported(op, cl.target.kind, &cl.target.pattern);
+                    let (tm, tlit, widened, capped) = (l.kind, l.lit, l.widened, l.capped);
                     warn_widened_literal(&cl.target.pattern, widened, "rule target", &mut warnings);
+                    warn_capped_literal(&cl.target.pattern, capped, "rule target", &mut warnings);
                     let mut v = vec![(tm, tlit, 0, 0)];
                     // Repo-relative companions for the sink target, mirroring
                     // the file source. An extra rule entry is verifier-free
@@ -1974,16 +2157,21 @@ pub fn compile_with_labels(
                                 cipv4 = n;
                                 cipv4_mask = mk;
                             } else {
-                                let (m, l, widened) =
-                                    lower_target_reported(op, cl.target.kind, pattern);
+                                let lowered = lower_target_reported(op, cl.target.kind, pattern);
                                 warn_widened_literal(
                                     pattern,
-                                    widened,
+                                    lowered.widened,
                                     "rule condition pattern",
                                     &mut warnings,
                                 );
-                                cm = m;
-                                clit = l;
+                                warn_capped_literal(
+                                    pattern,
+                                    lowered.capped,
+                                    "rule condition pattern",
+                                    &mut warnings,
+                                );
+                                cm = lowered.kind;
+                                clit = lowered.lit;
                             }
                         }
                         Some(Cond::LineageIncludes { exec }) => {
