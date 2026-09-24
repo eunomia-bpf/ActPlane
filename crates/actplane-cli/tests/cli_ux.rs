@@ -507,9 +507,12 @@ fn shipped_policies_compile_without_warnings() {
 fn documented_warning_codes_match_the_cli() {
     // `docs/rule-language.md` lists the warning codes a user may see. A code that
     // reaches users but is undocumented is a gap; a documented code that no
-    // longer exists sends the reader chasing a phantom. Pin both directions by
-    // extracting the codes from the doc and comparing them to the codes the
-    // binary emits for policies crafted to trigger each one.
+    // longer exists sends the reader chasing a phantom. Pin both directions for
+    // the pattern family: the doc's own list of pattern-lowering codes must be
+    // exactly the compiler's `PATTERN_WARNING_CODES`. The doctor-owned codes
+    // below are pinned only emitted -> documented, because the doc interleaves
+    // them with unrelated backticked identifiers, so the reverse direction is
+    // not representable from the doc alone.
     let doc = fs::read_to_string(format!(
         "{}/../../docs/rule-language.md",
         env!("CARGO_MANIFEST_DIR")
@@ -553,6 +556,34 @@ fn documented_warning_codes_match_the_cli() {
             "warning code `{code}` is emitted but not documented in docs/rule-language.md"
         );
     }
+
+    // Reverse direction, for the family the doc lists explicitly: the pattern
+    // codes named in that sentence must be exactly the ones the compiler can
+    // emit, so a code added to the doc but not the compiler (a phantom) fails.
+    let doc_pattern_list: std::collections::BTreeSet<&str> = doc
+        .split("pattern-lowering warnings (")
+        .nth(1)
+        .expect("docs must list the pattern-lowering warnings")
+        .split(" are stored")
+        .next()
+        .expect("the pattern-lowering list must end in `are stored`")
+        .split('`')
+        .filter(|t| {
+            t.contains('_')
+                && t.chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+        })
+        .collect();
+    let compiled_pattern_codes: std::collections::BTreeSet<&str> =
+        actplane_ifc_compiler::dsl::PATTERN_WARNING_CODES
+            .iter()
+            .copied()
+            .collect();
+    assert_eq!(
+        doc_pattern_list, compiled_pattern_codes,
+        "the pattern codes listed in docs/rule-language.md must be exactly \
+         `PATTERN_WARNING_CODES`"
+    );
 }
 
 #[test]
