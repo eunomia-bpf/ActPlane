@@ -189,6 +189,69 @@ fn warn_capped_literal(pat: &str, capped: bool, what: &str, out: &mut Vec<Patter
     });
 }
 
+/// Record a [`RULE_CONDITION_CONTRADICTION`] warning when a lowered DNF term
+/// requires and forbids the same label bit. `taint_mask_ok` tests
+/// `(labels & req) == req && (labels & forbid) == 0`, so an overlap is false for
+/// every label state: that disjunct can never hold. The engine uses the same
+/// predicate, so nothing is silently mis-enforced; the alternative is dead.
+///
+/// `when` is `A and not A` under `&&`, so the whole clause is often dead, but
+/// `(A or B) and not A` leaves `B` alive: `all_terms_dead` distinguishes the
+/// two, because the reader's fix differs (delete the rule vs. delete one side).
+/// `labels` inverts the bit back to the name, which is what the policy wrote.
+/// The warning is emitted once per clause, not once per dead disjunct, so
+/// `(A or A) and not A` does not repeat itself.
+fn warn_condition_contradiction(
+    req: u64,
+    forbid: u64,
+    all_terms_dead: bool,
+    labels: &HashMap<String, u64>,
+    reason: &str,
+    out: &mut Vec<PatternWarning>,
+) {
+    let overlap = req & forbid;
+    if overlap == 0 {
+        return;
+    }
+    let mut names: Vec<&str> = labels
+        .iter()
+        .filter(|(_, b)| **b & overlap != 0)
+        .map(|(n, _)| n.as_str())
+        .collect();
+    names.sort_unstable();
+    let named = if names.is_empty() {
+        // Reachable only if a bit lacks a name, which `label_bit` prevents.
+        format!("{overlap:#x}")
+    } else {
+        names
+            .iter()
+            .map(|n| format!("`{n}`"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let what = if all_terms_dead {
+        "the rule"
+    } else {
+        "one branch"
+    };
+    let fix = if all_terms_dead {
+        "Drop one side, or replace the negated term with the label it should exclude."
+    } else {
+        "One disjunct under the `or` is unsatisfiable; delete that side to leave the branches that can fire."
+    };
+    out.push(PatternWarning {
+        code: RULE_CONDITION_CONTRADICTION,
+        message: format!(
+            "rule {} requires and forbids {named} at once, so no process state satisfies that condition and {what} never fires. Under `and`, a label appears both plain and negated, as in `A and not A`. {fix}",
+            if reason.is_empty() {
+                "(no `because`)".to_string()
+            } else {
+                format!("\"{reason}\"")
+            }
+        ),
+    });
+}
+
 /// Human-readable name of a kernel match kind, for warnings.
 fn match_kind_name(kind: u8) -> &'static str {
     match kind {
@@ -1949,6 +2012,16 @@ pub const PATTERN_WARNING_CODES: [&str; 5] = [
     PATTERN_CONTAINS_CAPPED,
 ];
 
+/// A clause whose `when` requires and forbids the same label bit, so the
+/// kernel's `taint_mask_ok` can never hold and the rule never fires.
+///
+/// Distinct from the five `pattern_*` codes: those report a matcher that means
+/// something other than the glob. A contradiction is not a matcher change; the
+/// blob and the policy agree, and both are dead. Kept out of
+/// [`PATTERN_WARNING_CODES`] for that reason, and reported through the same
+/// `Compiled::pattern_warnings` channel so every surface prints it.
+pub const RULE_CONDITION_CONTRADICTION: &str = "rule_condition_contradiction";
+
 pub struct Compiled {
     pub bytes: Vec<u8>,
     pub reasons: Vec<String>, // indexed by lowered rule_id
@@ -2130,6 +2203,23 @@ pub fn compile_with_labels(
     }
     for rule in &pol.rules {
         for cl in &rule.clauses {
+            // The condition's DNF is a property of the clause, not of the op or
+            // the target matcher, so compute it once and reuse it below. A
+            // contradicted term is dead in every rule the clause emits, so the
+            // warning is per clause and names whether the whole clause or only
+            // one `or` branch is unreachable.
+            let terms = dnf(&cl.when, &mut ctx)?;
+            if let Some((req, forbid)) = terms.iter().find(|(r, f)| r & f != 0) {
+                let all_terms_dead = terms.iter().all(|(r, f)| r & f != 0);
+                warn_condition_contradiction(
+                    *req,
+                    *forbid,
+                    all_terms_dead,
+                    &ctx.labels,
+                    &rule.reason,
+                    &mut warnings,
+                );
+            }
             for op in op_lowers(cl.op)? {
                 let op = *op;
                 let target_matches = if op == OP_CONNECT || op == OP_RECV {
@@ -2217,7 +2307,7 @@ pub fn compile_with_labels(
                             }
                         }
                     }
-                    for (req, forbid) in dnf(&cl.when, &mut ctx)? {
+                    for (req, forbid) in &terms {
                         let rule_id = meta.len() as u32;
                         reasons.push(rule.reason.clone());
                         meta.push(RuleMeta {
@@ -2242,8 +2332,8 @@ pub fn compile_with_labels(
                         cr.cond_neg = cneg;
                         cr.cond_match = cm;
                         cr.effect = lower_effect(cl.effect);
-                        cr.req = req;
-                        cr.forbid = forbid;
+                        cr.req = *req;
+                        cr.forbid = *forbid;
                         cr.gate = gate;
                         cr.rule_id = rule_id;
                         cr.ipv4 = ipv4;

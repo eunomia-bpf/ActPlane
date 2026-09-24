@@ -11,8 +11,8 @@ use std::collections::HashMap;
 
 pub use lower::{
     Compiled, PATTERN_EMPTY_LITERAL, PATTERN_MATCHER_LENGTH, PATTERN_TRUNCATED,
-    PATTERN_WARNING_CODES, PatternWarning, RuleMeta, RuleSourceMeta, compile,
-    is_numeric_endpoint_pattern, repo_relative_condition_is_partial,
+    PATTERN_WARNING_CODES, PatternWarning, RULE_CONDITION_CONTRADICTION, RuleMeta, RuleSourceMeta,
+    compile, is_numeric_endpoint_pattern, repo_relative_condition_is_partial,
 };
 
 /// Parse + compile DSL source text to a kernel config blob + reason table.
@@ -846,6 +846,45 @@ rule secret:
                 Err(e) => e,
             };
         assert!(err.contains("not A and not B"), "unhelpful error: {err}");
+    }
+
+    #[test]
+    fn contradiction_between_a_label_and_its_negation_is_reported() {
+        // `taint_mask_ok` tests `(labels & req) == req && (labels & forbid) == 0`,
+        // so a DNF term that requires and forbids the same bit is false in every
+        // state. The warning names the label so the policy author can find it.
+        let warn = |when: &str| {
+            let src = format!(
+                "source A = exec \"a\"\nsource B = exec \"b\"\nrule r:\n  kill open file \"**/s\" if {when}\n  because \"x\"\n"
+            );
+            let c = ok(&src);
+            (
+                warning_codes(&c),
+                c.pattern_warnings
+                    .iter()
+                    .map(|w| w.message.clone())
+                    .collect::<Vec<_>>(),
+            )
+        };
+        let (codes, messages) = warn("A and not A");
+        assert_eq!(codes, vec![lower::RULE_CONDITION_CONTRADICTION]);
+        assert!(
+            messages[0].contains("`A`"),
+            "the warning must name the contradicted label: {messages:?}"
+        );
+        // Only one `or` branch is dead here: `B` can still fire. The message
+        // must not claim the whole rule is unreachable, since the fix differs.
+        let (codes, messages) = warn("(A or B) and not A");
+        assert_eq!(codes, vec![lower::RULE_CONDITION_CONTRADICTION]);
+        assert!(
+            messages[0].contains("one branch"),
+            "a surviving branch must not be reported as a dead rule: {messages:?}"
+        );
+        // Consistent conditions stay quiet, including `or`-with-negation, which
+        // is satisfiable (`true or not A`), unlike an `and` between them.
+        for quiet in ["A or not A", "A and not B", "A", "not A"] {
+            assert!(warn(quiet).0.is_empty(), "{quiet:?} should not warn");
+        }
     }
 
     #[test]

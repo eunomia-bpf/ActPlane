@@ -154,6 +154,13 @@ check can match on them.
 Besides the pattern, `unless target`, argv-token, and `because` warnings above,
 these are reported:
 
+- `rule_condition_contradiction`: the clause's condition requires and forbids the
+  same label, as in `if A and not A`. The kernel's `taint_mask_ok` tests
+  `(labels & req) == req && (labels & forbid) == 0`, so a disjunct that both
+  requires and forbids a bit is false in every label state: the clause never
+  fires. The warning names the label and, when one `or` branch still survives,
+  says so instead of claiming the whole rule is dead. The fix is to drop one side
+  or replace the negated term with the label it should exclude.
 - `argv_block_exec_post_exec_only`: `block exec` with an argv token, which can
   never fire (see §1.7). The fix is `kill exec`.
 - `endpoint_source_unsupported`, `endpoint_target_unsupported`: an endpoint
