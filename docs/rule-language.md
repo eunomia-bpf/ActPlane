@@ -149,8 +149,8 @@ widened to fit the kernel window is neither enforced nor reported as valid
 silently.
 `bpf_lsm_inactive_for_block` is the one host-dependent warning and appears only
 under `--explain`/`--json`, because the machine that compiles a blob need not be
-the machine that enforces
-it. The code names are stable identifiers, so a CI check can match on them.
+the machine that enforces it. The code names are stable identifiers, so a CI
+check can match on them.
 Besides the pattern, `unless target`, argv-token, and `because` warnings above,
 these are reported:
 
