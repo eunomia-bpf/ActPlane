@@ -10,9 +10,9 @@ pub mod parse;
 use std::collections::HashMap;
 
 pub use lower::{
-    Compiled, PATTERN_EMPTY_LITERAL, PATTERN_MATCHER_LENGTH, PATTERN_TRUNCATED, PatternWarning,
-    RuleMeta, RuleSourceMeta, compile, is_numeric_endpoint_pattern,
-    repo_relative_condition_is_partial,
+    Compiled, PATTERN_EMPTY_LITERAL, PATTERN_MATCHER_LENGTH, PATTERN_TRUNCATED,
+    PATTERN_WARNING_CODES, PatternWarning, RuleMeta, RuleSourceMeta, compile,
+    is_numeric_endpoint_pattern, repo_relative_condition_is_partial,
 };
 
 /// Parse + compile DSL source text to a kernel config blob + reason table.
@@ -762,6 +762,52 @@ rule secret:
             "ANY is exempt: {:?}",
             any.pattern_warnings
         );
+    }
+
+    #[test]
+    fn every_pattern_warning_code_is_reachable() {
+        // `PATTERN_WARNING_CODES` is what the CLI's doc-completeness guard
+        // iterates, so a code listed there but never emitted would demand
+        // documentation for a warning no policy can produce. Pin each code to a
+        // policy that emits it, so the list stays exactly the emitted set.
+        let triggered = [
+            (
+                lower::PATTERN_TRUNCATED,
+                "rule r:\n  block write file \"/var/lib/some/deeply/nested/directory/structure/that/is/very/long/target.txt\" if A\n  because \"x\"\n",
+            ),
+            (
+                lower::PATTERN_EMPTY_LITERAL,
+                "rule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n",
+            ),
+            (
+                lower::PATTERN_MATCHER_LENGTH,
+                "rule r:\n  block write file \"**/*config.production.json\" if A\n  because \"x\"\n",
+            ),
+            (
+                lower::PATTERN_LITERAL_WIDENED,
+                "rule r:\n  block exec \"g*t\" if A\n  because \"x\"\n",
+            ),
+            (
+                lower::PATTERN_CONTAINS_CAPPED,
+                "rule r:\n  block write file \"**/src/components/deep/nested/**\" if A\n  because \"x\"\n",
+            ),
+        ];
+        assert_eq!(
+            triggered.len(),
+            PATTERN_WARNING_CODES.len(),
+            "every code in PATTERN_WARNING_CODES needs a trigger policy here"
+        );
+        for (code, policy) in triggered {
+            assert!(
+                PATTERN_WARNING_CODES.contains(&code),
+                "{code} is emitted but missing from PATTERN_WARNING_CODES"
+            );
+            let codes = warning_codes(&ok(policy));
+            assert!(
+                codes.contains(&code),
+                "{policy:?} should emit {code}, got {codes:?}"
+            );
+        }
     }
 
     #[test]

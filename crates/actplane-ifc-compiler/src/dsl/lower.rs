@@ -1934,6 +1934,21 @@ pub const PATTERN_MATCHER_LENGTH: &str = "pattern_matcher_length_exceeded";
 pub const PATTERN_LITERAL_WIDENED: &str = "pattern_literal_widened";
 pub const PATTERN_CONTAINS_CAPPED: &str = "pattern_contains_capped";
 
+/// Every pattern-lowering code the compiler can record, in one place.
+///
+/// A hand-written list of codes drifts: `pattern_empty_literal` was emitted but
+/// missing from the CLI's doc-completeness guard, so its documentation could
+/// have changed unnoticed. Callers that must enumerate the family (that guard)
+/// read this instead of restating it, so a new code here is a compile-time
+/// signal to update them.
+pub const PATTERN_WARNING_CODES: [&str; 5] = [
+    PATTERN_TRUNCATED,
+    PATTERN_EMPTY_LITERAL,
+    PATTERN_MATCHER_LENGTH,
+    PATTERN_LITERAL_WIDENED,
+    PATTERN_CONTAINS_CAPPED,
+];
+
 pub struct Compiled {
     pub bytes: Vec<u8>,
     pub reasons: Vec<String>, // indexed by lowered rule_id

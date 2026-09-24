@@ -528,9 +528,13 @@ fn documented_warning_codes_match_the_cli() {
         })
         .collect();
 
-    // Every code the CLI can emit. Kept explicit: if a code is added, this list
-    // and the doc must both change, which is the point.
-    let emitted = [
+    // Every code the CLI can emit. The pattern-lowering family is read from the
+    // compiler (`PATTERN_WARNING_CODES`) rather than restated, because a
+    // hand-written copy drifted: `pattern_empty_literal` was emitted by the
+    // binary but omitted here, so this guard would not have caught its doc
+    // changing. The rest stay explicit: they are produced by the CLI's doctor,
+    // not the compiler, so no crate can enumerate them for us.
+    let mut emitted: Vec<&str> = vec![
         "argv_block_exec_post_exec_only",
         "argv_token_ignored_for_non_exec",
         "bpf_lsm_inactive_for_block",
@@ -539,13 +543,10 @@ fn documented_warning_codes_match_the_cli() {
         "endpoint_target_condition_unresolved_hostname",
         "endpoint_target_condition_unsupported_pattern",
         "endpoint_target_unsupported",
-        "pattern_contains_capped",
-        "pattern_literal_truncated",
-        "pattern_literal_widened",
-        "pattern_matcher_length_exceeded",
         "repo_relative_target_condition_partial",
         "rule_missing_because",
     ];
+    emitted.extend(actplane_ifc_compiler::dsl::PATTERN_WARNING_CODES);
     for code in emitted {
         assert!(
             documented.contains(code),
