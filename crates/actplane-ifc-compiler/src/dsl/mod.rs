@@ -12,7 +12,8 @@ use std::collections::HashMap;
 pub use lower::{
     Compiled, PATTERN_EMPTY_LITERAL, PATTERN_MATCHER_LENGTH, PATTERN_TRUNCATED,
     PATTERN_WARNING_CODES, PatternWarning, RULE_CONDITION_CONTRADICTION,
-    RULE_CONDITION_COVERS_TARGET, RuleMeta, RuleSourceMeta, compile, is_numeric_endpoint_pattern,
+    RULE_CONDITION_COVERS_TARGET, RULE_CONDITION_LABEL_WITHOUT_PRODUCER, RUNTIME_SEEDED_LABELS,
+    RuleMeta, RuleSourceMeta, compile, is_numeric_endpoint_pattern,
     repo_relative_condition_is_partial,
 };
 
@@ -684,7 +685,7 @@ rule secret:
         let long = "/var/lib/some/deeply/nested/directory/structure/that/is/very/long/target.txt";
         assert!(long.len() > 63);
         let compiled = ok(&format!(
-            "rule r:\n  block write file \"{long}\" if A\n  because \"x\"\n"
+            "source A = exec \"a\"\nrule r:\n  block write file \"{long}\" if A\n  because \"x\"\n"
         ));
         assert_eq!(
             warning_codes(&compiled),
@@ -699,7 +700,9 @@ rule secret:
         );
 
         // A literal that fits is stored whole and reported not at all.
-        let short = ok("rule r:\n  block write file \"/tmp/short.txt\" if A\n  because \"x\"\n");
+        let short = ok(
+            "source A = exec \"a\"\nrule r:\n  block write file \"/tmp/short.txt\" if A\n  because \"x\"\n",
+        );
         assert!(
             short.pattern_warnings.is_empty(),
             "short literal must not be reported: {:?}",
@@ -714,7 +717,7 @@ rule secret:
         // accept, i.e. a rule that never fires. That must be reported, and it is
         // a distinct failure from truncation.
         let compiled = ok(
-            "rule r:\n  block write file \"**/*config.production.json\" if A\n  because \"x\"\n",
+            "source A = exec \"a\"\nrule r:\n  block write file \"**/*config.production.json\" if A\n  because \"x\"\n",
         );
         assert_eq!(
             warning_codes(&compiled),
@@ -731,7 +734,9 @@ rule secret:
         );
 
         // A basename within the bound lowers to a usable suffix literal.
-        let short = ok("rule r:\n  notify write file \"**/.env\" if A\n  because \"x\"\n");
+        let short = ok(
+            "source A = exec \"a\"\nrule r:\n  notify write file \"**/.env\" if A\n  because \"x\"\n",
+        );
         assert!(
             short.pattern_warnings.is_empty(),
             "in-bound suffix must not be reported: {:?}",
@@ -746,8 +751,8 @@ rule secret:
         // and `exec "foo/"` both do. `*` is not affected, since ANY always
         // matches and is meant to carry an empty literal.
         for policy in [
-            "rule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n",
-            "rule r:\n  kill exec \"foo/\" if A\n  because \"x\"\n",
+            "source A = exec \"a\"\nrule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n",
+            "source A = exec \"a\"\nrule r:\n  kill exec \"foo/\" if A\n  because \"x\"\n",
         ] {
             let compiled = ok(policy);
             assert_eq!(
@@ -757,7 +762,7 @@ rule secret:
                 compiled.pattern_warnings
             );
         }
-        let any = ok("rule r:\n  kill exec \"*\" if A\n  because \"x\"\n");
+        let any = ok("source A = exec \"a\"\nrule r:\n  kill exec \"*\" if A\n  because \"x\"\n");
         assert!(
             any.pattern_warnings.is_empty(),
             "ANY is exempt: {:?}",
@@ -998,6 +1003,100 @@ rule secret:
         let endpoint_quiet =
             "rule r:\n  kill connect endpoint \"*\" unless target \"127.\"\n  because \"x\"\n";
         assert!(warning_codes(&ok(endpoint_quiet)).is_empty());
+    }
+
+    #[test]
+    fn condition_label_without_a_producer_is_reported() {
+        // `label_bit` allocates a bit for a label the moment a condition names
+        // it, but only a `source`/`xform` update writes that bit. With no
+        // producer the plain form never fires and the negated form fires on
+        // every event the target accepts, so both must be reported.
+        let warn = |when: &str| {
+            let src = format!(
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if {when}\n  because \"x\"\n"
+            );
+            let c = ok(&src);
+            (
+                warning_codes(&c),
+                c.pattern_warnings
+                    .iter()
+                    .map(|w| w.message.clone())
+                    .collect::<Vec<_>>(),
+            )
+        };
+        for when in ["NOPE", "not NOPE", "A and NOPE", "A or NOPE"] {
+            let (codes, messages) = warn(when);
+            assert_eq!(
+                codes,
+                vec![RULE_CONDITION_LABEL_WITHOUT_PRODUCER],
+                "{when:?} references a producer-less label"
+            );
+            assert!(
+                messages[0].contains("`NOPE`"),
+                "the warning must name the label: {messages:?}"
+            );
+        }
+        // Multiple missing labels are all named: naming only one would hide the
+        // others behind a second compile round.
+        let (_, messages) = warn("NOPE and ALSO_BAD");
+        assert!(
+            messages[0].contains("`NOPE`") && messages[0].contains("`ALSO_BAD`"),
+            "every producer-less label must be named: {messages:?}"
+        );
+        // A declared label stays quiet whatever the shape of the condition
+        // mentions it; `A and not A` is a contradiction, which is a different
+        // code, so only the producer-less code is asserted absent.
+        for quiet in ["A", "A and not A", "A or not A"] {
+            assert!(
+                !warn(quiet)
+                    .0
+                    .contains(&RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+                "{quiet:?} names a declared label and must not warn"
+            );
+        }
+    }
+
+    #[test]
+    fn runtime_seeded_labels_are_exempt_without_a_source() {
+        // `actplane run`/`watch` seed the protected pid with COMMAND (AGENT as
+        // the older spelling) before any exec update runs, and `runner_label`
+        // accepts a policy that only references the label, so a reference
+        // without a `source` is enforceable and must not warn.
+        for label in ["COMMAND", "AGENT"] {
+            let src = format!("rule r:\n  kill exec \"git\" if {label}\n  because \"x\"\n");
+            let c = ok(&src);
+            assert!(
+                !warning_codes(&c).contains(&RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+                "{label} is seeded by the runner and must not warn: {:?}",
+                warning_codes(&c)
+            );
+            assert!(c.labels.contains_key(label), "{label} still gets a bit");
+        }
+    }
+
+    #[test]
+    fn label_from_an_earlier_delta_is_not_producer_less() {
+        // A runtime delta compiles with the domain's existing label dictionary,
+        // so a bit an earlier delta allocated is live even though no local
+        // update writes it. Warning there would be a false positive.
+        let src = "rule r:\n  kill exec \"git\" if SEEDED\n  because \"x\"\n";
+        let mut existing = HashMap::new();
+        existing.insert("SEEDED".to_string(), 1u64);
+        let compiled = lower::compile_with_labels(&parse::parse(src).unwrap(), &existing).unwrap();
+        assert!(
+            !compiled
+                .pattern_warnings
+                .iter()
+                .any(|w| w.code == RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+            "a label carried in from an earlier delta must not warn: {:?}",
+            compiled.pattern_warnings
+        );
+        // The same policy without the carried label does warn, so the exemption
+        // is the existing label, not the policy text.
+        assert_eq!(
+            warning_codes(&ok(src)),
+            vec![RULE_CONDITION_LABEL_WITHOUT_PRODUCER]
+        );
     }
 
     #[test]

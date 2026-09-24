@@ -429,6 +429,67 @@ fn match_kind_name(kind: u8) -> &'static str {
     }
 }
 
+/// Record a [`RULE_CONDITION_LABEL_WITHOUT_PRODUCER`] warning when a clause's
+/// `when` references a label that no `source` or `xform` in this policy (or an
+/// earlier delta, via `existing_labels`) produces.
+///
+/// `label_bit` allocates a bit for a label the moment it is seen, whether from a
+/// source, an xform, or a condition reference, so a policy that only ever
+/// *names* a label still compiles to a rule whose `req`/`forbid` mask holds that
+/// bit. Nothing then writes it: only a source or xform update sets a label bit,
+/// so the bit is zero in every process state. `taint_mask_ok` therefore rejects
+/// the plain form (`req` unmet, the rule never fires) and accepts the negated
+/// form (`forbid` clear, the rule fires on every event its target accepts).
+///
+/// `produced` holds the names a source or xform defines, plus the labels an
+/// earlier delta already allocated, since that bit is live in the domain even
+/// though no local update writes it. [`RUNTIME_SEEDED_LABELS`] are exempt: the
+/// runner seeds them into the protected pid itself.
+///
+/// Emitted once per clause, naming the first such label, because the fix is the
+/// same for every reference in the clause: declare the source, or drop the term.
+fn warn_condition_label_without_producer(
+    when: &Expr,
+    produced: &BTreeSet<&str>,
+    reason: &str,
+    out: &mut Vec<PatternWarning>,
+) {
+    let mut referenced = BTreeSet::new();
+    collect_expr_labels(when, &mut referenced);
+    let mut missing: Vec<&str> = referenced
+        .iter()
+        .map(String::as_str)
+        .filter(|name| !produced.contains(name) && !RUNTIME_SEEDED_LABELS.contains(name))
+        .collect();
+    missing.sort_unstable();
+    let Some(label) = missing.first() else {
+        return;
+    };
+    let also = if missing.len() > 1 {
+        format!(
+            " (also {})",
+            missing[1..]
+                .iter()
+                .map(|n| format!("`{n}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    } else {
+        String::new()
+    };
+    out.push(PatternWarning {
+        code: RULE_CONDITION_LABEL_WITHOUT_PRODUCER,
+        message: format!(
+            "rule {}: the condition references label `{label}`{also}, which no `source` or `xform` in this policy defines, so no update ever sets its bit. The plain form `if {label}` never fires, and the negated form `if not {label}` fires on every event the rule's target accepts. Declare a `source {label} = ...` (or an `xform`) for it, or drop the term.",
+            if reason.is_empty() {
+                "(no `because`)".to_string()
+            } else {
+                format!("\"{reason}\"")
+            }
+        ),
+    });
+}
+
 /// (match, literal) lowering for exec-side patterns (matched on comm). The
 /// compact form the unit tests assert on; callers use [`lower_exec_reported`]
 /// so the widening warning reaches `Compiled::pattern_warnings`.
@@ -2198,6 +2259,32 @@ pub const RULE_CONDITION_CONTRADICTION: &str = "rule_condition_contradiction";
 /// through the same `Compiled::pattern_warnings` channel.
 pub const RULE_CONDITION_COVERS_TARGET: &str = "rule_condition_covers_target";
 
+/// A condition that references a label no `source` or `xform` in the policy
+/// produces, so no update in the compiled blob ever sets that bit and the
+/// kernel's label mask never contains it.
+///
+/// A `source`/`xform` is the only way a label reaches a process: `label_bit`
+/// assigns a bit on first sight, and a condition reference allocates one too,
+/// but only a source or xform update writes it. With no producer the plain
+/// form (`if L`) never fires, and the negated form (`if not L`) is satisfied
+/// for every event the clause's target accepts, so it fires on all of them.
+///
+/// Distinct from [`RULE_CONDITION_CONTRADICTION`] (a dead mask built from
+/// labels that do exist) and from the `pattern_*` codes (a matcher that
+/// differs from the glob). Kept out of [`PATTERN_WARNING_CODES`] and reported
+/// through the same `Compiled::pattern_warnings` channel.
+pub const RULE_CONDITION_LABEL_WITHOUT_PRODUCER: &str = "rule_condition_label_without_producer";
+
+/// Labels the runtime seeds into a process directly, so a policy may reference
+/// one without declaring a `source` for it.
+///
+/// `actplane run`/`watch`/auto-attach seed the launched (or attached) pid with
+/// the `COMMAND` label, falling back to `AGENT` for older policies, before any
+/// exec update runs (`runtime::runner_label`, and `templates.rs` tells users to
+/// narrow `exec "**"` to their agent executable). A reference-only policy is
+/// therefore enforceable, and warning about it would be a false positive.
+pub const RUNTIME_SEEDED_LABELS: [&str; 2] = ["COMMAND", "AGENT"];
+
 pub struct Compiled {
     pub bytes: Vec<u8>,
     pub reasons: Vec<String>, // indexed by lowered rule_id
@@ -2377,6 +2464,16 @@ pub fn compile_with_labels(
             gate_exit_code: GATE_IMMEDIATE,
         })?;
     }
+    // Labels an update in the blob (or an earlier delta in the same domain)
+    // actually writes. A condition reference alone allocates a bit without
+    // producing it, which is what the warning below reports.
+    let produced: BTreeSet<&str> = pol
+        .sources
+        .iter()
+        .map(|s| s.label.as_str())
+        .chain(pol.xforms.iter().map(|x| x.label.as_str()))
+        .chain(existing_labels.keys().map(String::as_str))
+        .collect();
     for rule in &pol.rules {
         for cl in &rule.clauses {
             // The condition's DNF is a property of the clause, not of the op or
@@ -2396,6 +2493,11 @@ pub fn compile_with_labels(
                     &mut warnings,
                 );
             }
+            // A label the condition references but nothing produces is a dead
+            // bit in the plain form and a free bit in the negated form. Checked
+            // against the producers, not the allocated bits, because
+            // `label_bit` has already assigned a bit to every referenced name.
+            warn_condition_label_without_producer(&cl.when, &produced, &rule.reason, &mut warnings);
             // An `unless target` condition is tested against the same event
             // text as the rule's own target, so a condition that covers the
             // target suppresses every event and kills the rule. Track coverage

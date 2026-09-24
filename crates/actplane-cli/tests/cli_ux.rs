@@ -380,7 +380,8 @@ fn compile_to_blob_reports_policy_warnings_on_stderr() {
     // `block exec` with an argv token can never block: argv exists only after
     // exec, so the LSM pre-op hook skips the rule. This is the highest-value
     // warning to surface, because the policy reads as an enforcement it is not.
-    let dead = "rule r:\n  block exec \"git\" \"push\" if A\n  because \"x\"\n";
+    let dead =
+        "source A = exec \"a\"\nrule r:\n  block exec \"git\" \"push\" if A\n  because \"x\"\n";
     let output = run(&["--rule", dead, "compile", "--out", out_s, "--force"]);
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     let err = stderr(&output);
@@ -400,8 +401,7 @@ fn compile_to_blob_reports_policy_warnings_on_stderr() {
         "host-dependent warning leaked into the portable path: {err}"
     );
 
-    // A policy with nothing to warn about stays quiet.
-    let good = "rule r:\n  kill exec \"git\" if A\n  because \"x\"\n";
+    let good = "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A\n  because \"x\"\n";
     let output = run(&["--rule", good, "compile", "--out", out_s, "--force"]);
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     assert!(
@@ -555,6 +555,7 @@ fn documented_warning_codes_match_the_cli() {
     emitted.extend(actplane_ifc_compiler::dsl::PATTERN_WARNING_CODES);
     emitted.push(actplane_ifc_compiler::dsl::RULE_CONDITION_CONTRADICTION);
     emitted.push(actplane_ifc_compiler::dsl::RULE_CONDITION_COVERS_TARGET);
+    emitted.push(actplane_ifc_compiler::dsl::RULE_CONDITION_LABEL_WITHOUT_PRODUCER);
     for code in emitted {
         assert!(
             documented.contains(code),
