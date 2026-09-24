@@ -299,6 +299,60 @@ test "$rc" -ne 0
         .expect("tempdir remains writable by the test user");
 }
 
+/// The enforcement path must report the same pattern-lowering warnings as
+/// `compile`: `watch` compiles the policy itself and loads the blob, so a
+/// matcher the compiler widened to fit the kernel window would otherwise be
+/// enforced silently. `pattern_contains_capped` is the widest case (a
+/// `contains` literal shortened to a proper substring matches a strict
+/// superset), and it lives in `Compiled::pattern_warnings`, which `compile`
+/// prints but the runtime previously dropped.
+#[test]
+#[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
+fn watch_reports_pattern_lowering_warnings_privileged() {
+    reset_bpf_pin_root();
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let mut agent = FakeAgent::start("actplane-watch-warn-agent");
+    let policy = tmp.path().join("actplane.yaml");
+    std::fs::write(
+        &policy,
+        r#"
+version: 1
+policy: |
+  source COMMAND = file "**/alpha/beta/gamma/delta/**"
+  rule noop:
+    notify exec "__actplane_never__" if COMMAND
+    because "noop"
+"#,
+    )
+    .expect("write policy");
+
+    let Some(mut watch) = WatchProcess::start_with_attach_pid(&policy, tmp.path(), agent.pid())
+    else {
+        eprintln!("skipping privileged watch warning e2e: no root/CAP_BPF or passwordless sudo");
+        agent.stop();
+        return;
+    };
+    let deadline = Instant::now() + Duration::from_secs(12);
+    let mut stderr = watch.stderr();
+    while !stderr.contains("pattern_contains_capped") && Instant::now() < deadline {
+        if let Some(status) = watch.child.try_wait().expect("poll watch") {
+            panic!("watch exited early with {status}; stderr: {stderr}");
+        }
+        std::thread::sleep(Duration::from_millis(100));
+        stderr = watch.stderr();
+    }
+    watch.stop();
+    agent.stop();
+    assert!(
+        stderr.contains("pattern_contains_capped"),
+        "watch did not report the capped `contains` literal; stderr: {stderr}"
+    );
+    assert!(
+        stderr.contains("**/alpha/beta/gamma/delta/**"),
+        "the warning did not name the widened pattern; stderr: {stderr}"
+    );
+}
+
 fn wait_for_control_state(watch: &mut WatchProcess, path: &std::path::Path) {
     let deadline = Instant::now() + Duration::from_secs(12);
     loop {

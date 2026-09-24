@@ -138,9 +138,16 @@ An `exec` **argv token** (`exec "git" "push"`) matches only the first 16 argv to
 **Where warnings appear.** Every warning that follows from the policy and the
 compiled blob alone is printed by `actplane compile` on all its paths: plain
 `compile --out` writes them to stderr before the success line, and
-`compile --explain`/`--json` include them in the review. `bpf_lsm_inactive_for_block`
-is the one host-dependent warning and appears only under `--explain`/`--json`,
-because the machine that compiles a blob need not be the machine that enforces
+`compile --explain`/`--json` include them in the review. The same
+pattern-lowering warnings (`pattern_literal_truncated`, `pattern_empty_literal`,
+`pattern_matcher_length_exceeded`, `pattern_literal_widened`,
+`pattern_contains_capped`) are stored in `Compiled::pattern_warnings` and printed
+to stderr by the enforcement paths that compile and load the blob themselves,
+`actplane run`, `actplane watch`, and MCP auto-attach, so a matcher the compiler
+widened to fit the kernel window is not enforced silently.
+`bpf_lsm_inactive_for_block` is the one host-dependent warning and appears only
+under `--explain`/`--json`, because the machine that compiles a blob need not be
+the machine that enforces
 it. The code names are stable identifiers, so a CI check can match on them.
 Besides the pattern, `unless target`, argv-token, and `because` warnings above,
 these are reported:

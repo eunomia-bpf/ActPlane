@@ -78,6 +78,7 @@ pub async fn watch_policy_for_pid(
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
+    warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
     let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x5741_5443);
@@ -757,6 +758,7 @@ impl EngineControl {
             .cloned()
             .unwrap_or_default();
         let compiled = dsl::compile_str_with_labels(dsl_src, &existing_labels)?;
+        warn_pattern_lowering(&compiled);
         let rule_id_base = inner.rules.len();
         let rule_count = compiled.meta.len();
         let rule_provenance = rule_provenance_json(&compiled.meta, rule_id_base);
@@ -942,6 +944,7 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
+    warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
     let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x4d43_5041);
@@ -1275,6 +1278,7 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
+    warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "run");
     let target_owner = target_user(cli.run_as_root);
@@ -1448,6 +1452,7 @@ pub async fn run_child_command(
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
+    warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
     let deltas = load_child_policy_deltas(delta_paths, delta_texts)?;
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "run-child");
@@ -1665,6 +1670,22 @@ fn runner_label(compiled: &dsl::Compiled) -> Result<u64> {
              (or AGENT for backward compatibility)"
                 .into()
         })
+}
+
+/// Print the pattern-lowering warnings the compiler recorded for a policy the
+/// runtime is about to apply.
+///
+/// `actplane compile` prints these for the same policy, but enforcement does not
+/// go through that command: `run`, `watch`, and MCP auto-attach compile the
+/// policy here and load it directly. Without this the engine enforces a matcher
+/// the policy did not write and the operator sees no warning at the moment the
+/// divergence starts to matter. The codes already mean "the compiled matcher
+/// differs from the pattern you wrote", and the message names the pattern, so no
+/// re-derivation is needed.
+fn warn_pattern_lowering(compiled: &dsl::Compiled) {
+    for warning in &compiled.pattern_warnings {
+        eprintln!("ActPlane: warning [{}]: {}", warning.code, warning.message);
+    }
 }
 
 fn control_plane_cap_state(label: u64) -> CapState {
