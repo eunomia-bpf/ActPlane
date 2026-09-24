@@ -97,6 +97,14 @@ artifact Non-Cite Rule requires:
   `combined stack size of 6 calls is 608. Too large`. Like the other `run_*_vm.sh`
   runners it is run by hand, not by CI, because the failure only reproduces on a
   kernel that performs the combined-stack walk.
+- `results/rq2-wildcard-literal-vm/`: the live 6.8 guest A/B for the
+  wildcard-literal fix (`run_rq2_wildcard_literal_vm.sh`). The same policy
+  source, `notify exec "**"`, compiled by the pre-fix binary (a18a0a44) emits
+  **zero** violations because its matcher literal carried a `*`, which
+  `taint_match` treats as a byte, while the same source compiled by the current
+  binary fires. `metadata.tsv` records both binaries' and both blobs' hashes;
+  `blob-identity.txt` records the byte-identity of the post-fix `exec "**"` blob
+  with the long-working `exec "*"` blob.
 
 All are **exploratory** evidence for the reviewer response, not promoted paper
 results. The DSL-specific frozen corpus and raw model runs still live only on the
