@@ -2125,8 +2125,8 @@ fn chown_path(path: &std::path::Path, uid: libc::uid_t, gid: libc::gid_t) -> std
 // ── ServerHandler ───────────────────────────────────────────────────
 
 impl ServerHandler for ActPlaneMcp {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(
             ServerCapabilities::builder()
                 .enable_resources()
                 .enable_tools()
