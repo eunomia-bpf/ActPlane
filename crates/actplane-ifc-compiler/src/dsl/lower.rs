@@ -118,8 +118,7 @@ fn set_pat_reported(dst: &mut [u8], s: &str, what: &str, out: &mut Vec<PatternWa
     set_pat(dst, s);
 }
 
-/// Report a literal that the kernel matcher cannot use, for a pattern that
-/// therefore never matches. Two independent ways that happens:
+/// Report a literal that the kernel matcher cannot use, for a pattern.
 ///
 /// * An empty literal for a non-`ANY` kind. `taint_streq` and `taint_prefix`
 ///   both return 0 for an empty pattern (exact: the text would have to be empty;
@@ -129,7 +128,19 @@ fn set_pat_reported(dst: &mut [u8], s: &str, what: &str, out: &mut Vec<PatternWa
 ///   construction: its literal is meant to be empty and it always matches.
 /// * A `SUFFIX`/`CONTAINS` literal past `TAINT_SUF_MAX`. Both matchers return 0
 ///   when the pattern is longer than their fixed 16-byte tail/window copy, so
-fn check_matcher_literal_bound(kind: u8, lit: &str, what: &str, out: &mut Vec<PatternWarning>) {
+///   that matcher entry never matches. It is the *entry* that dies, not always
+///   the pattern: a repo-relative `**/<name>` pattern also emits a bare `exact`
+///   companion entry in an `open`/`write`/path-gate slot, and an `exact` literal
+///   has no length bound, so the construct still matches the bare form.
+///   `live_companion` is that companion's literal when the caller emitted one,
+///   and `None` when the primary entry is the only one.
+fn check_matcher_literal_bound(
+    kind: u8,
+    lit: &str,
+    what: &str,
+    live_companion: Option<&str>,
+    out: &mut Vec<PatternWarning>,
+) {
     if kind == M_ANY {
         return;
     }
@@ -144,10 +155,17 @@ fn check_matcher_literal_bound(kind: u8, lit: &str, what: &str, out: &mut Vec<Pa
         return;
     }
     if matches!(kind, M_SUFFIX | M_CONTAINS) && lit.len() > MAX_CONTAINS_LITERAL {
+        let consequence = match live_companion {
+            None => "so the pattern can never match. Use a shorter basename pattern, or an absolute pattern with a wildcard.".to_string(),
+            Some(companion) => format!(
+                "so this {} entry can never match. The pattern also emits a companion `exact` entry for the bare form \"{companion}\", whose literal has no such bound, so the pattern still matches a bare path with no leading directory. Use a shorter basename pattern, or an absolute pattern with a wildcard.",
+                match_kind_name(kind)
+            ),
+        };
         out.push(PatternWarning {
             code: PATTERN_MATCHER_LENGTH,
             message: format!(
-                "{what} \"{lit}\" lowers to a {}-byte {} literal, but the kernel matcher rejects any literal longer than {} bytes, so the pattern can never match. Use a shorter basename pattern, or an absolute pattern with a wildcard.",
+                "{what} \"{lit}\" lowers to a {}-byte {} literal, but the kernel matcher rejects any literal longer than {} bytes, {consequence}",
                 lit.len(),
                 match_kind_name(kind),
                 MAX_CONTAINS_LITERAL
@@ -678,6 +696,17 @@ fn lower_path_companions(pat: &str) -> Vec<(u8, String)> {
         out.push((M_PREFIX, prefix));
     }
     out
+}
+
+/// The companion literal that keeps a repo-relative path pattern alive when its
+/// primary matcher dies on the kernel's 16-byte window. Companions are `exact`
+/// (bare form) or `prefix` (first-segment-relative form), and neither has that
+/// window, so the pattern still matches whenever one is emitted.
+fn live_path_companion(pat: &str) -> Option<String> {
+    lower_path_companions(pat)
+        .into_iter()
+        .find(|(m, _)| !matches!(*m, M_SUFFIX | M_CONTAINS))
+        .map(|(_, lit)| lit)
 }
 
 /// True when a repo-relative path pattern's primary matcher misses a form that
@@ -1999,7 +2028,13 @@ impl Ctx {
         // -> "gate arg"). A source/xform arg is empty and never warns.
         let arg_what = spec.what.replacen("target", "arg", 1);
         set_pat_reported(&mut u.arg, spec.arg, &arg_what, &mut self.warnings);
-        check_matcher_literal_bound(spec.m, spec.target, spec.what, &mut self.warnings);
+        check_matcher_literal_bound(
+            spec.m,
+            spec.target,
+            spec.what,
+            spec.companion,
+            &mut self.warnings,
+        );
         self.updates.push(u);
         Ok(())
     }
@@ -2076,6 +2111,10 @@ impl Ctx {
             ipv4_mask: 0,
             gate_exit_code: gate_exit.map(i32::from).unwrap_or(GATE_IMMEDIATE),
             what: "gate target",
+            companion: (low_op != OP_EXEC)
+                .then(|| live_path_companion(pat))
+                .flatten()
+                .as_deref(),
         })?;
         // Gate companions: a repo-relative path gate also arms on the
         // companion forms (same bit, so the gate is one condition).
@@ -2094,6 +2133,7 @@ impl Ctx {
                     ipv4_mask: 0,
                     gate_exit_code: GATE_IMMEDIATE,
                     what: "gate companion target",
+                    companion: None,
                 })?;
             }
         }
@@ -2145,6 +2185,10 @@ impl Ctx {
             ipv4_mask: 0,
             gate_exit_code: GATE_IMMEDIATE,
             what: "invalidator target",
+            companion: (op != OP_EXEC)
+                .then(|| live_path_companion(pat))
+                .flatten()
+                .as_deref(),
         })?;
         // Invalidator companions: a repo-relative path `since` pattern also
         // stamps the companion forms (same bit, so one invalidator).
@@ -2163,6 +2207,7 @@ impl Ctx {
                     ipv4_mask: 0,
                     gate_exit_code: GATE_IMMEDIATE,
                     what: "invalidator companion target",
+                    companion: None,
                 })?;
             }
         }
@@ -2188,6 +2233,12 @@ struct UpdateSpec<'a> {
     /// source, gate, xform, or invalidator literal reports which one it was
     /// rather than the generic "event target" all of them used to say.
     what: &'a str,
+    /// The bare `exact` companion literal the caller also emits for a
+    /// repo-relative path pattern, if any. A `SUFFIX`/`CONTAINS` primary past
+    /// the kernel window is a dead matcher entry, but its `exact` companion has
+    /// no length bound, so the pattern still matches the bare form and
+    /// [`check_matcher_literal_bound`] must say so rather than "never matches".
+    companion: Option<&'a str>,
 }
 fn pat_eq(buf: &[u8; PAT], s: &str) -> bool {
     let mut pat = [0u8; PAT];
@@ -2514,6 +2565,7 @@ pub fn compile_with_labels(
                             ipv4_mask: mk,
                             gate_exit_code: GATE_IMMEDIATE,
                             what: "source target",
+                            companion: None,
                         })?;
                     }
                 }
@@ -2535,6 +2587,10 @@ pub fn compile_with_labels(
             ipv4_mask,
             gate_exit_code: GATE_IMMEDIATE,
             what: "source target",
+            companion: (op == OP_OPEN)
+                .then(|| live_path_companion(&s.pattern))
+                .flatten()
+                .as_deref(),
         })?;
         // Repo-relative companions. The primary lowering assumes an absolute
         // runtime path; in tracepoint mode the kernel matches the userspace
@@ -2556,6 +2612,7 @@ pub fn compile_with_labels(
                     ipv4_mask: 0,
                     gate_exit_code: GATE_IMMEDIATE,
                     what: "source companion target",
+                    companion: None,
                 })?;
             }
         }
@@ -2579,6 +2636,7 @@ pub fn compile_with_labels(
             ipv4_mask: 0,
             gate_exit_code: GATE_IMMEDIATE,
             what: "transform gate",
+            companion: None,
         })?;
     }
     // Labels an update in the blob (or an earlier delta in the same domain)
@@ -2637,14 +2695,22 @@ pub fn compile_with_labels(
                 let target_matches = if op == OP_CONNECT || op == OP_RECV {
                     ctx.endpoint_matches(&cl.target.pattern)
                         .into_iter()
-                        .map(|(ipv4, ipv4_mask)| (M_ANY, String::new(), ipv4, ipv4_mask))
+                        .map(|(ipv4, ipv4_mask)| (M_ANY, String::new(), ipv4, ipv4_mask, None))
                         .collect::<Vec<_>>()
                 } else {
                     let l = lower_target_reported(op, cl.target.kind, &cl.target.pattern);
                     let (tm, tlit, widened, capped) = (l.kind, l.lit, l.widened, l.capped);
                     warn_widened_literal(&cl.target.pattern, widened, "rule target", &mut warnings);
                     warn_capped_literal(&cl.target.pattern, capped, "rule target", &mut warnings);
-                    let mut v = vec![(tm, tlit, 0, 0)];
+                    let mut v = vec![(
+                        tm,
+                        tlit,
+                        0,
+                        0,
+                        (op == OP_OPEN || op == OP_WRITE)
+                            .then(|| live_path_companion(&cl.target.pattern))
+                            .flatten(),
+                    )];
                     // Repo-relative companions for the sink target, mirroring
                     // the file source. An extra rule entry is verifier-free
                     // (the scans run in bpf_loop callbacks), and a companion
@@ -2652,12 +2718,12 @@ pub fn compile_with_labels(
                     // single best-effect match, so no event fires twice.
                     if op == OP_OPEN || op == OP_WRITE {
                         for (cm, clit) in lower_path_companions(&cl.target.pattern) {
-                            v.push((cm, clit, 0, 0));
+                            v.push((cm, clit, 0, 0, None));
                         }
                     }
                     v
                 };
-                for (tm, tlit, ipv4, ipv4_mask) in target_matches {
+                for (tm, tlit, ipv4, ipv4_mask, comp) in target_matches {
                     // condition
                     let (mut ck, mut cneg, mut cm, mut clit, mut gate) =
                         (C_NONE, 0u8, M_EXACT, String::new(), 0u64);
@@ -2770,7 +2836,13 @@ pub fn compile_with_labels(
                         cr.domain_id = 0;
                         cr.since_mask = since_mask;
                         set_pat_reported(&mut cr.target, &tlit, "rule target", &mut warnings);
-                        check_matcher_literal_bound(tm, &tlit, "rule target", &mut warnings);
+                        check_matcher_literal_bound(
+                            tm,
+                            &tlit,
+                            "rule target",
+                            comp.as_deref(),
+                            &mut warnings,
+                        );
                         if let Some(a) = &cl.target.arg {
                             set_pat_reported(&mut cr.arg, a, "rule arg", &mut warnings);
                         }
@@ -2789,6 +2861,7 @@ pub fn compile_with_labels(
                                 cm,
                                 &clit,
                                 "rule condition pattern",
+                                None,
                                 &mut warnings,
                             );
                         }

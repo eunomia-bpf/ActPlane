@@ -745,6 +745,46 @@ rule secret:
     }
 
     #[test]
+    fn over_bound_suffix_literal_with_a_live_companion_is_not_reported_as_dead() {
+        // A repo-relative `**/<name>` target also emits a bare `exact`
+        // companion, and `exact` has no length bound, so an over-bound suffix
+        // primary leaves the rule alive for the bare form. The message must say
+        // which entry dies instead of claiming the pattern can never match.
+        let long = "a".repeat(27);
+        let compiled = ok(&format!(
+            "source A = exec \"a\"\nrule r:\n  block write file \"**/{long}\" if A\n  because \"x\"\n"
+        ));
+        assert_eq!(
+            warning_codes(&compiled),
+            vec![lower::PATTERN_MATCHER_LENGTH],
+            "one over-bound literal expected: {:?}",
+            compiled.pattern_warnings
+        );
+        let message = &compiled.pattern_warnings[0].message;
+        assert!(
+            !message.contains("so the pattern can never match"),
+            "a live exact companion keeps the pattern alive: {message}"
+        );
+        assert!(
+            message.contains("this suffix entry can never match") && message.contains(&long),
+            "message should scope the death to the entry and name the companion: {message}"
+        );
+
+        // A `**/*<name>` target lowers to a lone suffix entry with no companion,
+        // so there the whole pattern really is dead.
+        let compiled = ok(&format!(
+            "source A = exec \"a\"\nrule r:\n  block write file \"**/*{long}\" if A\n  because \"x\"\n"
+        ));
+        assert!(
+            compiled.pattern_warnings[0]
+                .message
+                .contains("so the pattern can never match"),
+            "a companion-less form is dead: {}",
+            compiled.pattern_warnings[0].message
+        );
+    }
+
+    #[test]
     fn empty_literal_pattern_is_reported() {
         // `taint_streq` and `taint_prefix` both reject an empty pattern, so a
         // pattern that lowers to an empty literal can never fire: `exec "src/*"`
