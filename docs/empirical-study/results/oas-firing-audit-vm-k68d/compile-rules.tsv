@@ -1,0 +1,10 @@
+policy	lowered_rules
+safety-applications	2
+safety-bloat	2
+safety-image-message	2
+safety-qr-code	2
+safety-command-bot	2
+safety-backup-cron-job	3
+safety-disk-wiping	7
+safety-sharing-files	2
+safety-delete-config	9
