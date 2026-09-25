@@ -827,6 +827,23 @@ rule secret:
             lower::PATTERN_TRUNCATED,
         );
         assert!(msg.starts_with("source target "), "got: {msg}");
+        // The arg diagnostic follows the same rule: only a gate/invalidator
+        // carries a non-empty arg, and the arg borrows the construct's name.
+        let arg = "x".repeat(80);
+        let msg = first(
+            &format!(
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A unless after exec \"**/pnpm\" \"{arg}\"\n  because \"x\"\n"
+            ),
+            lower::PATTERN_TRUNCATED,
+        );
+        assert!(msg.starts_with("gate arg "), "got: {msg}");
+        let msg = first(
+            &format!(
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A unless after exec \"**/pytest\" since exec \"**/pnpm\" \"{arg}\"\n  because \"x\"\n"
+            ),
+            lower::PATTERN_TRUNCATED,
+        );
+        assert!(msg.starts_with("invalidator arg "), "got: {msg}");
     }
 
     #[test]

@@ -1890,7 +1890,11 @@ impl Ctx {
         u.gate_exit_code = spec.gate_exit_code;
         u.domain_id = 0;
         set_pat_reported(&mut u.target, spec.target, spec.what, &mut self.warnings);
-        set_pat_reported(&mut u.arg, spec.arg, "event arg", &mut self.warnings);
+        // Only a gate or an invalidator carries a non-empty arg, and both name
+        // themselves in `what`, so the arg diagnostic follows it ("gate target"
+        // -> "gate arg"). A source/xform arg is empty and never warns.
+        let arg_what = spec.what.replacen("target", "arg", 1);
+        set_pat_reported(&mut u.arg, spec.arg, &arg_what, &mut self.warnings);
         check_matcher_literal_bound(spec.m, spec.target, spec.what, &mut self.warnings);
         self.updates.push(u);
         Ok(())
