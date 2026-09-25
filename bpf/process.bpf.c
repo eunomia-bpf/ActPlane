@@ -3421,7 +3421,64 @@ static __always_inline int handle_io_exit_write(long ret)
 	return 0;
 }
 
-static __always_inline int handle_io_exit_addr(long ret, __u32 access)
+/* Keep recv and send exits separate. Older verifiers charge the inlined
+ * recv matcher, SCM_RIGHTS scanner, and Unix-send fallback to one call chain
+ * when they share this handler, even though access is constant at each hook. */
+static __noinline int handle_io_exit_addr_read(long ret)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	pid_t pid = tid >> 32;
+	struct io_pend *p = bpf_map_lookup_elem(&ts_iopend, &tid);
+
+	if (!p)
+		return 0;
+	if (enforce_mode) {
+		bpf_map_delete_elem(&ts_iopend, &tid);
+		return 0;
+	}
+	if (ret > 0 && te_pid_active(pid)) {
+		int fd = p->fd;
+		__u64 addr_ptr = p->addr_ptr;
+		__u32 addr_kind = p->addr_kind;
+		struct fd_ref *ref = te_lookup_fd(pid, fd);
+		__u32 *peer_ip = 0;
+
+		if (ref && (policy_features & TE_POLICY_FILE_FLOW))
+			te_read(pid, &ref->fid, ref->path);
+		if (policy_features & TE_POLICY_RECV)
+			peer_ip = te_lookup_sockfd(pid, fd);
+		if (peer_ip) {
+			te_handle_net_ip(*peer_ip, TE_ACCESS_RECV,
+					 te_tracepoint_mode());
+		} else if (addr_ptr) {
+			__u32 ip = 0;
+
+			if ((policy_features & TE_POLICY_RECV) &&
+			    te_resolve_io_sockaddr(addr_kind, addr_ptr, &ip) == 0)
+				te_handle_net_ip(ip, TE_ACCESS_RECV,
+						 te_tracepoint_mode());
+		}
+	}
+	bpf_map_delete_elem(&ts_iopend, &tid);
+	return 0;
+}
+
+/* SCM_RIGHTS scanning has its own frame so the recvmsg exit hook does not
+ * retain the endpoint-matching frame while it walks ancillary data. */
+static __noinline void handle_io_exit_recvmsg_rights(long ret)
+{
+	__u64 tid = bpf_get_current_pid_tgid();
+	pid_t pid = tid >> 32;
+	struct io_pend *p = bpf_map_lookup_elem(&ts_iopend, &tid);
+
+	if (!p || enforce_mode || ret <= 0 || !te_pid_active(pid))
+		return;
+	if ((policy_features & TE_POLICY_FILE_FLOW) &&
+	    p->addr_kind == TE_IO_ADDR_USER_MSGHDR)
+		te_handle_scm_rights(pid, p->addr_ptr);
+}
+
+static __always_inline int handle_io_exit_addr_write(long ret)
 {
 	__u64 tid = bpf_get_current_pid_tgid();
 	pid_t pid = tid >> 32;
@@ -3441,40 +3498,21 @@ static __always_inline int handle_io_exit_addr(long ret, __u32 access)
 		struct fd_ref *ref = te_lookup_fd(pid, fd);
 		__u32 *peer_ip = 0;
 
-		if (ref && (policy_features & TE_POLICY_FILE_FLOW)) {
-			if (access & TE_ACCESS_READ)
-				te_read(pid, &ref->fid, ref->path);
-			if (access & TE_ACCESS_WRITE)
-				te_write_flow(pid, &ref->fid, ref->path);
-		}
-		if ((access & TE_ACCESS_READ) &&
-		    (policy_features & TE_POLICY_FILE_FLOW) &&
-		    addr_kind == TE_IO_ADDR_USER_MSGHDR)
-			te_handle_scm_rights(pid, addr_ptr);
-		if (((access & TE_ACCESS_READ) && (policy_features & TE_POLICY_RECV)) ||
-		    ((access & TE_ACCESS_WRITE) && (policy_features & TE_POLICY_FILE_FLOW)))
+		if (ref && (policy_features & TE_POLICY_FILE_FLOW))
+			te_write_flow(pid, &ref->fid, ref->path);
+		if (policy_features & TE_POLICY_FILE_FLOW)
 			peer_ip = te_lookup_sockfd(pid, fd);
 		if (peer_ip) {
-			if (access & TE_ACCESS_READ)
-				te_handle_net_ip(*peer_ip, TE_ACCESS_RECV,
-						 te_tracepoint_mode());
-			if (access & TE_ACCESS_WRITE)
-				te_connect_flow(*peer_ip, pid);
+			te_connect_flow(*peer_ip, pid);
 		} else if (addr_ptr) {
 			__u32 ip = 0;
 			struct file_scratch *scratch = file_scratch_buf();
 
-			if (te_resolve_io_sockaddr(addr_kind, addr_ptr, &ip) ==
-			    0) {
-				if ((access & TE_ACCESS_READ) &&
-				    (policy_features & TE_POLICY_RECV))
-					te_handle_net_ip(ip, TE_ACCESS_RECV,
-							 te_tracepoint_mode());
-				if ((access & TE_ACCESS_WRITE) &&
-				    (policy_features & TE_POLICY_CONNECT))
-					te_handle_net_ip(ip, TE_ACCESS_CONNECT,
-							 te_tracepoint_mode());
-			} else if (scratch && (access & TE_ACCESS_WRITE) &&
+			if ((policy_features & TE_POLICY_CONNECT) &&
+			    te_resolve_io_sockaddr(addr_kind, addr_ptr, &ip) == 0) {
+				te_handle_net_ip(ip, TE_ACCESS_CONNECT,
+						 te_tracepoint_mode());
+			} else if (scratch &&
 				   (policy_features & TE_POLICY_FILE_FLOW)) {
 				__builtin_memset(scratch, 0, sizeof(*scratch));
 				if (te_resolve_io_unix_sockaddr(
@@ -3734,7 +3772,7 @@ int trace_sendto(struct trace_event_raw_sys_enter *ctx)
 SEC("tp/syscalls/sys_exit_sendto")
 int trace_sendto_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_io_exit_addr(ctx->ret, TE_ACCESS_WRITE);
+	return handle_io_exit_addr_write(ctx->ret);
 }
 
 SEC("tp/syscalls/sys_enter_recvfrom")
@@ -3748,7 +3786,7 @@ int trace_recvfrom(struct trace_event_raw_sys_enter *ctx)
 SEC("tp/syscalls/sys_exit_recvfrom")
 int trace_recvfrom_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_io_exit_addr(ctx->ret, TE_ACCESS_READ);
+	return handle_io_exit_addr_read(ctx->ret);
 }
 
 SEC("tp/syscalls/sys_enter_sendmsg")
@@ -3762,7 +3800,7 @@ int trace_sendmsg(struct trace_event_raw_sys_enter *ctx)
 SEC("tp/syscalls/sys_exit_sendmsg")
 int trace_sendmsg_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_io_exit_addr(ctx->ret, TE_ACCESS_WRITE);
+	return handle_io_exit_addr_write(ctx->ret);
 }
 
 SEC("tp/syscalls/sys_enter_recvmsg")
@@ -3776,7 +3814,8 @@ int trace_recvmsg(struct trace_event_raw_sys_enter *ctx)
 SEC("tp/syscalls/sys_exit_recvmsg")
 int trace_recvmsg_exit(struct trace_event_raw_sys_exit *ctx)
 {
-	return handle_io_exit_addr(ctx->ret, TE_ACCESS_READ);
+	handle_io_exit_recvmsg_rights(ctx->ret);
+	return handle_io_exit_addr_read(ctx->ret);
 }
 
 static __always_inline int stash_dup(int oldfd)
