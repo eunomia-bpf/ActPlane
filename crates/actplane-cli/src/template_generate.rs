@@ -47,24 +47,29 @@ pub(crate) fn generate(
             }
         }
     }
+    let mut task_text = String::new();
     if let Some(task) = task {
-        instruction_text.push_str(task);
-        instruction_text.push('\n');
+        task_text.push_str(task);
+        task_text.push('\n');
     }
-    let lower = instruction_text.to_lowercase();
+    // Selection runs on the merged text, while attribution runs on each source
+    // separately so an emitted reason can name the one that actually matched.
+    let lower = format!("{instruction_text}{task_text}").to_lowercase();
+    let instructions_lower = instruction_text.to_lowercase();
+    let task_lower = task_text.to_lowercase();
     let agent_exec = infer_agent_exec(&lower);
     let mut out = Vec::new();
 
-    if mentions_any(
-        &lower,
-        &["git branch", "git worktree", "no-git-branch", "worktree"],
-    ) {
+    if mentions_any(&lower, BRANCH_NEEDLES) {
         out.push(GeneratedTemplate {
             id: "no-git-branch",
             params: vec![format!("agent_exec={agent_exec}")],
-            reasons: vec![
-                "project instructions restrict agent-created git branches/worktrees".into(),
-            ],
+            reasons: vec![mention_reason(
+                &instructions_lower,
+                &task_lower,
+                BRANCH_NEEDLES,
+                "agent-created git branches or worktrees",
+            )],
         });
     }
 
@@ -76,11 +81,25 @@ pub(crate) fn generate(
                 "git_exec=git".into(),
                 "push_arg=push".into(),
             ],
-            reasons: vec!["project instructions forbid agent-run git push".into()],
+            reasons: vec![
+                mentioned_source(&instructions_lower, &task_lower, mentions_no_git_push)
+                    .reason("agent-run git push"),
+            ],
         });
     }
 
-    if mentions_test_before_commit(&lower) || has_source_tree(root) {
+    let mentions_tests = mentions_test_before_commit(&lower);
+    if mentions_tests || has_source_tree(root) {
+        let reason = if mentions_tests {
+            mentioned_source(
+                &instructions_lower,
+                &task_lower,
+                mentions_test_before_commit,
+            )
+            .reason("tests before commit")
+        } else {
+            "project appears to have source/test files".to_string()
+        };
         out.push(GeneratedTemplate {
             id: "test-before-commit",
             params: vec![
@@ -88,10 +107,7 @@ pub(crate) fn generate(
                 format!("test_exec={}", infer_test_exec(root, &lower)),
                 format!("changed_paths={}", infer_changed_paths(root)),
             ],
-            reasons: vec![
-                "project appears to have source/test files or instructions about tests before commit"
-                    .into(),
-            ],
+            reasons: vec![reason],
         });
     }
 
@@ -106,7 +122,12 @@ pub(crate) fn generate(
                 "commit_arg=commit".into(),
             ],
             reasons: vec![
-                "project instructions mention dependency or lockfile update validation".into(),
+                mentioned_source(
+                    &instructions_lower,
+                    &task_lower,
+                    mentions_dependency_update_gate,
+                )
+                .reason("dependency or lockfile update validation"),
             ],
         });
     }
@@ -122,67 +143,83 @@ pub(crate) fn generate(
                 "approval_exec=**/approve-push".into(),
             ],
             reasons: vec![
-                "project instructions mention protected branches, refs, or git push approval"
-                    .into(),
+                mentioned_source(
+                    &instructions_lower,
+                    &task_lower,
+                    mentions_protected_push_approval,
+                )
+                .reason("protected branches, refs, or git push approval"),
             ],
         });
     }
 
-    if mentions_any(
-        &lower,
-        &[
-            "secret",
-            "credential",
-            "token",
-            "api key",
-            ".env",
-            ".npmrc",
-            ".pypirc",
-        ],
-    ) || root.join(".env").exists()
-        || root.join("secrets").exists()
-    {
+    let mentions_secrets = mentions_any(&lower, SECRET_NEEDLES);
+    let has_secret_files = root.join(".env").exists() || root.join("secrets").exists();
+    if mentions_secrets || has_secret_files {
+        let mut reasons = Vec::new();
+        if mentions_secrets {
+            reasons.push(mention_reason(
+                &instructions_lower,
+                &task_lower,
+                SECRET_NEEDLES,
+                "secrets",
+            ));
+        }
+        if has_secret_files {
+            reasons.push("project contains secret-like files such as .env or secrets/".into());
+        }
         out.push(GeneratedTemplate {
             id: "no-secret-egress",
             params: vec![
                 format!("secret_paths={}", infer_secret_paths(root)),
                 "redactor_exec=**/redact".into(),
             ],
-            reasons: vec![
-                "project contains secret-like files or instructions mention secrets".into(),
-            ],
+            reasons,
         });
     }
 
-    if mentions_any(&lower, &["no network", "offline", "external network"]) {
+    if mentions_any(&lower, NETWORK_NEEDLES) {
         out.push(GeneratedTemplate {
             id: "no-network",
             params: vec![
                 format!("agent_exec={agent_exec}"),
                 "loopback_endpoint=127.".into(),
             ],
-            reasons: vec!["project instructions mention network isolation".into()],
+            reasons: vec![mention_reason(
+                &instructions_lower,
+                &task_lower,
+                NETWORK_NEEDLES,
+                "network isolation",
+            )],
         });
     }
 
-    if mentions_any(&lower, &["read-only", "readonly"])
-        && mentions_any(&lower, &["review", "subagent", "sub-agent"])
-    {
+    if mentions_any(&lower, READONLY_NEEDLES) && mentions_any(&lower, REVIEW_NEEDLES) {
         out.push(GeneratedTemplate {
             id: "readonly-review",
             params: vec![format!("agent_exec={agent_exec}")],
-            reasons: vec!["project instructions mention read-only review work".into()],
+            reasons: vec![
+                mentioned_source(&instructions_lower, &task_lower, |text| {
+                    mentions_any(text, READONLY_NEEDLES) && mentions_any(text, REVIEW_NEEDLES)
+                })
+                .reason("read-only review work"),
+            ],
         });
     }
 
-    if mentions_any(&lower, &["prod.db", "production database", "migrate"]) {
+    if mentions_any(&lower, PROD_DB_NEEDLES) {
         out.push(GeneratedTemplate {
             id: "prod-db-via-migrate",
             params: vec![
                 "database_path=**/prod.db".into(),
                 "mediator_exec=**/migrate".into(),
             ],
-            reasons: vec!["project instructions mention production database mediation".into()],
+            reasons: vec![mention_reason(
+                &instructions_lower,
+                &task_lower,
+                PROD_DB_NEEDLES,
+                "production database mediation",
+            )],
         });
     }
 
@@ -678,6 +715,64 @@ fn mentions_any(haystack: &str, needles: &[&str]) -> bool {
     needles.iter().any(|needle| haystack.contains(needle))
 }
 
+const BRANCH_NEEDLES: &[&str] = &["git branch", "git worktree", "no-git-branch", "worktree"];
+const SECRET_NEEDLES: &[&str] = &[
+    "secret",
+    "credential",
+    "token",
+    "api key",
+    ".env",
+    ".npmrc",
+    ".pypirc",
+];
+const NETWORK_NEEDLES: &[&str] = &["no network", "offline", "external network"];
+const READONLY_NEEDLES: &[&str] = &["read-only", "readonly"];
+const REVIEW_NEEDLES: &[&str] = &["review", "subagent", "sub-agent"];
+const PROD_DB_NEEDLES: &[&str] = &["prod.db", "production database", "migrate"];
+
+/// Which of the two generator text sources matched a heuristic.
+enum MentionedSource {
+    Instructions,
+    Task,
+    Both,
+    Neither,
+}
+
+impl MentionedSource {
+    /// Reason clause naming the matched source. A reason must never credit
+    /// project instructions for a match found only in the `--task` hint.
+    fn reason(self, object: &str) -> String {
+        match self {
+            MentionedSource::Instructions => format!("project instructions mention {object}"),
+            MentionedSource::Task => format!("the task hint mentions {object}"),
+            MentionedSource::Both => {
+                format!("project instructions and the task hint mention {object}")
+            }
+            MentionedSource::Neither => format!("instructions or the task hint mention {object}"),
+        }
+    }
+}
+
+/// Evaluate `predicate` against each source independently so the reason can name
+/// the matching one. `Neither` covers a match that only spans the merge boundary.
+fn mentioned_source(
+    instructions: &str,
+    task: &str,
+    predicate: impl Fn(&str) -> bool,
+) -> MentionedSource {
+    match (predicate(instructions), predicate(task)) {
+        (true, true) => MentionedSource::Both,
+        (true, false) => MentionedSource::Instructions,
+        (false, true) => MentionedSource::Task,
+        (false, false) => MentionedSource::Neither,
+    }
+}
+
+/// Attribution for the common "any of these needles" predicate.
+fn mention_reason(instructions: &str, task: &str, needles: &[&str], object: &str) -> String {
+    mentioned_source(instructions, task, |text| mentions_any(text, needles)).reason(object)
+}
+
 fn append_comment_block(out: &mut String, label: &str, text: &str) {
     let mut lines = text.lines();
     if let Some(first) = lines.next() {
@@ -869,13 +964,52 @@ mod tests {
     fn generator_uses_task_hint_without_instruction_files() {
         let tmp = tempfile::tempdir().unwrap();
         let generated = generate(tmp.path(), &[], Some("offline readonly review")).unwrap();
-        let ids = generated
+        assert!(generated.instruction_files.is_empty());
+        let reasons = generated
             .templates
             .iter()
-            .map(|selection| selection.id)
+            .map(|selection| (selection.id, selection.reasons.join("; ")))
             .collect::<Vec<_>>();
-        assert!(ids.contains(&"no-network"));
-        assert!(ids.contains(&"readonly-review"));
+        assert!(reasons.contains(&(
+            "no-network",
+            "the task hint mentions network isolation".into()
+        )));
+        assert!(reasons.contains(&(
+            "readonly-review",
+            "the task hint mentions read-only review work".into()
+        )));
+        // A reason crediting project instructions here would contradict the
+        // header's "Instructions considered: none found".
+        let yaml = render_yaml(&generated).unwrap();
+        assert!(yaml.contains("# Instructions considered: none found"));
+        assert!(!yaml.contains("project instructions"));
+    }
+
+    #[test]
+    fn generator_attributes_reasons_to_the_matching_source() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("AGENTS.md"), "The agent must work offline.").unwrap();
+        let from_instructions = generate(tmp.path(), &[], None).unwrap();
+        let no_network = from_instructions
+            .templates
+            .iter()
+            .find(|selection| selection.id == "no-network")
+            .expect("no-network selection from instruction file");
+        assert_eq!(
+            no_network.reasons,
+            vec!["project instructions mention network isolation".to_string()]
+        );
+
+        let both = generate(tmp.path(), &[], Some("no network egress")).unwrap();
+        let no_network = both
+            .templates
+            .iter()
+            .find(|selection| selection.id == "no-network")
+            .unwrap();
+        assert_eq!(
+            no_network.reasons,
+            vec!["project instructions and the task hint mention network isolation".to_string()]
+        );
     }
 
     #[test]
