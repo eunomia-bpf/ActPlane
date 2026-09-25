@@ -785,6 +785,46 @@ rule secret:
     }
 
     #[test]
+    fn over_bound_suffix_literal_is_not_also_reported_as_truncated() {
+        // A `suffix`/`contains` literal is compared against a fixed 16-byte
+        // tail/window, so any literal long enough to be truncated (>63 bytes)
+        // is necessarily still past that bound and never matches at all. The
+        // truncation warning would then both duplicate and, worded as "matches
+        // that prefix", contradict `pattern_matcher_length_exceeded` on the
+        // same entry, so only the length bound is reported.
+        let long = "x".repeat(70);
+        let compiled = ok(&format!(
+            "source A = exec \"a\"\nrule r:\n  block write file \"**/*{long}\" if A\n  because \"x\"\n"
+        ));
+        assert_eq!(
+            warning_codes(&compiled),
+            vec![lower::PATTERN_MATCHER_LENGTH],
+            "a dead suffix entry is reported once: {:?}",
+            compiled.pattern_warnings
+        );
+
+        // An absolute literal lowers to `PREFIX`/`EXACT`, where the stored
+        // prefix really does keep matching, so the truncation consequence is
+        // both true and distinct, and must still be reported.
+        let compiled = ok(&format!(
+            "source A = exec \"a\"\nrule r:\n  block write file \"/tmp/{long}\" if A\n  because \"x\"\n"
+        ));
+        assert_eq!(
+            warning_codes(&compiled),
+            vec![lower::PATTERN_TRUNCATED],
+            "a prefix literal keeps its truncation warning: {:?}",
+            compiled.pattern_warnings
+        );
+        assert!(
+            compiled.pattern_warnings[0]
+                .message
+                .contains("matches that prefix"),
+            "prefix wording expected: {}",
+            compiled.pattern_warnings[0].message
+        );
+    }
+
+    #[test]
     fn empty_literal_pattern_is_reported() {
         // Every non-ANY matcher rejects an empty pattern (`taint_streq`,
         // `taint_prefix` and `taint_contains` all guard on a zero pattern

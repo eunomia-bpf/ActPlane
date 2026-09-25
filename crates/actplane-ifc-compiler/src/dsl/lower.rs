@@ -91,10 +91,11 @@ struct CConfig {
 ///
 /// Truncation is silent to the kernel: the stored literal is a prefix of the
 /// intended one, so a rule meant to match a long path or comm instead matches
-/// that prefix (an `EXACT` literal then never matches the intended target, and a
-/// `PREFIX`/`SUFFIX` literal matches a broader set). Callers that want the
-/// mismatch reported use [`set_pat_reported`], which records it in
-/// `Compiled::pattern_warnings` for the CLI to surface.
+/// that prefix. An `EXACT` literal then never matches the intended target and a
+/// `PREFIX` literal matches a broader set; a `SUFFIX`/`CONTAINS` literal is
+/// still longer than its 16-byte tail/window bound, so it never matches at all.
+/// Callers that want the mismatch reported use [`set_pat_reported`], which
+/// records it in `Compiled::pattern_warnings` for the CLI to surface.
 fn set_pat(dst: &mut [u8], s: &str) {
     let b = s.as_bytes();
     let n = b.len().min(dst.len() - 1);
@@ -105,8 +106,19 @@ fn set_pat(dst: &mut [u8], s: &str) {
 /// [`set_pat`] plus, when the literal did not fit, a warning naming what was
 /// truncated and the effective limit. The message is built here because this
 /// module owns the buffer sizes.
-fn set_pat_reported(dst: &mut [u8], s: &str, what: &str, out: &mut Vec<PatternWarning>) {
-    if !s.is_empty() && s.len() > dst.len() - 1 {
+///
+/// `kind` is the match the field is read with, because truncation is not the
+/// same consequence for every matcher. For a `PREFIX`/`EXACT` matcher the stored
+/// prefix keeps matching, which is a distinct fact worth reporting. For
+/// `SUFFIX`/`CONTAINS` the literal is compared against a fixed 16-byte
+/// tail/window (`TAINT_SUF_MAX`), and any literal long enough to be truncated
+/// (>63 bytes) is necessarily still longer than that, so such an entry never
+/// matches at all and the truncation is not the operative cause.
+/// [`check_matcher_literal_bound`] reports that bound on the same field, so
+/// emitting a truncation warning here too would only duplicate it (and, worded
+/// as "matches that prefix", contradict it). Skip it for those matchers.
+fn set_pat_reported(dst: &mut [u8], s: &str, what: &str, kind: u8, out: &mut Vec<PatternWarning>) {
+    if !s.is_empty() && s.len() > dst.len() - 1 && !matches!(kind, M_SUFFIX | M_CONTAINS) {
         out.push(PatternWarning {
             code: PATTERN_TRUNCATED,
             message: format!(
@@ -2039,12 +2051,18 @@ impl Ctx {
         u.ipv4_mask = spec.ipv4_mask;
         u.gate_exit_code = spec.gate_exit_code;
         u.domain_id = 0;
-        set_pat_reported(&mut u.target, spec.target, spec.what, &mut self.warnings);
+        set_pat_reported(
+            &mut u.target,
+            spec.target,
+            spec.what,
+            spec.m,
+            &mut self.warnings,
+        );
         // Only a gate or an invalidator carries a non-empty arg, and both name
         // themselves in `what`, so the arg diagnostic follows it ("gate target"
         // -> "gate arg"). A source/xform arg is empty and never warns.
         let arg_what = spec.what.replacen("target", "arg", 1);
-        set_pat_reported(&mut u.arg, spec.arg, &arg_what, &mut self.warnings);
+        set_pat_reported(&mut u.arg, spec.arg, &arg_what, M_EXACT, &mut self.warnings);
         check_matcher_literal_bound(
             spec.m,
             spec.target,
@@ -2852,7 +2870,7 @@ pub fn compile_with_labels(
                         cr.gate_idx = gate_idx;
                         cr.domain_id = 0;
                         cr.since_mask = since_mask;
-                        set_pat_reported(&mut cr.target, &tlit, "rule target", &mut warnings);
+                        set_pat_reported(&mut cr.target, &tlit, "rule target", tm, &mut warnings);
                         check_matcher_literal_bound(
                             tm,
                             &tlit,
@@ -2861,7 +2879,7 @@ pub fn compile_with_labels(
                             &mut warnings,
                         );
                         if let Some(a) = &cl.target.arg {
-                            set_pat_reported(&mut cr.arg, a, "rule arg", &mut warnings);
+                            set_pat_reported(&mut cr.arg, a, "rule arg", M_EXACT, &mut warnings);
                         }
                         // Only a `target` condition on a path/exec op stores a
                         // pattern; `connect`/`recv` store the condition as a
@@ -2872,6 +2890,7 @@ pub fn compile_with_labels(
                                 &mut cr.cond_pat,
                                 &clit,
                                 "rule condition pattern",
+                                cm,
                                 &mut warnings,
                             );
                             check_matcher_literal_bound(
