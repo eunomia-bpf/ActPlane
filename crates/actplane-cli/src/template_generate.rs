@@ -386,15 +386,42 @@ fn infer_secret_paths(root: &Path) -> String {
 
 fn infer_dependency_paths(root: &Path) -> String {
     let mut paths = BTreeSet::new();
-    collect_dependency_paths(root, root, 0, &mut paths);
+    collect_dependency_paths(root, 0, &mut paths);
     if paths.is_empty() {
-        "Cargo.lock,package-lock.json,pnpm-lock.yaml,yarn.lock,go.sum,requirements*.txt,pyproject.toml".into()
+        DEFAULT_DEPENDENCY_PATHS.into()
     } else {
         paths.into_iter().take(24).collect::<Vec<_>>().join(",")
     }
 }
 
-fn collect_dependency_paths(root: &Path, dir: &Path, depth: usize, out: &mut BTreeSet<String>) {
+/// Dependency manifests used when the scan finds none in the repository.
+///
+/// Each entry must lower to a matcher within the kernel's `contains` window
+/// (`TAINT_SUF_MAX`, 16 bytes), so `package-lock.*` stands in for the 17-byte
+/// `package-lock.json`, which would otherwise be shortened to a substring that
+/// matches strictly more than the manifest.
+pub(crate) const DEFAULT_DEPENDENCY_PATHS: &str =
+    "Cargo.lock,package-lock.*,pnpm-lock.yaml,yarn.lock,go.sum,requirements*.txt,pyproject.toml";
+
+/// Map a discovered manifest file name to a warning-free invalidator glob.
+///
+/// Emitting the repository-relative path instead would fail the same window: a
+/// nested `packages/web/package.json` lowers to a `contains` literal longer than
+/// 16 bytes and is shortened to its parent directory (`web/package.json` then
+/// `packages/web/`), naming a directory rather than the manifest. A basename
+/// glob matches any depth, so nested manifests also collapse to one entry.
+fn manifest_glob(name: &str) -> &str {
+    match name {
+        // 17 bytes, one over the kernel's 16-byte window.
+        "package-lock.json" => "package-lock.*",
+        _ if name.len() > 16 && name.starts_with("requirements") && name.ends_with(".txt") => {
+            "requirements*.txt"
+        }
+        _ => name,
+    }
+}
+
+fn collect_dependency_paths(dir: &Path, depth: usize, out: &mut BTreeSet<String>) {
     if depth > 3 || out.len() >= 24 {
         return;
     }
@@ -408,12 +435,7 @@ fn collect_dependency_paths(root: &Path, dir: &Path, depth: usize, out: &mut BTr
         let name = file_name.to_string_lossy();
         if path.is_file() {
             if is_dependency_manifest_name(&name) {
-                if let Ok(rel) = path.strip_prefix(root) {
-                    let rel = rel.to_string_lossy().replace('\\', "/");
-                    if !rel.contains(|c| matches!(c, ',' | '"' | '{' | '}' | '\n' | '\r')) {
-                        out.insert(rel);
-                    }
-                }
+                out.insert(manifest_glob(&name).to_string());
             }
         } else if path.is_dir() && !skip_dependency_scan_dir(&name) {
             subdirs.push(path);
@@ -424,7 +446,7 @@ fn collect_dependency_paths(root: &Path, dir: &Path, depth: usize, out: &mut BTr
         if out.len() >= 24 {
             break;
         }
-        collect_dependency_paths(root, &subdir, depth + 1, out);
+        collect_dependency_paths(&subdir, depth + 1, out);
     }
 }
 
@@ -838,8 +860,9 @@ mod tests {
             .iter()
             .find_map(|param| param.strip_prefix("dependency_paths="))
             .expect("dependency_paths param");
-        assert!(dependency_paths.contains("packages/web/package.json"));
-        assert!(dependency_paths.contains("packages/web/pnpm-lock.yaml"));
+        // Variants at any depth collapse to one basename glob, which lowers
+        // within the kernel's pattern window; a repo-relative path would not.
+        assert_eq!(dependency_paths, "package.json,pnpm-lock.yaml");
     }
 
     #[test]

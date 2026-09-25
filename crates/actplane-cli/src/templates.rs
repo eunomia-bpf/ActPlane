@@ -103,7 +103,7 @@ static PARAM_DEPENDENCY_UPDATE_GATE: &[TemplateParam] = &[
     TemplateParam {
         name: "dependency_paths",
         value_name: "GLOB[,GLOB...]",
-        default: "Cargo.lock,package-lock.json,pnpm-lock.yaml,yarn.lock,go.sum,requirements*.txt,pyproject.toml",
+        default: crate::template_generate::DEFAULT_DEPENDENCY_PATHS,
         description: "comma-separated dependency manifest or lockfile globs",
     },
     TemplateParam {
@@ -619,9 +619,20 @@ mod tests {
         for template in all() {
             let rendered = render_dsl(template, &[])
                 .unwrap_or_else(|e| panic!("template {} render DSL: {e}", template.id));
-            dsl::compile_str(&rendered)
+            let compiled = dsl::compile_str(&rendered)
                 .unwrap_or_else(|e| panic!("template {} DSL compile: {e}", template.id));
-
+            // A default a user enforces must not silently lower to a matcher
+            // looser than the glob it names (see `shipped_policies_compile_without_warnings`).
+            assert!(
+                compiled.pattern_warnings.is_empty(),
+                "template {} default render warns: {:?}",
+                template.id,
+                compiled
+                    .pattern_warnings
+                    .iter()
+                    .map(|w| (&w.code, &w.message))
+                    .collect::<Vec<_>>()
+            );
             let yaml = render_yaml(template, &[])
                 .unwrap_or_else(|e| panic!("template {} render YAML: {e}", template.id));
             let config: FileConfig = serde_yaml::from_str(&yaml)
@@ -633,8 +644,18 @@ mod tests {
             };
             let source = policy_source(&loaded, None)
                 .unwrap_or_else(|e| panic!("template {} policy source: {e}", template.id));
-            dsl::compile_str(&source)
+            let from_yaml = dsl::compile_str(&source)
                 .unwrap_or_else(|e| panic!("template {} YAML compile: {e}", template.id));
+            assert!(
+                from_yaml.pattern_warnings.is_empty(),
+                "template {} YAML render warns: {:?}",
+                template.id,
+                from_yaml
+                    .pattern_warnings
+                    .iter()
+                    .map(|w| (&w.code, &w.message))
+                    .collect::<Vec<_>>()
+            );
         }
     }
 
