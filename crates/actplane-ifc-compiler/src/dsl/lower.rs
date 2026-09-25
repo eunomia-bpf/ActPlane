@@ -602,7 +602,14 @@ fn shorten_contains_literal(lit: &str) -> (String, bool) {
     if !last.is_empty() && last.len() <= MAX_CONTAINS_LITERAL {
         return (last.to_string(), true);
     }
-    let start = trimmed.len().saturating_sub(MAX_CONTAINS_LITERAL);
+    // A pattern may contain multi-byte UTF-8 (the kernel compares bytes), so
+    // the byte offset can land inside a character. Advance to the next
+    // boundary: that is the longest suffix that still fits the window, and the
+    // result is a contiguous proper substring as the other branches are.
+    let mut start = trimmed.len() - MAX_CONTAINS_LITERAL;
+    while !trimmed.is_char_boundary(start) {
+        start += 1;
+    }
     (trimmed[start..].to_string(), true)
 }
 
@@ -1300,6 +1307,28 @@ mod tests {
             !has_capped("rule r:\n  kill read file \"**/src/lib/**\"\n  because \"x\"\n"),
             "a short literal is not shortened"
         );
+    }
+
+    /// The terminal branch of [`shorten_contains_literal`] computes its offset
+    /// from the byte length, so a multi-byte literal could put it inside a
+    /// character. The offset must advance to the next boundary, keeping the
+    /// result a valid, in-window suffix instead of panicking on the slice.
+    #[test]
+    fn contains_window_shortening_keeps_char_boundaries() {
+        // `dir` is 16 bytes (`日` is three), so `/dir/` is 17 and no slash-segment
+        // or last-segment candidate fits: only the byte-window branch runs, and
+        // its offset (17 - 16 = 1) lands inside the first `日`.
+        let (lit, capped) = shorten_contains_literal("/日日日日日a/");
+        assert!(capped);
+        assert_eq!(lit, "日日日日a/");
+        assert!(lit.len() <= MAX_CONTAINS_LITERAL);
+        assert!("/日日日日日a/".ends_with(&lit), "still a substring");
+        // Every character is three bytes, so no 16-byte window is
+        // character-aligned; the result stays in-window at 16 bytes.
+        let (lit, capped) = shorten_contains_literal(&format!("/{}/", "日".repeat(20)));
+        assert!(capped);
+        assert_eq!(lit, "日日日日日/");
+        assert!(lit.len() <= MAX_CONTAINS_LITERAL);
     }
 
     #[test]
