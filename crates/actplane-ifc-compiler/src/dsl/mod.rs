@@ -786,13 +786,21 @@ rule secret:
 
     #[test]
     fn empty_literal_pattern_is_reported() {
-        // `taint_streq` and `taint_prefix` both reject an empty pattern, so a
-        // pattern that lowers to an empty literal can never fire: `exec "src/*"`
-        // and `exec "foo/"` both do. `*` is not affected, since ANY always
-        // matches and is meant to carry an empty literal.
+        // Every non-ANY matcher rejects an empty pattern (`taint_streq`,
+        // `taint_prefix` and `taint_contains` all guard on a zero pattern
+        // length), so a pattern that lowers to an empty literal can never fire:
+        // `exec "src/*"` and `exec "foo/"` both do. `*` is not affected, since
+        // ANY always matches and is meant to carry an empty literal. The last
+        // two policies keep concrete text *after* a leading wildcard, so the
+        // wildcard-literal cleanup discards it while leaving an empty span: the
+        // result is a strict subset of the glob, not a strict widening, so
+        // `PATTERN_LITERAL_WIDENED` must NOT also fire and claim the matcher
+        // "matches strictly more".
         for policy in [
             "source A = exec \"a\"\nrule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n",
             "source A = exec \"a\"\nrule r:\n  kill exec \"foo/\" if A\n  because \"x\"\n",
+            "rule r:\n  kill exec \"*g*t\"\n  because \"x\"\n",
+            "rule r:\n  kill write file \"**/*b/*\"\n  because \"x\"\n",
         ] {
             let compiled = ok(policy);
             assert_eq!(

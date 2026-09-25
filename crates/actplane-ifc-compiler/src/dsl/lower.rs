@@ -120,12 +120,15 @@ fn set_pat_reported(dst: &mut [u8], s: &str, what: &str, out: &mut Vec<PatternWa
 
 /// Report a literal that the kernel matcher cannot use, for a pattern.
 ///
-/// * An empty literal for a non-`ANY` kind. `taint_streq` and `taint_prefix`
-///   both return 0 for an empty pattern (exact: the text would have to be empty;
-///   prefix: `anynz` stays 0, and the comment on `taint_prefix` states an empty
-///   prefix never matches). A pattern such as `exec "src/*"` or `exec "foo/"`
-///   lowers to an empty literal, so the rule never fires. `ANY` is exempt by
-///   construction: its literal is meant to be empty and it always matches.
+/// * An empty literal for a non-`ANY` kind. `taint_streq`, `taint_prefix`, and
+///   `taint_contains` all return 0 for an empty pattern (exact: the text would
+///   have to be empty; prefix: `anynz` stays 0, and the comment on
+///   `taint_prefix` states an empty prefix never matches; contains: `pn == 0`
+///   is guarded directly). A pattern such as `exec "src/*"`, `exec "foo/"`, or
+///   `exec "*g*t"` (whose concrete text the wildcard-literal cleanup discards,
+///   leaving an empty span) lowers to an empty literal, so the rule never fires.
+///   `ANY` is exempt by construction: its literal is meant to be empty and it
+///   always matches.
 /// * A `SUFFIX`/`CONTAINS` literal past `TAINT_SUF_MAX`. Both matchers return 0
 ///   when the pattern is longer than their fixed 16-byte tail/window copy, so
 ///   that matcher entry never matches. It is the *entry* that dies, not always
@@ -177,7 +180,11 @@ fn check_matcher_literal_bound(
 /// Record a [`PATTERN_LITERAL_WIDENED`] warning when the wildcard-literal
 /// cleanup dropped concrete text, so the compiled matcher matches strictly more
 /// than the glob names. `pat` is the pattern as the policy wrote it, which is
-/// what the reader needs to fix, not the folded literal.
+/// what the reader needs to fix, not the folded literal. `widened` is false
+/// when the cleanup kept an empty span, because then the literal matches
+/// nothing at all and [`check_matcher_literal_bound`] reports the empty form;
+/// the two warnings must not both fire, since one says "strictly more" and the
+/// other "never".
 fn warn_widened_literal(pat: &str, widened: bool, what: &str, out: &mut Vec<PatternWarning>) {
     if !widened {
         return;
@@ -574,23 +581,27 @@ struct Lowered {
 /// worth warning about, exactly when a discarded byte is not itself a `*`: then
 /// the glob required concrete text the matcher no longer checks. A purely
 /// wildcard tail (`deploy*` to `prefix("deploy")`, or `g**`) discards nothing
-/// concrete and is exact.
+/// concrete and is exact. An *empty* kept span is a strict **subset**, not a
+/// superset: every non-`ANY` matcher rejects an empty literal, so the entry
+/// matches nothing at all. The kept span being empty therefore also clears
+/// `widened`, because claiming the matcher "matches strictly more" while the
+/// same literal is reported as one that "can never match" is a contradiction;
+/// the caller's empty-literal check states the true consequence.
 fn strip_wildcard_literal_widening(kind: u8, lit: String) -> (u8, String, bool) {
     if kind == M_ANY || !lit.contains('*') {
         return (kind, lit, false);
     }
     if kind == M_SUFFIX {
         let cut = lit.rfind('*').unwrap();
-        let widened = lit[..cut].bytes().any(|b| b != b'*');
-        return (kind, lit[cut + 1..].to_string(), widened);
+        let kept = lit[cut + 1..].to_string();
+        let widened = !kept.is_empty() && lit[..cut].bytes().any(|b| b != b'*');
+        return (kind, kept, widened);
     }
     let cut = lit.find('*').unwrap();
-    let head = lit[..cut].to_string();
-    let widened = lit[cut + 1..].bytes().any(|b| b != b'*');
-    if kind == M_EXACT {
-        return (M_PREFIX, head, widened);
-    }
-    (kind, head, widened)
+    let kept = lit[..cut].to_string();
+    let widened = !kept.is_empty() && lit[cut + 1..].bytes().any(|b| b != b'*');
+    let kind = if kind == M_EXACT { M_PREFIX } else { kind };
+    (kind, kept, widened)
 }
 
 /// Shorten a `contains` literal to fit the kernel's 16-byte window
@@ -1175,14 +1186,20 @@ mod tests {
     /// the discarded text is concrete, the superset is strict and the caller
     /// warns; a purely wildcard tail discards nothing concrete, so `deploy*`
     /// and `g**` stay exact and warning-free. Pin the boolean, not just the
-    /// literal, because it is what decides whether the user is told.
+    /// literal, because it is what decides whether the user is told. An empty
+    /// kept span is the exception: the literal matches nothing, so the
+    /// empty-literal check owns the consequence and the flag clears.
     #[test]
     fn wildcard_literal_cleanup_reports_only_a_strict_widening() {
         let widened = |pat: &str| lower_exec_reported(pat).widened;
         assert!(widened("g*t"), "the `t` after the wildcard is discarded");
         assert!(widened("g*t*"), "the `t` after the wildcard is discarded");
         assert!(widened("a*b"), "the `b` after the wildcard is discarded");
-        assert!(widened("*g*t"), "the `g` before the wildcard is discarded");
+        // `*g*t` keeps an EMPTY head (the span before the first wildcard), so the
+        // literal matches nothing at all: a strict subset, not a strict
+        // superset. That is the empty-literal warning's claim, so the widening
+        // flag clears to keep the two warnings from contradicting.
+        assert!(!widened("*g*t"), "the kept head is empty");
         // Nothing concrete is dropped: the wildcard is the whole tail.
         assert!(!widened("deploy*"), "only the wildcard tail is dropped");
         assert!(!widened("**/deploy*"), "only the wildcard tail is dropped");
@@ -1199,8 +1216,8 @@ mod tests {
             "the `b` is discarded"
         );
         assert!(
-            lower_path_reported("**/*b/*").widened,
-            "the `b` is discarded"
+            !lower_path_reported("**/*b/*").widened,
+            "the `b/*` tail is discarded but the kept span is empty"
         );
         assert!(
             !lower_path_reported("**/*t").widened,
