@@ -251,7 +251,8 @@ actplane.yaml ─▶ policy compiler ─▶ runtime/control ─▶ eBPF kernel e
   policy language and lowers it to the fixed kernel config ABI.
 - **Runtime library** (`crates/actplane-runtime/`): resolves `actplane.yaml`,
   loads the prebuilt eBPF object in-process via
-  [`ebpf-ifc-engine`](bpf/) (aya) — no libbpf/clang at runtime — seeds the target
+  [`ebpf-ifc-engine`](bpf/) (aya, with libbpf statically linked for the user ring
+  buffer and control-plane map access) — no external libbpf/clang — seeds the target
   process lineage, and reports rule matches with policy reasons.
 - **CLI frontend** (`crates/actplane-cli/`): provides the `actplane` command,
   project setup, policy review, MCP, and command dispatch.
