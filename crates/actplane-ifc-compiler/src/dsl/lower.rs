@@ -1668,6 +1668,70 @@ mod tests {
         assert_eq!(cfg.rules[0].ipv4, 0);
         assert_eq!(cfg.rules[0].ipv4_mask, u32::MAX);
     }
+
+    /// A negated endpoint condition whose pattern has no numeric matcher must
+    /// lower to match-any before the kernel negates it, so `target not PAT`
+    /// leaves the rule applying. Both the unresolved hostname and the
+    /// unsupported-pattern paths previously returned a single `(0, u32::MAX)`
+    /// from `endpoint_matches`, which the `len() == 1` early return passed
+    /// through unchanged; the kernel then inverted that literal-`0.0.0.0`
+    /// matcher to "true for every endpoint" and silently suppressed the rule,
+    /// the opposite of the multi-address path and of the documented
+    /// "fails closed" contract.
+    #[test]
+    fn a_negated_void_endpoint_condition_still_applies_the_rule() {
+        fn cond(dsl: &str) -> (u8, u32, u32) {
+            let pol = crate::dsl::parse::parse(dsl).expect("parse endpoint condition");
+            let compiled = compile(&pol).expect("compile endpoint condition");
+            let cfg: CConfig =
+                unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+            let r = &cfg.rules[0];
+            (r.cond_neg, r.cond_ipv4, r.cond_ipv4_mask)
+        }
+
+        // Unresolved hostname and unsupported wildcard: identical treatment.
+        assert_eq!(
+            cond(
+                r#"
+                rule r:
+                  kill connect endpoint "10.0.0." unless target "void.invalid"
+                  because "b"
+                "#
+            ),
+            (0, 0, u32::MAX),
+        );
+        assert_eq!(
+            cond(
+                r#"
+                rule r:
+                  kill connect endpoint "10.0.0." unless target not "void.invalid"
+                  because "b"
+                "#
+            ),
+            (1, 0, 0),
+        );
+        assert_eq!(
+            cond(
+                r#"
+                rule r:
+                  kill connect endpoint "10.0.0." unless target not "*.internal"
+                  because "b"
+                "#
+            ),
+            (1, 0, 0),
+        );
+        // A single resolved address keeps its own matcher in both polarities.
+        assert_eq!(
+            cond(
+                r#"
+                rule r:
+                  kill connect endpoint "10.0.0." unless target not "localhost"
+                  because "b"
+                "#
+            ),
+            (1, 0x0100_007f, u32::MAX),
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
@@ -1795,7 +1859,15 @@ struct Ctx {
     warnings: Vec<PatternWarning>,
 }
 impl Ctx {
-    fn endpoint_matches(&mut self, pat: &str) -> Vec<(u32, u32)> {
+    /// Addresses a pattern lowers to, in the kernel's (net, mask) form.
+    ///
+    /// An empty vector means the pattern has no numeric matcher at all: an
+    /// unresolved hostname, a hostname glob, IPv6, or a malformed numeric form
+    /// such as `1.2.3.4.5`. Callers choose the sentinel, because the right one
+    /// depends on position: a source/target fails closed with `(0, u32::MAX)`
+    /// (the literal `0.0.0.0`, which no endpoint has), while a negated
+    /// condition needs the opposite polarity (see `endpoint_condition_match`).
+    fn endpoint_addresses(&mut self, pat: &str) -> Vec<(u32, u32)> {
         if let Some(matches) = self.endpoint_cache.get(pat) {
             return matches.clone();
         }
@@ -1810,27 +1882,42 @@ impl Ctx {
                     .map(|addr| kernel_ipv4_to_string(*addr))
                     .collect(),
             );
-            if addrs.is_empty() {
-                vec![(0, u32::MAX)]
-            } else {
-                addrs.into_iter().map(|addr| (addr, u32::MAX)).collect()
-            }
+            addrs.into_iter().map(|addr| (addr, u32::MAX)).collect()
         } else {
-            vec![(0, u32::MAX)]
+            Vec::new()
         };
         self.endpoint_cache.insert(pat.to_string(), matches.clone());
         matches
     }
 
+    /// Addresses for a source or rule target. A pattern with no numeric
+    /// matcher fails closed: `(0, u32::MAX)` matches only the literal
+    /// `0.0.0.0`, so the update or rule never fires for a real endpoint.
+    fn endpoint_matches(&mut self, pat: &str) -> Vec<(u32, u32)> {
+        let matches = self.endpoint_addresses(pat);
+        if matches.is_empty() {
+            vec![(0, u32::MAX)]
+        } else {
+            matches
+        }
+    }
+
     fn endpoint_condition_match(&mut self, pat: &str, negate: bool) -> (u32, u32) {
-        let matches = self.endpoint_matches(pat);
+        let matches = self.endpoint_addresses(pat);
         if matches.len() == 1 {
             return matches[0];
         }
-        // `unless target PAT` should fail closed when a hostname expands to
-        // several A records but the current ABI can store only one condition
-        // address. For `target not PAT`, use match-any before negation so the
-        // condition is false for every endpoint, and the rule still applies.
+        // At most one condition address fits the ABI, so zero addresses (a
+        // pattern with no numeric matcher) and several addresses (a hostname
+        // with multiple A records) share this path. Both are treated so the
+        // rule still applies, which is the fail-closed outcome for an
+        // exception that could not be expressed.
+        //
+        // A positive `unless target` uses `(0, u32::MAX)`, the literal
+        // `0.0.0.0`, which no connect/recv target has: `m` is false, the
+        // condition is unsatisfied, and the rule fires. `target not PAT` uses
+        // match-any `(0, 0)`: `m` is true for every endpoint, and the kernel's
+        // `cond_neg` inverts it to false, so the rule fires there too.
         if negate { (0, 0) } else { (0, u32::MAX) }
     }
 

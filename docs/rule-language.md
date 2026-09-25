@@ -208,6 +208,12 @@ these are reported:
   time (unresolved, resolving to several addresses, or a wildcard, IPv6, or
   malformed-numeric pattern such as `"1.2.3.4.5"`).
   The condition stores one address in the current ABI and fails closed.
+  "Fails closed" here means the exception cannot be expressed and the rule
+  keeps applying: a positive `unless target` lowers to the literal `0.0.0.0`
+  (which no `connect`/`recv` target has, so the exception never holds), and
+  `unless target not` lowers to match-any, so after negation the exception is
+  false for every endpoint too. Both polarities over-apply the rule rather
+  than silently suppressing it.
 - `bpf_lsm_inactive_for_block`: `block` on a host without BPF-LSM active, so
   the rule falls back to nothing (see §1.7).
 - `pattern_literal_widened`: the compiler dropped concrete text to keep a
