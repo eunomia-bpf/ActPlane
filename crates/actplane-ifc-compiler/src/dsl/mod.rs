@@ -1289,6 +1289,34 @@ rule secret:
     }
 
     #[test]
+    fn duplicate_because_is_rejected_rather_than_silently_overwritten() {
+        // The grammar allows at most one `because` per rule, and the string is
+        // the whole corrective-feedback payload forwarded to the agent on a
+        // match. The parser used to assign unconditionally, so the second
+        // string replaced the first and the reason for the clauses that
+        // actually matched was lost with no diagnostic. Reject instead, the
+        // way a duplicate rule name already is.
+        let err = match compile_str(
+            r#"
+            rule r:
+              notify exec "git" if true
+              because "first"
+              because "second"
+        "#,
+        ) {
+            Ok(_) => panic!("a second `because` compiled successfully"),
+            Err(err) => err,
+        };
+        assert!(
+            err.contains("more than one `because`") && err.contains("first"),
+            "the error must name the conflict, got: {err}"
+        );
+        // One `because` still compiles, and it is the reason that survives.
+        let c = ok("rule r:\n  notify exec \"git\" if true\n  because \"only\"\n");
+        assert_eq!(c.meta[0].reason, "only");
+    }
+
+    #[test]
     fn implicit_basename_matching() {
         // `exec "git"` should be equivalent to `exec "**/git"` — both produce
         // the same compiled output.

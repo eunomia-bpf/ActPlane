@@ -406,7 +406,7 @@ pub fn parse(src: &str) -> Result<Policy, String> {
                     o => return Err(format!("expected ':' after rule name, got {:?}", o)),
                 }
                 let mut clauses = Vec::new();
-                let mut reason = String::new();
+                let mut reason: Option<String> = None;
                 while let Some(Tok::Word(w)) = p.peek() {
                     if P::clause_effect(w).is_some() {
                         let mut clause = p.clause()?;
@@ -414,7 +414,20 @@ pub fn parse(src: &str) -> Result<Policy, String> {
                         clauses.push(clause);
                     } else if w == "because" {
                         p.next();
-                        reason = p.string()?;
+                        let text = p.string()?;
+                        // The grammar carries at most one `because` per rule
+                        // (`clause+ ["because" STRING]`), and the string is the
+                        // whole corrective-feedback payload. A second one used
+                        // to overwrite the first in silence, so the agent was
+                        // told why the rule that actually matched stopped it
+                        // only if the last-written reason happened to say so.
+                        if let Some(first) = &reason {
+                            return Err(format!(
+                                "rule `{name}` has more than one `because`; the grammar allows one per rule, and each string is the reason forwarded to the agent on a match. The first is `{}`, the second `{}`. Merge them into a single string if both belong, or split the rule so each carries the reason for its own clauses.",
+                                first, text
+                            ));
+                        }
+                        reason = Some(text);
                     } else {
                         break;
                     }
@@ -430,7 +443,7 @@ pub fn parse(src: &str) -> Result<Policy, String> {
                 pol.rules.push(Rule {
                     name,
                     clauses,
-                    reason,
+                    reason: reason.unwrap_or_default(),
                 });
             }
             other => return Err(format!("unknown declaration '{}'", other)),
