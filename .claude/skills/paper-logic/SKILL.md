@@ -399,14 +399,9 @@ Also check by reading (no grep possible):
 
 ## House style (always enforce)
 
-- **No em-dashes (`---`)** in paper text. Use commas, parentheses, or
-  restructure. Table cells using `---` for "not applicable" are OK.
-- **Avoid semicolons** joining independent clauses. Use periods, conjunctions
-  (", and", ", but"), or causal connectors ("because", "so", "since").
-  Semicolons are OK inside parenthetical lists.
-- **Academic prose, not notes.** Causal connectors and flowing sentences, not
-  strings of short declaratives. Concrete examples before abstract
-  definitions. Every design decision states its "why" before its "what".
+House style is defined once in `CLAUDE.md` under Paper Writing Rules
+(em-dashes, semicolons, academic prose). This skill enforces it at
+whole-paper scope via the mechanical greps in section M above.
 
 ## P. Per-section protocol
 

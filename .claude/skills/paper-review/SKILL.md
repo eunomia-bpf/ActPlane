@@ -21,14 +21,14 @@ Review the LaTeX file at `$ARGUMENTS` sentence by sentence for academic writing 
 
 ## Critical rules (for fixes)
 
+House style (em-dashes, semicolons, why-before-what, example-before-abstraction)
+is defined once in `CLAUDE.md` under Paper Writing Rules — apply it here, do
+not restate it. In addition, when fixing this section:
+
 - **NEVER delete design decisions or technical content.** Compression means better prose, not less information.
 - **NEVER change the meaning** of a sentence. If unsure, ask.
 - **NEVER remove a scope-bearing hedge** (`suggest ... on the selected subset`, `in our setting`, `up to`): it protects the claim from outrunning its evidence (/paper-logic A4/A5). Only collapse stacked hedges down to one.
 - **Always diff-check** after multiple edits to ensure no content was lost.
-- **No em-dashes** (`---`) in paper text. Table `---` for N/A is fine.
-- **No semicolons** joining independent clauses. Use periods, conjunctions, or causal connectors.
-- **Why before what**: every design decision states its motivation first.
-- **Example before abstraction**: show a concrete case, then generalize.
 
 ---
 

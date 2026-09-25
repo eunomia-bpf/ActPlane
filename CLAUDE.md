@@ -19,30 +19,34 @@ The repo descends from AgentSight (an eBPF observability framework); the SSL/HTT
 analyzer chain, runners, web server, and frontend were removed. What remains is the
 labeled information-flow engine plus a minimal Rust compiler/driver.
 
-## Agent change workflow
+## Working autonomously
 
-Develop experiments and other changes on a dedicated non-default branch in this
-existing checkout. Changes entering the default `master` branch require a pull
-request. Do not push implementation or experiment commits directly to `master`.
-Creating and using a task branch is authorized, but do not create an additional
-worktree unless the user explicitly requests one.
+Inside this project's already-authorized goals, continue, repair, and deliver
+without stopping to ask. Ask or wait only when a genuine external constraint
+requires it: this repo's branch/PR and review process (below), publishing or
+messaging outside the repo, spending money, or handling credentials. Nothing
+else is an approval gate. If you do hit a genuine blocker, report it and keep
+making progress on whatever part of the task it doesn't affect.
 
-The repository still includes `no-git-branch` templates, examples, and test
-fixtures as demonstrations of ActPlane policy behavior. They are product assets,
-not an operational prohibition for this checkout, and should not be removed merely
-because this workspace now uses branches.
+Keep this rule set small: before adding a rule anywhere in this repo's agent
+instructions, delete or merge an existing one instead. Each rule has exactly
+one home; skills reference this file rather than restating its rules.
 
-When an operation fails with `EPERM` / `Operation not permitted`, or a tool hook
-injects an `[ActPlane]` message, treat it as authoritative kernel feedback. Read
-`.actplane/last-violation.txt` if you need the full reason, then follow the
-suggested path instead of retrying the same operation unchanged.
+## Workflow
 
-## OSS Change Workflow
-
-When changing code, tests, docs, or examples in this OSS repository, use the
-`oss-change-workflow` skill before editing unless a more specific workflow skill
-applies. Follow its scope-control, validation, docs/test synchronization, and
-PR/CI handoff guidance.
+- Develop on a dedicated non-default branch. Changes reach `master` only
+  through a pull request; never push implementation or experiment commits
+  directly to `master`, and do not create an extra worktree unless asked to.
+- Before opening a PR, run the `make`/`cargo test` targets under Build & Test
+  Commands that cover what you touched, and update any doc or test the change
+  affects in the same PR.
+- `no-git-branch`-named templates, examples, and test fixtures are product
+  demonstrations of ActPlane policy, not a restriction on this checkout's own
+  git usage — keep them.
+- `EPERM` / `Operation not permitted`, or a tool hook's `[ActPlane]` message,
+  is authoritative kernel feedback: read `.actplane/last-violation.txt` for
+  the full reason and follow the suggested path instead of retrying the same
+  operation unchanged.
 
 ## Build & Test Commands
 
