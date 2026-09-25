@@ -535,6 +535,46 @@ fn shipped_policies_compile_without_warnings() {
 }
 
 #[test]
+fn cookbook_run_examples_use_a_policy_that_declares_the_runner_label() {
+    // `run`/auto-attach seeds the protected process with the runner label
+    // (`runner_label` in actplane-runtime rejects a policy that declares or
+    // references neither COMMAND nor AGENT), so a cookbook command that runs a
+    // policy lacking both is dead on arrival. The failure happens at policy
+    // validation, before attach, so it is checkable without privileges.
+    let doc = fs::read_to_string(format!(
+        "{}/../../docs/cookbook.md",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read docs/cookbook.md");
+    let dir = format!("{}/../../test/policies", env!("CARGO_MANIFEST_DIR"));
+    let mut checked = 0usize;
+    for line in doc.lines() {
+        let Some(idx) = line.find("run --") else {
+            continue;
+        };
+        let Some(start) = line.find("test/policies/") else {
+            continue;
+        };
+        let rest = &line[start..];
+        let end = rest.find(|c: char| c.is_whitespace()).unwrap_or(rest.len());
+        let rel = &rest[..end];
+        let policy = format!("{dir}/{}", rel.strip_prefix("test/policies/").unwrap());
+        let src = fs::read_to_string(&policy)
+            .unwrap_or_else(|e| panic!("read {policy} named by `{line}` (at {idx}): {e}"));
+        assert!(
+            src.contains("COMMAND") || src.contains("AGENT"),
+            "`{line}` runs {rel}, which declares neither COMMAND nor AGENT, so \
+             `actplane run` rejects it before attach"
+        );
+        checked += 1;
+    }
+    assert!(
+        checked >= 1,
+        "expected at least one `run --` cookbook example, found {checked}"
+    );
+}
+
+#[test]
 fn documented_warning_codes_match_the_cli() {
     // `docs/rule-language.md` lists the warning codes a user may see. A code that
     // reaches users but is undocumented is a gap; a documented code that no

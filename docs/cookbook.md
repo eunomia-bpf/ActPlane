@@ -17,6 +17,13 @@ Then enforce around a command:
 sudo -E actplane --policy test/policies/01_secret_no_exfil.yaml run -- <agent-or-command>
 ```
 
+`run` seeds the protected process with the runner label before the command
+starts, so the policy must declare or reference `COMMAND` (or `AGENT`), and
+`run` refuses the policy otherwise. The examples here that are meant to be
+enforced around a command declare `source COMMAND = exec "**"` for that reason;
+a policy that only labels files, endpoints, or other exec names still compiles
+and works under `compile`/`watch`, but not under `run`.
+
 Use `notify` policies or `actplane compile --explain` first when adapting a
 policy to a real repository. Rules that use `block` need BPF-LSM support for
 pre-operation denial; see [support-matrix.md](support-matrix.md).
@@ -44,6 +51,7 @@ tries to connect to the network or write into a shared export path.
 ```yaml
 version: 1
 policy: |
+  source COMMAND = exec "**"
   source SECRET = file "**/.env"
   source SECRET = file "/etc/secrets/**"
 
