@@ -935,6 +935,33 @@ rule secret:
     }
 
     #[test]
+    fn capped_literal_emptied_by_wildcard_cleanup_is_not_also_reported_as_capped() {
+        // The cap can shorten a literal to a span the wildcard cleanup then
+        // empties: `**/a...a/*x` caps to `*x`, which cleans to `""`. An empty
+        // literal makes every non-`ANY` matcher reject the entry, so
+        // `pattern_contains_capped` ("matches strictly more than the glob") is
+        // false there and contradicts `pattern_empty_literal` on the same
+        // entry. Only the empty-literal consequence is reported.
+        let policy =
+            "rule r:\n  block write file \"**/aaaaaaaaaaaaaaaaaaaa/*x\"\n  because \"x\"\n";
+        assert_eq!(
+            warning_codes(&ok(policy)),
+            vec![lower::PATTERN_EMPTY_LITERAL],
+            "an emptied capped literal is reported once"
+        );
+
+        // A cap that leaves concrete text still widens the matcher, so the
+        // capped warning must survive.
+        let policy =
+            "rule r:\n  block write file \"**/src/components/deep/nested/**\"\n  because \"x\"\n";
+        assert_eq!(
+            warning_codes(&ok(policy)),
+            vec![lower::PATTERN_CONTAINS_CAPPED],
+            "a capped literal with concrete text is still reported"
+        );
+    }
+
+    #[test]
     fn every_pattern_warning_code_is_reachable() {
         // `PATTERN_WARNING_CODES` is what the CLI's doc-completeness guard
         // iterates, so a code listed there but never emitted would demand
