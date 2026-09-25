@@ -1197,9 +1197,10 @@ mod tests {
     /// The warning must reach `Compiled::pattern_warnings` through the parser
     /// and the whole compile path, not only from a direct lowering call: the
     /// parser rewrites a slash-free exec pattern to `**/<pattern>`, so a
-    /// whole-pattern guard would never see the form the policy wrote. An
-    /// `unless target` exception that over-matches is an under-enforcement, so
-    /// silence here is the bug the warning closes.
+    /// whole-pattern guard would never see the form the policy wrote. A widened
+    /// `unless target` exception over-matches, so a positive one suppresses the
+    /// rule where the policy did not except: silence here is the
+    /// under-enforcement the warning closes.
     #[test]
     fn interior_wildcard_target_warns_through_the_compiler() {
         let src = "rule r:\n  kill exec \"g*t\"\n  because \"x\"\n";
@@ -1262,8 +1263,9 @@ mod tests {
     /// The shortening warning must reach `Compiled::pattern_warnings` from a
     /// clause target, a file source, and an `unless target` condition, since
     /// each is lowered on a different path. A capped `unless target` exception
-    /// in particular over-matches, so its rule fires in places the policy
-    /// excepted: silence there is an under-enforcement the warning closes.
+    /// in particular over-matches: it accepts a superset of the glob, so the
+    /// rule is suppressed on paths the policy did not except and fails to fire
+    /// there. Silence is an under-enforcement the warning closes.
     #[test]
     fn contains_window_shortening_warns_through_the_compiler() {
         let has_capped = |src: &str| {
