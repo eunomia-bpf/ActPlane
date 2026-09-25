@@ -2011,13 +2011,16 @@ fn clause_condition_warnings(
     }
     // A repo-relative `unless target` over a `**/<name>` or `**/<dir>/**`
     // pattern cannot express the primary+companion disjunction in the engine's
-    // single cond_kind/cond_pat pair. The condition therefore misses the
-    // bare/first-segment-relative form that the target matcher covers. The
-    // consequence inverts with polarity: a positive exception leaves that form
-    // unmatched, so the rule over-fires there; a negated exception leaves the
-    // condition unsatisfied there, so the kernel's negation suppresses the
-    // rule even though the form should be exempt. Warn so the approximation is
-    // discoverable rather than silent.
+    // single cond_kind/cond_pat pair, so the condition misses the
+    // bare/first-segment-relative form the target matcher covers (a rule
+    // target emits a companion entry; a condition has one slot). The
+    // consequence inverts with polarity, because the missing form is one the
+    // pattern *does* match: a positive exception leaves the raw matcher false
+    // there, so it does not suppress the rule and the rule over-fires; a
+    // negated exception leaves the raw matcher false too, and the kernel's
+    // `cond_neg` turns that into a satisfied condition, so it suppresses the
+    // rule and the rule under-fires. Warn so the approximation is discoverable
+    // rather than silent.
     //
     // Only a path op has companion matchers, and only there does the condition
     // fall short: `lower_target` emits companions for read/open/write/unlink
@@ -2036,9 +2039,9 @@ fn clause_condition_warnings(
                 if *negate { " not" } else { "" },
                 pattern,
                 if *negate {
-                    "The negated exception therefore under-fires on that form: the relative path is excluded even though the exception should exempt it."
+                    "That form matches the pattern, so the negated exception should not suppress the rule, yet the missing matcher leaves the negated condition satisfied and the kernel suppresses it: the rule under-fires."
                 } else {
-                    "The exception therefore over-fires on that form: the relative path is not excluded as intended."
+                    "The rule therefore over-fires on that form: the relative path is not excluded as intended."
                 },
             ),
         });

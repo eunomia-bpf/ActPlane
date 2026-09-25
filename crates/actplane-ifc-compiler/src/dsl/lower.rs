@@ -679,7 +679,8 @@ fn lower_path_companions(pat: &str) -> Vec<(u8, String)> {
 /// directory (first-segment-relative path). A rule *target* covers both forms by
 /// emitting a companion table entry, but an `unless target` **condition** has
 /// only one cond slot, so the exception cannot express the disjunction and
-/// mis-matches on the uncovered form (a negated condition over-fires there).
+/// mis-matches on the uncovered form (a positive condition over-fires there,
+/// a negated one under-fires).
 ///
 /// Callers use this to warn that the exception is approximate; the engine is not
 /// changed. Absolute patterns and pure wildcard forms have no companion and
