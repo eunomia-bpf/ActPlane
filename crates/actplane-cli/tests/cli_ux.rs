@@ -199,6 +199,37 @@ rule tests-not-pytest:
         "an exec clause has no companion form, so the exception is exact; got {}",
         value["warnings"]
     );
+    // A negated exception over the same repo-relative pattern warns too, and
+    // the consequence text must name the opposite direction: the missing
+    // companion leaves the condition unsatisfied on the bare-relative form, so
+    // the kernel's negation suppresses the rule there (under-fire), not
+    // over-fire.
+    let negated = r#"
+source AGENT = exec "claude"
+
+rule js-outside-dist:
+  notify write file "**/*.js" if AGENT unless target not "**/dist/**"
+  because "new JS sources must be TypeScript"
+"#;
+    let output = run(&["--rule", negated, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    let warning = value["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|warning| warning["code"] == "repo_relative_target_condition_partial")
+        .expect("expected partial-exception warning for the negated form");
+    let message = warning["message"].as_str().unwrap();
+    assert!(
+        message.contains("unless target not \"**/dist/**\""),
+        "message should name the negated condition: {message}"
+    );
+    assert!(
+        message.contains("under-fires") && !message.contains("over-fires"),
+        "a negated exception under-fires, not over-fires: {message}"
+    );
 }
 
 #[test]

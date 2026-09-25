@@ -2012,9 +2012,12 @@ fn clause_condition_warnings(
     // A repo-relative `unless target` over a `**/<name>` or `**/<dir>/**`
     // pattern cannot express the primary+companion disjunction in the engine's
     // single cond_kind/cond_pat pair. The condition therefore misses the
-    // bare/first-segment-relative form, so a negated exception over-fires the
-    // rule there (the mirror of the target-side companion). Warn so the
-    // approximation is discoverable rather than silent.
+    // bare/first-segment-relative form that the target matcher covers. The
+    // consequence inverts with polarity: a positive exception leaves that form
+    // unmatched, so the rule over-fires there; a negated exception leaves the
+    // condition unsatisfied there, so the kernel's negation suppresses the
+    // rule even though the form should be exempt. Warn so the approximation is
+    // discoverable rather than silent.
     //
     // Only a path op has companion matchers, and only there does the condition
     // fall short: `lower_target` emits companions for read/open/write/unlink
@@ -2029,9 +2032,14 @@ fn clause_condition_warnings(
         warnings.push(ClauseConditionWarning {
             code: "repo_relative_target_condition_partial",
             message: format!(
-                "unless target{} \"{}\" is a repo-relative `**/<name>` or `**/<dir>/**` pattern; the condition stores one matcher, so it does not cover the bare/first-segment-relative form the target matcher does. The exception therefore over-fires on that form (a relative path is not excluded as intended). Use an absolute pattern, or split the exception into an explicit form.",
+                "unless target{} \"{}\" is a repo-relative `**/<name>` or `**/<dir>/**` pattern; the condition stores one matcher, so it does not cover the bare/first-segment-relative form the target matcher does. {} Use an absolute pattern, or split the exception into an explicit form.",
                 if *negate { " not" } else { "" },
-                pattern
+                pattern,
+                if *negate {
+                    "The negated exception therefore under-fires on that form: the relative path is excluded even though the exception should exempt it."
+                } else {
+                    "The exception therefore over-fires on that form: the relative path is not excluded as intended."
+                },
             ),
         });
     }
