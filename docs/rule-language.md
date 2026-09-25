@@ -219,13 +219,20 @@ these are reported:
 - `pattern_literal_widened`: the compiler dropped concrete text to keep a
   wildcard out of the matcher literal (a wildcard inside the pattern, not at an
   edge) or to cut an absolute pattern at its first wildcard, so the matcher now
-  matches strictly more than the glob names (see §1.8). An `unless target`
-  exception with such a pattern therefore under-enforces.
+  matches strictly more than the glob names (see §1.8). The direction of the
+  error depends on the polarity of the `unless target` exception, because the
+  exception matcher is what was widened. A **positive** exception
+  (`unless target PAT`) exempts every path the wider matcher accepts, so it
+  suppresses the rule on paths outside `PAT` and under-enforces. A **negated**
+  exception (`unless target not PAT`) suppresses the rule only where the wider
+  matcher fails, so it stops exempting paths that do not match `PAT` and the
+  rule fires on them: it over-enforces.
 - `pattern_contains_capped`: a repo-relative pattern's `contains` literal was
   longer than the kernel's 16-byte window, so the compiler shortened it to a
   contiguous substring of that literal and the matcher now matches strictly more
-  than the glob names (see §1.8). An `unless target` exception with such a
-  pattern therefore under-enforces.
+  than the glob names (see §1.8). As with `pattern_literal_widened`, a
+  **positive** `unless target` exception with such a pattern under-enforces,
+  while a **negated** one over-enforces.
 
 ### 1.9 Staleness (`since`): gates that re-arm when their inputs change
 
