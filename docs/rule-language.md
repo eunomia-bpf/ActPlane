@@ -151,6 +151,10 @@ silently.
 under `--explain`/`--json`, because the machine that compiles a blob need not be
 the machine that enforces it. The code names are stable identifiers, so a CI
 check can match on them.
+A warning that concerns one rule identifies it by the rule's **name**
+(`rule <name>:`), the same identifier `--explain` uses, never by its `because`
+string: the reason is user prose, may be empty, and two rules may share it, so
+it cannot stand in for the name.
 Besides the pattern, `unless target`, argv-token, and `because` warnings above,
 these are reported:
 
