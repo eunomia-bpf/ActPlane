@@ -962,6 +962,25 @@ rule secret:
     }
 
     #[test]
+    fn dsl_rule_count_is_distinct_from_the_lowered_matcher_count() {
+        // A repo-relative pattern that also emits a bare `exact` companion
+        // lowers one DSL rule to two kernel matchers. Reporting `meta.len()` as
+        // a rule count then overstates the policy, which is what `--explain`
+        // already separates; `dsl_rule_count` is the count a reader gets by
+        // counting the policy text.
+        let c = ok("rule r:\n  block write file \"**/config.production.json\"\n  because \"x\"\n");
+        assert_eq!(c.dsl_rule_count, 1);
+        assert_eq!(c.meta.len(), 2, "primary plus a companion matcher");
+
+        // Distinct DSL rules stay distinct: one clause per rule here.
+        let c = ok(
+            "rule a:\n  block exec \"git\" if true\n  because \"x\"\nrule b:\n  block exec \"make\" if true\n  because \"y\"\n",
+        );
+        assert_eq!(c.dsl_rule_count, 2);
+        assert_eq!(c.meta.len(), 2);
+    }
+
+    #[test]
     fn every_pattern_warning_code_is_reachable() {
         // `PATTERN_WARNING_CODES` is what the CLI's doc-completeness guard
         // iterates, so a code listed there but never emitted would demand

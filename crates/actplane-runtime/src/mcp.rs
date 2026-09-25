@@ -214,8 +214,9 @@ impl ActPlaneMcp {
         match dsl::compile_str(dsl_src) {
             Ok(compiled) => {
                 let mut out = format!(
-                    "Policy valid ({}, {} rules):\n",
+                    "Policy valid ({}, {} DSL rule(s), {} lowered kernel matcher(s)):\n",
                     path.display(),
+                    compiled.dsl_rule_count,
                     compiled.meta.len()
                 );
                 for (i, m) in compiled.meta.iter().enumerate() {

@@ -101,7 +101,12 @@ pub(crate) fn check_policy(
         return Ok(0);
     }
 
-    println!("✓ {}: {} rule(s) compile.\n", where_, compiled.meta.len());
+    println!(
+        "✓ {}: {} DSL rule(s), {} lowered kernel matcher(s) compile.\n",
+        where_,
+        compiled.dsl_rule_count,
+        compiled.meta.len()
+    );
     if let Some(domain) = &resolved.domain {
         println!("domain: {}", domain.name);
         if let Some(parent) = &domain.parent {
@@ -2441,12 +2446,10 @@ pub(crate) fn doctor(cli: &PolicyInput) -> Result<i32> {
                     if let Some(domain) = &resolved.domain {
                         println!(
                             "✓ policy: {} domain `{}` ({} rule(s))",
-                            where_,
-                            domain.name,
-                            compiled.meta.len()
+                            where_, domain.name, compiled.dsl_rule_count
                         );
                     } else {
-                        println!("✓ policy: {} ({} rule(s))", where_, compiled.meta.len());
+                        println!("✓ policy: {} ({} rule(s))", where_, compiled.dsl_rule_count);
                     }
                     let feedback = feedback_paths(&loaded);
                     println!("✓ feedback file: {}", feedback.feedback.display());

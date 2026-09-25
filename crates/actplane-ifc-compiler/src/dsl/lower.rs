@@ -2496,6 +2496,14 @@ pub struct Compiled {
     pub bytes: Vec<u8>,
     pub reasons: Vec<String>, // indexed by lowered rule_id
     pub meta: Vec<RuleMeta>,  // indexed by lowered rule_id
+    /// DSL rules the policy declares, which is what a reader counts in the
+    /// policy text. `meta`/`reasons` are indexed by lowered rule and hold one
+    /// entry per kernel matcher, so one DSL rule that lowers to a primary plus
+    /// a companion (for example a repo-relative pattern that also emits a bare
+    /// `exact` matcher) contributes several entries. Reporting `meta.len()` as
+    /// a rule count therefore overstates a policy, and `--explain` already
+    /// separates the two; keep the DSL count here so every surface agrees.
+    pub dsl_rule_count: usize,
     pub labels: HashMap<String, u64>,
     pub endpoint_resolutions: HashMap<String, Vec<String>>,
     /// Pattern-lowering warnings (sorted, deduplicated), for the CLI to surface.
@@ -2959,6 +2967,7 @@ pub fn compile_with_labels(
         bytes,
         reasons,
         meta,
+        dsl_rule_count: pol.rules.len(),
         labels: ctx.labels,
         endpoint_resolutions: ctx.endpoint_resolutions,
         pattern_warnings: warnings,

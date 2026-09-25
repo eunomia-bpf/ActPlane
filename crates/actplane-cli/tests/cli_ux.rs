@@ -799,7 +799,7 @@ fn compile_writes_kernel_blob() {
     let stderr = stderr(&output);
     assert!(stderr.contains("domain `review`"));
     assert!(stderr.contains("policy: no-git-branch, readonly"));
-    assert!(stderr.contains("compiled 2 rule(s)"));
+    assert!(stderr.contains("compiled 2 DSL rule(s), 2 lowered kernel matcher(s)"));
 }
 
 #[test]
