@@ -206,7 +206,7 @@ fn warn_condition_contradiction(
     forbid: u64,
     all_terms_dead: bool,
     labels: &HashMap<String, u64>,
-    reason: &str,
+    name: &str,
     out: &mut Vec<PatternWarning>,
 ) {
     let overlap = req & forbid;
@@ -242,12 +242,7 @@ fn warn_condition_contradiction(
     out.push(PatternWarning {
         code: RULE_CONDITION_CONTRADICTION,
         message: format!(
-            "rule {} requires and forbids {named} at once, so no process state satisfies that condition and {what} never fires. Under `and`, a label appears both plain and negated, as in `A and not A`. {fix}",
-            if reason.is_empty() {
-                "(no `because`)".to_string()
-            } else {
-                format!("\"{reason}\"")
-            }
+            "rule `{name}` requires and forbids {named} at once, so no process state satisfies that condition and {what} never fires. Under `and`, a label appears both plain and negated, as in `A and not A`. {fix}"
         ),
     });
 }
@@ -384,7 +379,7 @@ fn warn_condition_covers_target(
     cond_pat: &str,
     negate: bool,
     all_rows_dead: bool,
-    reason: &str,
+    name: &str,
     out: &mut Vec<PatternWarning>,
 ) {
     let why = if negate {
@@ -407,12 +402,7 @@ fn warn_condition_covers_target(
     out.push(PatternWarning {
         code: RULE_CONDITION_COVERS_TARGET,
         message: format!(
-            "rule {}: {why}, {what}. Remove the `unless target` clause, or make it narrower than the target (a sub-path the target names).",
-            if reason.is_empty() {
-                "(no `because`)".to_string()
-            } else {
-                format!("\"{reason}\"")
-            }
+            "rule `{name}`: {why}, {what}. Remove the `unless target` clause, or make it narrower than the target (a sub-path the target names)."
         ),
     });
 }
@@ -453,7 +443,7 @@ fn match_kind_name(kind: u8) -> &'static str {
 fn warn_condition_label_without_producer(
     when: &Expr,
     produced: &BTreeSet<&str>,
-    reason: &str,
+    name: &str,
     out: &mut Vec<PatternWarning>,
 ) {
     let mut referenced = BTreeSet::new();
@@ -482,12 +472,7 @@ fn warn_condition_label_without_producer(
     out.push(PatternWarning {
         code: RULE_CONDITION_LABEL_WITHOUT_PRODUCER,
         message: format!(
-            "rule {}: the condition references label `{label}`{also}, which nothing in this policy sets, so no update ever puts its bit in a label mask. The plain form `if {label}` never fires, and the negated form `if not {label}` fires on every event the rule's target accepts. Declare a `source {label} = ...` for it (an `endorse` xform also sets it, but a `declassify` clears it), or drop the term.",
-            if reason.is_empty() {
-                "(no `because`)".to_string()
-            } else {
-                format!("\"{reason}\"")
-            }
+            "rule `{name}`: the condition references label `{label}`{also}, which nothing in this policy sets, so no update ever puts its bit in a label mask. The plain form `if {label}` never fires, and the negated form `if not {label}` fires on every event the rule's target accepts. Declare a `source {label} = ...` for it (an `endorse` xform also sets it, but a `declassify` clears it), or drop the term."
         ),
     });
 }
@@ -2511,7 +2496,7 @@ pub fn compile_with_labels(
                     *forbid,
                     all_terms_dead,
                     &ctx.labels,
-                    &rule.reason,
+                    &rule.name,
                     &mut warnings,
                 );
             }
@@ -2519,7 +2504,7 @@ pub fn compile_with_labels(
             // bit in the plain form and a free bit in the negated form. Checked
             // against the producers, not the allocated bits, because
             // `label_bit` has already assigned a bit to every referenced name.
-            warn_condition_label_without_producer(&cl.when, &produced, &rule.reason, &mut warnings);
+            warn_condition_label_without_producer(&cl.when, &produced, &rule.name, &mut warnings);
             // An `unless target` condition is tested against the same event
             // text as the rule's own target, so a condition that covers the
             // target suppresses every event and kills the rule. Track coverage
@@ -2698,7 +2683,7 @@ pub fn compile_with_labels(
                     &pattern,
                     negate,
                     cond_rows_dead == cond_rows_total,
-                    &rule.reason,
+                    &rule.name,
                     &mut warnings,
                 );
             }

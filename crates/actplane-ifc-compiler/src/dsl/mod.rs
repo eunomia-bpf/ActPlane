@@ -1133,6 +1133,48 @@ rule secret:
     }
 
     #[test]
+    fn rule_condition_warnings_identify_the_rule_by_name_not_reason() {
+        // The rule name is the only identifier these diagnostics share with the
+        // rest of the surface (`rule_missing_because` prints it, and `--explain`
+        // labels each clause by it). Naming the rule by its `because` string
+        // instead made a warning read `rule "keep secrets local"` for a rule
+        // called `secret-guard`, and two rules sharing prose became
+        // indistinguishable. A rule with no `because` could not be named at all
+        // and printed the placeholder `(no `because`)`.
+        let guard = "rule secret-guard:\n  kill exec \"git\" unless target \"git\"\n  because \"keep secrets local\"\n";
+        let c = ok(guard);
+        let msg = c
+            .pattern_warnings
+            .iter()
+            .find(|w| w.code == RULE_CONDITION_COVERS_TARGET)
+            .expect("a covering exception is reported")
+            .message
+            .clone();
+        assert!(
+            msg.contains("`secret-guard`"),
+            "the warning must name the rule: {msg}"
+        );
+        assert!(
+            !msg.contains("keep secrets local"),
+            "the reason must not stand in for the name: {msg}"
+        );
+        // Without a `because` the name is still available, so the placeholder
+        // is gone.
+        let unnamed = ok("rule secret-guard:\n  kill exec \"git\" unless target \"git\"\n");
+        let unnamed_msg = unnamed
+            .pattern_warnings
+            .iter()
+            .find(|w| w.code == RULE_CONDITION_COVERS_TARGET)
+            .expect("a covering exception is reported")
+            .message
+            .clone();
+        assert!(
+            unnamed_msg.contains("`secret-guard`") && !unnamed_msg.contains("(no `because`)"),
+            "an unnamed rule is still identified by name: {unnamed_msg}"
+        );
+    }
+
+    #[test]
     fn only_an_adding_xform_counts_as_a_producer() {
         // `endorse L` lowers to `add = bit` and sets the label, so it is a
         // producer. `declassify L` lowers to `del = bit` and *clears* it, so a
