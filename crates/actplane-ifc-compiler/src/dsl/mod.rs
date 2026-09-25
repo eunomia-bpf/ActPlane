@@ -771,6 +771,65 @@ rule secret:
     }
 
     #[test]
+    fn a_literal_warning_names_the_construct_it_came_from() {
+        // The message is the corrective-feedback payload, so "event target"
+        // tells the reader nothing when the literal actually came from a
+        // source, gate, xform, or invalidator. Every update site names itself
+        // the way the widened/capped warnings already did.
+        let first = |policy: &str, code: &str| {
+            let c = ok(policy);
+            c.pattern_warnings
+                .iter()
+                .find(|w| w.code == code)
+                .unwrap_or_else(|| panic!("{code} not emitted for {policy:?}"))
+                .message
+                .clone()
+        };
+        let cases = [
+            (
+                "source target",
+                "source A = exec \"src/*\"\nrule r:\n  kill exec \"git\" if A\n  because \"x\"\n",
+            ),
+            (
+                "gate target",
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A unless after exec \"src/*\"\n  because \"x\"\n",
+            ),
+            (
+                "transform gate",
+                "source A = exec \"a\"\nendorse X by exec \"src/*\"\nrule r:\n  kill exec \"git\" if A\n  because \"x\"\n",
+            ),
+            (
+                "invalidator target",
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A unless after exec \"**/pytest\" since exec \"src/*\"\n  because \"x\"\n",
+            ),
+            (
+                "rule target",
+                "source A = exec \"a\"\nrule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n",
+            ),
+        ];
+        for (what, policy) in cases {
+            let msg = first(policy, lower::PATTERN_EMPTY_LITERAL);
+            assert!(
+                msg.starts_with(&format!("{what} ")),
+                "{policy:?} should name `{what}`, got: {msg}"
+            );
+            assert!(
+                !msg.contains("event target"),
+                "`{what}` must not fall back to the generic label: {msg}"
+            );
+        }
+        // Truncation carries the same label, so pin one non-empty case too.
+        let long = "/var/lib/some/deeply/nested/directory/structure/that/is/very/long/target.txt";
+        let msg = first(
+            &format!(
+                "source A = file \"{long}\"\nrule r:\n  kill open file \"/x\" if A\n  because \"x\"\n"
+            ),
+            lower::PATTERN_TRUNCATED,
+        );
+        assert!(msg.starts_with("source target "), "got: {msg}");
+    }
+
+    #[test]
     fn every_pattern_warning_code_is_reachable() {
         // `PATTERN_WARNING_CODES` is what the CLI's doc-completeness guard
         // iterates, so a code listed there but never emitted would demand

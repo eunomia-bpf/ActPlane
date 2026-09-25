@@ -1889,14 +1889,9 @@ impl Ctx {
         u.ipv4_mask = spec.ipv4_mask;
         u.gate_exit_code = spec.gate_exit_code;
         u.domain_id = 0;
-        set_pat_reported(
-            &mut u.target,
-            spec.target,
-            "event target",
-            &mut self.warnings,
-        );
+        set_pat_reported(&mut u.target, spec.target, spec.what, &mut self.warnings);
         set_pat_reported(&mut u.arg, spec.arg, "event arg", &mut self.warnings);
-        check_matcher_literal_bound(spec.m, spec.target, "event target", &mut self.warnings);
+        check_matcher_literal_bound(spec.m, spec.target, spec.what, &mut self.warnings);
         self.updates.push(u);
         Ok(())
     }
@@ -1972,6 +1967,7 @@ impl Ctx {
             ipv4: 0,
             ipv4_mask: 0,
             gate_exit_code: gate_exit.map(i32::from).unwrap_or(GATE_IMMEDIATE),
+            what: "gate target",
         })?;
         // Gate companions: a repo-relative path gate also arms on the
         // companion forms (same bit, so the gate is one condition).
@@ -1989,6 +1985,7 @@ impl Ctx {
                     ipv4: 0,
                     ipv4_mask: 0,
                     gate_exit_code: GATE_IMMEDIATE,
+                    what: "gate companion target",
                 })?;
             }
         }
@@ -2039,6 +2036,7 @@ impl Ctx {
             ipv4: 0,
             ipv4_mask: 0,
             gate_exit_code: GATE_IMMEDIATE,
+            what: "invalidator target",
         })?;
         // Invalidator companions: a repo-relative path `since` pattern also
         // stamps the companion forms (same bit, so one invalidator).
@@ -2056,6 +2054,7 @@ impl Ctx {
                     ipv4: 0,
                     ipv4_mask: 0,
                     gate_exit_code: GATE_IMMEDIATE,
+                    what: "invalidator companion target",
                 })?;
             }
         }
@@ -2076,8 +2075,12 @@ struct UpdateSpec<'a> {
     ipv4: u32,
     ipv4_mask: u32,
     gate_exit_code: i32,
+    /// Construct the update came from, for the literal diagnostics. Named at
+    /// each call site the way the widened/capped warnings already are, so a
+    /// source, gate, xform, or invalidator literal reports which one it was
+    /// rather than the generic "event target" all of them used to say.
+    what: &'a str,
 }
-
 fn pat_eq(buf: &[u8; PAT], s: &str) -> bool {
     let mut pat = [0u8; PAT];
     set_pat(&mut pat, s);
@@ -2402,6 +2405,7 @@ pub fn compile_with_labels(
                             ipv4: n,
                             ipv4_mask: mk,
                             gate_exit_code: GATE_IMMEDIATE,
+                            what: "source target",
                         })?;
                     }
                 }
@@ -2422,6 +2426,7 @@ pub fn compile_with_labels(
             ipv4,
             ipv4_mask,
             gate_exit_code: GATE_IMMEDIATE,
+            what: "source target",
         })?;
         // Repo-relative companions. The primary lowering assumes an absolute
         // runtime path; in tracepoint mode the kernel matches the userspace
@@ -2442,6 +2447,7 @@ pub fn compile_with_labels(
                     ipv4: 0,
                     ipv4_mask: 0,
                     gate_exit_code: GATE_IMMEDIATE,
+                    what: "source companion target",
                 })?;
             }
         }
@@ -2464,6 +2470,7 @@ pub fn compile_with_labels(
             ipv4: 0,
             ipv4_mask: 0,
             gate_exit_code: GATE_IMMEDIATE,
+            what: "transform gate",
         })?;
     }
     // Labels an update in the blob (or an earlier delta in the same domain)
