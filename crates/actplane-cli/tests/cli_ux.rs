@@ -879,12 +879,12 @@ fn cookbook_run_examples_use_a_policy_that_declares_the_runner_label() {
 fn documented_warning_codes_match_the_cli() {
     // `docs/rule-language.md` lists the warning codes a user may see. A code that
     // reaches users but is undocumented is a gap; a documented code that no
-    // longer exists sends the reader chasing a phantom. Pin both directions for
-    // the pattern family: the doc's own list of pattern-lowering codes must be
-    // exactly the compiler's `PATTERN_WARNING_CODES`. The doctor-owned codes
-    // below are pinned only emitted -> documented, because the doc interleaves
-    // them with unrelated backticked identifiers, so the reverse direction is
-    // not representable from the doc alone.
+    // the pattern family and the rule-condition family. The doctor-owned codes
+    // are pinned both directions too: their emitted set is read from the
+    // doctor's `code: "..."` literals, and their documented set is selected by
+    // the first segments those emitted codes themselves carry (`argv`, `bpf`,
+    // `endpoint`, `repo`, `rule`), so neither direction needs a hand-written
+    // code list to drift.
     let doc = fs::read_to_string(format!(
         "{}/../../docs/rule-language.md",
         env!("CARGO_MANIFEST_DIR")
@@ -916,19 +916,20 @@ fn documented_warning_codes_match_the_cli() {
     // is updated.
     let doctor_src = fs::read_to_string(format!("{}/src/doctor.rs", env!("CARGO_MANIFEST_DIR")))
         .expect("read crates/actplane-cli/src/doctor.rs");
-    let mut emitted: Vec<&str> = doctor_warning_codes(&doctor_src);
+    let doctor_codes: Vec<&str> = doctor_warning_codes(&doctor_src);
     assert!(
-        emitted.contains(&"rule_missing_because"),
-        "the doctor-code scan found no known code; did `code: \"...\"` literals move? got {emitted:?}"
+        doctor_codes.contains(&"rule_missing_because"),
+        "the doctor-code scan found no known code; did `code: \"...\"` literals move? got {doctor_codes:?}"
     );
     // The pattern-lowering family and the rule-condition codes all come from
     // the compiler; binding them keeps a new code from reaching users
     // undocumented. Both families are read from the compiler's own lists rather
     // than restated, because a hand-written copy drifts (see
     // `PATTERN_WARNING_CODES`).
+    let mut emitted: Vec<&str> = doctor_codes.clone();
     emitted.extend(actplane_ifc_compiler::dsl::PATTERN_WARNING_CODES);
     emitted.extend(actplane_ifc_compiler::dsl::RULE_CONDITION_WARNING_CODES);
-    for code in emitted {
+    for code in &emitted {
         assert!(
             documented.contains(code),
             "warning code `{code}` is emitted but not documented in docs/rule-language.md"
@@ -984,6 +985,39 @@ fn documented_warning_codes_match_the_cli() {
         doc_rule_condition_list, compiled_rule_condition_codes,
         "the `rule_condition_*` codes bulleted in docs/rule-language.md must be \
          exactly `RULE_CONDITION_WARNING_CODES`"
+    );
+
+    // The doctor family's documented set is selected by the first segments its
+    // own emitted codes carry. `rule_condition_*` shares the `rule` first
+    // segment but is compiler-owned, so it is excluded explicitly rather than
+    // by prefix.
+    let compiler_codes: std::collections::BTreeSet<&str> =
+        actplane_ifc_compiler::dsl::PATTERN_WARNING_CODES
+            .iter()
+            .chain(actplane_ifc_compiler::dsl::RULE_CONDITION_WARNING_CODES.iter())
+            .copied()
+            .collect();
+    let doctor_prefixes: std::collections::BTreeSet<&str> = doctor_codes
+        .iter()
+        .filter_map(|c| c.split('_').next())
+        .collect();
+    let doc_doctor_list: std::collections::BTreeSet<&str> = doc
+        .split('`')
+        .filter(|t| {
+            t.contains('_')
+                && t.chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+                && !compiler_codes.contains(*t)
+                && t.split('_')
+                    .next()
+                    .is_some_and(|p| doctor_prefixes.contains(p))
+        })
+        .collect();
+    let emitted_doctor: std::collections::BTreeSet<&str> = doctor_codes.iter().copied().collect();
+    assert_eq!(
+        doc_doctor_list, emitted_doctor,
+        "the doctor warning codes in docs/rule-language.md must be exactly the \
+         codes src/doctor.rs emits"
     );
 }
 
