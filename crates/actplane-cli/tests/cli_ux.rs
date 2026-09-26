@@ -533,19 +533,47 @@ fn shipped_policies_compile_without_warnings() {
     // Every policy the repo ships or documents is a worked example. If one uses
     // a form the kernel cannot enforce, the example teaches a policy that does
     // not do what it says (the `block exec "git" "commit"` trap: argv exists only
-    // after exec, so the pre-op hook skips the rule). Compile each one and fail
-    // on any warning, so a dead rule or a truncating literal cannot re-enter.
-    let dir = format!("{}/../../test/policies", env!("CARGO_MANIFEST_DIR"));
+    // after exec, so the pre-op hook skips the rule; or a gate literal longer
+    // than the kernel's 16-byte contains window, which the compiler shortens to
+    // an over-matching substring). Compile each one and fail on any warning, so
+    // a dead rule or a truncating literal cannot re-enter.
+    //
+    // The corpus is every tracked `*.yaml`/`*.yml` that carries a policy body,
+    // not just `test/policies/`: this repo's own live `actplane.yaml` sits at the
+    // root, and a directory-only scan let its over-matching gate ship unnoticed.
+    let root = format!("{}/../..", env!("CARGO_MANIFEST_DIR"));
+    let listing = Command::new("git")
+        .args(["-C", &root, "ls-files", "*.yaml", "*.yml"])
+        .output()
+        .unwrap_or_else(|e| panic!("run git ls-files: {e}"));
+    assert!(
+        listing.status.success(),
+        "git ls-files failed: {}",
+        String::from_utf8_lossy(&listing.stderr)
+    );
+    let tracked = String::from_utf8(listing.stdout).expect("git ls-files utf8");
     let mut checked = 0usize;
-    for entry in fs::read_dir(&dir).unwrap_or_else(|e| panic!("read {dir}: {e}")) {
-        let path = entry.expect("policy dir entry").path();
-        if path.extension().is_none_or(|e| e != "yaml") {
+    for rel in tracked.lines() {
+        let path = format!("{root}/{rel}");
+        let body = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path}: {e}"));
+        // A policy file declares a top-level `policy:` block (flat or per-domain)
+        // or `rules:`/`domains:` maps. Skip data files such as `e2e_cases.yaml`
+        // and CI/dependabot config.
+        let is_policy = body.lines().any(|l| {
+            let t = l.trim_end();
+            t.starts_with("policy:") || t.starts_with("rules:") || t.starts_with("domains:")
+        });
+        if !is_policy {
+            continue;
+        }
+        // `test/policies/invalid/` fixtures exist to fail compilation.
+        if rel.starts_with("test/policies/invalid/") {
             continue;
         }
         let out = std::env::temp_dir().join("actplane-corpus-warn-check.bin");
         let output = run(&[
             "--policy",
-            path.to_str().unwrap(),
+            &path,
             "compile",
             "--out",
             out.to_str().unwrap(),
@@ -553,15 +581,13 @@ fn shipped_policies_compile_without_warnings() {
         ]);
         assert!(
             output.status.success(),
-            "{} failed to compile: {}",
-            path.display(),
+            "{rel} failed to compile: {}",
             stderr(&output)
         );
         let err = stderr(&output);
         assert!(
             !err.contains("ActPlane: warning"),
-            "{} compiles with a warning, so the example may not enforce what it states:\n{err}",
-            path.display()
+            "{rel} compiles with a warning, so the example may not enforce what it states:\n{err}"
         );
         checked += 1;
     }
