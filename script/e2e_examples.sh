@@ -154,6 +154,18 @@ run_case() {
 }
 
 echo "== ActPlane live enforcement ($N cases from $(basename "$CASES")) =="
+
+# The loop below is driven by the extracted per-case directories, so a parser
+# that wrote none (or fewer than the YAML declared) would run it zero times and
+# still exit 0 with "0 passed, 0 failed": the privileged job would report the
+# suite green having enforced nothing. Fail before the loop when the directories
+# on disk do not match the case count the parser reported.
+cases_on_disk=$(find "$CDIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
+if [ "$N" -lt 1 ] || [ "$cases_on_disk" -ne "$N" ]; then
+  echo "✗ extracted $cases_on_disk case dir(s) for $N case(s) in $(basename "$CASES")" >&2
+  exit 1
+fi
+
 for d in "$CDIR"/*/; do run_case "${d%/}"; done
 
 echo "== result: $pass passed, $fail failed =="
