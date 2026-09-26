@@ -75,15 +75,18 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Reference to a repo-relative docs path. Extensions we cite this way.
+# Reference to a repo-relative docs path. Extensions we cite this way. `tsv`
+# and `js` carry committed evidence (`docs/empirical-study/candidate_rules_144.tsv`,
+# `docs/empirical-study/audit_rq2_verdicts.js`), and `.txt` is left out because
+# the tree cites it both ways, as a `--report-out` destination
+# (`docs/actplane-review.txt`) and as a file joined onto an external
+# `ARTIFACT_ROOT`, and neither is a path this branch must contain.
 # The trailing lookahead keeps the extension token whole. Without it the greedy
 # path prefix backtracks to a shorter listed extension sharing a prefix, so
 # `docs/corpus-raw-full/manifest.jsonl` matched as `..../manifest.json` and was
-# reported as a missing file, and no `.jsonl` citation could ever resolve. With
-# the guard an extension outside this list is simply not a citation (the same
-# silence as `.tsv`), instead of a false failure naming a truncated path.
+# reported as a missing file, and no `.jsonl` citation could ever resolve.
 REF = re.compile(
-    r"docs/[A-Za-z0-9_./-]+\.(?:md|yaml|yml|jsonl|json|sh|py|rs|c|h|toml)(?![A-Za-z0-9])"
+    r"docs/[A-Za-z0-9_./-]+\.(?:md|yaml|yml|jsonl|json|tsv|js|sh|py|rs|c|h|toml)(?![A-Za-z0-9])"
 )
 
 # Text files whose citations we check.
@@ -143,7 +146,7 @@ DIR_REF = re.compile(r"docs/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*/")
 UP_REF = re.compile(
     r"(?<![A-Za-z0-9_./-])(?:\.\./)+"
     r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
-    r"\.(?:md|yaml|yml|jsonl|json|sh|py|rs|c|h|toml)(?![A-Za-z0-9])"
+    r"\.(?:md|yaml|yml|jsonl|json|tsv|js|sh|py|rs|c|h|toml)(?![A-Za-z0-9])"
 )
 
 # A slash-command citation inside a skill file, such as `/paper-review`. Skills
