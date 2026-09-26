@@ -89,28 +89,29 @@ artifact Non-Cite Rule requires:
 - `results/rq2-probe-prebuilt-object/`: the probe outcome with the then-committed
   (stale) prebuilt object, kept as the evidence for that finding.
 - `results/rq2-engine-budget-crossval/`: the 6.8 verifier's 1M-instruction budget
-  measured against three engine objects, described in `rq2-engine-budget-crossval.md`.
+  measured against three engine objects, described in
+  `docs/empirical-study/rq2-engine-budget-crossval.md`.
 - `results/long-session-overtaint-vm/`: the long-session over-taint experiment
   re-run under TCG (`counts.tsv` matches the preregistered row set, `metadata.tsv`
   records the kernel, acceleration, and the three input hashes). The runner needed
   a longer loader wait than its original KVM run, so this is also the record that
   the TCG path works.
 - `results/engine-install-smoke-vm/`: the pinned-engine install smoke
-  (`run_engine_install_smoke_vm.sh`), which boots a 6.8 guest and requires
-  `actplane run` to install the engine for a policy that names no `recv`. It
-  reproduces the release-blocking summed-stack install failure on demand: the same
-  smoke against a binary built from `origin/master` fails with
+  (`docs/empirical-study/run_engine_install_smoke_vm.sh`), which boots a 6.8
+  guest and requires `actplane run` to install the engine for a policy that names
+  no `recv`. It reproduces the release-blocking summed-stack install failure on
+  demand: the same smoke against a binary built from `origin/master` fails with
   `combined stack size of 6 calls is 608. Too large`. Like the other `run_*_vm.sh`
   runners it is run by hand, not by CI, because the failure only reproduces on a
   kernel that performs the combined-stack walk.
 - `results/rq2-wildcard-literal-vm/`: the live 6.8 guest A/B for the
-  wildcard-literal fix (`run_rq2_wildcard_literal_vm.sh`). The same policy
-  source, `notify exec "**"`, compiled by the pre-fix binary (a18a0a44) emits
-  **zero** violations because its matcher literal carried a `*`, which
-  `taint_match` treats as a byte, while the same source compiled by the current
-  binary fires. `metadata.tsv` records both binaries' and both blobs' hashes;
-  `blob-identity.txt` records the byte-identity of the post-fix `exec "**"` blob
-  with the long-working `exec "*"` blob.
+  wildcard-literal fix (`docs/empirical-study/run_rq2_wildcard_literal_vm.sh`).
+  The same policy source, `notify exec "**"`, compiled by the pre-fix binary
+  (a18a0a44) emits **zero** violations because its matcher literal carried a `*`,
+  which `taint_match` treats as a byte, while the same source compiled by the
+  current binary fires. `metadata.tsv` records both binaries' and both blobs'
+  hashes; `blob-identity.txt` records the byte-identity of the post-fix
+  `exec "**"` blob with the long-working `exec "*"` blob.
 
 All are **exploratory** evidence for the reviewer response, not promoted paper
 results. The DSL-specific frozen corpus and raw model runs still live only on the
