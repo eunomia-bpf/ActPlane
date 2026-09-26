@@ -137,10 +137,13 @@ DIR_REF = re.compile(r"docs/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*/")
 # `../actplane-ifc-compiler/` anchor shows the base is the citing file's
 # directory, not the repo root). Resolve each against the citing file's
 # directory rather than the root, which is what a reader's tooling does.
+# The extension list and trailing lookahead mirror `REF`; without them a
+# `../../x.jsonl` citation matched as `../../x.json` and failed naming a path
+# that exists nowhere, the same prefix-backtracking defect.
 UP_REF = re.compile(
     r"(?<![A-Za-z0-9_./-])(?:\.\./)+"
     r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
-    r"\.(?:md|yaml|yml|json|sh|py|rs|c|h|toml)"
+    r"\.(?:md|yaml|yml|jsonl|json|sh|py|rs|c|h|toml)(?![A-Za-z0-9])"
 )
 
 # A slash-command citation inside a skill file, such as `/paper-review`. Skills
