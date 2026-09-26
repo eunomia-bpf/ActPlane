@@ -668,7 +668,10 @@ rule secret:
                 checked += 1;
             }
         }
-        assert!(checked >= 1, "expected domain policies in corpus");
+        // Exact: the corpus ships five domain-bearing policy sources, so a file
+        // that stops being recognized as one (`domains:` head renamed) fails
+        // here instead of silently shrinking what "all domains compile" covers.
+        assert_eq!(checked, 5, "expected domain policies in corpus");
     }
 
     /// Codes present in a compiled policy's pattern warnings.
