@@ -78,6 +78,13 @@ identifier to appear in a file named on its line. It also fails when the cited
 file itself no longer resolves, since a moved file would otherwise drop the
 citation out of the checked set silently.
 
+A fifth class is an environment variable a doc tells the reader to set. The
+names are all `ACTPLANE_`-prefixed, so a removed or renamed knob leaves the doc
+instructing the reader to set a variable the code no longer reads, and no
+path-shaped rule sees it because the name is not a path. The check resolves a
+cited name against the committed code and scripts, which is where the reader's
+tooling would find it.
+
 Usage: python3 script/check_doc_refs.py
 """
 
@@ -189,14 +196,20 @@ SKILLS_DIR = ".claude/skills/"
 #   * the file name is resolved to committed `.rs`/`.c`/`.h` files by basename,
 #     so the docs' shortened forms (`lower.rs`, `taint_engine.bpf.h`) work
 #     without a full path;
-#   * the identifier must appear somewhere in the file(s) named on its line,
-#     which is how a bullet listing several files (`bpf/process.bpf.c` ... and
-#     `bpf/process.c`) attributes `emit_violation` to the group.
+SYM_SOURCE_SUFFIXES = (".rs", ".c", ".h")
 SYM_BOUND = re.compile(
     r"`([A-Za-z_][A-Za-z0-9_]*)`[^`\n]{0,40}?`([A-Za-z0-9_./-]+\.(?:rs|c|h))`"
 )
 SYM_TOKEN = re.compile(r"`([^`\n]+)`")
-SYM_SOURCE_SUFFIXES = (".rs", ".c", ".h")
+
+# An `ACTPLANE_`-prefixed environment variable a doc instructs the reader to
+# set. The name is not a path, so no other check sees it: a renamed or removed
+# knob leaves the doc telling the reader to set a variable the code no longer
+# reads while every path check stays green. The name resolves when the same
+# name appears in a committed non-doc file (code or script), which is where the
+# reader's tooling finds it; a name only ever written in a doc does not define
+# itself, which is the failure this catches.
+ENV_REF = re.compile(r"\bACTPLANE_[A-Z0-9_]+\b")
 
 
 def tracked_dirs(files: list[str]) -> set[str]:
@@ -266,10 +279,11 @@ def main() -> int:
     root = Path(__file__).resolve().parent.parent
     problems: list[tuple[str, str]] = []
     sym_problems: list[tuple[str, str]] = []
+    env_problems: list[tuple[str, str]] = []
     # Per-class tallies, so a regex that stops matching a whole class of
     # citations fails the run instead of silently shrinking what is checked.
     checked = 0
-    by_class = {"file": 0, "dir": 0, "up": 0, "slash_cmd": 0, "symbol": 0}
+    by_class = {"file": 0, "dir": 0, "up": 0, "slash_cmd": 0, "symbol": 0, "env": 0}
 
     files = committed_files()
     for name in files:
@@ -426,6 +440,43 @@ def main() -> int:
                 elif not re.search(r"\b" + re.escape(symbol) + r"\b", blob):
                     sym_problems.append((where, f"`{symbol}` in {cited}"))
 
+    # A documented `ACTPLANE_`-prefixed env var (see `ENV_REF`). The name
+    # resolves when a committed non-doc file names it, so a renamed or removed
+    # knob fails here while the doc still tells the reader to set it. The
+    # definition set is built from `files`, so the committed tree decides, not a
+    # stale checkout. A `.sh` under `docs/` counts as a definition: the VM
+    # harness scripts live there and are what a reader would run.
+    env_defined: set[str] = set()
+    for name in files:
+        if name.endswith("/") or name.endswith(".md") or name.startswith(SKIP_PREFIXES):
+            continue
+        try:
+            env_defined.update(
+                ENV_REF.findall(
+                    (root / name).read_text(encoding="utf-8", errors="replace")
+                )
+            )
+        except OSError:
+            continue
+    # The citing set is every committed `.md`, not only `docs/`: the top-level
+    # and crate READMEs and the skills also tell a reader to export these names,
+    # so scoping to `docs/` would leave those instructions unguarded.
+    for name in files:
+        if name.endswith("/") or not name.endswith(".md"):
+            continue
+        if name.startswith(SKIP_PREFIXES) or name == SELF:
+            continue
+        try:
+            text = (root / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for line_no, line in enumerate(text.splitlines(), 1):
+            for m in ENV_REF.finditer(line):
+                checked += 1
+                by_class["env"] += 1
+                if m.group(0) not in env_defined:
+                    env_problems.append((f"{name}:{line_no}", m.group(0)))
+
     # Reverse direction: a committed evidence directory that no doc names is
     # evidence a reader cannot find. The results tree had eight committed
     # directories while its index listed three, so this is checked rather than
@@ -462,11 +513,13 @@ def main() -> int:
         ):
             unindexed.append(f"{RESULTS_DIR}/{entry}/")
 
-    if problems or unindexed or sym_problems:
+    if problems or unindexed or sym_problems or env_problems:
         for where, ref in problems:
             print(f"{where}: {ref} does not exist", file=sys.stderr)
         for where, ref in sym_problems:
             print(f"{where}: no definition of {ref}", file=sys.stderr)
+        for where, ref in env_problems:
+            print(f"{where}: no code reads {ref}", file=sys.stderr)
         for ref in unindexed:
             print(f"{ref}: committed evidence dir is not named in {INDEX}", file=sys.stderr)
         if problems:
@@ -484,6 +537,13 @@ def main() -> int:
                 "the symbol, or update the name it uses.",
                 file=sys.stderr,
             )
+        if env_problems:
+            print(
+                f"\n{len(env_problems)} doc citation(s) tell the reader to set an "
+                "environment variable no committed code reads. Update the name to the "
+                "one the code uses, or drop the instruction if the knob is gone.",
+                file=sys.stderr,
+            )
         if unindexed:
             print(
                 f"\n{len(unindexed)} committed evidence dir(s) are missing from "
@@ -495,7 +555,17 @@ def main() -> int:
 
     # A floor per class: a regex change that stops matching one class of
     # citation would otherwise print "ok" over a silently smaller population.
-    floors = {"file": 80, "dir": 100, "up": 10, "slash_cmd": 4, "symbol": 12}
+    floors = {
+        "file": 80,
+        "dir": 100,
+        "up": 10,
+        "slash_cmd": 4,
+        "symbol": 12,
+        # 22 documented env citations measured across the READMEs, skills, and
+        # docs; a floor just below catches a pattern that stops matching the
+        # class without pinning the exact count.
+        "env": 18,
+    }
     thin = {k: (by_class[k], floors[k]) for k in floors if by_class[k] < floors[k]}
     if thin:
         for k, (got, want) in sorted(thin.items()):
