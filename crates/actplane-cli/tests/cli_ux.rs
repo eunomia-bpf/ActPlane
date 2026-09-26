@@ -680,6 +680,112 @@ fn embedded_e2e_case_policies_compile_without_warnings() {
     assert_eq!(checked, 25, "expected 15 + 10 e2e case policies");
 }
 
+/// Every fenced code block in a markdown file, with its opening fence stripped.
+fn fenced_blocks(md: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut in_block = false;
+    for line in md.lines() {
+        if line.trim_start().starts_with("```") {
+            if in_block {
+                out.push(std::mem::take(&mut cur));
+            }
+            in_block = !in_block;
+        } else if in_block {
+            cur.push_str(line);
+            cur.push('\n');
+        }
+    }
+    out
+}
+
+/// Every `.md` under `dir`, recursively.
+fn markdown_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            markdown_files(&path, out);
+        } else if path.extension().is_some_and(|e| e == "md") {
+            out.push(path);
+        }
+    }
+}
+
+#[test]
+fn documented_dsl_snippets_compile_without_warnings() {
+    // The fenced DSL blocks in the docs are the rule language's worked examples.
+    // A block that quietly lowers to an over-matching pattern (a repo-relative
+    // literal longer than the kernel's 16-byte contains window, or a `*` that
+    // survives into a matcher) shows a rule that does not mean what the prose
+    // beside it says. Compile every block that is a complete policy and fail on
+    // any warning. Grammar sketches (`rule NAME` with no clause body) and raw
+    // YAML blocks are not complete policies and are skipped by the compile
+    // itself, so they do not need a special case here.
+    let root = std::path::PathBuf::from(format!("{}/../..", env!("CARGO_MANIFEST_DIR")));
+    let mut files = Vec::new();
+    markdown_files(&root.join("docs"), &mut files);
+    assert!(
+        files.len() > 5,
+        "expected docs markdown, found {}",
+        files.len()
+    );
+    let mut checked = 0usize;
+    for file in &files {
+        let Ok(md) = fs::read_to_string(file) else {
+            continue;
+        };
+        let rel = file
+            .strip_prefix(&root)
+            .unwrap_or(file)
+            .display()
+            .to_string();
+        for (n, block) in fenced_blocks(&md).iter().enumerate() {
+            let is_dsl = block.lines().any(|l| {
+                let t = l.trim_start();
+                t.starts_with("source ") || t.starts_with("rule ")
+            });
+            if !is_dsl {
+                continue;
+            }
+            let mut yaml = String::from("version: 1\npolicy: |\n");
+            for line in block.lines() {
+                yaml.push_str("  ");
+                yaml.push_str(line);
+                yaml.push('\n');
+            }
+            let policy = std::env::temp_dir().join("actplane-doc-snippet.yaml");
+            fs::write(&policy, &yaml).unwrap_or_else(|e| panic!("write {}: {e}", policy.display()));
+            let out = std::env::temp_dir().join("actplane-doc-snippet.bin");
+            let output = run(&[
+                "--policy",
+                policy.to_str().unwrap(),
+                "compile",
+                "--out",
+                out.to_str().unwrap(),
+                "--force",
+            ]);
+            if !output.status.success() {
+                // Not a complete policy: a grammar fragment or a domain map.
+                continue;
+            }
+            let err = stderr(&output);
+            assert!(
+                !err.contains("ActPlane: warning"),
+                "{rel} block {n} compiles with a warning, so the documented rule does not \
+                 enforce what the surrounding prose states:\n{err}\nblock:\n{block}"
+            );
+            checked += 1;
+        }
+    }
+    assert!(
+        checked >= 5,
+        "expected documented DSL examples, found {checked}"
+    );
+}
+
 #[test]
 fn cookbook_run_examples_use_a_policy_that_declares_the_runner_label() {
     // `run`/auto-attach seeds the protected process with the runner label
