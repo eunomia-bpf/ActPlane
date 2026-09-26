@@ -612,7 +612,10 @@ fn shipped_policies_compile_without_warnings() {
         }
         checked += 1;
     }
-    assert!(checked >= 10, "expected the policy corpus, found {checked}");
+    // An exact count: a tracked policy that stops being recognized as one (its
+    // `policy:`/`rules:`/`domains:` head renamed) would otherwise drop out of
+    // the population unnoticed.
+    assert_eq!(checked, 28, "expected the policy corpus, found {checked}");
 }
 
 /// Inline policies embedded under `policy: |-` in a case file.
@@ -1282,9 +1285,12 @@ fn shipped_init_templates_compile_without_warnings() {
         .filter(|l| l.starts_with("  "))
         .filter_map(|l| l.split_whitespace().next().map(str::to_string))
         .collect();
-    assert!(
-        names.len() >= 5,
-        "expected the shipped template set, found {names:?}"
+    // An exact count: a template dropped from the list (renamed, or its row no
+    // longer indented) would otherwise leave the population silently short.
+    assert_eq!(
+        names.len(),
+        10,
+        "expected the 10 shipped templates, found {names:?}"
     );
     let tmp = tempfile::tempdir().unwrap();
     for name in &names {
