@@ -206,6 +206,20 @@ recv-only config that never sets `TE_POLICY_FILE_FLOW`. Whether that kernel woul
 reject the program is unmeasured here, since only a 6.8 guest is available, so
 this smoke is the check rather than the CI job.
 
+A second coverage gap is silent rather than absent. Two smokes assert `block`
+enforcement outright, `lsm_path_write_hooks_block_unlink_rename_and_truncate_smoke`
+(the denied unlink/rename/truncate return `-EPERM`) and
+`lsm_recv_endpoint_block_smoke` (the reported violation is `blocked`); five more
+exercise LSM-path flow. All seven begin with
+`if !bpf_lsm_active() { eprintln!("skipping ..."); return; }`, so on a host
+without BPF-LSM they return early and cargo records them as `... ok`. The
+privileged job's runner has no `bpf` in `/sys/kernel/security/lsm`, so its
+`test result: ok. 42 passed; 0 failed; 0 ignored` includes those seven as passes
+while the same log carries `skipping LSM path write hook smoke: bpf LSM is not
+active`. A green job therefore does not show that `block` was ever enforced. To
+read the count honestly, grep the log for `skipping`; to enforce it, run the
+smokes on a host with BPF-LSM active.
+
 ## Binary config format
 
 The compiler writes a fixed-size `taint_config` blob. The struct layout is
