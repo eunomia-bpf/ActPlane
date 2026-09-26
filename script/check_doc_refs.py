@@ -65,6 +65,19 @@ commands this way, and requires a hyphenated name, because the prose slashes in
 those files (`/sections`, `/figure`) are not commands. A reference is correct when
 it names a skill directory that exists.
 
+A fourth class is a symbol citation bound to the file that should define it. The
+prose writes `` `test_abi_layout` in `bpf/test_taint.c` `` and
+`` `te_after_satisfied` in `taint_engine.bpf.h` `` to point a reader at the
+guard for a claim. No
+path-shaped rule reads the identifier beside the path, so renaming that function,
+or moving the file it lives in, leaves the citation crediting a file that no
+longer defines it while every path check stays green. The check binds an
+identifier to a file token only when the two sit in one short clause, resolves a
+shortened file name by basename against the committed tree, and requires the
+identifier to appear in a file named on its line. It also fails when the cited
+file itself no longer resolves, since a moved file would otherwise drop the
+citation out of the checked set silently.
+
 Usage: python3 script/check_doc_refs.py
 """
 
@@ -160,6 +173,31 @@ UP_REF = re.compile(
 SLASH_CMD = re.compile(r"(?<![A-Za-z0-9_./-])/[a-z][a-z0-9]*(?:-[a-z0-9]+)+")
 SKILLS_DIR = ".claude/skills/"
 
+# A symbol citation bound to the file that should define it: `` `sym` in
+# `file.rs` `` (or any wording where the two sit within one short clause).
+# `REF`/`DIR_REF`/`UP_REF` only check that a *path* exists; none of them looks at
+# the identifier beside it. The compiler, the skill, and `bpf/README.md` all
+# write the test that pins an ABI field as `` `test_abi_layout` in
+# `bpf/test_taint.c` ``, and a rename of that function or a move to another file
+# would leave the citation pointing at a file that no longer defines it while
+# every existing check stayed green (the file still exists, so `REF` passes).
+# The check is deliberately narrow:
+#   * the identifier must be adjacent to a file token, so a line that names a
+#     source file and, elsewhere, an unrelated symbol is not bound to it (this
+#     is what keeps `std::slice::from_raw_parts` beside `taint.h` from being
+#     read as a `taint.h` symbol);
+#   * the file name is resolved to committed `.rs`/`.c`/`.h` files by basename,
+#     so the docs' shortened forms (`lower.rs`, `taint_engine.bpf.h`) work
+#     without a full path;
+#   * the identifier must appear somewhere in the file(s) named on its line,
+#     which is how a bullet listing several files (`bpf/process.bpf.c` ... and
+#     `bpf/process.c`) attributes `emit_violation` to the group.
+SYM_BOUND = re.compile(
+    r"`([A-Za-z_][A-Za-z0-9_]*)`[^`\n]{0,40}?`([A-Za-z0-9_./-]+\.(?:rs|c|h))`"
+)
+SYM_TOKEN = re.compile(r"`([^`\n]+)`")
+SYM_SOURCE_SUFFIXES = (".rs", ".c", ".h")
+
 
 def tracked_dirs(files: list[str]) -> set[str]:
     """Every directory path in the committed tree, with a trailing slash."""
@@ -169,6 +207,34 @@ def tracked_dirs(files: list[str]) -> set[str]:
             if str(parent) != ".":
                 dirs.add(str(parent) + "/")
     return dirs
+
+
+def source_files(files: list[str]) -> tuple[set[str], dict[str, list[str]]]:
+    """Committed source files, and the same keyed by basename.
+
+    Docs shorten a path (`lower.rs` for the only `lower.rs`), so a citation is
+    resolved against the exact committed path first and then by basename. The
+    committed list is the authority, so a file that exists only in a stale
+    checkout cannot satisfy a citation.
+    """
+    exact = {n for n in files if n.endswith(SYM_SOURCE_SUFFIXES)}
+    by_base: dict[str, list[str]] = {}
+    for n in exact:
+        by_base.setdefault(Path(n).name, []).append(n)
+    return exact, by_base
+
+
+def bound_sources(
+    names: list[str], exact: set[str], by_base: dict[str, list[str]]
+) -> list[str]:
+    """The committed source files a line's file tokens name, in stable order."""
+    out: list[str] = []
+    for n in names:
+        if n in exact:
+            out.append(n)
+        else:
+            out.extend(by_base.get(Path(n).name, []))
+    return sorted(set(out))
 
 
 def moved_deeper(ref: str, dirs: set[str]) -> bool:
@@ -199,10 +265,11 @@ def committed_files() -> list[str]:
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     problems: list[tuple[str, str]] = []
+    sym_problems: list[tuple[str, str]] = []
     # Per-class tallies, so a regex that stops matching a whole class of
     # citations fails the run instead of silently shrinking what is checked.
     checked = 0
-    by_class = {"file": 0, "dir": 0, "up": 0, "slash_cmd": 0}
+    by_class = {"file": 0, "dir": 0, "up": 0, "slash_cmd": 0, "symbol": 0}
 
     files = committed_files()
     for name in files:
@@ -315,6 +382,50 @@ def main() -> int:
             line = text.count("\n", 0, match.start()) + 1
             problems.append((f"{name}:{line}", match.group(0)))
 
+    # A symbol citation bound to its defining file (see `SYM_BOUND`). The file
+    # token must resolve to committed source, and the identifier must appear in
+    # one of the file(s) named on its line.
+    src_exact, src_by_base = source_files(files)
+    src_text: dict[str, str] = {}
+    for name in files:
+        if name in src_exact:
+            try:
+                src_text[name] = (root / name).read_text(
+                    encoding="utf-8", errors="replace"
+                )
+            except OSError:
+                pass
+    for name in files:
+        if name.endswith("/") or not name.endswith(SUFFIXES):
+            continue
+        if name.startswith(SKIP_PREFIXES) or name == SELF:
+            continue
+        try:
+            text = (root / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for line_no, line in enumerate(text.splitlines(), 1):
+            line_tokens = [
+                m.group(1)
+                for m in SYM_TOKEN.finditer(line)
+                if m.group(1).endswith(SYM_SOURCE_SUFFIXES)
+            ]
+            targets = bound_sources(line_tokens, src_exact, src_by_base)
+            blob = "\n".join(src_text.get(t, "") for t in targets)
+            for m in SYM_BOUND.finditer(line):
+                symbol, cited = m.group(1), m.group(2)
+                checked += 1
+                by_class["symbol"] += 1
+                where = f"{name}:{line_no}"
+                # The cited file must still resolve. A moved file otherwise drops
+                # the citation out of the checked set silently: `REF` only tests
+                # the token as written, and the moved file makes this one
+                # unresolvable, so the symbol would never be looked for.
+                if not bound_sources([cited], src_exact, src_by_base):
+                    sym_problems.append((where, f"`{cited}` (cited for `{symbol}`)"))
+                elif not re.search(r"\b" + re.escape(symbol) + r"\b", blob):
+                    sym_problems.append((where, f"`{symbol}` in {cited}"))
+
     # Reverse direction: a committed evidence directory that no doc names is
     # evidence a reader cannot find. The results tree had eight committed
     # directories while its index listed three, so this is checked rather than
@@ -351,9 +462,11 @@ def main() -> int:
         ):
             unindexed.append(f"{RESULTS_DIR}/{entry}/")
 
-    if problems or unindexed:
+    if problems or unindexed or sym_problems:
         for where, ref in problems:
             print(f"{where}: {ref} does not exist", file=sys.stderr)
+        for where, ref in sym_problems:
+            print(f"{where}: no definition of {ref}", file=sys.stderr)
         for ref in unindexed:
             print(f"{ref}: committed evidence dir is not named in {INDEX}", file=sys.stderr)
         if problems:
@@ -362,6 +475,13 @@ def main() -> int:
                 "tree. Update the citation to the path's current location, or, if it "
                 "lives on another ref, name that ref in the surrounding text so the "
                 "reader is told where it is.",
+                file=sys.stderr,
+            )
+        if sym_problems:
+            print(
+                f"\n{len(sym_problems)} doc citation(s) name a symbol the cited file "
+                "no longer defines. Point the citation at the file that now defines "
+                "the symbol, or update the name it uses.",
                 file=sys.stderr,
             )
         if unindexed:
@@ -375,7 +495,7 @@ def main() -> int:
 
     # A floor per class: a regex change that stops matching one class of
     # citation would otherwise print "ok" over a silently smaller population.
-    floors = {"file": 80, "dir": 100, "up": 10, "slash_cmd": 4}
+    floors = {"file": 80, "dir": 100, "up": 10, "slash_cmd": 4, "symbol": 12}
     thin = {k: (by_class[k], floors[k]) for k in floors if by_class[k] < floors[k]}
     if thin:
         for k, (got, want) in sorted(thin.items()):

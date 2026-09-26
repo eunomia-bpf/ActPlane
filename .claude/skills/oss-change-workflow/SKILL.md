@@ -31,7 +31,7 @@ Run the gate that covers what you touched. Docs-only changes do not need the car
 suite; a kernel change needs the kernel guards.
 
 ```bash
-python3 script/check_doc_refs.py        # doc path/command citations resolve
+python3 script/check_doc_refs.py        # doc path/command/symbol citations resolve
 bash script/check_evidence_tsv.sh       # committed evidence TSVs are well-formed
 bash script/check_prebuilt_fresh.sh     # committed eBPF objects match the source
 make -C bpf test                        # C unit tests (test_taint)
@@ -62,8 +62,9 @@ the committed objects byte-match a fresh build.
 
 - A claim a reader can act on must be tied to the code that enforces it. When a
   doc names a path, a symbol, a line, or a command, verify it still resolves
-  (`check_doc_refs.py` covers paths and skill slash-commands; a symbol name needs a
-  grep for its definition).
+  (`check_doc_refs.py` covers paths, skill slash-commands, and a symbol cited
+  beside the file that should define it; a symbol named with no file beside it
+  still needs a grep for its definition).
 - Changing a documented behavior means updating the doc in the same commit. The
   failure mode is a doc that silently drifts while its guard stays green, so name
   the enforcing location (`file.rs:line`) when you fix such a claim.
