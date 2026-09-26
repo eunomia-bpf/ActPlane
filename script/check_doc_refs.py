@@ -90,6 +90,12 @@ path-shaped rule sees it because the name is not a path. The check resolves a
 cited name against the committed code and scripts, which is where the reader's
 tooling would find it.
 
+A sixth class is a Cargo package name a doc tells the reader to build
+(`cargo test -p actplane-runtime`). The name is not a path, so no path check
+sees it: renaming a crate under `crates/` leaves every doc naming a package that
+no longer exists while the guard stays green. The name resolves when a committed
+`Cargo.toml` declares it.
+
 Usage: python3 script/check_doc_refs.py
 """
 
@@ -238,6 +244,15 @@ SYM_TOKEN = re.compile(r"`([^`\n]+)`")
 # itself, which is the failure this catches.
 ENV_REF = re.compile(r"\bACTPLANE_[A-Z0-9_]+\b")
 
+# A `cargo <cmd> -p <name>` citation. The name is a Cargo package, not a path, so
+# no path check reads it: renaming a crate under `crates/` leaves every doc
+# telling the reader to build a package that no longer exists while the guard
+# stays green. The name resolves when a committed `Cargo.toml` declares it. The
+# value is matched after a bare `-p`, which is how the docs spell the flag (not
+# `--package`), and only on a line that names `cargo`, so the many other `-p`
+# flags (`actplane run -p`) are not read as packages.
+PKG_REF = re.compile(r"(?<![A-Za-z0-9_-])-p\s+([A-Za-z_][A-Za-z0-9_-]*)")
+
 
 def tracked_dirs(files: list[str]) -> set[str]:
     """Every directory path in the committed tree, with a trailing slash."""
@@ -287,7 +302,6 @@ def moved_deeper(ref: str, dirs: set[str]) -> bool:
     tail = "/" + ref[len("docs/") :]
     return any(d.endswith(tail) and d != "docs/" + ref[len("docs/") :] for d in dirs)
 
-
 # The reviewer-facing index for the retained evidence, and the tree it indexes.
 # Every committed directory under RESULTS_DIR must be named in INDEX, so a reader
 # can find evidence that the product branch retains.
@@ -306,6 +320,7 @@ def main() -> int:
     problems: list[tuple[str, str]] = []
     sym_problems: list[tuple[str, str]] = []
     env_problems: list[tuple[str, str]] = []
+    pkg_problems: list[tuple[str, str]] = []
     # Per-class tallies, so a regex that stops matching a whole class of
     # citations fails the run instead of silently shrinking what is checked.
     checked = 0
@@ -317,6 +332,7 @@ def main() -> int:
         "symbol": 0,
         "env": 0,
         "non_doc": 0,
+        "pkg": 0,
     }
 
     files = committed_files()
@@ -541,6 +557,46 @@ def main() -> int:
                 if m.group(0) not in env_defined:
                     env_problems.append((f"{name}:{line_no}", m.group(0)))
 
+    # A documented `cargo <cmd> -p <name>` citation (see `PKG_REF`). The
+    # declared packages come from the committed `Cargo.toml` files, so renaming
+    # a crate fails here while every doc still names the old package.
+    pkg_defined: set[str] = set()
+    for name in files:
+        if name.endswith("/") or not name.endswith("Cargo.toml"):
+            continue
+        try:
+            text = (root / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        in_package = False
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("["):
+                in_package = stripped == "[package]"
+                continue
+            if in_package:
+                m = re.match(r'name\s*=\s*"([^"]+)"', stripped)
+                if m:
+                    pkg_defined.add(m.group(1))
+                    in_package = False
+    for name in files:
+        if name.endswith("/") or not name.endswith(".md"):
+            continue
+        if name.startswith(SKIP_PREFIXES) or name == SELF:
+            continue
+        try:
+            text = (root / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for line_no, line in enumerate(text.splitlines(), 1):
+            if "cargo" not in line:
+                continue
+            for m in PKG_REF.finditer(line):
+                checked += 1
+                by_class["pkg"] += 1
+                if m.group(1) not in pkg_defined:
+                    pkg_problems.append((f"{name}:{line_no}", m.group(1)))
+
     # Reverse direction: a committed evidence directory that no doc names is
     # evidence a reader cannot find. The results tree had eight committed
     # directories while its index listed three, so this is checked rather than
@@ -577,13 +633,15 @@ def main() -> int:
         ):
             unindexed.append(f"{RESULTS_DIR}/{entry}/")
 
-    if problems or unindexed or sym_problems or env_problems:
+    if problems or unindexed or sym_problems or env_problems or pkg_problems:
         for where, ref in problems:
             print(f"{where}: {ref} does not exist", file=sys.stderr)
         for where, ref in sym_problems:
             print(f"{where}: no definition of {ref}", file=sys.stderr)
         for where, ref in env_problems:
             print(f"{where}: no code reads {ref}", file=sys.stderr)
+        for where, ref in pkg_problems:
+            print(f"{where}: no crate declares {ref}", file=sys.stderr)
         for ref in unindexed:
             print(f"{ref}: committed evidence dir is not named in {INDEX}", file=sys.stderr)
         if problems:
@@ -606,6 +664,13 @@ def main() -> int:
                 f"\n{len(env_problems)} doc citation(s) tell the reader to set an "
                 "environment variable no committed code reads. Update the name to the "
                 "one the code uses, or drop the instruction if the knob is gone.",
+                file=sys.stderr,
+            )
+        if pkg_problems:
+            print(
+                f"\n{len(pkg_problems)} doc citation(s) tell the reader to build a "
+                "cargo package no `Cargo.toml` declares. Update the name to the crate "
+                "that exists, or drop the instruction if the package was removed.",
                 file=sys.stderr,
             )
         if unindexed:
@@ -633,6 +698,10 @@ def main() -> int:
         # test/, .github/) measured; a floor just below catches a pattern that
         # stops matching the class.
         "non_doc": 70,
+        # 20 documented `cargo -p` citations measured across the READMEs, the
+        # skills, and the docs; a floor just below catches a pattern that stops
+        # matching the class.
+        "pkg": 15,
     }
     thin = {k: (by_class[k], floors[k]) for k in floors if by_class[k] < floors[k]}
     if thin:
