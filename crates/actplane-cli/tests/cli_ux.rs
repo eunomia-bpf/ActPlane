@@ -777,6 +777,21 @@ fn documented_dsl_snippets_compile_without_warnings() {
                 yaml.push_str(line);
                 yaml.push('\n');
             }
+            // A documented example that names an absolute path under `/home/`
+            // or `/Users/` lowers to a prefix matcher over that literal, so on a
+            // reader's machine it matches nothing while the prose describes a
+            // workspace-wide rule (the `policies/readonly.yaml` defect). Skip no
+            // block for this: even a fragment that will not compile is still a
+            // path a reader may copy.
+            for line in block.lines() {
+                if let Some(at) = line.find("/home/").or_else(|| line.find("/Users/")) {
+                    panic!(
+                        "{rel} block {n} hardcodes a user path `{}`, which matches only on the \
+                         author's machine:\n{block}",
+                        &line[at..].split_whitespace().next().unwrap_or(&line[at..])
+                    );
+                }
+            }
             let policy = std::env::temp_dir().join("actplane-doc-snippet.yaml");
             fs::write(&policy, &yaml).unwrap_or_else(|e| panic!("write {}: {e}", policy.display()));
             let out = std::env::temp_dir().join("actplane-doc-snippet.bin");
