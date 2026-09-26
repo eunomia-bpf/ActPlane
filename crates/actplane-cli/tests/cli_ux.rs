@@ -1931,6 +1931,12 @@ fn documented_actplane_flags_exist() {
     let tracked = String::from_utf8(listing.stdout).expect("git ls-files utf8");
     let mut checked = 0usize;
     let mut problems: Vec<String> = Vec::new();
+    // The token after `actplane` names a subcommand; a flag scan cannot check
+    // it (an unknown subcommand ends the scan), so verify it directly and count
+    // the checks to keep this from passing on an empty set.
+    let mut subcommands_checked = 0usize;
+    let mut sub_problems: Vec<String> = Vec::new();
+    let mut accepted: std::collections::BTreeMap<String, bool> = std::collections::BTreeMap::new();
     for rel in tracked.lines() {
         if rel.starts_with("docs/papers") {
             continue;
@@ -1949,10 +1955,38 @@ fn documented_actplane_flags_exist() {
             else {
                 continue;
             };
+            // The word after `actplane` is the subcommand. Verify it against the
+            // binary (a real but hidden subcommand such as `feedback-hook` still
+            // runs, so probing is truer than reading the help text). The scan of
+            // flags below stops at an unknown word, so without this a renamed
+            // subcommand would silently drop its flags from the count.
+            //
+            // `docs/design/` is the design record and names planned commands
+            // (`delegate`, `audit`, `replay`) that the shipped CLI does not have
+            // yet, so it is excluded here as it is for the flag floor.
+            if !rel.starts_with("docs/design/") {
+                if let Some(next) = toks.get(at + 1) {
+                    let ok = !next.is_empty()
+                        && !next.starts_with('-')
+                        && next
+                            .chars()
+                            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+                    if ok {
+                        subcommands_checked += 1;
+                        let known = *accepted
+                            .entry((*next).to_string())
+                            .or_insert_with(|| !run(&[next, "--help"]).stdout.is_empty());
+                        if !known {
+                            sub_problems.push(format!("{rel}:{line_no}: actplane {next}"));
+                        }
+                    }
+                }
+            }
             let mut i = at + 1;
             // Start at the root command; descend into a known subcommand when
             // the line names one, until the flags run out or the child begins.
             let mut path: Vec<String> = Vec::new();
+
             while let Some(tok) = toks.get(i) {
                 if *tok == "--" {
                     break;
@@ -1999,12 +2033,22 @@ fn documented_actplane_flags_exist() {
             }
         }
     }
+    // 100 documented flags measured; pin below that so a scanner that stops
+    // finding them fails rather than passing on an empty set.
     assert!(
-        checked > 30,
+        checked > 80,
         "expected many documented actplane flags, found {checked}"
+    );
+    assert!(
+        subcommands_checked > 60,
+        "expected many documented actplane subcommands, found {subcommands_checked}"
     );
     assert!(
         problems.is_empty(),
         "documented actplane flags the binary does not define at that command: {problems:?}"
+    );
+    assert!(
+        sub_problems.is_empty(),
+        "documented actplane subcommands the binary does not accept: {sub_problems:?}"
     );
 }
