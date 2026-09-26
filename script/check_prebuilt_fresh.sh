@@ -133,6 +133,13 @@ for obj in process process-legacy; do
   # Only require functions the source marks __noinline AND that a build of the
   # source actually emits (an unreferenced __noinline function may be dropped).
   comm -12 "$tmp/src.funcs" "$tmp/built.funcs" > "$tmp/required.funcs"
+  # A regression in `source_noinline` or `object_functions` would empty this set,
+  # making the `missing` check below pass vacuously; the source does define
+  # __noinline functions, so an empty set is itself the failure.
+  if [ ! -s "$tmp/required.funcs" ]; then
+    stale=1
+    echo "STALE no __noinline functions found for $obj; did the source or nm scan break?" >&2
+  fi
 
   missing="$(comm -23 "$tmp/required.funcs" "$tmp/committed.funcs" || true)"
   if [ -n "$missing" ]; then
