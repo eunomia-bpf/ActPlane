@@ -199,7 +199,10 @@ def committed_files() -> list[str]:
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     problems: list[tuple[str, str]] = []
+    # Per-class tallies, so a regex that stops matching a whole class of
+    # citations fails the run instead of silently shrinking what is checked.
     checked = 0
+    by_class = {"file": 0, "dir": 0, "up": 0, "slash_cmd": 0}
 
     files = committed_files()
     for name in files:
@@ -216,6 +219,7 @@ def main() -> int:
         for match in REF.finditer(text):
             ref = match.group(0).rstrip(".,);`'\"")
             checked += 1
+            by_class["file"] += 1
             if (root / ref).exists():
                 continue
             # A qualifier may precede or follow the path, so read both sides.
@@ -248,6 +252,7 @@ def main() -> int:
                 continue  # a URL such as `https://tetragon.io/docs/.../selectors/`
             ref = match.group(0)
             checked += 1
+            by_class["dir"] += 1
             if (root / ref).exists():
                 continue
             if not moved_deeper(ref, dirs):
@@ -275,6 +280,7 @@ def main() -> int:
         for match in UP_REF.finditer(text):
             ref = match.group(0).rstrip(".,);`'\"")
             checked += 1
+            by_class["up"] += 1
             if (base / ref).resolve().exists():
                 continue
             window = text[max(0, match.start() - WINDOW) : match.end() + WINDOW]
@@ -303,6 +309,7 @@ def main() -> int:
         for match in SLASH_CMD.finditer(text):
             command = match.group(0)[1:]
             checked += 1
+            by_class["slash_cmd"] += 1
             if command in skills:
                 continue
             line = text.count("\n", 0, match.start()) + 1
@@ -362,6 +369,19 @@ def main() -> int:
                 f"\n{len(unindexed)} committed evidence dir(s) are missing from "
                 f"{INDEX}. Add them, so the index a reader uses to find the evidence "
                 "stays complete as directories are added.",
+                file=sys.stderr,
+            )
+        return 1
+
+    # A floor per class: a regex change that stops matching one class of
+    # citation would otherwise print "ok" over a silently smaller population.
+    floors = {"file": 80, "dir": 100, "up": 10, "slash_cmd": 4}
+    thin = {k: (by_class[k], floors[k]) for k in floors if by_class[k] < floors[k]}
+    if thin:
+        for k, (got, want) in sorted(thin.items()):
+            print(
+                f"only {got} {k} citation(s) checked, expected at least {want}: "
+                f"has the {k} pattern stopped matching?",
                 file=sys.stderr,
             )
         return 1
