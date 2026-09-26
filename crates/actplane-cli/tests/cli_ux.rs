@@ -1,4 +1,6 @@
+use std::collections::{BTreeSet, VecDeque};
 use std::fs;
+use std::path::PathBuf;
 use std::process::{Command, Output};
 
 #[cfg(unix)]
@@ -1778,6 +1780,7 @@ policy: |
     assert_eq!(request["approved_by"], "reviewer");
     assert_eq!(request["approval_ref"], "ticket-7");
     assert_eq!(request["generated_by"], "cli-test");
+
     handle.join().expect("control server thread");
 }
 
@@ -1787,4 +1790,221 @@ fn stdout(output: &Output) -> String {
 
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
+}
+
+/// One command level's accepted long flags, split into all flags and the
+/// value-taking subset, plus the names of the subcommands nested under it.
+struct CliLevel {
+    flags: BTreeSet<String>,
+    valued: BTreeSet<String>,
+    subcommands: Vec<String>,
+}
+
+fn parse_help(text: &str) -> CliLevel {
+    let mut flags = BTreeSet::new();
+    let mut valued = BTreeSet::new();
+    let mut subcommands = Vec::new();
+    for line in text.lines() {
+        let toks: Vec<&str> = line.split_whitespace().collect();
+        for (idx, token) in toks.iter().enumerate() {
+            // `--flag` or `--flag <VALUE>`; clap prints the value placeholder as
+            // its own token, so value-taking is read from the next token.
+            let Some(flag) = token.strip_prefix("--") else {
+                continue;
+            };
+            let name: String = flag
+                .chars()
+                .take_while(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-')
+                .collect();
+            if name.is_empty() || flag.len() != name.len() {
+                continue;
+            }
+            if toks
+                .get(idx + 1)
+                .is_some_and(|n| n.starts_with('<') && n.ends_with('>'))
+            {
+                valued.insert(name.clone());
+            }
+            flags.insert(name);
+        }
+    }
+    let mut in_commands = false;
+    for line in text.lines() {
+        if line.trim_end() == "Commands:" {
+            in_commands = true;
+            continue;
+        }
+        if in_commands {
+            if line.trim().is_empty() {
+                in_commands = false;
+                continue;
+            }
+            let name = line.trim().split_whitespace().next().unwrap_or("");
+            if !name.is_empty() && name != "help" && !name.starts_with('-') {
+                subcommands.push(name.to_string());
+            }
+        }
+    }
+    CliLevel {
+        flags,
+        valued,
+        subcommands,
+    }
+}
+
+/// The CLI's command tree keyed by command path (empty = the root), each with
+/// the long flags it accepts and the help-derived value-taking subset.
+///
+/// Deriving this from the binary rather than a hardcoded list keeps the guard
+/// honest: a flag removed from clap stops being accepted here, so a doc still
+/// naming it under that command fails. `--help` is the same surface a reader
+/// consults.
+fn cli_flag_inventory() -> std::collections::BTreeMap<Vec<String>, CliLevel> {
+    let mut tree = std::collections::BTreeMap::new();
+    let mut queue: VecDeque<Vec<String>> = VecDeque::from([Vec::new()]);
+    while let Some(path) = queue.pop_front() {
+        if tree.contains_key(&path) {
+            continue;
+        }
+        let out = if path.is_empty() {
+            run(&["--help"])
+        } else {
+            let mut args: Vec<&str> = path.iter().map(String::as_str).collect();
+            args.push("--help");
+            run(&args)
+        };
+        let level = parse_help(&stdout(&out));
+        for name in &level.subcommands {
+            let mut child = path.clone();
+            child.push(name.clone());
+            queue.push_back(child);
+        }
+        tree.insert(path, level);
+    }
+    tree
+}
+
+/// Every fenced code block in a markdown file, with the fence line number of
+/// each content line.
+fn fenced_lines(md: &str) -> Vec<(usize, String)> {
+    let mut out = Vec::new();
+    let mut in_block = false;
+    for (idx, line) in md.lines().enumerate() {
+        if line.trim_start().starts_with("```") {
+            in_block = !in_block;
+        } else if in_block {
+            out.push((idx + 1, line.to_string()));
+        }
+    }
+    out
+}
+
+#[test]
+fn documented_actplane_flags_exist() {
+    // A fenced example that spells `actplane run --flag` teaches that flag, and
+    // a reader who copies the line expects it to work. Check each documented
+    // flag against the command level the line names, not against the union of
+    // every command: `compile` and `run` accept different flags, so a `run
+    // --force` that only `compile` defines is a real break. The scan reads only
+    // the flags that belong to `actplane` itself: a value-taking flag consumes
+    // its value, the scan stops at the `--` that hands the rest of the line to
+    // the child command (`codex --cd`, `cargo build --release`), and a token
+    // that is not a known subcommand ends the scan (an aspirational example).
+    let tree = cli_flag_inventory();
+    let root_level = tree.get(&Vec::new()).expect("root help");
+    assert!(
+        root_level.flags.len() > 12,
+        "expected the root command to define many long flags, found {}",
+        root_level.flags.len()
+    );
+    assert!(
+        tree.len() > 8,
+        "expected a command tree, found {} levels",
+        tree.len()
+    );
+    let root = PathBuf::from(format!("{}/../..", env!("CARGO_MANIFEST_DIR")));
+    let listing = Command::new("git")
+        .args(["-C", root.to_str().unwrap(), "ls-files", "*.md"])
+        .output()
+        .unwrap_or_else(|e| panic!("run git ls-files: {e}"));
+    assert!(listing.status.success(), "git ls-files failed");
+    let tracked = String::from_utf8(listing.stdout).expect("git ls-files utf8");
+    let mut checked = 0usize;
+    let mut problems: Vec<String> = Vec::new();
+    for rel in tracked.lines() {
+        if rel.starts_with("docs/papers") {
+            continue;
+        }
+        let Ok(md) = fs::read_to_string(root.join(rel)) else {
+            continue;
+        };
+        for (line_no, line) in fenced_lines(&md) {
+            if !line.contains("actplane") {
+                continue;
+            }
+            let toks: Vec<&str> = line.split_whitespace().collect();
+            let Some(at) = toks
+                .iter()
+                .position(|t| t.rsplit('/').next() == Some("actplane"))
+            else {
+                continue;
+            };
+            let mut i = at + 1;
+            // Start at the root command; descend into a known subcommand when
+            // the line names one, until the flags run out or the child begins.
+            let mut path: Vec<String> = Vec::new();
+            while let Some(tok) = toks.get(i) {
+                if *tok == "--" {
+                    break;
+                }
+                let Some(flag) = tok.strip_prefix("--") else {
+                    // A bare word is either a subcommand we can descend into, or
+                    // the child command (or an aspirational token): stop.
+                    if !path.is_empty() || tree.get(&path).is_none() {
+                        break;
+                    }
+                    let next = {
+                        let mut p = path.clone();
+                        p.push((*tok).to_string());
+                        p
+                    };
+                    if tree.contains_key(&next) {
+                        path = next;
+                        i += 1;
+                        continue;
+                    }
+                    break;
+                };
+                let name: String = flag
+                    .chars()
+                    .take_while(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-')
+                    .collect();
+                if name.is_empty() || flag.len() != name.len() {
+                    break;
+                }
+                checked += 1;
+                let level = tree.get(&path).expect("visited level");
+                if !level.flags.contains(&name) {
+                    let cmd = if path.is_empty() {
+                        "actplane".to_string()
+                    } else {
+                        format!("actplane {}", path.join(" "))
+                    };
+                    problems.push(format!("{rel}:{line_no}: --{name} ({cmd})"));
+                }
+                i += 1;
+                if level.valued.contains(&name) {
+                    i += 1;
+                }
+            }
+        }
+    }
+    assert!(
+        checked > 30,
+        "expected many documented actplane flags, found {checked}"
+    );
+    assert!(
+        problems.is_empty(),
+        "documented actplane flags the binary does not define at that command: {problems:?}"
+    );
 }

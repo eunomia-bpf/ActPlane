@@ -64,7 +64,10 @@ the committed objects byte-match a fresh build.
   doc names a path, a symbol, a line, or a command, verify it still resolves
   (`check_doc_refs.py` covers paths, skill slash-commands, and a symbol cited
   beside the file that should define it; a symbol named with no file beside it
-  still needs a grep for its definition).
+  still needs a grep for its definition). A documented `actplane ... --flag` is
+  checked against the live CLI by `documented_actplane_flags_exist`
+  (`crates/actplane-cli/tests/cli_ux.rs`), which reads each command's own help so
+  a flag documented under the wrong subcommand fails.
 - Changing a documented behavior means updating the doc in the same commit. The
   failure mode is a doc that silently drifts while its guard stays green, so name
   the enforcing location (`file.rs:line`) when you fix such a claim.
