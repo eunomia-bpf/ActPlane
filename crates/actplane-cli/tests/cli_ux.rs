@@ -1158,6 +1158,58 @@ fn init_lists_and_writes_templates_without_templates_command() {
 }
 
 #[test]
+fn shipped_init_templates_compile_without_warnings() {
+    // `actplane init --template <name>` is the first policy most users get. A
+    // template whose rule lowers to a widened matcher (a repo-relative literal
+    // over the kernel's 16-byte contains window, or a `*` surviving into the
+    // literal) would hand the user a starter rule that fires on paths it never
+    // names. Only `workspace-confinement` is compile-tested today, and none is
+    // checked for warnings. Render every template at its defaults, compile it,
+    // and fail on any warning.
+    let listing = run(&["init", "--list-templates"]);
+    assert!(listing.status.success(), "stderr: {}", stderr(&listing));
+    let names: Vec<String> = stdout(&listing)
+        .lines()
+        .filter(|l| l.starts_with("  "))
+        .filter_map(|l| l.split_whitespace().next().map(str::to_string))
+        .collect();
+    assert!(
+        names.len() >= 5,
+        "expected the shipped template set, found {names:?}"
+    );
+    let tmp = tempfile::tempdir().unwrap();
+    for name in &names {
+        let out = tmp.path().join(format!("{name}.yaml"));
+        let init = run(&["init", "--template", name, "--out", out.to_str().unwrap()]);
+        assert!(
+            init.status.success(),
+            "render template {name}: {}",
+            stderr(&init)
+        );
+        let bin = tmp.path().join(format!("{name}.bin"));
+        let output = run(&[
+            "--policy",
+            out.to_str().unwrap(),
+            "compile",
+            "--out",
+            bin.to_str().unwrap(),
+            "--force",
+        ]);
+        assert!(
+            output.status.success(),
+            "template {name} failed to compile at its defaults: {}",
+            stderr(&output)
+        );
+        let err = stderr(&output);
+        assert!(
+            !err.contains("ActPlane: warning"),
+            "template {name} compiles with a warning at its defaults, so the starter policy \
+             may not enforce what its `# ...` header states:\n{err}"
+        );
+    }
+}
+
+#[test]
 fn init_generate_writes_candidate_policy() {
     let tmp = tempfile::tempdir().unwrap();
     fs::write(
