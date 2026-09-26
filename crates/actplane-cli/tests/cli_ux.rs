@@ -829,9 +829,12 @@ fn documented_dsl_snippets_compile_without_warnings() {
             checked += 1;
         }
     }
-    assert!(
-        checked >= 5,
-        "expected documented DSL examples, found {checked}"
+    // An exact count: the tree's complete-policy blocks all compile, so a block
+    // that silently starts failing the compile (and taking the `continue`
+    // above) would otherwise drop out of the population unnoticed.
+    assert_eq!(
+        checked, 24,
+        "expected 24 documented complete-policy DSL examples, found {checked}"
     );
 }
 
