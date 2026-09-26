@@ -703,7 +703,7 @@ fn embedded_e2e_case_policies_compile_without_warnings() {
             checked += 1;
         }
     }
-    assert_eq!(checked, 25, "expected 15 + 10 e2e case policies");
+    assert_eq!(checked, 26, "expected 16 + 10 e2e case policies");
 }
 
 /// Every fenced code block in a markdown file, with its opening fence stripped.
@@ -838,8 +838,8 @@ fn documented_dsl_snippets_compile_without_warnings() {
     // that silently starts failing the compile (and taking the `continue`
     // above) would otherwise drop out of the population unnoticed.
     assert_eq!(
-        checked, 24,
-        "expected 24 documented complete-policy DSL examples, found {checked}"
+        checked, 25,
+        "expected 25 documented complete-policy DSL examples, found {checked}"
     );
 }
 

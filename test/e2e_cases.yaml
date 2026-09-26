@@ -13,10 +13,10 @@
 #                count + re           -> exactly `count` lines match `re`
 #
 # `${D}` is the per-run workspace dir; the driver substitutes it. The driver
-# seeds these fixtures in ${D}: dirs work/ downloads/ customers/ data/ shared/;
-# /bin/bash copied to codex research-agent task-a task-b human-approve confirm
-# redact migrate pytest; /bin/true copied to git deploy; files sec.env,
-# downloads/inj, customers/rec, data/prod.db.
+# seeds these fixtures in ${D}: dirs work/ downloads/ customers/ data/ shared/
+# migrations/; /bin/bash copied to codex research-agent task-a task-b
+# human-approve confirm redact migrate migrate-check pytest; /bin/true copied to
+# git deploy; files sec.env, downloads/inj, customers/rec, data/prod.db.
 #
 # Cases are loaded separately on purpose: several contradict by design
 # (E9 "no git at all" subsumes E5/E11 "git ok if tested/confirmed"), so no
@@ -177,12 +177,32 @@ cases:
       count: 1
       re: '"comm":"git"'
 
+  # E13 (docs/rule-language.md §3). `since write "migrations/**"` makes the
+  # migrate-check gate go stale when the migrations change after it ran, so a
+  # prod.db write needs a check that saw the migrations now on disk.
+  #  session 1: migrate-check -> write prod.db                       => FRESH, allowed
+  #  session 2: migrate-check -> edit migrations/ -> write prod.db   => STALE, blocked
+  # exactly one prod.db violation proves both the allow-path and the staleness.
+  - name: "E13 migration-check must be fresh (since)"
+    policy: |-
+      source AGENT = exec "**/codex"
+      rule migrate-checked:
+        block write file "**/prod.db"
+          if AGENT
+          unless after exec "**/migrate-check" since write "${D}/migrations/**"
+        because "prod.db write needs a migration-check that saw the current migrations"
+    trigger: |-
+      (exec -a codex ${D}/codex -c '(exec -a migrate-check ${D}/migrate-check -c true); echo x >> ${D}/data/prod.db'); (exec -a codex ${D}/codex -c '(exec -a migrate-check ${D}/migrate-check -c true); echo y >> ${D}/migrations/001.sql; echo z >> ${D}/data/prod.db')
+    expect:
+      count: 1
+      re: '"target":"[^"]*prod.db"'
+
   # Staleness (docs/rule-language.md §1.9). `since` makes the pytest gate go stale
   # when work/** is edited again — which the latching `after` of E5 misses.
   #  session 1: pytest -> commit                  => FRESH, allowed (no kill)
   #  session 2: pytest -> edit work/foo -> commit => STALE, killed
   # exactly one git violation proves both the allow-path and the staleness-path.
-  - name: "E5b test-before-commit goes stale (since)"
+  - name: "E5d test-before-commit goes stale (since)"
     policy: |-
       source AGENT = exec "**/codex"
       rule test-before-commit:

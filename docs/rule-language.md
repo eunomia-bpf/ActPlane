@@ -497,12 +497,22 @@ rule migrate-checked:
   because "prod.db write needs a migration-check that saw the current migrations"
 ```
 
+### E14 — `unless target not` scopes a rule to an allow-listed region
+**Scenario**: the agent may write only inside one working area, even though the process carries the working label everywhere. **Why**: `unless target not PAT` inverts the exception into *positive scope* (§1.7), so the rule fires on exactly the writes inside `PAT` rather than on everything except it. The negated form is the one that reads as an allow-list, and it is easy to mistake for a plain `unless target`.
+```
+source AGENT = exec "**/codex"
+rule only-in-work:
+  notify write file "shared/**"  if AGENT  unless target not "shared/allowed/**"
+  because "only the allow-listed region is in scope"
+```
+
 ---
 
 ## 4. Why these are valuable (and where the novelty actually is)
 > Caveat repeated: the *mechanism* (cross-channel taint enforced in-kernel) is CamQuery's; the novelty is the agent-oriented harness model + eBPF substrate + sub-tool-layer coverage + feedback loop. Per-example value:
 - **E3, E5, E11, E13** are *mandatory-mediation / temporal* rules ("only via gate", "only after fresh tests", "only after a fresh confirm", "only after a current migration-check") that prompt instructions do not reliably preserve. The `since` staleness primitive (§1.9) is what makes "fresh" enforceable rather than latching.
 - **E4, E6, E9, E12** are *lineage-scoped capability / task-boundary* rules over the fork/exec subtree.
+- **E14** is a *scope* rule: the negated `unless target not` turns the exception into a positive allow-list, so the write is permitted inside one region rather than everywhere but another.
 - **E1, E7, E8, E10** are data-handling rules over **derived, cross-process, cross-channel** data. They are security-relevant, but the harness point is provenance continuity across tools.
 - **E2** is an untrusted-input review rule: when task context came from outside, privileged actions require an endorsement step.
 - **Declassification (E8) + endorsement (E2)** are what move this from "blunt deny" to a usable operating policy with sanctioned paths.

@@ -96,6 +96,16 @@ sees it: renaming a crate under `crates/` leaves every doc naming a package that
 no longer exists while the guard stays green. The name resolves when a committed
 `Cargo.toml` declares it.
 
+A seventh class is a worked example's label. `docs/rule-language.md` §3 numbers
+its examples (`### E13 — ...`) and `test/e2e_cases.yaml` names each live case
+with the same label, so a reader can go from a rule to its case. The two drifted
+in both directions: the doc grew an `### E13` section (migration freshness) no
+case exercised, and the case file grew an `E14` case (negated `unless target`)
+the doc never named, while the file's own header claims the two mirror each
+other. The check compares the example *base* labels (`E13`) on both sides, so a
+sub-label such as `E5b` and an example folded into another case's label
+(`E1 (+E8 declassify)`) both resolve to the example they belong to.
+
 Usage: python3 script/check_doc_refs.py
 """
 
@@ -253,6 +263,17 @@ ENV_REF = re.compile(r"\bACTPLANE_[A-Z0-9_]+\b")
 # flags (`actplane run -p`) are not read as packages.
 PKG_REF = re.compile(r"(?<![A-Za-z0-9_-])-p\s+([A-Za-z_][A-Za-z0-9_-]*)")
 
+# A worked-example label. `docs/rule-language.md` §3 numbers its examples in
+# `### E<n>` headings and `test/e2e_cases.yaml` labels each live case with the
+# same token, which is how a reader goes from a rule to the case that enforces
+# it. The two are compared as sets, in both directions, on the base form
+# (`E13`), because a case may carry a sub-label (`E5b`) or fold in a second
+# example (`E1 ... (+E8 declassify)`).
+E_EXAMPLE_DOC = "docs/rule-language.md"
+E_EXAMPLE_CASES = "test/e2e_cases.yaml"
+E_HEADING = re.compile(r"^### (E\d+)\b", re.M)
+E_LABEL = re.compile(r"\b(E\d+)[a-z]?\b")
+
 
 def tracked_dirs(files: list[str]) -> set[str]:
     """Every directory path in the committed tree, with a trailing slash."""
@@ -321,6 +342,7 @@ def main() -> int:
     sym_problems: list[tuple[str, str]] = []
     env_problems: list[tuple[str, str]] = []
     pkg_problems: list[tuple[str, str]] = []
+    e2e_problems: list[tuple[str, str]] = []
     # Per-class tallies, so a regex that stops matching a whole class of
     # citations fails the run instead of silently shrinking what is checked.
     checked = 0
@@ -333,6 +355,7 @@ def main() -> int:
         "env": 0,
         "non_doc": 0,
         "pkg": 0,
+        "example": 0,
     }
 
     files = committed_files()
@@ -597,6 +620,40 @@ def main() -> int:
                 if m.group(1) not in pkg_defined:
                     pkg_problems.append((f"{name}:{line_no}", m.group(1)))
 
+    # Worked-example labels (see `E_HEADING`/`E_LABEL`). The doc's `### E<n>`
+    # headings and the case file's `- name: "E<n> ..."` labels are one set a
+    # reader crosses between, and they had drifted apart in both directions.
+    # The comparison is on the base label, so a case sub-label (`E5b`) and an
+    # example folded into another case's label (`E1 ... (+E8 declassify)`) each
+    # resolve to their example. Both sides come from committed files, and both
+    # are cited, so the class is counted per label rather than per side.
+    doc_path = root / E_EXAMPLE_DOC
+    cases_path = root / E_EXAMPLE_CASES
+    if doc_path.is_file() and cases_path.is_file():
+        doc_labels = set(
+            E_HEADING.findall(
+                doc_path.read_text(encoding="utf-8", errors="replace")
+            )
+        )
+        case_labels: set[str] = set()
+        for m in re.finditer(
+            r'^  - name:\s*"([^"]*)"',
+            cases_path.read_text(encoding="utf-8", errors="replace"),
+            re.M,
+        ):
+            case_labels.update(E_LABEL.findall(m.group(1)))
+        for label in sorted(doc_labels | case_labels):
+            checked += 1
+            by_class["example"] += 1
+            if label in doc_labels and label not in case_labels:
+                e2e_problems.append(
+                    (E_EXAMPLE_DOC, f"### {label} has no case in {E_EXAMPLE_CASES}")
+                )
+            elif label in case_labels and label not in doc_labels:
+                e2e_problems.append(
+                    (E_EXAMPLE_CASES, f"{label} has no ### {label} in {E_EXAMPLE_DOC}")
+                )
+
     # Reverse direction: a committed evidence directory that no doc names is
     # evidence a reader cannot find. The results tree had eight committed
     # directories while its index listed three, so this is checked rather than
@@ -633,7 +690,14 @@ def main() -> int:
         ):
             unindexed.append(f"{RESULTS_DIR}/{entry}/")
 
-    if problems or unindexed or sym_problems or env_problems or pkg_problems:
+    if (
+        problems
+        or unindexed
+        or sym_problems
+        or env_problems
+        or pkg_problems
+        or e2e_problems
+    ):
         for where, ref in problems:
             print(f"{where}: {ref} does not exist", file=sys.stderr)
         for where, ref in sym_problems:
@@ -642,6 +706,8 @@ def main() -> int:
             print(f"{where}: no code reads {ref}", file=sys.stderr)
         for where, ref in pkg_problems:
             print(f"{where}: no crate declares {ref}", file=sys.stderr)
+        for where, ref in e2e_problems:
+            print(f"{where}: {ref}", file=sys.stderr)
         for ref in unindexed:
             print(f"{ref}: committed evidence dir is not named in {INDEX}", file=sys.stderr)
         if problems:
@@ -673,6 +739,15 @@ def main() -> int:
                 "that exists, or drop the instruction if the package was removed.",
                 file=sys.stderr,
             )
+        if e2e_problems:
+            print(
+                f"\n{len(e2e_problems)} worked example(s) are unmatched between "
+                f"{E_EXAMPLE_DOC} §3 and {E_EXAMPLE_CASES}. Add the missing worked "
+                "example to the doc, or the missing live case to the case file, so a "
+                "reader can reach the case for every rule and the case set stays "
+                "covered by the spec.",
+                file=sys.stderr,
+            )
         if unindexed:
             print(
                 f"\n{len(unindexed)} committed evidence dir(s) are missing from "
@@ -702,6 +777,11 @@ def main() -> int:
         # skills, and the docs; a floor just below catches a pattern that stops
         # matching the class.
         "pkg": 15,
+        # 14 worked-example labels measured in `docs/rule-language.md` §3 and
+        # `test/e2e_cases.yaml` (E1..E14, counted once per label across both
+        # sides); a floor just below catches a pattern that stops matching the
+        # class.
+        "example": 10,
     }
     thin = {k: (by_class[k], floors[k]) for k in floors if by_class[k] < floors[k]}
     if thin:
