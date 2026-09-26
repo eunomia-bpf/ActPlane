@@ -65,8 +65,12 @@ for dir in "${DIRS[@]}"; do
   done < <(find "$dir" -type f -name '*.tsv' -print0 | sort -z)
 done
 
-if [ "$checked" -eq 0 ]; then
-  echo "no TSV evidence found to check" >&2
+# The tree commits 31 evidence TSVs. A `find` change that stopped descending
+# into part of the tree would otherwise leave this reporting "ok" over a
+# silently smaller set, so floor the count rather than only rejecting zero.
+MIN_TSV=31
+if [ "$checked" -lt "$MIN_TSV" ]; then
+  echo "only $checked evidence TSV(s) checked, expected at least $MIN_TSV: has the find stopped descending?" >&2
   exit 2
 fi
 
