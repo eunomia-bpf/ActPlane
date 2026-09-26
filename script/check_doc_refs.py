@@ -35,17 +35,22 @@ resolve on a different ref but not on the one being read.
 Skipped: the `docs/papers` submodule (a separate repository), vendored trees, and
 build output, whose contents are not this repo's to keep in sync.
 
-Scope is `docs/` paths only, and that was checked rather than assumed. The other
-path classes a citation could name do not carry the same failure mode:
+The first check covers `docs/` paths and repo-relative paths outside `docs/`.
+The out-of-`docs/` class was once left out over two false positives, since
+neither carries the same failure mode:
 
   * `#include <bpf/bpf.h>`-style names resolve through `-I` at build time, so
-    they are not repo-relative even when the text looks like a path;
+    they are not repo-relative even when the text looks like a path; a line with
+    `#include` is skipped;
   * `crates/.../dsl/lower.rs` is a deliberate abbreviation in the docstrings of
-    `docs/empirical-study/replay_fp_lowering.py`, not a citation to follow.
+    `docs/empirical-study/replay_fp_lowering.py`, not a citation to follow, and
+    an ellipsis marks it.
+  * `test/fixtures/...` can be relative to a frozen corpus rather than this
+    tree; a citation on a line naming the corpus is taken as corpus-relative.
 
-A scan for the same class over `script/`, `test/`, `bpf/`, and `crates/` found
-only those two false positives, so widening the pattern would add noise without
-catching real staleness. `docs/` is where the citations are meant to be followed.
+With those excluded, 86 citations over `script/`, `crates/`, `bpf/`, `test/`,
+`examples/`, `tools/`, and `.github/` resolve, so the class is checked rather
+than assumed clean.
 
 The second check runs the other way: every committed directory under
 `docs/empirical-study/results/` must be named in the reviewer-facing index
@@ -108,6 +113,28 @@ from pathlib import Path
 REF = re.compile(
     r"docs/[A-Za-z0-9_./-]+\.(?:md|yaml|yml|jsonl|json|tsv|js|sh|py|rs|c|h|toml)(?![A-Za-z0-9])"
 )
+
+# A citation to a repo-relative path outside `docs/`. `REF` anchors on `docs/`,
+# so a doc that names `script/check_prebuilt_fresh.sh` or `bpf/process.bpf.c`
+# went unchecked while the file was free to move. The docstring records why this
+# class was left out; it is checked now because the two false positives it named
+# are cheaply excluded: an `#include <bpf/bpf.h>` resolves through the compiler's
+# `-I`, so a line with `#include` is skipped, and the ellipsis form
+# `crates/.../dsl/lower.rs` is a deliberate abbreviation, not a path. The
+# extension list mirrors `REF`; the lookahead keeps the extension token whole.
+NON_DOC_REF = re.compile(
+    r"(?<![A-Za-z0-9_./-])"
+    r"(?:script|crates|bpf|test|examples|tools|\.github)/"
+    r"[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"
+    r"\.(?:md|yaml|yml|jsonl|json|tsv|js|sh|py|rs|c|h|toml|txt)(?![A-Za-z0-9])"
+)
+
+# A `test/fixtures/...` citation can be relative to a frozen corpus rather than
+# this tree: `docs/empirical-study/rq2-lowering-eval.md` quotes the observed
+# event `test/fixtures/src-lib-new-command.js.txt` from the NemoClaw run, a path
+# that only exists in that corpus. Such a line names the corpus, so the check
+# takes the name as the qualifier that says "not this tree".
+NON_DOC_QUALIFIERS = ("NemoClaw",)
 
 # Text files whose citations we check.
 SUFFIXES = (".md", ".rs", ".sh", ".yaml", ".yml", ".c", ".h", ".toml", ".py", ".js")
@@ -267,7 +294,6 @@ def moved_deeper(ref: str, dirs: set[str]) -> bool:
 RESULTS_DIR = "docs/empirical-study/results"
 INDEX = "docs/empirical-study/README.md"
 
-
 def committed_files() -> list[str]:
     out = subprocess.run(
         ["git", "ls-files"], capture_output=True, text=True, check=True
@@ -283,7 +309,15 @@ def main() -> int:
     # Per-class tallies, so a regex that stops matching a whole class of
     # citations fails the run instead of silently shrinking what is checked.
     checked = 0
-    by_class = {"file": 0, "dir": 0, "up": 0, "slash_cmd": 0, "symbol": 0, "env": 0}
+    by_class = {
+        "file": 0,
+        "dir": 0,
+        "up": 0,
+        "slash_cmd": 0,
+        "symbol": 0,
+        "env": 0,
+        "non_doc": 0,
+    }
 
     files = committed_files()
     for name in files:
@@ -309,6 +343,36 @@ def main() -> int:
                 continue
             line = text.count("\n", 0, match.start()) + 1
             problems.append((f"{name}:{line}", ref))
+
+    # Citations to repo-relative paths outside `docs/` (see `NON_DOC_REF`). The
+    # citing set is the committed `.md` files, where a reader follows a path; the
+    # code comments that also cite paths are not instructions a reader acts on.
+    # The qualifier window and the line-level exclusions mirror the `REF` check,
+    # so a citation the text says lives on another ref still passes.
+    for name in files:
+        if not name.endswith(".md") or name.startswith(SKIP_PREFIXES):
+            continue
+        try:
+            text = (root / name).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for match in NON_DOC_REF.finditer(text):
+            line_start = text.rfind("\n", 0, match.start()) + 1
+            line_end = text.find("\n", match.end())
+            line = text[line_start : line_end if line_end != -1 else len(text)]
+            if "#include" in line or "..." in line:
+                continue
+            ref = match.group(0)
+            checked += 1
+            by_class["non_doc"] += 1
+            if (root / ref).exists():
+                continue
+            # A qualifier may precede or follow the path, so read both sides.
+            window = text[max(0, match.start() - WINDOW) : match.end() + WINDOW]
+            if any(q in window for q in REF_QUALIFIERS + NON_DOC_QUALIFIERS):
+                continue
+            line_no = text.count("\n", 0, match.start()) + 1
+            problems.append((f"{name}:{line_no}", ref))
 
     # Directory citations, checked separately because `REF` needs a file
     # extension and so never sees them (see `DIR_REF`).
@@ -565,6 +629,10 @@ def main() -> int:
         # docs; a floor just below catches a pattern that stops matching the
         # class without pinning the exact count.
         "env": 18,
+        # 85 md citations to paths outside `docs/` (script/, crates/, bpf/,
+        # test/, .github/) measured; a floor just below catches a pattern that
+        # stops matching the class.
+        "non_doc": 70,
     }
     thin = {k: (by_class[k], floors[k]) for k in floors if by_class[k] < floors[k]}
     if thin:
