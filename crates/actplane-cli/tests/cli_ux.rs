@@ -962,6 +962,29 @@ fn documented_warning_codes_match_the_cli() {
         "the pattern codes listed in docs/rule-language.md must be exactly \
          `PATTERN_WARNING_CODES`"
     );
+
+    // The `rule_condition_*` family heads its own bullet list ("- `code`: ..."),
+    // so a phantom code there is representable the same way. A code added to
+    // the doc but not the compiler would send the reader chasing a warning the
+    // binary cannot emit.
+    let doc_rule_condition_list: std::collections::BTreeSet<&str> = doc
+        .lines()
+        .filter_map(|l| {
+            let rest = l.strip_prefix("- `")?;
+            let code = rest.split('`').next()?;
+            code.starts_with("rule_condition_").then_some(code)
+        })
+        .collect();
+    let compiled_rule_condition_codes: std::collections::BTreeSet<&str> =
+        actplane_ifc_compiler::dsl::RULE_CONDITION_WARNING_CODES
+            .iter()
+            .copied()
+            .collect();
+    assert_eq!(
+        doc_rule_condition_list, compiled_rule_condition_codes,
+        "the `rule_condition_*` codes bulleted in docs/rule-language.md must be \
+         exactly `RULE_CONDITION_WARNING_CODES`"
+    );
 }
 
 #[test]
