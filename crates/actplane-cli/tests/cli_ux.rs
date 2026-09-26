@@ -706,6 +706,73 @@ fn embedded_e2e_case_policies_compile_without_warnings() {
     assert_eq!(checked, 26, "expected 16 + 10 e2e case policies");
 }
 
+#[test]
+fn live_e2e_cases_do_not_depend_on_bpf_lsm() {
+    // A case's `expect:` block states a violation count observed on the CI
+    // runner. `block` needs BPF-LSM, and the privileged job's runner has none
+    // (`/sys/kernel/security/lsm` carries no `bpf`), so a case whose clause is
+    // `block` is admitted as unsupported there and can never fire: the stated
+    // count is unsatisfiable and the live step fails. `compile --out` does not
+    // expose this: its blob is portable, and the host-dependent warning is
+    // attached only where a host is known, so `Some(false)` vs `None` is the
+    // whole difference. Force the tracepoint backend, which is exactly the
+    // runner's mode, and read the warning the case would meet there.
+    let root = format!("{}/../..", env!("CARGO_MANIFEST_DIR"));
+    let forced = |policy: &str| -> Vec<String> {
+        let file = std::env::temp_dir().join("actplane-e2e-lsm.yaml");
+        fs::write(&file, policy).unwrap_or_else(|e| panic!("write {}: {e}", file.display()));
+        let out = Command::new(actplane())
+            .env("ACTPLANE_FORCE_TRACEPOINT", "1")
+            .args(["--policy", file.to_str().unwrap(), "compile", "--json"])
+            .output()
+            .unwrap_or_else(|e| panic!("run actplane: {e}"));
+        assert!(out.status.success(), "stderr: {}", stderr(&out));
+        let value: serde_json::Value =
+            serde_json::from_slice(&out.stdout).expect("compile --json stdout");
+        value["warnings"]
+            .as_array()
+            .expect("warnings array")
+            .iter()
+            .filter_map(|w| w["code"].as_str().map(str::to_string))
+            .collect()
+    };
+
+    // Non-vacuous: a `block write` clause under the forced tracepoint backend
+    // must report the code, so a case that carried one would be caught. This is
+    // the shape the E13 case had before the guard existed.
+    let block_case = "version: 1\npolicy: |\n  source AGENT = exec \"**/codex\"\n  rule r:\n    block write file \"/tmp/x/prod.db\" if AGENT\n    because \"x\"\n";
+    assert!(
+        forced(block_case)
+            .iter()
+            .any(|c| c == "bpf_lsm_inactive_for_block"),
+        "a `block` clause must warn under the forced tracepoint backend; the probe did not fire"
+    );
+
+    let mut checked = 0usize;
+    for rel in ["test/e2e_cases.yaml", "test/e2e_file_flow_cases.yaml"] {
+        let path = format!("{root}/{rel}");
+        let body = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path}: {e}"));
+        for (n, policy) in embedded_case_policies(&body).iter().enumerate() {
+            let substituted = policy.replace("${D}", "/tmp/actplane-e2e");
+            let mut yaml = String::from("version: 1\npolicy: |\n");
+            for line in substituted.lines() {
+                yaml.push_str("  ");
+                yaml.push_str(line);
+                yaml.push('\n');
+            }
+            let codes = forced(&yaml);
+            assert!(
+                !codes.iter().any(|c| c == "bpf_lsm_inactive_for_block"),
+                "{rel} case {n} uses a `block` clause, which the no-LSM CI runner admits as \
+                 unsupported, so its `expect:` count can never be met:\n{substituted}\n\
+                 warnings: {codes:?}"
+            );
+            checked += 1;
+        }
+    }
+    assert_eq!(checked, 26, "expected 16 + 10 e2e case policies");
+}
+
 /// Every fenced code block in a markdown file, with its opening fence stripped.
 fn fenced_blocks(md: &str) -> Vec<String> {
     let mut out = Vec::new();

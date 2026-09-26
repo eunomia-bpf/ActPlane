@@ -177,17 +177,28 @@ cases:
       count: 1
       re: '"comm":"git"'
 
-  # E13 (docs/rule-language.md §3). `since write "migrations/**"` makes the
+  # E13 (docs/rule-language.md §3). `since write "${D}/migrations/**"` makes the
   # migrate-check gate go stale when the migrations change after it ran, so a
   # prod.db write needs a check that saw the migrations now on disk.
   #  session 1: migrate-check -> write prod.db                       => FRESH, allowed
-  #  session 2: migrate-check -> edit migrations/ -> write prod.db   => STALE, blocked
+  #  session 2: migrate-check -> edit migrations/ -> write prod.db   => STALE, killed
   # exactly one prod.db violation proves both the allow-path and the staleness.
+  #
+  # The doc and `test/policies/13_migration_freshness.yaml` state this clause with
+  # `block`, the spec form; the live case uses `kill` because `block` needs BPF
+  # LSM, which the CI runner lacks (`/sys/kernel/security/lsm` carries no `bpf`),
+  # so a `block` rule is admitted as unsupported and can never fire there. The
+  # target is the absolute `${D}/data/prod.db`, not the doc's repo-relative
+  # `**/prod.db`, because a repo-relative target also emits a
+  # `lower_path_companions` entry (`crates/actplane-ifc-compiler/src/dsl/lower.rs`),
+  # and the resulting second write rule pushes `trace_openat_exit` over the 1M
+  # verifier budget (`-E2BIG`). The case tests the `since` staleness, which is
+  # independent of both the effect and the target form.
   - name: "E13 migration-check must be fresh (since)"
     policy: |-
       source AGENT = exec "**/codex"
       rule migrate-checked:
-        block write file "**/prod.db"
+        kill write file "${D}/data/prod.db"
           if AGENT
           unless after exec "**/migrate-check" since write "${D}/migrations/**"
         because "prod.db write needs a migration-check that saw the current migrations"
