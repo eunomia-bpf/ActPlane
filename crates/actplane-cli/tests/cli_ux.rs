@@ -1937,6 +1937,18 @@ fn documented_actplane_flags_exist() {
     let mut subcommands_checked = 0usize;
     let mut sub_problems: Vec<String> = Vec::new();
     let mut accepted: std::collections::BTreeMap<String, bool> = std::collections::BTreeMap::new();
+    // `actplane init --template <name>` names a shipped template, and the flag
+    // scan skips the value because `--template` takes one. Check the value
+    // against the listing the CLI prints, so a renamed or removed template fails
+    // here rather than leaving the reader to copy a name that does not exist.
+    let template_listing = stdout(&run(&["init", "--list-templates"]));
+    let templates: std::collections::BTreeSet<&str> = template_listing
+        .lines()
+        .skip(1)
+        .filter_map(|l| l.split_whitespace().next())
+        .collect();
+    let mut templates_checked = 0usize;
+    let mut template_problems: Vec<String> = Vec::new();
     for rel in tracked.lines() {
         if rel.starts_with("docs/papers") {
             continue;
@@ -1979,6 +1991,23 @@ fn documented_actplane_flags_exist() {
                         if !known {
                             sub_problems.push(format!("{rel}:{line_no}: actplane {next}"));
                         }
+                    }
+                }
+            }
+            // `--template <name>` names a shipped template. The flag scan
+            // consumes the value of a value-taking flag, so without this a
+            // renamed template would leave the reader copying a name that does
+            // not exist. A placeholder (`--template <name>`) teaches no name, so
+            // only a real-looking word is checked. `docs/design/` names planned
+            // material and is excluded here as it is above.
+            if !rel.starts_with("docs/design/") {
+                for pair in toks.windows(2) {
+                    if pair[0] != "--template" || pair[1].starts_with('<') {
+                        continue;
+                    }
+                    templates_checked += 1;
+                    if !templates.contains(pair[1]) {
+                        template_problems.push(format!("{rel}:{line_no}: --template {}", pair[1]));
                     }
                 }
             }
@@ -2050,5 +2079,15 @@ fn documented_actplane_flags_exist() {
     assert!(
         sub_problems.is_empty(),
         "documented actplane subcommands the binary does not accept: {sub_problems:?}"
+    );
+    // 7 documented `--template` values measured; a floor just below keeps a
+    // scanner that stops matching them from passing on an empty set.
+    assert!(
+        templates_checked > 4,
+        "expected many documented actplane templates, found {templates_checked}"
+    );
+    assert!(
+        template_problems.is_empty(),
+        "documented actplane templates the binary does not ship: {template_problems:?}"
     );
 }
