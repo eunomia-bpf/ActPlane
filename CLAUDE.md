@@ -133,8 +133,8 @@ Full semantics and worked examples: `docs/rule-language.md`.
 `crates/actplane-ifc-compiler/src/dsl/lower.rs`'s `#[repr(C)]` structs are **byte-identical** to the C
 structs in `bpf/taint.h`. The blob is serialized with `from_raw_parts` and read
 directly into the BPF rodata. Any change to `taint.h` MUST be mirrored in
-`lower.rs` (and vice versa). Guards: the `fixed-size` test in `dsl/mod.rs` pins
-total `CConfig` size, and `abi_layout_matches_the_c_header` in `lower.rs` plus
+`lower.rs` (and vice versa). Guards: `config_blob_is_fixed_size` in `dsl/mod.rs`
+pins the total blob size, and `abi_layout_matches_the_c_header` in `lower.rs` plus
 `test_abi_layout` in `bpf/test_taint.c` pin every field offset on both sides. The
 size test alone does not catch a same-width field reorder, which reinterprets
 every serialized field, so update both the offsets and the sizes together.
