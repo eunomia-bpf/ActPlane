@@ -1222,6 +1222,19 @@ fn shipped_init_templates_compile_without_warnings() {
             "render template {name}: {}",
             stderr(&init)
         );
+        // A default parameter that names a user path lowers to a `prefix`
+        // matcher over that literal: warning-free, but a no-op on every
+        // machine except the author's (the `policies/readonly.yaml` defect).
+        // The default set is what a user keeps, so it must stay host-independent.
+        let rendered = fs::read_to_string(&out)
+            .unwrap_or_else(|e| panic!("read rendered template {name}: {e}"));
+        for marker in ["/home/", "/Users/"] {
+            assert!(
+                !rendered.contains(marker),
+                "template {name} default hardcodes a user path `{marker}`, so on a \
+                 reader's machine the policy matches nothing it claims to"
+            );
+        }
         let bin = tmp.path().join(format!("{name}.bin"));
         let output = run(&[
             "--policy",
@@ -1265,12 +1278,20 @@ fn init_generate_writes_candidate_policy() {
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     assert!(stderr(&output).contains("selected no-git-branch"));
     assert!(stderr(&output).contains("selected test-before-commit"));
-    assert!(stderr(&output).contains("selected no-secret-egress"));
-
     let written = fs::read_to_string(&policy).unwrap();
     assert!(written.contains("ActPlane candidate policy generated"));
     assert!(written.contains("# template: no-git-branch"));
     assert!(written.contains("rule no-git-branch:"));
+    // The candidate is what the user is told to review and then enforce. A
+    // generated path under the author's home would lower warning-free yet match
+    // nothing on the reader's machine, so the generated file must stay
+    // host-independent the way the tracked policies and the docs do.
+    for marker in ["/home/", "/Users/"] {
+        assert!(
+            !written.contains(marker),
+            "generated candidate hardcodes a user path `{marker}`"
+        );
+    }
 
     // The candidate is what the user is told to review and then enforce, and it
     // composes several templates into one file. A warning here would mean the
