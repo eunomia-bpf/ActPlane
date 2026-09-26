@@ -615,7 +615,10 @@ mod tests {
 
     #[test]
     fn all_templates_compile_as_dsl_and_yaml() {
-        assert!(all().len() >= 6);
+        // An exact count: the CLI test `shipped_init_templates_...` pins the
+        // same ten through the rendered list, so a template that stops being
+        // reachable here fails loudly instead of shrinking the population.
+        assert_eq!(all().len(), 10);
         for template in all() {
             let rendered = render_dsl(template, &[])
                 .unwrap_or_else(|e| panic!("template {} render DSL: {e}", template.id));

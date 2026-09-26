@@ -808,8 +808,11 @@ domains:
             .filter(|path| path.extension().is_some_and(|ext| ext == "yaml"))
             .collect();
         paths.sort();
-        assert!(
-            paths.len() >= 7,
+        // Exact: a file dropped from the corpus (or added without a matching
+        // entry) should fail here rather than silently resize the set.
+        assert_eq!(
+            paths.len(),
+            7,
             "expected invalid policy corpus files in {}",
             dir.display()
         );
