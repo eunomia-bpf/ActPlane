@@ -594,6 +594,92 @@ fn shipped_policies_compile_without_warnings() {
     assert!(checked >= 10, "expected the policy corpus, found {checked}");
 }
 
+/// Inline policies embedded under `policy: |-` in a case file.
+///
+/// `test/e2e_cases.yaml` and `test/e2e_file_flow_cases.yaml` are case tables,
+/// not policy configs, so `shipped_policies_compile_without_warnings` skips
+/// them. Their per-case policies are still shipped, CI-executed examples, and
+/// `script/e2e_examples.sh` fails only on a compile *error*: a policy that
+/// compiles with an over-matching pattern would run green while not enforcing
+/// what the case's `expect:` block claims. Extract and compile them here.
+fn embedded_case_policies(yaml: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let lines: Vec<&str> = yaml.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        // A case policy header sits at four spaces; its body is indented six.
+        if lines[i].trim_end() == "    policy: |-" {
+            let mut body = String::new();
+            i += 1;
+            while i < lines.len() && lines[i].starts_with("      ") {
+                body.push_str(&lines[i][6..]);
+                body.push('\n');
+                i += 1;
+            }
+            if !body.trim().is_empty() {
+                out.push(body);
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
+#[test]
+fn embedded_e2e_case_policies_compile_without_warnings() {
+    let root = format!("{}/../..", env!("CARGO_MANIFEST_DIR"));
+    // `script/e2e_examples.sh:17,44` binds `${D}` to an absolute workspace and
+    // substitutes it into every case's policy before compiling. An absolute path
+    // is cut at its first wildcard, so it lowers to a `prefix`/`suffix` matcher
+    // rather than the 16-byte-capped `contains` a repo-relative path uses; pass a
+    // concrete absolute path here so the compile sees the same form the runner
+    // does, not the literal `${D}` (which would warn spuriously).
+    let concrete = "/tmp/actplane-e2e";
+    let mut checked = 0usize;
+    for rel in ["test/e2e_cases.yaml", "test/e2e_file_flow_cases.yaml"] {
+        let path = format!("{root}/{rel}");
+        let body = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path}: {e}"));
+        let policies = embedded_case_policies(&body);
+        assert!(
+            !policies.is_empty(),
+            "{rel} has no embedded case policies; the extractor drifted"
+        );
+        for (n, policy) in policies.iter().enumerate() {
+            let substituted = policy.replace("${D}", concrete);
+            let mut yaml = String::from("version: 1\npolicy: |\n");
+            for line in substituted.lines() {
+                yaml.push_str("  ");
+                yaml.push_str(line);
+                yaml.push('\n');
+            }
+            let file = std::env::temp_dir().join(format!("actplane-e2e-policy-{n}.yaml"));
+            fs::write(&file, &yaml).unwrap_or_else(|e| panic!("write {}: {e}", file.display()));
+            let out = std::env::temp_dir().join("actplane-e2e-policy.bin");
+            let output = run(&[
+                "--policy",
+                file.to_str().unwrap(),
+                "compile",
+                "--out",
+                out.to_str().unwrap(),
+                "--force",
+            ]);
+            assert!(
+                output.status.success(),
+                "{rel} case {n} failed to compile: {}",
+                stderr(&output)
+            );
+            let err = stderr(&output);
+            assert!(
+                !err.contains("ActPlane: warning"),
+                "{rel} case {n} compiles with a warning, so the case may not test what its `expect:` block states:\n{err}\npolicy:\n{substituted}"
+            );
+            checked += 1;
+        }
+    }
+    assert_eq!(checked, 25, "expected 15 + 10 e2e case policies");
+}
+
 #[test]
 fn cookbook_run_examples_use_a_policy_that_declares_the_runner_label() {
     // `run`/auto-attach seeds the protected process with the runner label
