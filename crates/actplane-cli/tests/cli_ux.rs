@@ -1235,6 +1235,30 @@ fn init_generate_writes_candidate_policy() {
     assert!(written.contains("ActPlane candidate policy generated"));
     assert!(written.contains("# template: no-git-branch"));
     assert!(written.contains("rule no-git-branch:"));
+
+    // The candidate is what the user is told to review and then enforce, and it
+    // composes several templates into one file. A warning here would mean the
+    // generated policy fires on paths none of the selected templates named, so
+    // compile it and require the same warning-free result the templates carry.
+    let bin = tmp.path().join("candidate.bin");
+    let compile = run(&[
+        "--policy",
+        policy.to_str().unwrap(),
+        "compile",
+        "--out",
+        bin.to_str().unwrap(),
+        "--force",
+    ]);
+    assert!(
+        compile.status.success(),
+        "generated candidate failed to compile: {}",
+        stderr(&compile)
+    );
+    assert!(
+        !stderr(&compile).contains("ActPlane: warning"),
+        "generated candidate compiles with a warning:\n{}",
+        stderr(&compile)
+    );
 }
 
 #[test]
