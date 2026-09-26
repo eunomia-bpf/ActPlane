@@ -27,6 +27,40 @@ fn run(args: &[&str]) -> Output {
         .unwrap_or_else(|e| panic!("run actplane {args:?}: {e}"))
 }
 
+/// Every `code: "..."` string literal in the doctor's source, sorted and
+/// deduplicated.
+///
+/// The doc-completeness guard needs the set of codes the doctor can emit, and
+/// `actplane` is a binary crate, so no library export carries them. Scanning the
+/// source keeps the guard tied to what the doctor actually emits: a renamed or
+/// new code fails the guard until `docs/rule-language.md` lists it.
+fn doctor_warning_codes(src: &str) -> Vec<&str> {
+    let mut codes: Vec<&str> = Vec::new();
+    let mut rest = src;
+    while let Some(at) = rest.find("code:") {
+        rest = &rest[at + "code:".len()..];
+        let trimmed = rest.trim_start();
+        let Some(after_quote) = trimmed.strip_prefix('"') else {
+            continue;
+        };
+        let Some(end) = after_quote.find('"') else {
+            continue;
+        };
+        let code = &after_quote[..end];
+        if !code.is_empty()
+            && code
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            && !codes.contains(&code)
+        {
+            codes.push(code);
+        }
+        rest = &after_quote[end..];
+    }
+    codes.sort_unstable();
+    codes
+}
+
 #[test]
 fn top_level_help_is_engine_focused() {
     let output = run(&["--help"]);
@@ -602,24 +636,24 @@ fn documented_warning_codes_match_the_cli() {
         })
         .collect();
 
-    // Every code the CLI can emit. The pattern-lowering family is read from the
-    // compiler (`PATTERN_WARNING_CODES`) rather than restated, because a
-    // hand-written copy drifted: `pattern_empty_literal` was emitted by the
-    // binary but omitted here, so this guard would not have caught its doc
-    // changing. The rest stay explicit: they are produced by the CLI's doctor,
-    // not the compiler, so no crate can enumerate them for us.
-    let mut emitted: Vec<&str> = vec![
-        "argv_block_exec_post_exec_only",
-        "argv_token_ignored_for_non_exec",
-        "bpf_lsm_inactive_for_block",
-        "endpoint_source_unsupported",
-        "endpoint_target_condition_multi_ipv4_hostname",
-        "endpoint_target_condition_unresolved_hostname",
-        "endpoint_target_condition_unsupported_pattern",
-        "endpoint_target_unsupported",
-        "repo_relative_target_condition_partial",
-        "rule_missing_because",
-    ];
+    // Every code the CLI can emit. The pattern-lowering and rule-condition
+    // families are read from the compiler's own lists rather than restated,
+    // because a hand-written copy drifted: `pattern_empty_literal` was emitted
+    // by the binary but omitted here, so this guard would not have caught its
+    // doc changing.
+    //
+    // The doctor codes are read from the doctor's source the same way. They are
+    // not compiler-owned, but they are all `code: "..."` literals in
+    // `src/doctor.rs`, so scanning that file enumerates them without a second
+    // list to drift: renaming a code there now fails this guard until the doc
+    // is updated.
+    let doctor_src = fs::read_to_string(format!("{}/src/doctor.rs", env!("CARGO_MANIFEST_DIR")))
+        .expect("read crates/actplane-cli/src/doctor.rs");
+    let mut emitted: Vec<&str> = doctor_warning_codes(&doctor_src);
+    assert!(
+        emitted.contains(&"rule_missing_because"),
+        "the doctor-code scan found no known code; did `code: \"...\"` literals move? got {emitted:?}"
+    );
     // The pattern-lowering family and the rule-condition codes all come from
     // the compiler; binding them keeps a new code from reaching users
     // undocumented. Both families are read from the compiler's own lists rather
