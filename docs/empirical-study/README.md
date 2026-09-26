@@ -25,9 +25,15 @@ The last three rows are reproducible from the committed
 `candidate_rules_144.tsv`: 3,762 is its data-row count, 529 is the count of rows
 carrying a non-`unclassified` `category_guess`, and 101 is the number of
 distinct repositories holding at least one such row. The repository, file, and
-line counts above them come from the full raw corpus, which is retained on an
-artifact ref, so the committed TSV alone reproduces the candidate-line figures
-but not the corpus totals.
+line counts above them come from the raw-corpus manifest on the `artifact-ready`
+ref, `docs/corpus-raw-full/manifest.jsonl`, whose 144 `excluded:false` rows name
+the 228 included instruction files. The committed TSV alone therefore
+reproduces the candidate-line figures but not the corpus totals. The
+`artifact-ready` ref also carries a smaller analyzed subset at
+`docs/corpus/manifest.jsonl` (64 `excluded:false` rows), which is not the
+manifest those three rows count.
+The line total sums the files as text lines; 14 of them end without a trailing
+newline, so `wc -l` on the raw tree reports 39,789 rather than 39,803.
 
 The candidate-line counts are keyword/category extraction results and should be
 read as aggregate evidence for prevalence, not as a hand-labeled ground truth.

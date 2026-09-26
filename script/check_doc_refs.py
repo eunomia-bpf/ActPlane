@@ -76,7 +76,15 @@ import sys
 from pathlib import Path
 
 # Reference to a repo-relative docs path. Extensions we cite this way.
-REF = re.compile(r"docs/[A-Za-z0-9_./-]+\.(?:md|yaml|yml|json|sh|py|rs|c|h|toml)")
+# The trailing lookahead keeps the extension token whole. Without it the greedy
+# path prefix backtracks to a shorter listed extension sharing a prefix, so
+# `docs/corpus-raw-full/manifest.jsonl` matched as `..../manifest.json` and was
+# reported as a missing file, and no `.jsonl` citation could ever resolve. With
+# the guard an extension outside this list is simply not a citation (the same
+# silence as `.tsv`), instead of a false failure naming a truncated path.
+REF = re.compile(
+    r"docs/[A-Za-z0-9_./-]+\.(?:md|yaml|yml|jsonl|json|sh|py|rs|c|h|toml)(?![A-Za-z0-9])"
+)
 
 # Text files whose citations we check.
 SUFFIXES = (".md", ".rs", ".sh", ".yaml", ".yml", ".c", ".h", ".toml", ".py", ".js")

@@ -26,6 +26,15 @@
 # whose data rows disagree is the defect; a file with no header but consistent
 # rows is not.
 #
+# The second check is about meaning rather than shape. `docs/empirical-study/README.md`
+# states three counts that it says the committed `candidate_rules_144.tsv`
+# reproduces, and a field-count check says nothing about whether those counts
+# still hold once the TSV is regenerated. The three are recomputed from the file
+# and compared against the table, so the pair can only move together. The
+# remaining Snapshot rows (repository, file, and line totals) come from the
+# raw-corpus manifest on the artifact ref, which is not checked out here, so they
+# stay unverified by CI.
+#
 # Usage: bash script/check_evidence_tsv.sh
 set -eu
 
@@ -73,3 +82,49 @@ EOF
 fi
 
 echo "ok   committed evidence TSVs are internally consistent ($checked checked)"
+python3 - "$ROOT" <<'PY'
+import csv
+import re
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+readme = (root / "docs/empirical-study/README.md").read_text(encoding="utf-8")
+tsv = root / "docs/empirical-study/candidate_rules_144.tsv"
+
+rows = list(csv.DictReader(tsv.open(encoding="utf-8"), delimiter="\t"))
+related = [r for r in rows if r.get("category_guess") != "unclassified"]
+measured = {
+    "Candidate normative lines": len(rows),
+    "ActPlane-related candidate lines": len(related),
+    "Repositories with at least one ActPlane-related candidate": len(
+        {r.get("repo") for r in related}
+    ),
+}
+
+
+def documented(label):
+    m = re.search(
+        r"^\|\s*" + re.escape(label) + r"\s*\|\s*([0-9][0-9,]*)\s*\|",
+        readme,
+        re.M,
+    )
+    return int(m.group(1).replace(",", "")) if m else None
+
+
+bad = False
+for label, value in measured.items():
+    stated = documented(label)
+    if stated is None:
+        print(f"README Snapshot is missing the row: {label}", file=sys.stderr)
+        bad = True
+    elif stated != value:
+        print(
+            f"README Snapshot/{tsv.name}: {label} says {stated:,}, file has {value:,}",
+            file=sys.stderr,
+        )
+        bad = True
+if bad:
+    sys.exit(1)
+print("ok   empirical-study README counts reproduce from the committed TSV")
+PY
