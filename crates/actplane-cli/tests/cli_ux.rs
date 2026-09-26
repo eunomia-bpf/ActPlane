@@ -620,13 +620,13 @@ fn documented_warning_codes_match_the_cli() {
         "repo_relative_target_condition_partial",
         "rule_missing_because",
     ];
-    // The pattern-lowering family and the two rule-condition codes all come
-    // from the compiler; binding them keeps a new code from reaching users
-    // undocumented.
+    // The pattern-lowering family and the rule-condition codes all come from
+    // the compiler; binding them keeps a new code from reaching users
+    // undocumented. Both families are read from the compiler's own lists rather
+    // than restated, because a hand-written copy drifts (see
+    // `PATTERN_WARNING_CODES`).
     emitted.extend(actplane_ifc_compiler::dsl::PATTERN_WARNING_CODES);
-    emitted.push(actplane_ifc_compiler::dsl::RULE_CONDITION_CONTRADICTION);
-    emitted.push(actplane_ifc_compiler::dsl::RULE_CONDITION_COVERS_TARGET);
-    emitted.push(actplane_ifc_compiler::dsl::RULE_CONDITION_LABEL_WITHOUT_PRODUCER);
+    emitted.extend(actplane_ifc_compiler::dsl::RULE_CONDITION_WARNING_CODES);
     for code in emitted {
         assert!(
             documented.contains(code),

@@ -2482,6 +2482,19 @@ pub const RULE_CONDITION_COVERS_TARGET: &str = "rule_condition_covers_target";
 /// through the same `Compiled::pattern_warnings` channel.
 pub const RULE_CONDITION_LABEL_WITHOUT_PRODUCER: &str = "rule_condition_label_without_producer";
 
+/// Every rule-condition code the compiler can record, in one place.
+///
+/// Same rationale as [`PATTERN_WARNING_CODES`]: the CLI's doc-completeness
+/// guard restated these three by hand, so a fourth code added here would have
+/// reached users undocumented until someone remembered to edit that list.
+/// Callers that must enumerate the family read this instead, which makes a new
+/// code a compile-time signal to update them.
+pub const RULE_CONDITION_WARNING_CODES: [&str; 3] = [
+    RULE_CONDITION_CONTRADICTION,
+    RULE_CONDITION_COVERS_TARGET,
+    RULE_CONDITION_LABEL_WITHOUT_PRODUCER,
+];
+
 /// Labels the runtime seeds into a process directly, so a policy may reference
 /// one without declaring a `source` for it.
 ///

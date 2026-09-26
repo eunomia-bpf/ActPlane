@@ -12,9 +12,9 @@ use std::collections::HashMap;
 pub use lower::{
     Compiled, PATTERN_EMPTY_LITERAL, PATTERN_MATCHER_LENGTH, PATTERN_TRUNCATED,
     PATTERN_WARNING_CODES, PatternWarning, RULE_CONDITION_CONTRADICTION,
-    RULE_CONDITION_COVERS_TARGET, RULE_CONDITION_LABEL_WITHOUT_PRODUCER, RUNTIME_SEEDED_LABELS,
-    RuleMeta, RuleSourceMeta, compile, is_numeric_endpoint_pattern,
-    repo_relative_condition_is_partial,
+    RULE_CONDITION_COVERS_TARGET, RULE_CONDITION_LABEL_WITHOUT_PRODUCER,
+    RULE_CONDITION_WARNING_CODES, RUNTIME_SEEDED_LABELS, RuleMeta, RuleSourceMeta, compile,
+    is_numeric_endpoint_pattern, repo_relative_condition_is_partial,
 };
 
 /// Parse + compile DSL source text to a kernel config blob + reason table.
@@ -1017,6 +1017,45 @@ rule secret:
             assert!(
                 PATTERN_WARNING_CODES.contains(&code),
                 "{code} is emitted but missing from PATTERN_WARNING_CODES"
+            );
+            let codes = warning_codes(&ok(policy));
+            assert!(
+                codes.contains(&code),
+                "{policy:?} should emit {code}, got {codes:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_rule_condition_warning_code_is_reachable() {
+        // `RULE_CONDITION_WARNING_CODES` is the second list the CLI's
+        // doc-completeness guard iterates, so it carries the same obligation as
+        // `PATTERN_WARNING_CODES`: a code listed there but never emitted would
+        // demand documentation for a warning no policy can produce. Pin each
+        // code to a policy that emits it.
+        let triggered = [
+            (
+                lower::RULE_CONDITION_CONTRADICTION,
+                "source A = exec \"a\"\nrule r:\n  kill open file \"**/s\" if A and not A\n  because \"x\"\n",
+            ),
+            (
+                lower::RULE_CONDITION_COVERS_TARGET,
+                "rule r:\n  kill exec \"git\" unless target \"g*\"\n  because \"x\"\n",
+            ),
+            (
+                lower::RULE_CONDITION_LABEL_WITHOUT_PRODUCER,
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A and NOPE\n  because \"x\"\n",
+            ),
+        ];
+        assert_eq!(
+            triggered.len(),
+            RULE_CONDITION_WARNING_CODES.len(),
+            "every code in RULE_CONDITION_WARNING_CODES needs a trigger policy here"
+        );
+        for (code, policy) in triggered {
+            assert!(
+                RULE_CONDITION_WARNING_CODES.contains(&code),
+                "{code} is emitted but missing from RULE_CONDITION_WARNING_CODES"
             );
             let codes = warning_codes(&ok(policy));
             assert!(
