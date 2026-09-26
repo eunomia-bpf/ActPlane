@@ -720,21 +720,6 @@ fn fenced_blocks(md: &str) -> Vec<String> {
     out
 }
 
-/// Every `.md` under `dir`, recursively.
-fn markdown_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
-    let Ok(entries) = fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            markdown_files(&path, out);
-        } else if path.extension().is_some_and(|e| e == "md") {
-            out.push(path);
-        }
-    }
-}
-
 #[test]
 fn documented_dsl_snippets_compile_without_warnings() {
     // The fenced DSL blocks in the docs are the rule language's worked examples.
@@ -746,11 +731,23 @@ fn documented_dsl_snippets_compile_without_warnings() {
     // YAML blocks are not complete policies and are skipped by the compile
     // itself, so they do not need a special case here.
     let root = std::path::PathBuf::from(format!("{}/../..", env!("CARGO_MANIFEST_DIR")));
-    let mut files = Vec::new();
-    markdown_files(&root.join("docs"), &mut files);
+    // Every tracked `.md`, not just `docs/`: the root `README.md` carries the
+    // most-read worked example, and a `docs/`-only walk left it unchecked. The
+    // paper tree is a submodule, so `git ls-files '*.md'` never descends into it.
+    let listing = Command::new("git")
+        .args(["-C", root.to_str().unwrap(), "ls-files", "*.md"])
+        .output()
+        .unwrap_or_else(|e| panic!("run git ls-files: {e}"));
+    assert!(
+        listing.status.success(),
+        "git ls-files failed: {}",
+        String::from_utf8_lossy(&listing.stderr)
+    );
+    let tracked = String::from_utf8(listing.stdout).expect("git ls-files utf8");
+    let files: Vec<std::path::PathBuf> = tracked.lines().map(|r| root.join(r)).collect();
     assert!(
         files.len() > 5,
-        "expected docs markdown, found {}",
+        "expected tracked markdown, found {}",
         files.len()
     );
     let mut checked = 0usize;
@@ -771,12 +768,28 @@ fn documented_dsl_snippets_compile_without_warnings() {
             if !is_dsl {
                 continue;
             }
-            let mut yaml = String::from("version: 1\npolicy: |\n");
-            for line in block.lines() {
-                yaml.push_str("  ");
-                yaml.push_str(line);
-                yaml.push('\n');
-            }
+            // A block may be bare DSL or a complete `actplane.yaml`. Wrapping
+            // the latter in another `policy: |` nests its top-level keys under a
+            // scalar and turns it into a parse error the `continue` below hides,
+            // so detect the YAML form and compile it verbatim.
+            let is_yaml = block
+                .lines()
+                .any(|l| l.trim_start().starts_with("version:"))
+                && block.lines().any(|l| {
+                    let t = l.trim_start();
+                    t.starts_with("policy:") || t.starts_with("rules:") || t.starts_with("domains:")
+                });
+            let yaml = if is_yaml {
+                block.to_string()
+            } else {
+                let mut yaml = String::from("version: 1\npolicy: |\n");
+                for line in block.lines() {
+                    yaml.push_str("  ");
+                    yaml.push_str(line);
+                    yaml.push('\n');
+                }
+                yaml
+            };
             // A documented example that names an absolute path under `/home/`
             // or `/Users/` lowers to a prefix matcher over that literal, so on a
             // reader's machine it matches nothing while the prose describes a
