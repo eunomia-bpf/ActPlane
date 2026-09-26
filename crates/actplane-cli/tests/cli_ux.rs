@@ -589,6 +589,27 @@ fn shipped_policies_compile_without_warnings() {
             !err.contains("ActPlane: warning"),
             "{rel} compiles with a warning, so the example may not enforce what it states:\n{err}"
         );
+        // An absolute policy target lowers to a prefix matcher over the literal
+        // text, so a path baked into the author's home directory compiles
+        // warning-free yet matches nothing on any other machine: the shipped
+        // `policies/readonly.yaml` confined writes to
+        // `/home/yunwei37/workspace/ActPlane/**` and was a no-op everywhere else
+        // while its `because` claimed a workspace-wide read-only policy. A
+        // shipped example must name a host-independent scope (`/**`, a repo
+        // path), never a `/home/<user>/` or `/Users/<user>/` path.
+        for (n, line) in body.lines().enumerate() {
+            for marker in ["/home/", "/Users/"] {
+                if let Some(at) = line.find(marker) {
+                    let tail = &line[at..];
+                    panic!(
+                        "{rel}:{} hardcodes a user path `{}` in a shipped policy, so the rule \
+                         matches only on the author's machine",
+                        n + 1,
+                        tail.split_whitespace().next().unwrap_or(tail)
+                    );
+                }
+            }
+        }
         checked += 1;
     }
     assert!(checked >= 10, "expected the policy corpus, found {checked}");
