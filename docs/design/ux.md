@@ -145,7 +145,7 @@ Library:
 ```rust
 actplane_ifc_compiler::dsl::compile_str(src: &str) -> Result<Compiled, String>
 PinnedEngine::open_or_install_singleton() -> io::Result<PinnedEngine>
-engine.run(&stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()>
+engine.run(stop: &AtomicBool, on: impl FnMut(Violation)) -> io::Result<()>
 reload_handle.append_policy_delta(caller_pid: i32, target_id: u32, delta_blob: &[u8]) -> io::Result<()>
 ```
 
