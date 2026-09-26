@@ -1,0 +1,8 @@
+case	expected_interventions	observed_interventions
+clean_pre_read	0	0
+same_lineage_1	1	1
+same_lineage_5	5	5
+same_lineage_20	20	20
+sibling_after_reader_exit	0	0
+descendant_after_read_5	5	5
+renamed_source_read	1	1

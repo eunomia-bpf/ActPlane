@@ -2,7 +2,7 @@
 
 把 ActPlane **内核强制器**(eBPF 污点传播 + LSM)检测到的违规理由,回灌进
 agent 的上下文,让合作型 agent 自我纠正、换路重试,而不是被一个干巴巴的
-`Permission denied` 卡死。完整设计见 [`../docs/feedback-design.md`](../docs/feedback-design.md)。
+`Permission denied` 卡死。完整设计见 [`../docs/design/feedback-design.md`](../docs/design/feedback-design.md)。
 
 > **判定永远在内核**:要不要拦、污点怎么传,全部由 eBPF + LSM 在 syscall 层决定
 > ——这正是 ActPlane 不可绕过(`bash -c`、subprocess、直接 syscall 都拦得到)的根因。
@@ -14,8 +14,8 @@ agent 的上下文,让合作型 agent 自我纠正、换路重试,而不是被�
 `.actplane/runs/<run-id>/feedback.txt`,并把
 `ACTPLANE_FEEDBACK_FILE` / `ACTPLANE_HOOK_STATE` 传给被运行的 agent。
 `hook-state.json` 会记录本次 run 的 root pid,因此 hook 只会消费属于同一
-agent 进程树的反馈。每条**内核检测到的**违规按 `docs/feedback-design.md`
-§6 模板写入该 mailbox:
+agent 进程树的反馈。每条**内核检测到的**违规按 `docs/design/feedback-design.md`
+的模板写入该 mailbox:
 
 ```bash
 sudo -E actplane run codex --cd /work
@@ -35,7 +35,7 @@ sudo -E actplane --policy policies/readonly.yaml run claude -p "review"
 
 ### Codex
 
-`actplane init` / `actplane setup` 会写入 `.codex/hooks.json`; Codex 会在
+`actplane init --with-codex` 会写入 `.codex/hooks.json`; Codex 会在
 每次工具调用后自动运行 `actplane feedback-hook`。
 
 Codex CLI 支持 `PostToolUse` hook。把下面内容写入 `.codex/hooks.json`
@@ -72,7 +72,7 @@ ActPlane 的 MCP server 暴露两个 resource:
 - `actplane:///policy`: 当前 `actplane.yaml` 的编译/校验结果。
 - `actplane:///feedback`: 最新 `.actplane/last-violation.txt` 纠偏反馈。
 
-优先使用项目 `.mcp.json`: `actplane setup` 会自动写好,之后进入 Codex session
+优先使用项目 `.mcp.json`: `actplane init --with-mcp` 会自动写好,之后进入 Codex session
 时会自动启动。如果你的 Codex 版本不读取项目 `.mcp.json`,再用下面命令注册
 global MCP:
 

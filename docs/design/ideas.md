@@ -512,7 +512,7 @@ Agent 作为 policy co-author 的一个直接推论是 **parent agent 可以为 
 直接 commit""sub-agent 只能读不能写"），但没有 enforcement。
 
 ActPlane 让这变得可 enforce：parent agent 在 spawn sub-agent 之前，
-写一条 DSL 规则（或 actplane.yaml 里的 scope 配置），内核 enforce 这条规则
+写一条 DSL 规则（或 actplane.yaml 里的 `domains` 配置），内核 enforce 这条规则
 对 sub-agent 的整个进程子树生效。这是 "agent as policy co-author" 的
 自然延伸——不只约束自己，还约束自己的 delegate。
 
@@ -708,7 +708,7 @@ Data Plane（kernel，deterministic）：
 
 **层次 2：Agent 为 sub-agent scope policy（写 + delegate）**
 - Parent agent spawn sub-agent 前，在 policy 里加一条规则
-  （如 `source REVIEWER = exec "sub-agent"; rule reviewer-readonly: block write file "*" if REVIEWER`）
+  （如 `source REVIEWER = exec "sub-agent" rule reviewer-readonly: block write file "*" if REVIEWER`）
 - 内核 enforce 这条规则对 sub-agent 的整个进程子树
 - **已有实现基础**：DSL 的 source/rule 已支持，agent 可以编辑 actplane.yaml
   跟编辑任何项目文件一样

@@ -1,0 +1,12 @@
+program	load_error	reason
+trace_creat_exit	-13	combined stack size of 7 calls is 544
+trace_open_exit	-13	combined stack size of 7 calls is 544
+trace_openat2_exit	-13	combined stack size of 7 calls is 544
+trace_openat_exit	-13	combined stack size of 7 calls is 544
+trace_read	-13	combined stack size of 5 calls is 544
+trace_recvfrom	-13	combined stack size of 5 calls is 544
+trace_recvmsg	-13	combined stack size of 5 calls is 544
+trace_rename_exit	-7	BPF program is too large (1M complexity)
+trace_renameat2_exit	-7	BPF program is too large (1M complexity)
+trace_renameat_exit	-7	BPF program is too large (1M complexity)
+trace_truncate_exit	-13	combined stack size of 7 calls is 544

@@ -79,18 +79,22 @@ rule NAME:
   EFFECT OP-PATTERN if Φ [unless COND]
   because "..."
 ```
+
 - `EFFECT` is the action verb that starts each clause: `notify`, `block`, or `kill`.
 - `OP-PATTERN` is the operation plus its target pattern: `exec PAT [ARG]`,
   `open file PAT`, `read file PAT`, `write file PAT`, `unlink file PAT`,
   `connect endpoint PAT`, or `recv endpoint PAT`.
+- The four file ops collapse onto two kernel access kinds: `read` and `open` both lower to the read/open event, and `write` and `unlink` both lower to the write event. The engine carries only the access kind, not the specific operation, so two clauses that differ only in the verb lower to the **same** kernel rule and each one fires on both operations over the same pattern. This is why write-confinement policies state the pair explicitly (`block write file "/**"` **and** `block unlink file "/**"`): the two clauses are interchangeable rather than one covering the other, so writing only one is not a mistake in effect, but writing both is redundant. If a policy genuinely needs deletes treated differently from writes, the current ABI cannot express it.
 - `ARG` is optional and is a single quoted argv token for `exec` clauses
   (e.g. `exec "git" "commit"` matches git with an argv token `commit`).
   This is not a separate argument to `block` or `kill`.
-- `Φ` is a boolean over labels of the **subject**: `L`, `not L`, `Φ and Φ`, `Φ or Φ`, `true`.
+- `Φ` is a boolean over labels of the **subject**: `L`, `not L`, `Φ and Φ`, `Φ or Φ`, `true`, and parenthesized groups `(Φ)`. `and` and `or` have **equal precedence** and associate to the **left**, so `A or B and C` means `(A or B) and C` and the two readings are not interchangeable (the parenthesized `A or (B and C)` enforces a different condition). Write the parentheses whenever a condition mixes the two connectives, because the left-to-right reading is rarely the one a reader assumes. `not` binds a single label name, and because it is not a general negation over the grammar, `not (A or B)` is not accepted: write `not A and not B` (equivalent by De Morgan). A parenthesized group is otherwise transparent, so `(A)` lowers to the same label set as `A`.
 - `COND` (optional) relaxes the rule:
   - `target PAT` — only when the object also matches PAT (positive scope), or `target not PAT` (allow-listed region).
   - `lineage-includes exec G` — **mandatory mediation**: allowed iff an ancestor (incl. self) exec'd `G`.
-  - `after exec G [exits N] [since EV…]` — **temporal**: allowed iff `exec G` happened earlier in this process's lineage. With `exits N`, the gate opens only after the matching process exits normally with status `N`. Plain `after` is *latching* (satisfied once `G` ever ran). The optional `since EV…` tail makes the gate go **stale** when a later invalidating event `EV` occurs (§1.9).
+  - `after exec G [ARG] [exits N] [since EV…]` — **temporal**: allowed iff `exec G` happened earlier in this process's lineage. An optional `ARG` restricts the gate to a matching argv token (`after exec "pnpm" "test"` arms only on `pnpm test`, not every `pnpm` subcommand). With `exits N`, the gate opens only after the matching process exits normally with status `N`. Plain `after` is *latching* (satisfied once `G` ever ran). The optional `since EV…` tail makes the gate go **stale** when a later invalidating event `EV` occurs (§1.9).
+
+`because` is what the corrective-feedback chain forwards to the agent when the rule matches (see [`design/feedback-design.md`](design/feedback-design.md)), so it is effectively required in practice even though the grammar marks it optional: a rule without one still enforces, but a match forwards an empty reason, telling the agent it was stopped and not why. `actplane compile` reports `rule_missing_because` for such a rule. The grammar carries at most one `because` per rule (`clause+ ["because" STRING]`), so a second one is a compile error rather than a silent overwrite: because the string is the reason the agent receives, keeping the last one would drop the reason for the clauses that actually matched.
 
 **Rule match**: event `op(s, o)` matches clause `EFFECT op pat if Φ unless cond` iff
 `match(o, pat) ∧ Φ(σ(s)) ∧ ¬cond(s, o, history)`.
@@ -104,13 +108,132 @@ If multiple clauses/rules match the same event, the kernel chooses the strongest
 
 For executable identity policies such as `block exec "git"`, `block` is a
 pre-operation denial when BPF-LSM is active. For argv-sensitive exec policies
-such as `git commit` or `git push`, prefer `kill exec "git" "commit"` or
-`kill exec "git" "push"` until argv is available to the pre-op LSM hook.
+such as `git commit` or `git push`, `block` cannot work at all: argv exists only
+after `exec`, so the LSM hook skips any argv-bearing rule and the rule never
+fires. Use `kill exec "git" "commit"` or `kill exec "git" "push"` for
+post-exec termination. `actplane compile` reports
+`argv_block_exec_post_exec_only` for the dead form on every compile path,
+including plain `compile --out`.
 
-**Implicit basename matching**: if an exec target pattern contains no `/`, it is treated as a basename match. `exec "git"` is equivalent to `exec "**/git"` — it matches `/usr/bin/git`, `/opt/bin/git`, etc. Patterns containing `/` (like `exec "/usr/bin/git"` or `exec "**/deploy*"`) are used as-is.
+**Exec patterns match a basename.** Every exec target pattern is reduced to its final path segment before lowering, so `exec "git"`, `exec "/usr/bin/git"`, and `exec "**/git"` all lower to the same `EXACT "git"` matcher and therefore all match `/usr/bin/git`, `/opt/bin/git`, and a bare `git`. A wildcard suffix becomes a prefix over that segment: `exec "**/deploy*"` lowers to `PREFIX "deploy"` and matches any basename starting with `deploy`. The directory part of an exec pattern is *not* enforced, so a policy cannot distinguish two executables that share a basename; match a distinct `@arg` token instead. The kernel target itself differs by hook mode: the LSM hook supplies the executable's basename, while the tracepoint hook supplies `comm` (kernel-truncated to 15 characters) or the executable path when it can read `argv[0]`, so a basename longer than 15 characters is reliable under LSM but not under tracepoints.
 
 ### 1.8 Pattern matching
-`PAT` is a glob over the relevant attribute: process `exe`/`comm`/`arg`, file `path`, endpoint `host`. `**` = any path span, `*` = one segment / any chars, exact otherwise. Kernel endpoint matching is numeric IPv4 prefix/host matching, such as `"10.0.0."`, `"10.0.0.5"`, or `"*"`. Exact endpoint hostnames such as `"api.example.com"` are resolved by the compiler/loader to their IPv4 A records and expanded into numeric kernel matchers. DNS is not performed in kernel, and DNS changes require reloading the policy. Hostname globs such as `"*.internal"`, IPv6, and endpoint wildcard patterns other than `"*"` are accepted by the surface syntax but are reported as unsupported by `actplane compile --json` and `actplane compile --explain`. Endpoint `unless target` conditions can store one IPv4 address in the current ABI, so hostname exceptions are supported only when the name resolves to one IPv4 address. For exec targets, a pattern without `/` is implicitly treated as a basename match (see §1.7).
+`PAT` is a glob over the relevant attribute: process `exe`/`comm`/`arg`, file `path`, endpoint `host`. `**` = any path span, `*` = one segment / any chars, exact otherwise. Kernel endpoint matching is numeric IPv4 prefix/host matching, such as `"10.0.0."`, `"10.0.0.5"`, or `"*"`. Exact endpoint hostnames such as `"api.example.com"` are resolved by the compiler/loader to their IPv4 A records and expanded into numeric kernel matchers. DNS is not performed in kernel, and DNS changes require reloading the policy. Hostname globs such as `"*.internal"`, IPv6, and endpoint wildcard patterns other than `"*"` are accepted by the surface syntax but are reported as unsupported by `actplane compile`. Endpoint `unless target` conditions can store one IPv4 address in the current ABI, so hostname exceptions are supported only when the name resolves to one IPv4 address. Exec patterns always match on the final path segment regardless of whether they contain `/` (see §1.7). The kernel matcher compares bytes, so the compiler never leaves a `*` inside a matcher literal: it reduces the pattern to the concrete span the matcher can use. A pattern that is only wildcards becomes a true match-anything: `exec "**"`, `exec "**/*"`, and `exec "a/**"` reduce to `ANY` (exec matching drops the directory), while a file pattern such as `**/**` has no literal either, so it lowers to `CONTAINS "/"`, which matches any path containing a separator. A wildcard that leaves no concrete span before it, such as `exec "*git"` or `exec "**git"`, lowers to an empty `PREFIX` literal and is reported as `pattern_empty_literal` below.
+
+Five kernel-matcher properties can make a compiled pattern mean something other than what the policy wrote, and each is reported by `actplane compile` (the compiler records all of them in `Compiled::pattern_warnings`):
+
+- **Buffer truncation.** Pattern fields are 64 bytes (63 usable), so a longer literal is truncated to a prefix. For an exact absolute path the rule then matches that prefix, not the intended target, so it never fires where the policy named; for a `PREFIX` literal it matches a broader set. Reported as `pattern_literal_truncated`. A `SUFFIX`/`CONTAINS` literal is not reported here even though it is truncated: any literal long enough to truncate is still past the 16-byte matcher bound below, so `pattern_matcher_length_exceeded` already reports the entry as dead, and a truncation consequence would only duplicate it. In an `unless target` **condition** the truncated matcher is what the exception tests, so the direction again inverts with polarity, as with `pattern_matcher_length_exceeded` below.
+- **Empty literal.** `taint_streq`, `taint_prefix`, and `taint_contains` all reject an empty pattern, and three shapes lower to one: a pattern whose basename is `*` (`exec "src/*"`), one that ends at a separator (`exec "foo/"`), and one whose concrete text all sits on the far side of a leading or trailing wildcard, so the wildcard-literal cleanup below drops it and keeps an empty span (`exec "*g*t"`, `**/*b/*`). As a rule **target** the empty literal never matches, so the rule never fires. As an `unless target` **condition** it flips with polarity: the empty literal is always false, so a **positive** exception never holds and the rule fires on every target its own pattern accepts, while a **negated** exception always holds and the rule never fires. Reported as `pattern_empty_literal`; when a negated exception holds for the whole rule the compiler additionally reports `rule_condition_covers_target`. `*` / `**/*` are exempt: they lower to `ANY`, which always matches.
+- **Matcher length.** The `suffix` and `contains` matchers reject any literal longer than 16 bytes (`TAINT_SUF_MAX`), because their tail/window copy is a fixed 16 bytes. The compiler caps `contains` literals when lowering, but a `**/<name>` or `*<suffix>` pattern lowers to a `suffix` literal at its natural length, so a basename longer than 16 bytes never matches. Reported as `pattern_matcher_length_exceeded`. A repo-relative `**/<name>` pattern in any path slot that emits companions (a rule **target**, a file **source**, an `after` **gate**, or a `since` **invalidator**) also emits a bare `exact` companion entry carrying the same bit, and `exact` has no length bound, so the construct is not dead: only the `suffix` entry is, and the pattern still matches the bare root-level form (the label is still added, the gate still arms, or the gate is still invalidated). The consequence depends on position and polarity: as a lone rule **target** (no companion, e.g. the `**/*<name>` form) the rule never fires; as a **positive** `unless target` condition the matcher never holds, so the rule fires on every target its own pattern accepts (over-enforces); as a **negated** `unless target not` condition it always holds, so the rule never fires (under-enforces). A condition has a single `cond_pat`, so it gets no companion and the "never matches" reading holds there.
+- **Widened literal.** The kernel compares bytes, so a wildcard that survives into a matcher literal only matches a real `*` byte and the rule silently never fires. The compiler therefore drops every `*` from the literal and keeps the concrete span around it: `exec "g*t"` lowers to `PREFIX "g"`, which matches `git`, `grep`, and `gcc`. An absolute path is cut at its first wildcard before any literal is built, so `/tmp/*b/*` lowers to `PREFIX "/tmp/"` and matches any path under `/tmp`. Both are the widest matcher of the same kind, so they always match a superset of the glob, and the superset is strict whenever the discarded text is concrete. A trailing wildcard (`exec "**/deploy*"` to `PREFIX "deploy"`) or an all-wildcard tail (`exec "g**"`, `/tmp/guarded/**`) discards nothing concrete and stays exact. Reported as `pattern_literal_widened`: move the wildcard to an edge of the pattern, or write the exact name. When every concrete byte sits on the far side of the wildcard (`exec "*g*t"`, `**/*b/*`) the kept span is **empty**, so the literal matches nothing rather than more: the cleanup is then a strict *narrowing*, `pattern_literal_widened` is not reported, and the empty-literal bullet above owns the consequence. In a rule **target** the widened matcher fires on paths the policy did not name, so the warning is worth acting on; in an `unless target` **condition** the direction inverts with polarity, as with `pattern_contains_capped` above.
+
+- **Capped `contains` literal.** A repo-relative pattern such as `**/src/components/deep/nested/**` lowers to a `contains` literal at its natural length (`/src/components/deep/nested/`), which exceeds the same 16-byte window. The compiler shortens it to a contiguous substring that fits (`deep/nested/`), so the kernel's substring test accepts any path containing those bytes, including `abdeep/nested/` where the glob required a separator. Unlike buffer truncation, which narrows a prefix to an exact match, this matches a strict superset of the glob, so the rule fires on paths the policy did not name. Reported as `pattern_contains_capped`. When the substring that fits still contains a wildcard, the wildcard cleanup above empties it (`**/a...a/*x` caps to `*x`, which cleans to `""`); the entry then never matches, and only `pattern_empty_literal` is reported. Use a directory pattern short enough that its literal fits the window, or match the distinct basename instead.
+
+For all five, shorten the literal or use a wildcard form that lowers to a usable one.
+The consequence also depends on *which* pattern slot the literal fills, because each slot feeds the kernel differently. A rule **target** and a **source** target are positive existence tests: a widened or shortened matcher makes the rule fire (or the label be added) on more events, so the policy enforces more than it wrote. An `unless target` **condition** is an exception, so it suppresses more and the direction inverts with polarity, as each bullet above describes. An `after` gate (`after exec/read/write`) is also an exception, so a widened gate target makes the rule's `after` condition hold more often and suppresses the rule more. A `since` invalidator is the opposite: it *un*sets that condition by making the gate stale, so a widened invalidator makes the rule fire more. An `endorse` **transform gate** adds its label on more events, so clauses requiring that label fire more and clauses negating it fire less; a `declassify` gate is the mirror, clearing the label on more events. A transform gate is always an `exec` pattern, so it can widen but never cap (`exec` lowers to `exact`/`prefix`, and only `suffix`/`contains` have a window). The warning messages name the slot (`rule target`, `source target`, `gate target`, `invalidator target`, `transform gate`, `rule condition pattern`) for exactly this reason.
+
+`unless target` **conditions** have one `cond_kind`/`cond_pat` pair, so a repo-relative exception over `**/<name>` or `**/<dir>/**` cannot cover both the primary and first-segment-relative/bare forms the way a path rule *target* does (a path target emits a companion table entry). The uncovered form is one the pattern matches, and the consequence depends on the polarity. A positive `unless target` over-fires there, because the missing matcher leaves the raw condition false, so the exception does not suppress the rule and the relative path is not excluded as intended. A negated `unless target not` under-fires there, because the same missing matcher also leaves the raw condition false, which the kernel negates into a satisfied condition, suppressing the rule on a path the pattern should have matched. Either way `actplane compile` reports a `repo_relative_target_condition_partial` warning. Use an absolute pattern (for example `unless target "/work/dist/**"`) to avoid the approximation. An `exec` clause has no companion forms: target and condition both match the basename on `comm`, so the exception is exact and no warning is reported.
+
+An `exec` **argv token** (`exec "git" "push"`) matches only the first 16 argv tokens (`MAX_ARG_SLOTS`) within the first 128 bytes of argv (`TAINT_ARGV_CAP`); the kernel tokenizes that window once per exec. A token appearing later than either bound never matches, so a rule using it silently never fires. Keep the token near the start of the command line, or match a different token. Note also that the token is only consulted for `exec` clauses: given on any other op it is ignored, and `actplane compile` reports `argv_token_ignored_for_non_exec` because the clause then matches every target its pattern names rather than the narrower set the policy intended.
+
+**Where warnings appear.** Every warning that follows from the policy and the
+compiled blob alone is printed by `actplane compile` on all its paths: plain
+`compile --out` writes them to stderr before the success line, and
+`compile --explain`/`--json` include them in the review. The same
+pattern-lowering warnings (`pattern_literal_truncated`, `pattern_empty_literal`,
+`pattern_matcher_length_exceeded`, `pattern_literal_widened`,
+`pattern_contains_capped`) are stored in `Compiled::pattern_warnings`. The
+enforcement paths that compile and load the blob themselves (`actplane run`,
+`actplane watch`, and MCP auto-attach) print them to stderr, and the MCP policy
+resource lists them under its `Policy valid` text, so a matcher the compiler
+widened to fit the kernel window is neither enforced nor reported as valid
+silently.
+`bpf_lsm_inactive_for_block` is the one host-dependent warning and appears only
+under `--explain`/`--json`, because the machine that compiles a blob need not be
+the machine that enforces it. The code names are stable identifiers, so a CI
+check can match on them.
+A warning that concerns one rule identifies it by the rule's **name**
+(`rule <name>:`), the same identifier `--explain` uses, never by its `because`
+string: the reason is user prose, may be empty, and two rules may share it, so
+it cannot stand in for the name.
+Besides the pattern, `unless target`, argv-token, and `because` warnings above,
+these are reported:
+
+- `rule_condition_contradiction`: the clause's condition requires and forbids the
+  same label, as in `if A and not A`. The kernel's `taint_mask_ok` tests
+  `(labels & req) == req && (labels & forbid) == 0`, so a disjunct that both
+  requires and forbids a bit is false in every label state: the clause never
+  fires. The warning names the label and, when one `or` branch still survives,
+  says so instead of claiming the whole rule is dead. The fix is to drop one side
+  or replace the negated term with the label it should exclude.
+- `rule_condition_covers_target`: an `unless target PAT` whose pattern accepts
+  every event the rule's own target already accepts, as in `kill exec "git"
+  unless target "git"` or `kill open file "/work/a" unless target "/work/**"`.
+  The kernel suppresses a rule whose `target` condition holds, so the exception
+  swallows the whole rule and it never fires. This is distinct from
+  `rule_condition_contradiction` (which kills a label mask) and from the
+  `pattern_*` codes (which report a matcher that differs from the glob written):
+  here both patterns lower correctly, and the defect is their relation. The
+  negated form `unless target not PAT` is an allow-list, so it is reported when
+  the condition's set and the target's are disjoint. When the target pattern
+  emits a companion entry (a `**/name` pattern also emits an exact-basename
+  entry), the message says "one of the rule's target matcher entries" rather
+  than claiming the whole rule is dead. The fix is to drop the `unless target`
+  clause or narrow it to a sub-path the target names.
+- `rule_condition_label_without_producer`: a condition names a label that
+  nothing in the policy sets, as in `kill exec "git" if NOPE` with no
+  `source NOPE = ...`. A label bit is allocated the moment a condition
+  references it, but only an adding update ever sets it: a `source` adds the
+  bit, and an `endorse` xform adds it. A `declassify` xform is *not* a producer,
+  because it removes the label (`declassify L by exec G` lowers to clearing the
+  bit, so a policy whose only mention of `L` is a `declassify` still leaves
+  `if L` unreachable). With no producer the bit is zero in every process state:
+  the plain form `if NOPE` then never fires, while the negated form `if not
+  NOPE` is satisfied for every event the rule's target accepts, so it fires on
+  all of them. `COMMAND` and `AGENT` are exempt, because `actplane
+  run`/`watch` seed the protected process with that label before any `exec`
+  update runs. A label carried in from an earlier runtime delta is also exempt,
+  since its bit is live in the domain. The fix is to declare a `source`, or drop
+  the term.
+- `argv_block_exec_post_exec_only`: `block exec` with an argv token, which can
+  never fire (see §1.7). The fix is `kill exec`.
+- `endpoint_source_unsupported`, `endpoint_target_unsupported`: an endpoint
+  source or a `connect`/`recv` target whose pattern is not numeric IPv4 (a
+  hostname glob, IPv6, a wildcard other than `"*"`, or a malformed numeric form
+  such as `"1.2.3.4.5"` with more than four octets), so the rule will not fire
+  for that endpoint.
+- `endpoint_target_condition_unresolved_hostname`,
+  `endpoint_target_condition_multi_ipv4_hostname`,
+  `endpoint_target_condition_unsupported_pattern`: an endpoint `unless target`
+  condition that did not resolve to exactly one IPv4 address at compile/load
+  time (unresolved, resolving to several addresses, or a wildcard, IPv6, or
+  malformed-numeric pattern such as `"1.2.3.4.5"`).
+  The condition stores one address in the current ABI and fails closed.
+  "Fails closed" here means the exception cannot be expressed and the rule
+  keeps applying: a positive `unless target` lowers to the literal `0.0.0.0`
+  (which no `connect`/`recv` target has, so the exception never holds), and
+  `unless target not` lowers to match-any, so after negation the exception is
+  false for every endpoint too. Both polarities over-apply the rule rather
+  than silently suppressing it.
+- `bpf_lsm_inactive_for_block`: `block` on a host without BPF-LSM active, so
+  the rule falls back to nothing (see §1.7).
+- `pattern_literal_widened`: the compiler dropped concrete text to keep a
+  wildcard out of the matcher literal (a wildcard inside the pattern, not at an
+  edge) or to cut an absolute pattern at its first wildcard, so the matcher now
+  matches strictly more than the glob names (see §1.8). The direction of the
+  error depends on the polarity of the `unless target` exception, because the
+  exception matcher is what was widened. A **positive** exception
+  (`unless target PAT`) exempts every path the wider matcher accepts, so it
+  suppresses the rule on paths outside `PAT` and under-enforces. A **negated**
+  exception (`unless target not PAT`) suppresses the rule only where the wider
+  matcher fails, so it stops exempting paths that do not match `PAT` and the
+  rule fires on them: it over-enforces.
+- `pattern_contains_capped`: a repo-relative pattern's `contains` literal was
+  longer than the kernel's 16-byte window, so the compiler shortened it to a
+  contiguous substring of that literal and the matcher now matches strictly more
+  than the glob names (see §1.8). As with `pattern_literal_widened`, a
+  **positive** `unless target` exception with such a pattern under-enforces,
+  while a **negated** one over-enforces.
 
 ### 1.9 Staleness (`since`): gates that re-arm when their inputs change
 
@@ -203,12 +326,13 @@ OP          := "exec"|"read"|"write"|"unlink"|"connect"|"recv"|"open"
 op_pattern  := "exec" PATTERN [ARG]
              | ("read"|"write"|"unlink"|"open") "file" PATTERN
              | ("connect"|"recv") "endpoint" PATTERN
-expr        := term (("and"|"or") term)*
-term        := ["not"] IDENT | "true"
+expr        := term (("and"|"or") term)*            # equal precedence, left-assoc
+term        := ["not"] IDENT | "true" | "(" expr ")"
 cond        := "target" ["not"] PATTERN
              | "lineage-includes" "exec" PATTERN
              | "after" gate_event [ "exits" EXIT_CODE ] [ "since" since_event ("or" since_event)* ]
-gate_event  := ("exec"|"read"|"write"|"open"|"unlink") PATTERN
+gate_event  := ("exec" PATTERN [ARG])
+             | (("read"|"write"|"open"|"unlink") PATTERN)
 since_event := ("exec" PATTERN [ARG])
              | (("read"|"write"|"open"|"unlink") PATTERN)
 PATTERN, ARG, STRING := quoted string
@@ -217,8 +341,9 @@ Each clause starts with the action verb (`notify`, `block`, or `kill`) — there
 no separate `deny` keyword or `effect` line. `open` matches file-open operations
 (the kernel's `TOP_OPEN` hook). An optional quoted string after an exec target
 pattern is a single argv-token predicate (e.g. `exec "git" "push"` requires token
-`push` in argv). For exec targets, a pattern without `/` is treated as basename
-matching: `exec "git"` is equivalent to `exec "**/git"`.
+`push` in argv). Exec targets always match on the final path segment, so
+`exec "git"` and `exec "**/git"` are equivalent and `exec "/usr/bin/git"` matches
+any `git` (see §1.7).
 
 `declassify` and `endorse` are label transforms. `declassify L by exec G`
 removes label `L` when the process runs gate `G`; `endorse L by exec G` adds
@@ -226,11 +351,12 @@ label `L` when the process runs gate `G`. A common pattern is to label external
 input as `UNTRUST`, then `endorse REVIEWED by exec "**/human-approve"` so later
 rules can require `REVIEWED`.
 
-The `exits N` qualifier is only valid on `after exec`; it makes the gate open on
-process exit rather than at exec time, and only for normal exit status `N`. The
-`since EV…` tail on `after` is the staleness primitive defined in §1.9:
-`after exec "**/pytest" exits 0 since write "src/**"` means "tests must have
-passed after your last edit to src". Multiple invalidators are joined with `or`.
+The `exits N` qualifier and the optional `ARG` are only valid on `after exec`.
+`exits N` makes the gate open on process exit rather than at exec time, and only
+for normal exit status `N`. `ARG` restricts the gate to a matching argv token,
+so `after exec "pnpm" "test"` arms only when `pnpm test` runs, not on every
+`pnpm` subcommand. The `since EV…` tail on `after` is the staleness primitive
+defined in §1.9:
 
 The effect is compiled into the kernel ABI and is the source of truth for what
 happens on a match. `because` stays Rust-side and shapes the corrective-feedback
@@ -371,12 +497,22 @@ rule migrate-checked:
   because "prod.db write needs a migration-check that saw the current migrations"
 ```
 
+### E14 — `unless target not` scopes a rule to an allow-listed region
+**Scenario**: the agent may write only inside one working area, even though the process carries the working label everywhere. **Why**: `unless target not PAT` inverts the exception into *positive scope* (§1.7), so the rule fires on exactly the writes inside `PAT` rather than on everything except it. The negated form is the one that reads as an allow-list, and it is easy to mistake for a plain `unless target`.
+```
+source AGENT = exec "**/codex"
+rule only-in-work:
+  notify write file "shared/**"  if AGENT  unless target not "shared/allowed/**"
+  because "only the allow-listed region is in scope"
+```
+
 ---
 
 ## 4. Why these are valuable (and where the novelty actually is)
 > Caveat repeated: the *mechanism* (cross-channel taint enforced in-kernel) is CamQuery's; the novelty is the agent-oriented harness model + eBPF substrate + sub-tool-layer coverage + feedback loop. Per-example value:
 - **E3, E5, E11, E13** are *mandatory-mediation / temporal* rules ("only via gate", "only after fresh tests", "only after a fresh confirm", "only after a current migration-check") that prompt instructions do not reliably preserve. The `since` staleness primitive (§1.9) is what makes "fresh" enforceable rather than latching.
 - **E4, E6, E9, E12** are *lineage-scoped capability / task-boundary* rules over the fork/exec subtree.
+- **E14** is a *scope* rule: the negated `unless target not` turns the exception into a positive allow-list, so the write is permitted inside one region rather than everywhere but another.
 - **E1, E7, E8, E10** are data-handling rules over **derived, cross-process, cross-channel** data. They are security-relevant, but the harness point is provenance continuity across tools.
 - **E2** is an untrusted-input review rule: when task context came from outside, privileged actions require an endorsement step.
 - **Declassification (E8) + endorsement (E2)** are what move this from "blunt deny" to a usable operating policy with sanctioned paths.
@@ -400,10 +536,10 @@ Lineage attributes (`gates`, ancestry, and the per-lineage epoch counters of §1
 
 ## 6. Implementation
 
-Two-tier (per §10.4): a userspace Rust **compiler** lowers the DSL to a flat kernel config; the **kernel** propagates taint and evaluates rules, emitting only rule matches. File policies are YAML (`actplane.yaml` / `.actplane/policy.yaml`) with an embedded `policy: |` DSL block; raw DSL is only accepted through `--rule`.
+Two-tier: a userspace Rust **compiler** lowers the DSL to a flat kernel config; the **kernel** propagates taint and evaluates rules, emitting only rule matches. File policies are YAML (`actplane.yaml` / `.actplane/policy.yaml`) with an embedded `policy: |` DSL block; raw DSL is only accepted through `--rule`.
 
-- **`crates/actplane-ifc-compiler/src/dsl/`** — `ast.rs`, `parse.rs` (DSL → AST, incl. the optional `since` tail on `after` and implicit basename matching for exec targets), `lower.rs` (AST → `struct taint_config` bytes: label/gate bit allocation, boolean→`req`/`forbid` via DNF, glob→exact/prefix/suffix/any, IPv4→net/mask, and source/xform/gate/`since` lowering into `taint_update[]`). `mod.rs::compile_str`. Tests compile E1–E13, rule effects, and the YAML corpus in `test/policies/`.
-- **`bpf/taint.h`** — the kernel ABI (`taint_update`/`taint_rule`/`taint_config`) + libc-free matching predicates (`taint_streq`/`prefix`/`suffix`/`any`, `mask_ok`, `arg_match`), 30 unit tests in `test_taint.c`.
+- **`crates/actplane-ifc-compiler/src/dsl/`** — `ast.rs`, `parse.rs` (DSL → AST, incl. the optional `since` tail on `after` and the normalization of a bare exec name to the globstar form), `lower.rs` (AST → `struct taint_config` bytes: label/gate bit allocation, boolean→`req`/`forbid` via DNF, glob→exact/prefix/suffix/contains/any, IPv4→net/mask, and source/xform/gate/`since` lowering into `taint_update[]`). `mod.rs::compile_str`. Its tests compile the YAML corpus in `test/policies/`, rule effects, and the pattern/ABI guards; the E-numbered end-to-end cases live in `test/e2e_cases.yaml` and are run by `script/e2e_examples.sh`.
+- **`bpf/taint.h`** — the kernel ABI (`taint_update`/`taint_rule`/`taint_config`) + libc-free matching predicates (`taint_streq`/`prefix`/`suffix`/`contains`/`match`, `taint_mask_ok`, `taint_arg_match`), with unit tests in `test_taint.c` covering the predicates plus the pinned ABI layout, constants, and enum values.
 - **`bpf/taint_engine.bpf.h`** — label maps (proc/file/endpoint) + lineage/session gates + per-session epochs (`te_sess`, `te_tick`/`te_stamp`, `te_after_satisfied`) for §1.9 staleness + `file_id`/`file_state` object identity (§1.10) + generic update application + propagation + `te_check_labels` (bpf2bpf subprograms; pattern reads via local copies, IPv4 matched numerically — both chosen to satisfy the verifier).
 - **`bpf/capability.bpf.h`** — runtime policy-delta admission through `BPF_MAP_TYPE_USER_RINGBUF`: requests are admitted by mask/scope/target checks, then applied monotonically to engine state.
 - **`crates/actplane-runtime/src/runtime.rs` + `crates/actplane-runtime/src/mcp.rs`** — userspace runtime control plane: domain bind/reload/append APIs, child launch/restart supervision, append-delta audit provenance, and the optional `runtime.approval.append_delta` metadata admission gate.

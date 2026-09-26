@@ -14,12 +14,11 @@ cross-checks the inventory against the frozen `rq5_openagentsafety_ledger.json`,
 the `remaining_attempt0_description_manifest.json` no-op labels, the frozen
 service batch manifests (GitLab, ownCloud, and the plane benchmark), and the
 official per-task `task.md` descriptions fetched from the benchmark's frozen
-Duplicate task IDs in the manifest or ledger are rejected, the
+commit. Duplicate task IDs in the manifest or ledger are rejected. The
 description manifest's no-op and status labels are compared per task
 against the ledger's row values, and the official task root's provenance
-is recorded through the
-frozen expected benchmark submodule commit. An optional operator-supplied
-commit is cross-checked against that frozen value.
+is recorded through the frozen expected benchmark submodule commit. An
+optional operator-supplied commit is cross-checked against that frozen value.
 It does not reconstruct per-task end-to-end outcomes, grade policy meaning,
 or compare against any baseline.
 
@@ -67,7 +66,8 @@ The audit script and its inputs are deterministic. The script is
 `docs/empirical-study/audit_openagentsafety_policies.py`. Inputs:
 
 - artifact tree: frozen `origin/artifact-ready` OpenAgentSafety checkout
-  (`docs/OpenAgentSafety`) plus `docs/artifact/rq5_openagentsafety_ledger.json`.
+  (`docs/OpenAgentSafety`), plus `docs/artifact/rq5_openagentsafety_ledger.json`
+  from that same ref.
 - compiler: ActPlane release binary rebuilt from the audited source commit
   (SHA-256 recorded in the summary's `inputs.compiler_sha256`).
 - official task root: flat directory of `<task-id>.md` files for the 359

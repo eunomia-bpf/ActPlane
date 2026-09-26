@@ -1214,7 +1214,9 @@ fn poll_audit_restart_status(root: &std::path::Path, child_id: u32, status: &str
             if line.trim().is_empty() {
                 continue;
             }
-            let value: Value = serde_json::from_str(line).expect("audit JSONL record");
+            let Some(value) = parse_audit_line(line) else {
+                continue;
+            };
             if value["event"] == "restart_child_domain"
                 && value["old_child_domain_id"].as_u64() == Some(child_id as u64)
                 && value["status"].as_str() == Some(status)
@@ -1230,6 +1232,15 @@ fn poll_audit_restart_status(root: &std::path::Path, child_id: u32, status: &str
     }
 }
 
+/// Parse one audit JSONL line, returning `None` for a torn/partial line.
+///
+/// The audit writer appends concurrently with the test's read, so a line read
+/// here can be a partially-written tail. That is a retry condition, not a test
+/// failure: the polling timeout is the real bound.
+fn parse_audit_line(line: &str) -> Option<Value> {
+    serde_json::from_str(line).ok()
+}
+
 fn poll_audit_append_delta(root: &std::path::Path, target_id: u32) -> Value {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
@@ -1238,7 +1249,9 @@ fn poll_audit_append_delta(root: &std::path::Path, target_id: u32) -> Value {
             if line.trim().is_empty() {
                 continue;
             }
-            let value: Value = serde_json::from_str(line).expect("audit JSONL record");
+            let Some(value) = parse_audit_line(line) else {
+                continue;
+            };
             if value["event"] == "append_policy_delta"
                 && value["status"].as_str() == Some("accepted")
                 && value["target_id"].as_u64() == Some(target_id as u64)
@@ -1270,7 +1283,9 @@ fn poll_audit_append_delta_ref_status(
             if line.trim().is_empty() {
                 continue;
             }
-            let value: Value = serde_json::from_str(line).expect("audit JSONL record");
+            let Some(value) = parse_audit_line(line) else {
+                continue;
+            };
             if value["event"] == "append_policy_delta"
                 && value["status"].as_str() == Some(status)
                 && value["policy_ref"].as_str() == Some(policy_ref)
@@ -1300,7 +1315,9 @@ fn poll_audit_child_event(
             if line.trim().is_empty() {
                 continue;
             }
-            let value: Value = serde_json::from_str(line).expect("audit JSONL record");
+            let Some(value) = parse_audit_line(line) else {
+                continue;
+            };
             if value["event"] == event
                 && value[child_field].as_u64() == Some(child_id as u64)
                 && value["status"].as_str() == Some(status)

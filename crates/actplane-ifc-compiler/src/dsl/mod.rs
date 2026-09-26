@@ -9,7 +9,13 @@ pub mod parse;
 
 use std::collections::HashMap;
 
-pub use lower::{Compiled, RuleMeta, RuleSourceMeta, compile};
+pub use lower::{
+    Compiled, PATTERN_EMPTY_LITERAL, PATTERN_MATCHER_LENGTH, PATTERN_TRUNCATED,
+    PATTERN_WARNING_CODES, PatternWarning, RULE_CONDITION_CONTRADICTION,
+    RULE_CONDITION_COVERS_TARGET, RULE_CONDITION_LABEL_WITHOUT_PRODUCER,
+    RULE_CONDITION_WARNING_CODES, RUNTIME_SEEDED_LABELS, RuleMeta, RuleSourceMeta, compile,
+    is_numeric_endpoint_pattern, repo_relative_condition_is_partial,
+};
 
 /// Parse + compile DSL source text to a kernel config blob + reason table.
 pub fn compile_str(src: &str) -> Result<Compiled, String> {
@@ -455,11 +461,60 @@ rule secret:
     }
 
     #[test]
+    fn since_argv_token_is_only_valid_for_exec() {
+        // The kernel matches a `since` update's `arg` only on exec events
+        // (taint_engine.bpf.h te_file_update_cb ignores it), so an ARG on a
+        // path invalidator would lower into the blob and then never match.
+        // Reject it so the miscompile is not silent.
+        assert!(compile_str(
+            "rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\" since write \"src/**\" \"token\"\n  because \"x\"\n"
+        )
+        .is_err());
+        // The exec form stays valid and carries the token.
+        ok(
+            "rule r:\n  block exec \"git\" if A unless after exec \"**/pytest\" since exec \"pnpm\" \"test\"\n  because \"x\"\n",
+        );
+    }
+
+    #[test]
     fn exits_is_only_valid_for_exec_gates() {
         assert!(compile_str(
             "rule r:\n  block exec \"git\" if A unless after read \"src/**\" exits 0\n  because \"x\"\n"
         )
         .is_err());
+    }
+
+    #[test]
+    fn target_kind_must_match_the_operation() {
+        // The grammar pairs each op with one kind (`connect`/`recv` with
+        // `endpoint`, file/exec ops with `file`/`exec`). The kind word drives
+        // the endpoint_support warnings and the approval signature, so a wrong
+        // word would lower to the same blob while skipping the diagnostics that
+        // the correct spelling reports. Reject the mismatch instead.
+        for bad in [
+            "rule r:\n  notify connect file \"/work/**\"\n  because \"x\"\n",
+            "rule r:\n  notify recv file \"**\"\n  because \"x\"\n",
+            "rule r:\n  notify read endpoint \"*\"\n  because \"x\"\n",
+            "rule r:\n  notify write endpoint \"*\"\n  because \"x\"\n",
+            "rule r:\n  notify exec file \"git\"\n  because \"x\"\n",
+        ] {
+            assert!(compile_str(bad).is_err(), "should reject: {bad}");
+        }
+        // The grammar's pairings still compile, including the bare exec form.
+        ok(
+            "rule r:\n  notify connect endpoint \"**\"\n  because \"x\"\nrule s:\n  notify read file \"**\"\n  because \"y\"\nrule t:\n  notify exec \"git\"\n  because \"z\"\n",
+        );
+    }
+
+    #[test]
+    fn rule_without_clauses_is_rejected() {
+        // The grammar is `clause+`, but the parser accepted a `rule` with only
+        // a `because` (or nothing), which lowered to zero kernel matchers and
+        // enforced nothing with no warning. Reject it so the silent no-op
+        // becomes a compile error.
+        assert!(compile_str("rule r:\n  because \"x\"\n").is_err());
+        assert!(compile_str("rule r:\n").is_err());
+        ok("rule r:\n  notify exec \"git\"\n  because \"x\"\n");
     }
 
     #[test]
@@ -613,7 +668,764 @@ rule secret:
                 checked += 1;
             }
         }
-        assert!(checked >= 1, "expected domain policies in corpus");
+        // Exact: the corpus ships five domain-bearing policy sources, so a file
+        // that stops being recognized as one (`domains:` head renamed) fails
+        // here instead of silently shrinking what "all domains compile" covers.
+        assert_eq!(checked, 5, "expected domain policies in corpus");
+    }
+
+    /// Codes present in a compiled policy's pattern warnings.
+    fn warning_codes(c: &Compiled) -> Vec<&'static str> {
+        c.pattern_warnings.iter().map(|w| w.code).collect()
+    }
+
+    #[test]
+    fn long_pattern_literal_is_reported_as_truncated() {
+        // Kernel pattern fields hold 63 usable bytes, so a longer literal is
+        // stored as a prefix. For an exact absolute path that means the rule can
+        // never match the intended target, so the compiler must report it rather
+        // than silently compiling a different rule.
+        let long = "/var/lib/some/deeply/nested/directory/structure/that/is/very/long/target.txt";
+        assert!(long.len() > 63);
+        let compiled = ok(&format!(
+            "source A = exec \"a\"\nrule r:\n  block write file \"{long}\" if A\n  because \"x\"\n"
+        ));
+        assert_eq!(
+            warning_codes(&compiled),
+            vec![lower::PATTERN_TRUNCATED],
+            "one truncation expected: {:?}",
+            compiled.pattern_warnings
+        );
+        assert!(
+            compiled.pattern_warnings[0].message.contains(long),
+            "message should name the literal: {}",
+            compiled.pattern_warnings[0].message
+        );
+
+        // A literal that fits is stored whole and reported not at all.
+        let short = ok(
+            "source A = exec \"a\"\nrule r:\n  block write file \"/tmp/short.txt\" if A\n  because \"x\"\n",
+        );
+        assert!(
+            short.pattern_warnings.is_empty(),
+            "short literal must not be reported: {:?}",
+            short.pattern_warnings
+        );
+    }
+
+    #[test]
+    fn over_bound_suffix_literal_is_reported() {
+        // `taint_suffix` rejects any literal longer than TAINT_SUF_MAX (16), so a
+        // `**/<long name>` pattern lowers to a literal the matcher can never
+        // accept, i.e. a rule that never fires. That must be reported, and it is
+        // a distinct failure from truncation.
+        let compiled = ok(
+            "source A = exec \"a\"\nrule r:\n  block write file \"**/*config.production.json\" if A\n  because \"x\"\n",
+        );
+        assert_eq!(
+            warning_codes(&compiled),
+            vec![lower::PATTERN_MATCHER_LENGTH],
+            "one over-bound literal expected: {:?}",
+            compiled.pattern_warnings
+        );
+        assert!(
+            compiled.pattern_warnings[0]
+                .message
+                .contains("config.production.json"),
+            "message should name the literal: {}",
+            compiled.pattern_warnings[0].message
+        );
+
+        // A basename within the bound lowers to a usable suffix literal.
+        let short = ok(
+            "source A = exec \"a\"\nrule r:\n  notify write file \"**/.env\" if A\n  because \"x\"\n",
+        );
+        assert!(
+            short.pattern_warnings.is_empty(),
+            "in-bound suffix must not be reported: {:?}",
+            short.pattern_warnings
+        );
+    }
+
+    #[test]
+    fn over_bound_suffix_literal_with_a_live_companion_is_not_reported_as_dead() {
+        // A repo-relative `**/<name>` target also emits a bare `exact`
+        // companion, and `exact` has no length bound, so an over-bound suffix
+        // primary leaves the rule alive for the bare form. The message must say
+        // which entry dies instead of claiming the pattern can never match.
+        let long = "a".repeat(27);
+        let compiled = ok(&format!(
+            "source A = exec \"a\"\nrule r:\n  block write file \"**/{long}\" if A\n  because \"x\"\n"
+        ));
+        assert_eq!(
+            warning_codes(&compiled),
+            vec![lower::PATTERN_MATCHER_LENGTH],
+            "one over-bound literal expected: {:?}",
+            compiled.pattern_warnings
+        );
+        let message = &compiled.pattern_warnings[0].message;
+        assert!(
+            !message.contains("so the pattern can never match"),
+            "a live exact companion keeps the pattern alive: {message}"
+        );
+        assert!(
+            message.contains("this suffix entry can never match") && message.contains(&long),
+            "message should scope the death to the entry and name the companion: {message}"
+        );
+
+        // A `**/*<name>` target lowers to a lone suffix entry with no companion,
+        // so there the whole pattern really is dead.
+        let compiled = ok(&format!(
+            "source A = exec \"a\"\nrule r:\n  block write file \"**/*{long}\" if A\n  because \"x\"\n"
+        ));
+        assert!(
+            compiled.pattern_warnings[0]
+                .message
+                .contains("so the pattern can never match"),
+            "a companion-less form is dead: {}",
+            compiled.pattern_warnings[0].message
+        );
+    }
+
+    #[test]
+    fn over_bound_suffix_literal_is_not_also_reported_as_truncated() {
+        // A `suffix`/`contains` literal is compared against a fixed 16-byte
+        // tail/window, so any literal long enough to be truncated (>63 bytes)
+        // is necessarily still past that bound and never matches at all. The
+        // truncation warning would then both duplicate and, worded as "matches
+        // that prefix", contradict `pattern_matcher_length_exceeded` on the
+        // same entry, so only the length bound is reported.
+        let long = "x".repeat(70);
+        let compiled = ok(&format!(
+            "source A = exec \"a\"\nrule r:\n  block write file \"**/*{long}\" if A\n  because \"x\"\n"
+        ));
+        assert_eq!(
+            warning_codes(&compiled),
+            vec![lower::PATTERN_MATCHER_LENGTH],
+            "a dead suffix entry is reported once: {:?}",
+            compiled.pattern_warnings
+        );
+
+        // An absolute literal lowers to `PREFIX`/`EXACT`, where the stored
+        // prefix really does keep matching, so the truncation consequence is
+        // both true and distinct, and must still be reported.
+        let compiled = ok(&format!(
+            "source A = exec \"a\"\nrule r:\n  block write file \"/tmp/{long}\" if A\n  because \"x\"\n"
+        ));
+        assert_eq!(
+            warning_codes(&compiled),
+            vec![lower::PATTERN_TRUNCATED],
+            "a prefix literal keeps its truncation warning: {:?}",
+            compiled.pattern_warnings
+        );
+        assert!(
+            compiled.pattern_warnings[0]
+                .message
+                .contains("matches that prefix"),
+            "prefix wording expected: {}",
+            compiled.pattern_warnings[0].message
+        );
+    }
+
+    #[test]
+    fn empty_literal_pattern_is_reported() {
+        // Every non-ANY matcher rejects an empty pattern (`taint_streq`,
+        // `taint_prefix` and `taint_contains` all guard on a zero pattern
+        // length), so a pattern that lowers to an empty literal can never fire:
+        // `exec "src/*"` and `exec "foo/"` both do. `*` is not affected, since
+        // ANY always matches and is meant to carry an empty literal. The last
+        // two policies keep concrete text *after* a leading wildcard, so the
+        // wildcard-literal cleanup discards it while leaving an empty span: the
+        // result is a strict subset of the glob, not a strict widening, so
+        // `PATTERN_LITERAL_WIDENED` must NOT also fire and claim the matcher
+        // "matches strictly more".
+        for policy in [
+            "source A = exec \"a\"\nrule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n",
+            "source A = exec \"a\"\nrule r:\n  kill exec \"foo/\" if A\n  because \"x\"\n",
+            "rule r:\n  kill exec \"*g*t\"\n  because \"x\"\n",
+            "rule r:\n  kill write file \"**/*b/*\"\n  because \"x\"\n",
+        ] {
+            let compiled = ok(policy);
+            assert_eq!(
+                warning_codes(&compiled),
+                vec![lower::PATTERN_EMPTY_LITERAL],
+                "{policy:?} should report one empty literal: {:?}",
+                compiled.pattern_warnings
+            );
+        }
+        let any = ok("source A = exec \"a\"\nrule r:\n  kill exec \"*\" if A\n  because \"x\"\n");
+        assert!(
+            any.pattern_warnings.is_empty(),
+            "ANY is exempt: {:?}",
+            any.pattern_warnings
+        );
+    }
+
+    #[test]
+    fn a_literal_warning_names_the_construct_it_came_from() {
+        // The message is the corrective-feedback payload, so "event target"
+        // tells the reader nothing when the literal actually came from a
+        // source, gate, xform, or invalidator. Every update site names itself
+        // the way the widened/capped warnings already did.
+        let first = |policy: &str, code: &str| {
+            let c = ok(policy);
+            c.pattern_warnings
+                .iter()
+                .find(|w| w.code == code)
+                .unwrap_or_else(|| panic!("{code} not emitted for {policy:?}"))
+                .message
+                .clone()
+        };
+        let cases = [
+            (
+                "source target",
+                "source A = exec \"src/*\"\nrule r:\n  kill exec \"git\" if A\n  because \"x\"\n",
+            ),
+            (
+                "gate target",
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A unless after exec \"src/*\"\n  because \"x\"\n",
+            ),
+            (
+                "transform gate",
+                "source A = exec \"a\"\nendorse X by exec \"src/*\"\nrule r:\n  kill exec \"git\" if A\n  because \"x\"\n",
+            ),
+            (
+                "invalidator target",
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A unless after exec \"**/pytest\" since exec \"src/*\"\n  because \"x\"\n",
+            ),
+            (
+                "rule target",
+                "source A = exec \"a\"\nrule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n",
+            ),
+        ];
+        for (what, policy) in cases {
+            let msg = first(policy, lower::PATTERN_EMPTY_LITERAL);
+            assert!(
+                msg.starts_with(&format!("{what} ")),
+                "{policy:?} should name `{what}`, got: {msg}"
+            );
+            assert!(
+                !msg.contains("event target"),
+                "`{what}` must not fall back to the generic label: {msg}"
+            );
+        }
+        // Truncation carries the same label, so pin one non-empty case too.
+        let long = "/var/lib/some/deeply/nested/directory/structure/that/is/very/long/target.txt";
+        let msg = first(
+            &format!(
+                "source A = file \"{long}\"\nrule r:\n  kill open file \"/x\" if A\n  because \"x\"\n"
+            ),
+            lower::PATTERN_TRUNCATED,
+        );
+        assert!(msg.starts_with("source target "), "got: {msg}");
+        // The arg diagnostic follows the same rule: only a gate/invalidator
+        // carries a non-empty arg, and the arg borrows the construct's name.
+        let arg = "x".repeat(80);
+        let msg = first(
+            &format!(
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A unless after exec \"**/pnpm\" \"{arg}\"\n  because \"x\"\n"
+            ),
+            lower::PATTERN_TRUNCATED,
+        );
+        assert!(msg.starts_with("gate arg "), "got: {msg}");
+        let msg = first(
+            &format!(
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A unless after exec \"**/pytest\" since exec \"**/pnpm\" \"{arg}\"\n  because \"x\"\n"
+            ),
+            lower::PATTERN_TRUNCATED,
+        );
+        assert!(msg.starts_with("invalidator arg "), "got: {msg}");
+    }
+
+    #[test]
+    fn capped_literal_emptied_by_wildcard_cleanup_is_not_also_reported_as_capped() {
+        // The cap can shorten a literal to a span the wildcard cleanup then
+        // empties: `**/a...a/*x` caps to `*x`, which cleans to `""`. An empty
+        // literal makes every non-`ANY` matcher reject the entry, so
+        // `pattern_contains_capped` ("matches strictly more than the glob") is
+        // false there and contradicts `pattern_empty_literal` on the same
+        // entry. Only the empty-literal consequence is reported.
+        let policy =
+            "rule r:\n  block write file \"**/aaaaaaaaaaaaaaaaaaaa/*x\"\n  because \"x\"\n";
+        assert_eq!(
+            warning_codes(&ok(policy)),
+            vec![lower::PATTERN_EMPTY_LITERAL],
+            "an emptied capped literal is reported once"
+        );
+
+        // A cap that leaves concrete text still widens the matcher, so the
+        // capped warning must survive.
+        let policy =
+            "rule r:\n  block write file \"**/src/components/deep/nested/**\"\n  because \"x\"\n";
+        assert_eq!(
+            warning_codes(&ok(policy)),
+            vec![lower::PATTERN_CONTAINS_CAPPED],
+            "a capped literal with concrete text is still reported"
+        );
+    }
+
+    #[test]
+    fn dsl_rule_count_is_distinct_from_the_lowered_matcher_count() {
+        // A repo-relative pattern that also emits a bare `exact` companion
+        // lowers one DSL rule to two kernel matchers. Reporting `meta.len()` as
+        // a rule count then overstates the policy, which is what `--explain`
+        // already separates; `dsl_rule_count` is the count a reader gets by
+        // counting the policy text.
+        let c = ok("rule r:\n  block write file \"**/config.production.json\"\n  because \"x\"\n");
+        assert_eq!(c.dsl_rule_count, 1);
+        assert_eq!(c.meta.len(), 2, "primary plus a companion matcher");
+
+        // Distinct DSL rules stay distinct: one clause per rule here.
+        let c = ok(
+            "rule a:\n  block exec \"git\" if true\n  because \"x\"\nrule b:\n  block exec \"make\" if true\n  because \"y\"\n",
+        );
+        assert_eq!(c.dsl_rule_count, 2);
+        assert_eq!(c.meta.len(), 2);
+    }
+
+    #[test]
+    fn every_pattern_warning_code_is_reachable() {
+        // `PATTERN_WARNING_CODES` is what the CLI's doc-completeness guard
+        // iterates, so a code listed there but never emitted would demand
+        // documentation for a warning no policy can produce. Pin each code to a
+        // policy that emits it, so the list stays exactly the emitted set.
+        let triggered = [
+            (
+                lower::PATTERN_TRUNCATED,
+                "rule r:\n  block write file \"/var/lib/some/deeply/nested/directory/structure/that/is/very/long/target.txt\" if A\n  because \"x\"\n",
+            ),
+            (
+                lower::PATTERN_EMPTY_LITERAL,
+                "rule r:\n  kill exec \"src/*\" if A\n  because \"x\"\n",
+            ),
+            (
+                lower::PATTERN_MATCHER_LENGTH,
+                "rule r:\n  block write file \"**/*config.production.json\" if A\n  because \"x\"\n",
+            ),
+            (
+                lower::PATTERN_LITERAL_WIDENED,
+                "rule r:\n  block exec \"g*t\" if A\n  because \"x\"\n",
+            ),
+            (
+                lower::PATTERN_CONTAINS_CAPPED,
+                "rule r:\n  block write file \"**/src/components/deep/nested/**\" if A\n  because \"x\"\n",
+            ),
+        ];
+        assert_eq!(
+            triggered.len(),
+            PATTERN_WARNING_CODES.len(),
+            "every code in PATTERN_WARNING_CODES needs a trigger policy here"
+        );
+        for (code, policy) in triggered {
+            assert!(
+                PATTERN_WARNING_CODES.contains(&code),
+                "{code} is emitted but missing from PATTERN_WARNING_CODES"
+            );
+            let codes = warning_codes(&ok(policy));
+            assert!(
+                codes.contains(&code),
+                "{policy:?} should emit {code}, got {codes:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_rule_condition_warning_code_is_reachable() {
+        // `RULE_CONDITION_WARNING_CODES` is the second list the CLI's
+        // doc-completeness guard iterates, so it carries the same obligation as
+        // `PATTERN_WARNING_CODES`: a code listed there but never emitted would
+        // demand documentation for a warning no policy can produce. Pin each
+        // code to a policy that emits it.
+        let triggered = [
+            (
+                lower::RULE_CONDITION_CONTRADICTION,
+                "source A = exec \"a\"\nrule r:\n  kill open file \"**/s\" if A and not A\n  because \"x\"\n",
+            ),
+            (
+                lower::RULE_CONDITION_COVERS_TARGET,
+                "rule r:\n  kill exec \"git\" unless target \"g*\"\n  because \"x\"\n",
+            ),
+            (
+                lower::RULE_CONDITION_LABEL_WITHOUT_PRODUCER,
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if A and NOPE\n  because \"x\"\n",
+            ),
+        ];
+        assert_eq!(
+            triggered.len(),
+            RULE_CONDITION_WARNING_CODES.len(),
+            "every code in RULE_CONDITION_WARNING_CODES needs a trigger policy here"
+        );
+        for (code, policy) in triggered {
+            assert!(
+                RULE_CONDITION_WARNING_CODES.contains(&code),
+                "{code} is emitted but missing from RULE_CONDITION_WARNING_CODES"
+            );
+            let codes = warning_codes(&ok(policy));
+            assert!(
+                codes.contains(&code),
+                "{policy:?} should emit {code}, got {codes:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn parentheses_group_and_and_or_have_equal_precedence() {
+        // The lexer used to glue `(A` and `B)` into single words, so `if (A)`
+        // introduced a phantom label `(A` that no `source` can set: the clause
+        // was silently dead. Grouping is now explicit. The blob is the enforced
+        // artifact, so equality of blobs is the observable claim (`labels` alone
+        // would not catch a wrong association order that happens to reuse names).
+        let blob = |when: &str| {
+            let src = format!(
+                "source A = exec \"a\"\nsource B = exec \"b\"\nsource C = exec \"c\"\nrule r:\n  kill open file \"**/s\" if {when}\n  because \"x\"\n"
+            );
+            ok(&src).bytes
+        };
+        // Redundant grouping is a no-op, so `(A)` must lower exactly like `A`.
+        assert_eq!(blob("A"), blob("(A)"));
+        assert_eq!(blob("not A"), blob("(not A)"));
+        // `and` and `or` are equal precedence and left-associative, so the
+        // unparenthesized `A or B and C` is `(A or B) and C`. Pin that, and pin
+        // that parenthesizing the other way is a different policy: a reader who
+        // wants `A or (B and C)` gets it only with the parens.
+        assert_eq!(blob("A or B and C"), blob("(A or B) and C"));
+        assert_ne!(blob("A or B and C"), blob("A or (B and C)"));
+        // An unbalanced paren is a loud error, not a phantom label.
+        for bad in ["(A", "A)", "(A or B"] {
+            let src = format!("rule r:\n  kill open file \"**/s\" if {bad}\n  because \"x\"\n");
+            assert!(compile_str(&src).is_err(), "{bad:?} should fail to parse");
+        }
+        // `Expr::Not` carries a label name, not a sub-expression, so a negated
+        // group is rejected with the De Morgan spelling rather than parsed as
+        // `not ` plus a group.
+        let err =
+            match compile_str("rule r:\n  kill exec \"git\" if not (A or B)\n  because \"x\"\n") {
+                Ok(_) => panic!("`not (...)` should be rejected"),
+                Err(e) => e,
+            };
+        assert!(err.contains("not A and not B"), "unhelpful error: {err}");
+    }
+
+    #[test]
+    fn contradiction_between_a_label_and_its_negation_is_reported() {
+        // `taint_mask_ok` tests `(labels & req) == req && (labels & forbid) == 0`,
+        // so a DNF term that requires and forbids the same bit is false in every
+        // state. The warning names the label so the policy author can find it.
+        let warn = |when: &str| {
+            let src = format!(
+                "source A = exec \"a\"\nsource B = exec \"b\"\nrule r:\n  kill open file \"**/s\" if {when}\n  because \"x\"\n"
+            );
+            let c = ok(&src);
+            (
+                warning_codes(&c),
+                c.pattern_warnings
+                    .iter()
+                    .map(|w| w.message.clone())
+                    .collect::<Vec<_>>(),
+            )
+        };
+        let (codes, messages) = warn("A and not A");
+        assert_eq!(codes, vec![lower::RULE_CONDITION_CONTRADICTION]);
+        assert!(
+            messages[0].contains("`A`"),
+            "the warning must name the contradicted label: {messages:?}"
+        );
+        // Only one `or` branch is dead here: `B` can still fire. The message
+        // must not claim the whole rule is unreachable, since the fix differs.
+        let (codes, messages) = warn("(A or B) and not A");
+        assert_eq!(codes, vec![lower::RULE_CONDITION_CONTRADICTION]);
+        assert!(
+            messages[0].contains("one branch"),
+            "a surviving branch must not be reported as a dead rule: {messages:?}"
+        );
+        // Consistent conditions stay quiet, including `or`-with-negation, which
+        // is satisfiable (`true or not A`), unlike an `and` between them.
+        for quiet in ["A or not A", "A and not B", "A", "not A"] {
+            assert!(warn(quiet).0.is_empty(), "{quiet:?} should not warn");
+        }
+    }
+
+    #[test]
+    fn non_ascii_bytes_are_tokenized_on_char_boundaries() {
+        // The lexer used to advance and slice on raw bytes, so a word containing
+        // a non-ASCII char whose trailing byte is ASCII whitespace (`∅`, U+2205,
+        // ends in `0x85` = U+0085 NEL) sliced mid-char and panicked. `docs/`
+        // embeds exactly that char, so any policy text carrying it crashed the
+        // compiler instead of reporting a normal parse error.
+        let bad = "source AGENT = exec \"**/codex\"\nrule r:\n  kill exec \"git\" if AGENT \u{2205}\n  because \"b\"\n";
+        let err = match compile_str(bad) {
+            Ok(_) => panic!("a bare non-ASCII word is not a label"),
+            Err(e) => e,
+        };
+        assert!(
+            err.contains('\u{2205}'),
+            "the error must name the token: {err}"
+        );
+        // Inside a string literal the byte is ordinary payload, so the rule
+        // compiles and the literal is stored whole.
+        let quoted = "source AGENT = exec \"**/codex\"\nrule r:\n  kill exec \"git\u{2205}\" if AGENT\n  because \"b\"\n";
+        assert!(compile_str(quoted).is_ok(), "quoted non-ASCII is payload");
+        // A non-ASCII rule name is a word like any other, not a crash.
+        let named = "source AGENT = exec \"**/codex\"\nrule r\u{2205}:\n  kill exec \"git\" if AGENT\n  because \"b\"\n";
+        assert!(compile_str(named).is_ok(), "a non-ASCII rule name parses");
+    }
+
+    #[test]
+    fn exception_covering_the_whole_target_is_reported() {
+        // `te_cond_satisfied` suppresses a rule whose `target` condition holds,
+        // so an exception that accepts every event the rule's own target accepts
+        // makes the rule never fire. Reported per clause, once.
+        let codes = |src: &str| warning_codes(&ok(src));
+        let warned = [
+            // Exact target and exact condition: the same single address.
+            "rule r:\n  kill exec \"git\" unless target \"git\"\n  because \"x\"\n",
+            // A prefix condition accepts the exact target.
+            "rule r:\n  kill exec \"git\" unless target \"g*\"\n  because \"x\"\n",
+            // `ANY` accepts everything.
+            "rule r:\n  kill exec \"git\" unless target \"**\"\n  because \"x\"\n",
+            // `contains` accepts its own literal, which is the whole target set.
+            "rule r:\n  kill open file \"*.log\" unless target \"*.log\"\n  because \"x\"\n",
+            // A `**/x` target also emits a companion exact-basename entry, so at
+            // least one entry is dead even though the message is qualified.
+            "rule r:\n  kill open file \"**/*.log\" unless target \"*.log\"\n  because \"x\"\n",
+            // Exact target under a broad path prefix.
+            "rule r:\n  kill open file \"/work/a\" unless target \"/work/**\"\n  because \"x\"\n",
+        ];
+        for src in warned {
+            assert_eq!(
+                codes(src),
+                vec![RULE_CONDITION_COVERS_TARGET],
+                "{src:?} should report a covering exception"
+            );
+        }
+        // A branch of the condition that survives means the rule can still fire,
+        // so the same inputs must stay quiet.
+        let quiet = [
+            // The condition is a strict sub-path: some targets are not covered.
+            "rule r:\n  kill open file \"/work/**\" unless target \"/work\"\n  because \"x\"\n",
+            "rule r:\n  kill open file \"/work/**\" unless target \"/work/\"\n  because \"x\"\n",
+            // Target set is the subset, so the condition is not implied.
+            "rule r:\n  kill exec \"g*\" unless target \"git\"\n  because \"x\"\n",
+            "rule r:\n  kill exec \"git\" unless target \"*t\"\n  because \"x\"\n",
+            "rule r:\n  kill open file \"/work/tmp/\" unless target \"/work/tmp/a\"\n  because \"x\"\n",
+            // No condition, or a non-target condition.
+            "rule r:\n  kill exec \"git\" if A\n  because \"x\"\n",
+            "rule r:\n  kill exec \"git\" unless after exec \"**/pytest\"\n  because \"x\"\n",
+        ];
+        for src in quiet {
+            // Other codes (`pattern_empty_literal` for `*t`) are orthogonal; this
+            // test claims only that coverage is not reported.
+            let got = codes(src);
+            assert!(
+                !got.contains(&RULE_CONDITION_COVERS_TARGET),
+                "{src:?} should not report coverage: {got:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn negated_exception_is_reported_when_the_target_misses_the_condition() {
+        // `unless target not PAT` fires only where the condition matcher is
+        // false, so it dies when the target set is disjoint from the
+        // condition's. The example is the allow-list shape: `not "/work/"`
+        // accepts nothing under `/work/`, so a rule targeting `/work/a` never
+        // fires.
+        let src =
+            "rule r:\n  kill open file \"/work/a\" unless target not \"/work/\"\n  because \"x\"\n";
+        assert_eq!(warning_codes(&ok(src)), vec![RULE_CONDITION_COVERS_TARGET]);
+        // Two prefixes that share no text are disjoint, so nothing the target
+        // accepts can satisfy the negated condition.
+        let disjoint = "rule r:\n  kill open file \"/work/**\" unless target not \"/other/\"\n  because \"x\"\n";
+        assert_eq!(
+            warning_codes(&ok(disjoint)),
+            vec![RULE_CONDITION_COVERS_TARGET]
+        );
+        // A target strictly under the negated prefix still has texts outside it,
+        // so the rule fires for those and stays quiet.
+        let overlapping = "rule r:\n  kill open file \"/work/**\" unless target not \"/work/\"\n  because \"x\"\n";
+        assert!(warning_codes(&ok(overlapping)).is_empty());
+        // Endpoints: a numeric pattern reduces to net/mask, and the coverage
+        // test is the masked-equality argument.
+        let endpoint = "rule r:\n  kill recv endpoint \"1.2.3.4\" unless target \"1.2.3.4\"\n  because \"x\"\n";
+        assert_eq!(
+            warning_codes(&ok(endpoint)),
+            vec![RULE_CONDITION_COVERS_TARGET]
+        );
+        // `*` is unconstrained, so the condition covers the whole target.
+        let endpoint_quiet =
+            "rule r:\n  kill connect endpoint \"*\" unless target \"127.\"\n  because \"x\"\n";
+        assert!(warning_codes(&ok(endpoint_quiet)).is_empty());
+    }
+
+    #[test]
+    fn condition_label_without_a_producer_is_reported() {
+        // `label_bit` allocates a bit for a label the moment a condition names
+        // it, but only an adding update sets it. With no producer the plain form
+        // never fires and the negated form fires on every event the target
+        // accepts, so both must be reported.
+        let warn = |when: &str| {
+            let src = format!(
+                "source A = exec \"a\"\nrule r:\n  kill exec \"git\" if {when}\n  because \"x\"\n"
+            );
+            let c = ok(&src);
+            (
+                warning_codes(&c),
+                c.pattern_warnings
+                    .iter()
+                    .map(|w| w.message.clone())
+                    .collect::<Vec<_>>(),
+            )
+        };
+        for when in ["NOPE", "not NOPE", "A and NOPE", "A or NOPE"] {
+            let (codes, messages) = warn(when);
+            assert_eq!(
+                codes,
+                vec![RULE_CONDITION_LABEL_WITHOUT_PRODUCER],
+                "{when:?} references a producer-less label"
+            );
+            assert!(
+                messages[0].contains("`NOPE`"),
+                "the warning must name the label: {messages:?}"
+            );
+        }
+        // Multiple missing labels are all named: naming only one would hide the
+        // others behind a second compile round.
+        let (_, messages) = warn("NOPE and ALSO_BAD");
+        assert!(
+            messages[0].contains("`NOPE`") && messages[0].contains("`ALSO_BAD`"),
+            "every producer-less label must be named: {messages:?}"
+        );
+        // A declared label stays quiet whatever the shape of the condition
+        // mentions it; `A and not A` is a contradiction, which is a different
+        // code, so only the producer-less code is asserted absent.
+        for quiet in ["A", "A and not A", "A or not A"] {
+            assert!(
+                !warn(quiet)
+                    .0
+                    .contains(&RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+                "{quiet:?} names a declared label and must not warn"
+            );
+        }
+    }
+
+    #[test]
+    fn rule_condition_warnings_identify_the_rule_by_name_not_reason() {
+        // The rule name is the only identifier these diagnostics share with the
+        // rest of the surface (`rule_missing_because` prints it, and `--explain`
+        // labels each clause by it). Naming the rule by its `because` string
+        // instead made a warning read `rule "keep secrets local"` for a rule
+        // called `secret-guard`, and two rules sharing prose became
+        // indistinguishable. A rule with no `because` could not be named at all
+        // and printed the placeholder `(no `because`)`.
+        let guard = "rule secret-guard:\n  kill exec \"git\" unless target \"git\"\n  because \"keep secrets local\"\n";
+        let c = ok(guard);
+        let msg = c
+            .pattern_warnings
+            .iter()
+            .find(|w| w.code == RULE_CONDITION_COVERS_TARGET)
+            .expect("a covering exception is reported")
+            .message
+            .clone();
+        assert!(
+            msg.contains("`secret-guard`"),
+            "the warning must name the rule: {msg}"
+        );
+        assert!(
+            !msg.contains("keep secrets local"),
+            "the reason must not stand in for the name: {msg}"
+        );
+        // Without a `because` the name is still available, so the placeholder
+        // is gone.
+        let unnamed = ok("rule secret-guard:\n  kill exec \"git\" unless target \"git\"\n");
+        let unnamed_msg = unnamed
+            .pattern_warnings
+            .iter()
+            .find(|w| w.code == RULE_CONDITION_COVERS_TARGET)
+            .expect("a covering exception is reported")
+            .message
+            .clone();
+        assert!(
+            unnamed_msg.contains("`secret-guard`") && !unnamed_msg.contains("(no `because`)"),
+            "an unnamed rule is still identified by name: {unnamed_msg}"
+        );
+    }
+
+    #[test]
+    fn only_an_adding_xform_counts_as_a_producer() {
+        // `endorse L` lowers to `add = bit` and sets the label, so it is a
+        // producer. `declassify L` lowers to `del = bit` and *clears* it, so a
+        // policy whose only mention of `L` is a `declassify` still has no
+        // producer: `if L` never fires there, and `if not L` fires on every
+        // event the target accepts. Counting every xform as a producer was the
+        // bug; the two forms are opposite operations.
+        let codes = |src: &str| warning_codes(&ok(src));
+        let endorse = "endorse MCP by exec \"**/trust\"\nrule r:\n  kill exec \"git\" if MCP\n  because \"x\"\n";
+        assert!(
+            !codes(endorse).contains(&RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+            "`endorse` sets the label, so it is a producer: {:?}",
+            codes(endorse)
+        );
+        for when in ["MCP", "not MCP"] {
+            let src = format!(
+                "declassify MCP by exec \"**/trust\"\nrule r:\n  kill exec \"git\" if {when}\n  because \"x\"\n"
+            );
+            assert!(
+                codes(&src).contains(&RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+                "`declassify` clears the label, so `{when}` has no producer: {:?}",
+                codes(&src)
+            );
+        }
+        // A source alongside the `declassify` is a producer, so the pair is
+        // quiet: the label can be present before the gate clears it.
+        let both = "source MCP = exec \"a\"\ndeclassify MCP by exec \"**/trust\"\nrule r:\n  kill exec \"git\" if MCP\n  because \"x\"\n";
+        assert!(
+            !codes(both).contains(&RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+            "a source still produces the label: {:?}",
+            codes(both)
+        );
+    }
+
+    #[test]
+    fn runtime_seeded_labels_are_exempt_without_a_source() {
+        // `actplane run`/`watch` seed the protected pid with COMMAND (AGENT as
+        // the older spelling) before any exec update runs, and `runner_label`
+        // accepts a policy that only references the label, so a reference
+        // without a `source` is enforceable and must not warn.
+        for label in ["COMMAND", "AGENT"] {
+            let src = format!("rule r:\n  kill exec \"git\" if {label}\n  because \"x\"\n");
+            let c = ok(&src);
+            assert!(
+                !warning_codes(&c).contains(&RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+                "{label} is seeded by the runner and must not warn: {:?}",
+                warning_codes(&c)
+            );
+            assert!(c.labels.contains_key(label), "{label} still gets a bit");
+        }
+    }
+
+    #[test]
+    fn label_from_an_earlier_delta_is_not_producer_less() {
+        // A runtime delta compiles with the domain's existing label dictionary,
+        // so a bit an earlier delta allocated is live even though no local
+        // update writes it. Warning there would be a false positive.
+        let src = "rule r:\n  kill exec \"git\" if SEEDED\n  because \"x\"\n";
+        let mut existing = HashMap::new();
+        existing.insert("SEEDED".to_string(), 1u64);
+        let compiled = lower::compile_with_labels(&parse::parse(src).unwrap(), &existing).unwrap();
+        assert!(
+            !compiled
+                .pattern_warnings
+                .iter()
+                .any(|w| w.code == RULE_CONDITION_LABEL_WITHOUT_PRODUCER),
+            "a label carried in from an earlier delta must not warn: {:?}",
+            compiled.pattern_warnings
+        );
+        // The same policy without the carried label does warn, so the exemption
+        // is the existing label, not the policy text.
+        assert_eq!(
+            warning_codes(&ok(src)),
+            vec![RULE_CONDITION_LABEL_WITHOUT_PRODUCER]
+        );
     }
 
     #[test]
@@ -692,6 +1504,34 @@ rule secret:
             Err(err) => err,
         };
         assert!(err.contains("duplicate rule name `same`"));
+    }
+
+    #[test]
+    fn duplicate_because_is_rejected_rather_than_silently_overwritten() {
+        // The grammar allows at most one `because` per rule, and the string is
+        // the whole corrective-feedback payload forwarded to the agent on a
+        // match. The parser used to assign unconditionally, so the second
+        // string replaced the first and the reason for the clauses that
+        // actually matched was lost with no diagnostic. Reject instead, the
+        // way a duplicate rule name already is.
+        let err = match compile_str(
+            r#"
+            rule r:
+              notify exec "git" if true
+              because "first"
+              because "second"
+        "#,
+        ) {
+            Ok(_) => panic!("a second `because` compiled successfully"),
+            Err(err) => err,
+        };
+        assert!(
+            err.contains("more than one `because`") && err.contains("first"),
+            "the error must name the conflict, got: {err}"
+        );
+        // One `because` still compiles, and it is the reason that survives.
+        let c = ok("rule r:\n  notify exec \"git\" if true\n  because \"only\"\n");
+        assert_eq!(c.meta[0].reason, "only");
     }
 
     #[test]

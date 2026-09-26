@@ -21,6 +21,20 @@ aggregate outputs, not the full raw corpus.
 | ActPlane-related candidate lines | 529 |
 | Repositories with at least one ActPlane-related candidate | 101 |
 
+The last three rows are reproducible from the committed
+`candidate_rules_144.tsv`: 3,762 is its data-row count, 529 is the count of rows
+carrying a non-`unclassified` `category_guess`, and 101 is the number of
+distinct repositories holding at least one such row. The repository, file, and
+line counts above them come from the raw-corpus manifest on the `artifact-ready`
+ref, `docs/corpus-raw-full/manifest.jsonl`, whose 144 `excluded:false` rows name
+the 228 included instruction files. The committed TSV alone therefore
+reproduces the candidate-line figures but not the corpus totals. The
+`artifact-ready` ref also carries a smaller analyzed subset at
+`docs/corpus/manifest.jsonl` (64 `excluded:false` rows), which is not the
+manifest those three rows count.
+The line total sums the files as text lines; 14 of them end without a trailing
+newline, so `wc -l` on the raw tree reports 39,789 rather than 39,803.
+
 The candidate-line counts are keyword/category extraction results and should be
 read as aggregate evidence for prevalence, not as a hand-labeled ground truth.
 The product branch keeps the aggregate study outputs that are independent of
@@ -49,3 +63,56 @@ compiler.
 
 The raw corpus, raw traces, intermediate coding notes, old evaluation drafts,
 and exploratory scripts are intentionally not kept in the product branch.
+
+### RQ2 and long-session results (exploratory)
+
+Results supporting the RQ2 reviewer evaluation (`rq2-lowering-eval.md`) and the
+long-session over-taint experiment (`rq2-reviewer-audit-plan.md`). Each directory
+is self-contained and carries the command, inputs, environment, and summary the
+artifact Non-Cite Rule requires:
+
+- `results/rq2-fp-current-lowering/replay.json`: host-side compiler replay, with a
+  `status` and a `provenance` block naming the compiler binary hash, the input
+  `fp_rows` hash, and a per-row `rule.yaml` digest manifest.
+- `results/rq2-path-lowering-divergence/divergence.json`: the static
+  historical-vs-current lowering divergences over the frozen rules, with the input
+  coordinate under `provenance`.
+- `results/rq2-fn-lowering-exposure/exposure.json`: the static audit of which
+  frozen false negatives were exposed to the repo-relative `**/dir/**` miss.
+- `results/rq2-except-probe-vm/`: the **pre-fix** live 6.8 guest probe.
+- `results/rq2-except-probe-vm-postfix/`: the same probe after the fix, with
+  `metadata.tsv` recording the guest kernel, both binaries' hashes, and the policy
+  hashes.
+- `results/rq2-except-probe-vm-pr44-engine/`: that probe re-run with a
+  lower-budget engine so its six suffix write-rule rows become measurable;
+  `metadata.tsv` names the engine source and the reason for the swap.
+- `results/rq2-probe-prebuilt-object/`: the probe outcome with the then-committed
+  (stale) prebuilt object, kept as the evidence for that finding.
+- `results/rq2-engine-budget-crossval/`: the 6.8 verifier's 1M-instruction budget
+  measured against three engine objects, described in
+  `docs/empirical-study/rq2-engine-budget-crossval.md`.
+- `results/long-session-overtaint-vm/`: the long-session over-taint experiment
+  re-run under TCG (`counts.tsv` matches the preregistered row set, `metadata.tsv`
+  records the kernel, acceleration, and the three input hashes). The runner needed
+  a longer loader wait than its original KVM run, so this is also the record that
+  the TCG path works.
+- `results/engine-install-smoke-vm/`: the pinned-engine install smoke
+  (`docs/empirical-study/run_engine_install_smoke_vm.sh`), which boots a 6.8
+  guest and requires `actplane run` to install the engine for a policy that names
+  no `recv`. It reproduces the release-blocking summed-stack install failure on
+  demand: the same smoke against a binary built from `origin/master` fails with
+  `combined stack size of 6 calls is 608. Too large`. Like the other `run_*_vm.sh`
+  runners it is run by hand, not by CI, because the failure only reproduces on a
+  kernel that performs the combined-stack walk.
+- `results/rq2-wildcard-literal-vm/`: the live 6.8 guest A/B for the
+  wildcard-literal fix (`docs/empirical-study/run_rq2_wildcard_literal_vm.sh`).
+  The same policy source, `notify exec "**"`, compiled by the pre-fix binary
+  (a18a0a44) emits **zero** violations because its matcher literal carried a `*`,
+  which `taint_match` treats as a byte, while the same source compiled by the
+  current binary fires. `metadata.tsv` records both binaries' and both blobs'
+  hashes; `blob-identity.txt` records the byte-identity of the post-fix
+  `exec "**"` blob with the long-working `exec "*"` blob.
+
+All are **exploratory** evidence for the reviewer response, not promoted paper
+results. The DSL-specific frozen corpus and raw model runs still live only on the
+artifact ref.

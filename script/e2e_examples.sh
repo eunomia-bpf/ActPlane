@@ -1,6 +1,6 @@
 #!/bin/bash
-# ActPlane end-to-end example driver. The default test cases (E1–E12 from
-# docs/taint-dsl.md) live in test/e2e_cases.yaml; this script is only the
+# ActPlane end-to-end example driver. The default test cases live in
+# test/e2e_cases.yaml; this script is only the
 # driver: it seeds fixtures, then for each case compiles the case's DSL policy,
 # runs the real eBPF enforcer, fires the trigger, and checks the expected
 # violation fires (and the allowed/declassified case is suppressed). Run as root:
@@ -29,8 +29,8 @@ fi
 [ -x "$PROC" ]  || { echo "build bpf first: $PROC missing" >&2; exit 2; }
 
 # --- fixtures --------------------------------------------------------------
-rm -rf "$D"; mkdir -p "$D/work" "$D/downloads" "$D/customers" "$D/data" "$D/shared"
-for h in codex research-agent task-a task-b human-approve confirm redact migrate pytest; do cp /bin/bash "$D/$h"; done
+rm -rf "$D"; mkdir -p "$D/work" "$D/downloads" "$D/customers" "$D/data" "$D/shared" "$D/migrations"
+for h in codex research-agent task-a task-b human-approve confirm redact migrate migrate-check pytest pnpm; do cp /bin/bash "$D/$h"; done
 cp /bin/true "$D/git"; cp /bin/true "$D/deploy"
 echo secret > "$D/sec.env"; echo inject > "$D/downloads/inj"
 echo pii > "$D/customers/rec"; echo db > "$D/data/prod.db"
@@ -154,6 +154,18 @@ run_case() {
 }
 
 echo "== ActPlane live enforcement ($N cases from $(basename "$CASES")) =="
+
+# The loop below is driven by the extracted per-case directories, so a parser
+# that wrote none (or fewer than the YAML declared) would run it zero times and
+# still exit 0 with "0 passed, 0 failed": the privileged job would report the
+# suite green having enforced nothing. Fail before the loop when the directories
+# on disk do not match the case count the parser reported.
+cases_on_disk=$(find "$CDIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
+if [ "$N" -lt 1 ] || [ "$cases_on_disk" -ne "$N" ]; then
+  echo "✗ extracted $cases_on_disk case dir(s) for $N case(s) in $(basename "$CASES")" >&2
+  exit 1
+fi
+
 for d in "$CDIR"/*/; do run_case "${d%/}"; done
 
 echo "== result: $pass passed, $fail failed =="

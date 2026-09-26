@@ -1042,6 +1042,7 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
     let policy = policy_input(cli);
     let loaded = config::load_policy(&policy)?;
     let resolved = config::resolve_policy(&loaded, policy.domain.as_deref())?;
+    let parsed = dsl::parse::parse(&resolved.source)?;
     let compiled = dsl::compile_str(&resolved.source)?;
     write_binary_output_file(out, &compiled.bytes, args.force)?;
     if let Some(domain) = &resolved.domain {
@@ -1051,9 +1052,18 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
             format_domain_policy_rules(domain)
         );
     }
+    // Warnings derived from the policy and the blob alone hold wherever the blob
+    // is enforced; the host-dependent BPF-LSM warning is excluded, since this
+    // machine may not be the one enforcing it. Printing them keeps the minimal
+    // path from writing a blob whose rules do not mean what the policy wrote and
+    // reporting success silently.
+    for (code, message) in doctor::host_independent_warnings(&parsed, &compiled) {
+        eprintln!("ActPlane: warning [{}]: {}", code, message);
+    }
     eprintln!(
-        "ActPlane: compiled {} rule(s) to {}",
-        compiled.reasons.len(),
+        "ActPlane: compiled {} DSL rule(s), {} lowered kernel matcher(s) to {}",
+        compiled.dsl_rule_count,
+        compiled.meta.len(),
         out.display()
     );
     Ok(0)

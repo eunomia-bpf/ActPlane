@@ -27,7 +27,7 @@ cargo test -p actplane
 
 ```bash
 sudo -E ./target/release/actplane run -- codex --cd /work
-sudo -E ./target/release/actplane --policy ../policies/readonly.yaml run -- claude -p "review"
+sudo -E ./target/release/actplane --policy ../../policies/readonly.yaml run -- claude -p "review"
 ./target/release/actplane compile --out cfg.bin
 sudo -E ./target/release/actplane attach --pid 1234
 ./target/release/actplane attach --pid 5678 --child-domain --domain-id 5678
@@ -40,7 +40,7 @@ MCP auto-attach or `watch` engine. It is not retroactive; use `run --delta` or
 `control launch-child` when the process must be constrained before its first
 instruction after exec.
 
-See [`../docs/rule-language.md`](../docs/rule-language.md) for the policy grammar and 13
+See [`../../docs/rule-language.md`](../../docs/rule-language.md) for the policy grammar and 13
 worked examples.
 
 ## Source layout

@@ -221,6 +221,27 @@ while write-rule policies retain the full sink evaluator. These failures are
 engineering evidence, not experimental observations. Build success and loader
 readiness remain prerequisites, not results.
 
+The guest path was re-run on 2026-09-21 and reproduces the same seven rows
+(`0,1,5,20,0,5,1`), with the same policy hash, under TCG rather than KVM
+(`results/long-session-overtaint-vm/`). Reproducing it exposed a runner defect on
+that path: the loader wait was `400 x 0.01 = 4s`, sized for the original KVM run,
+but under TCG `ActPlane: ready` took a measured 37.9s, so every case failed
+`loader-not-ready` before the loader finished. The wait now matches the sibling
+probe runner (4000 x 0.01 = 40s), and the qemu cap is an env-overridable
+`ACTPLANE_VM_TIMEOUT` (default 1800s) instead of a fixed 300s that seven ~40s
+loads would exhaust. So the experiment is reproducible on the container's
+available acceleration, not only under KVM.
+
+The runner's default guest kernel was also corrected. It selected the
+lexicographically-newest `/boot/vmlinuz-*-generic`, so on a host carrying a newer
+generic kernel it would silently record a `guest_kernel` other than the 6.8 this
+note and the metadata claim, on a kernel where the 6.8 summed-subprogram-stack
+limit does not even apply. It now defaults only to `vmlinuz-6.8.*-generic` and
+fails closed with an actionable message when no such kernel is present (exit 2),
+matching the sibling probe runner. A run with an explicit
+`ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic` reproduces the committed
+`counts.tsv` byte-for-byte and records `guest_kernel 6.8.0-138-generic`.
+
 The first independent Codex review blocked the follow-up because the Rust loader
 did not select the new flow-only exits and the runner did not fail closed. After
 the loader fix, a second review confirmed hook selection and hashes but retained a

@@ -135,7 +135,7 @@ Rejected delta shape:
 - remove inherited rules
 - weaken parent policy
 - widen scope
-- remove labels or gates
+- remove gates (labels can be removed only through a `declassify` update, which requires `AUTH_DECLASSIFY`)
 - mutate an existing rule definition
 - introduce hook or matcher classes not reserved at load time
 

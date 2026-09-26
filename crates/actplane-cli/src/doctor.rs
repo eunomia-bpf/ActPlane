@@ -101,7 +101,12 @@ pub(crate) fn check_policy(
         return Ok(0);
     }
 
-    println!("✓ {}: {} rule(s) compile.\n", where_, compiled.meta.len());
+    println!(
+        "✓ {}: {} DSL rule(s), {} lowered kernel matcher(s) compile.\n",
+        where_,
+        compiled.dsl_rule_count,
+        compiled.meta.len()
+    );
     if let Some(domain) = &resolved.domain {
         println!("domain: {}", domain.name);
         if let Some(parent) = &domain.parent {
@@ -122,7 +127,7 @@ pub(crate) fn check_policy(
     for line in backend_support_lines(&parsed, &compiled, lsm_bpf) {
         println!("  - {}", line);
     }
-    let warns = backend_support_warnings(&parsed, &compiled, lsm_bpf);
+    let warns = backend_support_warnings(&parsed, &compiled, Some(lsm_bpf));
     if warns.is_empty() {
         println!("\n✓ no warnings.");
     } else {
@@ -389,7 +394,7 @@ fn render_rollout_plan(
         }
     }
 
-    let warns = backend_support_warnings(parsed, compiled, lsm_bpf);
+    let warns = backend_support_warnings(parsed, compiled, Some(lsm_bpf));
     if !warns.is_empty() {
         writeln!(&mut out, "\nstatic warnings to resolve before promotion:").unwrap();
         for warning in warns {
@@ -1190,6 +1195,7 @@ fn render_dsl_cond(cond: &Cond) -> String {
         Cond::After {
             gate_op,
             gate_pattern,
+            gate_arg,
             gate_exit,
             since,
         } => {
@@ -1198,6 +1204,9 @@ fn render_dsl_cond(cond: &Cond) -> String {
                 op_name(*gate_op),
                 dsl_literal(gate_pattern)
             );
+            if let Some(arg) = gate_arg {
+                out.push_str(&format!(" \"{}\"", dsl_literal(arg)));
+            }
             if let Some(exit) = gate_exit {
                 out.push_str(&format!(" exits {}", exit));
             }
@@ -1284,7 +1293,7 @@ fn render_check_json(
     lsm_bpf: bool,
     force_tracepoint: bool,
 ) -> Result<String> {
-    let warnings = backend_support_warnings(parsed, compiled, lsm_bpf)
+    let warnings = backend_support_warnings(parsed, compiled, Some(lsm_bpf))
         .into_iter()
         .map(|w| {
             json!({
@@ -1541,7 +1550,7 @@ fn render_check_explain(
     )
     .unwrap();
 
-    let warns = backend_support_warnings(parsed, compiled, lsm_bpf);
+    let warns = backend_support_warnings(parsed, compiled, Some(lsm_bpf));
     if warns.is_empty() {
         writeln!(&mut out, "\nwarnings: none").unwrap();
     } else {
@@ -1714,6 +1723,28 @@ struct ClauseConditionWarning {
     message: String,
 }
 
+/// True when a clause is unsupported *because* BPF-LSM is inactive, matching the
+/// precedence in `clause_support_detail`. `notify` and `kill` use tracepoint
+/// paths and never depend on LSM, and a `block` clause that is unsupported for
+/// another reason first (an argv token on `exec`, or an endpoint pattern the
+/// ABI cannot hold) reports that reason instead. Enabling LSM would not fix
+/// either, so the LSM warning would misdirect.
+fn lsm_is_the_blocker(compiled: &dsl::Compiled, clause: &Clause) -> bool {
+    if clause.effect != Effect::Block {
+        return false;
+    }
+    if clause.op == Op::Exec && clause.target.arg.is_some() {
+        return false;
+    }
+    if matches!(clause.op, Op::Connect | Op::Recv)
+        && clause.target.kind == Kind::Endpoint
+        && !endpoint_pattern_supported(compiled, &clause.target.pattern)
+    {
+        return false;
+    }
+    true
+}
+
 fn clause_support_detail(
     compiled: &dsl::Compiled,
     effect: Effect,
@@ -1884,7 +1915,9 @@ fn endpoint_support_detail(
         None => (
             false,
             format!("endpoint {role} pattern is not numeric IPv4 or an exact resolvable hostname"),
-            vec!["wildcard hostnames and IPv6 are not enforced in-kernel"],
+            vec![
+                "wildcard hostnames, IPv6, and malformed numeric forms are not enforced in-kernel",
+            ],
         ),
     }
 }
@@ -1974,22 +2007,77 @@ fn clause_condition_warnings(
             None => warnings.push(ClauseConditionWarning {
                 code: "endpoint_target_condition_unsupported_pattern",
                 message: format!(
-                    "unless target{} \"{}\" uses a wildcard hostname or IPv6 pattern; endpoint target conditions support numeric IPv4 or a single resolved IPv4 hostname.",
+                    "unless target{} \"{}\" is a wildcard hostname, an IPv6 pattern, or a malformed numeric form; endpoint target conditions support numeric IPv4 or a single resolved IPv4 hostname.",
                     if *negate { " not" } else { "" },
                     pattern
                 ),
             }),
         }
     }
+    // A repo-relative `unless target` over a `**/<name>` or `**/<dir>/**`
+    // pattern cannot express the primary+companion disjunction in the engine's
+    // single cond_kind/cond_pat pair, so the condition misses the
+    // bare/first-segment-relative form the target matcher covers (a rule
+    // target emits a companion entry; a condition has one slot). The
+    // consequence inverts with polarity, because the missing form is one the
+    // pattern *does* match: a positive exception leaves the raw matcher false
+    // there, so it does not suppress the rule and the rule over-fires; a
+    // negated exception leaves the raw matcher false too, and the kernel's
+    // `cond_neg` turns that into a satisfied condition, so it suppresses the
+    // rule and the rule under-fires. Warn so the approximation is discoverable
+    // rather than silent.
+    //
+    // Only a path op has companion matchers, and only there does the condition
+    // fall short: `lower_target` emits companions for read/open/write/unlink
+    // (`lower.rs`), while an `exec` target and condition both lower through
+    // `lower_exec`, which drops the directory and matches the basename on
+    // `comm`, so `**/pytest` and `pytest` lower identically and there is no
+    // uncovered form. Warning on `exec` would be a false positive.
+    if matches!(clause.op, Op::Read | Op::Open | Op::Write | Op::Unlink)
+        && let Some(Cond::Target { negate, pattern }) = &clause.unless
+        && dsl::repo_relative_condition_is_partial(pattern)
+    {
+        warnings.push(ClauseConditionWarning {
+            code: "repo_relative_target_condition_partial",
+            message: format!(
+                "unless target{} \"{}\" is a repo-relative `**/<name>` or `**/<dir>/**` pattern; the condition stores one matcher, so it does not cover the bare/first-segment-relative form the target matcher does. {} Use an absolute pattern, or split the exception into an explicit form.",
+                if *negate { " not" } else { "" },
+                pattern,
+                if *negate {
+                    "That form matches the pattern, so the negated exception should not suppress the rule, yet the missing matcher leaves the negated condition satisfied and the kernel suppresses it: the rule under-fires."
+                } else {
+                    "The rule therefore over-fires on that form: the relative path is not excluded as intended."
+                },
+            ),
+        });
+    }
     warnings
 }
 
+/// Warnings about a policy and its compiled blob.
+///
+/// Every warning here except `bpf_lsm_inactive_for_block` is derived from the
+/// policy and the compiled blob alone, so it holds wherever the blob is
+/// enforced. `lsm_bpf` is the only host input: `Some(active)` includes the
+/// host-dependent BPF-LSM warning, `None` omits it for callers that produce a
+/// blob on a machine that need not be the one enforcing it (the minimal
+/// `compile --out` path).
 fn backend_support_warnings(
     policy: &Policy,
     compiled: &dsl::Compiled,
-    lsm_bpf: bool,
+    lsm_bpf: Option<bool>,
 ) -> Vec<BackendWarning> {
     let mut warnings = Vec::new();
+    // The compiler reports every pattern-lowering warning it found: a literal
+    // truncated to fit the kernel buffer, one lowered to an empty literal the
+    // matcher rejects, or one past the matcher's length bound. Each message names
+    // the literal and why the compiled rule differs from what the policy wrote.
+    for warning in &compiled.pattern_warnings {
+        warnings.push(BackendWarning {
+            code: warning.code,
+            message: warning.message.clone(),
+        });
+    }
     for source in &policy.sources {
         if source.kind == Kind::Endpoint && !endpoint_pattern_supported(compiled, &source.pattern) {
             let (_, reason, _) = endpoint_support_detail(compiled, &source.pattern, "source");
@@ -2003,6 +2091,21 @@ fn backend_support_warnings(
         }
     }
     for rule in &policy.rules {
+        // The rule's `because` string is what the corrective-feedback chain
+        // forwards to the agent (see design/feedback-design.md). The grammar
+        // makes it optional, but without it the violation carries an empty
+        // reason, so the agent sees that it was stopped and not why. The kernel
+        // effect still fires, so this is a feedback gap rather than a
+        // correctness bug.
+        if rule.reason.trim().is_empty() {
+            warnings.push(BackendWarning {
+                code: "rule_missing_because",
+                message: format!(
+                    "{}: rule has no `because` string, so a match forwards an empty reason to the agent. Add `because \"...\"` explaining why the rule exists.",
+                    rule.name
+                ),
+            });
+        }
         for clause in &rule.clauses {
             if matches!(clause.op, Op::Connect | Op::Recv)
                 && clause.target.kind == Kind::Endpoint
@@ -2039,7 +2142,26 @@ fn backend_support_warnings(
                     ),
                 });
             }
-            if clause.effect == Effect::Block && !lsm_bpf {
+            // The kernel applies an @arg token only for `TOP_EXEC` (argv exists
+            // only after exec). On any other op the token is stored but never
+            // consulted, so the clause matches every target the pattern names,
+            // silently ignoring the token the policy wrote.
+            if clause.op != Op::Exec && clause.target.arg.is_some() {
+                warnings.push(BackendWarning {
+                    code: "argv_token_ignored_for_non_exec",
+                    message: format!(
+                        "{}: `{} {}` has an argv token, but argv is only available for `exec` clauses, so the kernel ignores it and this matches every {} target the pattern names. Remove the token, or split the exec restriction into its own `exec` clause.",
+                        rule.name,
+                        op_name(clause.op),
+                        clause.target.pattern,
+                        op_name(clause.op)
+                    ),
+                });
+            }
+            // `lsm_is_the_blocker` mirrors `clause_support_detail`'s
+            // precedence: only `block` needs BPF-LSM, and a `block` clause that
+            // is unsupported for another reason first reports that reason.
+            if lsm_bpf == Some(false) && lsm_is_the_blocker(compiled, clause) {
                 warnings.push(BackendWarning {
                     code: "bpf_lsm_inactive_for_block",
                     message: format!(
@@ -2052,6 +2174,22 @@ fn backend_support_warnings(
         }
     }
     warnings
+}
+
+/// Host-independent warnings for an already-parsed policy and compiled blob, for
+/// the minimal `compile --out` path.
+///
+/// The `lsm_bpf` host input is deliberately `None`: the machine that compiles a
+/// blob need not be the machine that enforces it, so the BPF-LSM warning would
+/// be about the wrong host.
+pub(crate) fn host_independent_warnings(
+    policy: &Policy,
+    compiled: &dsl::Compiled,
+) -> Vec<(String, String)> {
+    backend_support_warnings(policy, compiled, None)
+        .into_iter()
+        .map(|w| (w.code.to_string(), w.message))
+        .collect()
 }
 
 fn clause_support(
@@ -2185,10 +2323,14 @@ fn cond_summary(cond: &Cond) -> String {
         Cond::After {
             gate_op,
             gate_pattern,
+            gate_arg,
             gate_exit,
             since,
         } => {
             let mut out = format!("after {} \"{}\"", op_name(*gate_op), gate_pattern);
+            if let Some(arg) = gate_arg {
+                out.push_str(&format!(" \"{}\"", arg));
+            }
             if let Some(exit) = gate_exit {
                 out.push_str(&format!(" exits {}", exit));
             }
@@ -2275,19 +2417,14 @@ fn op_name(op: Op) -> &'static str {
     }
 }
 
+/// Whether the kernel can match this endpoint pattern numerically. Delegates
+/// to the compiler's `is_numeric_endpoint_pattern` so the two cannot drift:
+/// the doctor and the compiled blob must agree on which endpoint patterns
+/// fire. The earlier local copy accepted 1..=4 octets while the compiler
+/// truncated at 4, so `1.2.3.4.5` was reported non-firing here yet compiled to
+/// a /32 on `1.2.3.4` that did fire.
 fn endpoint_pattern_is_numeric_ipv4(pat: &str) -> bool {
-    if pat == "*" {
-        return true;
-    }
-    let body = pat.trim_end_matches('.');
-    let mut count = 0usize;
-    for octet in body.split('.') {
-        if octet.is_empty() || octet.parse::<u8>().is_err() {
-            return false;
-        }
-        count += 1;
-    }
-    (1..=4).contains(&count)
+    dsl::is_numeric_endpoint_pattern(pat)
 }
 
 pub(crate) fn doctor(cli: &PolicyInput) -> Result<i32> {
@@ -2309,12 +2446,10 @@ pub(crate) fn doctor(cli: &PolicyInput) -> Result<i32> {
                     if let Some(domain) = &resolved.domain {
                         println!(
                             "✓ policy: {} domain `{}` ({} rule(s))",
-                            where_,
-                            domain.name,
-                            compiled.meta.len()
+                            where_, domain.name, compiled.dsl_rule_count
                         );
                     } else {
-                        println!("✓ policy: {} ({} rule(s))", where_, compiled.meta.len());
+                        println!("✓ policy: {} ({} rule(s))", where_, compiled.dsl_rule_count);
                     }
                     let feedback = feedback_paths(&loaded);
                     println!("✓ feedback file: {}", feedback.feedback.display());

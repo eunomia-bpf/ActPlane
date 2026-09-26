@@ -78,7 +78,7 @@ The key differences:
 - **Data-flow constraints**: rules express "data read from A must never flow to B", tracked across arbitrary fork/exec and file read/write edges, not just at a boundary.
 - **Causal ordering**: rules express "run tests before committing" via `since` clauses and gate invalidation, not just per-operation checks.
 - **Corrective feedback, not just blocking**: rule matches feed a human-readable reason back to the agent, so it can retry a different way. This is what makes it a harness, not a sandbox.
-- **Agent-maintained rules**: the rule language is designed so agents can write, validate (`actplane check`), and evolve their own policies.
+- **Agent-maintained rules**: the rule language is designed so agents can write, validate (`actplane compile --explain`), and evolve their own policies.
 
 ## Harness, not just a sandbox
 
@@ -129,22 +129,26 @@ policy: |
     because "Protocol schema changed — generated code may be stale. Run `make proto` to regenerate, then commit."
 
   rule test-before-commit:
-    block exec "git" "commit"
+    kill exec "git" "commit"
       if AGENT unless after exec "pnpm" "test" since write "src/**"
     because "Source files changed since last test run. Run `pnpm test:changed`, then commit."
 ```
 
-Three rules, three effects, three patterns:
+Three rules, three patterns:
 
 - **`no-git-branch`** (kill): per-event rule — anything in the agent's
-  process tree that tries `git branch` is terminated immediately.
+  process tree that tries `git branch` or `git worktree` is terminated
+  immediately.
 - **`regenerate-after-schema`** (notify): cross-event conditional — if
   the agent modified a `.proto` file, ActPlane reminds it to run `protoc`
   before committing. The `since` clause re-arms the gate whenever the
   schema changes again.
-- **`test-before-commit`** (block): cross-event temporal with staleness —
+- **`test-before-commit`** (kill): cross-event temporal with staleness —
   the agent must run tests before committing, and editing any `src/`
-  file invalidates the previous test run.
+  file invalidates the previous test run. The argv token (`commit`) is why
+  this is a `kill` and not a `block`: argv exists only after `exec`, so the
+  pre-op LSM hook cannot see it. `block` applies to non-argv targets, such as
+  the file and endpoint clauses in `docs/rule-language.md`.
 
 See [`docs/rule-language.md`](docs/rule-language.md) for the full rule language and
 worked examples.
@@ -247,7 +251,8 @@ actplane.yaml ─▶ policy compiler ─▶ runtime/control ─▶ eBPF kernel e
   policy language and lowers it to the fixed kernel config ABI.
 - **Runtime library** (`crates/actplane-runtime/`): resolves `actplane.yaml`,
   loads the prebuilt eBPF object in-process via
-  [`ebpf-ifc-engine`](bpf/) (aya) — no libbpf/clang at runtime — seeds the target
+  [`ebpf-ifc-engine`](bpf/) (aya, with libbpf statically linked for the user ring
+  buffer and control-plane map access) — no external libbpf/clang — seeds the target
   process lineage, and reports rule matches with policy reasons.
 - **CLI frontend** (`crates/actplane-cli/`): provides the `actplane` command,
   project setup, policy review, MCP, and command dispatch.
@@ -274,7 +279,7 @@ Run the tests:
 
 ```bash
 make test                          # bpf C unit tests + Rust workspace unit tests
-sudo bash script/e2e_examples.sh   # live E1–E12 enforcement
+sudo bash script/e2e_examples.sh   # live e2e enforcement (the cases in test/e2e_cases.yaml)
 ```
 
 ## LICENSE
