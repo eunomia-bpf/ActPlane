@@ -847,6 +847,86 @@ fn e2e_case_header_lists_every_seeded_fixture() {
     }
 }
 
+#[test]
+fn claude_md_names_tests_that_exist_in_the_file_it_cites() {
+    // `CLAUDE.md` is the repo's operating manual, and it pins the ABI guards by
+    // name: "`config_blob_is_fixed_size` in `dsl/mod.rs`", "`test_abi_layout` in
+    // `bpf/test_taint.c`", and so on. A reader who greps one of those names must
+    // find the test. The size guard shipped as "the `fixed-size` test in
+    // `dsl/mod.rs`", a name no test carried, so the grep found only comments.
+    // Every `<ident>` in `<file>` claim is checked against that file.
+    let root = std::path::PathBuf::from(format!("{}/../..", env!("CARGO_MANIFEST_DIR")));
+    let doc = fs::read_to_string(root.join("CLAUDE.md")).expect("read CLAUDE.md");
+    // A claim may wrap a line, so flatten whitespace before scanning.
+    let flat = doc.split_whitespace().collect::<Vec<_>>().join(" ");
+    let quotes: Vec<&str> = flat.split('`').collect();
+    // The citation is relative to the citing crate (`dsl/mod.rs`, `lower.rs`),
+    // so resolve it as a suffix of any tracked file. One `ls-files` serves the
+    // whole scan.
+    let listing = Command::new("git")
+        .args(["-C", root.to_str().unwrap(), "ls-files"])
+        .output()
+        .unwrap_or_else(|e| panic!("run git ls-files: {e}"));
+    let tracked = String::from_utf8_lossy(&listing.stdout);
+    let tracked: Vec<&str> = tracked.lines().collect();
+    let mut checked = 0usize;
+    for win in quotes.windows(4) {
+        let [ident, mid, path, _] = win else { continue };
+        // Two phrasings appear: "`X` in `Y`" and "the `X` test in `Y`". The
+        // second is exactly how the phantom shipped, so both must be scanned.
+        if !matches!(mid.trim(), "in" | "test in")
+            || !path.ends_with(".rs") && !path.ends_with(".c")
+        {
+            continue;
+        }
+        if !ident
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic())
+            || !ident
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
+            continue;
+        }
+        let matches: Vec<std::path::PathBuf> = tracked
+            .iter()
+            .filter(|f| *f == path || f.ends_with(&format!("/{path}")))
+            .map(|f| root.join(f))
+            .collect();
+        assert!(
+            !matches.is_empty(),
+            "CLAUDE.md cites `{ident}` in `{path}`, but no tracked file has that path"
+        );
+        // The claim is "the `<ident>` test lives in `<path>`", so a mention in a
+        // comment or string is not enough: the file must *define* it. The
+        // phantom `fixed-size` name passed a plain substring check because
+        // `dsl/mod.rs` mentions "fixed-size" in three comments while no test
+        // carries it. Match a definition shape (`fn`/`void`/`int` + name +
+        // `(`), which covers both the Rust `fn` tests and the C `void` ones.
+        let defined = |s: &str| {
+            ["fn ", "void ", "int "]
+                .iter()
+                .any(|kw| s.contains(&format!("{kw}{ident}(")))
+        };
+        assert!(
+            matches
+                .iter()
+                .any(|c| fs::read_to_string(c).is_ok_and(|s| defined(&s))),
+            "CLAUDE.md cites `{ident}` in `{path}`, but no `{path}` defines that \
+             identifier (a mention in a comment or string does not count), so a \
+             reader grepping it for the test finds nothing to run"
+        );
+        checked += 1;
+    }
+    // Non-vacuity: the ABI paragraph names seven guards this way. A parsing
+    // change that stops matching them would otherwise pass silently.
+    assert!(
+        checked >= 5,
+        "expected the CLAUDE.md ABI paragraph to name at least five tests, found {checked}"
+    );
+}
+
 /// Every fenced code block in a markdown file, with its opening fence stripped.
 fn fenced_blocks(md: &str) -> Vec<String> {
     let mut out = Vec::new();
