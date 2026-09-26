@@ -15,7 +15,7 @@
 # `${D}` is the per-run workspace dir; the driver substitutes it. The driver
 # seeds these fixtures in ${D}: dirs work/ downloads/ customers/ data/ shared/
 # migrations/; /bin/bash copied to codex research-agent task-a task-b
-# human-approve confirm redact migrate migrate-check pytest; /bin/true copied to
+# human-approve confirm redact migrate migrate-check pytest pnpm; /bin/true
 # git deploy; files sec.env, downloads/inj, customers/rec, data/prod.db.
 #
 # Cases are loaded separately on purpose: several contradict by design

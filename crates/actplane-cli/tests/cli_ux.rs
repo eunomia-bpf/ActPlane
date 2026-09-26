@@ -773,6 +773,80 @@ fn live_e2e_cases_do_not_depend_on_bpf_lsm() {
     assert_eq!(checked, 26, "expected 16 + 10 e2e case policies");
 }
 
+#[test]
+fn e2e_case_header_lists_every_seeded_fixture() {
+    // `test/e2e_cases.yaml`'s header tells a reader (and a future case author)
+    // which fixtures the driver seeds in `${D}`. A case may only use a fixture
+    // that appears there, and the header drifted once: the driver seeds `pnpm`
+    // (`script/e2e_examples.sh`, the `/bin/bash` copy list) and the E5b case
+    // runs `${D}/pnpm`, but the header omitted it. Read both lists from the
+    // driver rather than restating them, so a fixture added to the driver
+    // without the header fails here instead of surfacing as a case with no
+    // binary to run.
+    let root = format!("{}/../..", env!("CARGO_MANIFEST_DIR"));
+    let script = fs::read_to_string(format!("{root}/script/e2e_examples.sh")).expect("read driver");
+    let header = fs::read_to_string(format!("{root}/test/e2e_cases.yaml")).expect("read e2e cases");
+    let header: String = header
+        .lines()
+        .take_while(|l| l.starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    // The driver seeds four classes, each on its own line: directories
+    // (`mkdir -p "$D/..."`), `/bin/bash` copies (`for h in ...; do cp
+    // /bin/bash`), `/bin/true` copies (`cp /bin/true "$D/..."`), and file
+    // fixtures (`echo ... > "$D/..."`). Extract each from the driver and
+    // require the header to mention it, rather than restating the lists.
+    let dollar = |s: &str| -> Vec<String> {
+        let mut out = Vec::new();
+        let mut rest = s;
+        while let Some(at) = rest.find("$D/") {
+            rest = &rest[at + 3..];
+            let end = rest
+                .find(|c: char| !(c.is_alphanumeric() || c == '/' || c == '.'))
+                .unwrap_or(rest.len());
+            out.push(rest[..end].to_string());
+            rest = &rest[end..];
+        }
+        out
+    };
+    // Scan only the driver's fixture block, bounded by its `# --- fixtures`
+    // banner and the next section banner: elsewhere in the driver `${D}/p.yaml`
+    // and `${D}/cc.txt` are *produced* per case, not seeded, so the whole-file
+    // scan mistook them for fixtures.
+    let fixtures: Vec<&str> = script
+        .split("# --- fixtures")
+        .nth(1)
+        .expect("the driver must keep a `# --- fixtures` banner")
+        .lines()
+        .take_while(|l| !l.starts_with("# ---"))
+        .collect();
+    let mut seeded: Vec<String> = Vec::new();
+    for line in &fixtures {
+        let line = line.trim();
+        if line.contains("mkdir") || line.starts_with("cp /bin/true") || line.starts_with("echo") {
+            seeded.extend(dollar(line));
+        } else if let Some(rest) = line.strip_prefix("for h in ") {
+            let names = rest
+                .split_once("; do cp /bin/")
+                .map(|(n, _)| n)
+                .unwrap_or(rest);
+            seeded.extend(names.split_whitespace().map(str::to_string));
+        }
+    }
+    assert!(
+        seeded.contains(&"pnpm".to_string()) && seeded.contains(&"work".to_string()),
+        "the driver fixture scan found {seeded:?}; did the fixture block move?"
+    );
+    for name in &seeded {
+        assert!(
+            header.contains(name.as_str()),
+            "`script/e2e_examples.sh` seeds `${{D}}/{name}`, but the `test/e2e_cases.yaml` header \
+             does not list it, so a case using it reads an undocumented fixture"
+        );
+    }
+}
+
 /// Every fenced code block in a markdown file, with its opening fence stripped.
 fn fenced_blocks(md: &str) -> Vec<String> {
     let mut out = Vec::new();
