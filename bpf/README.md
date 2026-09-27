@@ -130,13 +130,17 @@ bpf` then copy `.output/*.bpf.o` over `prebuilt/`, or `ACTPLANE_REBUILD_BPF=1
 cargo build -p ebpf-ifc-engine`, which also refreshes the stamp); do not pick a
 side of the binary conflict.
 
-## Summed-stack budget (the 6.8 verifier limit)
+## Summed-stack budget (the 512-byte verifier limit)
 
-From Linux 6.8 the verifier sums the maximum stack depth across every frame in a
-call chain and rejects a program whose total exceeds 512 bytes, with
-`combined stack size of N calls is M. Too large`. A helper can therefore pass on
-one kernel and fail here even though its own frame is small, because the limit is
-on the chain. The two ways to stay under it are to inline and to keep `bpf_loop`
+The verifier sums the maximum stack depth across every frame in a call chain and
+rejects a program whose total exceeds 512 bytes, with `combined stack size of N
+calls is M. Too large`. The sum itself is old (the string is present since at
+least Linux 4.19), but Linux 6.8 is where each term became accurate: commit
+`6b4a64bafd10` moved the per-subprogram high-water mark into `grow_stack_state`,
+so variable-offset and direct stack writes that 6.7 had under-counted now raise
+the frame the verifier charges. A helper can therefore pass on one kernel and
+fail here even though its own frame is small, because the limit is on the chain.
+The two ways to stay under it are to inline and to keep `bpf_loop`
 contexts off the stack entirely. Inlining is the counter-intuitive one: a
 `__noinline` annotation adds a frame to every chain that reaches the helper, and
 measured on this engine marking `handle_io_exit_addr` `__noinline` moved

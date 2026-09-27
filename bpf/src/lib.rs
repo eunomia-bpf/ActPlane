@@ -1346,12 +1346,14 @@ fn lsm_needed(
 fn verifier_load_hint(program: &str, error: &str) -> String {
     let mut hint = String::new();
     if error.contains("Too large") && error.contains("combined stack size") {
-        // Linux 6.8 sums the maximum stack depth along a call chain against a
-        // 512-byte limit, so a chain that loads on other kernels can be rejected
-        // here. The program name is the useful datum: it says which handler grew.
+        // The verifier sums the maximum stack depth along a call chain against a
+        // 512-byte limit (an old rule, but Linux 6.8's per-frame accounting is
+        // what made it bite here), so a chain that loads on other kernels can be
+        // rejected here. The program name is the useful datum: it says which
+        // handler grew.
         hint.push_str(&format!(
             "\n  hint: `{program}` was rejected by the kernel verifier's summed-stack \
-             limit (Linux 6.8 sums the maximum stack depth along a call chain, 512 bytes \
+             limit (the verifier sums the maximum stack depth along a call chain, 512 bytes \
              total). This is a stack budget in the BPF program, not a privilege problem. \
              Rebuild bpf/prebuilt/process.bpf.o so the deep helpers keep their `bpf_loop` \
              contexts off the stack, and re-check in a guest boot of the kernel you target; \

@@ -174,8 +174,9 @@ them.
 ## eBPF verifier gotchas (see bpf/README.md for detail)
 
 - Keep the per-frame stack small; prefer inlining over `__noinline` for deep
-  helpers. The 6.8 verifier sums the maximum depth along a call chain against 512
-  bytes, so a helper marked `__noinline` adds a frame to every chain that reaches
+  helpers. The verifier sums the maximum depth along a call chain against 512
+  bytes (an old rule, but Linux 6.8's per-frame accounting is what made it bite
+  here), so a helper marked `__noinline` adds a frame to every chain that reaches
   it: measured on this engine, marking `handle_io_exit_addr` `__noinline` took
   `trace_recvfrom_exit` from `6 calls is 576` to `7 calls is 640` (worse). The
   real lever is keeping `bpf_loop` contexts in per-CPU scratch maps rather than on
