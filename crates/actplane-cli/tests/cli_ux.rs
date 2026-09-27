@@ -1428,6 +1428,50 @@ fn documented_warning_codes_match_the_cli() {
 }
 
 #[test]
+fn the_capped_literal_witness_in_the_doc_caps_and_empties() {
+    // §1.8's capped-`contains` bullet justifies why an emptied literal drops the
+    // `pattern_contains_capped` warning by citing a concrete pattern that caps
+    // and then empties. The witness must actually exceed the 16-byte window,
+    // because a shorter one never caps and reports `pattern_literal_widened`
+    // instead, which the sentence's "only `pattern_empty_literal` is reported"
+    // claim then contradicts. Bind the doc's own string to the compiler so a
+    // placeholder that reads long but lowers short fails here.
+    let doc = fs::read_to_string(format!(
+        "{}/../../docs/rule-language.md",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read docs/rule-language.md");
+    let sentence = doc
+        .lines()
+        .find(|l| l.contains("wildcard cleanup above empties it"))
+        .expect("the capped-`contains` bullet must cite an emptied witness");
+    let witness = sentence
+        .split("empties it (`")
+        .nth(1)
+        .and_then(|rest| rest.split('`').next())
+        .expect("the sentence must name its witness in backticks right after `empties it (`");
+    let policy = format!("rule r:\n  block write file \"{witness}\" if A\n  because \"x\"\n");
+    let output = run(&["--rule", &policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+    let codes: Vec<&str> = value["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|w| w["code"].as_str())
+        .filter(|c| c.starts_with("pattern_"))
+        .collect();
+    assert_eq!(
+        codes,
+        vec!["pattern_empty_literal"],
+        "the witness `{witness}` cited for the cap-then-empty path must report \
+         exactly `pattern_empty_literal`; a shorter literal reports \
+         `pattern_literal_widened` instead and the doc's claim is false"
+    );
+}
+
+#[test]
 fn compile_json_warns_when_a_rule_has_no_because() {
     // The `because` string is the payload forwarded to the agent on a match.
     // Without it a violation carries an empty reason, so the agent learns it was

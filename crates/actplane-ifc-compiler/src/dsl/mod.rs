@@ -940,7 +940,7 @@ rule secret:
     #[test]
     fn capped_literal_emptied_by_wildcard_cleanup_is_not_also_reported_as_capped() {
         // The cap can shorten a literal to a span the wildcard cleanup then
-        // empties: `**/a...a/*x` caps to `*x`, which cleans to `""`. An empty
+        // empties: `**/vendor-bundle-doc/*x` caps to `*x`, which cleans to `""`. An empty
         // literal makes every non-`ANY` matcher reject the entry, so
         // `pattern_contains_capped` ("matches strictly more than the glob") is
         // false there and contradicts `pattern_empty_literal` on the same

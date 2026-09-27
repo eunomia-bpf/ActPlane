@@ -764,7 +764,7 @@ fn lower_path_reported(pat: &str) -> Lowered {
     let (kind, lit, capped) = lower_path_raw(pat);
     let (kind, lit, widened) = strip_wildcard_literal_widening(kind, lit);
     // The cap can shorten a literal to a span the wildcard cleanup then empties
-    // (`**/a...a/*x` caps to `*x`, which cleans to `""`), and an empty literal
+    // (`**/vendor-bundle-doc/*x` caps to `*x`, which cleans to `""`), and an empty literal
     // makes every non-`ANY` matcher reject the entry. The `capped` claim
     // ("matches strictly more than the glob") is then false, for the same reason
     // `widened` is cleared in the cleanup: the caller's empty-literal check owns
