@@ -16,7 +16,7 @@
 #   of 6 calls is 608. Too large ...
 #
 # This is a release blocker rather than a policy-semantics problem, and CI does not
-# catch it: the privileged job runs `6.17.0-azure` (measured from its log) and
+# catch it: the privileged job runs `6.17.0-1022-azure` (measured from its log) and
 # never exercises this program, and its smokes use no recv or file-flow config.
 # Whether that kernel would reject the program is unmeasured here, since only a 6.8
 # guest is available, and the host is no help either because this container denies
