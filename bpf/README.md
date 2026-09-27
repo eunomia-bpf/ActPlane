@@ -153,9 +153,9 @@ stack-resident handle, which keeps the exit handlers small enough to sum under
 The same rule applies to map values. A `struct fileptr_ref` is 160 bytes; building
 one on the stack in `te_store_fileptr_ref` just to hand it to `bpf_map_update_elem`
 added that frame to every open/rename/read exit chain. Build it in a per-CPU
-scratch map instead (`ts_fileptr_scratch`), so the function's own frame drops to
-8 bytes. Measured in a 6.8 guest with the production loader, a `recv` rule with a
-file source: before, `trace_recvfrom_exit` is rejected
+scratch map instead (`ts_fileptr_scratch`), so the function's own frame drops from
+168 bytes to 16. Measured in a 6.8 guest with the production loader, a `recv` rule
+with a file source: before, `trace_recvfrom_exit` is rejected
 
 ```
 combined stack size of 6 calls is 576. Too large
