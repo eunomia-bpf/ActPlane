@@ -1065,6 +1065,65 @@ fn documented_dsl_snippets_compile_without_warnings() {
 }
 
 #[test]
+fn worked_example_counts_in_prose_match_the_section_list() {
+    // `docs/rule-language.md` section 3 is titled "Worked examples" and numbers
+    // each one (`### E1`, `### E2`, ...). `crates/actplane-cli/README.md` states
+    // how many there are ("the policy grammar and N worked examples"), and that
+    // number went stale at 13 while the doc had grown to E14. A reader counting
+    // the sections finds a mismatch, and no guard noticed because the numeral is
+    // prose, not a fenced block the snippet walk compiles.
+    let root = std::path::PathBuf::from(format!("{}/../..", env!("CARGO_MANIFEST_DIR")));
+    let doc =
+        fs::read_to_string(root.join("docs/rule-language.md")).expect("read rule-language.md");
+    let sections = doc
+        .lines()
+        .filter(|l| {
+            l.strip_prefix("### E").is_some_and(|rest| {
+                rest.split_once(' ')
+                    .is_some_and(|(n, _)| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+            })
+        })
+        .count();
+    assert!(
+        sections >= 10,
+        "expected the rule-language doc to number its worked examples; found {sections}"
+    );
+
+    let listing = Command::new("git")
+        .args(["-C", root.to_str().unwrap(), "ls-files", "*.md"])
+        .output()
+        .unwrap_or_else(|e| panic!("run git ls-files: {e}"));
+    assert!(listing.status.success(), "git ls-files failed");
+    let tracked = String::from_utf8(listing.stdout).expect("git ls-files utf8");
+    let mut stated = 0usize;
+    for rel in tracked.lines() {
+        let Ok(md) = fs::read_to_string(root.join(rel)) else {
+            continue;
+        };
+        // Match "N worked examples" (the phrase the crate README uses) without a
+        // regex dependency: find the phrase, then read the trailing integer off
+        // the preceding word.
+        for (at, _) in md.match_indices("worked examples") {
+            let before = &md[..at];
+            let word = before.split_whitespace().last().unwrap_or("");
+            let Ok(n) = word.parse::<usize>() else {
+                continue;
+            };
+            assert_eq!(
+                n, sections,
+                "{rel} states `{n} worked examples`, but docs/rule-language.md \
+                 numbers {sections} of them"
+            );
+            stated += 1;
+        }
+    }
+    assert!(
+        stated >= 1,
+        "no markdown states a worked-example count; did the phrasing move?"
+    );
+}
+
+#[test]
 fn cookbook_run_examples_use_a_policy_that_declares_the_runner_label() {
     // `run`/auto-attach seeds the protected process with the runner label
     // (`runner_label` in actplane-runtime rejects a policy that declares or

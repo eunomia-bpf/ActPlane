@@ -40,7 +40,7 @@ MCP auto-attach or `watch` engine. It is not retroactive; use `run --delta` or
 `control launch-child` when the process must be constrained before its first
 instruction after exec.
 
-See [`../../docs/rule-language.md`](../../docs/rule-language.md) for the policy grammar and 13
+See [`../../docs/rule-language.md`](../../docs/rule-language.md) for the policy grammar and 14
 worked examples.
 
 ## Source layout
@@ -62,5 +62,5 @@ worked examples.
 `../actplane-ifc-compiler/src/dsl/lower.rs`'s `#[repr(C)]` structs are **byte-identical** to the C structs in
 `bpf/taint.h`. The compiled blob is serialized with `std::slice::from_raw_parts`
 and loaded straight into the eBPF policy maps by `bpf/src/lib.rs`. Any change to
-`taint.h` must be mirrored here (and vice versa); the `fixed-size` test guards
-the total `CConfig` size against drift.
+`taint.h` must be mirrored here (and vice versa); the `config_blob_is_fixed_size`
+test guards the total `CConfig` size against drift.
