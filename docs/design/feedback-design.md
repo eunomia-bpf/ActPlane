@@ -18,8 +18,12 @@ eBPF/BPF-LSM match
 The user-facing feedback file names the rule, effect, target, reason, and the
 expected alternative, and adds a `Provenance` line naming the PID at which a
 label was acquired when that context is available. The violating process's own
-comm and pid are not part of this payload; they are carried by the machine-tag
-path only. This is the corrective-feedback payload consumed by the Codex hook
+comm and pid are not part of this payload. They are carried only by the
+machine-readable event record that the runtime appends to
+`.actplane/events.jsonl`, which names `pid`, `ppid`, and `comm` alongside the
+resolved rule. The trailing tag carries the rule name, effect, action, and
+`retry_useful` flag, but neither pid nor comm. This is the corrective-feedback
+payload consumed by the Codex hook
 (`actplane init --with-codex`) and by humans inspecting the last violation. The
 Claude Code integration is a manual `CLAUDE.md` snippet rather than an installed
 hook.

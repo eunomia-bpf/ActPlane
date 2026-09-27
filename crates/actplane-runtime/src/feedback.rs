@@ -149,6 +149,35 @@ mod tests {
     }
 
     #[test]
+    fn machine_tag_carries_no_process_identity() {
+        // docs/design/feedback-design.md: the violating process's own comm and
+        // pid live in the `.actplane/events.jsonl` event record, not the
+        // trailing machine tag. Guard the tag's key set so the doc sentence
+        // stays true when the tag grows.
+        let s = format_payload(PayloadInput {
+            name: "no-git",
+            op: "exec",
+            target: "git",
+            reason: "no git allowed",
+            effect: Effect::Block,
+            blocked: true,
+            killed: false,
+            provenance: None,
+        });
+        let tag = s.lines().last().expect("trailing tag line");
+        let value: serde_json::Value = serde_json::from_str(tag).expect("tag is one JSON object");
+        let mut keys: Vec<&str> = value
+            .as_object()
+            .expect("tag object")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        assert_eq!(keys, ["action", "actplane_rule", "effect", "retry_useful"]);
+        assert!(value.get("pid").is_none() && value.get("comm").is_none());
+    }
+
+    #[test]
     fn notify_payload_is_soft() {
         let s = format_payload(PayloadInput {
             name: "t",
