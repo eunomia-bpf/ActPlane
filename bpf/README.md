@@ -40,9 +40,12 @@ use `notify` or `kill`; they are not pre-exec `block` rules.
 When BPF-LSM is active, the loader can also mark its own control pid as
 protected. Runtime-domain subjects, including uid 0 subjects, cannot signal or
 ptrace that protected pid, and they cannot use the `bpf()` syscall to create,
-load, attach, pin, or fetch BPF programs, maps, or links. Lookup, update,
-delete, and fd-info operations on already-held map fds remain available for
-ActPlane's runtime control path.
+load, attach, or pin BPF programs, maps, or links. The read-only and
+re-open paths stay available for ActPlane's runtime control path: lookup,
+fd-info, and `BPF_OBJ_GET` on an already-pinned object all pass, and map
+update/delete are admitted for the protected pid and for domains that already
+carry runtime authority, so a runtime client can open a pinned map while it is
+already managed.
 Processes outside any ActPlane runtime domain
 remain ordinary host administrators and can still stop or unload the engine.
 
