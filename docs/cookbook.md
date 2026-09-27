@@ -37,7 +37,7 @@ pre-operation denial; see [support-matrix.md](support-matrix.md).
 | Production database access must pass through a tool | `test/policies/03_mediation_lineage.yaml` | lineage mediation |
 | Agent writes stay inside the workspace | `test/policies/04_workspace_confinement.yaml` | lineage-scoped write block |
 | Tests must run before commit | `test/policies/06_test_before_commit_since.yaml` | temporal gate + staleness |
-| Review or audit subagent is read-only | `actplane init --template readonly-review` | subtree capability scope |
+| Review or audit subagent is read-only | `actplane init --template readonly-review` | file write/delete block |
 | Local secrets can be released only after redaction | `test/policies/08_secret_declassify.yaml` | declassification |
 | Agent cannot bypass git policy through shell/Python | `test/policies/09_cross_tool_git.yaml` | process tree coverage |
 | Release artifacts need human review | `test/policies/19_reviewed_release.yaml` | file source + endorsement |
