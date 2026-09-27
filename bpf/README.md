@@ -203,9 +203,13 @@ program, `docs/empirical-study/run_engine_install_smoke_vm.sh` boots a 6.8 guest
 and runs `actplane run` against a policy that names no `recv`, requiring
 `ActPlane: running`; it fails closed on a rejection and prints the verifier text.
 With `f315e600` the smoke passes on this branch, while the same smoke against a
-binary built from `origin/master` fails with `combined stack size of 6 calls is
-608. Too large` and `stack depth 216+...168+...`, which is the failure described
-above.
+binary built from `origin/master`, which embeds that branch's committed object,
+fails with `combined stack size of 6 calls is 608. Too large` and `stack depth
+216+...168+...`, which is the failure described above. That `608` is a property of
+the committed object under the clang that produced it, not of the source: the
+file `bpf/process.bpf.c` on `origin/master` is byte-identical to the one at
+`eb45ed17` and the other build inputs match, while a fresh rebuild of it
+measures `576`.
 The privileged CI job does not cover this, and its kernel is not the one the claim
 is about: it runs `6.17.0-1022-azure` (measured from the job log), which is above
 6.8 and is never exercised against the rejected program, and its recv smokes use a

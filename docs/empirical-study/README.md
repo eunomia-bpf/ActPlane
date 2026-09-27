@@ -104,6 +104,17 @@ artifact Non-Cite Rule requires:
   `combined stack size of 6 calls is 608. Too large`. Like the other `run_*_vm.sh`
   runners it is run by hand, not by CI, because the failure only reproduces on a
   kernel that performs the combined-stack walk.
+- `results/engine-install-smoke-vm-counterfactual/`: the same smoke run four ways
+  to measure the summed-stack claims in `bpf/README.md` on a real 6.8 guest. It
+  reproduces all three documented verdicts and the `6 calls`/`7 calls` step: the
+  branch object passes, the pre-fix object fails at `6 calls is 576`, marking
+  `handle_io_exit_addr` `__noinline` fails at `7 calls is 640`, and the object
+  committed on `origin/master` fails at `6 calls is 608`. `metadata.tsv` records
+  each arm's binary and object hash. The last two arms also settle a provenance
+  question: the file `bpf/process.bpf.c` on `origin/master` is byte-identical to
+  the one at `eb45ed17` and every other build input matches, so `608` versus
+  `576` for the same source is the producing clang's inlining, not a source
+  difference.
 - `results/rq2-wildcard-literal-vm/`: the live 6.8 guest A/B for the
   wildcard-literal fix (`docs/empirical-study/run_rq2_wildcard_literal_vm.sh`).
   The same policy source, `notify exec "**"`, compiled by the pre-fix binary
