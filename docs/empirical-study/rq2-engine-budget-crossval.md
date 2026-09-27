@@ -14,8 +14,9 @@ Linux 6.8 enforces two independent verifier budgets that are easy to conflate:
 
 - the summed-stack limit (512 bytes along a call chain), fixed on this branch by
   keeping `fileptr_ref` off the stack (`f315e600`; see `bpf/README.md`); and
-- the instruction-processing limit (1,000,000, `BPF_MAXINSNS`), which is about
-  **verifier work**, not program size.
+- the instruction-processing limit (1,000,000, `BPF_COMPLEXITY_LIMIT_INSNS`), which
+  is about **verifier work**, not program size. It is not `BPF_MAXINSNS`, which is
+  the unprivileged program-size cap (4096; `kernel/bpf/syscall.c`).
 
 The failing handlers hold a few thousand instructions and still exhaust the
 second budget, because the verifier explores too many states through them. That
