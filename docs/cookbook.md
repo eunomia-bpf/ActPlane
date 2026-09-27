@@ -175,18 +175,17 @@ Expected violation: `git commit` from the agent tree is terminated unless
 ## Read-Only Review or Audit Subagent
 
 Problem: a review or audit subagent should inspect evidence only. It should not
-write files, delete files, or make repository changes.
+write or delete files.
 
 ```yaml
 version: 1
 policy: |
-  source REVIEWER = exec "**/review-agent"
+  source AGENT = exec "**"
 
   rule readonly-review:
-    block write file "/**" if REVIEWER
-    block unlink file "/**" if REVIEWER
-    block exec "git" if REVIEWER
-    because "review domain is read-only"
+    block write file "/**" if AGENT
+    block unlink file "/**" if AGENT
+    because "This review domain is read-only. Ask the user before modifying files."
 ```
 
 Review:
@@ -196,8 +195,9 @@ actplane init --template readonly-review --out actplane.yaml
 actplane compile --policy actplane.yaml --explain
 ```
 
-Expected violation: any write, delete, or git execution in the review-agent
-subtree reports `readonly-review`.
+Expected violation: any write or delete in the review subtree reports
+`readonly-review`. The template ships no `exec` clause, so it does not by itself
+stop a repository command such as `git`; add one if the reviewer must not run it.
 
 ## Redaction Path for Secrets
 

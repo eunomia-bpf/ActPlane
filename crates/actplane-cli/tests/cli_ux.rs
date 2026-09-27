@@ -1164,6 +1164,124 @@ fn cookbook_run_examples_use_a_policy_that_declares_the_runner_label() {
 }
 
 #[test]
+fn documented_template_blocks_match_the_shipped_template() {
+    // `docs/cookbook.md` shows a DSL block for a scenario and then tells the
+    // reader to get the same policy with `actplane init --template <id>`. The
+    // block and the template can disagree: the read-only review section showed
+    // a three-clause rule (`block write`, `block unlink`, `block exec "git"`)
+    // and claimed git execution reports `readonly-review`, while the shipped
+    // template (`crates/actplane-cli/src/templates.rs:360`) carries only the
+    // write and unlink clauses. A reader who follows the command gets a policy
+    // that does not stop git, and the prose told them it would. Compare the
+    // clauses of any documented block that sits directly above an
+    // `init --template <id>` whose rule name is the template id.
+    let root = std::path::PathBuf::from(format!("{}/../..", env!("CARGO_MANIFEST_DIR")));
+    let listing = Command::new("git")
+        .args(["-C", root.to_str().unwrap(), "ls-files", "*.md"])
+        .output()
+        .unwrap_or_else(|e| panic!("run git ls-files: {e}"));
+    let tracked = String::from_utf8(listing.stdout).expect("git ls-files utf8");
+    // Clause lines a rule body can carry, normalized to their whitespace runs.
+    let clauses = |src: &str| -> Vec<String> {
+        let mut out: Vec<String> = src
+            .lines()
+            .filter(|l| {
+                let t = l.trim_start();
+                t.starts_with("block ") || t.starts_with("kill ") || t.starts_with("notify ")
+            })
+            .map(|l| l.split_whitespace().collect::<Vec<_>>().join(" "))
+            .collect();
+        out.sort();
+        out
+    };
+    let mut checked = 0usize;
+    for rel in tracked.lines() {
+        let Ok(md) = fs::read_to_string(root.join(rel)) else {
+            continue;
+        };
+        // Fenced blocks with their end line, so a block can be tied to a later
+        // command without a second parse of the fence delimiters.
+        let mut blocks: Vec<(usize, String)> = Vec::new();
+        let mut cur = String::new();
+        let mut end = 0usize;
+        let mut in_block = false;
+        for (n, line) in md.lines().enumerate() {
+            if line.trim_start().starts_with("```") {
+                if in_block {
+                    blocks.push((end, std::mem::take(&mut cur)));
+                }
+                in_block = !in_block;
+            } else if in_block {
+                cur.push_str(line);
+                cur.push('\n');
+                end = n + 1;
+            }
+        }
+        // Section start lines, so a block is only paired with a command in its
+        // own `##` section: the "From Template to Policy" section cites
+        // `test-before-commit`, whose block lives in an earlier section, and a
+        // document-wide search would pair them across section boundaries.
+        let section_starts: Vec<usize> = md
+            .lines()
+            .enumerate()
+            .filter(|(_, l)| l.starts_with("## "))
+            .map(|(n, _)| n)
+            .collect();
+        for (n, line) in md.lines().enumerate() {
+            let Some(at) = line.find("init --template ") else {
+                continue;
+            };
+            let id: String = line[at + "init --template ".len()..]
+                .chars()
+                .take_while(|c| !c.is_whitespace())
+                .collect();
+            if id.is_empty() {
+                continue;
+            }
+            let section_start = section_starts
+                .iter()
+                .copied()
+                .filter(|s| *s < n)
+                .next_back()
+                .unwrap_or(0);
+            // The nearest block in this section whose rule is named for the
+            // template.
+            let doc_block = blocks
+                .iter()
+                .filter(|(bend, _)| *bend < n + 1 && *bend > section_start)
+                .rev()
+                .find(|(_, text)| {
+                    text.lines()
+                        .any(|l| l.trim_start().starts_with(&format!("rule {id}:")))
+                });
+            let Some((_, doc_block)) = doc_block else {
+                continue;
+            };
+            let rendered = run(&["init", "--template", &id, "--print"]);
+            assert!(
+                rendered.status.success(),
+                "render template {id}: {}",
+                stderr(&rendered)
+            );
+            let template = stdout(&rendered);
+            assert_eq!(
+                clauses(doc_block),
+                clauses(&template),
+                "{rel} block above `init --template {id}` (line {}) has different clauses \
+                 than the shipped template, so following the command gives a policy the \
+                 prose did not describe",
+                n + 1
+            );
+            checked += 1;
+        }
+    }
+    assert!(
+        checked >= 1,
+        "expected a documented block above an `init --template` whose rule matches the id"
+    );
+}
+
+#[test]
 fn documented_warning_codes_match_the_cli() {
     // `docs/rule-language.md` lists the warning codes a user may see. A code that
     // reaches users but is undocumented is a gap; a documented code that no
