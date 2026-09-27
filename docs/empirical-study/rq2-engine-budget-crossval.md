@@ -99,13 +99,17 @@ adds new failures to `trace_read`, `trace_recvfrom`, and `trace_recvmsg`, which
 the baseline loads.
 
 PR44 avoids this because its restructure also moves the scan collectors'
-`bpf_loop` contexts into per-CPU scratch, shrinking `te_read` to a 0x50-byte
-frame and `te_write_flow` to 0x28, where the same treatment on this source leaves
-them at 0x90 and 0x70. The two budgets are coupled through any helper that is on
-both a deep exit chain and a read/recv chain, so the fix has to shrink the frames
-and unshare the body together. That is PR44's change, and this branch does not
-reproduce it; the partial port is recorded here as a rejected approach so it is
-not retried.
+`bpf_loop` contexts into per-CPU scratch, shrinking `te_read` to a 0x80-byte
+frame and `te_write_flow` to 0x58, measured from PR44's committed object
+(`pr44_object_sha256` in `metadata.tsv`). The partial port does not shrink them:
+its `te_read` and `te_write_flow` frames measure at least 0x90 and 0x70, from the
+partial-port object `partial_port_object_sha256`, which `metadata.tsv` records but
+the repo does not retain (those two are lower bounds, from the same
+first-basic-block scan that under-reported PR44's frames). The two budgets are
+coupled through any helper that is on both a deep exit chain and a read/recv
+chain, so the fix has to shrink the frames and unshare the body together. That
+is PR44's change, and this branch does not reproduce it; the partial port is
+recorded here as a rejected approach so it is not retried.
 
 ## What this means for the branch
 
