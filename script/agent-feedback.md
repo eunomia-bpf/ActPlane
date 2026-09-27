@@ -24,9 +24,10 @@ sudo -E actplane --policy policies/readonly.yaml run claude -p "review"
 
 被禁操作在 syscall 层被 LSM 拦下时返回 `-EPERM`,失败的命令把 exit≠0 + stderr
 回灌模型。为了避免模型还要自己想起来读文件,把
-`actplane feedback-hook` 配到 Codex/Claude 的 `PostToolUse` 类 hook 里;它每次
-只消费一条尚未报告的反馈,把已报告内容从 mailbox 中删除,并以
-`additionalContext` 回灌给模型。模型同时也应根据
+`actplane feedback-hook` 配到 Codex/Claude 的 `PostToolUse` 类 hook 里;它把
+hook state 中记录的字节偏移推进到 mailbox 末尾,只取本轮新增的最后一条反馈,
+并以 `additionalContext` 回灌给模型(mailbox 文件本身不被删改,始终保留全部
+内核判定记录)。模型同时也应根据
 [`CLAUDE.snippet.md`](CLAUDE.snippet.md)(粘进项目
 `CLAUDE.md` / `AGENTS.md`)的指引,在看到 `[ActPlane]` 或 EPERM 时读反馈文件。
 
