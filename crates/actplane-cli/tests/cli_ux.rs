@@ -791,8 +791,8 @@ fn live_e2e_cases_do_not_depend_on_bpf_lsm() {
 #[test]
 fn doctor_reports_the_forced_tracepoint_backend() {
     // The doctor's BPF-LSM line must describe what the engine will actually do.
-    // `check`, `explain`, and `ebpf_ifc_engine::bpf_lsm_active` all fold in
-    // `ACTPLANE_FORCE_TRACEPOINT`, but the doctor once read the raw
+    // `compile --json`/`--explain` and `ebpf_ifc_engine::bpf_lsm_active` all
+    // fold in `ACTPLANE_FORCE_TRACEPOINT`, but the doctor once read the raw
     // `/sys/kernel/security/lsm` list, so on a host with `bpf` in that list it
     // printed `active` under the flag while `block` could never fire. Asserting
     // the flag's own text keeps this host-independent: without the flag the
