@@ -86,6 +86,15 @@ domain deltas whose final policy is not known at startup.
 Tracepoint-only mode is still useful for observation, corrective feedback, and
 many harness-level policies. Use BPF-LSM for hard security boundaries.
 
+Set `ACTPLANE_FORCE_TRACEPOINT=1` to force tracepoint-only mode even when
+BPF-LSM is active on the host. The engine reads this flag directly
+(`ebpf_ifc_engine::bpf_lsm_active`), and `compile --json` (the `host` block) and
+`compile --explain` both report BPF-LSM as unavailable under it, so a `block`
+clause is reported as unsupported. Use it to reproduce the tracepoint backend a
+no-LSM runner uses, for example to confirm a policy still enforces its `kill`
+and `notify` clauses without pre-op denial. `actplane doctor` reports the same
+mode on its BPF-LSM line.
+
 ## Data-Flow Semantics
 
 Labels propagate across:

@@ -2488,8 +2488,18 @@ pub(crate) fn doctor(cli: &PolicyInput) -> Result<i32> {
     }
 
     let lsm = active_lsms().unwrap_or_default();
-    if lsm_list_has_bpf(&lsm) {
+    // Delegate the live decision to the engine so the doctor reports what the
+    // engine will actually do: `bpf_lsm_active` already folds in
+    // `ACTPLANE_FORCE_TRACEPOINT` (`bpf/src/lib.rs`), which the raw LSM list
+    // does not, so reading the list here printed `active` while `check`,
+    // `explain`, and the engine had all treated BPF-LSM as unavailable.
+    if ebpf_ifc_engine::bpf_lsm_active() {
         println!("✓ BPF-LSM: active ({})", lsm.trim());
+    } else if std::env::var_os("ACTPLANE_FORCE_TRACEPOINT").is_some() {
+        println!(
+            "⚠ BPF-LSM: treated as unavailable by ACTPLANE_FORCE_TRACEPOINT; `block` rules will not fire ({})",
+            lsm.trim()
+        );
     } else if let Some(source) = bpf_lsm_configured_for_next_boot() {
         println!(
             "⚠ BPF-LSM: configured for next boot in {}; reboot pending ({})",

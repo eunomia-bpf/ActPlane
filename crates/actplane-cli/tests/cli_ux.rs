@@ -774,6 +774,41 @@ fn live_e2e_cases_do_not_depend_on_bpf_lsm() {
 }
 
 #[test]
+fn doctor_reports_the_forced_tracepoint_backend() {
+    // The doctor's BPF-LSM line must describe what the engine will actually do.
+    // `check`, `explain`, and `ebpf_ifc_engine::bpf_lsm_active` all fold in
+    // `ACTPLANE_FORCE_TRACEPOINT`, but the doctor once read the raw
+    // `/sys/kernel/security/lsm` list, so on a host with `bpf` in that list it
+    // printed `active` under the flag while `block` could never fire. Asserting
+    // the flag's own text keeps this host-independent: without the flag the
+    // message is the ordinary active/not-active line, which the CI runner's
+    // LSM list decides.
+    let dir = tempfile::tempdir().unwrap();
+    let policy = dir.path().join("actplane.yaml");
+    fs::write(
+        &policy,
+        "version: 1\npolicy: |\n  source AGENT = exec \"**/codex\"\n  rule r:\n    \
+         block write file \"/tmp/x/prod.db\" if AGENT\n    because \"x\"\n",
+    )
+    .unwrap();
+
+    let forced = Command::new(actplane())
+        .env("ACTPLANE_FORCE_TRACEPOINT", "1")
+        .args(["--policy", policy.to_str().unwrap(), "doctor"])
+        .output()
+        .unwrap_or_else(|e| panic!("run actplane doctor: {e}"));
+    let out = stdout(&forced);
+    assert!(
+        out.contains("treated as unavailable by ACTPLANE_FORCE_TRACEPOINT"),
+        "doctor ignored ACTPLANE_FORCE_TRACEPOINT in its BPF-LSM line:\n{out}"
+    );
+    assert!(
+        !out.contains("✓ BPF-LSM: active"),
+        "doctor reported BPF-LSM active under the forced tracepoint backend:\n{out}"
+    );
+}
+
+#[test]
 fn e2e_case_header_lists_every_seeded_fixture() {
     // `test/e2e_cases.yaml`'s header tells a reader (and a future case author)
     // which fixtures the driver seeds in `${D}`. A case may only use a fixture
