@@ -49,7 +49,11 @@ done
 mkdir -p "$OUT" "$WORK/root"/{bin,dev,proc,sys,tmp}
 
 # A policy that names no recv at all: the pinned path loads recv anyway, which is
-# what makes the failure fail-any-policy rather than recv-policy-specific.
+# what makes the failure fail-any-policy rather than recv-policy-specific. It also
+# carries a file sink with an absolute pattern: on kernel >= 6.1 `actplane run`
+# always installs the pinned singleton, so the sink only installs if the reserve
+# carries the cheap rule-class bits. It used to fail with
+# `write sink rules ... missing=0x8`.
 cat > "$WORK/root/smoke.yaml" <<'EOF'
 version: 1
 policy: |
@@ -57,6 +61,9 @@ policy: |
   rule smoke-noop:
     notify exec "__actplane_never__" if COMMAND
     because "smoke: the engine must install for a policy with no recv"
+  rule smoke-sink:
+    notify write file "/tmp/**" if COMMAND
+    because "smoke: a cheap file sink delta must install in the pinned reserve"
 EOF
 
 cp /bin/busybox "$WORK/root/bin/busybox"

@@ -99,11 +99,16 @@ artifact Non-Cite Rule requires:
 - `results/engine-install-smoke-vm/`: the pinned-engine install smoke
   (`docs/empirical-study/run_engine_install_smoke_vm.sh`), which boots a 6.8
   guest and requires `actplane run` to install the engine for a policy that names
-  no `recv`. It reproduces the release-blocking summed-stack install failure on
-  demand: the same smoke against a binary built from `origin/master` fails with
-  `combined stack size of 6 calls is 608. Too large`. Like the other `run_*_vm.sh`
-  runners it is run by hand, not by CI, because the failure only reproduces on a
-  kernel that performs the combined-stack walk.
+  no `recv`. The policy also carries a cheap file sink (`notify write file
+  "/tmp/**"`), so the smoke fails if the pinned reserve drops the open/write
+  rule-class bits: on kernel >= 6.1 `actplane run` always installs the pinned
+  singleton, and before the reserve carried `FEAT_OPEN_RULES|FEAT_WRITE_RULES`
+  the sink delta failed with `write sink rules ... missing=0x8`. It reproduces the
+  release-blocking summed-stack install failure on demand: the same smoke against
+  a binary built from `origin/master` fails with `combined stack size of 6 calls
+  is 608. Too large`. Like the other `run_*_vm.sh` runners it is run by hand, not
+  by CI, because the failure only reproduces on a kernel that performs the
+  combined-stack walk.
 - `results/engine-install-smoke-vm-counterfactual/`: the same smoke run four ways
   to measure the summed-stack claims in `bpf/README.md` on a real 6.8 guest. It
   reproduces all three documented verdicts and the `6 calls`/`7 calls` step: the

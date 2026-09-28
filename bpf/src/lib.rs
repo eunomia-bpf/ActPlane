@@ -1178,7 +1178,15 @@ const ALL_HOOK_FEATURES: u32 = FEAT_CONNECT
 #[cfg(test)]
 const ALL_POLICY_FEATURES: u32 =
     FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX | FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
-const PINNED_POLICY_FEATURES: u32 = ALL_HOOK_FEATURES;
+// The pinned singleton keeps the cheap rule-class bits (open/write sink rules)
+// plus every hook bit reserved, so a runtime delta that adds an absolute or
+// repo-relative file sink installs without a reload. The path-matcher bits
+// (`FEAT_PATH_SUFFIX`/`FEAT_PATH_CONTAINS`) are deliberately excluded: setting
+// them un-prunes the unrolled in-kernel suffix/contains matcher
+// (`te_path_match` in `taint_engine.bpf.h`), which pushes `trace_rename_exit`
+// and `trace_openat_exit` past the verifier's 1,000,000-instruction limit on
+// 6.8. Those classes still require an engine loaded with the matching profile.
+const PINNED_POLICY_FEATURES: u32 = FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum HookProfile {
@@ -1633,7 +1641,7 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
     }
     if missing & (FEAT_OPEN_RULES | FEAT_WRITE_RULES | FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX) != 0 {
         hints.push(
-            "file sink rule classes and path contains/suffix matcher classes require the engine to be loaded with those policy features; the pinned singleton reserves hooks for future deltas but not expensive file sink matcher classes",
+            "file sink rule classes and path contains/suffix matcher classes require the engine to be loaded with those policy features; the pinned singleton reserves the cheap file sink rule classes for future deltas but not the expensive path suffix/contains matchers",
         );
     }
     if missing & (FEAT_BLOCK_EXEC | FEAT_BLOCK_FILE | FEAT_BLOCK_CONNECT) != 0 {
@@ -1933,8 +1941,10 @@ impl Loader {
     }
 
     /// Load the engine with an explicit hook profile for later runtime deltas.
-    /// This does not enable file sink rule matching or expensive path matchers
-    /// unless the policy used to load the engine requires them.
+    /// The reserve carries the profile's hook bits plus, for the pinned
+    /// singleton, the cheap file sink rule classes. Expensive path suffix and
+    /// contains matchers still require the policy used to load the engine to
+    /// demand them.
     pub fn load_with_hook_reserve(
         config_blob: &[u8],
         hook_reserve: HookReserve,
@@ -3309,12 +3319,44 @@ mod tests {
         let text = err.to_string();
         assert!(text.contains("path contains matches"), "{text}");
         assert!(
-            text.contains("not expensive file sink matcher classes"),
+            text.contains("not the expensive path suffix/contains matchers"),
             "{text}"
         );
         assert!(text.contains("missing=0x"), "{text}");
         validate_supported_features(&cfg, ALL_POLICY_FEATURES, "runtime policy delta")
             .expect("full policy feature budget admits path matcher rule");
+    }
+
+    #[test]
+    fn pinned_reserve_admits_cheap_file_sink_deltas_but_not_path_matchers() {
+        // `actplane run` on kernel >= 6.1 always installs the pinned singleton,
+        // so a policy whose file sink uses an absolute or repo-relative pattern
+        // (prefix/exact/any) must validate against the pinned reserve as a
+        // runtime delta. Before the reserve carried the rule-class bits, every
+        // such delta failed with missing=0x8.
+        let mut sink: CConfig = unsafe { std::mem::zeroed() };
+        sink.n_rules = 1;
+        sink.rules[0].op = OP_WRITE;
+        sink.rules[0].m = 1; // TAINT_MATCH_PREFIX, e.g. "/repo/**"
+        validate_supported_features(&sink, PINNED_POLICY_FEATURES, "runtime policy delta")
+            .expect("the pinned reserve admits a cheap write sink delta");
+        assert_ne!(
+            config_features(&sink) & FEAT_WRITE_RULES,
+            0,
+            "the write sink delta must exercise the reserved rule class"
+        );
+
+        // Expensive path matchers stay gated: setting them un-prunes the
+        // unrolled matcher and overruns the verifier's instruction limit, so
+        // they are not part of the reserve.
+        let mut suffix: CConfig = unsafe { std::mem::zeroed() };
+        suffix.n_rules = 1;
+        suffix.rules[0].op = OP_WRITE;
+        suffix.rules[0].m = M_SUFFIX;
+        let err =
+            validate_supported_features(&suffix, PINNED_POLICY_FEATURES, "runtime policy delta")
+                .expect_err("the pinned reserve still gates suffix matchers");
+        assert!(err.to_string().contains("missing=0x2"), "{err}");
     }
 
     #[test]
