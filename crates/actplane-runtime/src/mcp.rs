@@ -1173,6 +1173,16 @@ impl ActPlaneMcp {
                 "parent_domain_id": c.parent_domain_id,
             })
         });
+        let effective_policy = self
+            .control
+            .as_ref()
+            .and_then(|c| c.effective_policy().ok())
+            .map(|policy| {
+                serde_json::json!({
+                    "effective_hash": policy.effective_hash,
+                    "layers": policy.layers,
+                })
+            });
         serde_json::json!({
             "ok": true,
             "result": {
@@ -1180,6 +1190,7 @@ impl ActPlaneMcp {
                 "project_dir": self.project_dir.display().to_string(),
                 "control": control,
                 "child_count": child_count,
+                "effective_policy": effective_policy,
             }
         })
     }
@@ -3147,6 +3158,10 @@ policy: |
             Some(project_dir.display().to_string().as_str())
         );
         assert_eq!(body["child_count"], Value::from(0));
+        // No engine attached, so there is no merged policy to hash; the field is
+        // present but null rather than absent, so a client can distinguish
+        // "not attached" from "attached but the status predates the field".
+        assert!(body["effective_policy"].is_null(), "{body}");
         assert!(body["control"].is_null(), "{body}");
         // The same body backs the control `status` op; there the fields sit
         // under `result`, so a client sees one description of the runtime.

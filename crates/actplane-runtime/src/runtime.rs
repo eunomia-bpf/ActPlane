@@ -85,6 +85,7 @@ pub async fn watch_policy_for_pid(
     let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
         &compiled,
         parent_domain_id,
+        &policy,
     ));
     let feedback = feedback_paths(&loaded);
     let target_owner = target_user(cli.run_as_root);
@@ -261,6 +262,35 @@ struct RuntimePolicyCatalog {
 struct RuntimePolicyCatalogInner {
     rules: Vec<report::RuleFeedbackContext>,
     domain_labels: HashMap<u32, HashMap<String, u64>>,
+    layers: Vec<PolicyLayer>,
+    /// Running FNV-1a state over the lowered kernel config bytes the engine has
+    /// loaded: the base policy blob followed by each appended delta's blob, in
+    /// append order. This is the merge the kernel enforces, so its final digest
+    /// is the effective policy hash.
+    effective_fnv: u64,
+}
+
+/// One compiled policy layer as the runtime holds it: the base file the process
+/// was launched with, or a delta `control delta add` appended to a domain.
+/// `hash` is over the layer's DSL source, so it names the exact text a reader
+/// can find on disk or in the audit log, while the effective hash is over the
+/// merged kernel config the engine enforces.
+struct PolicyLayer {
+    kind: &'static str,
+    domain_id: u32,
+    hash: String,
+}
+
+/// The engine's effective policy: a hash of the lowered kernel config it loaded
+/// plus the layers that produced it. A process's effective policy is the merge
+/// of the base layer and every monotonic delta appended to its domain, and the
+/// kernel applies that merge in its rodata, so hashing that blob is the one
+/// identity every surface (status, audit, MCP) can agree on without
+/// re-deriving the merge.
+#[derive(Clone, Debug)]
+pub struct EffectivePolicySummary {
+    pub effective_hash: String,
+    pub layers: Vec<serde_json::Value>,
 }
 
 struct PolicyDeltaOutcome {
@@ -401,15 +431,47 @@ fn string_missing(value: Option<&str>) -> bool {
 }
 
 impl RuntimePolicyCatalog {
-    fn from_compiled(compiled: &dsl::Compiled, domain_id: u32) -> Self {
+    /// `base_source` is the base layer's DSL text. The catalog derives only the
+    /// lowerer's blob from it to run, but the layer record names the exact
+    /// policy text a reader can find on disk, so every caller passes it.
+    fn from_compiled(compiled: &dsl::Compiled, domain_id: u32, base_source: &str) -> Self {
         let mut domain_labels = HashMap::new();
         domain_labels.insert(domain_id, compiled.labels.clone());
         Self {
             inner: RwLock::new(RuntimePolicyCatalogInner {
                 rules: report::contexts_from_compiled(compiled),
                 domain_labels,
+                layers: vec![PolicyLayer {
+                    kind: "base",
+                    domain_id,
+                    hash: audit::policy_hash(base_source),
+                }],
+                effective_fnv: fold_fnv(FNV_OFFSET, &compiled.bytes),
             }),
         }
+    }
+
+    /// Effective policy of the engine: the hash of the merged kernel config and
+    /// the layer stack that produced it, base first then deltas in append order.
+    pub fn effective_policy(&self) -> Result<EffectivePolicySummary> {
+        let inner = self
+            .inner
+            .read()
+            .map_err(|e| format!("policy metadata lock poisoned: {e}"))?;
+        Ok(EffectivePolicySummary {
+            effective_hash: format!("fnv1a64:{:016x}", inner.effective_fnv),
+            layers: inner
+                .layers
+                .iter()
+                .map(|layer| {
+                    json!({
+                        "kind": layer.kind,
+                        "domain_id": layer.domain_id,
+                        "policy_hash": layer.hash,
+                    })
+                })
+                .collect(),
+        })
     }
 
     fn register_domain(&self, domain_id: u32) -> Result<()> {
@@ -483,6 +545,12 @@ impl EngineControl {
 
     pub fn submitter_pid(&self) -> i32 {
         self.submitter_pid
+    }
+
+    /// The engine's effective policy: hash of the merged kernel config the
+    /// engine loaded and the base+delta layer stack behind it.
+    pub fn effective_policy(&self) -> Result<EffectivePolicySummary> {
+        self.catalog.effective_policy()
     }
 
     pub fn parent_domain_allows_runtime_mutation(&self) -> bool {
@@ -768,18 +836,45 @@ impl EngineControl {
             rule_id_base as u32,
             &compiled.bytes,
         )?;
-        inner
-            .domain_labels
-            .insert(target_id, compiled.labels.clone());
-        inner
-            .rules
-            .extend(report::contexts_from_compiled(&compiled));
+        inner.record_delta_layer(target_id, dsl_src, &compiled);
         Ok(PolicyDeltaOutcome {
             rule_id_base,
             rule_count,
             rule_provenance,
         })
     }
+}
+
+impl RuntimePolicyCatalogInner {
+    /// Apply one delta to the catalog's view: append its matchers, record it as
+    /// a layer, and fold its lowered config into the effective hash. The kernel
+    /// append happens in `append_policy_delta_dsl_inner`; keeping the metadata
+    /// mutation here lets a test drive the same bookkeeping without an engine.
+    fn record_delta_layer(&mut self, target_id: u32, dsl_src: &str, compiled: &dsl::Compiled) {
+        self.domain_labels
+            .insert(target_id, compiled.labels.clone());
+        self.rules.extend(report::contexts_from_compiled(compiled));
+        self.layers.push(PolicyLayer {
+            kind: "delta",
+            domain_id: target_id,
+            hash: audit::policy_hash(dsl_src),
+        });
+        self.effective_fnv = fold_fnv(self.effective_fnv, &compiled.bytes);
+    }
+}
+
+const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+const FNV_PRIME: u64 = 0x100000001b3;
+
+/// Continue an FNV-1a stream over `bytes`. Chaining blobs with one running state
+/// instead of concatenating them keeps the effective hash allocation-free and
+/// order-sensitive, so appending a delta always changes the digest.
+fn fold_fnv(mut state: u64, bytes: &[u8]) -> u64 {
+    for b in bytes {
+        state ^= u64::from(*b);
+        state = state.wrapping_mul(FNV_PRIME);
+    }
+    state
 }
 
 fn audit_context_id(path: &Path, submitter_pid: i32) -> String {
@@ -951,6 +1046,7 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
         &compiled,
         parent_domain_id,
+        &policy,
     ));
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "mcp");
     prepare_feedback_files(&feedback, target_user(cli.run_as_root))?;
@@ -1483,6 +1579,7 @@ pub async fn run_child_command(
     let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
         &compiled,
         parent_domain_id,
+        &policy,
     ));
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
@@ -1977,6 +2074,59 @@ fn exit_code(status: std::process::ExitStatus) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn effective_policy_reports_base_layer_and_config_hash() {
+        // The base layer hash names the exact DSL text an operator can find,
+        // while the effective hash is over the lowered kernel config the engine
+        // loaded, so the two diverge when only whitespace differs.
+        let src = "rule no-git-branch:\n  block exec \"git branch\"\n  because \"branch via host\"";
+        let compiled = dsl::compile_str(src).expect("compile");
+        let catalog = RuntimePolicyCatalog::from_compiled(&compiled, 7, src);
+        let summary = catalog.effective_policy().expect("effective policy");
+        assert_eq!(summary.layers.len(), 1);
+        assert_eq!(summary.layers[0]["kind"], "base");
+        assert_eq!(summary.layers[0]["domain_id"], 7);
+        assert_eq!(
+            summary.layers[0]["policy_hash"],
+            audit::policy_hash(src),
+            "base layer names the source text"
+        );
+        assert!(summary.effective_hash.starts_with("fnv1a64:"));
+        assert_ne!(
+            summary.effective_hash, summary.layers[0]["policy_hash"],
+            "effective hash covers the lowered config, not the source"
+        );
+    }
+
+    #[test]
+    fn effective_policy_hash_changes_when_a_delta_is_appended() {
+        let base = "rule base:\n  block exec \"git branch\"\n  because \"branch\"";
+        let compiled = dsl::compile_str(base).expect("compile base");
+        let mut inner = RuntimePolicyCatalogInner {
+            rules: report::contexts_from_compiled(&compiled),
+            domain_labels: HashMap::new(),
+            layers: vec![PolicyLayer {
+                kind: "base",
+                domain_id: 3,
+                hash: audit::policy_hash(base),
+            }],
+            effective_fnv: fold_fnv(FNV_OFFSET, &compiled.bytes),
+        };
+        let before = format!("fnv1a64:{:016x}", inner.effective_fnv);
+
+        let delta = "rule tighter:\n  block connect endpoint \"10.0.0.1\"\n  because \"no egress\"";
+        let delta_compiled = dsl::compile_str_with_labels(delta, &std::collections::HashMap::new())
+            .expect("compile delta");
+        inner.record_delta_layer(3, delta, &delta_compiled);
+
+        let after = format!("fnv1a64:{:016x}", inner.effective_fnv);
+        assert_ne!(before, after, "appending a delta must move the hash");
+        assert_eq!(inner.layers.len(), 2);
+        assert_eq!(inner.layers[1].kind, "delta");
+        assert_eq!(inner.layers[1].domain_id, 3);
+        assert_eq!(inner.layers[1].hash, audit::policy_hash(delta));
+    }
 
     #[test]
     fn audit_context_id_uses_run_dir_when_available() {

@@ -7,8 +7,16 @@ use serde_json::{Value, json};
 use crate::Result;
 
 pub fn policy_hash(src: &str) -> String {
+    policy_hash_bytes(src.as_bytes())
+}
+
+/// Hash of a policy's lowered kernel config blob. Two policies whose DSL text
+/// differs only in whitespace or comments lower to the same matchers and so
+/// share this identity, which is what an "effective policy" hash should key on;
+/// `policy_hash` over the DSL source remains for layer-provenance records.
+pub fn policy_hash_bytes(bytes: &[u8]) -> String {
     let mut h = 0xcbf29ce484222325u64;
-    for b in src.as_bytes() {
+    for b in bytes {
         h ^= u64::from(*b);
         h = h.wrapping_mul(0x100000001b3);
     }

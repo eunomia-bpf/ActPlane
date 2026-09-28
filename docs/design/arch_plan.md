@@ -257,7 +257,7 @@ MCP 保持 resource-first。当前暴露四个 resource:
 ```text
 actplane:///policy     # 已实现
 actplane:///feedback   # 已实现
-actplane:///status     # 已实现（JSON：attach 状态、parent domain、child 数）
+actplane:///status     # 已实现（JSON：attach 状态、parent domain、child 数、effective policy hash 与 layer 栈）
 actplane:///audit      # 已实现（JSON：audit log 路径、记录数与记录数组）
 ```
 
@@ -289,7 +289,7 @@ data-flow enforcement + delegation + feedback + audit**。
 1. Stabilize setup, doctor, feedback hook, MCP auto-attach.
 2. `explain last` 与 `actplane control status` 已实现。
 3. Add built-in control-plane self-protection.
-4. Add policy layer metadata and effective policy hash.
+4. Effective policy hash 与 layer 元数据已实现（`control status` / `actplane:///status`）。
 5. Add `delegate` for subagent contracts.
 6. Add workspace/resource scopes for delegated principals.
 7. Add gate/approval tokens.

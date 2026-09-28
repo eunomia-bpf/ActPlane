@@ -127,6 +127,13 @@ for the active policy, the latest feedback, the runtime status (attached engine,
 parent domain, child-domain count), and the run audit log, and it can accept
 controlled child domain operations when the engine is running.
 
+The runtime status reports the engine's effective policy: an
+`effective_policy.effective_hash` over the merged kernel config the engine
+loaded, plus `effective_policy.layers`, one entry per policy layer with its
+`kind` (`base` or `delta`), `domain_id`, and source `policy_hash`. The base
+layer is the launched policy and each delta is a `control delta add` append, so
+the layer stack names exactly which text produced the enforced matchers.
+
 The same audit log is readable outside MCP: `actplane audit show` prints a
 one-line summary per record and `actplane audit export --jsonl` re-emits the raw
 records, both resolving the log the same way the `actplane:///audit` resource
