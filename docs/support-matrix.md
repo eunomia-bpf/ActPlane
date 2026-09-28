@@ -66,7 +66,7 @@ reserved when the engine loaded.
 | --- | --- |
 | default profile | Load the policy-selected attach set. |
 | `ACTPLANE_RESERVE_FILE_FLOW=1` | Reserve file-flow hooks for later runtime deltas. |
-| `ACTPLANE_ENABLE_ADVANCED_HOOKS=1` | Enable advanced file-flow hooks. |
+| `ACTPLANE_ENABLE_ADVANCED_HOOKS=1` (alias `ACTPLANE_ADVANCED_TRACEPOINTS`) | Enable advanced file-flow hooks. |
 | `ACTPLANE_HOOK_PROFILE=full` | Enable file flow, network, and block hook classes for future deltas. |
 
 Use the full profile for long-running MCP/watch sessions that will accept child
