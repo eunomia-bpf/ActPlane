@@ -33,6 +33,7 @@ use ebpf_ifc_engine::capability::{AUTH_BIND_RULE, TARGET_SELF};
 
 const POLICY_RESOURCE_URI: &str = "actplane:///policy";
 const FEEDBACK_RESOURCE_URI: &str = "actplane:///feedback";
+const STATUS_RESOURCE_URI: &str = "actplane:///status";
 const POLICY_NOT_FOUND_PREFIX: &str = "No policy file found";
 const WATCH_INTERVAL: Duration = Duration::from_secs(2);
 const SUPERVISOR_INTERVAL: Duration = Duration::from_millis(500);
@@ -1180,6 +1181,17 @@ impl ActPlaneMcp {
                 "child_count": child_count,
             }
         })
+    }
+
+    /// Rendered `actplane:///status` body. It shares `local_control_status`'s
+    /// `result` object with the `status` control op and the read-only
+    /// `actplane_control` MCP tool, so a client reading the resource, calling
+    /// `control status`, or calling that tool sees the same fields rather than
+    /// three descriptions of one runtime. Serialization of that `Value` cannot
+    /// fail, so the fallback only guards against an impossible case.
+    fn status_resource_text(&self) -> String {
+        let status = self.local_control_status();
+        serde_json::to_string_pretty(&status["result"]).unwrap_or_else(|_| status.to_string())
     }
 }
 
@@ -2445,6 +2457,14 @@ impl ServerHandler for ActPlaneMcp {
                      default feedback path",
                 )
                 .with_mime_type("text/plain"),
+            Resource::new(STATUS_RESOURCE_URI, "actplane-status")
+                .with_title("ActPlane Runtime Status")
+                .with_description(
+                    "Runtime status: whether the eBPF engine is attached, the \
+                     parent process and runtime domain it seeded, the project \
+                     directory, and the number of controlled child domains",
+                )
+                .with_mime_type("application/json"),
         ];
         std::future::ready(Ok(ListResourcesResult {
             resources,
@@ -2474,6 +2494,16 @@ impl ServerHandler for ActPlaneMcp {
                 ResourceContents::TextResourceContents {
                     uri: FEEDBACK_RESOURCE_URI.into(),
                     mime_type: Some("text/plain".into()),
+                    text,
+                    meta: None,
+                },
+            ]))
+        } else if request.uri == STATUS_RESOURCE_URI {
+            let text = self.status_resource_text();
+            Ok(ReadResourceResult::new(vec![
+                ResourceContents::TextResourceContents {
+                    uri: STATUS_RESOURCE_URI.into(),
+                    mime_type: Some("application/json".into()),
                     text,
                     meta: None,
                 },
@@ -3081,6 +3111,39 @@ policy: |
                 "message did not name candidate {candidate}: {text}"
             );
         }
+
+        let _ = std::fs::remove_dir_all(project_dir);
+    }
+
+    #[test]
+    fn status_resource_reports_attachment_and_child_count() {
+        // `actplane:///status` is the resource-first counterpart to
+        // `actplane control status`; the arch plan lists it as a target
+        // (docs/design/arch_plan.md). A client reading it must learn whether the
+        // engine is attached and how to reach it, so the body is the same
+        // `result` object the control op returns: `attached`, the resolved
+        // project directory, the parent domain when attached, and the child
+        // count.
+        let project_dir = std::env::temp_dir().join(format!(
+            "actplane-mcp-status-test-{}-{}",
+            std::process::id(),
+            child_launch_id()
+        ));
+        std::fs::create_dir_all(&project_dir).expect("project dir");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project_dir.clone()));
+
+        let body: Value =
+            serde_json::from_str(&server.status_resource_text()).expect("status json");
+        assert_eq!(body["attached"], Value::Bool(false));
+        assert_eq!(
+            body["project_dir"].as_str(),
+            Some(project_dir.display().to_string().as_str())
+        );
+        assert_eq!(body["child_count"], Value::from(0));
+        assert!(body["control"].is_null(), "{body}");
+        // The same body backs the control `status` op; there the fields sit
+        // under `result`, so a client sees one description of the runtime.
+        assert_eq!(server.local_control_status()["result"], body);
 
         let _ = std::fs::remove_dir_all(project_dir);
     }

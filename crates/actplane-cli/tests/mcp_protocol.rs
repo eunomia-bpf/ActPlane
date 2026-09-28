@@ -298,6 +298,7 @@ policy: |
         uris.contains(&"actplane:///feedback"),
         "resources: {uris:?}"
     );
+    assert!(uris.contains(&"actplane:///status"), "resources: {uris:?}");
 
     mcp.send(json!({
         "jsonrpc": "2.0",
@@ -311,6 +312,20 @@ policy: |
         .expect("policy resource text");
     assert!(text.contains("Policy valid"), "{text}");
     assert!(text.contains("noop"), "{text}");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 99,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///status" }
+    }));
+    let status_resource = mcp.response(99);
+    let status_text = status_resource["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("status resource text");
+    let status_json: Value = serde_json::from_str(status_text).expect("status resource is json");
+    assert_eq!(status_json["attached"], Value::Bool(false));
+    assert_eq!(status_json["child_count"], Value::from(0));
 
     mcp.send(json!({
         "jsonrpc": "2.0",
