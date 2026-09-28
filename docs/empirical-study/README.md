@@ -132,6 +132,19 @@ artifact Non-Cite Rule requires:
   hashes; `blob-identity.txt` records the byte-identity of the post-fix
   `exec "**"` blob with the long-working `exec "*"` blob.
 
+- `results/lsm-block-smoke-vm/`: the BPF-LSM `block` enforcement smoke
+  (`docs/empirical-study/run_lsm_block_smoke_vm.sh`), which boots a 6.8 guest
+  with `lsm=lockdown,capability,landlock,yama,apparmor,bpf` and a `block write
+  file "/tmp/protected.txt"` policy. It closes the gap the seven
+  `if !bpf_lsm_active() { return; }` smokes leave: those early-return on the
+  privileged CI runner (no `bpf` in `/sys/kernel/security/lsm`), so the job never
+  shows `block` was enforced. The runner requires three conditions and fails
+  closed on any: the guest initialized the `bpf` LSM (`SMOKE_LSM_ACTIVE`), the
+  engine installed (`ActPlane: running`), and the blocked write failed with
+  `EPERM` (`write_rc=1`) under a `BLOCKED` violation, so `block` is shown to deny
+  rather than merely report. `metadata.tsv` records the guest kernel, its LSM
+  list, and the binary hash.
+
 All are **exploratory** evidence for the reviewer response, not promoted paper
 results. The DSL-specific frozen corpus and raw model runs still live only on the
 artifact ref.
