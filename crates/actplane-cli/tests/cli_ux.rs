@@ -806,6 +806,15 @@ fn doctor_reports_the_forced_tracepoint_backend() {
         !out.contains("✓ BPF-LSM: active"),
         "doctor reported BPF-LSM active under the forced tracepoint backend:\n{out}"
     );
+    // The line must not end in a dangling `()` when the host exposes no LSM
+    // list (a container has no `/sys/kernel/security/lsm`), which read like a
+    // value failed to render.
+    for line in out.lines().filter(|l| l.contains("BPF-LSM:")) {
+        assert!(
+            !line.trim_end().ends_with("()"),
+            "doctor BPF-LSM line has an empty parenthetical:\n{line}"
+        );
+    }
 }
 
 #[test]

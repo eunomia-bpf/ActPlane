@@ -2488,29 +2488,32 @@ pub(crate) fn doctor(cli: &PolicyInput) -> Result<i32> {
     }
 
     let lsm = active_lsms().unwrap_or_default();
+    // `/sys/kernel/security/lsm` is absent in a container, so guard the
+    // parenthetical: without this the line ends in a dangling `()` that reads
+    // like a value failed to render.
+    let lsm_suffix = if lsm.trim().is_empty() {
+        String::new()
+    } else {
+        format!(" ({})", lsm.trim())
+    };
     // Delegate the live decision to the engine so the doctor reports what the
     // engine will actually do: `bpf_lsm_active` already folds in
     // `ACTPLANE_FORCE_TRACEPOINT` (`bpf/src/lib.rs`), which the raw LSM list
     // does not, so reading the list here printed `active` while `check`,
     // `explain`, and the engine had all treated BPF-LSM as unavailable.
     if ebpf_ifc_engine::bpf_lsm_active() {
-        println!("✓ BPF-LSM: active ({})", lsm.trim());
+        println!("✓ BPF-LSM: active{lsm_suffix}");
     } else if std::env::var_os("ACTPLANE_FORCE_TRACEPOINT").is_some() {
         println!(
-            "⚠ BPF-LSM: treated as unavailable by ACTPLANE_FORCE_TRACEPOINT; `block` rules will not fire ({})",
-            lsm.trim()
+            "⚠ BPF-LSM: treated as unavailable by ACTPLANE_FORCE_TRACEPOINT; `block` rules will not fire{lsm_suffix}"
         );
     } else if let Some(source) = bpf_lsm_configured_for_next_boot() {
         println!(
-            "⚠ BPF-LSM: configured for next boot in {}; reboot pending ({})",
-            source.display(),
-            lsm.trim()
+            "⚠ BPF-LSM: configured for next boot in {}; reboot pending{lsm_suffix}",
+            source.display()
         );
     } else {
-        println!(
-            "⚠ BPF-LSM: not active; `block` rules will not fire ({})",
-            lsm.trim()
-        );
+        println!("⚠ BPF-LSM: not active; `block` rules will not fire{lsm_suffix}");
     }
 
     println!("\nNext commands:");
