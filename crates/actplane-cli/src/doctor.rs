@@ -72,7 +72,9 @@ pub(crate) fn check_policy(
     };
     let active_lsms = active_lsms().unwrap_or_default();
     let force_tracepoint = std::env::var_os("ACTPLANE_FORCE_TRACEPOINT").is_some();
-    let lsm_bpf = lsm_list_has_bpf(&active_lsms) && !force_tracepoint;
+    // Delegate to the engine so the report describes what the engine will do;
+    // it already folds in `ACTPLANE_FORCE_TRACEPOINT`.
+    let lsm_bpf = ebpf_ifc_engine::bpf_lsm_active();
     if json_output {
         let report = render_check_json(
             &where_,
@@ -161,7 +163,7 @@ pub(crate) fn render_policy_review_for_loaded(
         dsl::compile_str(&resolved.source).map_err(|e| format!("policy does not compile: {e}"))?;
     let active_lsms = active_lsms().unwrap_or_default();
     let force_tracepoint = std::env::var_os("ACTPLANE_FORCE_TRACEPOINT").is_some();
-    let lsm_bpf = lsm_list_has_bpf(&active_lsms) && !force_tracepoint;
+    let lsm_bpf = ebpf_ifc_engine::bpf_lsm_active();
     Ok(render_check_explain(
         &where_,
         loaded,
@@ -199,7 +201,7 @@ pub(crate) fn render_rollout_artifacts(
         dsl::compile_str(&resolved.source).map_err(|e| format!("policy does not compile: {e}"))?;
     let active_lsms = active_lsms().unwrap_or_default();
     let force_tracepoint = std::env::var_os("ACTPLANE_FORCE_TRACEPOINT").is_some();
-    let lsm_bpf = lsm_list_has_bpf(&active_lsms) && !force_tracepoint;
+    let lsm_bpf = ebpf_ifc_engine::bpf_lsm_active();
     let evidence = load_rollout_evidence(event_paths, annotation_paths, &parsed)?;
     Ok(RolloutArtifacts {
         plan: render_rollout_plan(
