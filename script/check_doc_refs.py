@@ -239,6 +239,11 @@ SKILLS_DIR = ".claude/skills/"
 #   * the file name is resolved to committed `.rs`/`.c`/`.h` files by basename,
 #     so the docs' shortened forms (`lower.rs`, `taint_engine.bpf.h`) work
 #     without a full path;
+#   * the binding is directional, so any backticked word *before* the file
+#     token is read as its symbol even when it is not one: `` `master`'s
+#     `bpf/process.bpf.c` `` binds `master` to that file and fails. Put the
+#     file token first when the preceding word is not a symbol the file
+#     defines, as `` the file `bpf/process.bpf.c` on `origin/master` `` does;
 SYM_SOURCE_SUFFIXES = (".rs", ".c", ".h")
 SYM_BOUND = re.compile(
     r"`([A-Za-z_][A-Za-z0-9_]*)`[^`\n]{0,40}?`([A-Za-z0-9_./-]+\.(?:rs|c|h))`"
