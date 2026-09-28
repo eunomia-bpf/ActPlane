@@ -299,6 +299,7 @@ policy: |
         "resources: {uris:?}"
     );
     assert!(uris.contains(&"actplane:///status"), "resources: {uris:?}");
+    assert!(uris.contains(&"actplane:///audit"), "resources: {uris:?}");
 
     mcp.send(json!({
         "jsonrpc": "2.0",
@@ -326,6 +327,23 @@ policy: |
     let status_json: Value = serde_json::from_str(status_text).expect("status resource is json");
     assert_eq!(status_json["attached"], Value::Bool(false));
     assert_eq!(status_json["child_count"], Value::from(0));
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 98,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///audit" }
+    }));
+    let audit_resource = mcp.response(98);
+    let audit_text = audit_resource["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("audit resource text");
+    // No engine and no run in this fixture, so the resource reports a missing
+    // log rather than an empty array a client would read as a clean session.
+    assert!(
+        audit_text.contains("No ActPlane audit log yet"),
+        "{audit_text}"
+    );
 
     mcp.send(json!({
         "jsonrpc": "2.0",

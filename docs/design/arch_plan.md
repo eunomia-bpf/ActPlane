@@ -251,15 +251,17 @@ actplane control delta add --target-id <id> --delta policy.dsl
 cat .actplane/last-violation.txt
 ```
 
-MCP 保持 resource-first。当前暴露三个 resource:
+MCP 保持 resource-first。当前暴露四个 resource:
 
 ```text
 actplane:///policy     # 已实现
 actplane:///feedback   # 已实现
 actplane:///status     # 已实现（JSON：attach 状态、parent domain、child 数）
+actplane:///audit      # 已实现（JSON：audit log 路径、记录数与记录数组）
 ```
 
-`actplane:///audit` 是后续目标,尚未实现。
+这四个是当前 MCP 只读面的全部。`actplane audit show` / `audit export --jsonl` 这类
+命令行审计面（Milestone 8）仍是后续目标。
 
 MCP 不应该默认提供大量 policy-mutating tools。修改 policy、创建 delegation、发放
 approval 这类动作应该走 ActPlane control plane，并验证 authority 和 monotonicity。

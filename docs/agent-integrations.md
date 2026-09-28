@@ -123,9 +123,9 @@ This writes `.mcp.json`:
 
 When the agent starts the MCP server, `--auto-attach-parent` tries to load the
 eBPF engine and seed the parent agent process. The MCP server exposes resources
-for the active policy, the latest feedback, and the runtime status (attached
-engine, parent domain, child-domain count), and it can accept controlled child
-domain operations when the engine is running.
+for the active policy, the latest feedback, the runtime status (attached engine,
+parent domain, child-domain count), and the run audit log, and it can accept
+controlled child domain operations when the engine is running.
 
 Verify:
 
