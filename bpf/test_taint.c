@@ -59,6 +59,15 @@ static void test_match(void)
 	check(p_match(TAINT_MATCH_SUFFIX, "/home/u/.env", ".env") == 1, "match: suffix hit");
 	check(p_match(TAINT_MATCH_SUFFIX, "/home/u/app.py", ".env") == 0, "match: suffix miss");
 	check(p_match(TAINT_MATCH_SUFFIX, "api.internal", ".internal") == 1, "match: host suffix");
+	/* Suffix lengths that straddle the 8-byte word split in taint_suffix: a
+	 * 12-byte needle takes 8 bytes from the low word and 4 from the high, and
+	 * an 8-byte needle exactly fills the low word, leaving the high mask 0. */
+	check(p_match(TAINT_MATCH_SUFFIX, "/x/abcdefgh", "abcdefgh") == 1, "match: suffix 8 (low word exact)");
+	check(p_match(TAINT_MATCH_SUFFIX, "/x/abcdefghX", "abcdefgh") == 0, "match: suffix 8 not at end");
+	check(p_match(TAINT_MATCH_SUFFIX, "/x/abcdefghijkl", "abcdefghijkl") == 1, "match: suffix 12 (straddles words)");
+	check(p_match(TAINT_MATCH_SUFFIX, "/x/abcdefghijkm", "abcdefghijkl") == 0, "match: suffix 12 last byte differs");
+	check(p_match(TAINT_MATCH_SUFFIX, "/x/abcdefghijklmnop", "abcdefghijklmnop") == 1, "match: suffix 16 (max)");
+	check(p_match(TAINT_MATCH_SUFFIX, "/x/abcdefghijklmnop", "Xbcdefghijklmnop") == 0, "match: suffix 16 first byte differs");
 	check(p_match(TAINT_MATCH_ANY, "literally anything", "") == 1, "match: any");
 	check(p_match(TAINT_MATCH_CONTAINS, "/home/u/server/app/f", "/server/") == 1, "match: contains hit");
 	check(p_match(TAINT_MATCH_CONTAINS, "/home/u/client/app/f", "/server/") == 0, "match: contains miss");

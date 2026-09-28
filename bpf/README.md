@@ -151,15 +151,21 @@ measured on this engine marking `handle_io_exit_addr` `__noinline` moved
 limit. Reach for `__noinline` only when one helper's own frame is the problem.
 The path matcher shows the same lever against a different cap. `te_path_match` is
 `__always_inline`, so its matcher body is copied into each of the roughly four
-rule scans a path hook performs, and with the path-suffix class reserved
-`trace_rename_exit` fails the instruction-processing cap at `processed 1000001
-insns (limit 1000000)`, `peak_states 7091`. Marking only `te_path_match`
-`__noinline` drops `trace_rename_exit` to `processed 712821 insns`, under the
-cap, but then `trace_openat_exit` fails `the call stack of 9 frames is too deep`:
-the helper trades the instruction cap for a call-frame cap on a program that
-already sits at the frame limit. Both caps bind, so un-pruning the path-matcher
-classes needs a state reduction inside the matcher, not a call, which is why
-`PINNED_POLICY_FEATURES` omits them.
+rule scans a path hook performs. Before the fix, reserving the path-suffix class
+made `trace_rename_exit` fail the instruction-processing cap at `processed
+1000001 insns (limit 1000000)`, `peak_states 7091`. Two cheaper levers each fix
+one cap and break another: marking `te_path_match` `__noinline` drops
+`trace_rename_exit` to `processed 712821 insns` but makes `trace_openat_exit`
+fail `the call stack of 9 frames is too deep`, and fully unrolling
+`taint_suffix`'s compare drops it to `processed 664957 insns` but makes
+`trace_openat_exit` fail `combined stack size of 7 calls is 544`. Both caps bind,
+so the win has to come from fewer instructions *inside* the matcher without any
+extra frame. `taint_suffix`'s word-wise masked compare is that change: replacing
+the 16-iteration unrolled byte loop with two masked `u64` compares over the same
+copied tail keeps the constant-index reads, adds no stack, and brings
+`trace_rename_exit` under the cap. That is why `PINNED_POLICY_FEATURES` now
+carries `FEAT_PATH_SUFFIX`; `FEAT_PATH_CONTAINS` still does not, because
+reserving both path matchers still hits `processed 1000001 insn` on 6.8.
 
 Scratch contexts matter for the scan collectors. A `bpf_loop` context argument is a
 stack-typed value that stays spilled for the whole program, so a context struct
@@ -195,7 +201,8 @@ loads the program. The severity depends on who autoloads the program:
   failure only when it uses `recv` together with a file source or file rule.
 - The Rust pinned-engine path does not gate: `HookReserve::full_profile()` sets
   `PINNED_POLICY_FEATURES`, a superset of `ALL_HOOK_FEATURES` (it adds the cheap
-  open/write file sink rule classes), so it always includes recv. `actplane run`,
+  open/write file sink rule classes and the path-suffix matcher), so it always
+  includes recv. `actplane run`,
   `watch`, and MCP go through that path, so on a 6.8 kernel
   that still carries a stack-heavy frame the engine fails to install *for any
   policy at all*, and the process reports
@@ -214,10 +221,10 @@ production loader,
 `ACTPLANE_BPF_VERIFIER_LOG=stats` turns on verifier stats and `=verbose` adds the
 per-instruction log, so a rejected program reports `processed N insns`, its
 `peak_states`, and its `stack depth`, instead of only that the skeleton failed.
-Measured in a 6.8 guest with the path-suffix matcher class reserved,
-`trace_rename_exit` fails at `processed 1000001 insns` while the budget section
-above records the same measurement and the `__noinline` counterfactual. To assert
-the whole engine installs rather than inspect one program,
+With the path-contains matcher class reserved, `trace_openat_exit` fails at
+`processed 1000001 insns` on 6.8. The budget section above records the
+path-suffix measurement and the levers that were tried. To assert the whole
+engine installs rather than inspect one program,
 `docs/empirical-study/run_engine_install_smoke_vm.sh` boots a 6.8 guest and runs
 `actplane run` against a policy that names no `recv`, requiring it to report
 `ActPlane: running`; it fails closed on a rejection and prints the verifier text.

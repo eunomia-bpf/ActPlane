@@ -1178,15 +1178,18 @@ const ALL_HOOK_FEATURES: u32 = FEAT_CONNECT
 #[cfg(test)]
 const ALL_POLICY_FEATURES: u32 =
     FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX | FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
-// The pinned singleton keeps the cheap rule-class bits (open/write sink rules)
-// plus every hook bit reserved, so a runtime delta that adds an absolute or
-// repo-relative file sink installs without a reload. The path-matcher bits
-// (`FEAT_PATH_SUFFIX`/`FEAT_PATH_CONTAINS`) are deliberately excluded: setting
-// them un-prunes the unrolled in-kernel suffix/contains matcher
-// (`te_path_match` in `taint_engine.bpf.h`), which pushes `trace_rename_exit`
-// and `trace_openat_exit` past the verifier's 1,000,000-instruction limit on
-// 6.8. Those classes still require an engine loaded with the matching profile.
-const PINNED_POLICY_FEATURES: u32 = FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
+// The pinned singleton keeps the cheap rule-class bits (open/write sink rules),
+// the path-suffix matcher, and every hook bit reserved, so a runtime delta that
+// adds an absolute/repo-relative file sink or a `**/.env`-style suffix sink
+// installs without a reload. `FEAT_PATH_CONTAINS` is the one class still
+// excluded: it un-prunes the `bpf_loop`-based `taint_contains`, and reserving
+// both path matchers pushes `trace_openat_exit` past the verifier's
+// 1,000,000-instruction limit on 6.8 (measured: processed 1000001 insn).
+// `FEAT_PATH_SUFFIX` fits only because `taint_suffix`'s word-wise compare keeps
+// `trace_rename_exit` under that cap. That class still requires an engine loaded
+// with the matching profile.
+const PINNED_POLICY_FEATURES: u32 =
+    FEAT_PATH_SUFFIX | FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum HookProfile {
@@ -3339,7 +3342,7 @@ mod tests {
     }
 
     #[test]
-    fn pinned_reserve_admits_cheap_file_sink_deltas_but_not_path_matchers() {
+    fn pinned_reserve_admits_suffix_file_sinks_but_still_gates_contains() {
         // `actplane run` on kernel >= 6.1 always installs the pinned singleton,
         // so a policy whose file sink uses an absolute or repo-relative pattern
         // (prefix/exact/any) must validate against the pinned reserve as a
@@ -3357,17 +3360,31 @@ mod tests {
             "the write sink delta must exercise the reserved rule class"
         );
 
-        // Expensive path matchers stay gated: setting them un-prunes the
-        // unrolled matcher and overruns the verifier's instruction limit, so
-        // they are not part of the reserve.
+        // The path-suffix matcher is now part of the reserve: the word-wise
+        // compare in `taint_suffix` cut `trace_rename_exit` under the
+        // instruction cap, so a `**/.env` suffix sink installs as a delta.
         let mut suffix: CConfig = unsafe { std::mem::zeroed() };
         suffix.n_rules = 1;
         suffix.rules[0].op = OP_WRITE;
         suffix.rules[0].m = M_SUFFIX;
+        validate_supported_features(&suffix, PINNED_POLICY_FEATURES, "runtime policy delta")
+            .expect("the pinned reserve admits a suffix file sink delta");
+        assert_ne!(
+            config_features(&suffix) & FEAT_PATH_SUFFIX,
+            0,
+            "the suffix delta must exercise the reserved path-suffix class"
+        );
+
+        // `contains` stays gated: reserving both path matchers still overruns
+        // the instruction limit (`trace_openat_exit` at processed 1000001 insn).
+        let mut contains: CConfig = unsafe { std::mem::zeroed() };
+        contains.n_rules = 1;
+        contains.rules[0].op = OP_WRITE;
+        contains.rules[0].m = M_CONTAINS;
         let err =
-            validate_supported_features(&suffix, PINNED_POLICY_FEATURES, "runtime policy delta")
-                .expect_err("the pinned reserve still gates suffix matchers");
-        assert!(err.to_string().contains("missing=0x2"), "{err}");
+            validate_supported_features(&contains, PINNED_POLICY_FEATURES, "runtime policy delta")
+                .expect_err("the pinned reserve still gates contains matchers");
+        assert!(err.to_string().contains("missing=0x1"), "{err}");
     }
 
     #[test]

@@ -246,13 +246,16 @@ static TAINT_NOINLINE int taint_suffix(const char *text, const char *suf)
 	if (off > TAINT_PAT_LEN - 1)
 		off = TAINT_PAT_LEN - 1;
 	TE_COPY(tail, TAINT_SUF_MAX, text + off);
-	long diff = 0;
-	TAINT_UNROLL
-	for (int j = 0; j < TAINT_SUF_MAX; j++) {
-		long jm = -(long)(j < sn);
-		diff |= jm & (unsigned char)(tail[j] ^ (unsigned char)suf[j]);
-	}
-	return diff == 0;
+	/* Word-wise masked compare over the copied tail: `sn` is in [1,16], so two
+	 * u64 words cover it. Same constant-index reads as the byte loop, but ~12
+	 * insns instead of a 16-iteration unroll. Mask bytes past `sn` in each word. */
+	unsigned long long lo_n = sn >= 8 ? 8 : sn;
+	unsigned long long m0 = lo_n >= 8 ? ~0ULL : ((1ULL << (lo_n * 8)) - 1);
+	unsigned long long hi_n = sn >= 8 ? (unsigned long long)(sn - 8) : 0;
+	unsigned long long m1 = hi_n >= 8 ? ~0ULL : ((1ULL << (hi_n * 8)) - 1);
+	const unsigned long long *tw = (const unsigned long long *)tail;
+	const unsigned long long *sw = (const unsigned long long *)suf;
+	return ((tw[0] ^ sw[0]) & m0) == 0 && ((tw[1] ^ sw[1]) & m1) == 0;
 }
 
 /* taint_contains is implemented in taint_engine.bpf.h (needs bpf_loop).
