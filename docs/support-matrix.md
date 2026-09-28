@@ -191,6 +191,23 @@ or project MCP auto-attach:
 actplane init --with-mcp
 ```
 
+## Engine Pin Root
+
+The `watch`, `mcp`, `attach`, and `run` commands all keep one engine for the
+session by opening a pinned singleton engine under a single bpffs directory,
+`/sys/fs/bpf/actplane/v1` (`bpf/src/lib.rs:34`). The
+first process to start loads the engine and pins its maps and links there, and
+later processes open the pinned objects instead of loading another engine
+(`bpf/src/lib.rs:1721`). This is what lets an MCP or watch session accept child
+domain deltas whose final policy is not known at startup.
+
+Set `ACTPLANE_BPF_PIN_ROOT` to relocate that directory. The engine reads it when
+it resolves the pin paths (`bpf/src/lib.rs:115`), so every process in the session
+must set the same value; a process that points at a different root installs a
+second engine rather than joining the first. Use it when bpffs is mounted
+somewhere other than `/sys/fs/bpf`, or to isolate concurrent sessions that must
+not share one engine.
+
 ## Recommended Rollout
 
 1. Generate or choose a policy.
