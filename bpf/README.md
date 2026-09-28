@@ -161,13 +161,15 @@ fail `the call stack of 9 frames is too deep`, and fully unrolling
 `trace_openat_exit` fail `combined stack size of 7 calls is 544`. Both caps bind,
 so the win has to come from fewer instructions *inside* the matcher without any
 extra frame. `te_nbyte_eq` (`bpf/taint.h`) is that change: two masked `u64`
-compares replace the 16-iteration unrolled byte loops in both `taint_suffix` and
-the `taint_contains` callback, over the same copied buffers, so the constant-index
-reads that avoid symbolic-offset state explosion stay and no stack frame is added.
-That brings `trace_rename_exit` and `trace_openat_exit` under the cap, so
-`PINNED_POLICY_FEATURES` now reserves both path matchers
-(`FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX`) and a `**/.env` or `**/secrets/**` file
-sink installs as a runtime delta.
+compares replace `taint_suffix`'s 16-iteration unrolled byte loop over the same
+copied tail, so the constant-index reads that avoid symbolic-offset state
+explosion stay and no stack frame is added. That brings `trace_rename_exit`
+under the cap, so `PINNED_POLICY_FEATURES` reserves `FEAT_PATH_SUFFIX` and a
+`**/.env` file sink installs as a runtime delta. `taint_contains` uses the same
+helper, but its `bpf_loop` callback is not inlined into the rule scan, so
+reserving `FEAT_PATH_CONTAINS` still pushes `trace_rename_exit` over the cap
+(`processed 1000001 insn` on Linux 6.17), and that class needs an engine loaded
+with it.
 
 Scratch contexts matter for the scan collectors. A `bpf_loop` context argument is a
 stack-typed value that stays spilled for the whole program, so a context struct
@@ -203,7 +205,7 @@ loads the program. The severity depends on who autoloads the program:
   failure only when it uses `recv` together with a file source or file rule.
 - The Rust pinned-engine path does not gate: `HookReserve::full_profile()` sets
   `PINNED_POLICY_FEATURES`, a superset of `ALL_HOOK_FEATURES` (it adds the cheap
-  open/write file sink rule classes and both path matchers), so it always
+  open/write file sink rule classes and the path-suffix matcher), so it always
   includes recv. `actplane run`, `watch`, and MCP go through that path, so on a
   6.8 kernel that still carries a stack-heavy frame the engine fails to install
   *for any policy at all*, and the process reports

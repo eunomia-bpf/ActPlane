@@ -1395,7 +1395,7 @@ fn render_check_explain(
     }
     writeln!(
         &mut out,
-        "  - engine profile: policy-selected attach set; runtime deltas cannot add hook classes or path contains/suffix matcher classes after load"
+        "  - engine profile: policy-selected attach set; runtime deltas cannot add hook classes or the path-contains matcher class after load, while the pinned reserve carries the file sink classes and the path-suffix matcher"
     )
     .unwrap();
     writeln!(
