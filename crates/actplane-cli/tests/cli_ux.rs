@@ -2710,6 +2710,78 @@ fn audit_export_reads_an_explicit_path() {
     assert_eq!(stdout(&output), "{\"event\":\"only\"}\n");
 }
 
+#[test]
+fn replay_orders_the_resolved_run_log_into_a_timeline() {
+    // `replay` must read the same log `audit show` reads and keep the log's own
+    // order, because the run's append order is the causal order.
+    let tmp = tempfile::tempdir().unwrap();
+    audit_project(
+        tmp.path(),
+        "run-a",
+        "{\"event\":\"engine_attach\",\"timestamp_unix_ns\":\"5\"}\n\
+         {\"event\":\"append_policy_delta\",\"status\":\"accepted\",\"target_id\":42,\"timestamp_unix_ns\":\"5\"}\n\
+         {\"event\":\"taint_violation\",\"op\":\"open\",\"action\":\"block\",\"target\":\"/etc/shadow\"}\n",
+    );
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["replay"])
+        .output()
+        .expect("run replay");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let stdout = stdout(&output);
+    assert!(stdout.contains("3 step(s)"), "{stdout}");
+    let lines: Vec<&str> = stdout.lines().skip(1).collect();
+    assert!(lines[0].contains("[attach] engine_attach"), "{stdout}");
+    assert!(
+        lines[1].contains("[delta] append_policy_delta accepted target 42"),
+        "{stdout}"
+    );
+    assert!(
+        lines[2].contains("[violation] taint_violation open action block target /etc/shadow"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn replay_json_emits_classified_steps_with_their_records() {
+    // The `--json` form is the machine-readable one, so each step carries its
+    // kind and the record it came from rather than a rendered line.
+    let tmp = tempfile::tempdir().unwrap();
+    audit_project(
+        tmp.path(),
+        "run-a",
+        "{\"event\":\"new_fangled_event\",\"timestamp_unix_ns\":\"7\"}\n",
+    );
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["replay", "--json"])
+        .output()
+        .expect("run replay --json");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let body: serde_json::Value = serde_json::from_str(&stdout(&output)).expect("replay json");
+    assert_eq!(body["step_count"], serde_json::json!(1));
+    assert_eq!(body["steps"][0]["kind"], "other");
+    assert_eq!(body["steps"][0]["summary"], "new_fangled_event");
+    assert_eq!(body["steps"][0]["timestamp_unix_ns"], "7");
+    assert_eq!(body["steps"][0]["record"]["event"], "new_fangled_event");
+}
+
+#[test]
+fn replay_reports_an_empty_log_instead_of_failing() {
+    let tmp = tempfile::tempdir().unwrap();
+    audit_project(tmp.path(), "run-a", "");
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["replay"])
+        .output()
+        .expect("run replay");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(stdout(&output).contains("No ActPlane audit records to replay"));
+}
+
 fn explain_project(dir: &std::path::Path, run: &str, feedback: &str) {
     fs::write(
         dir.join("actplane.yaml"),

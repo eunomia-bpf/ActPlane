@@ -159,6 +159,128 @@ pub fn read_records(path: &Path) -> Result<Vec<Value>> {
         .collect())
 }
 
+/// One step on the replayed timeline: an audit record reduced to the fields the
+/// replay tells a story with.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReplayStep {
+    pub kind: ReplayKind,
+    /// `timestamp_unix_ns` as a number when the record carried one.
+    pub timestamp_ns: Option<i128>,
+    pub summary: String,
+    /// The record as read, kept so a caller can present more than the summary.
+    pub record: Value,
+}
+
+/// The kinds of audit record the replay distinguishes. A record whose `event`
+/// is unknown keeps its literal name in `summary` and classifies as `Other`, so
+/// a new event still appears on the timeline rather than being dropped.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReplayKind {
+    EngineAttach,
+    PolicyDelta,
+    ChildDomain,
+    Violation,
+    Other,
+}
+
+impl ReplayKind {
+    fn of(event: &str) -> Self {
+        match event {
+            "engine_attach" | "attach" => Self::EngineAttach,
+            "append_policy_delta" => Self::PolicyDelta,
+            "bind_child_domain"
+            | "launch_child_domain"
+            | "restart_child_domain"
+            | "adopt_child_domain" => Self::ChildDomain,
+            "taint_violation" => Self::Violation,
+            _ => Self::Other,
+        }
+    }
+
+    /// Short word for the `--json` step objects and the text prefix.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::EngineAttach => "attach",
+            Self::PolicyDelta => "delta",
+            Self::ChildDomain => "child",
+            Self::Violation => "violation",
+            Self::Other => "other",
+        }
+    }
+}
+
+/// Reduce an audit log to an ordered timeline. Records keep their file order,
+/// because the log is append-only and its own order is the causal order when
+/// timestamps repeat or a legacy record has none. A record whose timestamp
+/// parses as a number beyond `i128` (or as no number at all) simply carries
+/// `None` rather than dropping the line.
+pub fn replay_steps(records: &[Value]) -> Vec<ReplayStep> {
+    records
+        .iter()
+        .map(|record| {
+            let obj = record.as_object();
+            let event = obj
+                .and_then(|o| o.get("event"))
+                .and_then(Value::as_str)
+                .unwrap_or("?");
+            let kind = ReplayKind::of(event);
+            let timestamp_ns = obj.and_then(|o| o.get("timestamp_unix_ns")).and_then(|v| {
+                v.as_i64()
+                    .map(i128::from)
+                    .or_else(|| v.as_str().and_then(|s| s.parse::<i128>().ok()))
+            });
+            ReplayStep {
+                kind,
+                timestamp_ns,
+                summary: summarize(event, obj),
+                record: record.clone(),
+            }
+        })
+        .collect()
+}
+
+/// The one-line description of a record: the event name plus the fields that
+/// make it legible without the rest of the JSON.
+fn summarize(event: &str, obj: Option<&serde_json::Map<String, Value>>) -> String {
+    let field = |key: &str| {
+        obj.and_then(|o| o.get(key)).map(|v| match v {
+            Value::String(s) => s.clone(),
+            other => other.to_string(),
+        })
+    };
+    let mut parts = vec![event.to_string()];
+    if let Some(status) = field("status") {
+        parts.push(status);
+    }
+    match event {
+        "append_policy_delta" => {
+            if let Some(target) = field("target_id") {
+                parts.push(format!("target {target}"));
+            }
+        }
+        "taint_violation" => {
+            for (key, prefix) in [("op", ""), ("action", "action "), ("target", "target ")] {
+                if let Some(value) = field(key) {
+                    parts.push(format!("{prefix}{value}"));
+                }
+            }
+        }
+        "bind_child_domain"
+        | "launch_child_domain"
+        | "restart_child_domain"
+        | "adopt_child_domain" => {
+            if let Some(pid) = field("pid") {
+                parts.push(format!("pid {pid}"));
+            }
+            if let Some(domain) = field("child_domain_id") {
+                parts.push(format!("domain {domain}"));
+            }
+        }
+        _ => {}
+    }
+    parts.join(" ")
+}
+
 pub fn append(path: &Path, mut record: Value) -> Result<()> {
     append_with_schema(path, "actplane.audit.v1", &mut record)
 }
@@ -190,6 +312,42 @@ pub fn append_with_schema(path: &Path, schema: &str, record: &mut Value) -> Resu
 mod tests {
     use super::*;
 
+    #[test]
+    fn replay_keeps_append_order_and_classifies_each_event() {
+        // The log is append-only, so its line order is the causal order and the
+        // replay must not re-sort on timestamps that repeat or are missing. An
+        // unknown event still gets a step, because a reader watching the
+        // timeline should not have a record silently vanish when a producer
+        // adds one.
+        let records = vec![
+            json!({"event": "engine_attach", "timestamp_unix_ns": "5"}),
+            json!({"event": "append_policy_delta", "status": "accepted", "target_id": 42,
+                   "timestamp_unix_ns": "5"}),
+            json!({"event": "taint_violation", "op": "open", "action": "block",
+                   "target": "/etc/shadow"}),
+            json!({"event": "brand_new_event", "timestamp_unix_ns": 9}),
+            Value::String("not json".to_string()),
+        ];
+        let steps = replay_steps(&records);
+
+        assert_eq!(steps.len(), 5);
+        assert_eq!(steps[0].kind, ReplayKind::EngineAttach);
+        assert_eq!(steps[1].kind, ReplayKind::PolicyDelta);
+        assert_eq!(steps[2].kind, ReplayKind::Violation);
+        assert_eq!(steps[3].kind, ReplayKind::Other);
+        assert_eq!(steps[4].kind, ReplayKind::Other);
+        assert_eq!(steps[0].timestamp_ns, Some(5));
+        assert_eq!(steps[2].timestamp_ns, None);
+        assert_eq!(steps[1].summary, "append_policy_delta accepted target 42");
+        assert_eq!(
+            steps[2].summary,
+            "taint_violation open action block target /etc/shadow"
+        );
+        assert_eq!(steps[3].summary, "brand_new_event");
+        // The unparsed line keeps its step and its raw text.
+        assert_eq!(steps[4].summary, "?");
+        assert_eq!(steps[4].record, Value::String("not json".to_string()));
+    }
     #[test]
     fn audit_appends_jsonl_with_schema_and_timestamp() {
         let path =

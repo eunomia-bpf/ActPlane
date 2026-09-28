@@ -139,6 +139,12 @@ one-line summary per record and `actplane audit export --jsonl` re-emits the raw
 records, both resolving the log the same way the `actplane:///audit` resource
 does. Add `--path <file>` to read a specific log.
 
+`actplane replay` reads the same log and prints an ordered timeline of the run:
+one step per record, tagged `attach`, `delta`, `child`, `violation`, or `other`,
+in the order the engine appended them. `actplane replay --json` emits the steps
+with their classification and the underlying record. Add `--path <file>` to read
+a specific log.
+
 Verify:
 
 ```bash

@@ -101,6 +101,8 @@ enum Commands {
     Explain(ExplainArgs),
     /// Show or export the run audit log for this project.
     Audit(AuditArgs),
+    /// Replay the run audit log as an ordered timeline of engine activity.
+    Replay(ReplayArgs),
     /// Control an already-running auto-attached ActPlane engine.
     Control {
         #[command(subcommand)]
@@ -445,6 +447,16 @@ struct ExplainLastArgs {
     path: Option<PathBuf>,
 }
 
+#[derive(Args)]
+struct ReplayArgs {
+    /// Emit the timeline as JSON instead of the text form.
+    #[arg(long)]
+    json: bool,
+    /// Read this audit log instead of resolving the project's.
+    #[arg(long, value_name = "FILE")]
+    path: Option<PathBuf>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
@@ -477,6 +489,7 @@ async fn main() -> Result<()> {
         Commands::Control { command } => control_command(&cli, command).await?,
         Commands::Audit(args) => audit_command(&cli, args)?,
         Commands::Explain(args) => explain_command(&cli, args)?,
+        Commands::Replay(args) => replay_command(&cli, args)?,
     };
     if code != 0 {
         std::process::exit(code);
@@ -1069,6 +1082,49 @@ fn audit_log_path(cli: &Cli, explicit: Option<&Path>) -> Result<PathBuf> {
         Some(path) => Ok(config::absolutize(path, &std::env::current_dir()?)),
         None => Ok(audit::resolve_log_path(&control_project_dir(cli)?)),
     }
+}
+
+fn replay_command(cli: &Cli, args: &ReplayArgs) -> Result<i32> {
+    let path = audit_log_path(cli, args.path.as_deref())?;
+    let steps = audit::replay_steps(&audit::read_records(&path)?);
+    if args.json {
+        let value = serde_json::json!({
+            "path": path.display().to_string(),
+            "step_count": steps.len(),
+            "steps": steps
+                .iter()
+                .map(|step| {
+                    serde_json::json!({
+                        "kind": step.kind.label(),
+                        "timestamp_unix_ns": step.timestamp_ns.map(|ns| ns.to_string()),
+                        "summary": step.summary,
+                        "record": step.record,
+                    })
+                })
+                .collect::<Vec<_>>(),
+        });
+        println!("{}", serde_json::to_string_pretty(&value)?);
+        return Ok(0);
+    }
+    if steps.is_empty() {
+        println!("No ActPlane audit records to replay in {}", path.display());
+        return Ok(0);
+    }
+    println!("{} step(s) from {}", steps.len(), path.display());
+    for (i, step) in steps.iter().enumerate() {
+        // The record's own append order is the causal order, so the log line
+        // number is the step number rather than a sort by the timestamp.
+        match step.timestamp_ns {
+            Some(ns) => println!(
+                "  {}. [{}] {} ({ns} ns)",
+                i + 1,
+                step.kind.label(),
+                step.summary
+            ),
+            None => println!("  {}. [{}] {}", i + 1, step.kind.label(), step.summary),
+        }
+    }
+    Ok(0)
 }
 
 fn explain_command(cli: &Cli, args: &ExplainArgs) -> Result<i32> {
