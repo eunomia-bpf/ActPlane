@@ -33,6 +33,7 @@ use ebpf_ifc_engine::capability::{AUTH_BIND_RULE, TARGET_SELF};
 
 const POLICY_RESOURCE_URI: &str = "actplane:///policy";
 const FEEDBACK_RESOURCE_URI: &str = "actplane:///feedback";
+const POLICY_NOT_FOUND_PREFIX: &str = "No policy file found";
 const WATCH_INTERVAL: Duration = Duration::from_secs(2);
 const SUPERVISOR_INTERVAL: Duration = Duration::from_millis(500);
 const DEFAULT_RESTART_LIMIT: u32 = 3;
@@ -187,7 +188,14 @@ impl ActPlaneMcp {
     fn load_and_validate(&self) -> String {
         let path = match self.discover_policy_file() {
             Some(p) => p,
-            None => return "No actplane.yaml found.".into(),
+            None => {
+                return format!(
+                    "{} ({}), searched upward from {}.",
+                    POLICY_NOT_FOUND_PREFIX,
+                    config::DEFAULT_POLICY_FILES.join(" or "),
+                    self.project_dir.display()
+                );
+            }
         };
         let src = match std::fs::read_to_string(&path) {
             Ok(s) => s,
@@ -2424,11 +2432,18 @@ impl ServerHandler for ActPlaneMcp {
         let resources = vec![
             Resource::new(POLICY_RESOURCE_URI, "actplane-policy")
                 .with_title("ActPlane Policy Status")
-                .with_description("Current policy validation result from actplane.yaml")
+                .with_description(
+                    "Current policy validation result, resolved by searching for \
+                     actplane.yaml or .actplane/policy.yaml up from the project directory",
+                )
                 .with_mime_type("text/plain"),
             Resource::new(FEEDBACK_RESOURCE_URI, "actplane-feedback")
                 .with_title("ActPlane Feedback")
-                .with_description("Latest corrective feedback from .actplane/last-violation.txt")
+                .with_description(
+                    "Latest corrective feedback, from ACTPLANE_FEEDBACK_FILE, the \
+                     latest .actplane/runs/*/feedback.txt, or the configured or \
+                     default feedback path",
+                )
                 .with_mime_type("text/plain"),
         ];
         std::future::ready(Ok(ListResourcesResult {
@@ -2498,7 +2513,7 @@ async fn watch_policy_file(server: Arc<ActPlaneMcp>, peer: Peer<RoleServer>) {
             last_policy_mtime = current_policy_mtime;
 
             let result = server.load_and_validate();
-            let level = if result.contains("error") || result.contains("No actplane") {
+            let level = if result.contains("error") || result.contains(POLICY_NOT_FOUND_PREFIX) {
                 LoggingLevel::Error
             } else {
                 LoggingLevel::Info
@@ -3035,6 +3050,37 @@ policy: |
             warned.contains("**/alpha/beta/gamma/delta/**"),
             "warning did not name the widened pattern: {warned}"
         );
+
+        let _ = std::fs::remove_dir_all(project_dir);
+    }
+
+    #[test]
+    fn validate_resource_names_every_policy_candidate_when_none_is_found() {
+        // The watcher upgrades a not-found result to `LoggingLevel::Error` by
+        // matching `POLICY_NOT_FOUND_PREFIX` (mcp.rs:2516), and an MCP client
+        // reading `actplane:///policy` learns which files the server searched
+        // from the same message. A message that named only `actplane.yaml`
+        // would hide the `.actplane/policy.yaml` candidate the walker also
+        // accepts.
+        let project_dir = std::env::temp_dir().join(format!(
+            "actplane-mcp-not-found-test-{}-{}",
+            std::process::id(),
+            child_launch_id()
+        ));
+        std::fs::create_dir_all(&project_dir).expect("project dir");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project_dir.clone()));
+
+        let text = server.load_and_validate();
+        assert!(
+            text.starts_with(POLICY_NOT_FOUND_PREFIX),
+            "watcher would not classify this as not-found: {text}"
+        );
+        for candidate in config::DEFAULT_POLICY_FILES {
+            assert!(
+                text.contains(candidate),
+                "message did not name candidate {candidate}: {text}"
+            );
+        }
 
         let _ = std::fs::remove_dir_all(project_dir);
     }

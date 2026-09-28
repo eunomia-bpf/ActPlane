@@ -3,7 +3,10 @@ use std::path::{Path, PathBuf};
 
 use crate::{PolicyInput, Result};
 
-const DEFAULT_POLICY_FILES: &[&str] = &["actplane.yaml", ".actplane/policy.yaml"];
+/// The file names `discover_policy` walks for, in search order. Public so a
+/// caller that reports "no policy file" names the same candidates it searched
+/// rather than restating them.
+pub const DEFAULT_POLICY_FILES: &[&str] = &["actplane.yaml", ".actplane/policy.yaml"];
 pub const DEFAULT_FEEDBACK_FILE: &str = ".actplane/last-violation.txt";
 pub const DEFAULT_HOOK_STATE_FILE: &str = ".actplane/feedback-hook.state.json";
 pub const DEFAULT_AUDIT_FILE: &str = ".actplane/audit.jsonl";
