@@ -27,13 +27,12 @@ use serde_json::Value;
 
 use crate::control as local_control;
 use crate::runtime::{EngineControl, PolicyAuditMeta, mark_non_stdio_fds_cloexec};
-use crate::{audit, dsl};
+use crate::{audit, config, dsl};
 use ebpf_ifc_engine::ChildDomainSpec;
 use ebpf_ifc_engine::capability::{AUTH_BIND_RULE, TARGET_SELF};
 
 const POLICY_RESOURCE_URI: &str = "actplane:///policy";
 const FEEDBACK_RESOURCE_URI: &str = "actplane:///feedback";
-const DEFAULT_FEEDBACK_FILE: &str = ".actplane/last-violation.txt";
 const WATCH_INTERVAL: Duration = Duration::from_secs(2);
 const SUPERVISOR_INTERVAL: Duration = Duration::from_millis(500);
 const DEFAULT_RESTART_LIMIT: u32 = 3;
@@ -180,18 +179,9 @@ impl ActPlaneMcp {
     }
 
     fn discover_policy_file(&self) -> Option<PathBuf> {
-        let candidates = ["actplane.yaml", ".actplane/policy.yaml"];
-        let mut dir = Some(self.project_dir.as_path());
-        while let Some(d) = dir {
-            for name in &candidates {
-                let p = d.join(name);
-                if p.is_file() {
-                    return Some(p);
-                }
-            }
-            dir = d.parent();
-        }
-        None
+        // Delegate to the single authority for the policy-file walk, so the MCP
+        // server and the CLI cannot disagree on which file a project uses.
+        config::discover_policy(&self.project_dir)
     }
 
     fn load_and_validate(&self) -> String {
@@ -252,28 +242,27 @@ impl ActPlaneMcp {
             return PathBuf::from(path);
         }
         let Some(policy) = self.discover_policy_file() else {
-            return self.project_dir.join(DEFAULT_FEEDBACK_FILE);
+            return self.project_dir.join(config::DEFAULT_FEEDBACK_FILE);
         };
         let root = policy
             .parent()
             .map(PathBuf::from)
             .unwrap_or_else(|| self.project_dir.clone());
         let Ok(src) = std::fs::read_to_string(&policy) else {
-            return root.join(DEFAULT_FEEDBACK_FILE);
+            return root.join(config::DEFAULT_FEEDBACK_FILE);
         };
-        let Ok(config) = serde_yaml::from_str::<serde_yaml::Value>(&src) else {
-            return root.join(DEFAULT_FEEDBACK_FILE);
+        let Ok(yaml) = serde_yaml::from_str::<serde_yaml::Value>(&src) else {
+            return root.join(config::DEFAULT_FEEDBACK_FILE);
         };
         if let Some(path) = latest_run_feedback(&root) {
             return path;
         }
-        config
-            .get("feedback")
+        yaml.get("feedback")
             .and_then(|v| v.get("path"))
             .and_then(|v| v.as_str())
             .map(PathBuf::from)
             .map(|p| if p.is_absolute() { p } else { root.join(p) })
-            .unwrap_or_else(|| root.join(DEFAULT_FEEDBACK_FILE))
+            .unwrap_or_else(|| root.join(config::DEFAULT_FEEDBACK_FILE))
     }
 
     fn load_feedback(&self) -> String {
