@@ -149,6 +149,17 @@ contexts off the stack entirely. Inlining is the counter-intuitive one: a
 measured on this engine marking `handle_io_exit_addr` `__noinline` moved
 `trace_recvfrom_exit` from `6 calls is 576` to `7 calls is 640`, farther over the
 limit. Reach for `__noinline` only when one helper's own frame is the problem.
+The path matcher shows the same lever against a different cap. `te_path_match` is
+`__always_inline`, so its matcher body is copied into each of the roughly four
+rule scans a path hook performs, and with the path-suffix class reserved
+`trace_rename_exit` fails the instruction-processing cap at `processed 1000001
+insns (limit 1000000)`, `peak_states 7091`. Marking only `te_path_match`
+`__noinline` drops `trace_rename_exit` to `processed 712821 insns`, under the
+cap, but then `trace_openat_exit` fails `the call stack of 9 frames is too deep`:
+the helper trades the instruction cap for a call-frame cap on a program that
+already sits at the frame limit. Both caps bind, so un-pruning the path-matcher
+classes needs a state reduction inside the matcher, not a call, which is why
+`PINNED_POLICY_FEATURES` omits them.
 
 Scratch contexts matter for the scan collectors. A `bpf_loop` context argument is a
 stack-typed value that stays spilled for the whole program, so a context struct
@@ -204,14 +215,12 @@ production loader,
 per-instruction log, so a rejected program reports `processed N insns`, its
 `peak_states`, and its `stack depth`, instead of only that the skeleton failed.
 Measured in a 6.8 guest with the path-suffix matcher class reserved,
-`trace_rename_exit` fails at `processed 1000001 insns (limit 1000000)` with
-`peak_states 7091` and `stack depth 0+192+...`: the path-matcher classes sit
-exactly at the instruction-processing cap, one instruction over, which is why
-`PINNED_POLICY_FEATURES` omits them. To assert the whole engine installs rather
-than inspect one program, `docs/empirical-study/run_engine_install_smoke_vm.sh`
-boots a 6.8 guest and runs `actplane run` against a policy that names no `recv`,
-requiring `ActPlane: running`; it fails closed on a rejection and prints the
-verifier text.
+`trace_rename_exit` fails at `processed 1000001 insns` while the budget section
+above records the same measurement and the `__noinline` counterfactual. To assert
+the whole engine installs rather than inspect one program,
+`docs/empirical-study/run_engine_install_smoke_vm.sh` boots a 6.8 guest and runs
+`actplane run` against a policy that names no `recv`, requiring it to report
+`ActPlane: running`; it fails closed on a rejection and prints the verifier text.
 With `f315e600` the smoke passes on this branch, while the same smoke against a
 binary built from `origin/master`, which embeds that branch's committed object,
 fails with `combined stack size of 6 calls is 608. Too large` and `stack depth
