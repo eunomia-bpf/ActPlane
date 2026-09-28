@@ -204,9 +204,9 @@ domain deltas whose final policy is not known at startup.
 Set `ACTPLANE_BPF_PIN_ROOT` to relocate that directory. The engine reads it when
 it resolves the pin paths (`bpf/src/lib.rs:115`), so every process in the session
 must set the same value; a process that points at a different root installs a
-second engine rather than joining the first. Use it when bpffs is mounted
-somewhere other than `/sys/fs/bpf`, or to isolate concurrent sessions that must
-not share one engine.
+second engine rather than joining the first (`bpf/src/lib.rs:1988`). Use it when
+bpffs is mounted somewhere other than `/sys/fs/bpf`, for example under a
+container runtime that relocates it.
 
 ## Recommended Rollout
 
