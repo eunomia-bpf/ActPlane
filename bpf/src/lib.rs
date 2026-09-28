@@ -1178,18 +1178,16 @@ const ALL_HOOK_FEATURES: u32 = FEAT_CONNECT
 #[cfg(test)]
 const ALL_POLICY_FEATURES: u32 =
     FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX | FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
-// The pinned singleton keeps the cheap rule-class bits (open/write sink rules),
-// the path-suffix matcher, and every hook bit reserved, so a runtime delta that
-// adds an absolute/repo-relative file sink or a `**/.env`-style suffix sink
-// installs without a reload. `FEAT_PATH_CONTAINS` is the one class still
-// excluded: it un-prunes the `bpf_loop`-based `taint_contains`, and reserving
-// both path matchers pushes `trace_openat_exit` past the verifier's
-// 1,000,000-instruction limit on 6.8 (measured: processed 1000001 insn).
-// `FEAT_PATH_SUFFIX` fits only because `taint_suffix`'s word-wise compare keeps
-// `trace_rename_exit` under that cap. That class still requires an engine loaded
-// with the matching profile.
+// The pinned singleton reserves every feature class: the cheap rule-class bits
+// (open/write sink rules), both path matchers, and every hook bit, so a runtime
+// delta that adds any file sink installs without a reload. The path matchers fit
+// because `te_nbyte_eq` replaced `taint_suffix`'s 16-iteration byte loop and the
+// `taint_contains` callback's per-byte compare with two masked `u64` compares,
+// which keeps `trace_rename_exit` and `trace_openat_exit` under the verifier's
+// 1,000,000-instruction limit on 6.8. Keeping a class out is the fallback if a
+// future clang/verifier pushes a program back over that cap.
 const PINNED_POLICY_FEATURES: u32 =
-    FEAT_PATH_SUFFIX | FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
+    FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX | FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum HookProfile {
@@ -1644,7 +1642,7 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
     }
     if missing & (FEAT_OPEN_RULES | FEAT_WRITE_RULES | FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX) != 0 {
         hints.push(
-            "file sink rule classes and path contains/suffix matcher classes require the engine to be loaded with those policy features; the pinned singleton reserves the cheap file sink rule classes for future deltas but not the expensive path suffix/contains matchers",
+            "file sink rule classes and path contains/suffix matcher classes require the engine to be loaded with those policy features; the pinned singleton reserves both for future deltas",
         );
     }
     if missing & (FEAT_BLOCK_EXEC | FEAT_BLOCK_FILE | FEAT_BLOCK_CONNECT) != 0 {
@@ -1945,9 +1943,8 @@ impl Loader {
 
     /// Load the engine with an explicit hook profile for later runtime deltas.
     /// The reserve carries the profile's hook bits plus, for the pinned
-    /// singleton, the cheap file sink rule classes. Expensive path suffix and
-    /// contains matchers still require the policy used to load the engine to
-    /// demand them.
+    /// singleton, the cheap file sink rule classes and both path matchers, so a
+    /// later runtime delta can add any file sink without a reload.
     pub fn load_with_hook_reserve(
         config_blob: &[u8],
         hook_reserve: HookReserve,
@@ -3333,7 +3330,7 @@ mod tests {
         let text = err.to_string();
         assert!(text.contains("path contains matches"), "{text}");
         assert!(
-            text.contains("not the expensive path suffix/contains matchers"),
+            text.contains("the pinned singleton reserves both for future deltas"),
             "{text}"
         );
         assert!(text.contains("missing=0x"), "{text}");
@@ -3342,7 +3339,7 @@ mod tests {
     }
 
     #[test]
-    fn pinned_reserve_admits_suffix_file_sinks_but_still_gates_contains() {
+    fn pinned_reserve_admits_path_matcher_file_sink_deltas() {
         // `actplane run` on kernel >= 6.1 always installs the pinned singleton,
         // so a policy whose file sink uses an absolute or repo-relative pattern
         // (prefix/exact/any) must validate against the pinned reserve as a
@@ -3360,9 +3357,10 @@ mod tests {
             "the write sink delta must exercise the reserved rule class"
         );
 
-        // The path-suffix matcher is now part of the reserve: the word-wise
-        // compare in `taint_suffix` cut `trace_rename_exit` under the
-        // instruction cap, so a `**/.env` suffix sink installs as a delta.
+        // The path matchers are now part of the reserve: the word-wise compare
+        // in `te_nbyte_eq` cut `taint_suffix` and the `taint_contains` callback
+        // under the instruction-processing cap, so `**/.env` (suffix) and
+        // `**/secrets/**` (contains) sinks install as deltas.
         let mut suffix: CConfig = unsafe { std::mem::zeroed() };
         suffix.n_rules = 1;
         suffix.rules[0].op = OP_WRITE;
@@ -3375,16 +3373,17 @@ mod tests {
             "the suffix delta must exercise the reserved path-suffix class"
         );
 
-        // `contains` stays gated: reserving both path matchers still overruns
-        // the instruction limit (`trace_openat_exit` at processed 1000001 insn).
         let mut contains: CConfig = unsafe { std::mem::zeroed() };
         contains.n_rules = 1;
         contains.rules[0].op = OP_WRITE;
         contains.rules[0].m = M_CONTAINS;
-        let err =
-            validate_supported_features(&contains, PINNED_POLICY_FEATURES, "runtime policy delta")
-                .expect_err("the pinned reserve still gates contains matchers");
-        assert!(err.to_string().contains("missing=0x1"), "{err}");
+        validate_supported_features(&contains, PINNED_POLICY_FEATURES, "runtime policy delta")
+            .expect("the pinned reserve admits a contains file sink delta");
+        assert_ne!(
+            config_features(&contains) & FEAT_PATH_CONTAINS,
+            0,
+            "the contains delta must exercise the reserved path-contains class"
+        );
     }
 
     #[test]

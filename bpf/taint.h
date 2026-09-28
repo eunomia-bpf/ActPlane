@@ -214,6 +214,26 @@ static TAINT_NOINLINE int taint_prefix(const char *text, const char *pre)
 }
 #endif
 
+/* Do the first `n` (n in [0, 16]) bytes of `a` and `b` agree? Word-wise masked
+ * compare: the low word covers bytes [0, 8) and the high word [8, 16), masking
+ * each to the low `min(n, 8)` / `max(n-8, 0)` bytes. This reproduces a per-byte
+ * `j < n` predicate with a handful of instructions and constant-index reads,
+ * which is what keeps the path matchers under the verifier's
+ * instruction-processing cap. Both callers pass a TAINT_SUF_MAX (or larger)
+ * buffer, so the two word reads stay in bounds. */
+static __always_inline int te_nbyte_eq(const char *a, const char *b, int n)
+{
+	if (n <= 0)
+		return 1;
+	unsigned long long lo_n = n >= 8 ? 8 : (unsigned long long)n;
+	unsigned long long m0 = lo_n >= 8 ? ~0ULL : ((1ULL << (lo_n * 8)) - 1);
+	unsigned long long hi_n = n >= 8 ? (unsigned long long)(n - 8) : 0;
+	unsigned long long m1 = hi_n >= 8 ? ~0ULL : ((1ULL << (hi_n * 8)) - 1);
+	const unsigned long long *wa = (const unsigned long long *)a;
+	const unsigned long long *wb = (const unsigned long long *)b;
+	return ((wa[0] ^ wb[0]) & m0) == 0 && ((wa[1] ^ wb[1]) & m1) == 0;
+}
+
 /* does `text` end with non-empty `suf`? Compute both lengths branchlessly, then
  * compare `suf` at every start position with CONSTANT indices and keep only the
  * aligned position p == off (off = |text| - |suf|). Avoids the symbolic-offset
@@ -246,16 +266,7 @@ static TAINT_NOINLINE int taint_suffix(const char *text, const char *suf)
 	if (off > TAINT_PAT_LEN - 1)
 		off = TAINT_PAT_LEN - 1;
 	TE_COPY(tail, TAINT_SUF_MAX, text + off);
-	/* Word-wise masked compare over the copied tail: `sn` is in [1,16], so two
-	 * u64 words cover it. Same constant-index reads as the byte loop, but ~12
-	 * insns instead of a 16-iteration unroll. Mask bytes past `sn` in each word. */
-	unsigned long long lo_n = sn >= 8 ? 8 : sn;
-	unsigned long long m0 = lo_n >= 8 ? ~0ULL : ((1ULL << (lo_n * 8)) - 1);
-	unsigned long long hi_n = sn >= 8 ? (unsigned long long)(sn - 8) : 0;
-	unsigned long long m1 = hi_n >= 8 ? ~0ULL : ((1ULL << (hi_n * 8)) - 1);
-	const unsigned long long *tw = (const unsigned long long *)tail;
-	const unsigned long long *sw = (const unsigned long long *)suf;
-	return ((tw[0] ^ sw[0]) & m0) == 0 && ((tw[1] ^ sw[1]) & m1) == 0;
+	return te_nbyte_eq(tail, suf, sn);
 }
 
 /* taint_contains is implemented in taint_engine.bpf.h (needs bpf_loop).
