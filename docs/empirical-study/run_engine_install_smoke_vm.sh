@@ -5,7 +5,7 @@
 # Context. The verifier sums the maximum stack depth along a call chain and rejects
 # a program over 512 bytes; the rule is old, but Linux 6.8's per-frame accounting is
 # what made it bite here. `HookReserve::full_profile()` sets
-# `PINNED_POLICY_FEATURES` = `ALL_HOOK_FEATURES`, which includes recv
+# `PINNED_POLICY_FEATURES`, a superset of `ALL_HOOK_FEATURES` that includes recv
 # unconditionally and does no autoload gating, so `actplane run`, `watch`, and MCP
 # load `trace_recvfrom_exit` regardless of the policy. When a helper on that
 # chain carries a large stack frame the whole engine fails to install, for any

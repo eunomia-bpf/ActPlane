@@ -183,8 +183,9 @@ loads the program. The severity depends on who autoloads the program:
   (or file-flow with advanced tracepoints), so a static policy reaches the
   failure only when it uses `recv` together with a file source or file rule.
 - The Rust pinned-engine path does not gate: `HookReserve::full_profile()` sets
-  `PINNED_POLICY_FEATURES`, which is `ALL_HOOK_FEATURES` and so always includes
-  recv. `actplane run`, `watch`, and MCP go through that path, so on a 6.8 kernel
+  `PINNED_POLICY_FEATURES`, a superset of `ALL_HOOK_FEATURES` (it adds the cheap
+  open/write file sink rule classes), so it always includes recv. `actplane run`,
+  `watch`, and MCP go through that path, so on a 6.8 kernel
   that still carries a stack-heavy frame the engine fails to install *for any
   policy at all*, and the process reports
   `open ActPlane singleton: trace_recvfrom_exit.load: ... Permission denied`.

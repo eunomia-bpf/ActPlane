@@ -163,7 +163,7 @@ function the source defines. `ebpf-ifc-engine` embeds `prebuilt/process.bpf.o`,
 so a stale object ships a broken engine: `master` currently ships one whose
 `trace_recvfrom_exit`, `trace_recvmsg_exit`, and rename-exit programs fail to
 load on Linux 6.8 (measured by loading every program at the pinned feature mask,
-which is `ALL_HOOK_FEATURES`). After editing
+`PINNED_POLICY_FEATURES`). After editing
 any kernel C, regenerate both objects and the stamp together with
 `ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine` (which runs the guard's
 `--update`), and never edit the stamp by hand: `--update` refuses to stamp unless
