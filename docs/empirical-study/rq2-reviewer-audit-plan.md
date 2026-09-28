@@ -237,8 +237,9 @@ lexicographically-newest `/boot/vmlinuz-*-generic`, so on a host carrying a newe
 generic kernel it would silently record a `guest_kernel` other than the 6.8 this
 note and the metadata claim, on a kernel where the 6.8 per-frame stack accounting
 does not apply, so the recorded rejection need not reproduce. It now defaults only
-to `vmlinuz-6.8.*-generic` and
-matching the sibling probe runner. A run with an explicit
+to `vmlinuz-6.8.*-generic` and fails closed with an actionable message when no
+such kernel is present (exit 2), matching the sibling probe runner. A run with an
+explicit
 `ACTPLANE_VM_KERNEL=/path/to/vmlinuz-6.8.0-138-generic` reproduces the committed
 `counts.tsv` byte-for-byte and records `guest_kernel 6.8.0-138-generic`.
 
