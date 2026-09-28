@@ -23,8 +23,10 @@
 # `bpf()`. A guest boot of the kernel you mean to support is the only authority,
 # which is what this runner does.
 #
-# The runner asserts the success side: the engine installs and the command reports
-# `ActPlane: running`. A rejection prints the verifier text and fails closed.
+# The runner asserts two success conditions: the engine installs and the command
+# reports `ActPlane: running`, and the policy's cheap file sink fires, so the
+# installed engine is shown to enforce rather than merely load. A rejection, or a
+# silent sink, prints the reason and fails closed.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -88,7 +90,7 @@ dmesg -n 1 2>/dev/null || true
 mkdir -p /tmp
 
 echo SMOKE_BEGIN
-"$ACT" --policy /smoke.yaml run -- /bin/true > /tmp/run.log 2>&1
+"$ACT" --policy /smoke.yaml run -- /bin/sh -c 'echo hi > /tmp/engine-smoke.out' > /tmp/run.log 2>&1
 run_rc=\$?
 cat /tmp/run.log
 echo SMOKE_RC \$run_rc
@@ -96,6 +98,11 @@ if grep -q 'ActPlane: running' /tmp/run.log && [ "\$run_rc" -eq 0 ]; then
   echo SMOKE_ENGINE_INSTALLED
 else
   echo SMOKE_ENGINE_REJECTED
+fi
+if grep -q 'VIOLATION' /tmp/run.log; then
+  echo SMOKE_SINK_FIRED
+else
+  echo SMOKE_SINK_SILENT
 fi
 echo EXPERIMENT_DONE
 poweroff -f
@@ -142,4 +149,7 @@ fi
 grep -q '^SMOKE_ENGINE_INSTALLED' "$OUT/console.clean.log" || {
   echo "guest did not report a successful engine install; evidence retained in $OUT" >&2; exit 1;
 }
-echo "wrote successful engine-install smoke to $OUT"
+grep -q '^SMOKE_SINK_FIRED' "$OUT/console.clean.log" || {
+  echo "the engine installed but the cheap file sink never fired; evidence retained in $OUT" >&2; exit 1;
+}
+echo "wrote successful engine-install-and-fire smoke to $OUT"
