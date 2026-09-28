@@ -147,10 +147,13 @@ four-field header and three-field rows from a `printf` placeholder/argument
 mismatch. Because it is a recurring shape and the files are machine-read,
 `script/check_evidence_tsv.sh` now fails when a committed evidence TSV has rows
 whose field counts disagree (the reference is the first data row, so a file with
-no header but consistent rows still passes), and exits 2 when the directory holds
-no TSV at all, so a moved directory cannot pass silently. It covers the whole
+no header but consistent rows still passes), and floors the number of files it
+checked, so a `find` that stopped descending into part of the tree cannot pass
+silently over a smaller set. It covers the whole
 `docs/empirical-study/` tree rather than only `results/`, because row-oriented
 evidence also lives beside it (`candidate_rules_144.tsv`). It runs in CI's Build
 and Test job and as `make check-evidence`. Both shapes above were confirmed to
-fail it, as were a blank leading line, a comment/blank mix, and a one-column
-file; the committed evidence passes (the check reports the count it scanned).
+fail it, while a blank leading line, a comment/blank mix, and a one-column file
+were confirmed to pass it (the blank and comment lines are skipped, and a file
+with no tab is trivially consistent); the committed evidence passes (the check
+reports the count it scanned).
