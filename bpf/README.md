@@ -196,13 +196,22 @@ loads the program. The severity depends on who autoloads the program:
 Verify with a guest boot of the kernel you mean to support. A load that succeeds
 on one kernel is not evidence for another: the limit is enforced per kernel
 version, and the container this repo is developed in denies `bpf()` outright, so
-its own host can neither confirm nor refute a 6.8 rejection. The diagnostic
-`vvload` loads every program and reports `VLOAD_DONE ok=<n> fail=<n>` per config,
-naming the offending program where the production loader only reports that the
-skeleton failed. To assert the whole engine installs rather than inspect one
-program, `docs/empirical-study/run_engine_install_smoke_vm.sh` boots a 6.8 guest
-and runs `actplane run` against a policy that names no `recv`, requiring
-`ActPlane: running`; it fails closed on a rejection and prints the verifier text.
+its own host can neither confirm nor refute a 6.8 rejection. Two diagnostics name
+the offending program and its verifier budget. The historical `vvload` loaded
+every program and reported `VLOAD_DONE ok=<n> fail=<n>` per config. In the
+production loader,
+`ACTPLANE_BPF_VERIFIER_LOG=stats` turns on verifier stats and `=verbose` adds the
+per-instruction log, so a rejected program reports `processed N insns`, its
+`peak_states`, and its `stack depth`, instead of only that the skeleton failed.
+Measured in a 6.8 guest with the path-suffix matcher class reserved,
+`trace_rename_exit` fails at `processed 1000001 insns (limit 1000000)` with
+`peak_states 7091` and `stack depth 0+192+...`: the path-matcher classes sit
+exactly at the instruction-processing cap, one instruction over, which is why
+`PINNED_POLICY_FEATURES` omits them. To assert the whole engine installs rather
+than inspect one program, `docs/empirical-study/run_engine_install_smoke_vm.sh`
+boots a 6.8 guest and runs `actplane run` against a policy that names no `recv`,
+requiring `ActPlane: running`; it fails closed on a rejection and prints the
+verifier text.
 With `f315e600` the smoke passes on this branch, while the same smoke against a
 binary built from `origin/master`, which embeds that branch's committed object,
 fails with `combined stack size of 6 calls is 608. Too large` and `stack depth

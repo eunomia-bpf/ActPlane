@@ -20,7 +20,7 @@ use std::sync::Mutex;
 use aya::maps::{Array, HashMap, Map, MapData, MapError, ProgramArray, RingBuf};
 use aya::programs::links::FdLink;
 use aya::programs::{Lsm, ProgramFd, TracePoint};
-use aya::{Btf, Ebpf, EbpfLoader};
+use aya::{Btf, Ebpf, EbpfLoader, VerifierLogLevel};
 
 pub mod capability;
 use capability::{
@@ -2002,6 +2002,17 @@ impl Loader {
         }
 
         let mut loader = EbpfLoader::new();
+        // `ACTPLANE_BPF_VERIFIER_LOG=stats|verbose` asks the verifier for a log
+        // so a rejected program names itself and reports `processed N insns`,
+        // `peak_states`, and `stack depth` instead of only "the skeleton
+        // failed". `verbose` is per-instruction and huge; `stats` is the
+        // summary line and is what the budget work wants by default.
+        if let Ok(level) = std::env::var("ACTPLANE_BPF_VERIFIER_LOG") {
+            loader.verifier_log_level(match level.as_str() {
+                "verbose" | "1" => VerifierLogLevel::VERBOSE | VerifierLogLevel::STATS,
+                _ => VerifierLogLevel::STATS,
+            });
+        }
         loader
             .allow_unsupported_maps()
             .override_global("enforce_mode", &enforce_mode, true)
