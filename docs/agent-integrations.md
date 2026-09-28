@@ -127,6 +127,11 @@ for the active policy, the latest feedback, the runtime status (attached engine,
 parent domain, child-domain count), and the run audit log, and it can accept
 controlled child domain operations when the engine is running.
 
+The same audit log is readable outside MCP: `actplane audit show` prints a
+one-line summary per record and `actplane audit export --jsonl` re-emits the raw
+records, both resolving the log the same way the `actplane:///audit` resource
+does. Add `--path <file>` to read a specific log.
+
 Verify:
 
 ```bash

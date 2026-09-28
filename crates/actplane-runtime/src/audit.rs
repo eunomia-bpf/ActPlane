@@ -92,6 +92,65 @@ fn proc_exe(pid: i32) -> Option<String> {
         .map(|p| p.display().to_string())
 }
 
+/// Resolve the audit log a project's runtime would write, without starting an
+/// engine. It mirrors `config::feedback_paths` (`config.rs:440`): the
+/// `feedback.audit` key when set, else the latest `.actplane/runs/*/audit.jsonl`
+/// when a run exists, else the default `.actplane/audit.jsonl`. A path under
+/// `feedback.audit` is resolved against the policy root, so the walk starts at
+/// the discovered policy file.
+pub fn resolve_log_path(project_dir: &Path) -> std::path::PathBuf {
+    let Some(policy) = crate::config::discover_policy(project_dir) else {
+        return project_dir.join(crate::config::DEFAULT_AUDIT_FILE);
+    };
+    let root = policy
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| project_dir.to_path_buf());
+    if let Some(path) = latest_run_audit(&root) {
+        return path;
+    }
+    std::fs::read_to_string(&policy)
+        .ok()
+        .and_then(|src| serde_yaml::from_str::<serde_yaml::Value>(&src).ok())
+        .and_then(|yaml| {
+            yaml.get("feedback")
+                .and_then(|v| v.get("audit"))
+                .and_then(|v| v.as_str())
+                .map(std::path::PathBuf::from)
+        })
+        .map(|p| if p.is_absolute() { p } else { root.join(p) })
+        .unwrap_or_else(|| root.join(crate::config::DEFAULT_AUDIT_FILE))
+}
+
+fn latest_run_audit(root: &Path) -> Option<std::path::PathBuf> {
+    let runs = root.join(".actplane").join("runs");
+    let mut candidates = Vec::new();
+    for entry in std::fs::read_dir(runs).ok()?.flatten() {
+        let path = entry.path().join("audit.jsonl");
+        let modified = std::fs::metadata(&path).ok()?.modified().ok()?;
+        candidates.push((modified, path));
+    }
+    candidates.sort_by_key(|(modified, _)| *modified);
+    candidates.pop().map(|(_, path)| path)
+}
+
+/// Read an audit log into its records. A malformed line is kept as a JSON
+/// string so `record_count` stays the true line count rather than silently
+/// dropping the record. A missing file is `Ok(vec![])`; a present but
+/// unreadable file is an error.
+pub fn read_records(path: &Path) -> Result<Vec<Value>> {
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(format!("reading {}: {}", path.display(), e).into()),
+    };
+    Ok(text
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| serde_json::from_str(l).unwrap_or_else(|_| Value::String(l.to_string())))
+        .collect())
+}
+
 pub fn append(path: &Path, mut record: Value) -> Result<()> {
     append_with_schema(path, "actplane.audit.v1", &mut record)
 }
@@ -180,5 +239,68 @@ mod tests {
         assert_eq!(status_numeric_field(status, "Uid:"), Some(1000));
         assert_eq!(status_numeric_field(status, "Gid:"), Some(1001));
         assert_eq!(status_numeric_field(status, "Nope:"), None);
+    }
+
+    #[test]
+    fn read_records_keeps_malformed_lines_and_counts_true_total() {
+        // The CLI and the `actplane:///audit` resource both go through this, so
+        // a malformed line must not be dropped: `record_count` stays the true
+        // line count and the bad line survives as a JSON string, so a client
+        // sees a gap rather than a shorter clean history.
+        let path =
+            std::env::temp_dir().join(format!("actplane-audit-read-{}.jsonl", std::process::id()));
+        std::fs::write(&path, "{\"event\":\"a\"}\n\nnot json\n{\"event\":\"b\"}\n")
+            .expect("write log");
+
+        let records = read_records(&path).expect("read records");
+        assert_eq!(records.len(), 3, "{records:?}");
+        assert_eq!(records[0]["event"], "a");
+        assert_eq!(records[1], Value::String("not json".into()));
+        assert_eq!(records[2]["event"], "b");
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn read_records_treats_a_missing_file_as_empty() {
+        let path = std::env::temp_dir().join(format!(
+            "actplane-audit-missing-{}-{}.jsonl",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_file(&path);
+        assert!(read_records(&path).expect("missing is empty").is_empty());
+    }
+
+    #[test]
+    fn resolve_log_path_prefers_the_latest_run_log() {
+        // The resolver must match the runtime's scoped path (runtime.rs
+        // `scoped_feedback_paths`) rather than the default, so the CLI and the
+        // MCP resource read the log the engine actually wrote.
+        let project_dir = std::env::temp_dir().join(format!(
+            "actplane-audit-resolve-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&project_dir).expect("project dir");
+        std::fs::write(
+            project_dir.join("actplane.yaml"),
+            "version: 1\npolicy: |\n  rule noop:\n    notify exec \"__never__\"\n    because \"noop\"\n",
+        )
+        .expect("policy");
+        let run_dir = project_dir.join(".actplane").join("runs").join("run-1");
+        std::fs::create_dir_all(&run_dir).expect("run dir");
+        std::fs::write(run_dir.join("audit.jsonl"), "{\"event\":\"a\"}\n").expect("run log");
+
+        let resolved = resolve_log_path(&project_dir);
+        assert_eq!(resolved, run_dir.join("audit.jsonl"));
+
+        let _ = std::fs::remove_dir_all(project_dir);
     }
 }

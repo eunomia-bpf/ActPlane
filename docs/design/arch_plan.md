@@ -209,7 +209,7 @@ authority。
 - feedback delivered to agent;
 - final artifact lineage.
 
-目标命令:
+目标命令（`show` 与 `export --jsonl` 已实现，`replay` 仍待做）:
 
 ```bash
 actplane audit show
@@ -260,8 +260,9 @@ actplane:///status     # 已实现（JSON：attach 状态、parent domain、chil
 actplane:///audit      # 已实现（JSON：audit log 路径、记录数与记录数组）
 ```
 
-这四个是当前 MCP 只读面的全部。`actplane audit show` / `audit export --jsonl` 这类
-命令行审计面（Milestone 8）仍是后续目标。
+这四个是当前 MCP 只读面的全部。`actplane audit show` / `audit export --jsonl`
+已实现，两者与 `actplane:///audit` resource 共用同一套路径解析与记录读取，因此
+命令行和 resource 报告同一条时间线。`actplane replay <audit-log>` 仍是后续目标。
 
 MCP 不应该默认提供大量 policy-mutating tools。修改 policy、创建 delegation、发放
 approval 这类动作应该走 ActPlane control plane，并验证 authority 和 monotonicity。

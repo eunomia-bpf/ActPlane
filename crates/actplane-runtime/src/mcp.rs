@@ -292,53 +292,22 @@ impl ActPlaneMcp {
         }
     }
 
-    /// Path of the project's audit log. The MCP server is not the writer, so
-    /// this mirrors `feedback_file`'s resolution instead of guessing: the
-    /// same `feedback.audit` config key the runtime writes, else the latest
-    /// `.actplane/runs/*/audit.jsonl`, else the default `.actplane/audit.jsonl`.
-    fn audit_file(&self) -> PathBuf {
-        let Some(policy) = self.discover_policy_file() else {
-            return self.project_dir.join(config::DEFAULT_AUDIT_FILE);
-        };
-        let root = policy
-            .parent()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| self.project_dir.clone());
-        if let Some(path) = latest_run_audit(&root) {
-            return path;
-        }
-        std::fs::read_to_string(&policy)
-            .ok()
-            .and_then(|src| serde_yaml::from_str::<serde_yaml::Value>(&src).ok())
-            .and_then(|yaml| {
-                yaml.get("feedback")
-                    .and_then(|v| v.get("audit"))
-                    .and_then(|v| v.as_str())
-                    .map(PathBuf::from)
-            })
-            .map(|p| if p.is_absolute() { p } else { root.join(p) })
-            .unwrap_or_else(|| root.join(config::DEFAULT_AUDIT_FILE))
-    }
-
     /// Rendered `actplane:///audit` body: the path the runtime would write, the
-    /// record count, and the records as a JSON array. A client that has one
-    /// engine's full audit trail can reason about the session timeline the arch
-    /// plan lists for this resource. A malformed line is kept verbatim so the
-    /// count stays honest rather than silently dropping it.
+    /// record count, and the records as a JSON array. It resolves the log and
+    /// reads its records through `audit::resolve_log_path`/`audit::read_records`,
+    /// the same helpers the `actplane audit` CLI uses, so the resource and the
+    /// command report one timeline. A malformed line is kept verbatim so the
+    /// count stays honest; a missing log reads as a message rather than an empty
+    /// array a client would mistake for a clean session.
     fn load_audit(&self) -> String {
-        let path = self.audit_file();
-        let text = match std::fs::read_to_string(&path) {
-            Ok(t) => t,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                return format!("No ActPlane audit log yet ({}).", path.display());
-            }
+        let path = audit::resolve_log_path(&self.project_dir);
+        let records = match audit::read_records(&path) {
+            Ok(records) => records,
             Err(e) => return format!("Cannot read {}: {}", path.display(), e),
         };
-        let records: Vec<Value> = text
-            .lines()
-            .filter(|l| !l.trim().is_empty())
-            .map(|l| serde_json::from_str(l).unwrap_or_else(|_| Value::String(l.to_string())))
-            .collect();
+        if records.is_empty() && !path.exists() {
+            return format!("No ActPlane audit log yet ({}).", path.display());
+        }
         let body = serde_json::json!({
             "path": path.display().to_string(),
             "record_count": records.len(),
@@ -1446,20 +1415,6 @@ fn latest_run_feedback(root: &std::path::Path) -> Option<PathBuf> {
     let mut candidates = Vec::new();
     for entry in std::fs::read_dir(runs).ok()?.flatten() {
         let path = entry.path().join("feedback.txt");
-        let modified = std::fs::metadata(&path).ok()?.modified().ok()?;
-        candidates.push((modified, path));
-    }
-    candidates.sort_by_key(|(modified, _)| *modified);
-    candidates.pop().map(|(_, path)| path)
-}
-
-// Same scan as `latest_run_feedback`, for the audit log the runtime writes
-// beside each run's feedback file (runtime.rs `scoped_feedback_paths`).
-fn latest_run_audit(root: &std::path::Path) -> Option<PathBuf> {
-    let runs = root.join(".actplane").join("runs");
-    let mut candidates = Vec::new();
-    for entry in std::fs::read_dir(runs).ok()?.flatten() {
-        let path = entry.path().join("audit.jsonl");
         let modified = std::fs::metadata(&path).ok()?.modified().ok()?;
         candidates.push((modified, path));
     }

@@ -8,6 +8,7 @@
 //! reports every kernel-detected rule match with the corrective-feedback payload.
 
 use clap::{Args, Parser, Subcommand};
+use std::io::Write as _;
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -96,6 +97,8 @@ enum Commands {
         #[arg(long)]
         auto_attach_parent: bool,
     },
+    /// Show or export the run audit log for this project.
+    Audit(AuditArgs),
     /// Control an already-running auto-attached ActPlane engine.
     Control {
         #[command(subcommand)]
@@ -389,6 +392,38 @@ struct DeltaAddArgs {
     generated_by: Option<String>,
 }
 
+#[derive(Args)]
+struct AuditArgs {
+    #[command(subcommand)]
+    command: AuditCommands,
+}
+
+#[derive(Subcommand)]
+enum AuditCommands {
+    /// Summarize the audit log: one line per record.
+    Show(AuditSourceArgs),
+    /// Emit the audit records as JSON.
+    Export(AuditExportArgs),
+}
+
+#[derive(Args)]
+struct AuditSourceArgs {
+    /// Read this audit log instead of resolving the project's.
+    #[arg(long, value_name = "FILE")]
+    path: Option<PathBuf>,
+}
+
+#[derive(Args)]
+struct AuditExportArgs {
+    /// Emit newline-delimited JSON, one record per line, instead of a
+    /// pretty-printed JSON array.
+    #[arg(long)]
+    jsonl: bool,
+    /// Read this audit log instead of resolving the project's.
+    #[arg(long, value_name = "FILE")]
+    path: Option<PathBuf>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
@@ -419,6 +454,7 @@ async fn main() -> Result<()> {
             0
         }
         Commands::Control { command } => control_command(&cli, command).await?,
+        Commands::Audit(args) => audit_command(&cli, args)?,
     };
     if code != 0 {
         std::process::exit(code);
@@ -963,6 +999,54 @@ fn control_project_dir(cli: &Cli) -> Result<PathBuf> {
             .unwrap_or_else(|| cwd.clone()));
     }
     Ok(cwd)
+}
+
+fn audit_command(cli: &Cli, args: &AuditArgs) -> Result<i32> {
+    let (path, records) = match &args.command {
+        AuditCommands::Show(source) => {
+            let path = audit_log_path(cli, source.path.as_deref())?;
+            let records = audit::read_records(&path)?;
+            (path, records)
+        }
+        AuditCommands::Export(export) => {
+            let path = audit_log_path(cli, export.path.as_deref())?;
+            let records = audit::read_records(&path)?;
+            let mut out = std::io::stdout().lock();
+            if export.jsonl {
+                // Re-emit each record's compact JSON, one per line, matching
+                // the log's own format.
+                for record in &records {
+                    serde_json::to_writer(&mut out, record)?;
+                    writeln!(out)?;
+                }
+            } else {
+                serde_json::to_writer_pretty(&mut out, &records)?;
+                writeln!(out)?;
+            }
+            return Ok(0);
+        }
+    };
+    if records.is_empty() {
+        println!("No ActPlane audit records in {}", path.display());
+        return Ok(0);
+    }
+    println!("{} record(s) in {}", records.len(), path.display());
+    for (i, record) in records.iter().enumerate() {
+        let event = record.get("event").and_then(|v| v.as_str()).unwrap_or("?");
+        let status = record.get("status").and_then(|v| v.as_str());
+        match status {
+            Some(status) => println!("  {}. {} ({})", i + 1, event, status),
+            None => println!("  {}. {}", i + 1, event),
+        }
+    }
+    Ok(0)
+}
+
+fn audit_log_path(cli: &Cli, explicit: Option<&Path>) -> Result<PathBuf> {
+    match explicit {
+        Some(path) => Ok(config::absolutize(path, &std::env::current_dir()?)),
+        None => Ok(audit::resolve_log_path(&control_project_dir(cli)?)),
+    }
 }
 
 fn load_policy_delta_fragments(

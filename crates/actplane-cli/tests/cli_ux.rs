@@ -2475,8 +2475,8 @@ fn documented_actplane_flags_exist() {
             // subcommand would silently drop its flags from the count.
             //
             // `docs/design/` is the design record and names planned commands
-            // (`delegate`, `audit`, `replay`) that the shipped CLI does not have
-            // yet, so it is excluded here as it is for the flag floor.
+            // (`delegate`, `replay`) that the shipped CLI does not have yet, so
+            // it is excluded here as it is for the flag floor.
             if !rel.starts_with("docs/design/") {
                 if let Some(next) = toks.get(at + 1) {
                     let ok = !next.is_empty()
@@ -2591,4 +2591,121 @@ fn documented_actplane_flags_exist() {
         template_problems.is_empty(),
         "documented actplane templates the binary does not ship: {template_problems:?}"
     );
+}
+
+fn audit_project(dir: &std::path::Path, run: &str, log: &str) {
+    fs::write(
+        dir.join("actplane.yaml"),
+        "version: 1\npolicy: |\n  rule noop:\n    notify exec \"__never__\"\n    because \"noop\"\n",
+    )
+    .unwrap();
+    let run_dir = dir.join(".actplane").join("runs").join(run);
+    fs::create_dir_all(&run_dir).unwrap();
+    fs::write(run_dir.join("audit.jsonl"), log).unwrap();
+}
+
+#[test]
+fn audit_show_summarizes_the_resolved_run_log() {
+    // `audit show` must find the log the runtime actually wrote under
+    // `.actplane/runs/*/`, not the default path, so the CLI and the
+    // `actplane:///audit` MCP resource report the same history.
+    let tmp = tempfile::tempdir().unwrap();
+    audit_project(
+        tmp.path(),
+        "run-a",
+        "{\"event\":\"engine_attach\"}\n{\"event\":\"append_policy_delta\",\"status\":\"accepted\"}\n",
+    );
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["audit", "show"])
+        .output()
+        .expect("run audit show");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let stdout = stdout(&output);
+    assert!(stdout.contains("2 record(s)"), "{stdout}");
+    assert!(stdout.contains("engine_attach"), "{stdout}");
+    assert!(
+        stdout.contains("append_policy_delta (accepted)"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(".actplane/runs/run-a/audit.jsonl"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn audit_show_reports_an_empty_log_instead_of_failing() {
+    let tmp = tempfile::tempdir().unwrap();
+    audit_project(tmp.path(), "run-a", "");
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["audit", "show"])
+        .output()
+        .expect("run audit show");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(stdout(&output).contains("No ActPlane audit records"));
+}
+
+#[test]
+fn audit_export_jsonl_reproduces_each_record_verbatim() {
+    // Export is the machine-readable form, so it must emit exactly the records
+    // the log holds, one per line, without inventing an envelope.
+    let tmp = tempfile::tempdir().unwrap();
+    let log = "{\"event\":\"engine_attach\"}\n{\"event\":\"append_policy_delta\",\"status\":\"accepted\"}\n";
+    audit_project(tmp.path(), "run-a", log);
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["audit", "export", "--jsonl"])
+        .output()
+        .expect("run audit export");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let text = stdout(&output);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 2, "{text}");
+    assert_eq!(lines[0], "{\"event\":\"engine_attach\"}");
+    assert_eq!(
+        lines[1],
+        "{\"event\":\"append_policy_delta\",\"status\":\"accepted\"}"
+    );
+    // A malformed line survives export rather than silently vanishing. Use a
+    // fresh project: two run dirs written in the same instant would tie on
+    // mtime, and the resolver's "latest run" pick would be nondeterministic.
+    let tmp2 = tempfile::tempdir().unwrap();
+    audit_project(tmp2.path(), "run-b", "{\"event\":\"a\"}\nnot json\n");
+    let output = Command::new(actplane())
+        .current_dir(tmp2.path())
+        .args(["audit", "export", "--jsonl"])
+        .output()
+        .expect("run audit export");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let bad = stdout(&output);
+    assert_eq!(bad.lines().count(), 2, "{bad}");
+    assert!(bad.lines().any(|l| l == "\"not json\""), "{bad}");
+}
+
+#[test]
+fn audit_export_reads_an_explicit_path() {
+    let tmp = tempfile::tempdir().unwrap();
+    let log = tmp.path().join("explicit.jsonl");
+    fs::write(&log, "{\"event\":\"only\"}\n").unwrap();
+    // Run from a directory with no project so the explicit path is the only
+    // way the record can be found.
+    let empty = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(empty.path())
+        .args([
+            "audit",
+            "export",
+            "--jsonl",
+            "--path",
+            log.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run audit export --path");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert_eq!(stdout(&output), "{\"event\":\"only\"}\n");
 }
