@@ -127,6 +127,127 @@ fn json_str(s: &str) -> String {
     serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string())
 }
 
+/// Resolve the feedback file the runtime would write, without starting an
+/// engine. It honors the same `ACTPLANE_FEEDBACK_FILE` override the hook uses
+/// (`hook.rs:37`), then prefers the newest `.actplane/runs/*/feedback.txt` the
+/// runtime writes (`runtime.rs:1750` `scoped_feedback_paths`), then the
+/// `feedback.path` config key, then the default. This is the same shape as
+/// `audit::resolve_log_path`, so the two run artifacts resolve together.
+pub fn resolve_file_path(project_dir: &std::path::Path) -> std::path::PathBuf {
+    if let Ok(path) = std::env::var("ACTPLANE_FEEDBACK_FILE") {
+        if !path.trim().is_empty() {
+            return std::path::PathBuf::from(path);
+        }
+    }
+    let Some(policy) = crate::config::discover_policy(project_dir) else {
+        return project_dir.join(crate::config::DEFAULT_FEEDBACK_FILE);
+    };
+    let root = policy
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| project_dir.to_path_buf());
+    if let Some(path) = latest_run_feedback(&root) {
+        return path;
+    }
+    std::fs::read_to_string(&policy)
+        .ok()
+        .and_then(|src| serde_yaml::from_str::<serde_yaml::Value>(&src).ok())
+        .and_then(|yaml| {
+            yaml.get("feedback")
+                .and_then(|v| v.get("path"))
+                .and_then(|v| v.as_str())
+                .map(std::path::PathBuf::from)
+        })
+        .map(|p| if p.is_absolute() { p } else { root.join(p) })
+        .unwrap_or_else(|| root.join(crate::config::DEFAULT_FEEDBACK_FILE))
+}
+
+fn latest_run_feedback(root: &std::path::Path) -> Option<std::path::PathBuf> {
+    let runs = root.join(".actplane").join("runs");
+    let mut candidates = Vec::new();
+    for entry in std::fs::read_dir(runs).ok()?.flatten() {
+        let path = entry.path().join("feedback.txt");
+        let modified = std::fs::metadata(&path).ok()?.modified().ok()?;
+        candidates.push((modified, path));
+    }
+    candidates.sort_by_key(|(modified, _)| *modified);
+    candidates.pop().map(|(_, path)| path)
+}
+
+/// The structured fields of one corrective-feedback payload.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct ParsedFeedback {
+    pub rule: Option<String>,
+    pub effect: Option<String>,
+    pub action: Option<String>,
+    pub retry_useful: Option<bool>,
+    /// The human-readable payload, with the machine-readable tag line removed.
+    pub body: String,
+}
+
+/// Split the append-only feedback file into its payloads. `append_feedback`
+/// (`report.rs:396`) writes each payload followed by a `----` separator on its
+/// own line, so a blank separator line never ends an entry.
+pub fn read_entries(path: &std::path::Path) -> crate::Result<Vec<String>> {
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(format!("reading {}: {}", path.display(), e).into()),
+    };
+    let mut entries = Vec::new();
+    let mut current = String::new();
+    for line in text.lines() {
+        if line.trim() == "----" {
+            if !current.trim().is_empty() {
+                entries.push(std::mem::take(&mut current));
+            }
+            current.clear();
+            continue;
+        }
+        current.push_str(line);
+        current.push('\n');
+    }
+    if !current.trim().is_empty() {
+        entries.push(current);
+    }
+    Ok(entries)
+}
+
+/// Parse the machine-readable tag `format_payload` appends (the trailing
+/// `{"actplane_rule":...}` line) out of a payload, leaving the prose in
+/// `body`.
+pub fn parse_entry(entry: &str) -> ParsedFeedback {
+    let trimmed = entry.trim_end();
+    let mut parsed = ParsedFeedback {
+        body: trimmed.to_string(),
+        ..ParsedFeedback::default()
+    };
+    let Some((body, tag)) = trimmed.rsplit_once('\n') else {
+        return parsed;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(tag.trim()) else {
+        return parsed;
+    };
+    if value.get("actplane_rule").is_none() {
+        return parsed;
+    }
+    parsed.rule = value
+        .get("actplane_rule")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    parsed.effect = value
+        .get("effect")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    parsed.action = value
+        .get("action")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    parsed.retry_useful = value.get("retry_useful").and_then(|v| v.as_bool());
+    parsed.body = body.trim_end().to_string();
+    parsed
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -232,5 +353,52 @@ mod tests {
         assert!(s.contains("PID 1234"));
         assert!(s.contains("acquired label SECRET"));
         assert!(s.contains("current `connect` `1.2.3.4` operation"));
+    }
+
+    #[test]
+    fn read_entries_splits_payloads_on_the_separator_only() {
+        // `append_feedback` writes `{payload}\n----\n`, so one payload spans its
+        // own blank lines and only the `----` line ends an entry. Parsing a
+        // blank line as a boundary would truncate the payload the agent reads.
+        let path = std::env::temp_dir().join(format!(
+            "actplane-feedback-entries-{}.txt",
+            std::process::id()
+        ));
+        std::fs::write(&path, "first line\n\nsecond line\n----\nthird line\n----\n")
+            .expect("write feedback");
+        let entries = read_entries(&path).expect("read entries");
+        assert_eq!(entries.len(), 2, "{entries:?}");
+        assert_eq!(entries[0], "first line\n\nsecond line\n");
+        assert_eq!(entries[1], "third line\n");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn parse_entry_extracts_the_machine_tag_and_keeps_the_prose() {
+        let payload = format_payload(PayloadInput {
+            name: "no-git-branch",
+            op: "exec",
+            target: "git branch",
+            reason: "create a branch via the host",
+            effect: Effect::Block,
+            blocked: true,
+            killed: false,
+            provenance: None,
+        });
+        let parsed = parse_entry(&payload);
+        assert_eq!(parsed.rule.as_deref(), Some("no-git-branch"));
+        assert_eq!(parsed.effect.as_deref(), Some("block"));
+        assert_eq!(parsed.action.as_deref(), Some("block"));
+        assert_eq!(parsed.retry_useful, Some(false));
+        assert!(parsed.body.contains("blocked by rule `no-git-branch`"));
+        // The tag line itself is stripped from the prose.
+        assert!(!parsed.body.contains("\"actplane_rule\""));
+    }
+
+    #[test]
+    fn parse_entry_leaves_an_untagged_payload_alone() {
+        let parsed = parse_entry("plain feedback without a tag");
+        assert_eq!(parsed.rule, None);
+        assert_eq!(parsed.body, "plain feedback without a tag");
     }
 }

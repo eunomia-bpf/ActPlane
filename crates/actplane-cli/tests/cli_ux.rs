@@ -2709,3 +2709,82 @@ fn audit_export_reads_an_explicit_path() {
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     assert_eq!(stdout(&output), "{\"event\":\"only\"}\n");
 }
+
+fn explain_project(dir: &std::path::Path, run: &str, feedback: &str) {
+    fs::write(
+        dir.join("actplane.yaml"),
+        "version: 1\npolicy: |\n  rule noop:\n    notify exec \"__never__\"\n    because \"noop\"\n",
+    )
+    .unwrap();
+    let run_dir = dir.join(".actplane").join("runs").join(run);
+    fs::create_dir_all(&run_dir).unwrap();
+    fs::write(run_dir.join("feedback.txt"), feedback).unwrap();
+}
+
+#[test]
+fn explain_last_reports_the_resolved_payload_rule_and_action() {
+    // `explain last` must find the newest run's feedback the runtime wrote
+    // under `.actplane/runs/*/`, the same file the feedback MCP resource and
+    // the hook read, then name the rule and its effect without the machine tag.
+    let tmp = tempfile::tempdir().unwrap();
+    explain_project(
+        tmp.path(),
+        "run-a",
+        "[ActPlane] Operation blocked by rule `no-git-branch`.\n\
+         - Target operation: exec git branch\n\
+         - Reason: create a branch via the host\n\
+         {\"actplane_rule\":\"no-git-branch\",\"effect\":\"block\",\"action\":\"block\",\"retry_useful\":false}\n\
+         ----\n",
+    );
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["explain", "last"])
+        .output()
+        .expect("run explain last");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("Last ActPlane match (block)"), "{text}");
+    assert!(text.contains("rule: no-git-branch"), "{text}");
+    assert!(text.contains("action: block"), "{text}");
+    assert!(text.contains("retry_useful: false"), "{text}");
+    assert!(text.contains("blocked by rule `no-git-branch`"), "{text}");
+    assert!(!text.contains("\"actplane_rule\""), "{text}");
+    assert!(text.contains(".actplane/runs/run-a/feedback.txt"), "{text}");
+}
+
+#[test]
+fn explain_last_reports_no_match_instead_of_failing() {
+    let tmp = tempfile::tempdir().unwrap();
+    explain_project(tmp.path(), "run-a", "");
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["explain", "last"])
+        .output()
+        .expect("run explain last");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(stdout(&output).contains("No ActPlane policy match recorded yet"));
+}
+
+#[test]
+fn explain_last_reads_an_explicit_path() {
+    let tmp = tempfile::tempdir().unwrap();
+    let log = tmp.path().join("feedback.txt");
+    fs::write(
+        &log,
+        "[ActPlane] Operation killed by rule `no-secret-exfil`.\n\
+         {\"actplane_rule\":\"no-secret-exfil\",\"effect\":\"kill\",\"action\":\"kill\",\"retry_useful\":false}\n\
+         ----\n",
+    )
+    .unwrap();
+    let empty = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(empty.path())
+        .args(["explain", "last", "--path", log.to_str().unwrap()])
+        .output()
+        .expect("run explain last --path");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("Last ActPlane match (kill)"), "{text}");
+    assert!(text.contains("rule: no-secret-exfil"), "{text}");
+}

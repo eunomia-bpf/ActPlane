@@ -19,7 +19,7 @@ mod template_generate;
 mod templates;
 
 pub use actplane_ifc_compiler as dsl;
-pub use actplane_runtime::{audit, config, control, hook, mcp, runtime};
+pub use actplane_runtime::{audit, config, control, feedback, hook, mcp, runtime};
 
 type AnyError = Box<dyn std::error::Error + Send + Sync>;
 type Result<T> = std::result::Result<T, AnyError>;
@@ -97,6 +97,8 @@ enum Commands {
         #[arg(long)]
         auto_attach_parent: bool,
     },
+    /// Explain the last recorded policy match (rule, effect, and remedy).
+    Explain(ExplainArgs),
     /// Show or export the run audit log for this project.
     Audit(AuditArgs),
     /// Control an already-running auto-attached ActPlane engine.
@@ -424,6 +426,25 @@ struct AuditExportArgs {
     path: Option<PathBuf>,
 }
 
+#[derive(Args)]
+struct ExplainArgs {
+    #[command(subcommand)]
+    command: ExplainCommands,
+}
+
+#[derive(Subcommand)]
+enum ExplainCommands {
+    /// Explain the most recent feedback payload in the run log.
+    Last(ExplainLastArgs),
+}
+
+#[derive(Args)]
+struct ExplainLastArgs {
+    /// Read this feedback file instead of resolving the project's.
+    #[arg(long, value_name = "FILE")]
+    path: Option<PathBuf>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
@@ -455,6 +476,7 @@ async fn main() -> Result<()> {
         }
         Commands::Control { command } => control_command(&cli, command).await?,
         Commands::Audit(args) => audit_command(&cli, args)?,
+        Commands::Explain(args) => explain_command(&cli, args)?,
     };
     if code != 0 {
         std::process::exit(code);
@@ -1047,6 +1069,43 @@ fn audit_log_path(cli: &Cli, explicit: Option<&Path>) -> Result<PathBuf> {
         Some(path) => Ok(config::absolutize(path, &std::env::current_dir()?)),
         None => Ok(audit::resolve_log_path(&control_project_dir(cli)?)),
     }
+}
+
+fn explain_command(cli: &Cli, args: &ExplainArgs) -> Result<i32> {
+    let ExplainCommands::Last(last) = &args.command;
+    let path = match &last.path {
+        Some(path) => config::absolutize(path, &std::env::current_dir()?),
+        None => feedback::resolve_file_path(&control_project_dir(cli)?),
+    };
+    let entries = feedback::read_entries(&path)?;
+    let Some(entry) = entries.last() else {
+        println!(
+            "No ActPlane policy match recorded yet ({}).",
+            path.display()
+        );
+        return Ok(0);
+    };
+    let parsed = feedback::parse_entry(entry);
+    match &parsed.effect {
+        Some(effect) => println!("Last ActPlane match ({}):", effect),
+        None => println!("Last ActPlane match:"),
+    }
+    if let Some(rule) = &parsed.rule {
+        println!("  rule: {rule}");
+    }
+    if let Some(action) = &parsed.action {
+        println!("  action: {action}");
+    }
+    if let Some(retry) = parsed.retry_useful {
+        println!("  retry_useful: {retry}");
+    }
+    if !parsed.body.is_empty() {
+        println!();
+        println!("{}", parsed.body);
+    }
+    println!();
+    println!("({} payload(s) in {})", entries.len(), path.display());
+    Ok(0)
 }
 
 fn load_policy_delta_fragments(

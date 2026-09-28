@@ -27,7 +27,7 @@ use serde_json::Value;
 
 use crate::control as local_control;
 use crate::runtime::{EngineControl, PolicyAuditMeta, mark_non_stdio_fds_cloexec};
-use crate::{audit, config, dsl};
+use crate::{audit, config, dsl, feedback};
 use ebpf_ifc_engine::ChildDomainSpec;
 use ebpf_ifc_engine::capability::{AUTH_BIND_RULE, TARGET_SELF};
 
@@ -248,31 +248,7 @@ impl ActPlaneMcp {
     }
 
     fn feedback_file(&self) -> PathBuf {
-        if let Ok(path) = std::env::var("ACTPLANE_FEEDBACK_FILE") {
-            return PathBuf::from(path);
-        }
-        let Some(policy) = self.discover_policy_file() else {
-            return self.project_dir.join(config::DEFAULT_FEEDBACK_FILE);
-        };
-        let root = policy
-            .parent()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| self.project_dir.clone());
-        let Ok(src) = std::fs::read_to_string(&policy) else {
-            return root.join(config::DEFAULT_FEEDBACK_FILE);
-        };
-        let Ok(yaml) = serde_yaml::from_str::<serde_yaml::Value>(&src) else {
-            return root.join(config::DEFAULT_FEEDBACK_FILE);
-        };
-        if let Some(path) = latest_run_feedback(&root) {
-            return path;
-        }
-        yaml.get("feedback")
-            .and_then(|v| v.get("path"))
-            .and_then(|v| v.as_str())
-            .map(PathBuf::from)
-            .map(|p| if p.is_absolute() { p } else { root.join(p) })
-            .unwrap_or_else(|| root.join(config::DEFAULT_FEEDBACK_FILE))
+        feedback::resolve_file_path(&self.project_dir)
     }
 
     fn load_feedback(&self) -> String {
@@ -1408,18 +1384,6 @@ fn child_id_arg(args: &serde_json::Map<String, Value>) -> Result<u32, rmcp::Erro
         None => json_optional_u32(args, "domain_id")?
             .ok_or_else(|| invalid_params("missing `child_id`")),
     }
-}
-
-fn latest_run_feedback(root: &std::path::Path) -> Option<PathBuf> {
-    let runs = root.join(".actplane").join("runs");
-    let mut candidates = Vec::new();
-    for entry in std::fs::read_dir(runs).ok()?.flatten() {
-        let path = entry.path().join("feedback.txt");
-        let modified = std::fs::metadata(&path).ok()?.modified().ok()?;
-        candidates.push((modified, path));
-    }
-    candidates.sort_by_key(|(modified, _)| *modified);
-    candidates.pop().map(|(_, path)| path)
 }
 
 fn child_launch_id() -> String {

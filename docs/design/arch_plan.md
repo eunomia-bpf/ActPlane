@@ -243,6 +243,7 @@ actplane init
 actplane init --all
 actplane run -- <agent>
 actplane control status
+actplane explain last
 actplane doctor
 actplane compile --explain
 actplane compile --json
@@ -286,7 +287,7 @@ data-flow enforcement + delegation + feedback + audit**。
 建议路线:
 
 1. Stabilize setup, doctor, feedback hook, MCP auto-attach.
-2. Add `explain last` (`actplane control status` 已实现).
+2. `explain last` 与 `actplane control status` 已实现。
 3. Add built-in control-plane self-protection.
 4. Add policy layer metadata and effective policy hash.
 5. Add `delegate` for subagent contracts.

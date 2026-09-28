@@ -204,6 +204,11 @@ ACTPLANE_FEEDBACK_FILE=/tmp/actplane-feedback.txt
 ACTPLANE_HOOK_STATE=/tmp/actplane-hook-state.json
 ```
 
+`actplane explain last` reads the newest run's feedback file and prints the rule,
+effect, and remedy of the most recent match, so a supervisor can recover the
+last corrective payload without parsing the file by hand. Add `--path <file>` to
+read a specific feedback file.
+
 ## Attach an Already-Started Agent
 
 Use foreground attach when an agent is already running and you want future
