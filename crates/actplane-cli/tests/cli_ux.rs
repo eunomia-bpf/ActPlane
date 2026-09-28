@@ -92,6 +92,21 @@ fn top_level_help_is_engine_focused() {
 }
 
 #[test]
+fn policy_help_names_every_discovery_candidate() {
+    // `--policy` defaults to `config::discover_policy`, which walks upward for
+    // `actplane.yaml` or `.actplane/policy.yaml` (config.rs:9,429). Help that
+    // named only `actplane.yaml` would hide the second candidate from a user
+    // who placed their policy under `.actplane/`.
+    let output = run(&["--help"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("actplane.yaml") && stdout.contains(".actplane/policy.yaml"),
+        "policy help did not name both discovery candidates:\n{stdout}"
+    );
+}
+
+#[test]
 fn removed_top_level_commands_are_not_accepted() {
     for command in [
         "check",

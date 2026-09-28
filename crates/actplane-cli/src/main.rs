@@ -3,9 +3,9 @@
 
 //! ActPlane — OS-level agent harness.
 //!
-//! Loads an `actplane.yaml` project policy, lowers its embedded taint DSL to the
-//! kernel ABI, runs the embedded eBPF engine, and reports every kernel-detected
-//! rule match with the corrective-feedback payload.
+//! Loads an `actplane.yaml` or `.actplane/policy.yaml` project policy, lowers
+//! its embedded taint DSL to the kernel ABI, runs the embedded eBPF engine, and
+//! reports every kernel-detected rule match with the corrective-feedback payload.
 
 use clap::{Args, Parser, Subcommand};
 #[cfg(unix)]
@@ -36,7 +36,7 @@ type Result<T> = std::result::Result<T, AnyError>;
       actplane compile --explain --report-out docs/actplane-review.txt\n\n  \
       # apply a one-line policy around a command (needs sudo for the eBPF load)\n  \
       sudo -E actplane --rule 'source COMMAND = exec \"**\"\n                       rule no-git-branch:\n                         kill exec \"git\" \"branch\" if COMMAND\n                         because \"create a branch via the host, not the agent\"' run claude -p '...'\n\n  \
-      # use a project policy file (auto-discovered as ./actplane.yaml upward)\n  \
+      # use a project policy file (auto-discovered upward: actplane.yaml or .actplane/policy.yaml)\n  \
       sudo -E actplane run <your agent command>\n\n  \
       # serve MCP resources and auto-attach to the parent agent when Codex starts it\n  \
       actplane mcp --auto-attach-parent\n\n  \
@@ -52,7 +52,8 @@ type Result<T> = std::result::Result<T, AnyError>;
       actplane control delta add --target-id <domain-id> --delta policy-delta.dsl\n\n\
     See docs/rule-language.md for the policy language.")]
 pub(crate) struct Cli {
-    /// Project policy YAML. Defaults to discovering actplane.yaml upward from cwd.
+    /// Project policy YAML. Defaults to discovering actplane.yaml or
+    /// .actplane/policy.yaml upward from cwd.
     #[arg(long, global = true, conflicts_with = "rule")]
     pub(crate) policy: Option<PathBuf>,
     /// Inline policy DSL used instead of a YAML file.
