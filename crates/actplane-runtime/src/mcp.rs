@@ -1177,12 +1177,7 @@ impl ActPlaneMcp {
             .control
             .as_ref()
             .and_then(|c| c.effective_policy().ok())
-            .map(|policy| {
-                serde_json::json!({
-                    "effective_hash": policy.effective_hash,
-                    "layers": policy.layers,
-                })
-            });
+            .map(|policy| crate::runtime::effective_policy_json(&policy));
         serde_json::json!({
             "ok": true,
             "result": {

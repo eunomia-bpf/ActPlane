@@ -297,6 +297,11 @@ struct PolicyDeltaOutcome {
     rule_id_base: usize,
     rule_count: usize,
     rule_provenance: Vec<serde_json::Value>,
+    /// The layer stack once this delta is recorded, so the accepted path can
+    /// write it into the audit record rather than re-read it later. A rejected
+    /// attempt reports `EngineControl::effective_policy` instead, which is the
+    /// unchanged stack the rejection left in force.
+    effective_policy: EffectivePolicySummary,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
@@ -458,20 +463,7 @@ impl RuntimePolicyCatalog {
             .inner
             .read()
             .map_err(|e| format!("policy metadata lock poisoned: {e}"))?;
-        Ok(EffectivePolicySummary {
-            effective_hash: format!("fnv1a64:{:016x}", inner.effective_fnv),
-            layers: inner
-                .layers
-                .iter()
-                .map(|layer| {
-                    json!({
-                        "kind": layer.kind,
-                        "domain_id": layer.domain_id,
-                        "policy_hash": layer.hash,
-                    })
-                })
-                .collect(),
-        })
+        Ok(effective_policy_of(&inner))
     }
 
     fn register_domain(&self, domain_id: u32) -> Result<()> {
@@ -654,6 +646,7 @@ impl EngineControl {
                     "rule_count": delta.rule_count,
                     "policy_hash": audit::policy_hash(dsl_src),
                     "rule_provenance": delta.rule_provenance,
+                    "effective_policy": effective_policy_json(&delta.effective_policy),
                 });
                 if let Some(identity) = &actor_identity {
                     record["caller_identity"] = identity.to_json();
@@ -664,6 +657,14 @@ impl EngineControl {
             }
             Err(e) => {
                 let msg = e.to_string();
+                // A rejection must still say what was enforced when it failed,
+                // so the stack is read back from the control rather than left
+                // out. A snapshot error here is swallowed: the rejection reason
+                // is the record's point, and this field is advisory.
+                let engine_policy = self
+                    .effective_policy()
+                    .ok()
+                    .map(|policy| effective_policy_json(&policy));
                 let mut record = json!({
                     "event": "append_policy_delta",
                     "status": "rejected",
@@ -671,6 +672,7 @@ impl EngineControl {
                     "caller_pid": actor_pid,
                     "target_id": target_id,
                     "policy_hash": audit::policy_hash(dsl_src),
+                    "engine_effective_policy": engine_policy,
                     "error": msg,
                 });
                 if let Some(identity) = &actor_identity {
@@ -837,10 +839,12 @@ impl EngineControl {
             &compiled.bytes,
         )?;
         inner.record_delta_layer(target_id, dsl_src, &compiled);
+        let effective_policy = effective_policy_of(&inner);
         Ok(PolicyDeltaOutcome {
             rule_id_base,
             rule_count,
             rule_provenance,
+            effective_policy,
         })
     }
 }
@@ -875,6 +879,35 @@ fn fold_fnv(mut state: u64, bytes: &[u8]) -> u64 {
         state = state.wrapping_mul(FNV_PRIME);
     }
     state
+}
+
+/// Assemble the summary from a catalog inner the caller already holds, so the
+/// delta path can report the stack it just produced without re-taking the lock.
+fn effective_policy_of(inner: &RuntimePolicyCatalogInner) -> EffectivePolicySummary {
+    EffectivePolicySummary {
+        effective_hash: format!("fnv1a64:{:016x}", inner.effective_fnv),
+        layers: inner
+            .layers
+            .iter()
+            .map(|layer| {
+                json!({
+                    "kind": layer.kind,
+                    "domain_id": layer.domain_id,
+                    "policy_hash": layer.hash,
+                })
+            })
+            .collect(),
+    }
+}
+
+/// The summary as a JSON object. `local_control_status` and the delta audit
+/// records both serialize it, so both go through one shape rather than two
+/// hand-built copies that could drift.
+pub(crate) fn effective_policy_json(summary: &EffectivePolicySummary) -> serde_json::Value {
+    json!({
+        "effective_hash": summary.effective_hash,
+        "layers": summary.layers,
+    })
 }
 
 fn audit_context_id(path: &Path, submitter_pid: i32) -> String {
@@ -2126,6 +2159,17 @@ mod tests {
         assert_eq!(inner.layers[1].kind, "delta");
         assert_eq!(inner.layers[1].domain_id, 3);
         assert_eq!(inner.layers[1].hash, audit::policy_hash(delta));
+        // The audit record and the status resource share this shape, so the
+        // helper the delta path uses must agree with what status reports.
+        let summary = effective_policy_of(&inner);
+        assert_eq!(effective_policy_json(&summary)["effective_hash"], after);
+        assert_eq!(
+            effective_policy_json(&summary)["layers"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
     }
 
     #[test]

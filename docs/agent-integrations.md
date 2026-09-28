@@ -134,6 +134,12 @@ loaded, plus `effective_policy.layers`, one entry per policy layer with its
 layer is the launched policy and each delta is a `control delta add` append, so
 the layer stack names exactly which text produced the enforced matchers.
 
+Each `append_policy_delta` audit record now carries the same layer stack. An
+accepted delta writes `effective_policy` (the stack after the append), and a
+rejected one writes `engine_effective_policy` (the stack still in force), so a
+reader can tell what a `control delta add` changed, or what it left alone, and
+whether the delta it names is the one that moved the effective hash.
+
 The same audit log is readable outside MCP: `actplane audit show` prints a
 one-line summary per record and `actplane audit export --jsonl` re-emits the raw
 records, both resolving the log the same way the `actplane:///audit` resource

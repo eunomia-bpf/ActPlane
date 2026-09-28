@@ -209,6 +209,11 @@ authority。
 - feedback delivered to agent;
 - final artifact lineage.
 
+`policy layer stack and hashes` 已落在 `append_policy_delta` 记录上：accepted
+delta 带 `effective_policy`（append 之后的 layer 栈），rejected delta 带
+`engine_effective_policy`（当时仍在生效的栈）。两者与 `actplane:///status`
+共用一个序列化形状，因此 audit 与 status 对同一时刻的栈给出一致答案。
+
 目标命令（`show`、`export --jsonl` 与 `replay` 已实现）:
 
 ```bash
