@@ -126,6 +126,14 @@ rules and may only add more rules at runtime. It cannot remove or weaken a
 list it under its own `disable` in the static YAML, which drops it from that
 child's effective policy.
 
+A delegated subagent contract is exactly this: `actplane delegate` binds the
+subagent into a child domain whose effective policy is the parent's plus the
+delegation's own append-only delta, so it can only tighten the inherited
+policy. A contract that would weaken it is rejected on the same invariant,
+and the outcome is recorded as a `delegate` audit record next to the
+`launch_child_domain` record.
+
+
 ## Child Updates
 
 A child domain may update its own domain policy if its authority allows it.
@@ -195,6 +203,7 @@ Current CLI shape:
 actplane control bind-child --pid 1234 --child-id 1234
 actplane control delta add --domain-id 1234 --delta rules/no-curl.dsl
 actplane control launch-child --delta rules/no-curl.dsl -- codex --cd /work
+actplane delegate --name reviewer --delta rules/no-curl.dsl -- codex
 ```
 
 Semantics:

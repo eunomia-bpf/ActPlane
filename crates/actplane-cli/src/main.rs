@@ -78,6 +78,8 @@ pub(crate) struct Cli {
 enum Commands {
     /// Run a command under the policy harness.
     Run(RunArgs),
+    /// Run a subagent under a delegated policy contract.
+    Delegate(DelegateArgs),
     /// Compile, validate, review, or emit a kernel config blob.
     Compile(CompileArgs),
     /// Initialize a project policy and optional agent integrations.
@@ -137,6 +139,46 @@ struct RunArgs {
     #[arg(long)]
     generated_by: Option<String>,
     /// Command argv.
+    #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
+    cmd: Vec<String>,
+}
+
+#[derive(Args)]
+struct DelegateArgs {
+    /// Subagent principal name recorded on the delegation audit record.
+    #[arg(long)]
+    name: String,
+    /// Free-form scope label recorded with the delegation.
+    #[arg(long)]
+    scope: Option<String>,
+    /// Contract from a built-in template id, rendered into a child-domain policy delta.
+    #[arg(long, conflicts_with_all = ["deltas", "delta_text"])]
+    template: Option<String>,
+    /// Override a declared template parameter, as key=value. Repeat for multiple parameters.
+    #[arg(long = "set", value_name = "KEY=VALUE", requires = "template")]
+    params: Vec<String>,
+    /// Optional runtime domain id for the subagent. Defaults to the launched pid.
+    #[arg(long)]
+    child_id: Option<u32>,
+    /// Optional narrower scope id for the subagent domain.
+    #[arg(long, default_value_t = 0)]
+    scope_id: u32,
+    /// Append-only ActPlane DSL fragment file installed as the contract.
+    #[arg(long = "delta", value_name = "FILE")]
+    deltas: Vec<PathBuf>,
+    /// Inline append-only ActPlane DSL fragment installed as the contract.
+    #[arg(long = "delta-text", value_name = "DSL")]
+    delta_text: Vec<String>,
+    /// Optional approval metadata for the contract delta.
+    #[arg(long)]
+    approved_by: Option<String>,
+    /// Optional ticket, review, or decision id for the contract delta.
+    #[arg(long)]
+    approval_ref: Option<String>,
+    /// Optional tool or agent identity that generated the contract delta.
+    #[arg(long)]
+    generated_by: Option<String>,
+    /// Command argv to run as the subagent.
     #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
     cmd: Vec<String>,
 }
@@ -464,6 +506,7 @@ async fn main() -> Result<()> {
 
     let code = match &cli.command {
         Commands::Run(args) => run_command(&cli, args).await?,
+        Commands::Delegate(args) => delegate_command(&cli, args).await?,
         Commands::Compile(args) => compile_policy(&cli, args).await?,
         Commands::Init(args) => init_command(args)?,
         Commands::Doctor => doctor::doctor(&policy_input(&cli))?,
@@ -524,10 +567,51 @@ async fn run_command(cli: &Cli, args: &RunArgs) -> Result<i32> {
             &args.delta_text,
             &audit_meta,
             &args.cmd,
+            None,
         )
         .await;
     }
     runtime::run_command(&policy, &args.cmd, args.parent_domain).await
+}
+
+async fn delegate_command(cli: &Cli, args: &DelegateArgs) -> Result<i32> {
+    let policy = policy_input(cli);
+    let audit_meta = policy_audit_meta_from_fields(
+        None,
+        &args.approved_by,
+        &args.approval_ref,
+        &args.generated_by,
+    );
+
+    // The contract is the child-domain policy delta the subagent runs under.
+    // It is optional: a bare delegation binds the subagent into a child domain
+    // under the inherited parent policy and records the principal/scope. When
+    // a contract source is given it is exactly one of: a built-in template
+    // (rendered into a DSL delta here) or the user's own `--delta` fragments.
+    let mut delta_texts = args.delta_text.clone();
+    let mut contract_ref = None;
+    if let Some(template_id) = &args.template {
+        let template = templates::get(template_id)?;
+        delta_texts.push(templates::render_dsl(template, &args.params)?);
+        contract_ref = Some(format!("template `{}`", template.id));
+    }
+
+    let delegation = runtime::DelegationMeta {
+        name: args.name.clone(),
+        scope: args.scope.clone(),
+        contract_ref,
+    };
+    runtime::run_child_command(
+        &policy,
+        args.child_id,
+        args.scope_id,
+        &args.deltas,
+        &delta_texts,
+        &audit_meta,
+        &args.cmd,
+        Some(&delegation),
+    )
+    .await
 }
 
 async fn attach_command(cli: &Cli, args: &AttachArgs) -> Result<i32> {

@@ -180,6 +180,7 @@ pub enum ReplayKind {
     PolicyDelta,
     ChildDomain,
     Violation,
+    Delegation,
     Other,
 }
 
@@ -193,6 +194,7 @@ impl ReplayKind {
             | "restart_child_domain"
             | "adopt_child_domain" => Self::ChildDomain,
             "taint_violation" => Self::Violation,
+            "delegate" => Self::Delegation,
             _ => Self::Other,
         }
     }
@@ -204,6 +206,7 @@ impl ReplayKind {
             Self::PolicyDelta => "delta",
             Self::ChildDomain => "child",
             Self::Violation => "violation",
+            Self::Delegation => "delegate",
             Self::Other => "other",
         }
     }
@@ -274,6 +277,17 @@ fn summarize(event: &str, obj: Option<&serde_json::Map<String, Value>>) -> Strin
             }
             if let Some(domain) = field("child_domain_id") {
                 parts.push(format!("domain {domain}"));
+            }
+        }
+        "delegate" => {
+            if let Some(principal) = field("principal") {
+                parts.push(format!("principal {principal}"));
+            }
+            if let Some(scope) = field("scope") {
+                parts.push(format!("scope {scope}"));
+            }
+            if let Some(contract) = field("contract_ref") {
+                parts.push(format!("contract {contract}"));
             }
         }
         _ => {}
@@ -347,6 +361,34 @@ mod tests {
         // The unparsed line keeps its step and its raw text.
         assert_eq!(steps[4].summary, "?");
         assert_eq!(steps[4].record, Value::String("not json".to_string()));
+    }
+
+    #[test]
+    fn replay_classifies_the_delegate_record() {
+        // `delegate` records are first-class timeline steps: a record written
+        // by `actplane delegate` must classify as Delegation, not fall through
+        // to Other, and its summary must name the principal, the scope label,
+        // and the contract ref (each only when the record carries it).
+        let records = vec![
+            json!({"event": "delegate", "status": "accepted", "principal": "reviewer",
+                   "scope": "readonly", "contract_ref": "template `readonly-review`",
+                   "timestamp_unix_ns": "5"}),
+            json!({"event": "delegate", "status": "rejected", "principal": "builder",
+                   "error": "template `x` failed"}),
+        ];
+        let steps = replay_steps(&records);
+
+        assert_eq!(steps.len(), 2);
+        assert_eq!(steps[0].kind, ReplayKind::Delegation);
+        assert_eq!(steps[1].kind, ReplayKind::Delegation);
+        assert_eq!(ReplayKind::Delegation.label(), "delegate");
+        assert_eq!(
+            steps[0].summary,
+            "delegate accepted principal reviewer scope readonly contract template `readonly-review`"
+        );
+        // No scope or contract ref on the rejected record, so the summary
+        // stops after the status; the error field is not part of the summary.
+        assert_eq!(steps[1].summary, "delegate rejected principal builder");
     }
     #[test]
     fn audit_appends_jsonl_with_schema_and_timestamp() {

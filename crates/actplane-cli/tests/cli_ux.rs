@@ -2474,9 +2474,9 @@ fn documented_actplane_flags_exist() {
             // flags below stops at an unknown word, so without this a renamed
             // subcommand would silently drop its flags from the count.
             //
-            // `docs/design/` is the design record and names planned commands
-            // (`delegate`, `replay`) that the shipped CLI does not have yet, so
-            // it is excluded here as it is for the flag floor.
+            // `docs/design/` is the design record; it still names material the
+            // shipped CLI does not provide yet, so it is excluded here as it is
+            // for the flag floor.
             if !rel.starts_with("docs/design/") {
                 if let Some(next) = toks.get(at + 1) {
                     let ok = !next.is_empty()
@@ -2766,6 +2766,57 @@ fn replay_json_emits_classified_steps_with_their_records() {
     assert_eq!(body["steps"][0]["summary"], "new_fangled_event");
     assert_eq!(body["steps"][0]["timestamp_unix_ns"], "7");
     assert_eq!(body["steps"][0]["record"]["event"], "new_fangled_event");
+}
+
+#[test]
+fn replay_render_the_delegate_record_as_a_first_class_step() {
+    // A `delegate` record written by `actplane delegate` is a first-class
+    // timeline step, not an `other` fall-through: the text timeline shows the
+    // `[delegate]` label with the principal/scope summary, and `--json`
+    // classifies it as the `delegate` kind.
+    let tmp = tempfile::tempdir().unwrap();
+    audit_project(
+        tmp.path(),
+        "run-a",
+        "{\"event\":\"engine_attach\",\"timestamp_unix_ns\":\"5\"}\n\
+         {\"event\":\"delegate\",\"status\":\"accepted\",\"principal\":\"reviewer\",\"scope\":\"readonly\",\"contract_ref\":\"template `readonly-review`\",\"timestamp_unix_ns\":\"6\"}\n\
+         {\"event\":\"delegate\",\"status\":\"rejected\",\"principal\":\"builder\",\"timestamp_unix_ns\":\"6\"}\n",
+    );
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["replay"])
+        .output()
+        .expect("run replay");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("3 step(s)"), "{text}");
+    let lines: Vec<&str> = text.lines().skip(1).collect();
+    assert!(lines[0].contains("[attach] engine_attach"), "{text}");
+    assert!(
+        lines[1]
+            .contains("[delegate] delegate accepted principal reviewer scope readonly contract"),
+        "{text}"
+    );
+    assert!(
+        lines[2].contains("[delegate] delegate rejected principal builder"),
+        "{text}"
+    );
+
+    // The machine-readable form classifies the record, and keeps a rejected
+    // record's missing scope/contract_ref keys absent rather than invented.
+    let json_out = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["replay", "--json"])
+        .output()
+        .expect("run replay --json");
+    assert!(json_out.status.success(), "stderr: {}", stderr(&json_out));
+    let body: serde_json::Value = serde_json::from_str(&stdout(&json_out)).expect("replay json");
+    assert_eq!(body["steps"][1]["kind"], "delegate");
+    assert_eq!(body["steps"][1]["record"]["principal"], "reviewer");
+    assert_eq!(body["steps"][1]["record"]["scope"], "readonly");
+    assert_eq!(body["steps"][2]["kind"], "delegate");
+    assert!(body["steps"][2]["record"].get("scope").is_none());
 }
 
 #[test]
