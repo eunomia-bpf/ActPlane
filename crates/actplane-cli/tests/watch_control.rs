@@ -332,7 +332,10 @@ policy: |
         agent.stop();
         return;
     };
-    let deadline = Instant::now() + Duration::from_secs(12);
+    // A fresh engine install on a hot CI runner has been observed to take
+    // longer than 12 s; 20 s keeps this from flaking without masking a real
+    // hang (a stuck watch exits early, caught in the try_wait panic below).
+    let deadline = Instant::now() + Duration::from_secs(20);
     let mut stderr = watch.stderr();
     while !stderr.contains("pattern_contains_capped") && Instant::now() < deadline {
         if let Some(status) = watch.child.try_wait().expect("poll watch") {
@@ -354,7 +357,11 @@ policy: |
 }
 
 fn wait_for_control_state(watch: &mut WatchProcess, path: &std::path::Path) {
-    let deadline = Instant::now() + Duration::from_secs(12);
+    // A fresh engine install (reset_bpf_pin_root above) on a hot CI runner has
+    // been observed to take longer than 12 s; 20 s keeps this from flaking
+    // without masking a real hang (a stuck watch exits early, caught in the
+    // try_wait panic below).
+    let deadline = Instant::now() + Duration::from_secs(20);
     loop {
         if path.is_file() {
             return;
