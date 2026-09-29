@@ -228,6 +228,44 @@ effect, and remedy of the most recent match, so a supervisor can recover the
 last corrective payload without parsing the file by hand. Add `--path <file>` to
 read a specific feedback file.
 
+## Control-Plane Self-Protection
+
+Every enforced launch (`actplane run`, `actplane watch`, and the MCP auto-attach
+path) prepends a built-in rule to the policy source, so the subject cannot edit
+the state the supervisor enforces with:
+
+```text
+rule actplane-control-plane:
+  block write file "/repo/.actplane/*"
+  unless target "/repo/.actplane/runs/*"
+  block write file "/repo/actplane.yaml"
+  because "ActPlane control state belongs to the supervisor; use `actplane control` ..."
+```
+
+The runtime resolves the project's absolute root (the directory holding the
+loaded policy) and substitutes it for the rule's path prefix. A subject that
+rewrites `.actplane/control.json` or the audit log moves the supervisor's own
+record. The one exception is `.actplane/runs/*`, because the subject writes its
+own run record there: the agent domain appends to `feedback.txt`, `audit.jsonl`
+and `events.jsonl`, and the feedback hook rewrites `hook-state.json` and its
+lock and temp files around every tool call. Blocking that directory would take
+the corrective feedback away from the agent that needs it.
+
+One `block write file` clause covers deletion as well: `write` and `unlink` both
+lower to the kernel's write access, so the runtime does not spend a second rule
+slot restating the pair (`docs/rule-language.md` makes the same point).
+
+The runtime's own pid is exempt from the file sinks at the kernel level, so the
+supervisor still writes the feedback, audit, and run files the carve-out names.
+Only pids the runtime explicitly protected qualify, and the exemption is not
+inherited across `fork`, so no subject process can use it to escape.
+
+Like any `block` clause, the guard pre-denies the operation only when BPF-LSM is
+active. In tracepoint-only mode the match is still recorded and reported, but the
+write commits. `actplane compile` emits the policy as written and omits the
+built-in rule, while `run`, `watch`, and MCP enforce it.
+
+
 ## Attach an Already-Started Agent
 
 Use foreground attach when an agent is already running and you want future

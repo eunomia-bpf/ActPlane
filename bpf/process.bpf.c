@@ -1824,9 +1824,16 @@ static __always_inline int te_handle_file_event(pid_t pid, const char *target,
 
 	if (!te_pid_active(pid))
 		return 0;
+	/* The control plane stamps its own loader/watch/MCP pid into
+	 * te_protected_pids so an in-domain subject cannot signal or debug it. The
+	 * control-plane file guard rule would otherwise block that pid's own writes
+	 * to its scoped feedback/audit files, so exempt it from every file sink.
+	 * Only pids the runtime explicitly protected qualify, so no subject
+	 * process can use this to escape. */
+	if (te_pid_protected(pid))
+		return 0;
 	if (!scratch)
 		return 0;
-	__builtin_memset(scratch, 0, sizeof(*scratch));
 	eval = &scratch->eval;
 	__u32 current_domain_id = cap_domain_for_pid(pid);
 	__u64 global_labels = te_labels_for_domain(pid, 0);

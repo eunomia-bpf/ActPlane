@@ -77,6 +77,7 @@ pub async fn watch_policy_for_pid(
     )?;
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let policy = format!("{}{policy}", control_plane_guard_rules(&loaded)?);
     let compiled = dsl::compile_str(&policy)?;
     warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
@@ -1071,6 +1072,7 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
 
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let policy = format!("{}{policy}", control_plane_guard_rules(&loaded)?);
     let compiled = dsl::compile_str(&policy)?;
     warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
@@ -1234,6 +1236,87 @@ fn watch_project_dir(loaded: &crate::config::LoadedPolicy) -> PathBuf {
         .and_then(Path::parent)
         .map(Path::to_path_buf)
         .unwrap_or_else(|| loaded.root.clone())
+}
+
+/// Name of the built-in rule that guards ActPlane's own control state.
+pub const CONTROL_PLANE_RULE_NAME: &str = "actplane-control-plane";
+
+/// The one `.actplane/` subdirectory a subject may still write.
+///
+/// Everything else under `.actplane/` belongs to the supervisor. The exception is
+/// the run scope, because the subject itself writes the files that record its own
+/// run: the agent domain appends to `feedback.txt`, `audit.jsonl` and
+/// `events.jsonl`, and the feedback hook (a CLI descendant of the agent, so in
+/// the agent domain and not a protected pid) rewrites `hook-state.json` and its
+/// `.tmp` and lock files around every tool call. A subject that cannot write its
+/// own run directory loses the feedback that tells it why it was blocked.
+///
+/// The MCP child logs under `children/` are written by the runtime, which is a
+/// protected pid and skips the file sinks, so a subject needs no exception there.
+/// The pattern carries the `.actplane/` prefix and a `/*` rather than one
+/// `{root}/.actplane/runs/**` literal, because every literal the rule emits is
+/// truncated to the kernel's 63-byte pattern window. For the same reason the
+/// *policy* file is a second, explicit target: a subject that can rewrite
+/// `actplane.yaml` reloads its own next child under a policy of its choosing.
+const CONTROL_PLANE_AGENT_WRITABLE_DIRS: &[&str] = &["/.actplane/runs/"];
+
+/// The built-in rule text that every runtime-compiled policy is prefixed with.
+fn control_plane_guard_rules(loaded: &LoadedPolicy) -> Result<String> {
+    guard_rule_text(&watch_project_dir(loaded))
+}
+
+fn guard_rule_text(root: &Path) -> Result<String> {
+    let root = root.to_str().ok_or_else(|| {
+        format!(
+            "project root {} is not valid UTF-8, so the built-in {} rule cannot name it",
+            root.display(),
+            CONTROL_PLANE_RULE_NAME
+        )
+    })?;
+    if root.contains('"') {
+        return Err(format!(
+            "project root {root} contains a double quote, which the policy lexer cannot escape"
+        )
+        .into());
+    }
+    // The kernel's pattern field (TAINT_PAT_LEN) is 64 bytes and the lowering
+    // truncates at 63. A truncated literal matches a *shorter* prefix than the
+    // operator named: for the two sinks that guards the wrong directory, and for
+    // an exemption it silently widens what the subject may write. Check every
+    // literal the rule emits, including the longest exemption, and refuse the
+    // project path instead of shipping a shifted guard.
+    let mut literals = vec![
+        format!("{root}/.actplane/"),
+        format!("{root}/actplane.yaml"),
+    ];
+    for dir in CONTROL_PLANE_AGENT_WRITABLE_DIRS {
+        literals.push(format!("{root}{dir}"));
+    }
+    if let Some(longest) = literals.iter().max_by_key(|l| l.len()) {
+        if longest.len() > 63 {
+            return Err(format!(
+                "guard literal {longest} is {} bytes, over the kernel's 63-byte pattern window; \
+                 move the project to a shorter path",
+                longest.len()
+            )
+            .into());
+        }
+    }
+    let reason = "ActPlane control state belongs to the supervisor; use `actplane control` \
+                  to submit a delta instead of editing these files";
+    // `write` and `unlink` both lower to the kernel's write access, so this one
+    // clause already covers deletion (docs/rule-language.md notes that stating
+    // both verbs is redundant), and the guard costs the policy two kernel rule
+    // slots rather than four.
+    let mut text =
+        format!("rule {CONTROL_PLANE_RULE_NAME}:\n  block write file \"{root}/.actplane/*\"");
+    for dir in CONTROL_PLANE_AGENT_WRITABLE_DIRS {
+        text.push_str(&format!("\n  unless target \"{root}{dir}*\""));
+    }
+    text.push_str(&format!(
+        "\n  block write file \"{root}/actplane.yaml\"\n  because \"{reason}\"\n"
+    ));
+    Ok(text)
 }
 
 /// Check whether we have BPF capabilities (root or CAP_BPF + CAP_SYS_ADMIN).
@@ -1406,6 +1489,7 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     require_bpf_caps_or_elevate(cli.internal_elevated)?;
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let policy = format!("{}{policy}", control_plane_guard_rules(&loaded)?);
     let compiled = dsl::compile_str(&policy)?;
     warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
@@ -1580,6 +1664,7 @@ pub async fn run_child_command(
 
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let policy = format!("{}{policy}", control_plane_guard_rules(&loaded)?);
     let compiled = dsl::compile_str(&policy)?;
     warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
@@ -2130,6 +2215,178 @@ mod tests {
             summary.effective_hash, summary.layers[0]["policy_hash"],
             "effective hash covers the lowered config, not the source"
         );
+    }
+
+    fn compile_guarded(src: &str, root: &Path) -> dsl::Compiled {
+        let policy = format!("{}{src}", guard_rule_text(root).expect("guard text"));
+        dsl::compile_str(&policy).expect("compile guarded policy")
+    }
+
+    fn guard_text(root: &str) -> String {
+        guard_rule_text(Path::new(root)).expect("guard text")
+    }
+
+    fn guard_err(root: &str) -> String {
+        guard_rule_text(Path::new(root))
+            .expect_err("guard root must be rejected")
+            .to_string()
+    }
+
+    /// The built-in guard is the only thing standing between an in-domain
+    /// subject and the supervisor's own control files, so pin the whole rule
+    /// shape: a rewrite that drops the `unless target` exceptions forces the
+    /// subject through its own run directory (which the delta spool and the
+    /// feedback hook need), one that drops the `unlink` clauses lets the subject
+    /// delete the policy file the guard protects, and one that widens the target
+    /// stops guarding the directory the operator named. None of those fail any
+    /// other test.
+    #[test]
+    fn control_plane_guard_lowers_to_expected_matchers() {
+        let root = "/repo";
+        let parsed = dsl::parse::parse(&guard_text(root)).expect("parse guard");
+        assert_eq!(parsed.rules.len(), 1, "the guard is one DSL rule");
+        let rule = &parsed.rules[0];
+        assert_eq!(rule.name, CONTROL_PLANE_RULE_NAME);
+        let shape: Vec<(dsl::ast::Op, &str, Option<&str>)> = rule
+            .clauses
+            .iter()
+            .map(|c| {
+                let exempt = c.unless.as_ref().map(|u| match u {
+                    dsl::ast::Cond::Target { negate, pattern } => {
+                        assert!(!negate, "`unless target` is a positive exception");
+                        pattern.as_str()
+                    }
+                    other => panic!("expected `unless target`, got {other:?}"),
+                });
+                (c.op, c.target.pattern.as_str(), exempt)
+            })
+            .collect();
+        assert_eq!(
+            shape,
+            vec![
+                (
+                    dsl::ast::Op::Write,
+                    "/repo/.actplane/*",
+                    Some("/repo/.actplane/runs/*")
+                ),
+                (dsl::ast::Op::Write, "/repo/actplane.yaml", None),
+            ],
+            "the guard blocks writing and deleting its own control state, and lets the \
+             subject write only its own run directory"
+        );
+        assert!(
+            rule.reason.contains("actplane control"),
+            "the reason must name the corrective action, got {}",
+            rule.reason
+        );
+        // The root is passed through unescaped, so a byte the lexer would eat
+        // has to be rejected up front rather than silently changing the target.
+        assert!(
+            dsl::parse::parse(&format!(
+                "rule {CONTROL_PLANE_RULE_NAME}:\n  block write file \"/re\"po/.actplane/*\"\n  \
+             because \"x\"\n"
+            ))
+            .is_err()
+        );
+        // The lowering keeps the guard reachable: every clause lowers to a
+        // positive matcher term, so the kernel sees two more rules, not zero.
+        let compiled = compile_guarded("", Path::new(root));
+        assert_eq!(compiled.dsl_rule_count, 1);
+        let guard_meta = compiled
+            .meta
+            .iter()
+            .filter(|m| {
+                m.source
+                    .as_ref()
+                    .is_some_and(|s| s.source_ref == format!("rule:{CONTROL_PLANE_RULE_NAME}"))
+            })
+            .count();
+        assert_eq!(
+            guard_meta, 2,
+            "each clause lowers to one kernel matcher for an absolute target"
+        );
+    }
+
+    /// The guard's root is derived exactly like the watch directory, so `run`,
+    /// `watch`, and the MCP auto-attach all name the same tree the supervisor
+    /// scopes its state under.
+    #[test]
+    fn control_plane_guard_root_follows_the_loaded_policy() {
+        let explicit = LoadedPolicy {
+            config: crate::config::FileConfig::default(),
+            path: Some(PathBuf::from("/proj/actplane.yaml")),
+            root: PathBuf::from("/elsewhere"),
+        };
+        assert!(control_plane_guard_root(&explicit).contains("\"/proj/.actplane/*\""));
+        let rule_input = LoadedPolicy {
+            config: crate::config::FileConfig::default(),
+            path: None,
+            root: PathBuf::from("/proj"),
+        };
+        assert!(control_plane_guard_root(&rule_input).contains("\"/proj/.actplane/*\""));
+    }
+
+    fn control_plane_guard_root(loaded: &LoadedPolicy) -> String {
+        let compiled = compile_guarded("", &watch_project_dir(loaded));
+        assert_eq!(compiled.dsl_rule_count, 1);
+        control_plane_guard_rules(&loaded).expect("guard text")
+    }
+
+    /// Every literal the guard emits shares the kernel's 63-byte pattern window,
+    /// and the lowering truncates at 63 instead of erroring. A truncated literal
+    /// matches a *shorter* prefix than the operator named, so a project path that
+    /// does not fit must be rejected up front: at 63 bytes the guard still
+    /// compiles, at 64 bytes it must not.
+    #[test]
+    fn control_plane_guard_rejects_patterns_over_the_kernel_window() {
+        let compiled = compile_guarded("", Path::new("/repo"));
+        assert_eq!(
+            compiled.meta[0].target_pattern, "/repo/.actplane/*",
+            "the guard keeps the operator-visible pattern"
+        );
+        assert!(
+            !compiled
+                .pattern_warnings
+                .iter()
+                .any(|w| w.code == dsl::dsl::PATTERN_TRUNCATED),
+            "a normal project path must not truncate the guard"
+        );
+        // `{root}/.actplane/runs/` is the longest literal, so it sets the bound.
+        let longest = "/.actplane/runs/";
+        let fits = format!("/{}", "a".repeat(63 - longest.len() - 1));
+        assert_eq!(format!("{fits}{longest}").len(), 63);
+        compile_guarded("", Path::new(&fits));
+        let over = format!("{fits}a");
+        assert_eq!(format!("{over}{longest}").len(), 64);
+        let err = guard_err(&over);
+        assert!(err.contains("63-byte"), "got {err}");
+        let err = guard_err("/re\"po");
+        assert!(err.contains("double quote"), "got {err}");
+    }
+
+    /// The guard consumes kernel rule slots like any other rule, so a policy that
+    /// fills the budget on its own must fail once the guard is prepended. The
+    /// count is derived from the guard's own lowering rather than hard-coded, so
+    /// adding a clause to the guard keeps this honest instead of shifting the
+    /// boundary silently.
+    #[test]
+    fn control_plane_guard_fits_the_rule_budget() {
+        let guard_rules = compile_guarded("", Path::new("/repo")).meta.len();
+        let clause = "  block exec \"git branch\"\n";
+        let fit = |n: usize| {
+            let mut src = String::from("rule big:\n");
+            for _ in 0..n {
+                src.push_str(clause);
+            }
+            dsl::compile_str(&format!("{}{src}", guard_text("/repo")))
+        };
+        let budget = 128 - guard_rules;
+        fit(budget).expect("a policy exactly at the budget still compiles");
+        let err = match fit(budget + 1) {
+            Err(e) => e,
+            Ok(_) => panic!("a policy over the rule budget must not compile"),
+        };
+        assert!(err.contains("too many compiled rules"), "got {err}");
     }
 
     #[test]

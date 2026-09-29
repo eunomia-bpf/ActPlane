@@ -1830,6 +1830,73 @@ mod tests {
             (1, 0x0100_007f, u32::MAX),
         );
     }
+
+    #[test]
+    fn two_clause_guard_lowers_carveout_condition() {
+        // The control-plane guard is one rule with two write clauses and one
+        // `unless target` carve-out over the first clause. The first clause
+        // (`.actplane/*`) must lower to a single kernel rule carrying the
+        // condition pair `te_cond_satisfied` gates on (bpf/taint_engine.bpf.h):
+        // cond_kind=TCOND_TARGET, cond_neg=0, cond_match=PREFIX of the runs
+        // dir. That is exactly the field that, present in the object, makes
+        // the 6.8 guest allow a subject write into its own `runs/` dir.
+        let pol = crate::dsl::parse::parse(
+            "rule actplane-control-plane:\n\
+             block write file \"/work/neutral/.actplane/*\"\n\
+             unless target \"/work/neutral/.actplane/runs/*\"\n\
+             block write file \"/work/neutral/actplane.yaml\"\n\
+             because \"control state belongs to the supervisor\"\n",
+        )
+        .expect("parse guard");
+        let compiled = compile(&pol).expect("compile guard");
+        let cfg = unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let rules = &cfg.rules[..cfg.n_rules as usize];
+        let txt = |raw: &[u8]| -> String {
+            String::from_utf8_lossy(&raw[..raw.iter().position(|&b| b == 0).unwrap_or(raw.len())])
+                .into_owned()
+        };
+        // (op, m, cond_kind, cond_neg, cond_match, effect, target, cond_pat)
+        let rows: Vec<(u8, u8, u8, u8, u8, u8, String, String)> = rules
+            .iter()
+            .map(|r| {
+                (
+                    r.op,
+                    r.m,
+                    r.cond_kind,
+                    r.cond_neg,
+                    r.cond_match,
+                    r.effect,
+                    txt(&r.target),
+                    txt(&r.cond_pat),
+                )
+            })
+            .collect();
+        assert_eq!(
+            rows,
+            vec![
+                (
+                    OP_WRITE,
+                    M_PREFIX,
+                    C_TARGET,
+                    0,
+                    M_PREFIX,
+                    EFFECT_BLOCK,
+                    "/work/neutral/.actplane/".to_string(),
+                    "/work/neutral/.actplane/runs/".to_string(),
+                ),
+                (
+                    OP_WRITE,
+                    M_EXACT,
+                    C_NONE,
+                    0,
+                    M_EXACT,
+                    EFFECT_BLOCK,
+                    "/work/neutral/actplane.yaml".to_string(),
+                    String::new(),
+                ),
+            ],
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {

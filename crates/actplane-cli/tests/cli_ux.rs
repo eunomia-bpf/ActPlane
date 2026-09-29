@@ -1118,8 +1118,8 @@ fn documented_dsl_snippets_compile_without_warnings() {
     // that silently starts failing the compile (and taking the `continue`
     // above) would otherwise drop out of the population unnoticed.
     assert_eq!(
-        checked, 25,
-        "expected 25 documented complete-policy DSL examples, found {checked}"
+        checked, 26,
+        "expected 26 documented complete-policy DSL examples, found {checked}"
     );
 }
 

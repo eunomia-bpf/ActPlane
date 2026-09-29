@@ -294,7 +294,7 @@ data-flow enforcement + delegation + feedback + audit**。
 
 1. Stabilize setup, doctor, feedback hook, MCP auto-attach.
 2. `explain last` 与 `actplane control status` 已实现。
-3. Add built-in control-plane self-protection.
+3. Built-in control-plane self-protection 已实现（`run` / `watch` / MCP 自动前置 `actplane-control-plane` 规则，内核豁免 runtime 自身 pid）。
 4. Effective policy hash 与 layer 元数据已实现（`control status` / `actplane:///status`）。
 5. Add `delegate` for subagent contracts.
 6. Add workspace/resource scopes for delegated principals.
