@@ -175,6 +175,55 @@ actplane control delta add \
 The current admission gate is deterministic local metadata checking. It is not
 a cryptographic signature or external ticket-system verifier.
 
+## Delegation
+
+`actplane delegate` runs one subagent under a delegated policy contract and
+records a first-class `delegate` record on the run audit timeline:
+
+```bash
+sudo -E actplane delegate --name reviewer --scope readonly --template readonly-review -- sh -c 'make check'
+```
+
+The contract is optional. A bare delegation binds the subagent into a child
+domain that inherits the parent policy and may only tighten it, and still
+records the principal and scope. With a contract, it is exactly one of:
+
+- a built-in template rendered into a child-domain policy delta:
+
+```bash
+actplane delegate --name reviewer --template readonly-review --set 'agent_exec=**/reviewer' -- cmd...
+```
+
+- an append-only DSL fragment, from a file or inline, with the same
+  admission metadata as runtime deltas:
+
+```bash
+actplane delegate --name builder --delta contract.dsl --approved-by alice -- cmd...
+actplane delegate --name builder --delta-text 'source L = file "secrets/**"' -- cmd...
+```
+
+Relevant flags: `--name` (required principal), `--scope` (free-form label,
+recorded only), `--template` + `--set KEY=VALUE` (built-in contract),
+`--delta` / `--delta-text` (DSL-fragment contract), `--child-id`,
+`--scope-id`, and the delta metadata `--approved-by`, `--approval-ref`,
+`--generated-by`. The command after `--` is the subagent argv; the
+`launch_child_domain` record it is filed next to still lands on the timeline,
+and the new `delegate` record carries the outcome:
+
+```text
+{"event":"delegate","status":"accepted","principal":"reviewer","scope":"readonly", ...}
+{"event":"delegate","status":"rejected","principal":"builder","error":"...", ...}
+```
+
+`actplane replay` classifies each record as a `[delegate]` step (kind
+`delegate` under `--json`); a rejected contract lands on the timeline too, so
+the audit history shows which subagents were admitted and which were refused.
+
+The `--scope` label is recorded but not yet an enforcement boundary; a
+principal's workspace/resource scoping is a later milestone.
+
+
+
 ## Attach Limits
 
 `actplane attach --pid <pid>` is post-hoc:

@@ -313,6 +313,16 @@ pub struct PolicyAuditMeta {
     pub generated_by: Option<String>,
 }
 
+/// The principal a delegation names: the subagent identity (`name`), the
+/// free-form scope label recorded with it (`scope`), and the contract
+/// source (`contract_ref`) when the contract came from a built-in template.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DelegationMeta {
+    pub name: String,
+    pub scope: Option<String>,
+    pub contract_ref: Option<String>,
+}
+
 #[derive(Clone, Default)]
 struct RuntimeApprovalPolicy {
     append_delta: AppendDeltaApprovalGate,
@@ -748,6 +758,41 @@ impl EngineControl {
             "cmd": cmd,
             "policy_attached": policy_attached,
         });
+        if let Some(error) = error {
+            record["error"] = json!(error);
+        }
+        self.audit(record)
+    }
+
+    /// Record that a delegation was installed for a subagent principal.
+    /// Emission happens on every outcome of `run_child_command` (bind reject,
+    /// delta reject, accepted) so a rejected contract lands on the audit
+    /// timeline too, alongside the `launch_child_domain` record it is filed
+    /// next to.
+    pub fn audit_delegate(
+        &self,
+        pid: i32,
+        child_id: u32,
+        cmd: &[String],
+        status: &str,
+        meta: &DelegationMeta,
+        error: Option<&str>,
+    ) -> Result<()> {
+        let mut record = json!({
+            "event": "delegate",
+            "status": status,
+            "principal": meta.name,
+            "actor_pid": self.parent_pid,
+            "pid": pid,
+            "child_domain_id": child_id,
+            "cmd": cmd,
+        });
+        if let Some(scope) = &meta.scope {
+            record["scope"] = json!(scope);
+        }
+        if let Some(contract_ref) = &meta.contract_ref {
+            record["contract_ref"] = json!(contract_ref);
+        }
         if let Some(error) = error {
             record["error"] = json!(error);
         }
@@ -1656,6 +1701,7 @@ pub async fn run_child_command(
     delta_texts: &[String],
     audit_meta: &PolicyAuditMeta,
     cmd: &[String],
+    delegation: Option<&DelegationMeta>,
 ) -> Result<i32> {
     require_bpf_caps_or_elevate(cli.internal_elevated)?;
     if cmd.is_empty() {
@@ -1816,14 +1862,25 @@ pub async fn run_child_command(
         ..ChildDomainSpec::default()
     }) {
         kill_process_group_and_wait(&mut child).await;
+        let err = e.to_string();
         let _ = control.audit_child_launch(
             child_pid as i32,
             child_domain_id,
             &cmd.to_vec(),
             policy_attached,
             "rejected",
-            Some(&e.to_string()),
+            Some(&err),
         );
+        if let Some(meta) = delegation {
+            let _ = control.audit_delegate(
+                child_pid as i32,
+                child_domain_id,
+                &cmd.to_vec(),
+                "rejected",
+                meta,
+                Some(&err),
+            );
+        }
         stop.store(true, Ordering::SeqCst);
         let _ = poller.join();
         return Err(format!("bind child domain failed: {e}").into());
@@ -1836,14 +1893,25 @@ pub async fn run_child_command(
             control.append_policy_delta_dsl_with_audit(child_domain_id, delta, &delta_meta)
         {
             kill_process_group_and_wait(&mut child).await;
+            let err = format!("{policy_ref}: {e}");
             let _ = control.audit_child_launch(
                 child_pid as i32,
                 child_domain_id,
                 &cmd.to_vec(),
                 policy_attached,
                 "rejected",
-                Some(&format!("{policy_ref}: {e}")),
+                Some(&err),
             );
+            if let Some(meta) = delegation {
+                let _ = control.audit_delegate(
+                    child_pid as i32,
+                    child_domain_id,
+                    &cmd.to_vec(),
+                    "rejected",
+                    meta,
+                    Some(&err),
+                );
+            }
             stop.store(true, Ordering::SeqCst);
             let _ = poller.join();
             return Err(format!("append child policy delta {policy_ref} failed: {e}").into());
@@ -1858,6 +1926,16 @@ pub async fn run_child_command(
         "accepted",
         None,
     )?;
+    if let Some(meta) = delegation {
+        control.audit_delegate(
+            child_pid as i32,
+            child_domain_id,
+            &cmd.to_vec(),
+            "accepted",
+            meta,
+            None,
+        )?;
+    }
 
     eprintln!(
         "ActPlane: running child pid {} in domain {}; feedback {}",
