@@ -188,11 +188,15 @@ The contract is optional. A bare delegation binds the subagent into a child
 domain that inherits the parent policy and may only tighten it, and still
 records the principal and scope. With a contract, it is exactly one of:
 
-- a built-in template rendered into a child-domain policy delta:
+- a workspace confinement: the subagent's file access is confined to a
+  writable path (or glob), rendered from the built-in `workspace-confinement`
+  template and installed as the child-domain policy delta:
 
 ```bash
-actplane delegate --name reviewer --template readonly-review --set 'agent_exec=**/reviewer' -- cmd...
+actplane delegate --name builder --workspace /work/repo/** -- cmd...
 ```
+
+- a built-in template rendered into a child-domain policy delta:
 
 - an append-only DSL fragment, from a file or inline, with the same
   admission metadata as runtime deltas:
@@ -203,15 +207,17 @@ actplane delegate --name builder --delta-text 'source L = file "secrets/**"' -- 
 ```
 
 Relevant flags: `--name` (required principal), `--scope` (free-form label,
-recorded only), `--template` + `--set KEY=VALUE` (built-in contract),
-`--delta` / `--delta-text` (DSL-fragment contract), `--child-id`,
-`--scope-id`, and the delta metadata `--approved-by`, `--approval-ref`,
-`--generated-by`. The command after `--` is the subagent argv; the
+recorded only), `--workspace` (writable path confinement, enforced through
+the `workspace-confinement` contract), `--template` + `--set KEY=VALUE`
+(built-in contract), `--delta` / `--delta-text` (DSL-fragment contract),
+`--child-id`, `--scope-id`, and the delta metadata `--approved-by`,
+`--approval-ref`, `--generated-by`. The command after `--` is the subagent
+argv; the
 `launch_child_domain` record it is filed next to still lands on the timeline,
 and the new `delegate` record carries the outcome:
 
 ```text
-{"event":"delegate","status":"accepted","principal":"reviewer","scope":"readonly", ...}
+{"event":"delegate","status":"accepted","principal":"builder","workspace":"/work/repo/**","contract_ref":"template `workspace-confinement`", ...}
 {"event":"delegate","status":"rejected","principal":"builder","error":"...", ...}
 ```
 
@@ -219,8 +225,10 @@ and the new `delegate` record carries the outcome:
 `delegate` under `--json`); a rejected contract lands on the timeline too, so
 the audit history shows which subagents were admitted and which were refused.
 
-The `--scope` label is recorded but not yet an enforcement boundary; a
-principal's workspace/resource scoping is a later milestone.
+A delegation's resource scope is the `--workspace` confinement: an actual
+enforcement boundary on the subagent's file access, recorded on the `delegate`
+record and rendered in the `replay` summary. The free-form `--scope` label is
+recorded only and is not an enforcement boundary.
 
 
 
