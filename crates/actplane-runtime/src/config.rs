@@ -90,6 +90,12 @@ pub struct AppendDeltaApprovalConfig {
     pub require_generated_by: bool,
     #[serde(default)]
     pub allowed_approvers: Vec<String>,
+    /// When set, a delta's `approval_ref` must match a gate/approval token
+    /// ActPlane itself issued (`control gate issue` / MCP `issue_gate_token`)
+    /// for the delta to be admitted. Off by default, so existing static
+    /// metadata deployments keep their admission outcomes.
+    #[serde(default)]
+    pub verify_issued_tokens: bool,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -589,6 +595,7 @@ runtime:
       required: true
       require_approval_ref: true
       require_generated_by: true
+      verify_issued_tokens: true
       allowed_approvers:
         - repo-supervisor
 policy: |
@@ -602,6 +609,27 @@ policy: |
         assert!(approval.require_approval_ref);
         assert!(approval.require_generated_by);
         assert_eq!(approval.allowed_approvers, vec!["repo-supervisor"]);
+        assert!(approval.verify_issued_tokens);
+    }
+
+    #[test]
+    fn runtime_append_delta_approval_defaults_verify_issued_tokens_off() {
+        let loaded = load(
+            r#"
+runtime:
+  approval:
+    append_delta:
+      required: true
+policy: |
+  rule r:
+    notify exec "git"
+    because "x"
+"#,
+        );
+        let approval = &loaded.config.runtime.approval.append_delta;
+        assert!(approval.required);
+        assert!(!approval.verify_issued_tokens);
+        assert!(approval.allowed_approvers.is_empty());
     }
 
     #[test]

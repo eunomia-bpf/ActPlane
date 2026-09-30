@@ -273,6 +273,8 @@ policy: |
         "append_policy_delta",
         "restart_child_domain",
         "reconcile_child_domains",
+        "issue_gate_token",
+        "list_gate_tokens",
     ] {
         assert!(
             names.contains(&expected),
@@ -327,6 +329,7 @@ policy: |
     let status_json: Value = serde_json::from_str(status_text).expect("status resource is json");
     assert_eq!(status_json["attached"], Value::Bool(false));
     assert_eq!(status_json["child_count"], Value::from(0));
+    assert_eq!(status_json["gate_tokens"], Value::Null);
 
     mcp.send(json!({
         "jsonrpc": "2.0",

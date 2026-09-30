@@ -1981,6 +1981,7 @@ fn control_help_exposes_already_running_engine_commands() {
         "logs",
         "stop",
         "restart",
+        "gate",
     ] {
         assert!(
             stdout.contains(command),
@@ -2012,6 +2013,20 @@ fn control_delta_add_help_exposes_delta_inputs() {
     assert!(stdout.contains("--approved-by"));
     assert!(stdout.contains("--approval-ref"));
     assert!(stdout.contains("--generated-by"));
+}
+
+#[test]
+fn control_gate_help_exposes_token_inputs() {
+    let issue = run(&["control", "gate", "issue", "--help"]);
+    assert!(issue.status.success(), "stderr: {}", stderr(&issue));
+    let stdout = stdout(&issue);
+    assert!(stdout.contains("TOKEN"), "missing TOKEN in help:\n{stdout}");
+    assert!(
+        stdout.contains("--approved-by"),
+        "missing --approved-by:\n{stdout}"
+    );
+    let list = run(&["control", "gate", "list", "--help"]);
+    assert!(list.status.success(), "stderr: {}", stderr(&list));
 }
 
 #[test]
@@ -2063,6 +2078,7 @@ fn parent_domain_control_mutations_are_rejected_before_socket_connect() {
             "rule added:\n  notify exec \"git\" if true\n  because \"added\"",
         ],
         vec!["control", "launch-child", "/bin/true"],
+        vec!["control", "gate", "issue", "GATE-1"],
     ] {
         let output = Command::new(actplane())
             .current_dir(tmp.path())
@@ -2285,6 +2301,71 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+#[cfg(unix)]
+#[test]
+fn control_gate_issue_sends_issue_gate_token_over_repo_control_socket() {
+    let tmp = tempfile::tempdir().unwrap();
+    let socket_path = tmp.path().join("control.sock");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": std::process::id() as i32,
+            "proc_start_time": null,
+            "socket_path": socket_path,
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": 2222,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept control client");
+        let mut line = String::new();
+        std::io::BufReader::new(stream.try_clone().expect("clone stream"))
+            .read_line(&mut line)
+            .expect("read request");
+        let request: serde_json::Value = serde_json::from_str(&line).expect("request JSON");
+        tx.send(request).expect("send request");
+        serde_json::to_writer(
+            &mut stream,
+            &serde_json::json!({ "ok": true, "text": "gate token issued" }),
+        )
+        .expect("write response");
+        writeln!(stream).expect("write response newline");
+    });
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args([
+            "control",
+            "gate",
+            "issue",
+            "GATE-123",
+            "--approved-by",
+            "alice",
+        ])
+        .output()
+        .expect("run control gate issue");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(stdout(&output).contains("gate token issued"));
+
+    let request = rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("control request");
+    assert_eq!(request["op"], "issue_gate_token");
+    assert_eq!(request["token"], "GATE-123");
+    assert_eq!(request["approved_by"], "alice");
+
+    handle.join().expect("control server thread");
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
@@ -2474,9 +2555,9 @@ fn documented_actplane_flags_exist() {
             // flags below stops at an unknown word, so without this a renamed
             // subcommand would silently drop its flags from the count.
             //
-            // `docs/design/` is the design record and names planned commands
-            // (`delegate`, `replay`) that the shipped CLI does not have yet, so
-            // it is excluded here as it is for the flag floor.
+            // `docs/design/` is the design record; it still names material the
+            // shipped CLI does not provide yet, so it is excluded here as it is
+            // for the flag floor.
             if !rel.starts_with("docs/design/") {
                 if let Some(next) = toks.get(at + 1) {
                     let ok = !next.is_empty()
@@ -2766,6 +2847,69 @@ fn replay_json_emits_classified_steps_with_their_records() {
     assert_eq!(body["steps"][0]["summary"], "new_fangled_event");
     assert_eq!(body["steps"][0]["timestamp_unix_ns"], "7");
     assert_eq!(body["steps"][0]["record"]["event"], "new_fangled_event");
+}
+
+#[test]
+fn replay_render_the_delegate_record_as_a_first_class_step() {
+    // A `delegate` record written by `actplane delegate` is a first-class
+    // timeline step, not an `other` fall-through: the text timeline shows the
+    // `[delegate]` label with the principal/scope summary, and `--json`
+    // classifies it as the `delegate` kind.
+    let tmp = tempfile::tempdir().unwrap();
+    audit_project(
+        tmp.path(),
+        "run-a",
+        "{\"event\":\"engine_attach\",\"timestamp_unix_ns\":\"5\"}\n\
+         {\"event\":\"delegate\",\"status\":\"accepted\",\"principal\":\"reviewer\",\"scope\":\"readonly\",\"contract_ref\":\"template `readonly-review`\",\"timestamp_unix_ns\":\"6\"}\n\
+         {\"event\":\"delegate\",\"status\":\"accepted\",\"principal\":\"builder\",\"workspace\":\"/work/repo\",\"contract_ref\":\"template `workspace-confinement`\",\"timestamp_unix_ns\":\"6\"}\n\
+         {\"event\":\"delegate\",\"status\":\"rejected\",\"principal\":\"builder\",\"timestamp_unix_ns\":\"6\"}\n",
+    );
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["replay"])
+        .output()
+        .expect("run replay");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("4 step(s)"), "{text}");
+    let lines: Vec<&str> = text.lines().skip(1).collect();
+    assert!(lines[0].contains("[attach] engine_attach"), "{text}");
+    assert!(
+        lines[1]
+            .contains("[delegate] delegate accepted principal reviewer scope readonly contract"),
+        "{text}"
+    );
+    // A `--workspace` confinement renders as a first-class summary part,
+    // between the scope label and the contract ref.
+    assert!(
+        lines[2].contains(
+            "[delegate] delegate accepted principal builder workspace /work/repo contract"
+        ),
+        "{text}"
+    );
+    assert!(
+        lines[3].contains("[delegate] delegate rejected principal builder"),
+        "{text}"
+    );
+
+    // The machine-readable form classifies the record, and keeps a rejected
+    // record's missing scope/contract_ref keys absent rather than invented.
+    let json_out = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["replay", "--json"])
+        .output()
+        .expect("run replay --json");
+    assert!(json_out.status.success(), "stderr: {}", stderr(&json_out));
+    let body: serde_json::Value = serde_json::from_str(&stdout(&json_out)).expect("replay json");
+    assert_eq!(body["steps"][1]["kind"], "delegate");
+    assert_eq!(body["steps"][1]["record"]["principal"], "reviewer");
+    assert_eq!(body["steps"][1]["record"]["scope"], "readonly");
+    assert_eq!(body["steps"][2]["kind"], "delegate");
+    assert_eq!(body["steps"][2]["record"]["workspace"], "/work/repo");
+    assert!(body["steps"][2]["record"].get("scope").is_none());
+    assert_eq!(body["steps"][3]["kind"], "delegate");
+    assert!(body["steps"][3]["record"].get("scope").is_none());
 }
 
 #[test]

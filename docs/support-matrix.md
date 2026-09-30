@@ -172,8 +172,104 @@ actplane control delta add \
   --generated-by codex
 ```
 
-The current admission gate is deterministic local metadata checking. It is not
-a cryptographic signature or external ticket-system verifier.
+The current admission gate is deterministic local metadata checking. When
+`verify_issued_tokens` is enabled it additionally verifies the delta's
+`approval_ref` against gate tokens that the control plane has issued; the
+static metadata check alone is not a cryptographic signature or external
+ticket-system verifier.
+
+## Delegation
+
+`actplane delegate` runs one subagent under a delegated policy contract and
+records a first-class `delegate` record on the run audit timeline:
+
+```bash
+sudo -E actplane delegate --name reviewer --scope readonly --template readonly-review -- sh -c 'make check'
+```
+
+The contract is optional. A bare delegation binds the subagent into a child
+domain that inherits the parent policy and may only tighten it, and still
+records the principal and scope. With a contract, it is exactly one of:
+
+- a workspace confinement: the subagent's file access is confined to a
+  writable path (or glob), rendered from the built-in `workspace-confinement`
+  template and installed as the child-domain policy delta:
+
+```bash
+actplane delegate --name builder --workspace /work/repo/** -- cmd...
+```
+
+- a built-in template rendered into a child-domain policy delta:
+
+- an append-only DSL fragment, from a file or inline, with the same
+  admission metadata as runtime deltas:
+
+```bash
+actplane delegate --name builder --delta contract.dsl --approved-by alice -- cmd...
+actplane delegate --name builder --delta-text 'source L = file "secrets/**"' -- cmd...
+```
+
+Relevant flags: `--name` (required principal), `--scope` (free-form label,
+recorded only), `--workspace` (writable path confinement, enforced through
+the `workspace-confinement` contract), `--template` + `--set KEY=VALUE`
+(built-in contract), `--delta` / `--delta-text` (DSL-fragment contract),
+`--child-id`, `--scope-id`, and the delta metadata `--approved-by`,
+`--approval-ref`, `--generated-by`. The command after `--` is the subagent
+argv; the
+`launch_child_domain` record it is filed next to still lands on the timeline,
+and the new `delegate` record carries the outcome:
+
+```text
+{"event":"delegate","status":"accepted","principal":"builder","workspace":"/work/repo/**","contract_ref":"template `workspace-confinement`", ...}
+{"event":"delegate","status":"rejected","principal":"builder","error":"...", ...}
+```
+
+`actplane replay` classifies each record as a `[delegate]` step (kind
+`delegate` under `--json`); a rejected contract lands on the timeline too, so
+the audit history shows which subagents were admitted and which were refused.
+
+A delegation's resource scope is the `--workspace` confinement: an actual
+enforcement boundary on the subagent's file access, recorded on the `delegate`
+record and rendered in the `replay` summary. The free-form `--scope` label is
+recorded only and is not an enforcement boundary.
+
+## Gate Tokens
+
+Gate/approval tokens are the issued-token half of the admission gate. The
+kernel already enforces the requirement side through `AUTH_REQUIRE_GATE`;
+ActPlane manages and audits the issuance. A token is a first-class control
+action, recorded on the run audit timeline as an `issue_gate_token` record:
+
+```bash
+actplane control gate issue GATE-123 --approved-by alice
+actplane control gate list
+```
+
+The issued token is held in the control plane's gate-token registry. When
+the runtime's `verify_issued_tokens` gate is on, a delta is admitted only if
+its `approval_ref` matches a token already in that registry; an absent or
+unrecognized `approval_ref` is rejected with the token reason:
+
+```yaml
+runtime:
+  approval:
+    append_delta:
+      verify_issued_tokens: true
+```
+
+The issued-token model is opt-in and off by default. The static metadata
+check (the `required` allowlist) still runs independently, so enabling
+`verify_issued_tokens` layers a second, issued-reference check on top of it.
+
+Each issuance lands on the timeline as an `issue_gate_token` record and is
+classified as a `[gate_token]` step by `actplane replay`:
+
+```text
+{"event":"issue_gate_token","status":"accepted","token":"GATE-123","approved_by":"alice", ...}
+```
+
+
+
 
 ## Attach Limits
 
