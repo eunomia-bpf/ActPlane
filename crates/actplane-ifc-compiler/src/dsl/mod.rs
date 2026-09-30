@@ -6,6 +6,7 @@
 pub mod ast;
 pub mod lower;
 pub mod parse;
+pub mod sim;
 
 use std::collections::HashMap;
 
@@ -16,6 +17,7 @@ pub use lower::{
     RULE_CONDITION_WARNING_CODES, RUNTIME_SEEDED_LABELS, RuleMeta, RuleSourceMeta, compile,
     is_numeric_endpoint_pattern, repo_relative_condition_is_partial,
 };
+pub use sim::{SimEvent, SimHit, policy_features, simulate};
 
 /// Parse + compile DSL source text to a kernel config blob + reason table.
 pub fn compile_str(src: &str) -> Result<Compiled, String> {

@@ -36,47 +36,47 @@ const C_TARGET: u8 = 3;
 const EFFECT_NOTIFY: u8 = 0;
 const EFFECT_BLOCK: u8 = 1;
 const EFFECT_KILL: u8 = 2;
-const GATE_IMMEDIATE: i32 = -1;
+pub const GATE_IMMEDIATE: i32 = -1;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct CUpdate {
-    op: u8,
-    m: u8,
-    target: [u8; PAT],
-    arg: [u8; ARG],
-    add: u64,
-    del: u64,
-    gates: u64,
-    invals: u64,
-    ipv4: u32,
-    ipv4_mask: u32,
-    gate_exit_code: i32,
-    domain_id: u32,
+pub struct CUpdate {
+    pub op: u8,
+    pub m: u8,
+    pub target: [u8; PAT],
+    pub arg: [u8; ARG],
+    pub add: u64,
+    pub del: u64,
+    pub gates: u64,
+    pub invals: u64,
+    pub ipv4: u32,
+    pub ipv4_mask: u32,
+    pub gate_exit_code: i32,
+    pub domain_id: u32,
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct CRule {
-    op: u8,
-    m: u8,
-    cond_kind: u8,
-    cond_neg: u8,
-    cond_match: u8,
-    effect: u8,
-    target: [u8; PAT],
-    arg: [u8; ARG],
-    cond_pat: [u8; PAT],
-    req: u64,
-    forbid: u64,
-    gate: u64,
-    rule_id: u32,
-    ipv4: u32,
-    ipv4_mask: u32,
-    cond_ipv4: u32,
-    cond_ipv4_mask: u32,
-    gate_idx: u32,
-    domain_id: u32,
-    since_mask: u64,
+pub struct CRule {
+    pub op: u8,
+    pub m: u8,
+    pub cond_kind: u8,
+    pub cond_neg: u8,
+    pub cond_match: u8,
+    pub effect: u8,
+    pub target: [u8; PAT],
+    pub arg: [u8; ARG],
+    pub cond_pat: [u8; PAT],
+    pub req: u64,
+    pub forbid: u64,
+    pub gate: u64,
+    pub rule_id: u32,
+    pub ipv4: u32,
+    pub ipv4_mask: u32,
+    pub cond_ipv4: u32,
+    pub cond_ipv4_mask: u32,
+    pub gate_idx: u32,
+    pub domain_id: u32,
+    pub since_mask: u64,
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -2588,6 +2588,23 @@ pub struct Compiled {
     pub endpoint_resolutions: HashMap<String, Vec<String>>,
     /// Pattern-lowering warnings (sorted, deduplicated), for the CLI to surface.
     pub pattern_warnings: Vec<PatternWarning>,
+    config: CConfig, // retained next to `bytes`; `tables()` hands out its in-use rows
+}
+
+impl Compiled {
+    /// The lowered kernel tables this policy compiled to, bounded to the
+    /// `n_updates`/`n_rules` rows actually in use (the rest of the fixed blob
+    /// is zero padding).
+    ///
+    /// These are the exact table rows the enforcement engine matches against,
+    /// so the userspace policy simulator ([`super::sim`]) sees the same IR
+    /// the kernel would.
+    pub fn tables(&self) -> (&[CUpdate], &[CRule]) {
+        (
+            &self.config.updates[..self.config.n_updates as usize],
+            &self.config.rules[..self.config.n_rules as usize],
+        )
+    }
 }
 
 fn collect_label_names(pol: &Policy) -> Vec<String> {
@@ -3045,6 +3062,7 @@ pub fn compile_with_labels(
     warnings.dedup();
     Ok(Compiled {
         bytes,
+        config: cfg,
         reasons,
         meta,
         dsl_rule_count: pol.rules.len(),
