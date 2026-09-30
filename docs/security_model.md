@@ -327,4 +327,5 @@ monotonic labels/restrictions/gates/scope update
 runtime bind-child and launch-child control paths
 append-only compiled update/rule deltas
 static metadata approval gate for append_policy_delta
+opt-in issued gate/approval token registry that append-delta admission verifies approval_ref against
 ```

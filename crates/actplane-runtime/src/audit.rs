@@ -181,6 +181,7 @@ pub enum ReplayKind {
     ChildDomain,
     Violation,
     Delegation,
+    GateToken,
     Other,
 }
 
@@ -195,6 +196,7 @@ impl ReplayKind {
             | "adopt_child_domain" => Self::ChildDomain,
             "taint_violation" => Self::Violation,
             "delegate" => Self::Delegation,
+            "issue_gate_token" => Self::GateToken,
             _ => Self::Other,
         }
     }
@@ -207,6 +209,7 @@ impl ReplayKind {
             Self::ChildDomain => "child",
             Self::Violation => "violation",
             Self::Delegation => "delegate",
+            Self::GateToken => "gate_token",
             Self::Other => "other",
         }
     }
@@ -291,6 +294,14 @@ fn summarize(event: &str, obj: Option<&serde_json::Map<String, Value>>) -> Strin
             }
             if let Some(contract) = field("contract_ref") {
                 parts.push(format!("contract {contract}"));
+            }
+        }
+        "issue_gate_token" => {
+            if let Some(token) = field("token") {
+                parts.push(format!("token {token}"));
+            }
+            if let Some(approved_by) = field("approved_by") {
+                parts.push(format!("approved_by {approved_by}"));
             }
         }
         _ => {}
@@ -403,6 +414,34 @@ mod tests {
         // No scope, workspace, or contract ref on the rejected record, so the
         // summary stops after the status; the error field is not part of it.
         assert_eq!(steps[2].summary, "delegate rejected principal builder");
+    }
+
+    #[test]
+    fn replay_classifies_the_gate_token_record() {
+        // `issue_gate_token` records are first-class timeline steps: a record
+        // written by `actplane control gate issue` must classify as GateToken,
+        // not fall through to Other, and its summary must name the token and
+        // the approver (the approver only when the record carries it).
+        let records = vec![
+            json!({"event": "issue_gate_token", "status": "accepted",
+                   "token": "GATE-123", "approved_by": "alice",
+                   "timestamp_unix_ns": "7"}),
+            json!({"event": "issue_gate_token", "status": "accepted",
+                   "token": "GATE-456"}),
+        ];
+        let steps = replay_steps(&records);
+
+        assert_eq!(steps.len(), 2);
+        assert_eq!(steps[0].kind, ReplayKind::GateToken);
+        assert_eq!(steps[1].kind, ReplayKind::GateToken);
+        assert_eq!(ReplayKind::GateToken.label(), "gate_token");
+        assert_eq!(
+            steps[0].summary,
+            "issue_gate_token accepted token GATE-123 approved_by alice"
+        );
+        // No approver on the second record, so the summary stops after the
+        // token.
+        assert_eq!(steps[1].summary, "issue_gate_token accepted token GATE-456");
     }
     #[test]
     fn audit_appends_jsonl_with_schema_and_timestamp() {

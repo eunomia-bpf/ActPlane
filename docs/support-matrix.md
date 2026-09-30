@@ -172,8 +172,11 @@ actplane control delta add \
   --generated-by codex
 ```
 
-The current admission gate is deterministic local metadata checking. It is not
-a cryptographic signature or external ticket-system verifier.
+The current admission gate is deterministic local metadata checking. When
+`verify_issued_tokens` is enabled it additionally verifies the delta's
+`approval_ref` against gate tokens that the control plane has issued; the
+static metadata check alone is not a cryptographic signature or external
+ticket-system verifier.
 
 ## Delegation
 
@@ -229,6 +232,42 @@ A delegation's resource scope is the `--workspace` confinement: an actual
 enforcement boundary on the subagent's file access, recorded on the `delegate`
 record and rendered in the `replay` summary. The free-form `--scope` label is
 recorded only and is not an enforcement boundary.
+
+## Gate Tokens
+
+Gate/approval tokens are the issued-token half of the admission gate. The
+kernel already enforces the requirement side through `AUTH_REQUIRE_GATE`;
+ActPlane manages and audits the issuance. A token is a first-class control
+action, recorded on the run audit timeline as an `issue_gate_token` record:
+
+```bash
+actplane control gate issue GATE-123 --approved-by alice
+actplane control gate list
+```
+
+The issued token is held in the control plane's gate-token registry. When
+the runtime's `verify_issued_tokens` gate is on, a delta is admitted only if
+its `approval_ref` matches a token already in that registry; an absent or
+unrecognized `approval_ref` is rejected with the token reason:
+
+```yaml
+runtime:
+  approval:
+    append_delta:
+      verify_issued_tokens: true
+```
+
+The issued-token model is opt-in and off by default. The static metadata
+check (the `required` allowlist) still runs independently, so enabling
+`verify_issued_tokens` layers a second, issued-reference check on top of it.
+
+Each issuance lands on the timeline as an `issue_gate_token` record and is
+classified as a `[gate_token]` step by `actplane replay`:
+
+```text
+{"event":"issue_gate_token","status":"accepted","token":"GATE-123","approved_by":"alice", ...}
+```
+
 
 
 

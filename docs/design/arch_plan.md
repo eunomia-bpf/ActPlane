@@ -298,7 +298,7 @@ data-flow enforcement + delegation + feedback + audit**。
 4. Effective policy hash 与 layer 元数据已实现（`control status` / `actplane:///status`）。
 5. `delegate` subcommand for subagent contracts 已实现（`actplane delegate --name <principal> [--scope <label>] [--template <id> | --delta <file> | --delta-text <dsl>]`，审计时间线记录 `delegate` 记录，`replay` 归入 `[delegate]` 一类）。
 6. Add workspace/resource scopes for delegated principals 已实现（`actplane delegate --workspace <path>`：从内置 `workspace-confinement` 模板渲染出子域策略 delta，把子代理的文件访问圈到可写路径内，并在审计时间线记录 `workspace` 字段）。
-7. Add gate/approval tokens.
+7. Add gate/approval tokens 已实现（`actplane control gate issue <token> [--approved-by <who>]` 把 gate/approval token 登记进 runtime control plane，并写一条 `issue_gate_token` 审计记录；`actplane control gate list` 列出已发放的 token。启用 `runtime.approval.append_delta.verify_issued_tokens` 后，delta 的 `approval_ref` 必须匹配已发放的 token 才会被接纳，`replay` 归入 `[gate_token]` 一类。MCP 提供 `issue_gate_token` / `list_gate_tokens` 工具，`actplane:///status` 报告 `gate_tokens`。kernel 侧要求（`AUTH_REQUIRE_GATE`）保持不变，token 发放/审批是 opt-in 的 userspace 状态）。
 8. Audit timeline 与 replay/export 已实现（`audit show` / `export --jsonl` / `replay`）。
 9. Add policy tests/simulation.
 10. Add policy distribution and signed bundles.
