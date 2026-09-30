@@ -411,6 +411,78 @@ impl ActPlaneMcp {
         ))]))
     }
 
+    fn do_issue_gate_token(
+        &self,
+        args: Option<serde_json::Map<String, Value>>,
+        actor_pid: Option<i32>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
+        let control = self.control.as_ref().ok_or_else(|| {
+            rmcp::ErrorData::new(
+                ErrorCode::INTERNAL_ERROR,
+                "No eBPF engine attached (MCP not started with --auto-attach-parent)",
+                None::<Value>,
+            )
+        })?;
+        let args = args.unwrap_or_default();
+        let token = json_string(&args, "token")?;
+        if token.trim().is_empty() {
+            return Err(invalid_params("`token` must be a non-empty string"));
+        }
+        let approved_by = json_optional_string(&args, "approved_by")?.map(ToString::to_string);
+        let actor_pid = actor_pid.unwrap_or(control.submitter_pid());
+        control
+            .issue_gate_token(actor_pid, &token, approved_by.as_deref())
+            .map_err(|e| {
+                rmcp::ErrorData::new(
+                    ErrorCode::INTERNAL_ERROR,
+                    format!("Issue gate token failed: {e}"),
+                    None::<Value>,
+                )
+            })?;
+        Ok(CallToolResult::success(vec![ContentBlock::text(format!(
+            "Issued gate token `{token}`"
+        ))]))
+    }
+
+    fn do_list_gate_tokens(&self) -> Result<CallToolResult, rmcp::ErrorData> {
+        let Some(rows) = self
+            .control
+            .as_ref()
+            .map(|control| control.list_gate_tokens())
+            .transpose()
+            .map_err(|e| {
+                rmcp::ErrorData::new(
+                    ErrorCode::INTERNAL_ERROR,
+                    format!("List gate tokens failed: {e}"),
+                    None::<Value>,
+                )
+            })?
+        else {
+            return Ok(CallToolResult::success(vec![ContentBlock::text(
+                "No eBPF engine attached".to_string(),
+            )]));
+        };
+        if rows.is_empty() {
+            return Ok(CallToolResult::success(vec![ContentBlock::text(
+                "No gate tokens issued".to_string(),
+            )]));
+        }
+        let mut lines = vec![];
+        for row in &rows {
+            lines.push(format!(
+                "{}{}",
+                row.get("token").map(|v| v.to_string()).unwrap_or_default(),
+                row.get("approved_by")
+                    .and_then(Value::as_str)
+                    .map(|approved_by| format!(" (approved_by {approved_by})"))
+                    .unwrap_or_default()
+            ));
+        }
+        Ok(CallToolResult::success(vec![ContentBlock::text(
+            lines.join("\n"),
+        )]))
+    }
+
     fn do_launch_child_domain(
         &self,
         args: Option<serde_json::Map<String, Value>>,
@@ -1108,6 +1180,21 @@ impl ActPlaneMcp {
                     Some(peer.identity),
                 ))
             }
+            "issue_gate_token" => {
+                let Some(peer) = peer else {
+                    return serde_json::json!({
+                        "ok": false,
+                        "error": "local control peer credentials are unavailable",
+                    });
+                };
+                local_tool_response(self.do_issue_gate_token(Some(args), Some(peer.pid)))
+            }
+            "list_gate_tokens" => {
+                if let Err(e) = self.ensure_local_parent_peer(peer) {
+                    return serde_json::json!({ "ok": false, "error": e });
+                }
+                local_tool_response(self.do_list_gate_tokens())
+            }
             "launch_child_domain" => {
                 if let Err(e) = self.ensure_local_parent_peer(peer) {
                     return serde_json::json!({ "ok": false, "error": e });
@@ -1173,6 +1260,10 @@ impl ActPlaneMcp {
                 "parent_domain_id": c.parent_domain_id,
             })
         });
+        let gate_tokens = self
+            .control
+            .as_ref()
+            .and_then(|c| c.list_gate_tokens().ok());
         let effective_policy = self
             .control
             .as_ref()
@@ -1185,6 +1276,7 @@ impl ActPlaneMcp {
                 "project_dir": self.project_dir.display().to_string(),
                 "control": control,
                 "child_count": child_count,
+                "gate_tokens": gate_tokens,
                 "effective_policy": effective_policy,
             }
         })
@@ -2213,6 +2305,22 @@ impl ServerHandler for ActPlaneMcp {
                 "required": ["policy"]
             }))
             .unwrap();
+        let gate_issue_schema: serde_json::Map<String, Value> =
+            serde_json::from_value(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "description": "Gate/approval token string to issue. A delta whose approval_ref matches an issued token passes verify_issued_tokens admission."
+                    },
+                    "approved_by": {
+                        "type": "string",
+                        "description": "Optional approver identity recorded with the token for the audit record."
+                    }
+                },
+                "required": ["token"]
+            }))
+            .unwrap();
         let launch_schema: serde_json::Map<String, Value> =
             serde_json::from_value(serde_json::json!({
                 "type": "object",
@@ -2357,6 +2465,20 @@ impl ServerHandler for ActPlaneMcp {
                 append_schema,
             ),
             Tool::new(
+                "issue_gate_token",
+                "Issue a gate/approval token into the control plane. The token is \
+                 recorded on the audit timeline and, when the runtime's \
+                 verify_issued_tokens approval gate is on, a delta's approval_ref \
+                 must match an issued token to be admitted.",
+                gate_issue_schema,
+            ),
+            Tool::new(
+                "list_gate_tokens",
+                "List the gate/approval tokens issued so far, with the recorded \
+                 approver and issue time when present.",
+                empty_schema.clone(),
+            ),
+            Tool::new(
                 "launch_child_domain",
                 "Launch a subagent command stopped, bind it to a child runtime \
                  policy domain, optionally append its local policy, then resume \
@@ -2416,6 +2538,8 @@ impl ServerHandler for ActPlaneMcp {
             "bind_child_domain" => self.do_bind_child_domain(request.arguments),
             "append_policy_delta" => self.do_append_policy_delta(request.arguments),
             "launch_child_domain" => self.do_launch_child_domain(request.arguments),
+            "issue_gate_token" => self.do_issue_gate_token(request.arguments, None),
+            "list_gate_tokens" => self.do_list_gate_tokens(),
             "list_child_domains" => self.do_list_child_domains(),
             "read_child_domain_logs" => self.do_read_child_domain_logs(request.arguments),
             "terminate_child_domain" => self.do_terminate_child_domain(request.arguments),

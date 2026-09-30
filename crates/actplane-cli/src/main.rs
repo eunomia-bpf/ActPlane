@@ -411,6 +411,11 @@ enum ControlCommands {
     /// Reconcile child registry state against live Linux processes.
     #[command(hide = true)]
     ReconcileChildren,
+    /// Issue and list ActPlane gate/approval tokens.
+    Gate {
+        #[command(subcommand)]
+        command: GateCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -442,6 +447,23 @@ struct DeltaAddArgs {
     /// Optional tool or agent identity that generated this delta.
     #[arg(long)]
     generated_by: Option<String>,
+}
+
+#[derive(Subcommand)]
+enum GateCommands {
+    /// Issue a gate/approval token into the control plane.
+    Issue(GateIssueArgs),
+    /// List the gate/approval tokens issued so far.
+    List,
+}
+
+#[derive(Args)]
+struct GateIssueArgs {
+    /// Gate/approval token string to issue.
+    token: String,
+    /// Optional approver identity recorded with the token.
+    #[arg(long)]
+    approved_by: Option<String>,
 }
 
 #[derive(Args)]
@@ -911,6 +933,20 @@ async fn control_command(cli: &Cli, command: &ControlCommands) -> Result<i32> {
                 append_delta_control_requests(&project_dir, args, "control delta add")?
             }
         },
+        ControlCommands::Gate { command } => match command {
+            GateCommands::Issue(args) => {
+                let mut request =
+                    serde_json::json!({ "op": "issue_gate_token", "token": args.token });
+                if let Some(approved_by) = &args.approved_by {
+                    request["approved_by"] = serde_json::json!(approved_by);
+                }
+                vec![control::send_request(&project_dir, request)?]
+            }
+            GateCommands::List => vec![control::send_request(
+                &project_dir,
+                serde_json::json!({ "op": "list_gate_tokens" }),
+            )?],
+        },
         ControlCommands::LaunchChild {
             child_id,
             scope_id,
@@ -1021,6 +1057,9 @@ fn reject_parent_domain_control_mutation(
     let unsupported_operation = match command {
         ControlCommands::BindChild { .. } => Some("bind child domain"),
         ControlCommands::LaunchChild { .. } => Some("launch child domain"),
+        ControlCommands::Gate {
+            command: GateCommands::Issue(_),
+        } => Some("issue gate token"),
         ControlCommands::Delta {
             command: DeltaCommands::Add(args),
         } if args

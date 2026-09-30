@@ -269,6 +269,18 @@ struct RuntimePolicyCatalogInner {
     /// append order. This is the merge the kernel enforces, so its final digest
     /// is the effective policy hash.
     effective_fnv: u64,
+    gate_tokens: HashMap<String, GateToken>,
+}
+
+/// A gate/approval token ActPlane issued on the control plane. The token is
+/// the string a later delta's `approval_ref` matches; the approver and issue
+/// time record who authorized it and when. The issuer is the run's parent
+/// process, captured on the `issue_gate_token` audit record itself.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct GateToken {
+    token: String,
+    approved_by: Option<String>,
+    issued_unix_ms: u64,
 }
 
 /// One compiled policy layer as the runtime holds it: the base file the process
@@ -337,6 +349,7 @@ struct AppendDeltaApprovalGate {
     require_approval_ref: bool,
     require_generated_by: bool,
     allowed_approvers: Vec<String>,
+    verify_issued_tokens: bool,
 }
 
 struct ApprovalEvaluation {
@@ -347,6 +360,9 @@ struct ApprovalEvaluation {
     missing_fields: Vec<&'static str>,
     rejection_reason: Option<String>,
     allowed_approvers: Vec<String>,
+    /// The issued gate token that admitted this delta, when the
+    /// issued-gate-token admission model accepted it.
+    issued_token: Option<String>,
 }
 
 impl RuntimeApprovalPolicy {
@@ -358,8 +374,12 @@ impl RuntimeApprovalPolicy {
         }
     }
 
-    fn evaluate_append_delta(&self, meta: &PolicyAuditMeta) -> ApprovalEvaluation {
-        self.append_delta.evaluate(meta)
+    fn evaluate_append_delta(
+        &self,
+        meta: &PolicyAuditMeta,
+        issued_tokens: &[GateToken],
+    ) -> ApprovalEvaluation {
+        self.append_delta.evaluate(meta, issued_tokens)
     }
 }
 
@@ -373,6 +393,7 @@ impl ApprovalEvaluation {
             missing_fields: Vec::new(),
             rejection_reason: Some(reason),
             allowed_approvers: Vec::new(),
+            issued_token: None,
         }
     }
 }
@@ -384,11 +405,12 @@ impl AppendDeltaApprovalGate {
             require_approval_ref: config.require_approval_ref,
             require_generated_by: config.require_generated_by,
             allowed_approvers: config.allowed_approvers.clone(),
+            verify_issued_tokens: config.verify_issued_tokens,
         }
     }
 
-    fn evaluate(&self, meta: &PolicyAuditMeta) -> ApprovalEvaluation {
-        if !self.required {
+    fn evaluate(&self, meta: &PolicyAuditMeta, issued_tokens: &[GateToken]) -> ApprovalEvaluation {
+        if !self.required && !self.verify_issued_tokens {
             return ApprovalEvaluation {
                 enforced: false,
                 required: false,
@@ -397,17 +419,24 @@ impl AppendDeltaApprovalGate {
                 missing_fields: Vec::new(),
                 rejection_reason: None,
                 allowed_approvers: Vec::new(),
+                issued_token: None,
             };
         }
 
         let mut missing_fields = Vec::new();
-        if string_missing(meta.approved_by.as_deref()) {
+        if self.required && string_missing(meta.approved_by.as_deref()) {
             missing_fields.push("approved_by");
         }
-        if self.require_approval_ref && string_missing(meta.approval_ref.as_deref()) {
+        if self.required
+            && self.require_approval_ref
+            && string_missing(meta.approval_ref.as_deref())
+        {
             missing_fields.push("approval_ref");
         }
-        if self.require_generated_by && string_missing(meta.generated_by.as_deref()) {
+        if self.required
+            && self.require_generated_by
+            && string_missing(meta.generated_by.as_deref())
+        {
             missing_fields.push("generated_by");
         }
 
@@ -433,14 +462,47 @@ impl AppendDeltaApprovalGate {
             ));
         }
 
+        // The issued-gate-token model layers on top of the static gate: when it
+        // is on, a delta's `approval_ref` must match a token ActPlane itself
+        // issued. This is the only enforcement when the static gate is not
+        // required, and it is the deciding check when the static gate is.
+        let mut issued_token = None;
+        if rejection_reason.is_none() && self.verify_issued_tokens {
+            match meta
+                .approval_ref
+                .as_ref()
+                .filter(|ref_| !string_missing(Some(ref_.as_str())))
+            {
+                Some(ref_) => {
+                    if issued_tokens.iter().any(|token| &token.token == ref_) {
+                        issued_token = Some(ref_.clone());
+                    } else {
+                        rejection_reason = Some(format!(
+                            "append policy delta approval_ref `{ref_}` does not match an issued gate token; \
+                             issue one with `actplane control gate issue` and set \
+                             runtime.approval.append_delta.verify_issued_tokens"
+                        ));
+                    }
+                }
+                None => {
+                    rejection_reason = Some(
+                        "append policy delta requires an issued gate token in approval_ref; \
+                         issue one with `actplane control gate issue`"
+                            .to_string(),
+                    );
+                }
+            }
+        }
+
         ApprovalEvaluation {
-            enforced: true,
-            required: true,
+            enforced: self.required || self.verify_issued_tokens,
+            required: self.required,
             accepted: rejection_reason.is_none(),
             workflow: "append_delta_static_approval",
             missing_fields,
             rejection_reason,
             allowed_approvers: self.allowed_approvers.clone(),
+            issued_token,
         }
     }
 }
@@ -466,8 +528,65 @@ impl RuntimePolicyCatalog {
                     hash: audit::policy_hash(base_source),
                 }],
                 effective_fnv: fold_fnv(FNV_OFFSET, &compiled.bytes),
+                gate_tokens: HashMap::new(),
             }),
         }
+    }
+
+    /// The issued gate tokens as of now, cloned out of the catalog so a
+    /// caller can drop the read lock before it takes the admission write lock.
+    fn gate_tokens_snapshot(&self) -> Result<Vec<GateToken>> {
+        let inner = self
+            .inner
+            .read()
+            .map_err(|e| format!("policy metadata lock poisoned: {e}"))?;
+        Ok(inner.gate_tokens.values().cloned().collect())
+    }
+
+    /// Register an issued gate token in the catalog. The caller writes the
+    /// matching audit record; the catalog only owns the registry.
+    fn register_gate_token(
+        &self,
+        token: &str,
+        approved_by: Option<&str>,
+        issued_unix_ms: u64,
+    ) -> Result<()> {
+        let mut inner = self
+            .inner
+            .write()
+            .map_err(|e| format!("policy metadata lock poisoned: {e}"))?;
+        inner.gate_tokens.insert(
+            token.to_string(),
+            GateToken {
+                token: token.to_string(),
+                approved_by: approved_by.map(ToString::to_string),
+                issued_unix_ms,
+            },
+        );
+        Ok(())
+    }
+
+    /// The issued gate tokens as status rows: one object per token with the
+    /// approver (when recorded) and the issue time.
+    fn gate_token_rows(&self) -> Result<Vec<serde_json::Value>> {
+        let inner = self
+            .inner
+            .read()
+            .map_err(|e| format!("policy metadata lock poisoned: {e}"))?;
+        Ok(inner
+            .gate_tokens
+            .values()
+            .map(|token| {
+                let mut row = json!({
+                    "token": &token.token,
+                    "issued_unix_ms": token.issued_unix_ms,
+                });
+                if let Some(approved_by) = &token.approved_by {
+                    row["approved_by"] = json!(approved_by);
+                }
+                row
+            })
+            .collect())
     }
 
     /// Effective policy of the engine: the hash of the merged kernel config and
@@ -621,13 +740,17 @@ impl EngineControl {
         dsl_src: &str,
         audit_meta: &PolicyAuditMeta,
     ) -> Result<(usize, usize)> {
+        // Snapshot the issued tokens under the catalog read lock, then drop it
+        // before the admission write path takes the write lock, so lock order
+        // stays mutation_lock then catalog, never held into either.
+        let issued_tokens = self.catalog.gate_tokens_snapshot()?;
         let (approval, outcome): (ApprovalEvaluation, Result<PolicyDeltaOutcome>) =
             match self.mutation_lock.lock() {
                 Ok(_mutation) => {
                     let approval = self
                         .approval_policy
                         .read()
-                        .map(|policy| policy.evaluate_append_delta(audit_meta))
+                        .map(|policy| policy.evaluate_append_delta(audit_meta, &issued_tokens))
                         .unwrap_or_else(|e| {
                             ApprovalEvaluation::internal_rejection(format!(
                                 "runtime approval policy lock poisoned: {e}"
@@ -803,6 +926,45 @@ impl EngineControl {
             record["error"] = json!(error);
         }
         self.audit(record)
+    }
+
+    /// Issue a gate/approval token: register it in the catalog's token
+    /// registry and record it on the audit timeline so a later delta's
+    /// `approval_ref` can be verified against tokens ActPlane itself issued.
+    pub fn issue_gate_token(
+        &self,
+        actor_pid: i32,
+        token: &str,
+        approved_by: Option<&str>,
+    ) -> Result<()> {
+        if token.trim().is_empty() {
+            return Err("gate token must be a non-empty string".into());
+        }
+        let issued_unix_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis().min(u128::from(u64::MAX)) as u64)
+            .unwrap_or(0);
+        self.catalog
+            .register_gate_token(token, approved_by, issued_unix_ms)?;
+        let mut record = json!({
+            "event": "issue_gate_token",
+            "status": "accepted",
+            "actor_pid": self.parent_pid,
+            "caller_pid": actor_pid,
+            "token": token,
+        });
+        if let Some(approved_by) = approved_by {
+            record["approved_by"] = json!(approved_by);
+        }
+        self.audit(record).map_err(|audit_err| {
+            format!("gate token registered; audit write failed: {audit_err}")
+        })?;
+        Ok(())
+    }
+
+    /// The gate tokens issued so far, as one status row per token.
+    pub fn list_gate_tokens(&self) -> Result<Vec<serde_json::Value>> {
+        self.catalog.gate_token_rows()
     }
 
     pub fn audit_child_restart(
@@ -1024,20 +1186,29 @@ fn apply_policy_audit_meta(
     approval: Option<&ApprovalEvaluation>,
 ) {
     let enforced = approval.is_some_and(|approval| approval.enforced);
+    let issued_token = approval
+        .and_then(|approval| approval.issued_token.as_ref())
+        .cloned();
     let mut approval_chain = json!({
         "enforced": enforced,
         "workflow": approval
             .map(|approval| approval.workflow)
             .unwrap_or("declarative_metadata"),
-        "admission_model": if enforced {
+        "admission_model": if issued_token.is_some() {
+            "issued_gate_token"
+        } else if enforced {
             "static_metadata_allowlist"
         } else {
             "metadata_only"
         },
-        "external_verified": false,
+        "external_verified": issued_token.is_some(),
         "signature": serde_json::Value::Null,
     });
     let mut has_approval_chain = false;
+    if let Some(token) = &issued_token {
+        approval_chain["gate_token"] = json!(token);
+        has_approval_chain = true;
+    }
     if let Some(policy_ref) = &meta.policy_ref {
         record["policy_ref"] = json!(policy_ref);
     }
@@ -2486,6 +2657,7 @@ mod tests {
                 hash: audit::policy_hash(base),
             }],
             effective_fnv: fold_fnv(FNV_OFFSET, &compiled.bytes),
+            gate_tokens: HashMap::new(),
         };
         let before = format!("fnv1a64:{:016x}", inner.effective_fnv);
 
@@ -2586,9 +2758,9 @@ mod tests {
             require_approval_ref: true,
             require_generated_by: false,
             allowed_approvers: vec!["repo-supervisor".to_string()],
+            verify_issued_tokens: false,
         };
-
-        let missing = gate.evaluate(&PolicyAuditMeta::default());
+        let missing = gate.evaluate(&PolicyAuditMeta::default(), &[]);
         assert!(missing.enforced);
         assert!(!missing.accepted);
         assert_eq!(missing.missing_fields, vec!["approved_by", "approval_ref"]);
@@ -2600,11 +2772,14 @@ mod tests {
                 .contains("missing approved_by, approval_ref")
         );
 
-        let wrong = gate.evaluate(&PolicyAuditMeta {
-            approved_by: Some("other-reviewer".to_string()),
-            approval_ref: Some("ticket-7".to_string()),
-            ..PolicyAuditMeta::default()
-        });
+        let wrong = gate.evaluate(
+            &PolicyAuditMeta {
+                approved_by: Some("other-reviewer".to_string()),
+                approval_ref: Some("ticket-7".to_string()),
+                ..PolicyAuditMeta::default()
+            },
+            &[],
+        );
         assert!(!wrong.accepted);
         assert!(
             wrong
@@ -2614,11 +2789,14 @@ mod tests {
                 .contains("not in runtime.approval.append_delta.allowed_approvers")
         );
 
-        let accepted = gate.evaluate(&PolicyAuditMeta {
-            approved_by: Some("repo-supervisor".to_string()),
-            approval_ref: Some("ticket-7".to_string()),
-            ..PolicyAuditMeta::default()
-        });
+        let accepted = gate.evaluate(
+            &PolicyAuditMeta {
+                approved_by: Some("repo-supervisor".to_string()),
+                approval_ref: Some("ticket-7".to_string()),
+                ..PolicyAuditMeta::default()
+            },
+            &[],
+        );
         assert!(accepted.accepted);
         assert!(accepted.rejection_reason.is_none());
     }
@@ -2630,6 +2808,7 @@ mod tests {
             require_approval_ref: true,
             require_generated_by: true,
             allowed_approvers: vec!["repo-supervisor".to_string()],
+            verify_issued_tokens: false,
         };
         let meta = PolicyAuditMeta {
             policy_ref: Some("policy-delta.dsl".to_string()),
@@ -2637,7 +2816,7 @@ mod tests {
             approval_ref: Some("ticket-7".to_string()),
             generated_by: Some("template/readonly".to_string()),
         };
-        let approval = gate.evaluate(&meta);
+        let approval = gate.evaluate(&meta, &[]);
         let mut record = json!({});
         apply_policy_audit_meta(&mut record, &meta, Some(&approval));
 
@@ -2663,5 +2842,151 @@ mod tests {
             record["approval_chain"]["allowed_approvers"][0],
             "repo-supervisor"
         );
+    }
+    fn test_catalog(base: &str) -> RuntimePolicyCatalog {
+        let compiled = dsl::compile_str(base).expect("compile base");
+        RuntimePolicyCatalog::from_compiled(&compiled, 3, base)
+    }
+
+    #[test]
+    fn catalog_gate_token_registry_records_issued_tokens() {
+        let catalog = test_catalog("rule base:\n  block exec \"git branch\"\n  because \"branch\"");
+        assert!(catalog.gate_token_rows().expect("rows").is_empty());
+
+        catalog
+            .register_gate_token("GATE-123", Some("alice"), 1000)
+            .expect("register");
+
+        let rows = catalog.gate_token_rows().expect("rows");
+        assert_eq!(
+            rows,
+            vec![json!({"token": "GATE-123", "approved_by": "alice", "issued_unix_ms": 1000})]
+        );
+
+        // The snapshot a caller hands the gate evaluator names the same tokens.
+        let snapshot = catalog.gate_tokens_snapshot().expect("snapshot");
+        assert_eq!(
+            snapshot,
+            vec![GateToken {
+                token: "GATE-123".to_string(),
+                approved_by: Some("alice".to_string()),
+                issued_unix_ms: 1000,
+            }]
+        );
+
+        // Re-issuing the same token string replaces its approver record.
+        catalog
+            .register_gate_token("GATE-123", None, 2000)
+            .expect("re-register");
+        let rows = catalog.gate_token_rows().expect("rows");
+        assert_eq!(
+            rows,
+            vec![json!({"token": "GATE-123", "issued_unix_ms": 2000})]
+        );
+    }
+
+    #[test]
+    fn gate_token_verification_accepts_an_issued_ref() {
+        let gate = AppendDeltaApprovalGate {
+            required: false,
+            require_approval_ref: false,
+            require_generated_by: false,
+            allowed_approvers: Vec::new(),
+            verify_issued_tokens: true,
+        };
+        let issued = vec![GateToken {
+            token: "GATE-123".to_string(),
+            approved_by: Some("alice".to_string()),
+            issued_unix_ms: 1000,
+        }];
+
+        let meta = PolicyAuditMeta {
+            approval_ref: Some("GATE-123".to_string()),
+            ..PolicyAuditMeta::default()
+        };
+        let approval = gate.evaluate(&meta, &issued);
+        assert!(
+            approval.enforced,
+            "verify_issued_tokens is itself enforcement"
+        );
+        assert!(approval.accepted);
+        assert_eq!(approval.issued_token.as_deref(), Some("GATE-123"));
+    }
+
+    #[test]
+    fn gate_token_verification_rejects_unknown_and_absent_refs() {
+        let gate = AppendDeltaApprovalGate {
+            required: false,
+            require_approval_ref: false,
+            require_generated_by: false,
+            allowed_approvers: Vec::new(),
+            verify_issued_tokens: true,
+        };
+        let issued = vec![GateToken {
+            token: "GATE-123".to_string(),
+            approved_by: None,
+            issued_unix_ms: 1000,
+        }];
+
+        let unknown = gate.evaluate(
+            &PolicyAuditMeta {
+                approval_ref: Some("STOLEN".to_string()),
+                ..PolicyAuditMeta::default()
+            },
+            &issued,
+        );
+        assert!(!unknown.accepted);
+        assert_eq!(unknown.issued_token, None);
+        assert!(
+            unknown
+                .rejection_reason
+                .as_deref()
+                .unwrap_or("")
+                .contains("does not match an issued gate token")
+        );
+
+        let absent = gate.evaluate(&PolicyAuditMeta::default(), &issued);
+        assert!(!absent.accepted);
+        assert_eq!(absent.issued_token, None);
+        assert!(
+            absent
+                .rejection_reason
+                .as_deref()
+                .unwrap_or("")
+                .contains("requires an issued gate token in approval_ref")
+        );
+    }
+
+    #[test]
+    fn policy_audit_meta_records_issued_gate_token_chain() {
+        let gate = AppendDeltaApprovalGate {
+            required: false,
+            require_approval_ref: false,
+            require_generated_by: false,
+            allowed_approvers: Vec::new(),
+            verify_issued_tokens: true,
+        };
+        let issued = vec![GateToken {
+            token: "GATE-123".to_string(),
+            approved_by: Some("alice".to_string()),
+            issued_unix_ms: 1000,
+        }];
+        let meta = PolicyAuditMeta {
+            approval_ref: Some("GATE-123".to_string()),
+            ..PolicyAuditMeta::default()
+        };
+        let approval = gate.evaluate(&meta, &issued);
+        let mut record = json!({});
+        apply_policy_audit_meta(&mut record, &meta, Some(&approval));
+
+        assert_eq!(record["approval_chain"]["enforced"], true);
+        assert_eq!(record["approval_chain"]["decision"], "accepted");
+        assert_eq!(
+            record["approval_chain"]["admission_model"],
+            "issued_gate_token"
+        );
+        assert_eq!(record["approval_chain"]["external_verified"], true);
+        assert_eq!(record["approval_chain"]["gate_token"], "GATE-123");
+        assert_eq!(record["approval_chain"]["approval_ref"], "GATE-123");
     }
 }
