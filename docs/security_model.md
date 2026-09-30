@@ -131,7 +131,10 @@ subagent into a child domain whose effective policy is the parent's plus the
 delegation's own append-only delta, so it can only tighten the inherited
 policy. A contract that would weaken it is rejected on the same invariant,
 and the outcome is recorded as a `delegate` audit record next to the
-`launch_child_domain` record.
+`launch_child_domain` record. Its resource scope is the `--workspace`
+confinement, which installs the `workspace-confinement` contract on the child
+domain and confines the subagent's file access to a writable path; the
+free-form `--scope` label is recorded only and is not an enforcement boundary.
 
 
 ## Child Updates
@@ -204,6 +207,7 @@ actplane control bind-child --pid 1234 --child-id 1234
 actplane control delta add --domain-id 1234 --delta rules/no-curl.dsl
 actplane control launch-child --delta rules/no-curl.dsl -- codex --cd /work
 actplane delegate --name reviewer --delta rules/no-curl.dsl -- codex
+actplane delegate --name builder --workspace /work/repo/** -- codex
 ```
 
 Semantics:

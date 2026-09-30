@@ -151,8 +151,14 @@ struct DelegateArgs {
     /// Free-form scope label recorded with the delegation.
     #[arg(long)]
     scope: Option<String>,
+    /// Writable workspace path (or glob) the subagent's file access is confined to.
+    /// Installs the `workspace-confinement` contract on the subagent's child domain
+    /// and records the path on the delegation audit record. Mutually exclusive with
+    /// any other contract source (`--template`, `--delta`, `--delta-text`).
+    #[arg(long, conflicts_with_all = ["template", "deltas", "delta_text"])]
+    workspace: Option<String>,
     /// Contract from a built-in template id, rendered into a child-domain policy delta.
-    #[arg(long, conflicts_with_all = ["deltas", "delta_text"])]
+    #[arg(long, conflicts_with_all = ["workspace", "deltas", "delta_text"])]
     template: Option<String>,
     /// Override a declared template parameter, as key=value. Repeat for multiple parameters.
     #[arg(long = "set", value_name = "KEY=VALUE", requires = "template")]
@@ -586,10 +592,19 @@ async fn delegate_command(cli: &Cli, args: &DelegateArgs) -> Result<i32> {
     // The contract is the child-domain policy delta the subagent runs under.
     // It is optional: a bare delegation binds the subagent into a child domain
     // under the inherited parent policy and records the principal/scope. When
-    // a contract source is given it is exactly one of: a built-in template
-    // (rendered into a DSL delta here) or the user's own `--delta` fragments.
+    // a contract source is given it is exactly one of: a `--workspace`
+    // confinement (rendered from the built-in `workspace-confinement`
+    // template), a built-in template, or the user's own `--delta` fragments.
     let mut delta_texts = args.delta_text.clone();
     let mut contract_ref = None;
+    if let Some(path) = &args.workspace {
+        let template = templates::get("workspace-confinement")?;
+        delta_texts.push(templates::render_dsl(
+            template,
+            &[format!("writable_path={path}")],
+        )?);
+        contract_ref = Some(format!("template `{}`", template.id));
+    }
     if let Some(template_id) = &args.template {
         let template = templates::get(template_id)?;
         delta_texts.push(templates::render_dsl(template, &args.params)?);
@@ -599,6 +614,7 @@ async fn delegate_command(cli: &Cli, args: &DelegateArgs) -> Result<i32> {
     let delegation = runtime::DelegationMeta {
         name: args.name.clone(),
         scope: args.scope.clone(),
+        workspace: args.workspace.clone(),
         contract_ref,
     };
     runtime::run_child_command(

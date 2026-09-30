@@ -286,6 +286,9 @@ fn summarize(event: &str, obj: Option<&serde_json::Map<String, Value>>) -> Strin
             if let Some(scope) = field("scope") {
                 parts.push(format!("scope {scope}"));
             }
+            if let Some(workspace) = field("workspace") {
+                parts.push(format!("workspace {workspace}"));
+            }
             if let Some(contract) = field("contract_ref") {
                 parts.push(format!("contract {contract}"));
             }
@@ -373,22 +376,33 @@ mod tests {
             json!({"event": "delegate", "status": "accepted", "principal": "reviewer",
                    "scope": "readonly", "contract_ref": "template `readonly-review`",
                    "timestamp_unix_ns": "5"}),
+            json!({"event": "delegate", "status": "accepted", "principal": "builder",
+                   "workspace": "/work/repo", "contract_ref": "template `workspace-confinement`",
+                   "timestamp_unix_ns": "6"}),
             json!({"event": "delegate", "status": "rejected", "principal": "builder",
                    "error": "template `x` failed"}),
         ];
         let steps = replay_steps(&records);
 
-        assert_eq!(steps.len(), 2);
+        assert_eq!(steps.len(), 3);
         assert_eq!(steps[0].kind, ReplayKind::Delegation);
         assert_eq!(steps[1].kind, ReplayKind::Delegation);
+        assert_eq!(steps[2].kind, ReplayKind::Delegation);
         assert_eq!(ReplayKind::Delegation.label(), "delegate");
         assert_eq!(
             steps[0].summary,
             "delegate accepted principal reviewer scope readonly contract template `readonly-review`"
         );
-        // No scope or contract ref on the rejected record, so the summary
-        // stops after the status; the error field is not part of the summary.
-        assert_eq!(steps[1].summary, "delegate rejected principal builder");
+        // A workspace confinement renders between the scope label and the
+        // contract ref, and a bare principal (no scope/workspace) shows only
+        // the principal and status.
+        assert_eq!(
+            steps[1].summary,
+            "delegate accepted principal builder workspace /work/repo contract template `workspace-confinement`"
+        );
+        // No scope, workspace, or contract ref on the rejected record, so the
+        // summary stops after the status; the error field is not part of it.
+        assert_eq!(steps[2].summary, "delegate rejected principal builder");
     }
     #[test]
     fn audit_appends_jsonl_with_schema_and_timestamp() {

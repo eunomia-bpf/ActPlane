@@ -2780,6 +2780,7 @@ fn replay_render_the_delegate_record_as_a_first_class_step() {
         "run-a",
         "{\"event\":\"engine_attach\",\"timestamp_unix_ns\":\"5\"}\n\
          {\"event\":\"delegate\",\"status\":\"accepted\",\"principal\":\"reviewer\",\"scope\":\"readonly\",\"contract_ref\":\"template `readonly-review`\",\"timestamp_unix_ns\":\"6\"}\n\
+         {\"event\":\"delegate\",\"status\":\"accepted\",\"principal\":\"builder\",\"workspace\":\"/work/repo\",\"contract_ref\":\"template `workspace-confinement`\",\"timestamp_unix_ns\":\"6\"}\n\
          {\"event\":\"delegate\",\"status\":\"rejected\",\"principal\":\"builder\",\"timestamp_unix_ns\":\"6\"}\n",
     );
 
@@ -2790,7 +2791,7 @@ fn replay_render_the_delegate_record_as_a_first_class_step() {
         .expect("run replay");
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     let text = stdout(&output);
-    assert!(text.contains("3 step(s)"), "{text}");
+    assert!(text.contains("4 step(s)"), "{text}");
     let lines: Vec<&str> = text.lines().skip(1).collect();
     assert!(lines[0].contains("[attach] engine_attach"), "{text}");
     assert!(
@@ -2798,8 +2799,16 @@ fn replay_render_the_delegate_record_as_a_first_class_step() {
             .contains("[delegate] delegate accepted principal reviewer scope readonly contract"),
         "{text}"
     );
+    // A `--workspace` confinement renders as a first-class summary part,
+    // between the scope label and the contract ref.
     assert!(
-        lines[2].contains("[delegate] delegate rejected principal builder"),
+        lines[2].contains(
+            "[delegate] delegate accepted principal builder workspace /work/repo contract"
+        ),
+        "{text}"
+    );
+    assert!(
+        lines[3].contains("[delegate] delegate rejected principal builder"),
         "{text}"
     );
 
@@ -2816,7 +2825,10 @@ fn replay_render_the_delegate_record_as_a_first_class_step() {
     assert_eq!(body["steps"][1]["record"]["principal"], "reviewer");
     assert_eq!(body["steps"][1]["record"]["scope"], "readonly");
     assert_eq!(body["steps"][2]["kind"], "delegate");
+    assert_eq!(body["steps"][2]["record"]["workspace"], "/work/repo");
     assert!(body["steps"][2]["record"].get("scope").is_none());
+    assert_eq!(body["steps"][3]["kind"], "delegate");
+    assert!(body["steps"][3]["record"].get("scope").is_none());
 }
 
 #[test]

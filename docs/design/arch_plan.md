@@ -297,7 +297,7 @@ data-flow enforcement + delegation + feedback + audit**。
 3. Built-in control-plane self-protection 已实现（`run` / `watch` / MCP 自动前置 `actplane-control-plane` 规则，内核豁免 runtime 自身 pid）。
 4. Effective policy hash 与 layer 元数据已实现（`control status` / `actplane:///status`）。
 5. `delegate` subcommand for subagent contracts 已实现（`actplane delegate --name <principal> [--scope <label>] [--template <id> | --delta <file> | --delta-text <dsl>]`，审计时间线记录 `delegate` 记录，`replay` 归入 `[delegate]` 一类）。
-6. Add workspace/resource scopes for delegated principals.
+6. Add workspace/resource scopes for delegated principals 已实现（`actplane delegate --workspace <path>`：从内置 `workspace-confinement` 模板渲染出子域策略 delta，把子代理的文件访问圈到可写路径内，并在审计时间线记录 `workspace` 字段）。
 7. Add gate/approval tokens.
 8. Audit timeline 与 replay/export 已实现（`audit show` / `export --jsonl` / `replay`）。
 9. Add policy tests/simulation.

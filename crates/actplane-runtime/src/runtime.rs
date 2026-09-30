@@ -314,12 +314,15 @@ pub struct PolicyAuditMeta {
 }
 
 /// The principal a delegation names: the subagent identity (`name`), the
-/// free-form scope label recorded with it (`scope`), and the contract
-/// source (`contract_ref`) when the contract came from a built-in template.
+/// free-form scope label recorded with it (`scope`), the workspace path the
+/// subagent's file access is confined to when a `workspace-confinement`
+/// contract is installed (`workspace`), and the contract source
+/// (`contract_ref`) when the contract came from a built-in template.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DelegationMeta {
     pub name: String,
     pub scope: Option<String>,
+    pub workspace: Option<String>,
     pub contract_ref: Option<String>,
 }
 
@@ -789,6 +792,9 @@ impl EngineControl {
         });
         if let Some(scope) = &meta.scope {
             record["scope"] = json!(scope);
+        }
+        if let Some(workspace) = &meta.workspace {
+            record["workspace"] = json!(workspace);
         }
         if let Some(contract_ref) = &meta.contract_ref {
             record["contract_ref"] = json!(contract_ref);

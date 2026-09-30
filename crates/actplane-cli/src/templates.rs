@@ -733,6 +733,36 @@ mod tests {
         assert!(rendered.contains("protected ref main"));
         dsl::compile_str(&rendered).unwrap();
     }
+    #[test]
+    fn workspace_confinement_override_confines_writes_to_the_path() {
+        // `actplane delegate --workspace <path>` renders the
+        // `workspace-confinement` template with a `writable_path` override:
+        // the agent's write/unlink are confined to that path, and the DSL
+        // still compiles clean.
+        let rendered = render_dsl(
+            get("workspace-confinement").unwrap(),
+            &["writable_path=/work/repo/**".into()],
+        )
+        .unwrap();
+        assert!(
+            rendered.contains("block write file \"/**\"  if AGENT unless target \"/work/repo/**\""),
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("block unlink file \"/**\" if AGENT unless target \"/work/repo/**\""),
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("Modify only files matching /work/repo/**"),
+            "{rendered}"
+        );
+        let compiled = dsl::compile_str(&rendered).unwrap();
+        assert!(
+            compiled.pattern_warnings.is_empty(),
+            "warnings: {:?}",
+            compiled.pattern_warnings
+        );
+    }
 
     #[test]
     fn template_parameters_reject_unknown_duplicate_and_unsafe_values() {
