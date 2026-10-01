@@ -544,6 +544,65 @@ rule secret:
         assert_eq!(b.meta[1].kernel_op, "exec");
     }
 
+    /// Disjunct count of a `when` expression follows the left-to-right
+    /// distribution law: a single label/`not`/`true` is one disjunct; `and`
+    /// multiplies its operands' disjunct counts; `or` adds them. Each disjunct
+    /// lowers to exactly one kernel rule, so `meta`/`reasons` length pins the
+    /// DNF expansion. These catch a `req`/`forbid` distribution regression that
+    /// would silently change which operations are denied.
+    fn dnf_disjuncts(expr: &str) -> (usize, usize) {
+        let c = compile_str(&format!(
+            "rule r:\n  block exec \"x\" if {expr}\n  because \"z\"\n"
+        ))
+        .unwrap_or_else(|e| panic!("compile `{expr}`: {e}"));
+        (c.meta.len(), c.reasons.len())
+    }
+
+    #[test]
+    fn dnf_distribution_follows_ltr_precedence() {
+        // A single label / `not` / conjunction of labels: one disjunct.
+        assert_eq!(dnf_disjuncts("A"), (1, 1));
+        assert_eq!(dnf_disjuncts("A and B and C"), (1, 1));
+        // `not` folds into its enclosing disjunct; it does not add one.
+        assert_eq!(dnf_disjuncts("A and not B"), (1, 1));
+        // Top-level `or` adds disjuncts.
+        assert_eq!(dnf_disjuncts("A or B or C"), (3, 3));
+        assert_eq!(dnf_disjuncts("not A or not B"), (2, 2));
+        // Left-to-right: `(A or B) and C` and `(A and B) or C` each multiply
+        // the disjunct count of one `or` by the labels that chain onto it.
+        assert_eq!(dnf_disjuncts("A or B and C"), (2, 2));
+        assert_eq!(dnf_disjuncts("A and B or C"), (2, 2));
+        // Nested distribution: `A or B and C or D` -> ((A or B) and C) or D
+        // -> (2 * 1) + 1.
+        assert_eq!(dnf_disjuncts("A or B and C or D"), (3, 3));
+    }
+
+    #[test]
+    fn dnf_every_rule_carries_one_reason() {
+        // A desync between the lowered rule table and the reason table would
+        // mislabel corrective feedback; keep them in lockstep for multi-
+        // disjunct policies.
+        for expr in [
+            "A or B",
+            "A and B or C and D",
+            "A or B and C or D and not E",
+        ] {
+            let c = compile_str(&format!(
+                "rule r:\n  block exec \"x\" if {expr}\n  because \"z\"\n"
+            ))
+            .unwrap_or_else(|e| panic!("compile `{expr}`: {e}"));
+            assert_eq!(
+                c.meta.len(),
+                c.reasons.len(),
+                "meta/reason desync for `{expr}`"
+            );
+            for m in &c.meta {
+                assert_eq!(m.name, "r");
+                assert_eq!(m.clause_op, "exec");
+            }
+        }
+    }
+
     #[test]
     fn config_blob_is_fixed_size() {
         const TAINT_CONFIG_SIZE: usize = 74_760;
