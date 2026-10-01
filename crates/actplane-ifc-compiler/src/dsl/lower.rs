@@ -335,6 +335,36 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_non_word_identifier_is_rejected() {
+        // Identifier positions (a source's label, a rule's name) must be
+        // bare words; a quoted string or any other non-word token there is
+        // a common authoring mistake that must reject at parse time. This
+        // pins the `P::word()` guard (`expected word, got {tok}`),
+        // distinct from the `expected string` pattern guard (#118) and the
+        // `expected ':'`/`'='` guards (#109, #110).
+        use crate::dsl::parse::parse;
+        fn err(src: &str) -> String {
+            parse(src)
+                .map(|_| "OK".to_string())
+                .unwrap_or_else(|e| format!("Err({e})"))
+        }
+        // A source label given as a quoted string.
+        assert_eq!(
+            err("source \"A\" = exec \"/x\"\n"),
+            "Err(expected word, got Some(Str(\"A\")))"
+        );
+        // A rule name given as a quoted string.
+        assert_eq!(
+            err("rule \"r\":\n  block exec \"git\" because \"z\"\n"),
+            "Err(expected word, got Some(Str(\"r\")))"
+        );
+        // Positive control: a well-formed source + rule parse and compile.
+        let pol = parse("source A = exec \"/x\"\nrule r:\n  block exec \"git\" because \"z\"\n")
+            .expect("a well-formed source and rule parse");
+        compile(&pol).expect("a well-formed source and rule compile");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
