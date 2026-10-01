@@ -2591,4 +2591,64 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn append_append_delta_approval_renders_the_approval_block() {
+        // `append_append_delta_approval` appends the append-policy-delta
+        // approval section. A `not required` config short-circuits to the
+        // metadata-only admission model; a `required` config lists the
+        // metadata fields (`approved_by` plus optional `approval_ref` /
+        // `generated_by`), the allowed-approvers line, and the static-allowlist
+        // admission model. No base or branch test pins this appender directly.
+        let mut out = String::new();
+        append_append_delta_approval(
+            &mut out,
+            &AppendDeltaApprovalConfig {
+                required: false,
+                require_approval_ref: false,
+                require_generated_by: false,
+                allowed_approvers: Vec::new(),
+            },
+        );
+        assert_eq!(
+            out,
+            "  - append policy delta approval: not required\n  - admission model: \
+             metadata_only\n"
+        );
+
+        let mut out = String::new();
+        append_append_delta_approval(
+            &mut out,
+            &AppendDeltaApprovalConfig {
+                required: true,
+                require_approval_ref: false,
+                require_generated_by: false,
+                allowed_approvers: Vec::new(),
+            },
+        );
+        assert_eq!(
+            out,
+            "  - append policy delta approval: required\n  - required metadata: \
+             approved_by\n  - allowed approvers: any non-empty approved_by\n  - \
+             admission model: static_metadata_allowlist\n  - external_verified=\
+             false, signature=null\n"
+        );
+
+        let mut out = String::new();
+        append_append_delta_approval(
+            &mut out,
+            &AppendDeltaApprovalConfig {
+                required: true,
+                require_approval_ref: true,
+                require_generated_by: true,
+                allowed_approvers: vec!["alice".to_string(), "bob".to_string()],
+            },
+        );
+        assert_eq!(
+            out,
+            "  - append policy delta approval: required\n  - required metadata: \
+             approved_by, approval_ref, generated_by\n  - allowed approvers: \
+             alice, bob\n  - admission model: static_metadata_allowlist\n  - \
+             external_verified=false, signature=null\n"
+        );
+    }
 }
