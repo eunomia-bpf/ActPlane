@@ -2686,8 +2686,63 @@ mod tests {
         assert!(json_string_vec(&bad_cmd, "cmd").is_err());
     }
 
+    /// Probe whether this host honors the `kill -STOP $$` self-stop that
+    /// `spawn_stopped_child` relies on, using the helper's own command
+    /// shape. If the probe child dies before entering the stopped state
+    /// (a restricted sandbox denying `SIGSTOP`), the host cannot exercise
+    /// the stopped-child path and the test skips. An inconclusive probe
+    /// (child still alive at the deadline) falls through so the helper's
+    /// own stopped-state wait makes the final call.
+    fn host_can_stop_children() -> bool {
+        let mut probe = match Command::new("/bin/sh")
+            .arg("-c")
+            .arg("kill -STOP $$; exec \"$@\"")
+            .arg("actplane-stop-probe")
+            .arg("/bin/true")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            Ok(p) => p,
+            Err(_) => return false,
+        };
+        let pid = probe.id() as i32;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            match proc_state_code(pid) {
+                Ok(state) if matches!(state, 'T' | 't') => {
+                    let _ = send_signal(pid, libc::SIGKILL);
+                    let _ = probe.wait();
+                    return true;
+                }
+                // The child exited: the `exec` path ran because the self
+                // `SIGSTOP` was not honored, so this host cannot exercise
+                // the stopped-child path.
+                Ok(state) if matches!(state, 'Z' | 'z') => {
+                    let _ = probe.wait();
+                    return false;
+                }
+                Ok(_) => {}
+                Err(_) => return false,
+            }
+            if Instant::now() >= deadline {
+                let _ = send_signal(pid, libc::SIGKILL);
+                let _ = probe.wait();
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
     #[test]
     fn spawn_stopped_child_can_be_killed_without_stdio_inheritance() {
+        if !host_can_stop_children() {
+            eprintln!(
+                "skip: host does not honor SIGSTOP self-stop (restricted sandbox); cannot exercise the stopped-child path"
+            );
+            return;
+        }
         let cmd = vec!["/bin/true".to_string()];
         let log_dir = std::env::temp_dir().join(child_launch_id());
         let mut child = spawn_stopped_child(&cmd, &std::env::current_dir().expect("cwd"), &log_dir)
