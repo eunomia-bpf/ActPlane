@@ -2591,4 +2591,98 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn render_rollout_plan_reports_host_support_and_per_clause_stages() {
+        // `render_rollout_plan` renders a host/backend support summary and a
+        // per-clause observe/promote/risk recommendation for a rollout. No base
+        // or branch test pins this formatter directly.
+        use crate::dsl::ast::{Rule, Target};
+        use std::collections::HashMap;
+
+        let parsed = Policy {
+            labels: Vec::new(),
+            sources: vec![Source {
+                label: "e1".to_string(),
+                kind: Kind::Exec,
+                pattern: "python3".to_string(),
+            }],
+            rules: vec![Rule {
+                name: "guard".to_string(),
+                clauses: vec![Clause {
+                    op: Op::Exec,
+                    target: Target {
+                        kind: Kind::Exec,
+                        pattern: "python3".to_string(),
+                        arg: None,
+                    },
+                    when: Expr::True,
+                    unless: None,
+                    effect: Effect::Block,
+                    source_index: 0,
+                }],
+                reason: "guard exec".to_string(),
+            }],
+            xforms: Vec::new(),
+        };
+        let no_domain = ResolvedPolicy {
+            source: "policy.dsl".to_string(),
+            domain: None,
+        };
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+        let evidence = RolloutEvidence::default();
+
+        let plan = render_rollout_plan(
+            "policy.dsl",
+            &no_domain,
+            &parsed,
+            &compiled,
+            "lockdown,capability,bpf",
+            true,
+            false,
+            &evidence,
+        );
+
+        // Header + host/backend block, pinned line by line.
+        assert!(plan.contains("ActPlane rollout plan\n"));
+        assert!(plan.contains("policy: policy.dsl\n"));
+        assert!(plan.contains("domain: none (flat policy)\n"));
+        assert!(plan.contains("rules: 1 DSL rule(s), 0 lowered kernel matcher(s)\n"));
+        assert!(plan.contains("\nhost/backend:\n"));
+        assert!(plan.contains("  - active LSMs: lockdown,capability,bpf\n"));
+        assert!(plan.contains("  - BPF-LSM pre-op block: available\n"));
+        // No evidence supplied: the observe-evidence section says so and the
+        // per-clause observation stays silent.
+        assert!(plan.contains("\nobserve evidence:\n"));
+        assert!(plan.contains(
+            "  - no event or annotation log supplied; pass --events .actplane/events.jsonl after an observe run and --annotations <annotations.jsonl> after classification"
+        ));
+        // Recommended sequence is always emitted.
+        assert!(plan.contains("\nrecommended rollout sequence:\n"));
+        assert!(plan.contains(
+            "  1. Static review: run `actplane compile --explain --report-out <review.txt>` and inspect warnings."
+        ));
+        // Per-clause recommendation for a bpf-lsm block exec clause.
+        assert!(plan.contains("  1. rule guard\n     reason: guard exec\n"));
+        assert!(plan.contains("     clause 1: block exec \"python3\" if true\n"));
+        assert!(plan.contains(
+            "       current: block; supported; timing=pre-operation denial before syscall commit\n"
+        ));
+        assert!(plan.contains(
+            "       observe stage: use notify-only observe policy for this clause before enforcement\n"
+        ));
+        assert!(plan.contains(
+            "       promotion: eligible for block after observe period and false-positive review\n"
+        ));
+        assert!(plan.contains(
+            "       residual risk: block denies before syscall commit only on hosts with matching BPF-LSM and hook profile\n"
+        ));
+        // With an active bpf-lsm and a supported block exec, no static warnings.
+        assert!(!plan.contains("static warnings to resolve before promotion"));
+    }
 }
