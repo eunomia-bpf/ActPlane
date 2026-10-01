@@ -335,6 +335,45 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn contains_literals_are_bounded_by_taint_suf_max() {
+        // bpf/taint.h: the kernel suffix/contains matchers reject any literal
+        // longer than TAINT_SUF_MAX (`sn > TAINT_SUF_MAX` makes the match 0).
+        // So a lowered M_CONTAINS literal must fit the 16-char window, or the
+        // source silently never matches in-kernel.
+        //
+        // A fitting literal passes through unchanged.
+        assert_eq!(lower_path("**/short/**"), (M_CONTAINS, "/short/".into()));
+
+        // An over-cap literal is shortened to fit the kernel's window:
+        // `**/abcdefghijklmno/**` -> `/abcdefghijklmno/` (17 chars) shortens
+        // to the 16-char `abcdefghijklmno/`.
+        assert_eq!(
+            lower_path("**/abcdefghijklmno/**"),
+            (M_CONTAINS, "abcdefghijklmno/".into())
+        );
+
+        // The hard cap: no matter how long the source path is, the lowered
+        // literal never exceeds MAX_CONTAINS_LITERAL (= TAINT_SUF_MAX = 16).
+        for p in [
+            "**/very/long/segment/path/**",
+            "**/a/b/c/d/e/f/g/**",
+            "**/aaaaaaaaaaaaaaaa/**",
+            "aaaaaaaaaaaaaaaaaaaa/**",
+        ] {
+            let (m, lit) = lower_path(p);
+            assert!(
+                m == M_CONTAINS,
+                "{p} -> match byte {m}, expected M_CONTAINS"
+            );
+            let len = lit.len();
+            assert!(
+                len <= MAX_CONTAINS_LITERAL,
+                "{p} -> {lit:?} ({len} chars) exceeds TAINT_SUF_MAX = {MAX_CONTAINS_LITERAL}"
+            );
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
