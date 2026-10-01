@@ -2992,4 +2992,38 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn json_optional_usize_reads_in_range_integers_and_rejects_the_rest() {
+        // `json_optional_usize` reads an optional non-negative integer from
+        // tool args into a `usize`: an absent key is `None`, an in-range
+        // value is `Some(n)`, and a non-integer or negative value is an
+        // error. No base or branch test pins this helper directly.
+        let args = serde_json::json!({ "max_bytes": 4096, "absent_flag": "x" })
+            .as_object()
+            .expect("object")
+            .clone();
+
+        assert_eq!(
+            json_optional_usize(&args, "max_bytes").expect("max_bytes"),
+            Some(4096)
+        );
+        assert_eq!(
+            json_optional_usize(&args, "missing").expect("missing"),
+            None
+        );
+
+        // A string value is not an integer.
+        let string_arg = serde_json::json!({ "max_bytes": "4096" })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(json_optional_usize(&string_arg, "max_bytes").is_err());
+
+        // A negative value has no non-negative reading.
+        let negative_arg = serde_json::json!({ "max_bytes": -1 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(json_optional_usize(&negative_arg, "max_bytes").is_err());
+    }
 }
