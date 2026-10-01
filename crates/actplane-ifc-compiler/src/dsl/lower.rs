@@ -335,6 +335,69 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn xform_updates_emit_their_exec_gate_matcher_bytes() {
+        // A `by exec` gate lowers through `lower_exec` into the xform
+        // update's `CUpdate.m` + `CUpdate.target` (with an empty `arg`),
+        // and the kernel matches the gate event's `comm` against those
+        // bytes to decide when the label move fires. #60 pinned the
+        // xform update's `add`/`del` *direction* (it located the update by
+        // `op == OP_EXEC` + target prefix) but never pinned the `m`/`target`
+        // matcher bytes or the empty `arg`, so a regression that dropped
+        // `m` or truncated the gate basename would go uncaught.
+        //
+        // The decision: the same gate shape lowers to `M_EXACT` on a bare
+        // basename (no wildcard) but `M_PREFIX` when it ends in `*` -- the
+        // `lower_exec` dispatch #71 pinned for the comm target, here wired
+        // into the xform update rather than a rule target.
+        fn tgt(p: &[u8; PAT]) -> String {
+            let end = p.iter().position(|b| *b == 0).unwrap_or(PAT);
+            String::from_utf8_lossy(&p[..end]).into_owned()
+        }
+        fn cfg(src: &str) -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile(&pol).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        }
+
+        let g = cfg("source S = file \"/**/.env\"\n\
+             endorse S by exec \"**/approve\"\n\
+             source T = file \"/**/secrets.json\"\n\
+             declassify T by exec \"build*\"\n\
+             rule r:\n\
+               block exec \"git\" if S\n\
+               because \"approve before commit\"\n");
+        let updates = &g.updates[..g.n_updates as usize];
+
+        // `endorse` gate: bare basename, no wildcard -> M_EXACT.
+        let endorse = updates
+            .iter()
+            .find(|u| u.op == OP_EXEC && &u.target[..7] == "approve".as_bytes())
+            .expect("the endorse exec update is present");
+        assert_eq!(endorse.m, M_EXACT, "bare basename gate -> exact match");
+        assert_eq!(
+            tgt(&endorse.target),
+            "approve",
+            "target is the lowered comm"
+        );
+        assert!(
+            endorse.arg.iter().all(|b| *b == 0),
+            "a gate has no positional arg"
+        );
+
+        // `declassify` gate: trailing `*` -> M_PREFIX on the stripped base.
+        let declass = updates
+            .iter()
+            .find(|u| u.op == OP_EXEC && &u.target[..5] == "build".as_bytes())
+            .expect("the declassify exec update is present");
+        assert_eq!(declass.m, M_PREFIX, "`build*` gate -> prefix match");
+        assert_eq!(tgt(&declass.target), "build", "target is the stripped base");
+        assert!(
+            declass.arg.iter().all(|b| *b == 0),
+            "a gate has no positional arg"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
