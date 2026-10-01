@@ -2108,4 +2108,19 @@ mod tests {
             "repo-supervisor"
         );
     }
+    #[test]
+    fn string_missing_treats_none_empty_and_whitespace_as_missing() {
+        // `string_missing` reports whether an optional string field is
+        // effectively absent: `None`, an empty string, or a
+        // whitespace-only string all read as missing; a non-empty value does
+        // not. No base or branch test pins this helper directly.
+        assert!(string_missing(None));
+        assert!(string_missing(Some("")));
+        assert!(string_missing(Some("   ")));
+        assert!(string_missing(Some("\t\n")));
+        assert!(!string_missing(Some("x")));
+        assert!(!string_missing(Some("repo-supervisor")));
+        // Leading/trailing whitespace does not make a value present.
+        assert!(!string_missing(Some(" repo-supervisor ")));
+    }
 }
