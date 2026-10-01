@@ -952,4 +952,27 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn mentions_test_before_commit_requires_test_and_commit_contexts() {
+        // `mentions_test_before_commit` reports whether the lowercased task
+        // text asks for a test before a commit: either the literal
+        // `test-before-commit` tag, or both a commit context and a test
+        // context. No base or branch test pins this predicate directly.
+        // The explicit tag short-circuits the two-context requirement.
+        assert!(mentions_test_before_commit(
+            "use the test-before-commit policy"
+        ));
+
+        // Both a commit context and a test context present.
+        assert!(mentions_test_before_commit(
+            "run cargo test before committing"
+        ));
+        assert!(mentions_test_before_commit("pytest before git commit"));
+
+        // A commit context alone, with no test context, is not a match.
+        assert!(!mentions_test_before_commit("run the build before commit"));
+        // A test context alone, with no commit context, is not a match.
+        assert!(!mentions_test_before_commit("run the test suite"));
+        assert!(!mentions_test_before_commit(""));
+    }
 }
