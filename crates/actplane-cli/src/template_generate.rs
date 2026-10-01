@@ -952,4 +952,36 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn truncate_to_char_boundary_backs_off_across_multi_byte_chars() {
+        // `truncate_to_char_boundary` shortens a `String` to at most
+        // `max_bytes`, stepping back off a byte that falls inside a
+        // multi-byte char so the result stays a valid string. It reports
+        // whether it changed anything. No base or branch test pins this
+        // helper directly.
+        let mut ascii = String::from("abcdefghij");
+        assert!(truncate_to_char_boundary(&mut ascii, 5));
+        assert_eq!(ascii, "abcde");
+
+        // Already within the limit: no change, reports false.
+        let mut short = String::from("abc");
+        assert!(!truncate_to_char_boundary(&mut short, 5));
+        assert_eq!(short, "abc");
+
+        // Exactly at the limit is also a no-op.
+        let mut exact = String::from("abcde");
+        assert!(!truncate_to_char_boundary(&mut exact, 5));
+        assert_eq!(exact, "abcde");
+
+        // A 2-byte char (`é`): the cut point lands mid-char, so the
+        // truncation backs off to the start of the char.
+        let mut two_byte = String::from("abé"); // 4 bytes: a b é(2)
+        assert!(truncate_to_char_boundary(&mut two_byte, 3));
+        assert_eq!(two_byte, "ab");
+
+        // A 3-byte char: backing off to a boundary can empty the string.
+        let mut three_byte = String::from("あ"); // 3 bytes
+        assert!(truncate_to_char_boundary(&mut three_byte, 2));
+        assert_eq!(three_byte, "");
+    }
 }
