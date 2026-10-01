@@ -335,6 +335,33 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// The kernel blob is a fixed-size rodata region holding the label set as
+    /// a u64 mask (at most 64 label bits), not a const-capped table. A policy
+    /// that names more distinct labels than the mask can hold must be
+    /// rejected at compile time, not silently dropped. The label pre-pass
+    /// allocates a bit for every source/xform/`when` label, so 65 distinct
+    /// source labels make the 65th allocation trip the guard. 65 file
+    /// sources add 65 updates, staying under MAX_UPDATES (320), and no
+    /// rule/gate/invalidator is involved, so only the label cap trips.
+    #[test]
+    fn label_overflow_beyond_max_labels_is_rejected() {
+        // 65 distinct labels L0..L64. The 65th label_bit sees no free bit in
+        // the (0..64) u64 scan and trips "too many labels (max 64)".
+        let mut src = String::new();
+        for i in 0..=64 {
+            src.push_str(&format!("source L{i} = file \"/p{i}\"\n"));
+        }
+        match crate::dsl::parse::parse(&src).and_then(|p| compile(&p)) {
+            Ok(_) => panic!("compile must fail past the 64-label cap"),
+            Err(err) => {
+                assert!(
+                    err.contains("too many labels (max 64)"),
+                    "wrong error: {err}"
+                );
+            }
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
