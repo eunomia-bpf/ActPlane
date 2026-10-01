@@ -335,6 +335,33 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn two_labels_sharing_a_single_bit_are_rejected() {
+        // `compile_with_labels` accepts a pre-supplied label -> bit map.
+        // Each bit must be assigned to at most one label; if two labels
+        // share a bit, `validate_label_bindings` rejects with "label bit
+        // 0x{bit:x} is assigned more than once". This is load-bearing: a
+        // shared bit would silently merge two distinct information-flow
+        // labels into one, so a rule that forbids label `A` would also
+        // forbid `B` without the author's intent.
+        // The empty-name and invalid-mask guards are separate surfaces.
+        use std::collections::HashMap;
+        fn map(pairs: &[(&str, u64)]) -> HashMap<String, u64> {
+            pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+        }
+        let pol = crate::dsl::parse::parse("rule r:\n  block exec \"git\" because \"z\"\n")
+            .expect("the rule parses");
+
+        match compile_with_labels(&pol, &map(&[("A", 1u64), ("B", 1u64)])) {
+            Ok(_) => panic!("two labels on one bit must be rejected"),
+            Err(err) => assert_eq!(err, "label bit 0x1 is assigned more than once"),
+        }
+
+        // Positive control: distinct single bits for two labels compile.
+        compile_with_labels(&pol, &map(&[("A", 1u64), ("B", 2u64)]))
+            .expect("distinct label bits compile");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
