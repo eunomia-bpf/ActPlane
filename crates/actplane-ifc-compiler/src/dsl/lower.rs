@@ -359,8 +359,10 @@ mod tests {
 
         // 65 distinct invalidators trip the global cap.
         let pol = parse(&build(65)).expect("65 distinct since invalidators parse");
-        let err = compile(&pol).expect_err("more than 64 since invalidators must be rejected");
-        assert_eq!(err, "too many `since` invalidators (max 64)");
+        match compile(&pol) {
+            Ok(_) => panic!("more than 64 since invalidators must be rejected"),
+            Err(err) => assert_eq!(err, "too many `since` invalidators (max 64)"),
+        }
 
         // Dedup control: repeated identical invalidators do not consume new
         // slots, so a duplicate list stays well under the cap.
