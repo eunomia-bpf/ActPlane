@@ -335,6 +335,34 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_rule_declaration_requires_a_colon_after_the_name() {
+        // A `rule` declaration is `rule <name> : <clauses...>`. After the
+        // name the parser demands a `:` token; anything else is rejected
+        // with "expected ':' after rule name, got {tok}". Without the guard,
+        // a stray word or `=` after the name would be silently swallowed and
+        // misparsed as a clause keyword rather than a structural error.
+        // Nobody pinned the rule-name colon guard.
+        use crate::dsl::parse::parse;
+        let err = parse("rule r block exec \"git\" because \"z\"\n")
+            .expect_err("a missing colon after the rule name must be rejected");
+        assert!(
+            err.starts_with("expected ':' after rule name, got "),
+            "the error names the offending token: {err}"
+        );
+        let err = parse("rule r = block exec \"git\" because \"z\"\n")
+            .expect_err("a wrong token after the rule name must be rejected");
+        assert!(
+            err.starts_with("expected ':' after rule name, got "),
+            "the error names the offending token: {err}"
+        );
+
+        // Positive control: a rule with the colon parses and compiles.
+        let pol = parse("rule r:\n  block exec \"git\" because \"z\"\n")
+            .expect("a colon-terminated rule parses");
+        let _ = compile(&pol).expect("a valid rule compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
