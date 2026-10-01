@@ -2992,4 +2992,37 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn default_project_dir_honors_env_priority() {
+        // `default_project_dir` reads the first set of a documented env chain;
+        // the ctor with no explicit dir consumes it. No base or branch test
+        // calls it directly.
+        let keys = [
+            "ACTPLANE_PROJECT_DIR",
+            "CODEX_PROJECT_DIR",
+            "CODEX_WORKSPACE",
+            "CLAUDE_PROJECT_DIR",
+        ];
+        for key in keys {
+            unsafe { std::env::remove_var(key) };
+        }
+
+        // Highest-priority override wins over the lower ones.
+        unsafe { std::env::set_var("CLAUDE_PROJECT_DIR", "/tmp/plan-claude") };
+        unsafe { std::env::set_var("CODEX_WORKSPACE", "/tmp/plan-codex-ws") };
+        unsafe { std::env::set_var("CODEX_PROJECT_DIR", "/tmp/plan-codex") };
+        unsafe { std::env::set_var("ACTPLANE_PROJECT_DIR", "/tmp/plan-actplane") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/plan-actplane"));
+
+        // Dropping the top key falls through to the next in priority order.
+        unsafe { std::env::remove_var("ACTPLANE_PROJECT_DIR") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/plan-codex"));
+
+        // With no keys set, the current directory is used.
+        for key in keys {
+            unsafe { std::env::remove_var(key) };
+        }
+        assert_eq!(default_project_dir(), std::env::current_dir().expect("cwd"));
+    }
 }
