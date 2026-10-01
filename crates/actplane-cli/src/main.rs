@@ -1072,3 +1072,44 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn policy_input_copies_cli_fields_verbatim() {
+        // `policy_input` projects the global CLI arguments onto the runtime's
+        // `PolicyInput`, cloning policy/rule/domain and copying the two
+        // elevation booleans. No base or branch test pins it directly.
+        let cli = Cli {
+            policy: Some(PathBuf::from("/tmp/actplane.yaml")),
+            rule: Some("source COMMAND = exec \"**\"".to_string()),
+            domain: Some("team".to_string()),
+            run_as_root: true,
+            internal_elevated: false,
+            command: Commands::Doctor,
+        };
+        let input = policy_input(&cli);
+        assert_eq!(input.policy, Some(PathBuf::from("/tmp/actplane.yaml")));
+        assert_eq!(input.rule.as_deref(), Some("source COMMAND = exec \"**\""));
+        assert_eq!(input.domain.as_deref(), Some("team"));
+        assert!(input.run_as_root);
+        assert!(!input.internal_elevated);
+
+        let empty = Cli {
+            policy: None,
+            rule: None,
+            domain: None,
+            run_as_root: false,
+            internal_elevated: true,
+            command: Commands::Doctor,
+        };
+        let input = policy_input(&empty);
+        assert!(input.policy.is_none());
+        assert!(input.rule.is_none());
+        assert!(input.domain.is_none());
+        assert!(!input.run_as_root);
+        assert!(input.internal_elevated);
+    }
+}
