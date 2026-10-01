@@ -335,6 +335,90 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_shared_since_invalidator_dedupes_across_rules() {
+        // `inval_slot` is global across the whole compile: it keys the
+        // allocated inval slots on (op, m, lit, arg), so two *separate rules*
+        // that reference the same `since` invalidator must dedupe to one
+        // inval update, with both rules' `since_mask` referencing the same
+        // shared bit. #59 pinned within-rule coherence and #90 pinned
+        // within-rule dedup (two `or` clauses), but nobody pinned the
+        // cross-rule dedup: a regression that scoped `inval_slot` per rule
+        // would double-allocate the shared invalidator and the two rules'
+        // `since_mask`s would point at different slots, so the engine would
+        // de-stale the gate on only one of the two argv events.
+        fn inval_count(g: &CConfig) -> u32 {
+            g.updates[..g.n_updates as usize]
+                .iter()
+                .filter(|u| u.invals != 0)
+                .count() as u32
+        }
+
+        // Two separate rules sharing the identical `since` invalidator:
+        // one shared inval update, both rules reference the same bit.
+        let pol = crate::dsl::parse::parse(
+            "source S = file \"/**/s\"\n\
+             rule a:\n  block exec \"git\" if S unless after exec \"/in\" since exec \"/make\" \"install\"\n  because \"z\"\n\
+             rule b:\n  block exec \"npm\" if S unless after exec \"/in\" since exec \"/make\" \"install\"\n  because \"z\"\n",
+        )
+        .expect("parse two-rule shared-since policy");
+        let compiled = compile(&pol).expect("compile two-rule shared-since policy");
+        let g: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        assert_eq!(g.n_rules, 2, "one rule per policy clause");
+        assert_eq!(
+            inval_count(&g),
+            1,
+            "a shared since invalidator dedupes to one update"
+        );
+        // Both rules' since_mask reference the single shared inval bit.
+        assert_eq!(
+            g.rules[0].since_mask, 1u64,
+            "rule 0 references the shared inval bit"
+        );
+        assert_eq!(
+            g.rules[1].since_mask, 1u64,
+            "rule 1 reuses the same shared inval bit"
+        );
+        // The deduped inval update carries the shared argv byte.
+        let invals: Vec<&CUpdate> = g.updates[..g.n_updates as usize]
+            .iter()
+            .filter(|u| u.invals != 0)
+            .collect();
+        assert_eq!(invals.len(), 1);
+        assert_eq!(
+            cstr23(&invals[0].arg),
+            "install",
+            "the deduped update carries the shared argv"
+        );
+
+        // Contrast: the two rules carry *distinct* argv, so the dedupe key
+        // differs and two inval updates are allocated; the rules' since_mask
+        // bits then differ.
+        let pol = crate::dsl::parse::parse(
+            "source S = file \"/**/s\"\n\
+             rule a:\n  block exec \"git\" if S unless after exec \"/in\" since exec \"/make\" \"install\"\n  because \"z\"\n\
+             rule b:\n  block exec \"npm\" if S unless after exec \"/in\" since exec \"/make\" \"build\"\n  because \"z\"\n",
+        )
+        .expect("parse two-rule distinct-since policy");
+        let compiled = compile(&pol).expect("compile two-rule distinct-since policy");
+        let g: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        assert_eq!(inval_count(&g), 2, "distinct argv -> two inval updates");
+        let mut masks = [g.rules[0].since_mask, g.rules[1].since_mask];
+        masks.sort_unstable();
+        assert_eq!(
+            masks,
+            [1u64, 2u64],
+            "the two rules reference two distinct bits"
+        );
+    }
+
+    fn cstr23(p: &[u8; ARG]) -> String {
+        let end = p.iter().position(|b| *b == 0).unwrap_or(ARG);
+        String::from_utf8_lossy(&p[..end]).into_owned()
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
