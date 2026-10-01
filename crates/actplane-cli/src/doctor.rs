@@ -2591,4 +2591,133 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn render_observe_policy_yaml_downgrades_clauses_to_notify() {
+        // `render_observe_policy_yaml` wraps a parsed policy in an observe-first
+        // rollout YAML: a header naming the source, an optional domain line, then
+        // a `policy: |` block whose rules are re-rendered with every clause
+        // downgraded to `notify`. No base or branch test pins this formatter
+        // directly.
+        use crate::dsl::ast::{Rule, Target, Xform};
+
+        let minimal = Policy {
+            labels: Vec::new(),
+            sources: vec![Source {
+                label: "e1".to_string(),
+                kind: Kind::Exec,
+                pattern: "python3".to_string(),
+            }],
+            rules: vec![Rule {
+                name: "guard".to_string(),
+                clauses: vec![Clause {
+                    op: Op::Exec,
+                    target: Target {
+                        kind: Kind::Exec,
+                        pattern: "python3".to_string(),
+                        arg: None,
+                    },
+                    when: Expr::True,
+                    unless: None,
+                    effect: Effect::Block,
+                    source_index: 0,
+                }],
+                reason: String::new(),
+            }],
+            xforms: Vec::new(),
+        };
+        let no_domain = ResolvedPolicy {
+            source: "policy.dsl".to_string(),
+            domain: None,
+        };
+
+        let got = render_observe_policy_yaml("policy.dsl", &no_domain, &minimal);
+        let expected = [
+            "# ActPlane observe-first policy generated from policy.dsl.",
+            "# Every rule clause is downgraded to notify for rollout observation.",
+            "version: 1",
+            "policy: |",
+            "  source e1 = exec \"python3\"",
+            "",
+            "  rule guard:",
+            "    notify exec \"python3\"",
+            "    because \"Observe-first rollout for original policy.\"",
+        ]
+        .join("\n");
+        assert_eq!(got, expected + "\n");
+
+        // With a source domain and a non-empty reason, the domain line and the
+        // xform/source/endpoint/file clause shapes are all rendered.
+        let full = Policy {
+            labels: Vec::new(),
+            sources: vec![Source {
+                label: "net".to_string(),
+                kind: Kind::Endpoint,
+                pattern: "10.0.0.0/8".to_string(),
+            }],
+            rules: vec![Rule {
+                name: "egress".to_string(),
+                clauses: vec![
+                    Clause {
+                        op: Op::Read,
+                        target: Target {
+                            kind: Kind::File,
+                            pattern: "/etc/passwd".to_string(),
+                            arg: None,
+                        },
+                        when: Expr::True,
+                        unless: None,
+                        effect: Effect::Block,
+                        source_index: 0,
+                    },
+                    Clause {
+                        op: Op::Connect,
+                        target: Target {
+                            kind: Kind::Endpoint,
+                            pattern: "10.0.0.7".to_string(),
+                            arg: None,
+                        },
+                        when: Expr::True,
+                        unless: None,
+                        effect: Effect::Block,
+                        source_index: 0,
+                    },
+                ],
+                reason: "no egress".to_string(),
+            }],
+            xforms: vec![Xform {
+                endorse: true,
+                label: "secrecy".to_string(),
+                gate: "curl".to_string(),
+            }],
+        };
+        let with_domain = ResolvedPolicy {
+            source: "web.dsl".to_string(),
+            domain: Some(DomainSummary {
+                name: "web".to_string(),
+                parent: Some("app".to_string()),
+                disabled: Vec::new(),
+                locked: Vec::new(),
+                defaults: Vec::new(),
+            }),
+        };
+
+        let got = render_observe_policy_yaml("web.dsl", &with_domain, &full);
+        let expected = [
+            "# ActPlane observe-first policy generated from web.dsl.",
+            "# Every rule clause is downgraded to notify for rollout observation.",
+            "# Source domain: web (flattened selected policy).",
+            "version: 1",
+            "policy: |",
+            "  source net = endpoint \"10.0.0.0/8\"",
+            "",
+            "  endorse secrecy by exec \"curl\"",
+            "",
+            "  rule egress:",
+            "    notify read file \"/etc/passwd\"",
+            "    notify connect endpoint \"10.0.0.7\"",
+            "    because \"Observe-first rollout for original policy: no egress\"",
+        ]
+        .join("\n");
+        assert_eq!(got, expected + "\n");
+    }
 }
