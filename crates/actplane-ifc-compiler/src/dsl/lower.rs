@@ -335,6 +335,56 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn after_gates_stamp_the_path_op_bytes() {
+        // A `after <op>` gate arms a rule on that event class, so the gate
+        // update must carry the kernel taint_op of the gating event. gate_bit
+        // (lower.rs) consolidates the four path ops to two kernel op bytes:
+        // `read` and `open` both arm on an open/read edge (OP_OPEN), `write`
+        // and `unlink` both arm on a mutating edge (OP_WRITE). A wrong byte
+        // would arm the rule on the wrong syscall class with no compile-time
+        // or blob-size symptom. #57 pins the `after exec` gate row (OP_EXEC);
+        // #82 pins the connect/recv gate reject; these accept bytes are not
+        // pinned.
+        let cases = [
+            ("read", OP_OPEN),
+            ("open", OP_OPEN),
+            ("write", OP_WRITE),
+            ("unlink", OP_WRITE),
+        ];
+        for (op_word, want_op) in cases {
+            let pol = crate::dsl::parse::parse(&format!(
+                "rule r:\n\
+                 notify write file \"/sink\" unless after {op_word} \"/cfg\"\n\
+                 because \"re-arm the guard when the file is touched\"\n",
+            ))
+            .expect("parse after gate rule");
+            let compiled = compile(&pol).expect("compile after gate rule");
+            let cfg: CConfig =
+                unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+            assert_eq!(cfg.n_updates, 1, "a single gate update");
+            assert_eq!(cfg.n_rules, 1, "one rule");
+            // The gate update carries a non-zero `gates` bit; it is never an
+            // invalidator (no `invals`) and arms the rule via `rule.gates`.
+            let gate = cfg.updates[0];
+            assert_eq!(gate.gates, 1u64, "single gate => bit 1<<0");
+            assert_eq!(gate.invals, 0, "gate carries no inval bits");
+            assert_eq!(
+                gate.op, want_op,
+                "after {op_word} must stamp taint_op byte {want_op}"
+            );
+            assert_eq!(gate.m, M_EXACT, "`/cfg` -> exact path");
+            assert_eq!(&gate.target[..4], b"/cfg", "gate target literal is `/cfg`");
+            assert_eq!(
+                gate.gate_exit_code, GATE_IMMEDIATE,
+                "a no-`exits` gate arms on any exit status"
+            );
+            // Cross-table: the rule references exactly the gate it allocated.
+            assert_eq!(cfg.rules[0].gate, 1u64, "rule arms on gate slot 0");
+            assert_eq!(cfg.rules[0].gate_idx, 0, "single gate lands in slot 0");
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
