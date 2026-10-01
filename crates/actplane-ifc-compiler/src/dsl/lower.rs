@@ -335,6 +335,53 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn since_invalidators_stamp_the_valid_op_bytes() {
+        // A `since <op>` clause de-stales the gate on that event class, so the
+        // invalidator update must carry the kernel taint_op of the op. inval_op
+        // (lower.rs) consolidates the five valid ops to three kernel op bytes:
+        // `read` and `open` both mark an open/read edge (OP_OPEN), `write` and
+        // `unlink` both mark a mutating edge (OP_WRITE), and `exec` stays
+        // OP_EXEC. A wrong byte would de-stale the gate on the wrong syscall
+        // class with no compile-time or blob-size symptom. #73 pins the
+        // connect/recv *reject*; #59 pins the `invals` slot bits; neither
+        // pins these accept bytes.
+        let cases = [
+            ("exec", OP_EXEC),
+            ("read", OP_OPEN),
+            ("open", OP_OPEN),
+            ("write", OP_WRITE),
+            ("unlink", OP_WRITE),
+        ];
+        for (op_word, want_op) in cases {
+            let pol = crate::dsl::parse::parse(&format!(
+                "rule r:\n\
+                 notify write file \"/sink\" unless after exec \"/in\" since {op_word} \"/cfg\"\n\
+                 because \"re-arm the guard when the file is touched\"\n",
+            ))
+            .expect("parse since rule");
+            let compiled = compile(&pol).expect("compile since rule");
+            let cfg: CConfig =
+                unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+            assert_eq!(cfg.n_updates, 2, "one gate update + one since invalidator");
+            // The invalidator is the update carrying a non-zero `invals` bit.
+            let inval = cfg.updates[..cfg.n_updates as usize]
+                .iter()
+                .find(|u| u.invals != 0)
+                .expect("a since clause allocates an invalidator update");
+            assert_eq!(
+                inval.op, want_op,
+                "since {op_word} must stamp taint_op byte {want_op}"
+            );
+            // An invalidator never carries gate bits or a matching exit code.
+            assert_eq!(inval.gates, 0, "since invalidator carries no gate bits");
+            assert_eq!(
+                inval.gate_exit_code, GATE_IMMEDIATE,
+                "since invalidator stamps no exit status"
+            );
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
