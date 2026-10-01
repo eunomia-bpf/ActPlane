@@ -2591,4 +2591,51 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn endpoint_limitations_with_appends_the_extra_limitation() {
+        // `endpoint_limitations_with` computes the endpoint limitations for a
+        // pattern (delegating to `endpoint_limitations`) and appends one extra
+        // caller-supplied limitation. No base or branch test pins this
+        // wrapper directly.
+        use std::collections::HashMap;
+
+        let mk = |resolutions: HashMap<String, Vec<String>>| dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: resolutions,
+        };
+
+        // A numeric IPv4 pattern yields the single "IPv4 only" limitation,
+        // with the extra appended.
+        let compiled = mk(HashMap::new());
+        assert_eq!(
+            endpoint_limitations_with(&compiled, "10.0.0.7", "evidence-backed"),
+            vec!["IPv4 only", "evidence-backed"]
+        );
+
+        // A hostname with a non-empty compile-time resolution gets the DNS
+        // caveats plus the extra.
+        let compiled = mk(HashMap::from([(
+            "example.com".to_string(),
+            vec!["93.184.215.14".to_string(), "93.184.215.15".to_string()],
+        )]));
+        assert_eq!(
+            endpoint_limitations_with(&compiled, "example.com", "evidence-backed"),
+            vec![
+                "hostname resolved at policy compile/load time",
+                "DNS changes require policy reload",
+                "IPv4 only",
+                "evidence-backed",
+            ]
+        );
+
+        // A hostname with no resolution falls back to the single limitation.
+        let compiled = mk(HashMap::new());
+        assert_eq!(
+            endpoint_limitations_with(&compiled, "example.com", "evidence-backed"),
+            vec!["IPv4 only", "evidence-backed"]
+        );
+    }
 }
