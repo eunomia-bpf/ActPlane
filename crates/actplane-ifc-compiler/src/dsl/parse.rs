@@ -343,3 +343,91 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn p(s: &str) -> P {
+        P {
+            t: lex(s).unwrap(),
+            i: 0,
+        }
+    }
+
+    #[test]
+    fn target_prefixes_exec_basenames_and_captures_positional_args() {
+        // `target` parses a clause target: an optional kind word, a quoted
+        // pattern, and an optional quoted positional argument. No test in
+        // any open or merged branch pins these `Target` shapes directly.
+        let t = |s: &str, op: Op| p(s).target(op).expect("target parses");
+
+        // file/endpoint targets keep their patterns verbatim.
+        assert_eq!(
+            t("file \"/etc/passwd\"", Op::Read),
+            Target {
+                kind: Kind::File,
+                pattern: "/etc/passwd".into(),
+                arg: None,
+            }
+        );
+        assert_eq!(
+            t("endpoint \"10.0.0.0\"", Op::Connect),
+            Target {
+                kind: Kind::Endpoint,
+                pattern: "10.0.0.0".into(),
+                arg: None,
+            }
+        );
+
+        // An exec target whose pattern has no `/` is a basename match,
+        // implicit-prefixed with `**/`.
+        assert_eq!(
+            t("exec \"git\"", Op::Exec),
+            Target {
+                kind: Kind::Exec,
+                pattern: "**/git".into(),
+                arg: None,
+            }
+        );
+
+        // A trailing quoted string after the target pattern is the positional
+        // argument; the basename prefix still applies to the pattern.
+        assert_eq!(
+            t("exec \"git\" \"refactor\"", Op::Exec),
+            Target {
+                kind: Kind::Exec,
+                pattern: "**/git".into(),
+                arg: Some("refactor".into()),
+            }
+        );
+
+        // A full path (contains `/`) is not prefixed.
+        assert_eq!(
+            t("exec \"/usr/bin/git\"", Op::Exec),
+            Target {
+                kind: Kind::Exec,
+                pattern: "/usr/bin/git".into(),
+                arg: None,
+            }
+        );
+
+        // The kind word may be omitted only for an exec op, where it
+        // defaults to `exec`.
+        assert_eq!(
+            t("\"git\"", Op::Exec),
+            Target {
+                kind: Kind::Exec,
+                pattern: "**/git".into(),
+                arg: None,
+            }
+        );
+
+        // Omitting the kind word on a non-exec op is an error.
+        let missing_kind = p("\"f\"").target(Op::Open);
+        assert_eq!(
+            missing_kind.err().as_deref(),
+            Some("expected node kind in target")
+        );
+    }
+}
