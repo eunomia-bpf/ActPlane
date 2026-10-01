@@ -767,4 +767,40 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+
+    #[test]
+    fn attach_source_meta_synthesizes_rule_ref_for_marker_less_source() {
+        // Every other source-meta test uses a `# actplane-rule-source` marker;
+        // this pins the marker-less path, where `attach_source_meta` derives a
+        // `rule:<name>` source_ref, leaves binding_mode unset, and maps each
+        // meta entry to its own clause span via clause_source_index.
+        let c = compile_str(
+            "source SECRET = file \"**/.env\"\nrule multi:\n  block exec \"git\" if SECRET\n  kill write file \"**/leak\" if SECRET\n  because \"two clauses\"\n",
+        )
+        .expect("compile");
+        assert_eq!(c.meta.len(), 2);
+        assert!(c.meta.iter().all(|m| m.name == "multi"));
+
+        let first = c.meta[0].source.as_ref().expect("source metadata");
+        assert_eq!(first.source_ref, "rule:multi");
+        assert_eq!(first.binding_mode, None);
+        assert_eq!(first.start_line, 2);
+        assert_eq!(first.end_line, 5);
+        assert!(first.text.contains("rule multi:"));
+        assert!(first.text.contains("because \"two clauses\""));
+        assert_eq!(first.clause_start_line, Some(3));
+        assert_eq!(first.clause_end_line, Some(3));
+        assert_eq!(
+            first.clause_text.as_deref(),
+            Some("  block exec \"git\" if SECRET")
+        );
+
+        let second = c.meta[1].source.as_ref().expect("source metadata");
+        assert_eq!(second.clause_start_line, Some(4));
+        assert_eq!(second.clause_end_line, Some(4));
+        assert_eq!(
+            second.clause_text.as_deref(),
+            Some("  kill write file \"**/leak\" if SECRET")
+        );
+    }
 }
