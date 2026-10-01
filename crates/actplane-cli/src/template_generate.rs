@@ -952,4 +952,24 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn mentions_push_approval_context_matches_exception_or_approval_needles() {
+        // `mentions_push_approval_context` reports whether the lowercased
+        // task text carries a push-approval context: either a push-approval
+        // exception (push context AND approval context) or a direct
+        // approval needle. No base or branch test pins this predicate
+        // directly.
+        // The exception path (push + approval context).
+        assert!(mentions_push_approval_context("git push requires approval"));
+        // The direct-needle path.
+        assert!(mentions_push_approval_context("require push approval"));
+        assert!(mentions_push_approval_context("approval for git push"));
+
+        // A bare git-push with no approval context is not a match.
+        assert!(!mentions_push_approval_context("git push the branch"));
+        assert!(!mentions_push_approval_context(
+            "run the test suite before commit"
+        ));
+        assert!(!mentions_push_approval_context(""));
+    }
 }
