@@ -2108,4 +2108,27 @@ mod tests {
             "repo-supervisor"
         );
     }
+    #[test]
+    fn json_i32_reads_in_range_integers_and_rejects_the_rest() {
+        // `json_i32` narrows a JSON integer to `i32`: an in-range i64 value
+        // yields `Some(n)`, an out-of-range i64 yields `None`, and any
+        // non-integer JSON value yields `None`. No base or branch test pins
+        // this helper directly.
+        use serde_json::Value;
+
+        assert_eq!(json_i32(&Value::from(42i64)), Some(42));
+        assert_eq!(json_i32(&Value::from(0i64)), Some(0));
+        assert_eq!(json_i32(&Value::from(-7i64)), Some(-7));
+        // Boundaries: `i32::MAX` and `i32::MIN` fit.
+        assert_eq!(json_i32(&Value::from(i32::MAX as i64)), Some(i32::MAX));
+        assert_eq!(json_i32(&Value::from(i32::MIN as i64)), Some(i32::MIN));
+        // Just outside the i32 range: no fit.
+        assert_eq!(json_i32(&Value::from(i32::MAX as i64 + 1)), None);
+        assert_eq!(json_i32(&Value::from(i32::MIN as i64 - 1)), None);
+        // Non-integer JSON values are not i32.
+        assert_eq!(json_i32(&serde_json::json!("7")), None);
+        assert_eq!(json_i32(&serde_json::json!(1.5)), None);
+        assert_eq!(json_i32(&Value::Null), None);
+        assert_eq!(json_i32(&serde_json::json!(true)), None);
+    }
 }
