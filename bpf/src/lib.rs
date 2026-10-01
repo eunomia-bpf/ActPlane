@@ -7884,4 +7884,18 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+    #[test]
+    fn path_match_features_maps_match_modes_to_feature_bits() {
+        // `path_match_features` flags which path-match capabilities a config
+        // needs: suffix and contains matches map to their feature bits, and
+        // any other match mode needs none. No base or branch test pins this
+        // helper directly.
+        assert_eq!(path_match_features(M_SUFFIX), FEAT_PATH_SUFFIX);
+        assert_eq!(path_match_features(M_CONTAINS), FEAT_PATH_CONTAINS);
+
+        // Non-path-match modes fall to the no-feature arm. `0` is the
+        // EXACT/absence discriminant; PREFIX (`1`) does likewise.
+        assert_eq!(path_match_features(0), 0);
+        assert_eq!(path_match_features(1), 0);
+    }
 }
