@@ -335,6 +335,26 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_clause_effect_lowers_to_its_kernel_effect_byte() {
+        // `lower_effect` maps the three `Effect` variants to the kernel
+        // effect bytes `EFFECT_NOTIFY`/`BLOCK`/`KILL` (0/1/2), the values the
+        // engine stores in each matched rule's effect field. The base tests
+        // only observe effects through full `compile` metadata; this pins the
+        // mapping directly.
+        assert_eq!(lower_effect(Effect::Notify), EFFECT_NOTIFY);
+        assert_eq!(lower_effect(Effect::Block), EFFECT_BLOCK);
+        assert_eq!(lower_effect(Effect::Kill), EFFECT_KILL);
+        // The three bytes are distinct.
+        let mut bytes = vec![
+            lower_effect(Effect::Notify),
+            lower_effect(Effect::Block),
+            lower_effect(Effect::Kill),
+        ];
+        bytes.dedup();
+        assert_eq!(bytes.len(), 3);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
