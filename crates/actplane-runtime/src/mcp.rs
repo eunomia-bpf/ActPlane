@@ -2992,4 +2992,34 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn ensure_local_parent_peer_requires_credentials() {
+        // `ensure_local_parent_peer` rejects a missing peer credential and
+        // otherwise delegates to control-plane actor checks (a no-op when the
+        // server has no engine attached); no base or branch test calls it.
+        let project =
+            std::env::temp_dir().join(format!("actplane-local-peer-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&project);
+        std::fs::create_dir_all(&project).unwrap();
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project.clone()));
+
+        let err = server
+            .ensure_local_parent_peer(None)
+            .expect_err("missing peer");
+        assert!(err.contains("peer credentials are unavailable"), "{err}");
+
+        let peer = local_control::PeerCred {
+            pid: std::process::id() as i32,
+            uid: unsafe { libc::geteuid() },
+            gid: unsafe { libc::getegid() },
+            identity: crate::audit::ProcessIdentity::capture(std::process::id() as i32, None, None),
+        };
+        // No engine attached -> the delegation short-circuits to Ok.
+        server
+            .ensure_local_parent_peer(Some(peer))
+            .expect("no engine");
+
+        let _ = std::fs::remove_dir_all(&project);
+    }
 }
