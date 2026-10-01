@@ -2992,4 +2992,40 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn json_optional_u64_parses_or_rejects_non_integers() {
+        // `json_optional_u64` reads an optional u64 tool-call arg: an absent
+        // key yields `Ok(None)`, a non-negative integer yields `Ok(Some(..))`,
+        // and any other JSON value (negative, string, object) is rejected.
+        // No base or branch test pins this helper directly.
+        let absent = serde_json::json!({ "other": 1 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_u64(&absent, "max").unwrap(), None);
+
+        let good = serde_json::json!({ "max": 4096u64 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_u64(&good, "max").unwrap(), Some(4096));
+
+        let zero = serde_json::json!({ "max": 0 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_u64(&zero, "max").unwrap(), Some(0));
+
+        let negative = serde_json::json!({ "max": -1 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(json_optional_u64(&negative, "max").is_err());
+
+        let string = serde_json::json!({ "max": "4096" })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(json_optional_u64(&string, "max").is_err());
+    }
 }
