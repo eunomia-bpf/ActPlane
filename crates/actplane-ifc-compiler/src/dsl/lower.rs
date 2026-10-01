@@ -335,6 +335,40 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// The kernel blob is a fixed-size rodata region holding at most
+    /// MAX_INVALS (64) `since` invalidator slots. A single clause whose
+    /// `since` chain references more distinct invalidators than the blob
+    /// can hold must be rejected at compile time, not silently dropped.
+    /// Each distinct `since` pattern lowers to a distinct slot, so 65
+    /// distinct `read` invalidators make the 65th allocation trip the
+    /// guard. 1 rule / 1 gate / 66 updates stay well under their caps,
+    /// so only the inval cap trips.
+    #[test]
+    fn inval_overflow_beyond_max_invals_is_rejected() {
+        // MAX_INVALS = 64. i in 0..=MAX_INVALS gives 65 distinct `since`
+        // invalidators, so the 65th inval_slot sees next_inval == 64 and
+        // trips the guard.
+        let mut since = String::new();
+        for i in 0..=MAX_INVALS {
+            if i > 0 {
+                since.push_str(" or ");
+            }
+            since.push_str(&format!("read \"/s{i}\""));
+        }
+        let src = format!(
+            "rule overflow:\n  notify write file \"/sink\" unless after exec \"/g\" since {since}\n  because \"overflow\"\n"
+        );
+        match crate::dsl::parse::parse(&src).and_then(|p| compile(&p)) {
+            Ok(_) => panic!("compile must fail past MAX_INVALS"),
+            Err(err) => {
+                assert!(
+                    err.contains("too many `since` invalidators"),
+                    "wrong error: {err}"
+                );
+            }
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
