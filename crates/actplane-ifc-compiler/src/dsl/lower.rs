@@ -335,6 +335,36 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_invalid_declassify_gate_syntax_is_rejected() {
+        // `declassify`/`endorse` xforms have the fixed shape
+        // `<verb> <label> by exec "<gate>"`. Two keyword positions are
+        // matched literally by `P::eat`: the `by` between the label and the
+        // op, and `exec` (the only valid invalidator op) after `by`. A
+        // wrong word in either position must reject at parse time.
+        use crate::dsl::parse::parse;
+        fn err(src: &str) -> String {
+            parse(src)
+                .map(|_| "OK".to_string())
+                .unwrap_or_else(|e| format!("Err({e})"))
+        }
+        // The `by` keyword position: `with` is not a recognized connector.
+        assert_eq!(
+            err("declassify A with exec \"/gate\"\n"),
+            "Err(expected 'by', got Some(Word(\"with\")))"
+        );
+        // The op position: only `exec` may gate a `declassify`/`endorse`.
+        assert_eq!(
+            err("declassify A by read \"/gate\"\n"),
+            "Err(expected 'exec', got Some(Word(\"read\")))"
+        );
+        // Positive control: the fixed `... by exec "..."` shape compiles.
+        compile(&parse("declassify A by exec \"/gate\"\n").expect("a valid declassify parses"))
+            .expect("a valid declassify compiles");
+        compile(&parse("endorse B by exec \"/gate\"\n").expect("a valid endorse parses"))
+            .expect("a valid endorse compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
