@@ -335,6 +335,48 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// The kernel matcher denies an operation when
+    /// `(mask & req) == req && (mask & forbid) == 0`, so a positive atom must
+    /// lower into `req` and a `not` atom into `forbid`, and every DNF
+    /// disjunct must stay internally disjoint. Pin the actual mask *content*
+    /// (not just the disjunct count, which `mod.rs` covers) via explicit label
+    /// bits, so a distribution bug that routes a `not` label into `req` --
+    /// flipping a deny into an allow -- is caught.
+    #[test]
+    fn dnf_masks_route_not_into_forbid_and_keep_disjuncts_disjoint() {
+        use std::collections::HashMap;
+        let labels: HashMap<String, u64> = [("A".to_string(), 1u64), ("B".to_string(), 2u64)]
+            .into_iter()
+            .collect();
+        let dsl = |src: &str| -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile_with_labels(&pol, &labels).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        };
+
+        // `A and not B`: one disjunct; A required, B forbidden, disjoint.
+        let cfg = dsl("rule r:\n  block exec \"x\" if A and not B\n  because \"z\"\n");
+        assert_eq!(cfg.n_rules, 1);
+        assert_eq!(cfg.rules[0].req, 1u64, "`A` must be a required label");
+        assert_eq!(
+            cfg.rules[0].forbid, 2u64,
+            "`not B` must be a forbidden label"
+        );
+        assert_eq!(
+            cfg.rules[0].req & cfg.rules[0].forbid,
+            0,
+            "a disjunct cannot require and forbid the same label"
+        );
+
+        // `A or not B`: `or` splits into two disjuncts, each still disjoint.
+        let cfg = dsl("rule r:\n  block exec \"x\" if A or not B\n  because \"z\"\n");
+        assert_eq!(cfg.n_rules, 2);
+        assert_eq!(cfg.rules[0].req, 1u64);
+        assert_eq!(cfg.rules[0].forbid, 0u64);
+        assert_eq!(cfg.rules[1].req, 0u64);
+        assert_eq!(cfg.rules[1].forbid, 2u64);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
