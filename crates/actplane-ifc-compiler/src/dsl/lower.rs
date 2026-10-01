@@ -335,6 +335,90 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn negated_nonconnect_target_not_keeps_its_pattern_in_the_path_region() {
+        // A `target not P` on a file op must keep the negated condition in the
+        // *path* cond region: the pattern is lowered by lower_path into
+        // cond_match + cond_pat (exactly like the rule's own target), cond_neg
+        // is set, and the connect-only cond_ipv4 fields stay zero. The kernel
+        // uses cond_match/cond_pat for path rules but cond_ipv4 for connect
+        // rules, so a negation regression that treated a path `not` like a
+        // connect one would either zero the pattern or mis-route it into
+        // cond_ipv4. #57 pinned only that `not` sets cond_neg (the negation
+        // bit); #61 pinned the *plain* (cond_neg = 0) non-connect region.
+        // Neither pins that the *negated* form still routes its pattern through
+        // lower_path into cond_pat while leaving cond_ipv4 at zero.
+        fn cfg(src: &str) -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile(&pol).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        }
+
+        // Absolute glob: `/work/**` lowers to M_PREFIX on the start-anchored
+        // literal `/work/`. The negated form must carry that matcher + pattern
+        // in the path region with cond_neg set and cond_ipv4 zero.
+        let cr = &cfg(
+            "rule r:\n block write file \"/**\" unless target not \"/work/**\" because \"deny writes under /work\"\n",
+        )
+        .rules[0];
+        let (cm, clit) = lower_path("/work/**");
+        let mut want_cond = [0u8; PAT];
+        set_pat(&mut want_cond, &clit);
+        assert_eq!(cr.op, OP_WRITE);
+        assert_eq!(cr.cond_kind, C_TARGET, "target cond lowers to TCOND_TARGET");
+        assert_eq!(cr.cond_neg, 1, "the `not` form sets cond_neg");
+        assert_eq!(cr.cond_match, cm, "negated pattern lowers via lower_path");
+        assert_eq!(
+            cr.cond_match, M_PREFIX,
+            "an absolute glob is start-anchored"
+        );
+        assert_eq!(
+            cr.cond_pat, want_cond,
+            "the negated pattern lands in cond_pat"
+        );
+        assert_eq!(cr.cond_ipv4, 0, "a path negation must not touch cond_ipv4");
+        assert_eq!(
+            cr.cond_ipv4_mask, 0,
+            "a path negation must not touch cond_ipv4_mask"
+        );
+
+        // Same matcher, negation bit off: the plain form routes the identical
+        // pattern into the same region with cond_neg = 0.
+        let cr = &cfg(
+            "rule r:\n block write file \"/**\" unless target \"/work/**\" because \"allow writes outside /work\"\n",
+        )
+        .rules[0];
+        assert_eq!(cr.cond_neg, 0, "the plain form is not negated");
+        assert_eq!(cr.cond_match, cm, "plain and negated share the matcher");
+        assert_eq!(
+            cr.cond_pat, want_cond,
+            "plain and negated share the cond pattern"
+        );
+
+        // Repo-relative glob: `src/**` has no start anchor, so it lowers to
+        // M_CONTAINS on `src/` -- the same lower_path dispatch the rule target
+        // uses, and a negation must not change that dispatch.
+        let cr = &cfg(
+            "rule r:\n block open file \"/**\" unless target not \"src/**\" because \"deny opening under src\"\n",
+        )
+        .rules[0];
+        let (cm, clit) = lower_path("src/**");
+        let mut want_cond = [0u8; PAT];
+        set_pat(&mut want_cond, &clit);
+        assert_eq!(cr.op, OP_OPEN, "open lowers to OP_OPEN");
+        assert_eq!(cr.cond_neg, 1);
+        assert_eq!(cr.cond_match, cm, "repo-rel glob lowers to M_CONTAINS");
+        assert_eq!(
+            cr.cond_match, M_CONTAINS,
+            "a repo-rel glob is a substring scan"
+        );
+        assert_eq!(
+            cr.cond_pat, want_cond,
+            "the repo-rel cond pattern lands in cond_pat"
+        );
+        assert_eq!(cr.cond_ipv4, 0);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
