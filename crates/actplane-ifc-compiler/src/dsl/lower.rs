@@ -335,6 +335,68 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn since_invalidator_carries_its_own_exec_arg() {
+        // A `since` invalidator is a full update the kernel matches to de-stale
+        // a gate. For an `exec` invalidator, the positional arg token lands in
+        // the inval update's `char arg[TAINT_ARG_LEN]` slot (taint.h), the same
+        // byte the kernel's exec argv matcher reads to decide whether the exec
+        // event actually de-stales the gate. #84 pins the inval op/m/target;
+        // #81 the inval op byte; #59 the inval slot bits; #85 the rule-arg
+        // truncation. Nobody pins the inval's own arg byte. A regression that
+        // dropped it, or copied the gate's arg into the inval, would silently
+        // change which exec events reset the gate.
+        fn find_inval(cfg: &CConfig) -> CUpdate {
+            cfg.updates[..cfg.n_updates as usize]
+                .iter()
+                .find(|u| u.invals != 0)
+                .cloned()
+                .expect("a since clause allocates an invalidator update")
+        }
+        fn arg_field(s: &str) -> [u8; ARG] {
+            let mut out = [0u8; ARG];
+            let n = s.len().min(ARG - 1);
+            out[..n].copy_from_slice(&s.as_bytes()[..n]);
+            out
+        }
+        let config = |src: &str| -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile(&pol).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        };
+
+        // An exec inval with a positional arg: the arg byte lands in the inval
+        // update, not the gate.
+        let cfg = config(
+            "rule r:\n\
+             notify write file \"/sink\" unless after exec \"/in\" since exec \"/make\" \"install\"\n\
+             because \"stale when the build re-runs\"\n",
+        );
+        assert_eq!(cfg.n_updates, 2, "one gate update + one since invalidator");
+        let inval = find_inval(&cfg);
+        assert_eq!(inval.op, OP_EXEC, "an exec invalidator stamps OP_EXEC");
+        assert_eq!(
+            inval.arg,
+            arg_field("install"),
+            "the exec inval's positional arg lands in the inval arg slot"
+        );
+
+        // An absent inval arg leaves the slot all-zero (the kernel's
+        // "ignore argv" case). This contrast is the mutation-catcher.
+        let cfg = config(
+            "rule r:\n\
+             notify write file \"/sink\" unless after exec \"/in\" since exec \"/make\"\n\
+             because \"stale when the build re-runs\"\n",
+        );
+        let inval = find_inval(&cfg);
+        assert_eq!(inval.op, OP_EXEC, "an exec invalidator stamps OP_EXEC");
+        assert_eq!(
+            inval.arg,
+            arg_field(""),
+            "an absent inval arg leaves the slot all-zero"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
