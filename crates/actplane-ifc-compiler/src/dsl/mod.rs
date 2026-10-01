@@ -767,4 +767,37 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+
+    #[test]
+    fn rule_decl_name_parses_the_rule_prefix_and_first_colon_segment() {
+        // `parse_rule_decl_name` requires the literal `"rule "` prefix, then
+        // takes the first `:`-separated segment (trimmed). It returns the
+        // declared rule name, or `None` when the prefix is missing, the
+        // segment is empty, or there is nothing after the prefix.
+        // Standard `rule name:` form.
+        assert_eq!(
+            parse_rule_decl_name("rule guard:"),
+            Some("guard".to_string())
+        );
+        // The name segment is also returned when no `:` is present; the
+        // whole trimmed remainder is the name.
+        assert_eq!(
+            parse_rule_decl_name("rule guard"),
+            Some("guard".to_string())
+        );
+        // Internal whitespace in the name is collapsed by the final trim.
+        assert_eq!(
+            parse_rule_decl_name("rule   spaced-name:"),
+            Some("spaced-name".to_string())
+        );
+        // Only the first `:`-separated segment is the name; later segments
+        // are ignored.
+        assert_eq!(parse_rule_decl_name("rule a:b:"), Some("a".to_string()));
+        // An empty segment (nothing after the prefix) is rejected.
+        assert_eq!(parse_rule_decl_name("rule "), None);
+        // A missing `"rule "` prefix (a `:` glued to `rule`, or a different
+        // declaration) is rejected.
+        assert_eq!(parse_rule_decl_name("rule:foo"), None);
+        assert_eq!(parse_rule_decl_name("source secret:"), None);
+    }
 }
