@@ -323,4 +323,56 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    fn read_new_feedback_locked_tracks_offset_and_truncation() {
+        // `read_new_feedback_locked` advances a persisted byte offset, returns
+        // only the newly appended block, resets on truncation, and ignores
+        // whitespace; no base or branch test calls it.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = dir.path().join("feedback.txt");
+        let state = dir.path().join("state.json");
+        let selection = HookSelection {
+            feedback: feedback.clone(),
+            state: state.clone(),
+        };
+
+        // Missing file -> empty, no state written.
+        assert_eq!(read_new_feedback_locked(&selection).expect("missing"), "");
+
+        // First read of an existing file records the offset and returns nothing.
+        std::fs::write(&feedback, "first\n----\n").unwrap();
+        assert_eq!(read_new_feedback_locked(&selection).expect("first"), "");
+
+        // Appended content is returned as the latest block.
+        std::fs::write(&feedback, "first\n----\nsecond\n----\n").unwrap();
+        assert_eq!(
+            read_new_feedback_locked(&selection).expect("second"),
+            "second"
+        );
+
+        // Whitespace-only append yields nothing but still advances the offset.
+        std::fs::write(&feedback, "first\n----\nsecond\n----\n   \n").unwrap();
+        assert_eq!(read_new_feedback_locked(&selection).expect("blank"), "");
+
+        // Truncation resets the offset and re-reads from the start.
+        std::fs::write(&feedback, "reset\n----\n").unwrap();
+        assert_eq!(
+            read_new_feedback_locked(&selection).expect("reset"),
+            "reset"
+        );
+
+        // Switching to a different feedback file records it and returns nothing.
+        let other = dir.path().join("other.txt");
+        std::fs::write(&other, "other\n----\n").unwrap();
+        let other_selection = HookSelection {
+            feedback: other,
+            state: state.clone(),
+        };
+        assert_eq!(
+            read_new_feedback_locked(&other_selection).expect("switch"),
+            ""
+        );
+        assert!(state.exists());
+    }
 }
