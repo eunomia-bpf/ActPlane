@@ -2591,4 +2591,87 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn clause_summary_renders_effect_op_target_when_and_unless() {
+        // `clause_summary` renders a `Clause` as
+        // `<effect> <op> <target> if <expr> [unless <cond>]`, where the
+        // target renders as `"pattern" [arg]` for Exec and `<kind> "pattern"`
+        // for File / Endpoint. No base or branch test pins this formatter
+        // directly.
+        use crate::dsl::ast::Target;
+
+        // Exec target with no arg, label expr, no unless.
+        assert_eq!(
+            clause_summary(&Clause {
+                op: Op::Exec,
+                target: Target {
+                    kind: Kind::Exec,
+                    pattern: "agent".into(),
+                    arg: None,
+                },
+                when: Expr::Label("repo".into()),
+                unless: None,
+                effect: Effect::Notify,
+                source_index: 0,
+            }),
+            "notify exec \"agent\" if repo"
+        );
+
+        // Exec target with an arg.
+        assert_eq!(
+            clause_summary(&Clause {
+                op: Op::Exec,
+                target: Target {
+                    kind: Kind::Exec,
+                    pattern: "agent".into(),
+                    arg: Some("run".into()),
+                },
+                when: Expr::True,
+                unless: None,
+                effect: Effect::Notify,
+                source_index: 0,
+            }),
+            "notify exec \"agent\" \"run\" if true"
+        );
+
+        // File target, composite expr, and an `unless` condition.
+        assert_eq!(
+            clause_summary(&Clause {
+                op: Op::Open,
+                target: Target {
+                    kind: Kind::File,
+                    pattern: "policy.dsl".into(),
+                    arg: None,
+                },
+                when: Expr::And(
+                    Box::new(Expr::Label("repo".into())),
+                    Box::new(Expr::Label("agent".into()))
+                ),
+                unless: Some(Cond::LineageIncludes {
+                    exec: "agent".into()
+                }),
+                effect: Effect::Block,
+                source_index: 1,
+            }),
+            "block open file \"policy.dsl\" if (repo and agent) \
+             unless lineage-includes exec \"agent\""
+        );
+
+        // Endpoint target, `true` expr, `kill` effect.
+        assert_eq!(
+            clause_summary(&Clause {
+                op: Op::Connect,
+                target: Target {
+                    kind: Kind::Endpoint,
+                    pattern: "10.0.0.0/8".into(),
+                    arg: None,
+                },
+                when: Expr::True,
+                unless: None,
+                effect: Effect::Kill,
+                source_index: 0,
+            }),
+            "kill connect endpoint \"10.0.0.0/8\" if true"
+        );
+    }
 }
