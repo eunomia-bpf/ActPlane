@@ -2992,4 +2992,28 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn child_id_arg_prefers_child_id_and_falls_back_to_domain_id() {
+        // `child_id_arg` resolves the target child id from tool-call args,
+        // preferring an explicit `child_id` and falling back to a legacy
+        // `domain_id` when no `child_id` is present. No base or branch test
+        // pins this precedence directly.
+        let both = serde_json::json!({ "child_id": 7, "domain_id": 9 })
+            .as_object()
+            .expect("object")
+            .clone();
+        // An explicit `child_id` wins over a `domain_id` that is also present.
+        assert_eq!(child_id_arg(&both).unwrap(), 7);
+
+        let domain_only = serde_json::json!({ "domain_id": 42 })
+            .as_object()
+            .expect("object")
+            .clone();
+        // With no `child_id`, it falls back to `domain_id`.
+        assert_eq!(child_id_arg(&domain_only).unwrap(), 42);
+
+        let empty = serde_json::json!({}).as_object().expect("object").clone();
+        // Neither key present is an error.
+        assert!(child_id_arg(&empty).is_err());
+    }
 }
