@@ -698,4 +698,26 @@ mod tests {
             .to_string();
         assert!(err.contains("unsupported by the current DSL string syntax"));
     }
+    #[test]
+    fn split_list_splits_and_rejects_empty_items() {
+        // `split_list` splits on commas and trims each item. A trailing or
+        // doubled comma leaves an empty item, which is rejected. No base or
+        // branch test pins this helper directly.
+        // The `crate::Result` error type is a boxed dyn error (not
+        // `PartialEq`), so compare the unwrapped `Ok` value.
+        assert_eq!(
+            split_list("a, b ,c").expect("a, b ,c should parse"),
+            vec!["a", "b", "c"]
+        );
+        assert_eq!(
+            split_list("single").expect("single should parse"),
+            vec!["single"]
+        );
+
+        // A trailing comma, a doubled comma, and empty input all yield an
+        // empty item and are rejected.
+        assert!(split_list("a,b,").is_err());
+        assert!(split_list("a,,b").is_err());
+        assert!(split_list("").is_err());
+    }
 }
