@@ -767,4 +767,33 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+
+    #[test]
+    fn is_top_level_decl_matches_only_the_declaration_keyword_heads() {
+        // `is_top_level_decl` recognizes a top-level declaration when the
+        // first whitespace-separated token is one of the five declaration
+        // keyword heads; only the first token is checked, so a following
+        // argument (e.g. the rule name after `rule`) does not matter.
+        let heads = ["source", "declassify", "endorse", "rule", "label"];
+        for h in heads {
+            assert!(
+                is_top_level_decl(h),
+                "expected `{h}` to be a top-level declaration head"
+            );
+            // A trailing argument does not change the classification.
+            let headed = format!("{h} guard:");
+            assert!(
+                is_top_level_decl(&headed),
+                "expected `{headed}` to be a top-level declaration head"
+            );
+        }
+        // A non-keyword first token, or an empty token, is not a
+        // top-level declaration.
+        for bad in ["", "notify", "if"] {
+            assert!(
+                !is_top_level_decl(bad),
+                "expected `{bad}` to not be a top-level declaration head"
+            );
+        }
+    }
 }
