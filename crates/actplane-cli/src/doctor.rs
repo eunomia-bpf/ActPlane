@@ -2591,4 +2591,13 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn effect_name_maps_every_enforcement_effect_to_its_name() {
+        // `effect_name` renders each `Effect` variant to the short name the
+        // report and support-detail paths use. No base or branch test pins
+        // this mapping directly.
+        assert_eq!(effect_name(Effect::Notify), "notify");
+        assert_eq!(effect_name(Effect::Block), "block");
+        assert_eq!(effect_name(Effect::Kill), "kill");
+    }
 }
