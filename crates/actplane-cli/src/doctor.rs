@@ -2591,4 +2591,125 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn event_backed_promotion_note_selects_the_event_or_annotation_branch() {
+        // `event_backed_promotion_note` first defers to
+        // `annotation_backed_promotion_note`; when that yields nothing (no
+        // annotation log, or no recognized class), it falls back to the
+        // event count. A Kill effect names the kill path; otherwise an
+        // unsupported backend refuses promotion, and a supported one names the
+        // observed count. No base or branch test pins this note directly.
+        let evidence = |event: bool, annotation: bool| {
+            let mut ev = RolloutEvidence {
+                event_paths: Vec::new(),
+                annotation_paths: Vec::new(),
+                total_events: 0,
+                total_annotations: 0,
+                ignored_lines: 0,
+                ignored_annotations: 0,
+                warnings: Vec::new(),
+                clauses: BTreeMap::new(),
+            };
+            if event {
+                ev.event_paths.push(PathBuf::from("ev.jsonl"));
+            }
+            if annotation {
+                ev.annotation_paths.push(PathBuf::from("an.jsonl"));
+            }
+            ev
+        };
+        let observation = |count: usize| ClauseObservation {
+            count,
+            actions: BTreeMap::new(),
+            targets: Vec::new(),
+            domains: BTreeMap::new(),
+            annotations: BTreeMap::new(),
+            annotation_notes: Vec::new(),
+        };
+
+        // No logs at all: no note.
+        assert!(
+            event_backed_promotion_note(&evidence(false, false), None, Effect::Notify, true)
+                .is_none()
+        );
+
+        // An annotation log defers to the annotation note (empty annotations
+        // keep observe mode).
+        assert_eq!(
+            event_backed_promotion_note(
+                &evidence(true, true),
+                Some(&observation(0)),
+                Effect::Notify,
+                true
+            ),
+            Some(
+                "no annotations for this clause; keep observe mode until examples are classified"
+                    .into()
+            )
+        );
+
+        // Event log only + Kill + an observed count names the kill path.
+        assert_eq!(
+            event_backed_promotion_note(
+                &evidence(true, false),
+                Some(&observation(4)),
+                Effect::Kill,
+                true
+            ),
+            Some(
+                "observed 4 matching event(s); keep notify until examples are classified, \
+                 and promote to kill only if every observed class should terminate the task"
+                    .into()
+            )
+        );
+
+        // Event log only + Kill + no observation names the kill 0-count path.
+        assert_eq!(
+            event_backed_promotion_note(&evidence(true, false), None, Effect::Kill, true),
+            Some(
+                "0 matching events in supplied logs; candidate for limited kill promotion \
+                 only after workload coverage and severity review"
+                    .into()
+            )
+        );
+
+        // Event log only + non-Kill + unsupported backend refuses promotion.
+        assert_eq!(
+            event_backed_promotion_note(
+                &evidence(true, false),
+                Some(&observation(4)),
+                Effect::Notify,
+                false
+            ),
+            Some(
+                "do not promote to block from these logs alone; backend support is insufficient"
+                    .into()
+            )
+        );
+
+        // Event log only + non-Kill + supported backend + observed count.
+        assert_eq!(
+            event_backed_promotion_note(
+                &evidence(true, false),
+                Some(&observation(4)),
+                Effect::Notify,
+                true
+            ),
+            Some(
+                "observed 4 matching event(s); keep notify until examples are classified, \
+                 and promote only if every observed class is unwanted"
+                    .into()
+            )
+        );
+
+        // Event log only + non-Kill + supported backend + no observation.
+        assert_eq!(
+            event_backed_promotion_note(&evidence(true, false), None, Effect::Notify, true),
+            Some(
+                "0 matching events in supplied logs; candidate for limited promotion only after \
+                 workload coverage review"
+                    .into()
+            )
+        );
+    }
 }
