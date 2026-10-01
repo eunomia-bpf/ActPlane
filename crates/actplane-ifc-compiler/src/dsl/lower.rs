@@ -335,6 +335,25 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_repo_relative_path_with_an_interior_wildcard_lowers_to_a_contains_literal() {
+        // A repo-relative path whose star is NOT at the terminal position
+        // (`config/*.toml`, `src/*/main.rs`) is lowered through the
+        // interior-wildcard arm to a contains-match on the substring up to
+        // the first star. This is the repo-relative `find('*')` branch
+        // (lower.rs:182-183), the counterpart of the absolute arm pinned by
+        // the absolute interior-star test. No base test asserts these
+        // interior-star repo-relative lowerings.
+        assert_eq!(lower_path("config/*.toml"), (M_CONTAINS, "config/".into()));
+        assert_eq!(lower_path("src/*/main.rs"), (M_CONTAINS, "src/".into()));
+        // Control: a repo-relative exact path with no star is lowered through
+        // the exact-literal arm, not the interior-wildcard arm.
+        assert_eq!(
+            lower_path("config/toml"),
+            (M_CONTAINS, "config/toml".into())
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
