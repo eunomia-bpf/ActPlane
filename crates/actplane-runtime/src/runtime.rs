@@ -2108,4 +2108,26 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn watch_project_dir_prefers_policy_parent_else_root() {
+        // `watch_project_dir` picks the policy file's directory, or the loaded
+        // root when no explicit path is set; no base or branch test calls it.
+        let with_path = crate::config::LoadedPolicy {
+            config: Default::default(),
+            root: PathBuf::from("/repo"),
+            path: Some(PathBuf::from("/repo/.actplane/actplane.yaml")),
+        };
+        assert_eq!(
+            watch_project_dir(&with_path),
+            PathBuf::from("/repo/.actplane")
+        );
+
+        let without_path = crate::config::LoadedPolicy {
+            config: Default::default(),
+            root: PathBuf::from("/repo"),
+            path: None,
+        };
+        assert_eq!(watch_project_dir(&without_path), PathBuf::from("/repo"));
+    }
 }
