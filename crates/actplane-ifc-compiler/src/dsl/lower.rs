@@ -335,6 +335,37 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_nonexec_gate_rejects_an_exits_clause() {
+        // `exits N` stamps a gate with the exit code `N`, and the engine only
+        // ever matches an exit status in the process-exit path
+        // (`te_exit_status_matches` on `raw_status`, gated on the exec event
+        // class). An `after open ... exits N` / `after write ... exits N`
+        // gate could never match an exit status, so the parser rejects it
+        // up front rather than compiling a silent no-op gate. This is the
+        // mirror of #57's "gate carries the exit-code byte" surface: here the
+        // byte is refused because the gate op is not exec.
+        use crate::dsl::parse::parse;
+        // Every gate op except exec must refuse the `exits` clause.
+        for gate in ["read", "open", "write", "unlink", "connect", "recv"] {
+            let pol = parse(&format!(
+                "rule r:\n  block exec \"git\" unless after {gate} \"/pytest\" exits 0\n  because \"z\"\n"
+            ));
+            let err = pol.expect_err("a non-exec gate must reject `exits`");
+            assert_eq!(
+                err, "`exits` is only valid on `after exec` gates",
+                "`after {gate} ... exits 0` must be rejected"
+            );
+        }
+        // exec is the only gate op allowed to carry `exits`: the same rule
+        // with an exec gate compiles cleanly.
+        let pol = parse(
+            "rule r:\n  block exec \"git\" unless after exec \"/pytest\" exits 0\n  because \"z\"\n",
+        )
+        .expect("an exec gate may carry `exits`");
+        let _ = compile(&pol).expect("a valid exec-gate policy compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
