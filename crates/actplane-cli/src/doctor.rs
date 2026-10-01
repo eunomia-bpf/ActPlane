@@ -2591,4 +2591,22 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn format_count_map_renders_sorted_counts_and_none_when_empty() {
+        // `format_count_map` renders a count map as `key=value` pairs joined
+        // by "," in `BTreeMap` (sorted key) order, or "none" when empty. No
+        // base or branch test pins this formatter directly.
+        let empty: BTreeMap<String, usize> = BTreeMap::new();
+        assert_eq!(format_count_map(&empty), "none");
+
+        let mut counts = BTreeMap::new();
+        counts.insert("exec".to_string(), 3);
+        counts.insert("open".to_string(), 1);
+        counts.insert("connect".to_string(), 2);
+        assert_eq!(format_count_map(&counts), "connect=2,exec=3,open=1");
+
+        // A single entry still renders in the same `key=value` form.
+        let one = BTreeMap::from([("read".to_string(), 7)]);
+        assert_eq!(format_count_map(&one), "read=7");
+    }
 }
