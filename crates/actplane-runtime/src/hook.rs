@@ -323,4 +323,31 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    fn feedback_lock_acquires_exclusively_and_releases_on_drop() {
+        // `FeedbackLock::acquire` creates the lock file with create_new and
+        // removes it on Drop, so a second acquire while held yields None; no
+        // base or branch test exercises it.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("feedback.lock");
+
+        let guard = FeedbackLock::acquire(&path)
+            .expect("acquire")
+            .expect("free lock");
+        assert!(path.exists(), "lock file created while held");
+
+        let contended = FeedbackLock::acquire(&path).expect("second acquire");
+        assert!(contended.is_none(), "held lock blocks a second acquire");
+
+        drop(guard);
+        assert!(!path.exists(), "lock file removed on drop");
+
+        let again = FeedbackLock::acquire(&path)
+            .expect("reacquire")
+            .expect("free again");
+        assert!(path.exists());
+        drop(again);
+        assert!(!path.exists());
+    }
 }
