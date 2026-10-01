@@ -2591,4 +2591,98 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn backend_support_lines_renders_one_line_per_clause() {
+        // `backend_support_lines` renders one line per clause in a policy as
+        // `"{rule}: {effect} {op} -> {clause_support}"`. No base or branch
+        // test pins this formatter directly.
+        use crate::dsl::ast::{Rule, Target};
+        use std::collections::HashMap;
+
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+
+        let policy = Policy {
+            labels: Vec::new(),
+            sources: Vec::new(),
+            rules: vec![
+                Rule {
+                    name: "guard".to_string(),
+                    clauses: vec![
+                        Clause {
+                            op: Op::Exec,
+                            target: Target {
+                                kind: Kind::Exec,
+                                pattern: "python3".to_string(),
+                                arg: None,
+                            },
+                            when: Expr::True,
+                            unless: None,
+                            effect: Effect::Notify,
+                            source_index: 0,
+                        },
+                        Clause {
+                            op: Op::Exec,
+                            target: Target {
+                                kind: Kind::Exec,
+                                pattern: "python3".to_string(),
+                                arg: None,
+                            },
+                            when: Expr::True,
+                            unless: None,
+                            effect: Effect::Block,
+                            source_index: 0,
+                        },
+                    ],
+                    reason: "guard exec".to_string(),
+                },
+                Rule {
+                    name: "egress".to_string(),
+                    clauses: vec![Clause {
+                        op: Op::Connect,
+                        target: Target {
+                            kind: Kind::Endpoint,
+                            pattern: "10.0.0.7".to_string(),
+                            arg: None,
+                        },
+                        when: Expr::True,
+                        unless: None,
+                        effect: Effect::Block,
+                        source_index: 0,
+                    }],
+                    reason: "guard egress".to_string(),
+                },
+            ],
+            xforms: Vec::new(),
+        };
+
+        // Under BPF-LSM: the exec block and connect block resolve to pre-op
+        // denials (the connect carries the IPv4-only limitation).
+        assert_eq!(
+            backend_support_lines(&policy, &compiled, true),
+            vec![
+                "guard: notify exec -> post-exec tracepoint report",
+                "guard: block exec -> pre-op block via BPF-LSM bprm_check_security",
+                "egress: block connect -> pre-op block via BPF-LSM socket_connect, \
+                 IPv4 only",
+            ]
+        );
+
+        // Without BPF-LSM: the block clauses fall back to the tracepoint path.
+        assert_eq!(
+            backend_support_lines(&policy, &compiled, false),
+            vec![
+                "guard: notify exec -> post-exec tracepoint report",
+                "guard: block exec -> BPF-LSM is not active on this host, notify \
+                 and kill still use tracepoint paths where available",
+                "egress: block connect -> BPF-LSM is not active on this host, \
+                 notify and kill still use tracepoint paths where available",
+            ]
+        );
+    }
 }
