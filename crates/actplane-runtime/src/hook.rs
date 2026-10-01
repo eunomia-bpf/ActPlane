@@ -323,4 +323,39 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+    #[test]
+    fn hook_context_truncates_overlong_feedback_to_the_tail() {
+        // `hook_context` wraps feedback in the kernel-feedback preamble. Short
+        // feedback is embedded verbatim; overlong feedback (more than
+        // HOOK_MAX_CHARS) is truncated to its last HOOK_MAX_CHARS characters
+        // with a `... truncated ...` marker. No base or branch test pins
+        // either branch directly.
+        //
+        // `hook_context("")` is the bare preamble, so the assertions anchor
+        // against it and pin the pass-through vs truncation split without
+        // re-stating the multi-line preamble.
+        let preamble = hook_context("");
+        assert!(preamble.ends_with("\n\n"));
+
+        // Pass-through: short feedback is embedded after the preamble verbatim.
+        let short = "short-feedback";
+        let s = hook_context(short);
+        assert!(s.starts_with(preamble.as_str()));
+        assert_eq!(s, format!("{preamble}{short}"));
+
+        // Boundary: exactly HOOK_MAX_CHARS is not overlong, so it is passed
+        // through verbatim.
+        let at_limit = "X".repeat(HOOK_MAX_CHARS);
+        assert_eq!(hook_context(&at_limit), format!("{preamble}{at_limit}"));
+
+        // One over the limit truncates to the last HOOK_MAX_CHARS chars with
+        // the marker.
+        let over = "Y".repeat(HOOK_MAX_CHARS + 1);
+        let t = hook_context(&over);
+        let tail = "Y".repeat(HOOK_MAX_CHARS);
+        assert!(t.starts_with(preamble.as_str()));
+        assert!(t.contains("... truncated ...\n"));
+        assert!(t.ends_with(tail.as_str()));
+        assert_eq!(t, format!("{preamble}... truncated ...\n{tail}"));
+    }
 }
