@@ -2992,4 +2992,19 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn parse_restart_policy_str_maps_on_exit_and_defaults_to_never() {
+        // `parse_restart_policy_str` maps a launch arg's restart policy onto
+        // a `RestartPolicy`: `"on_exit"` (and its hyphenated spelling) yield
+        // `OnExit`, and any other text yields `Never`. No base or branch
+        // test pins this helper directly.
+        assert_eq!(parse_restart_policy_str("on_exit"), RestartPolicy::OnExit);
+        assert_eq!(parse_restart_policy_str("on-exit"), RestartPolicy::OnExit);
+
+        // Anything else (including a bare `Never` spelling and empty) is the
+        // no-restart default.
+        assert_eq!(parse_restart_policy_str("never"), RestartPolicy::Never);
+        assert_eq!(parse_restart_policy_str(""), RestartPolicy::Never);
+        assert_eq!(parse_restart_policy_str("bogus"), RestartPolicy::Never);
+    }
 }
