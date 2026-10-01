@@ -380,4 +380,33 @@ mod tests {
         let err = send_request(dir.path(), json!({ "op": "status" })).unwrap_err();
         assert!(err.to_string().contains("stale ActPlane control state"));
     }
+
+    #[test]
+    fn set_mode_updates_file_permissions() {
+        // `set_mode` rewrites a path's permission bits; no base or branch test
+        // calls it.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("mode.txt");
+        std::fs::write(&path, b"x").unwrap();
+        set_mode(&path, 0o600).expect("set 0600");
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        set_mode(&path, 0o755).expect("set 0755");
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o755
+        );
+    }
+
+    #[test]
+    fn process_exists_distinguishes_live_from_missing() {
+        // `process_exists` probes liveness via signal 0; no base or branch test
+        // calls it.
+        let me = std::process::id() as i32;
+        assert!(process_exists(me));
+        assert!(process_exists(1));
+        assert!(!process_exists(i32::MAX));
+    }
 }
