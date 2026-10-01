@@ -335,6 +335,72 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn since_invalidators_carry_their_own_target_pattern() {
+        // A `since` invalidator tells the kernel *which file de-stales the gate*.
+        // That target is lowered by the same lower_path as any other path sink and
+        // lands in the invalidator update's m/target fields. #81 pins the inval
+        // op byte; #59 pins the inval slot bits; neither pins these target bytes.
+        // A regression that zeroed or re-routed the inval target would make the
+        // invalidator match no file, so the gate would never de-stale.
+        let cases = [
+            // (since-op word, inval taint_op, inval pattern, expected lower_path)
+            ("read", OP_OPEN, "/cfg", (M_EXACT, "/cfg".to_string())),
+            (
+                "write",
+                OP_WRITE,
+                "src/**",
+                (M_CONTAINS, "src/".to_string()),
+            ),
+            (
+                "unlink",
+                OP_WRITE,
+                "cfg.dat",
+                (M_CONTAINS, "cfg.dat".to_string()),
+            ),
+            (
+                "open",
+                OP_OPEN,
+                "**/cfg.dat",
+                (M_SUFFIX, "/cfg.dat".to_string()),
+            ),
+        ];
+        for (op_word, want_op, inval_pat, (want_m, want_lit)) in cases {
+            let pol = crate::dsl::parse::parse(&format!(
+                "rule r:\n\
+                 notify write file \"/sink\" unless after exec \"/in\" since {op_word} \"{inval_pat}\"\n\
+                 because \"re-arm the guard when the file is touched\"\n",
+            ))
+            .expect("parse since rule");
+            let compiled = compile(&pol).expect("compile since rule");
+            let cfg: CConfig =
+                unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+            assert_eq!(cfg.n_updates, 2, "one gate update + one since invalidator");
+            let inval = cfg.updates[..cfg.n_updates as usize]
+                .iter()
+                .find(|u| u.invals != 0)
+                .expect("a since clause allocates an invalidator update");
+            assert_eq!(
+                inval.op, want_op,
+                "since {op_word} stamps taint_op {want_op}"
+            );
+            // The target the kernel substring-matches against is the lowered
+            // pattern literal, routed to the invalidator update, not the gate.
+            assert_eq!(inval.m, want_m, "since {op_word} \"inval_pat\" match byte");
+            let mut want_buf = [0u8; PAT];
+            set_pat(&mut want_buf, &want_lit);
+            assert_eq!(
+                inval.target, want_buf,
+                "since {op_word} \"inval_pat\" must carry target \"want_lit\""
+            );
+            assert_eq!(inval.gates, 0, "a since invalidator carries no gate bits");
+            assert_eq!(
+                inval.gate_exit_code, GATE_IMMEDIATE,
+                "a since invalidator stamps no exit status"
+            );
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
