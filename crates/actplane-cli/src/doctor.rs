@@ -2591,4 +2591,150 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn clause_support_detail_reports_mode_and_limitations_per_effect() {
+        // `clause_support_detail` decides, per (effect, op, kind), whether a
+        // clause can run at that effect, in which kernel mode, and with which
+        // limitations. No base or branch test pins these branches directly.
+        use crate::dsl::Compiled;
+        use std::collections::HashMap;
+
+        let compiled = Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+
+        // Endpoint target that is neither numeric IPv4 nor a resolved hostname
+        // short-circuits connect/recv to "unsupported" before the effect match.
+        let d = clause_support_detail(
+            &compiled,
+            Effect::Block,
+            Op::Connect,
+            Kind::Endpoint,
+            "example.internal",
+            None,
+            true,
+        );
+        assert!(!d.supported);
+        assert_eq!(d.status, "unsupported");
+        assert_eq!(d.mode, "none");
+        assert!(!d.pre_op);
+        assert_eq!(
+            d.reason,
+            "endpoint target pattern is not numeric IPv4 or an exact resolvable hostname"
+        );
+        assert_eq!(
+            d.limitations,
+            vec!["wildcard hostnames and IPv6 are not enforced in-kernel"]
+        );
+
+        // Block + exec with an argv target: argv is only known after exec, so it
+        // cannot block pre-exec; steer the caller to kill for post-exec.
+        let d = clause_support_detail(
+            &compiled,
+            Effect::Block,
+            Op::Exec,
+            Kind::Exec,
+            "python3",
+            Some("script.py"),
+            true,
+        );
+        assert!(!d.supported);
+        assert_eq!(d.status, "unsupported");
+        assert_eq!(
+            d.reason,
+            "argv is only available after exec, so this cannot block pre-exec"
+        );
+        assert_eq!(
+            d.limitations,
+            vec!["use kill exec for post-exec termination"]
+        );
+
+        // Block with BPF-LSM inactive falls back to unsupported for every op.
+        let d = clause_support_detail(
+            &compiled,
+            Effect::Block,
+            Op::Read,
+            Kind::File,
+            "/etc/passwd",
+            None,
+            false,
+        );
+        assert!(!d.supported);
+        assert_eq!(d.status, "unsupported");
+        assert_eq!(d.reason, "BPF-LSM is not active on this host");
+        assert_eq!(
+            d.limitations,
+            vec!["notify and kill still use tracepoint paths where available"]
+        );
+
+        // Block with BPF-LSM active runs pre-op in bpf-lsm mode.
+        let d = clause_support_detail(
+            &compiled,
+            Effect::Block,
+            Op::Exec,
+            Kind::Exec,
+            "python3",
+            None,
+            true,
+        );
+        assert!(d.supported);
+        assert_eq!(d.status, "supported");
+        assert_eq!(d.mode, "bpf-lsm");
+        assert!(d.pre_op);
+        assert_eq!(d.reason, "pre-op block via BPF-LSM bprm_check_security");
+        assert!(d.limitations.is_empty());
+
+        // A bpf-lsm connect block keeps the endpoint limitation.
+        let d = clause_support_detail(
+            &compiled,
+            Effect::Block,
+            Op::Connect,
+            Kind::Endpoint,
+            "10.0.0.7",
+            None,
+            true,
+        );
+        assert!(d.supported);
+        assert_eq!(d.mode, "bpf-lsm");
+        assert_eq!(d.reason, "pre-op block via BPF-LSM socket_connect");
+        assert_eq!(d.limitations, vec!["IPv4 only"]);
+
+        // Notify and kill both fall back to the tracepoint path, after the op.
+        let d = clause_support_detail(
+            &compiled,
+            Effect::Notify,
+            Op::Exec,
+            Kind::Exec,
+            "python3",
+            None,
+            false,
+        );
+        assert!(d.supported);
+        assert_eq!(d.mode, "tracepoint");
+        assert!(!d.pre_op);
+        assert_eq!(d.reason, "post-exec tracepoint report");
+        assert!(d.limitations.is_empty());
+
+        let d = clause_support_detail(
+            &compiled,
+            Effect::Kill,
+            Op::Recv,
+            Kind::Endpoint,
+            "10.0.0.7",
+            None,
+            false,
+        );
+        assert!(d.supported);
+        assert_eq!(d.mode, "tracepoint");
+        assert!(!d.pre_op);
+        assert_eq!(d.reason, "tracepoint kill after recv");
+        assert_eq!(
+            d.limitations,
+            vec!["IPv4 only", "post-receive in tracepoint mode"]
+        );
+    }
 }
