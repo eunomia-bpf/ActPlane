@@ -335,6 +335,48 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn endpoint_patterns_route_between_dns_and_numeric() {
+        // Endpoint source patterns are routed before they are resolved:
+        // looks_like_ipv4_prefix decides whether the pattern is treated as a
+        // numeric prefix (and lowered to a net/mask), and hostname_candidate
+        // decides which remaining patterns are sent to compile-time DNS
+        // resolution. The two are the complementary halves of the routing,
+        // so a regression in either one silently re-routes every endpoint
+        // source.
+
+        // looks_like_ipv4_prefix is purely syntactic (all-digit dotted body),
+        // so it does NOT range-check: 999.999.999.999 and the 5-token form both
+        // route as prefixes, and any later value check happens in
+        // lower_numeric_ipv4, not here.
+        assert!(looks_like_ipv4_prefix("10.0.0."));
+        assert!(looks_like_ipv4_prefix("192.168.1"));
+        assert!(looks_like_ipv4_prefix("1.2.3.4"));
+        assert!(looks_like_ipv4_prefix("999.999.999.999"));
+        assert!(looks_like_ipv4_prefix("1.2.3.4.5"));
+        assert!(looks_like_ipv4_prefix("*"));
+        // A CIDR suffix breaks the all-digit body, so it is NOT a prefix.
+        assert!(!looks_like_ipv4_prefix("10.0.0.0/8"));
+        // Non-numeric and empty-dot bodies are not prefixes.
+        assert!(!looks_like_ipv4_prefix("abc"));
+        assert!(!looks_like_ipv4_prefix("1..0"));
+
+        // hostname_candidate: good hostnames are resolved, with a trailing dot
+        // trimmed. The allowed charset is alnum plus . - _ .
+        assert_eq!(hostname_candidate("api.internal."), Some("api.internal"));
+        assert_eq!(hostname_candidate("my_host-1"), Some("my_host-1"));
+        // Numeric forms are routed to the mask path, so they are NOT hostnames.
+        assert_eq!(hostname_candidate("10.0.0.5"), None);
+        assert_eq!(hostname_candidate("10.0.0."), None);
+        // CIDR, colon, and path forms are rejected; so are wildcard and any
+        // byte outside the allowed charset.
+        assert_eq!(hostname_candidate("10.0.0.0/8"), None);
+        assert_eq!(hostname_candidate("api:8080"), None);
+        assert_eq!(hostname_candidate("my/host"), None);
+        assert_eq!(hostname_candidate("bad#host"), None);
+        assert_eq!(hostname_candidate("a b"), None);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
