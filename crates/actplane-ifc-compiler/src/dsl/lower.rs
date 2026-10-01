@@ -335,6 +335,35 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_out_of_vocabulary_op_or_kind_is_rejected() {
+        // The op and kind vocabularies are closed: `P::op` maps exactly the
+        // seven kernel op tokens (exec/read/write/unlink/connect/recv/open)
+        // and `P::kind` maps the three node kinds (file/endpoint/exec);
+        // anything else is a parse error carrying the offending token. A
+        // regression that silently accepted a stray op or kind token (or
+        // mapped it to a wrong kernel op byte) would miscompile the rule,
+        // and nobody pinned the closed-vocabulary guard.
+        use crate::dsl::parse::parse;
+        // An out-of-vocabulary op token is rejected with the token in the
+        // message.
+        let err = parse("rule r:\n  block fork \"a\" because \"z\"\n")
+            .expect_err("an unknown op must be rejected");
+        assert_eq!(err, "unknown op 'fork'");
+        // An out-of-vocabulary source-kind token is rejected the same way.
+        let err =
+            parse("source S = proc \"/**/s\"\n").expect_err("an unknown kind must be rejected");
+        assert_eq!(err, "unknown kind 'proc'");
+
+        // Positive controls: a valid op and a valid source kind parse and
+        // compile.
+        let pol =
+            parse("rule r:\n  block exec \"git\" because \"z\"\n").expect("a valid op parses");
+        let _ = compile(&pol).expect("a valid-op policy compiles");
+        let pol = parse("source S = endpoint \"8.8.8.8\"\n").expect("a valid source kind parses");
+        let _ = compile(&pol).expect("a valid-kind policy compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
