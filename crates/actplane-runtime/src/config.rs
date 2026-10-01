@@ -851,4 +851,48 @@ domains:
             );
         }
     }
+    #[test]
+    fn select_domain_resolves_explicit_default_and_single_domain() {
+        // `select_domain` picks the domain a policy run targets. No base or
+        // branch test pins its branch precedence directly.
+        fn cfg(y: &str) -> FileConfig {
+            serde_yaml::from_str(y).unwrap()
+        }
+
+        // Two domains, no default: an explicit request that exists resolves.
+        let multi = cfg("domains:\n  alpha: {}\n  beta: {}\n");
+        assert_eq!(select_domain(&multi, Some("beta")).unwrap(), "beta");
+
+        // An explicit request that does not exist fails, listing the options.
+        let err = select_domain(&multi, Some("gamma"))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("unknown domain `gamma`"));
+
+        // With two domains and no `default_domain` / `session`, no domain can
+        // be auto-selected.
+        let err = select_domain(&multi, None).unwrap_err().to_string();
+        assert!(err.contains("policy defines multiple domains"));
+
+        // `default_domain` that is defined resolves to it.
+        let def_ok = cfg("default_domain: alpha\ndomains:\n  alpha: {}\n  beta: {}\n");
+        assert_eq!(select_domain(&def_ok, None).unwrap(), "alpha");
+
+        // `default_domain` that is not a real domain fails.
+        let def_bad = cfg("default_domain: gamma\ndomains:\n  alpha: {}\n  beta: {}\n");
+        let err = select_domain(&def_bad, None).unwrap_err().to_string();
+        assert!(err.contains("default_domain `gamma` is not defined"));
+
+        // A `session` domain is the preferred auto-selection when present.
+        let sess = cfg("domains:\n  session: {}\n  alpha: {}\n");
+        assert_eq!(select_domain(&sess, None).unwrap(), "session");
+
+        // A single domain auto-selects even without `default_domain`.
+        let single = cfg("domains:\n  alpha: {}\n");
+        assert_eq!(select_domain(&single, None).unwrap(), "alpha");
+
+        // An explicit request wins over the auto-selection.
+        let explicit = cfg("domains:\n  alpha: {}\n  beta: {}\n");
+        assert_eq!(select_domain(&explicit, Some("alpha")).unwrap(), "alpha");
+    }
 }
