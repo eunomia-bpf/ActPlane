@@ -2591,4 +2591,66 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn render_observe_dsl_renders_sources_xforms_and_rules() {
+        // `render_observe_dsl` renders a full observe policy: each `source`,
+        // each xform (`endorse` / `declassify`), and each `rule` (its
+        // clauses via `render_observe_clause` plus the trailing `because`
+        // reason, falling back to a default when empty). No base or branch
+        // test pins this top-level renderer directly.
+        use crate::dsl::ast::{Clause, Source, Xform};
+
+        let clause = Clause {
+            op: Op::Open,
+            target: crate::dsl::ast::Target {
+                kind: Kind::Exec,
+                pattern: "agent".to_string(),
+                arg: None,
+            },
+            when: Expr::True,
+            unless: None,
+            effect: Effect::Notify,
+            source_index: 0,
+        };
+        let policy = Policy {
+            labels: Vec::new(),
+            sources: vec![Source {
+                label: "agent".to_string(),
+                kind: Kind::Exec,
+                pattern: "agent".to_string(),
+            }],
+            xforms: vec![Xform {
+                endorse: true,
+                label: "repo".to_string(),
+                gate: "agent".to_string(),
+            }],
+            rules: vec![crate::dsl::ast::Rule {
+                name: "rule1".to_string(),
+                clauses: vec![clause],
+                reason: String::new(),
+            }],
+        };
+        assert_eq!(
+            render_observe_dsl(&policy),
+            "source agent = exec \"agent\"\n\nendorse repo by exec \"agent\"\n\nrule rule1:\n  \
+             notify open \"agent\"\n  because \"Observe-first rollout for original policy.\"\n\n"
+        );
+
+        // An empty policy renders as the empty string.
+        let empty = Policy {
+            labels: Vec::new(),
+            sources: Vec::new(),
+            xforms: Vec::new(),
+            rules: Vec::new(),
+        };
+        assert_eq!(render_observe_dsl(&empty), "");
+
+        // A non-empty reason is appended after the default phrase.
+        let mut with_reason = policy.clone();
+        with_reason.rules[0].reason = "keep exfil off".to_string();
+        assert!(
+            render_observe_dsl(&with_reason)
+                .contains("because \"Observe-first rollout for original policy: keep exfil off\"")
+        );
+    }
 }
