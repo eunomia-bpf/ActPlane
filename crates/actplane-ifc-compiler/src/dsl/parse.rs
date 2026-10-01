@@ -343,3 +343,93 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn p(s: &str) -> P {
+        P {
+            t: lex(s).unwrap(),
+            i: 0,
+        }
+    }
+
+    #[test]
+    fn cond_parses_every_unless_condition_variant() {
+        // `cond` parses the `unless` condition following an `unless` keyword:
+        // `target ["not"] <pat>`, `lineage-includes exec <pat>`, or
+        // `after <op> <pat> ["exits" N] ["since" ...]`. `Cond` is a plain
+        // comparable AST node, so the parse result is assertable. No test in
+        // any open or merged branch pins these `Cond` shapes directly.
+        let c = |s: &str| p(s).cond().expect("unless cond parses");
+
+        // `target` carries a negation flag; a bare `target` does not negate.
+        assert_eq!(
+            c("target \"10.0.0.0\""),
+            Cond::Target {
+                negate: false,
+                pattern: "10.0.0.0".into(),
+            }
+        );
+        assert_eq!(
+            c("target not \"10.0.0.0\""),
+            Cond::Target {
+                negate: true,
+                pattern: "10.0.0.0".into(),
+            }
+        );
+
+        // `lineage-includes` requires a literal `exec` keyword before the
+        // pattern.
+        assert_eq!(
+            c("lineage-includes exec \"git\""),
+            Cond::LineageIncludes { exec: "git".into() }
+        );
+
+        // `after` carries an optional gate-exit code and a `since` event
+        // list; without them the gate uses v1 latching semantics.
+        assert_eq!(
+            c("after exec \"git\""),
+            Cond::After {
+                gate_op: Op::Exec,
+                gate_pattern: "git".into(),
+                gate_exit: None,
+                since: Vec::new(),
+            }
+        );
+
+        // `exits N` stamps an exit code on an exec gate.
+        assert_eq!(
+            c("after exec \"git\" exits 3"),
+            Cond::After {
+                gate_op: Op::Exec,
+                gate_pattern: "git".into(),
+                gate_exit: Some(3),
+                since: Vec::new(),
+            }
+        );
+
+        // `since` chains (op, pattern, arg) events, split on `or`.
+        assert_eq!(
+            c("after open \"f\" since exec \"git\" or exec \"go\""),
+            Cond::After {
+                gate_op: Op::Open,
+                gate_pattern: "f".into(),
+                gate_exit: None,
+                since: vec![
+                    (Op::Exec, "git".into(), None),
+                    (Op::Exec, "go".into(), None)
+                ],
+            }
+        );
+
+        // `exits` is rejected on a non-exec gate, with a message that names
+        // the restriction.
+        let bad = p("after open \"f\" exits 3").cond();
+        assert_eq!(
+            bad.err().as_deref(),
+            Some("`exits` is only valid on `after exec` gates")
+        );
+    }
+}
