@@ -2591,4 +2591,58 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn lowered_clause_summary_counts_matched_kernel_matchers() {
+        // `lowered_clause_summary` renders the lowered matcher summary for a
+        // rule + clause: the count of kernel matchers, their rule_id(s), and
+        // the sorted set of kernel_op(s). No base or branch test pins this
+        // formatter directly.
+        use std::collections::HashMap;
+
+        fn meta(name: &str, kernel_op: &str, index: usize) -> dsl::RuleMeta {
+            dsl::RuleMeta {
+                name: name.into(),
+                reason: String::new(),
+                effect: Effect::Notify,
+                ops: vec!["exec".into()],
+                clause_op: "exec".into(),
+                kernel_op: kernel_op.into(),
+                target_kind: Kind::Exec,
+                target_pattern: "agent".into(),
+                target_arg: None,
+                clause_source_index: index,
+                source: None,
+            }
+        }
+
+        fn compiled_with(rules: Vec<dsl::RuleMeta>) -> dsl::Compiled {
+            dsl::Compiled {
+                bytes: Vec::new(),
+                reasons: Vec::new(),
+                meta: rules,
+                labels: HashMap::new(),
+                endpoint_resolutions: HashMap::new(),
+            }
+        }
+
+        // A rule with two lowered matchers under one clause index.
+        let compiled = compiled_with(vec![meta("myrule", "exec", 0), meta("myrule", "open", 0)]);
+        assert_eq!(
+            lowered_clause_summary(&compiled, "myrule", 0),
+            "2 kernel matcher(s), rule_id(s) [0, 1], kernel_op(s) [exec, open]"
+        );
+
+        // A different clause index only matches the second rule.
+        let two_clauses = compiled_with(vec![meta("myrule", "exec", 0), meta("myrule", "open", 1)]);
+        assert_eq!(
+            lowered_clause_summary(&two_clauses, "myrule", 1),
+            "1 kernel matcher(s), rule_id(s) [1], kernel_op(s) [open]"
+        );
+
+        // A rule name with no lowered matchers reports zero.
+        assert_eq!(
+            lowered_clause_summary(&compiled, "other", 0),
+            "0 kernel matcher(s)"
+        );
+    }
 }
