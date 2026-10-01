@@ -335,6 +335,35 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn op_name_and_kernel_op_name_pin_the_feedback_verbs() {
+        // op_name maps each of the 7 DSL ops to the verb used in the corrective
+        // feedback payload. Read and Open both lower to the same OP_OPEN kernel
+        // byte (lower.rs:712-714), but the DSL side keeps distinct verbs, so a
+        // regression that collapsed them in op_name would corrupt the feedback
+        // text even though the engine behavior is unchanged.
+        assert_eq!(op_name(Op::Exec), "exec");
+        assert_eq!(op_name(Op::Read), "read");
+        assert_eq!(op_name(Op::Open), "open");
+        assert_eq!(op_name(Op::Write), "write");
+        assert_eq!(op_name(Op::Unlink), "unlink");
+        assert_eq!(op_name(Op::Connect), "connect");
+        assert_eq!(op_name(Op::Recv), "recv");
+
+        // kernel_op_name is the reverse mapping, kernel op byte -> verb, used
+        // when a violation is reported back to the agent. It is deliberately
+        // narrower than op_name because the kernel only stamps 5 bytes: read and
+        // open share OP_OPEN (reported as "read") and write and unlink share
+        // OP_WRITE (reported as "write"). An out-of-range byte falls back to the
+        // generic "op" so a malformed report never surfaces a bogus verb.
+        assert_eq!(kernel_op_name(OP_EXEC), "exec");
+        assert_eq!(kernel_op_name(OP_OPEN), "read");
+        assert_eq!(kernel_op_name(OP_WRITE), "write");
+        assert_eq!(kernel_op_name(OP_CONNECT), "connect");
+        assert_eq!(kernel_op_name(OP_RECV), "recv");
+        assert_eq!(kernel_op_name(0xFF), "op");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
