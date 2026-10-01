@@ -2992,4 +2992,33 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn policy_audit_meta_from_json_maps_string_fields_or_rejects_non_object() {
+        // `policy_audit_meta_from_json` reads a child record's policy audit
+        // metadata object: the four string fields map into the struct, each
+        // absent key reads as `None`, and a non-object value yields `None`.
+        // No base or branch test pins this helper directly.
+        let full = policy_audit_meta_from_json(&serde_json::json!({
+            "policy_ref": "repo.yaml",
+            "approved_by": "reviewer",
+            "approval_ref": "PR-7",
+            "generated_by": "actplane",
+        }));
+        assert_eq!(
+            full,
+            Some(PolicyAuditMeta {
+                policy_ref: Some("repo.yaml".to_string()),
+                approved_by: Some("reviewer".to_string()),
+                approval_ref: Some("PR-7".to_string()),
+                generated_by: Some("actplane".to_string()),
+            })
+        );
+
+        // An object with no keys reads every field as `None`.
+        let empty = policy_audit_meta_from_json(&serde_json::json!({}));
+        assert_eq!(empty, Some(PolicyAuditMeta::default()));
+
+        // A non-object value is not a metadata object.
+        assert!(policy_audit_meta_from_json(&serde_json::json!("repo.yaml")).is_none());
+    }
 }
