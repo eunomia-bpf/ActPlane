@@ -335,6 +335,34 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn op_lowers_maps_each_dsl_op_to_its_single_taint_op_byte() {
+        // `op_lowers` maps each DSL op to the single `taint_op` byte the
+        // engine stamps on the event. The non-obvious claim worth pinning is
+        // that `Write` and `Unlink` share one op (`OP_WRITE`): an unlink is
+        // modeled as a write, and `Read`/`Open` likewise share `OP_OPEN`.
+        // No base test asserts this mapping directly (the op byte only
+        // surfaces through full `compile` calls).
+        let cases: [(Op, &[u8]); 7] = [
+            (Op::Exec, &[OP_EXEC]),
+            (Op::Read, &[OP_OPEN]),
+            (Op::Open, &[OP_OPEN]),
+            (Op::Write, &[OP_WRITE]),
+            (Op::Unlink, &[OP_WRITE]),
+            (Op::Connect, &[OP_CONNECT]),
+            (Op::Recv, &[OP_RECV]),
+        ];
+        for (op, expected) in cases {
+            assert_eq!(*op_lowers(op).unwrap(), *expected, "op_lowers({op:?})");
+        }
+        // The two sharing pairs resolve to the same byte.
+        assert_eq!(
+            *op_lowers(Op::Write).unwrap(),
+            *op_lowers(Op::Unlink).unwrap()
+        );
+        assert_eq!(*op_lowers(Op::Read).unwrap(), *op_lowers(Op::Open).unwrap());
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
