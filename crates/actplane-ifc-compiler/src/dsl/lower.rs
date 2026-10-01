@@ -335,6 +335,36 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_label_with_an_empty_name_is_rejected() {
+        // `compile_with_labels` accepts a pre-supplied label -> bit map. An
+        // empty label name is a degenerate map key that would silently
+        // shadow every rule referring to `""`; the guard rejects it before
+        // any bit is consumed. This completes the `validate_label_bindings`
+        // trio alongside #114 (duplicate bit) and #115 (invalid bit mask).
+        use std::collections::HashMap;
+        fn map(pairs: &[(&str, u64)]) -> HashMap<String, u64> {
+            pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+        }
+        let pol = crate::dsl::parse::parse("rule r:\n  block exec \"git\" because \"z\"\n")
+            .expect("the rule parses");
+
+        // An empty name is rejected.
+        match compile_with_labels(&pol, &map(&[("", 1u64)])) {
+            Ok(_) => panic!("an empty label name must be rejected"),
+            Err(err) => assert_eq!(err, "label names must not be empty"),
+        }
+
+        // The rejection fires even when an empty name sits among valid ones.
+        match compile_with_labels(&pol, &map(&[("A", 1u64), ("", 2u64)])) {
+            Ok(_) => panic!("an empty label name must be rejected"),
+            Err(err) => assert_eq!(err, "label names must not be empty"),
+        }
+
+        // Positive control: a valid single name compiles.
+        compile_with_labels(&pol, &map(&[("A", 1u64)])).expect("a valid label name compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
