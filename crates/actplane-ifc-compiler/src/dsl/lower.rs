@@ -335,6 +335,29 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// The kernel blob is a fixed-size rodata region holding at most
+    /// MAX_UPDATES update slots. A policy that declares more distinct source
+    /// updates than the blob can hold must be rejected at compile time, not
+    /// silently truncated (which would drop taint updates the engine relies
+    /// on). Each distinct file source lowers to exactly one update, and
+    /// reusing one label across 321 distinct paths keeps the label count
+    /// (capped at 64) far below its limit, so only the update cap is tripped.
+    #[test]
+    fn update_overflow_beyond_max_updates_is_rejected() {
+        // MAX_UPDATES = 320. s0..=s320 gives 321 distinct file sources, so
+        // the 321st add_update sees updates.len() == 320 and trips the guard.
+        let mut src = String::from("source A = file \"/s0\"\n");
+        for i in 1..=MAX_UPDATES {
+            src.push_str(&format!("source A = file \"/s{i}\"\n"));
+        }
+        match crate::dsl::parse::parse(&src).and_then(|p| compile(&p)) {
+            Ok(_) => panic!("compile must fail past MAX_UPDATES"),
+            Err(err) => {
+                assert!(err.contains("too many event updates"), "wrong error: {err}");
+            }
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
