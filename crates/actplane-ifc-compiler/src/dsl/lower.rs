@@ -335,6 +335,60 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn file_rules_emit_their_rule_level_target_matcher_bytes() {
+        // The kernel matches each rule's event on CRule.m + CRule.target
+        // (the matching predicates in bpf/taint.h), so the emitted byte pair
+        // is what the engine compares against at runtime. #78 pinned
+        // lower_target's *return values*; #76 pinned lower_path's *returns*
+        // directly. Neither pins the CRule.target / CRule.m bytes a file-op
+        // rule actually writes into the blob, which is a distinct ABI field:
+        // an emission regression (a CRule loop that dropped m, or a set_pat
+        // that mis-truncated target) would break these without breaking the
+        // function-level tests.
+        //
+        // The load-bearing decision pinned here: the same glob shape lowers to
+        // M_CONTAINS when repo-relative (no start anchor -> substring scan)
+        // but M_PREFIX when absolute (start-anchored /data/ -> prefix scan).
+        // A regression that dropped the repo_relative check in lower_path
+        // would emit M_PREFIX for the repo-relative glob and silently turn a
+        // substring match into a start-anchored prefix match at the rule level.
+        fn target_str(t: &[u8; PAT]) -> String {
+            let end = t.iter().position(|b| *b == 0).unwrap_or(PAT);
+            String::from_utf8_lossy(&t[..end]).into_owned()
+        }
+        fn cfg(src: &str) -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile(&pol).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        }
+
+        // Repo-relative directory glob: substring scan on "data/".
+        let r = &cfg("rule r:\n block write file \"data/**\" because \"z\"\n").rules[0];
+        assert_eq!(r.op, OP_WRITE, "write op");
+        assert_eq!(r.m, M_CONTAINS, "repo-rel glob -> substring scan");
+        assert_eq!(target_str(&r.target), "data/", "trailing slash retained");
+
+        // Absolute directory glob: start-anchored prefix scan on "/data/".
+        let r = &cfg("rule r:\n block write file \"/data/**\" because \"z\"\n").rules[0];
+        assert_eq!(r.op, OP_WRITE);
+        assert_eq!(r.m, M_PREFIX, "absolute glob -> start-anchored prefix");
+        assert_eq!(target_str(&r.target), "/data/");
+
+        // The repo-relative vs absolute split is the crux: `data/**` (above)
+        // is M_CONTAINS, `/data/**` (above) is M_PREFIX. A bare repo-relative
+        // name with no wildcard still falls to M_CONTAINS (no start anchor).
+        let r = &cfg("rule r:\n block write file \"src\" because \"z\"\n").rules[0];
+        assert_eq!(r.m, M_CONTAINS, "repo-rel bare name -> substring scan");
+        assert_eq!(target_str(&r.target), "src");
+
+        // An absolute exact path has no wildcard and a start anchor, so it
+        // lowers to M_EXACT on the full path.
+        let r = &cfg("rule r:\n block write file \"/a/b\" because \"z\"\n").rules[0];
+        assert_eq!(r.m, M_EXACT, "absolute exact path -> exact match");
+        assert_eq!(target_str(&r.target), "/a/b");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
