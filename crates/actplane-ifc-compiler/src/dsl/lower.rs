@@ -335,6 +335,34 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn arg_eq_ignores_tail_bytes_beyond_the_arg_cap() {
+        // `arg_eq` compares a `[u8; ARG]` buffer against a fresh buffer holding
+        // the first `min(len, ARG)` bytes of the string, zero-padded. So the
+        // predicate is insensitive to any string tail beyond `ARG`, and short
+        // strings zero-pad against the trailing bytes. No base test pins this
+        // truncation/padding invariant directly; it is only exercised
+        // indirectly through rule lowering.
+        let prefix = "a23456789012345678901234"; // exactly `ARG` bytes
+        assert_eq!(prefix.len(), ARG);
+        let mut buf = [0u8; ARG];
+        buf[..ARG].copy_from_slice(prefix.as_bytes());
+
+        // An exact-`ARG`-length string matches, and a string with the same
+        // `ARG` prefix but a longer tail matches too (tail is dropped).
+        assert!(arg_eq(&buf, prefix));
+        assert!(arg_eq(&buf, "a23456789012345678901234more_tail_bytes"));
+
+        // A string that differs on a byte within the `ARG` window does not.
+        assert!(!arg_eq(&buf, "b23456789012345678901234"));
+
+        // A zeroed buffer matches the empty string (nothing to copy) but not
+        // a non-empty string whose first byte is nonzero.
+        let zero = [0u8; ARG];
+        assert!(arg_eq(&zero, ""));
+        assert!(!arg_eq(&zero, "abc"));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
