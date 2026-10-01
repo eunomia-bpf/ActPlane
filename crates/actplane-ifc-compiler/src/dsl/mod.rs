@@ -767,4 +767,36 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+
+    #[test]
+    fn rule_source_marker_parses_ref_and_mode_tokens() {
+        // `parse_rule_source_marker` pulls `ref=` and `mode=` tokens out of the
+        // rule-source marker. When no `ref=` token is present the source ref
+        // falls back to `"inline"`; when no `mode=` token is present the
+        // binding mode stays `None`.
+        assert_eq!(parse_rule_source_marker(""), ("inline".to_string(), None));
+        assert_eq!(
+            parse_rule_source_marker("ref=docs/guide.md"),
+            ("docs/guide.md".to_string(), None)
+        );
+        assert_eq!(
+            parse_rule_source_marker("mode=strict"),
+            ("inline".to_string(), Some("strict".to_string()))
+        );
+        assert_eq!(
+            parse_rule_source_marker("ref=a/x.md mode=strict"),
+            ("a/x.md".to_string(), Some("strict".to_string()))
+        );
+        // Each key is independent and the last occurrence of that key wins:
+        // a repeated `ref=`/`mode=` overwrites the earlier value of the same
+        // key without affecting the other key.
+        assert_eq!(
+            parse_rule_source_marker("ref=early.md mode=early ref=late.md"),
+            ("late.md".to_string(), Some("early".to_string()))
+        );
+        assert_eq!(
+            parse_rule_source_marker("mode=early ref=x.md mode=late"),
+            ("x.md".to_string(), Some("late".to_string()))
+        );
+    }
 }
