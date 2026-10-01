@@ -2108,4 +2108,90 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn catalog_from_compiled_gates_and_appends_outputs() {
+        // `RuntimePolicyCatalog::from_compiled` seeds rules + labels for one
+        // domain and `append_outputs` gates on domain/rule then writes the
+        // feedback and event files; none had any call.
+        let compiled = dsl::Compiled {
+            bytes: vec![],
+            reasons: vec!["why".to_string()],
+            meta: vec![dsl::RuleMeta {
+                name: "r".to_string(),
+                reason: "why".to_string(),
+                effect: dsl::ast::Effect::Kill,
+                ops: vec!["exec".to_string()],
+                clause_op: "exec".to_string(),
+                clause_source_index: 0,
+                kernel_op: "exec".to_string(),
+                target_kind: dsl::ast::Kind::Exec,
+                target_pattern: "git".to_string(),
+                target_arg: None,
+                source: None,
+            }],
+            labels: HashMap::from([("LOCAL_SECRET".to_string(), 1u64)]),
+            endpoint_resolutions: HashMap::new(),
+        };
+        let domain_id = 9u32;
+        let catalog = RuntimePolicyCatalog::from_compiled(&compiled, domain_id);
+
+        let dir = std::env::temp_dir().join(format!("actplane-catalog-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let feedback = dir.join("feedback.txt");
+        let events = dir.join("events.jsonl");
+
+        let violation = |rule_id: usize, domain_id: Option<u32>| {
+            let mut value = json!({
+                "pid": 10,
+                "ppid": 1,
+                "comm": "git",
+                "target": "git",
+                "rule_id": rule_id,
+                "op": 0,
+                "session_root": 10,
+                "effect": "kill",
+                "blocked": false,
+                "killed": true,
+                "taint_label": 1u64,
+                "matched_label": 1u64,
+            });
+            value["domain_id"] = match domain_id {
+                Some(id) => json!(id),
+                None => serde_json::Value::Null,
+            };
+            // Provenance label exercises the compiled label table (bit 1 ->
+            // LOCAL_SECRET) in the feedback payload.
+            value["provenance"] = json!({
+                "label": 1u64,
+                "timestamp_ns": 42u64,
+                "pid": 9,
+                "op": 0,
+                "target": "git",
+            });
+            serde_json::from_value::<report::Violation>(value).unwrap()
+        };
+
+        // Matching rule + registered domain writes both outputs.
+        catalog.append_outputs(&violation(0, Some(domain_id)), &feedback, &events);
+        assert!(feedback.is_file());
+        assert!(events.is_file());
+        assert!(
+            std::fs::read_to_string(&feedback)
+                .unwrap()
+                .contains("LOCAL_SECRET")
+        );
+
+        // Unregistered domain is dropped.
+        let _ = std::fs::remove_file(&feedback);
+        catalog.append_outputs(&violation(0, Some(domain_id + 1)), &feedback, &events);
+        assert!(!feedback.exists());
+
+        // Out-of-range rule id has no feedback context, so no feedback is
+        // written (only the event file still records the violation).
+        catalog.append_outputs(&violation(99, Some(domain_id)), &feedback, &events);
+        assert!(!feedback.exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
