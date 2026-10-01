@@ -952,4 +952,19 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn infer_agent_exec_maps_task_text_to_agent_identity() {
+        // `infer_agent_exec` reads the lowercased task text and maps a
+        // codex-only mention to "codex", a claude-only mention to "claude",
+        // and anything else (no mention, or both mentioned) to the wildcard
+        // "**". No base or branch test pins this classifier directly.
+        assert_eq!(infer_agent_exec("run the codex plan"), "codex");
+        assert_eq!(infer_agent_exec("use claude to review"), "claude");
+
+        // No agent mention falls back to the wildcard.
+        assert_eq!(infer_agent_exec("apply the patch"), "**");
+
+        // Ambiguous (both named) falls back to the wildcard too.
+        assert_eq!(infer_agent_exec("codex and claude together"), "**");
+    }
 }
