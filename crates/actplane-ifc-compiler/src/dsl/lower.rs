@@ -335,6 +335,55 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn clause_ops_lower_to_kernel_op_bytes() {
+        // The kernel engine switches on CRule.op to pick its propagation
+        // path (exec comm vs open path vs write vs connect vs recv), so the
+        // stored byte must equal bpf/taint.h's `enum taint_op`. Pin the
+        // whole op_lowers table in one policy: seven distinct clause ops,
+        // one single-clause rule each, in declaration order. `read` and
+        // `open` share OP_OPEN; `write` and `unlink` share OP_WRITE, so a
+        // table that forgot either alias collapses these two assertions.
+        let pol = crate::dsl::parse::parse(
+            r#"
+            rule r_exec:
+              notify exec file "/bin/true"
+            rule r_read:
+              notify read file "/in"
+            rule r_open:
+              notify open file "/in"
+            rule r_write:
+              notify write file "/out"
+            rule r_unlink:
+              notify unlink file "/out"
+            rule r_connect:
+              notify connect endpoint "127.0.0.1"
+            rule r_recv:
+              notify recv endpoint "127.0.0.1"
+            "#,
+        )
+        .expect("parse op rules");
+        let compiled = compile(&pol).expect("compile op rules");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        assert_eq!(cfg.n_rules, 7);
+        let ops = [
+            cfg.rules[0].op,
+            cfg.rules[1].op,
+            cfg.rules[2].op,
+            cfg.rules[3].op,
+            cfg.rules[4].op,
+            cfg.rules[5].op,
+            cfg.rules[6].op,
+        ];
+        assert_eq!(
+            ops,
+            [
+                OP_EXEC, OP_OPEN, OP_OPEN, OP_WRITE, OP_WRITE, OP_CONNECT, OP_RECV
+            ]
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
