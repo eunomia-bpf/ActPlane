@@ -7884,4 +7884,55 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+    #[test]
+    fn validate_config_rejects_overcount_and_suffix_exec_mismatches() {
+        // `validate_config` checks a config's shape before load: the
+        // update/rule counts must stay within their maxima, and exec edges
+        // may not use the SUFFIX match mode (in the update, the rule, or an
+        // exec-target condition). No base or branch test pins this helper
+        // directly.
+        let mut ok_cfg: CConfig = unsafe { std::mem::zeroed() };
+        ok_cfg.n_updates = 1;
+        ok_cfg.updates[0].op = OP_WRITE;
+        ok_cfg.n_rules = 1;
+        ok_cfg.rules[0].op = OP_EXEC;
+        assert!(validate_config(&ok_cfg).is_ok());
+
+        // More updates than the engine can hold is rejected.
+        let mut over_updates: CConfig = unsafe { std::mem::zeroed() };
+        over_updates.n_updates = MAX_UPDATES as u32 + 1;
+        let err = validate_config(&over_updates).expect_err("over count");
+        assert!(err.to_string().contains("updates"));
+
+        // More rules than the engine can hold is rejected.
+        let mut over_rules: CConfig = unsafe { std::mem::zeroed() };
+        over_rules.n_rules = MAX_RULES as u32 + 1;
+        let err = validate_config(&over_rules).expect_err("over count");
+        assert!(err.to_string().contains("rules"));
+
+        // A SUFFIX exec update is unsupported.
+        let mut suffix_update: CConfig = unsafe { std::mem::zeroed() };
+        suffix_update.n_updates = 1;
+        suffix_update.updates[0].op = OP_EXEC;
+        suffix_update.updates[0].m = M_SUFFIX;
+        let err = validate_config(&suffix_update).expect_err("suffix update");
+        assert!(err.to_string().contains("update["));
+
+        // A SUFFIX exec rule is unsupported.
+        let mut suffix_rule: CConfig = unsafe { std::mem::zeroed() };
+        suffix_rule.n_rules = 1;
+        suffix_rule.rules[0].op = OP_EXEC;
+        suffix_rule.rules[0].m = M_SUFFIX;
+        let err = validate_config(&suffix_rule).expect_err("suffix rule");
+        assert!(err.to_string().contains("rule["));
+
+        // A SUFFIX exec-target condition is unsupported.
+        let mut suffix_cond: CConfig = unsafe { std::mem::zeroed() };
+        suffix_cond.n_rules = 1;
+        suffix_cond.rules[0].op = OP_EXEC;
+        suffix_cond.rules[0].cond_kind = C_TARGET;
+        suffix_cond.rules[0].cond_match = M_SUFFIX;
+        let err = validate_config(&suffix_cond).expect_err("suffix cond");
+        assert!(err.to_string().contains("rule["));
+    }
 }
