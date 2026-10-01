@@ -952,4 +952,24 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn mentions_push_approval_exception_requires_push_and_approval_contexts() {
+        // `mentions_push_approval_exception` reports whether the lowercased
+        // task text asks for a push-approval exception: a push context AND
+        // an approval context. No base or branch test pins this predicate
+        // directly.
+        // A push context alone, with no approval context, is not a match.
+        assert!(!mentions_push_approval_exception("git push the branch"));
+        // An approval context alone, with no push context, is not a match.
+        assert!(!mentions_push_approval_exception(
+            "approval is required for the change"
+        ));
+
+        // Both a push context and an approval context present.
+        assert!(mentions_push_approval_exception(
+            "git push requires approval"
+        ));
+        assert!(mentions_push_approval_exception("approval before git push"));
+        assert!(!mentions_push_approval_exception(""));
+    }
 }
