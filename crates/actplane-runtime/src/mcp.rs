@@ -2992,4 +2992,90 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn child_record_from_meta_decodes_full_and_minimal_metas() {
+        // `child_record_from_meta` is the decode inverse of `child_record_json`:
+        // a meta object becomes a `ChildRecord`, with `None`/missing fields
+        // falling back to their defaults (`log_dir`-relative paths, the
+        // restart-policy defaults, `Running` status). No base or branch test
+        // pins this helper directly.
+        // A full meta decodes every field.
+        let log_dir = PathBuf::from("/tmp/child-reg/4242");
+        let full = serde_json::json!({
+            "pid": 777,
+            "child_id": 8,
+            "scope_id": 9,
+            "launch_id": "L-1",
+            "cmd": ["/bin/true", "x"],
+            "stdout": "/s/out.log",
+            "stderr": "/s/err.log",
+            "meta": "/s/meta.json",
+            "proc_start_time": 55,
+            "policy": "rule r:",
+            "restart_policy": "on_exit",
+            "restart_count": 1,
+            "restart_limit": 5,
+            "restart_backoff_ms": 250,
+            "last_exit_unix_ms": 12,
+            "restarted_from": 7,
+            "status": { "state": "exited", "code": 2, "signal": 1 },
+        });
+        let record = child_record_from_meta(&full, log_dir.clone()).expect("full meta");
+        assert_eq!(record.launch_id, "L-1");
+        assert_eq!(record.pid, 777);
+        assert_eq!(record.child_id, 8);
+        assert_eq!(record.scope_id, 9);
+        assert_eq!(record.cmd, vec!["/bin/true".to_string(), "x".to_string()]);
+        assert_eq!(record.stdout, PathBuf::from("/s/out.log"));
+        assert_eq!(record.stderr, PathBuf::from("/s/err.log"));
+        assert_eq!(record.meta, PathBuf::from("/s/meta.json"));
+        assert_eq!(record.proc_start_time, Some(55));
+        assert_eq!(record.policy, Some("rule r:".to_string()));
+        assert_eq!(record.restart_policy, RestartPolicy::OnExit);
+        assert_eq!(record.restart_count, 1);
+        assert_eq!(record.restart_limit, 5);
+        assert_eq!(record.restart_backoff_ms, 250);
+        assert_eq!(record.last_exit_unix_ms, Some(12));
+        assert_eq!(record.restarted_from, Some(7));
+        assert!(matches!(
+            *record.status.lock().expect("status"),
+            ChildStatus::Exited {
+                code: Some(2),
+                signal: Some(1)
+            }
+        ));
+
+        // A minimal meta relies on every default: `launch_id` falls back to
+        // the log directory's file name, the three log paths are derived from
+        // it, and the restart fields take their defaults.
+        let minimal = serde_json::json!({
+            "pid": 3,
+            "child_id": 4,
+            "cmd": ["bin"],
+        });
+        let rec = child_record_from_meta(&minimal, log_dir.clone()).expect("minimal meta");
+        assert_eq!(rec.launch_id, "4242");
+        assert_eq!(rec.scope_id, 0);
+        assert_eq!(rec.stdout, log_dir.join("stdout.log"));
+        assert_eq!(rec.stderr, log_dir.join("stderr.log"));
+        assert_eq!(rec.meta, log_dir.join("meta.json"));
+        assert_eq!(rec.proc_start_time, None);
+        assert_eq!(rec.policy, None);
+        assert_eq!(rec.restart_policy, RestartPolicy::Never);
+        assert_eq!(rec.restart_count, 0);
+        assert_eq!(rec.restart_limit, DEFAULT_RESTART_LIMIT);
+        assert_eq!(rec.restart_backoff_ms, DEFAULT_RESTART_BACKOFF_MS);
+        assert!(matches!(
+            *rec.status.lock().expect("status"),
+            ChildStatus::Running
+        ));
+
+        // A meta missing the required `pid` cannot be decoded.
+        let no_pid = serde_json::json!({ "child_id": 4, "cmd": ["bin"] });
+        assert!(child_record_from_meta(&no_pid, log_dir.clone()).is_none());
+
+        // A meta missing the required `cmd` cannot be decoded.
+        let no_cmd = serde_json::json!({ "pid": 3, "child_id": 4 });
+        assert!(child_record_from_meta(&no_cmd, log_dir).is_none());
+    }
 }
