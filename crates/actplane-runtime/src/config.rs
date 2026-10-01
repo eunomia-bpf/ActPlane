@@ -851,4 +851,44 @@ domains:
             );
         }
     }
+
+    #[test]
+    fn ifc_source_accepts_one_non_empty_body_only() {
+        // `RuleEntry::ifc_source` picks the rule body from `ifc:` or legacy
+        // `policy:`, rejecting both-at-once and empty bodies; no base or branch
+        // test calls it.
+        let entry = |ifc: Option<&str>, policy: Option<&str>| RuleEntry {
+            ifc: ifc.map(ToString::to_string),
+            policy: policy.map(ToString::to_string),
+        };
+
+        assert_eq!(
+            entry(Some("rule r:\n  block exec \"git\"\n"), None)
+                .ifc_source("r")
+                .unwrap(),
+            "rule r:\n  block exec \"git\"\n"
+        );
+        assert_eq!(
+            entry(None, Some("legacy body")).ifc_source("r").unwrap(),
+            "legacy body"
+        );
+
+        let err = entry(Some("a"), Some("b"))
+            .ifc_source("r")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("cannot contain both `ifc` and `policy`"),
+            "{err}"
+        );
+
+        for empty in [
+            entry(None, None),
+            entry(Some("  "), None),
+            entry(None, Some("")),
+        ] {
+            let err = empty.ifc_source("r").unwrap_err().to_string();
+            assert!(err.contains("must contain non-empty `ifc: |`"), "{err}");
+        }
+    }
 }
