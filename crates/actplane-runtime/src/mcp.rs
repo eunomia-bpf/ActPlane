@@ -2992,4 +2992,54 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn record_with_status(status: ChildStatus) -> ChildRecord {
+        ChildRecord {
+            launch_id: "status-predicate-test".to_string(),
+            pid: std::process::id() as i32,
+            child_id: 900,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/actplane-status-out.log"),
+            stderr: PathBuf::from("/tmp/actplane-status-err.log"),
+            meta: PathBuf::from("/tmp/actplane-status-meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 0,
+            restart_backoff_ms: 0,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    #[test]
+    fn child_status_predicates_classify_each_variant() {
+        // `child_record_running/exited/terminated` each lock the record status
+        // and test exactly one `ChildStatus` variant. No base or branch test
+        // calls these predicates directly.
+        let running = record_with_status(ChildStatus::Running);
+        assert!(child_record_running(&running));
+        assert!(!child_record_exited(&running));
+        assert!(!child_record_terminated(&running));
+
+        let exited = record_with_status(ChildStatus::Exited {
+            code: Some(0),
+            signal: None,
+        });
+        assert!(!child_record_running(&exited));
+        assert!(child_record_exited(&exited));
+        assert!(!child_record_terminated(&exited));
+
+        let terminated = record_with_status(ChildStatus::Terminated);
+        assert!(!child_record_running(&terminated));
+        assert!(!child_record_exited(&terminated));
+        assert!(child_record_terminated(&terminated));
+    }
 }
