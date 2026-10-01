@@ -2591,4 +2591,36 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn policy_ref_for_cli_prefers_explicit_sources_over_auto_discovery() {
+        // `policy_ref_for_cli` renders the policy ref for a CLI invocation:
+        // an explicit policy path wins, else an inline `--rule` source, else
+        // auto-discovery. No base or branch test pins this directly.
+        let with_policy = PolicyInput {
+            policy: Some(std::path::PathBuf::from("/tmp/web.dsl")),
+            rule: Some("rule".to_string()),
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+        };
+        assert_eq!(policy_ref_for_cli(&with_policy), "/tmp/web.dsl");
+
+        let with_rule_only = PolicyInput {
+            policy: None,
+            rule: Some("rule".to_string()),
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+        };
+        assert_eq!(policy_ref_for_cli(&with_rule_only), "--rule");
+
+        let auto = PolicyInput {
+            policy: None,
+            rule: None,
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+        };
+        assert_eq!(policy_ref_for_cli(&auto), "auto-discovered policy");
+    }
 }
