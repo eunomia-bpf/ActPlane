@@ -86,6 +86,12 @@ domain deltas whose final policy is not known at startup.
 Tracepoint-only mode is still useful for observation, corrective feedback, and
 many harness-level policies. Use BPF-LSM for hard security boundaries.
 
+When a `run`/`watch`/MCP session starts with a `block` clause that cannot
+pre-deny on this host, ActPlane prints a prominent startup diagnostic on
+stderr naming the affected rule and the effective behavior (the operation
+proceeds, and the rule reports after the fact). Use it to catch a `block`
+that silently degrades before the first violation.
+
 ## Data-Flow Semantics
 
 Labels propagate across:
