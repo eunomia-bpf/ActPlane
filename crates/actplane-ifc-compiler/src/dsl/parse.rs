@@ -343,3 +343,73 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn p(s: &str) -> P {
+        P {
+            t: lex(s).unwrap(),
+            i: 0,
+        }
+    }
+
+    #[test]
+    fn clause_assembles_effect_op_target_guard_and_unless() {
+        // `clause` parses a single rule clause: an action verb (`notify` /
+        // `block` / `kill`) that fixes the `Effect`, then the op, target, an
+        // optional `if` guard, and an optional `unless` condition. `clause`
+        // itself sets `source_index: 0`; the enclosing rule re-stamps it.
+        // No test in any open or merged branch pins this assembly directly.
+        let c = |s: &str| p(s).clause().expect("clause parses");
+
+        // A bare clause omits both `if` and `unless`.
+        assert_eq!(
+            c("block exec \"git\""),
+            Clause {
+                op: Op::Exec,
+                target: Target {
+                    kind: Kind::Exec,
+                    pattern: "**/git".into(),
+                    arg: None,
+                },
+                when: Expr::True,
+                unless: None,
+                effect: Effect::Block,
+                source_index: 0,
+            }
+        );
+
+        // A full clause carries the `if` guard and an `unless` condition; the
+        // verb maps to its `Effect`.
+        assert_eq!(
+            c("notify open file \"/etc/hosts\" if NET unless target not \"10.0.0.0\""),
+            Clause {
+                op: Op::Open,
+                target: Target {
+                    kind: Kind::File,
+                    pattern: "/etc/hosts".into(),
+                    arg: None,
+                },
+                when: Expr::Label("NET".into()),
+                unless: Some(Cond::Target {
+                    negate: true,
+                    pattern: "10.0.0.0".into(),
+                }),
+                effect: Effect::Notify,
+                source_index: 0,
+            }
+        );
+
+        // Each action verb maps to its own `Effect`.
+        assert_eq!(c("kill exec \"rm\"").effect, Effect::Kill);
+
+        // A verb that is not an action verb is rejected, naming the word.
+        let bad = p("deny exec \"git\"").clause();
+        assert_eq!(
+            bad.err().as_deref(),
+            Some("expected 'notify', 'block', or 'kill', got 'deny'")
+        );
+    }
+}
