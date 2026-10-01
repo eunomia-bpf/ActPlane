@@ -224,6 +224,16 @@ fn lower_path(pat: &str) -> (u8, String) {
 mod tests {
     use super::*;
 
+    /// Compile a DSL source and read the kernel `CConfig` out of the fixed-size
+    /// `bytes` blob, the same `read_unaligned` probe the endpoint tests above use.
+    /// `CConfig`/`CRule`/`CUpdate` are module-private, so the probe must live in
+    /// this module.
+    fn compile_cfg(src: &str) -> CConfig {
+        let pol = crate::dsl::parse::parse(src).expect("parse policy");
+        let compiled = compile(&pol).expect("compile policy");
+        unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+    }
+
     #[test]
     fn repo_relative_paths_match_absolute_runtime_paths() {
         assert_eq!(
@@ -334,6 +344,95 @@ mod tests {
     fn wildcard_hostnames_are_not_resolved_as_exact_hosts() {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
+    }
+
+    /// Two clauses that share the *same* gate (`unless after exec "**/pytest"
+    /// exits 0`) must dedupe to a single gate slot, and every rule that
+    /// references the gate must carry the matching `gate` bit and `gate_idx`.
+    /// The engine latches a gate by OR-ing its `gates` bit into the process
+    /// lineage mask (`ns.lin_gates |= c.gates`, taint_engine.bpf.h:1611) and,
+    /// for v2 staleness, looks the gate up by `gate_idx` (`te_after_satisfied`,
+    /// taint_engine.bpf.h:1259) -- so a shifted bit, a wrong index, or a
+    /// hardcoded exit code would silently break gate freshness with no
+    /// compile-time or blob-size symptom. Pin the cross-table coherence.
+    #[test]
+    fn gate_bits_dedupe_and_stay_coherent_with_rules() {
+        // One policy, three clauses: two share gate `exits 0`, one uses the
+        // distinct gate `exits 2`. Both clauses must be covered by the gate
+        // dedupe, and the distinct gate must land in the *next* slot.
+        let cfg = compile_cfg(
+            "rule r:\n\
+             block exec \"git\" unless after exec \"**/pytest\" exits 0\n\
+             block exec \"make\" unless after exec \"**/pytest\" exits 0\n\
+             notify exec \"git\" unless after exec \"**/pytest\" exits 2\n\
+             because \"run tests before committing/pushing\"\n",
+        );
+        // Three clauses, no `when` labels => one DNF disjunct each => three rules.
+        assert_eq!(cfg.n_rules, 3, "one rule per clause");
+        // `exits 0` (clauses 0+1) dedupe to slot 0; `exits 2` (clause 2) is slot 1.
+        assert_eq!(cfg.n_updates, 2, "two distinct gates => two updates");
+
+        // Slot 0: the `exits 0` gate. `**/pytest` lowers to the exact comm matcher.
+        let u0 = &cfg.updates[0];
+        assert_eq!(u0.op, OP_EXEC, "gate is an exec event");
+        assert_eq!(u0.m, M_EXACT, "`**/pytest` -> exact comm `pytest`");
+        assert_eq!(
+            &u0.target[..6],
+            "pytest".as_bytes(),
+            "gate target literal is `pytest`"
+        );
+        assert_eq!(u0.gates, 1u64, "slot 0 => bit 1<<0");
+        assert_eq!(u0.gate_exit_code, 0, "`exits 0` carries code 0");
+
+        // Slot 1: the `exits 2` gate.
+        let u1 = &cfg.updates[1];
+        assert_eq!(u1.target, u0.target, "same gate literal in slot 1");
+        assert_eq!(u1.gates, 2u64, "slot 1 => bit 1<<1");
+        assert_eq!(
+            u1.gate_exit_code, 2,
+            "`exits 2` carries code 2, not a hardcoded 0/-1"
+        );
+
+        // Every rule must agree with the slot it references: matching bit AND index.
+        assert_eq!(cfg.rules[0].cond_kind, C_AFTER, "clause 0 -> TCOND_AFTER");
+        assert_eq!(cfg.rules[0].gate, 1u64, "clause 0 references slot 0");
+        assert_eq!(cfg.rules[0].gate_idx, 0, "clause 0 -> index 0");
+        assert_eq!(cfg.rules[1].cond_kind, C_AFTER, "clause 1 -> TCOND_AFTER");
+        assert_eq!(cfg.rules[1].gate, 1u64, "clause 1 reuses slot 0 (dedup)");
+        assert_eq!(cfg.rules[1].gate_idx, 0, "clause 1 -> index 0");
+        assert_eq!(cfg.rules[2].cond_kind, C_AFTER, "clause 2 -> TCOND_AFTER");
+        assert_eq!(cfg.rules[2].gate, 2u64, "clause 2 references slot 1");
+        assert_eq!(cfg.rules[2].gate_idx, 1, "clause 2 -> index 1");
+    }
+
+    /// The kernel inverts a `TCOND_TARGET` match only when `cond_neg` is set
+    /// (`return r->cond_neg ? !m : m`, taint_engine.bpf.h:2102). A flipped
+    /// negation silently inverts the whole allow/deny decision, so pin both
+    /// directions of the `target`/`target not` forms.
+    #[test]
+    fn target_cond_negation_flips_cond_neg() {
+        let cfg = compile_cfg(
+            "rule r:\n\
+             block write file \"/**\" unless target \"/work/**\"\n\
+             because \"allow writes outside the agent workspace\"\n",
+        );
+        assert_eq!(cfg.n_rules, 1, "one rule");
+        assert_eq!(
+            cfg.rules[0].cond_kind, C_TARGET,
+            "target cond lowers to TCOND_TARGET"
+        );
+        assert_eq!(cfg.rules[0].cond_neg, 0, "plain `target P` is not negated");
+
+        let cfg2 = compile_cfg(
+            "rule r:\n\
+             block write file \"/**\" unless target not \"/work/**\"\n\
+             because \"deny writes inside the agent workspace\"\n",
+        );
+        assert_eq!(
+            cfg2.rules[0].cond_kind, C_TARGET,
+            "target cond lowers to TCOND_TARGET"
+        );
+        assert_eq!(cfg2.rules[0].cond_neg, 1, "`target not P` sets cond_neg");
     }
 }
 
