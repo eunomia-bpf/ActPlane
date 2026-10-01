@@ -335,6 +335,37 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_exits_clause_on_a_non_exec_gate_is_rejected() {
+        // The `exits <code>` suffix is only meaningful on an `after exec`
+        // gate: the engine records the child's exit code, but only an
+        // exec'd process has one. The parser rejects `exits` on any other
+        // gate op at parse time (distinct from the exit-code range guard,
+        // which still applies once the gate is `exec`).
+        use crate::dsl::parse::parse;
+        fn err(src: &str) -> String {
+            parse(src)
+                .map(|_| "OK".to_string())
+                .unwrap_or_else(|e| format!("Err({e})"))
+        }
+        // `read` is not a valid `exits` gate op.
+        assert_eq!(
+            err("rule r:\n  block exec \"git\" unless after read \"/x\" exits 1\n"),
+            "Err(`exits` is only valid on `after exec` gates)"
+        );
+        // `write` is likewise not a valid `exits` gate op.
+        assert_eq!(
+            err("rule r:\n  block exec \"git\" unless after write \"/x\" exits 1\n"),
+            "Err(`exits` is only valid on `after exec` gates)"
+        );
+        // Positive control: `exits` on an `after exec` gate parses.
+        compile(
+            &parse("rule r:\n  block exec \"git\" unless after exec \"/in\" exits 0\n")
+                .expect("an after exec exits gate parses"),
+        )
+        .expect("an after exec exits gate compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
