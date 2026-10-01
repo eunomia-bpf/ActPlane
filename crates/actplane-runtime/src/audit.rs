@@ -181,4 +181,39 @@ mod tests {
         assert_eq!(status_numeric_field(status, "Gid:"), Some(1001));
         assert_eq!(status_numeric_field(status, "Nope:"), None);
     }
+
+    #[test]
+    fn append_with_schema_injects_defaults_and_rejects_non_objects() {
+        // `append_with_schema` stamps the timestamp/schema defaults only when
+        // absent, creates parent dirs, and rejects non-object records; no base
+        // or branch test calls it directly.
+        let dir =
+            std::env::temp_dir().join(format!("actplane-audit-schema-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = dir.join("logs/audit.jsonl");
+
+        let mut record = json!({ "event": "custom" });
+        append_with_schema(&path, "actplane.custom.v2", &mut record).expect("append");
+        let text = std::fs::read_to_string(&path).expect("read");
+        let value: Value = serde_json::from_str(text.trim()).unwrap();
+        assert_eq!(value["schema"], "actplane.custom.v2");
+        assert_eq!(value["event"], "custom");
+        assert!(value.get("timestamp_unix_ns").is_some());
+
+        // Pre-existing fields are preserved, not overwritten.
+        let mut preset = json!({ "schema": "keep.me", "timestamp_unix_ns": "1" });
+        append_with_schema(&path, "actplane.custom.v2", &mut preset).expect("append preset");
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.contains("\"schema\":\"keep.me\""));
+        assert!(text.contains("\"timestamp_unix_ns\":\"1\""));
+
+        // A non-object record errors without writing.
+        let mut array = json!([1, 2]);
+        let err = append_with_schema(&path, "s", &mut array)
+            .expect_err("array")
+            .to_string();
+        assert!(err.contains("must be a JSON object"), "{err}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
