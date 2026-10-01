@@ -335,6 +335,34 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_unquoted_pattern_is_rejected() {
+        // DSL patterns are string literals. An unquoted pattern (a bare
+        // `Word` where a `Str` is required) is a common authoring mistake
+        // that must reject at parse time, not silently compile. This fires
+        // only after a *valid* kind word precedes it, so it is distinct
+        // from the kind-word guards (#112 wrong-kind, #105 unknown-kind).
+        use crate::dsl::parse::parse;
+        fn err(src: &str) -> String {
+            parse(src)
+                .map(|_| "OK".to_string())
+                .unwrap_or_else(|e| format!("Err({e})"))
+        }
+        // An unquoted clause target pattern.
+        assert_eq!(
+            err("rule r:\n  block open file /x because \"z\"\n"),
+            "Err(expected string, got Some(Word(\"/x\")))"
+        );
+        // An unquoted source pattern.
+        assert_eq!(
+            err("source S = file /x\nrule r:\n  block open file \"/x\" because \"z\"\n"),
+            "Err(expected string, got Some(Word(\"/x\")))"
+        );
+        // Positive control: a quoted pattern compiles.
+        parse("rule r:\n  block open file \"/x\" because \"z\"\n")
+            .expect("a quoted pattern parses");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
