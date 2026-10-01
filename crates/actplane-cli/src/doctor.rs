@@ -2591,4 +2591,133 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn annotation_backed_promotion_note_selects_the_promotion_branch() {
+        // `annotation_backed_promotion_note` derives a promotion note from the
+        // per-clause annotation counts: it requires a supplied annotation log,
+        // a present observation with non-empty annotations, then inspects the
+        // false_positive / allowed / noise, needs_review, and true_positive
+        // classes in that order. No base or branch test pins this note
+        // directly.
+        let evidence = |with_annotation_log: bool| RolloutEvidence {
+            event_paths: Vec::new(),
+            annotation_paths: if with_annotation_log {
+                vec![PathBuf::from("an.jsonl")]
+            } else {
+                Vec::new()
+            },
+            total_events: 0,
+            total_annotations: 0,
+            ignored_lines: 0,
+            ignored_annotations: 0,
+            warnings: Vec::new(),
+            clauses: BTreeMap::new(),
+        };
+        let observation = |annotations: &[(&str, usize)]| ClauseObservation {
+            count: 0,
+            actions: BTreeMap::new(),
+            targets: Vec::new(),
+            domains: BTreeMap::new(),
+            annotations: BTreeMap::from_iter(annotations.iter().map(|(k, v)| (k.to_string(), *v))),
+            annotation_notes: Vec::new(),
+        };
+
+        // No annotation log supplied: no note.
+        assert!(
+            annotation_backed_promotion_note(
+                &evidence(false),
+                Some(&observation(&[("true_positive", 5)])),
+                Effect::Notify
+            )
+            .is_none()
+        );
+
+        // No observation at all (but a log is supplied): keep observe mode.
+        assert_eq!(
+            annotation_backed_promotion_note(&evidence(true), None, Effect::Notify),
+            Some(
+                "no annotations for this clause; keep observe mode until examples are classified"
+                    .into()
+            )
+        );
+
+        // An observation with empty annotations also keeps observe mode.
+        assert_eq!(
+            annotation_backed_promotion_note(
+                &evidence(true),
+                Some(&observation(&[])),
+                Effect::Notify
+            ),
+            Some(
+                "no annotations for this clause; keep observe mode until examples are classified"
+                    .into()
+            )
+        );
+
+        // A mix of do-not-promote classes names all three counts.
+        assert_eq!(
+            annotation_backed_promotion_note(
+                &evidence(true),
+                Some(&observation(&[
+                    ("false_positive", 2),
+                    ("allowed", 1),
+                    ("noise", 3)
+                ])),
+                Effect::Notify
+            ),
+            Some(
+                "do not promote yet; annotations include false_positive=2, allowed=1, noise=3"
+                    .into()
+            )
+        );
+
+        // A needs_review count holds back promotion.
+        assert_eq!(
+            annotation_backed_promotion_note(
+                &evidence(true),
+                Some(&observation(&[("needs_review", 4)])),
+                Effect::Notify
+            ),
+            Some("keep notify; 4 annotated example(s) still need review".into())
+        );
+
+        // A true_positive count with a Kill effect names the kill promotion.
+        assert_eq!(
+            annotation_backed_promotion_note(
+                &evidence(true),
+                Some(&observation(&[("true_positive", 6)])),
+                Effect::Kill
+            ),
+            Some(
+                "6 annotated true_positive example(s); candidate for limited kill promotion \
+                 after workload coverage review"
+                    .into()
+            )
+        );
+
+        // A true_positive count with a non-Kill effect names the generic
+        // promotion.
+        assert_eq!(
+            annotation_backed_promotion_note(
+                &evidence(true),
+                Some(&observation(&[("true_positive", 6)])),
+                Effect::Notify
+            ),
+            Some(
+                "6 annotated true_positive example(s); candidate for limited promotion after \
+                 backend and workload coverage review"
+                    .into()
+            )
+        );
+
+        // Annotations present but none in a recognized class keep observe mode.
+        assert_eq!(
+            annotation_backed_promotion_note(
+                &evidence(true),
+                Some(&observation(&[("unrecognized", 2)])),
+                Effect::Notify
+            ),
+            Some("annotations use no recognized promotion class; keep observe mode".into())
+        );
+    }
 }
