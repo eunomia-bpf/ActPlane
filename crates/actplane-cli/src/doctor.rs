@@ -2591,4 +2591,55 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn cond_summary_renders_every_cond_variant() {
+        // `cond_summary` renders a `Cond` to a human-readable string,
+        // recursing for the `After` `since` events. No base or branch test
+        // pins this formatter directly.
+        assert_eq!(
+            cond_summary(&Cond::Target {
+                negate: false,
+                pattern: "out.txt".into()
+            }),
+            "target \"out.txt\""
+        );
+        assert_eq!(
+            cond_summary(&Cond::Target {
+                negate: true,
+                pattern: "out.txt".into()
+            }),
+            "target not \"out.txt\""
+        );
+        assert_eq!(
+            cond_summary(&Cond::LineageIncludes {
+                exec: "agent".into()
+            }),
+            "lineage-includes exec \"agent\""
+        );
+
+        // `After` with an exit stamp and a single `since` event.
+        assert_eq!(
+            cond_summary(&Cond::After {
+                gate_op: Op::Exec,
+                gate_pattern: "agent".into(),
+                gate_exit: Some(0),
+                since: vec![(Op::Open, "policy.dsl".into(), None)]
+            }),
+            "after exec \"agent\" exits 0 since open \"policy.dsl\""
+        );
+
+        // `After` with no exit and two `since` events joined by " or ".
+        assert_eq!(
+            cond_summary(&Cond::After {
+                gate_op: Op::Open,
+                gate_pattern: "policy.dsl".into(),
+                gate_exit: None,
+                since: vec![
+                    (Op::Exec, "agent".into(), None),
+                    (Op::Connect, "10.0.0.0/8".into(), Some("r".into())),
+                ]
+            }),
+            "after open \"policy.dsl\" since exec \"agent\" or connect \"10.0.0.0/8\" \"r\""
+        );
+    }
 }
