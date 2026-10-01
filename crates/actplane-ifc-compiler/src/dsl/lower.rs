@@ -335,6 +335,20 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_absolute_single_star_path_lowers_to_a_prefix_match() {
+        // An absolute path with a single `*` segment (e.g. `/tmp/*.js`)
+        // matches every file directly inside that directory. The `/*`
+        // suffix lowers to a prefix match on the directory prefix (the
+        // trailing `/` included), distinct from the absolute `/**` form
+        // (recursive, also a prefix but reached via a different branch) and
+        // from an exact absolute path.
+        assert_eq!(lower_path("/tmp/*.js"), (M_PREFIX, "/tmp/".into()));
+        assert_eq!(lower_path("/opt/*.bin"), (M_PREFIX, "/opt/".into()));
+        // Control: a no-wildcard absolute path stays an exact match.
+        assert_eq!(lower_path("/opt/file"), (M_EXACT, "/opt/file".into()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
