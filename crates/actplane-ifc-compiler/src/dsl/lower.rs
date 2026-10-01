@@ -335,6 +335,64 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn collect_label_names_dedupes_across_sources_xforms_and_rules() {
+        // `collect_label_names` gathers label names from every source, every
+        // xform, and every rule clause's `when` expression, deduplicating and
+        // sorting through a `BTreeSet`. No base test pins the collector's
+        // cross-source dedup directly; it is only exercised through
+        // `compile_with_labels`.
+        use crate::dsl::ast::{
+            Clause, Effect, Expr, Kind, Op, Policy, Rule, Source, Target, Xform,
+        };
+
+        let src = |label: &str| Source {
+            label: label.to_string(),
+            kind: Kind::File,
+            pattern: "/tmp/x".to_string(),
+        };
+        let xf = |endorse: bool, label: &str| Xform {
+            endorse,
+            label: label.to_string(),
+            gate: "git".to_string(),
+        };
+        let clause = |when: Expr| Clause {
+            op: Op::Exec,
+            target: Target {
+                kind: Kind::Exec,
+                pattern: "git".to_string(),
+                arg: None,
+            },
+            when,
+            unless: None,
+            effect: Effect::Notify,
+            source_index: 0,
+        };
+
+        // "A" is claimed by a source, a xform, and a rule clause; "B" by a
+        // source; "C" by a rule clause. Dedup collapses the three "A"s.
+        let pol = Policy {
+            labels: Vec::new(),
+            sources: vec![src("B"), src("A")],
+            xforms: vec![xf(false, "A")],
+            rules: vec![Rule {
+                name: "r".to_string(),
+                clauses: vec![clause(Expr::And(
+                    Box::new(Expr::Label("C".to_string())),
+                    Box::new(Expr::Label("A".to_string())),
+                ))],
+                reason: String::new(),
+            }],
+        };
+        assert_eq!(
+            collect_label_names(&pol),
+            vec!["A".to_string(), "B".to_string(), "C".to_string()]
+        );
+
+        // A default (empty) policy names no labels.
+        assert!(collect_label_names(&Policy::default()).is_empty());
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
