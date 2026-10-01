@@ -2108,4 +2108,45 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn runtime_approval_policy_wires_append_delta_gate_from_config() {
+        // `RuntimeApprovalPolicy::from_loaded_policy` (via the
+        // `AppendDeltaApprovalGate::from_config` copy) wires the configured
+        // append-delta gate; none had any call in the base or branch suite.
+        let mut loaded = LoadedPolicy {
+            config: crate::config::FileConfig::default(),
+            root: PathBuf::new(),
+            path: None,
+        };
+        loaded.config.runtime.approval.append_delta = AppendDeltaApprovalConfig {
+            required: true,
+            require_approval_ref: true,
+            require_generated_by: false,
+            allowed_approvers: vec!["repo-supervisor".to_string()],
+        };
+
+        let policy = RuntimeApprovalPolicy::from_loaded_policy(&loaded);
+        let accepted = policy.evaluate_append_delta(&PolicyAuditMeta {
+            approved_by: Some("repo-supervisor".to_string()),
+            approval_ref: Some("ticket-7".to_string()),
+            ..PolicyAuditMeta::default()
+        });
+        assert!(accepted.enforced);
+        assert!(accepted.accepted);
+
+        let rejected = policy.evaluate_append_delta(&PolicyAuditMeta::default());
+        assert!(!rejected.accepted);
+        assert_eq!(rejected.missing_fields, vec!["approved_by", "approval_ref"]);
+
+        // A default config yields an unenforced gate.
+        let relaxed = RuntimeApprovalPolicy::from_loaded_policy(&LoadedPolicy {
+            config: crate::config::FileConfig::default(),
+            root: PathBuf::new(),
+            path: None,
+        });
+        let unenforced = relaxed.evaluate_append_delta(&PolicyAuditMeta::default());
+        assert!(!unenforced.enforced);
+        assert!(unenforced.accepted);
+    }
 }
