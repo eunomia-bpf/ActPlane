@@ -335,6 +335,70 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn inval_slot_dedupe_key_includes_the_arg_dimension() {
+        // inval_slot dedupes its allocated slots on (op, m, lit, arg). #59
+        // pinned the target dimension (two distinct `write "src/**"` /
+        // `write "tests/**"` invals -> two slots); #87 pinned the arg *byte*.
+        // Nobody pins that the arg is a real key dimension: two since clauses
+        // that share an op and target but differ in argv must allocate two
+        // slots (so the kernel can de-stale the gate on either), and two
+        // identical clauses must collapse to one. A regression that dropped
+        // arg from the key would let the two distinct-argv invals share a slot,
+        // so the engine would only de-stale the gate on the first argv.
+        fn arg_field(s: &str) -> [u8; ARG] {
+            let mut out = [0u8; ARG];
+            let n = s.len().min(ARG - 1);
+            out[..n].copy_from_slice(&s.as_bytes()[..n]);
+            out
+        }
+        fn config(src: &str) -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile(&pol).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        }
+        fn inval_updates(cfg: &CConfig) -> Vec<CUpdate> {
+            cfg.updates[..cfg.n_updates as usize]
+                .iter()
+                .filter(|u| u.invals != 0)
+                .cloned()
+                .collect()
+        }
+
+        // Same op + target `/make`, two distinct argv: two inval slots.
+        let cfg = config(
+            "rule r:\n\
+             block exec \"git\" unless after exec \"/in\" since exec \"/make\" \"install\" or exec \"/make\" \"build\"\n\
+             because \"stale when a build stage re-runs\"\n",
+        );
+        assert_eq!(
+            cfg.n_updates, 3,
+            "one gate + two distinct-argv inval updates"
+        );
+        let invals = inval_updates(&cfg);
+        assert_eq!(invals.len(), 2, "two distinct argv -> two slots");
+        assert_eq!(
+            invals.iter().map(|u| u.arg).collect::<Vec<_>>(),
+            vec![arg_field("install"), arg_field("build")],
+            "each distinct argv gets its own inval arg byte"
+        );
+        assert_eq!(cfg.rules[0].since_mask, 0b11, "both inval slots referenced");
+
+        // Two identical since clauses: collapse to one slot.
+        let cfg = config(
+            "rule r:\n\
+             block exec \"git\" unless after exec \"/in\" since exec \"/make\" \"install\" or exec \"/make\" \"install\"\n\
+             because \"stale when the build re-runs\"\n",
+        );
+        assert_eq!(cfg.n_updates, 2, "one gate + one deduped inval update");
+        let invals = inval_updates(&cfg);
+        assert_eq!(invals.len(), 1, "identical argv collapses to one slot");
+        assert_eq!(
+            cfg.rules[0].since_mask, 0b01,
+            "the single slot is referenced"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
