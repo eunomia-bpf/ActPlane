@@ -335,6 +335,28 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn the_legacy_label_keyword_is_rejected_in_favor_of_source() {
+        // The DSL descends from AgentSight, whose source declaration was the
+        // `label` keyword. ActPlane renamed it to `source`; the parser keeps
+        // an explicit rejection for the legacy spelling so a stray `label`
+        // fails with a migration hint rather than a generic "unknown
+        // declaration". #58 pinned label *binding* rejection; nobody pinned
+        // the legacy-keyword migration guard.
+        use crate::dsl::parse::parse;
+        let err = parse("label AGENT = exec \"/**/agent\"\n")
+            .expect_err("the legacy `label` keyword must be rejected");
+        assert_eq!(
+            err,
+            "the `label` keyword has been removed; use `source` instead (e.g. `source AGENT = exec \"**/your-agent\"`)"
+        );
+
+        // Positive control: the modern `source` spelling parses one source.
+        let pol = parse("source AGENT = exec \"/**/agent\"\n")
+            .expect("the modern `source` keyword parses");
+        assert_eq!(pol.sources.len(), 1);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
