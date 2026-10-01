@@ -335,6 +335,38 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_label_with_an_invalid_bit_mask_is_rejected() {
+        // `compile_with_labels` accepts a pre-supplied label -> bit map. Each
+        // label's bit must be a *single* bit: a zero mask produces a label
+        // that can never propagate, and a multi-bit mask occupies several
+        // slots at once, colliding with the per-label single-bit invariant
+        // that `label_bit` and `inval_slot` assign one bit each. The guard
+        // rejects both. #114 pinned the duplicate-bit (two labels, one bit)
+        // guard; this is the distinct per-label mask-shape guard.
+        use std::collections::HashMap;
+        fn map(pairs: &[(&str, u64)]) -> HashMap<String, u64> {
+            pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+        }
+        let pol = crate::dsl::parse::parse("rule r:\n  block exec \"git\" because \"z\"\n")
+            .expect("the rule parses");
+
+        // A zero mask is invalid.
+        match compile_with_labels(&pol, &map(&[("A", 0u64)])) {
+            Ok(_) => panic!("a zero label mask must be rejected"),
+            Err(err) => assert_eq!(err, "label `A` has invalid bit mask 0x0"),
+        }
+
+        // A multi-bit mask (two bits) is invalid.
+        match compile_with_labels(&pol, &map(&[("A", 3u64)])) {
+            Ok(_) => panic!("a multi-bit label mask must be rejected"),
+            Err(err) => assert_eq!(err, "label `A` has invalid bit mask 0x3"),
+        }
+
+        // Positive control: a single bit compiles.
+        compile_with_labels(&pol, &map(&[("A", 1u64)])).expect("a single-bit label mask compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
