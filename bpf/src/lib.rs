@@ -7884,4 +7884,69 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+    #[test]
+    fn decode_maps_event_fields_and_targets() {
+        // `decode` turns a raw `Event` into a `Violation`, formatting the
+        // connect target as a dotted IPv4 quad when `conn_ip` is set (falling
+        // back to the filename otherwise) and attaching a provenance record
+        // only when `prov_label` is non-zero. No base or branch test pins
+        // this helper directly.
+        fn fill(buf: &mut [u8], s: &str) {
+            let bytes = s.as_bytes();
+            buf[..bytes.len()].copy_from_slice(bytes);
+        }
+
+        // A filename target and a filename provenance target.
+        let mut e: Event = unsafe { std::mem::zeroed() };
+        fill(&mut e.comm, "sh");
+        fill(&mut e.filename, "/bin/sh");
+        fill(&mut e.prov_target, "/etc/passwd");
+        e.pid = 42;
+        e.ppid = 7;
+        e.blocked = 1;
+        e.killed = 0;
+        e.effect = 1;
+        e.op = 3;
+        e.domain_id = 1;
+        e.session_root = 9;
+        e.taint_rule_id = 5;
+        e.taint_label = 8;
+        e.matched_label = 2;
+        e.matched_labels = 10;
+        e.prov_label = 1;
+        e.prov_pid = 11;
+        e.prov_op = 2;
+        e.timestamp_ns = 100;
+        let v = decode(&e);
+        assert_eq!(v.target, "/bin/sh");
+        assert_eq!(v.comm, "sh");
+        assert!(v.blocked);
+        assert!(!v.killed);
+        assert_eq!(v.pid, 42);
+        assert_eq!(v.ppid, 7);
+        assert_eq!(v.rule_id, 5);
+        assert_eq!(v.effect, 1);
+        let prov = v.provenance.expect("provenance present");
+        assert_eq!(prov.label, 1);
+        assert_eq!(prov.pid, 11);
+        assert_eq!(prov.op, 2);
+        assert_eq!(prov.target, "/etc/passwd");
+
+        // A connect target is formatted as a dotted IPv4 quad, and the
+        // provenance target is too when `prov_ip` is set.
+        let mut c: Event = unsafe { std::mem::zeroed() };
+        c.conn_ip = 0x01020304;
+        c.prov_label = 1;
+        c.prov_ip = 0x0A000001;
+        let cv = decode(&c);
+        assert_eq!(cv.target, "4.3.2.1");
+        assert_eq!(cv.provenance.as_ref().unwrap().target, "1.0.0.10");
+
+        // No provenance record when `prov_label` is zero.
+        let mut plain: Event = unsafe { std::mem::zeroed() };
+        plain.conn_ip = 0x01020304;
+        let pv = decode(&plain);
+        assert_eq!(pv.target, "4.3.2.1");
+        assert!(pv.provenance.is_none());
+    }
 }
