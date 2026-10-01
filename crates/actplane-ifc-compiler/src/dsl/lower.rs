@@ -335,6 +335,20 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_bare_star_endpoint_lowers_to_match_any() {
+        // A bare `*` endpoint pattern matches any address. `lower_numeric_ipv4`
+        // lowers it to the match-any sentinel (net 0, mask 0) so the kernel
+        // matcher accepts every endpoint. This is distinct from the exact-host
+        // /32 and dotted-subnet forms the endpoint tests already pin.
+        assert_eq!(lower_ipv4("*"), (0, 0));
+        // Control: an exact host is a /32 match.
+        assert_eq!(lower_ipv4("10.0.0.1"), (0x0100000A, 0xFFFFFFFF));
+        // A non-numeric, non-`*` pattern (`**`) falls through to the
+        // catch-all non-match (net 0, mask /32).
+        assert_eq!(lower_ipv4("**"), (0, 0xFFFFFFFF));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
