@@ -1452,6 +1452,7 @@ pub async fn run_child_command(
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
     let agent_label = runner_label(&compiled)?;
+    crate::diagnostics::print_block_degradation_warnings(&compiled);
     let deltas = load_child_policy_deltas(delta_paths, delta_texts)?;
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "run-child");
     let target_owner = target_user(cli.run_as_root);
