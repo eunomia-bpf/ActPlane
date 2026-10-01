@@ -2591,4 +2591,117 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn backend_support_warnings_collects_source_target_and_block_warnings() {
+        // `backend_support_warnings` gathers the per-policy backend support
+        // warnings: unsupported endpoint sources, unsupported endpoint targets,
+        // unusable endpoint `unless target` conditions, argv-only exec blocks,
+        // and blocks issued while BPF-LSM is inactive. No base or branch test
+        // pins this collector directly.
+        use crate::dsl::ast::{Rule, Target};
+        use std::collections::HashMap;
+
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+
+        let policy = Policy {
+            labels: Vec::new(),
+            sources: vec![Source {
+                label: "eg".to_string(),
+                kind: Kind::Endpoint,
+                pattern: "*.evil".to_string(),
+            }],
+            rules: vec![Rule {
+                name: "guard".to_string(),
+                clauses: vec![
+                    Clause {
+                        op: Op::Connect,
+                        target: Target {
+                            kind: Kind::Endpoint,
+                            pattern: "api.evil".to_string(),
+                            arg: None,
+                        },
+                        when: Expr::True,
+                        unless: Some(Cond::Target {
+                            negate: false,
+                            pattern: "api.evil".to_string(),
+                        }),
+                        effect: Effect::Block,
+                        source_index: 0,
+                    },
+                    Clause {
+                        op: Op::Exec,
+                        target: Target {
+                            kind: Kind::Exec,
+                            pattern: "python3".to_string(),
+                            arg: Some("run".to_string()),
+                        },
+                        when: Expr::True,
+                        unless: None,
+                        effect: Effect::Block,
+                        source_index: 0,
+                    },
+                ],
+                reason: "guard".to_string(),
+            }],
+            xforms: Vec::new(),
+        };
+
+        // BPF-LSM inactive: every block clause also yields the LSM-inactive
+        // warning, on top of the endpoint / condition / argv warnings.
+        let warnings = backend_support_warnings(&policy, &compiled, false);
+        let pairs: Vec<(String, String)> = warnings
+            .iter()
+            .map(|w| (w.code.to_string(), w.message.clone()))
+            .collect();
+        assert_eq!(
+            pairs,
+            vec![
+                (
+                    "endpoint_source_unsupported".to_string(),
+                    "source eg = endpoint \"*.evil\" is unsupported: endpoint source \
+                     pattern is not numeric IPv4 or an exact resolvable hostname."
+                        .to_string()
+                ),
+                (
+                    "endpoint_target_unsupported".to_string(),
+                    "block connect endpoint \"api.evil\" is unsupported: endpoint \
+                     target pattern is not numeric IPv4 or an exact resolvable \
+                     hostname; this rule will not fire for that endpoint."
+                        .to_string()
+                ),
+                (
+                    "endpoint_target_condition_unsupported_pattern".to_string(),
+                    "guard: unless target \"api.evil\" uses a wildcard hostname or \
+                     IPv6 pattern; endpoint target conditions support numeric IPv4 \
+                     or a single resolved IPv4 hostname."
+                        .to_string()
+                ),
+                (
+                    "bpf_lsm_inactive_for_block".to_string(),
+                    "guard: `block connect` is unsupported on this host until \
+                     BPF-LSM is active."
+                        .to_string()
+                ),
+                (
+                    "argv_block_exec_post_exec_only".to_string(),
+                    "guard: `block exec` with an argv token cannot block pre-exec \
+                     because argv is only available after exec; use `kill exec` \
+                     if termination after exec is acceptable."
+                        .to_string()
+                ),
+                (
+                    "bpf_lsm_inactive_for_block".to_string(),
+                    "guard: `block exec` is unsupported on this host until \
+                     BPF-LSM is active."
+                        .to_string()
+                ),
+            ]
+        );
+    }
 }
