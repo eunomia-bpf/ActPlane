@@ -2591,4 +2591,30 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn render_dsl_event_escapes_pattern_and_arg_through_dsl_literal() {
+        // `render_dsl_event` renders `<op> "pattern" ["arg"]` for a DSL event
+        // source, escaping the pattern and argument through `dsl_literal`
+        // (so newlines become spaces and double quotes become single quotes),
+        // unlike `event_summary` which uses the raw text. No base or branch
+        // test pins this renderer directly.
+        assert_eq!(
+            render_dsl_event(Op::Open, "policy.dsl", None),
+            "open \"policy.dsl\""
+        );
+        assert_eq!(
+            render_dsl_event(Op::Open, "policy.dsl", Some("r")),
+            "open \"policy.dsl\" \"r\""
+        );
+        // A double quote in the pattern becomes a single quote.
+        assert_eq!(
+            render_dsl_event(Op::Exec, "say \"hi\"", None),
+            "exec \"say 'hi'\""
+        );
+        // A newline in the argument is flattened to a space.
+        assert_eq!(
+            render_dsl_event(Op::Exec, "agent", Some("a\nb")),
+            "exec \"agent\" \"a b\""
+        );
+    }
 }
