@@ -335,6 +335,63 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// A positional target arg (`block exec "git" "commit"`) must be lowered
+    /// into `CRule.arg`; the kernel's `taint_arg_match` treats an all-zero `arg`
+    /// token as "ignore the argv" (taint.h:134), so dropping the arg silently
+    /// widens an argv-specific rule to match every invocation of the target.
+    /// The existing test (`positional_args_work`) only asserts the clause
+    /// effect, never the arg bytes. Pin the actual `arg`/`target`/matcher bytes
+    /// via a `read_unaligned` probe of `CConfig`, and contrast the no-arg form,
+    /// whose `arg` stays all-zero.
+    #[test]
+    fn positional_target_arg_lowered_into_crule_arg() {
+        // Build a NUL-padded fixed-width byte field the way `set_pat` does.
+        fn nuls<const N: usize>(s: &str) -> [u8; N] {
+            let mut out = [0u8; N];
+            let n = s.len().min(N - 1);
+            out[..n].copy_from_slice(&s.as_bytes()[..n]);
+            out
+        }
+        // Probe `rules[i].arg` / `.target` out of the compiled blob (the
+        // `CConfig`/`CRule` structs are module-private, same pattern as the
+        // endpoint tests above).
+        fn config(src: &str) -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile(&pol).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        }
+
+        // `block exec "git" "commit"`: basename `git` (no `/`) normalizes to
+        // `**/git`, lowers to the exact matcher with literal `git`; the
+        // positional arg `commit` must land in the 24-byte kernel `arg` slot.
+        let cfg = config("rule r:\n  block exec \"git\" \"commit\" if true\n  because \"z\"\n");
+        assert_eq!(cfg.n_rules, 1, "one rule expected");
+        let r = &cfg.rules[0];
+        assert_eq!(r.op, OP_EXEC, "exec rule");
+        assert_eq!(r.m, M_EXACT, "`git` has no glob -> exact matcher");
+        assert_eq!(
+            r.target,
+            nuls::<PAT>("git"),
+            "basename `git` lowers to the exact target literal"
+        );
+        assert_eq!(
+            r.arg,
+            nuls::<ARG>("commit"),
+            "positional arg `commit` must be stored in the kernel arg slot"
+        );
+
+        // The no-arg form must leave `arg` all-zero (the kernel's "ignore argv"
+        // case, taint.h:134). This contrast is the mutation-catcher: a lowering
+        // bug that writes garbage into a missing arg, or drops a present one,
+        // flips one of these two assertions.
+        let cfg = config("rule r:\n  block exec \"git\" if true\n  because \"z\"\n");
+        assert_eq!(
+            cfg.rules[0].arg,
+            nuls::<ARG>(""),
+            "absent positional arg must leave the arg slot all-zero"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
