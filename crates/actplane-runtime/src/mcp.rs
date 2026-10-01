@@ -2992,4 +2992,60 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn restart_record(
+        policy: RestartPolicy,
+        last_exit_unix_ms: Option<u64>,
+        replacement_child_id: Option<u32>,
+    ) -> ChildRecord {
+        ChildRecord {
+            launch_id: "restart-scheduling-test".to_string(),
+            pid: std::process::id() as i32,
+            child_id: 901,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/actplane-restart-out.log"),
+            stderr: PathBuf::from("/tmp/actplane-restart-err.log"),
+            meta: PathBuf::from("/tmp/actplane-restart-meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: policy,
+            restart_count: 2,
+            restart_limit: 5,
+            restart_backoff_ms: 250,
+            last_exit_unix_ms,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        }
+    }
+
+    #[test]
+    fn restart_scheduling_computes_next_attempt_and_settings() {
+        // `next_restart_after_unix_ms`/`next_restart_settings` drive the
+        // supervision loop's restart backoff. Neither is called by any base or
+        // branch test.
+        let rec = restart_record(RestartPolicy::OnExit, Some(1000), None);
+        assert_eq!(rec.next_restart_after_unix_ms(), Some(1250));
+        let s = rec.next_restart_settings();
+        assert_eq!(s.policy, RestartPolicy::OnExit);
+        assert_eq!(s.count, 3);
+        assert_eq!(s.limit, 5);
+        assert_eq!(s.backoff_ms, 250);
+
+        // A replacement child already scheduled suppresses the next restart.
+        let replaced = restart_record(RestartPolicy::OnExit, Some(1000), Some(7));
+        assert_eq!(replaced.next_restart_after_unix_ms(), None);
+
+        // Never-restart policy suppresses regardless of exit time.
+        let never = restart_record(RestartPolicy::Never, Some(1000), None);
+        assert_eq!(never.next_restart_after_unix_ms(), None);
+
+        // OnExit without an observed exit time has no due timestamp yet.
+        let no_exit = restart_record(RestartPolicy::OnExit, None, None);
+        assert_eq!(no_exit.next_restart_after_unix_ms(), None);
+    }
 }
