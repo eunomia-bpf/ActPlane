@@ -625,4 +625,42 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+
+    fn meta_for(name: &str, reason: &str) -> dsl::RuleMeta {
+        dsl::RuleMeta {
+            name: name.to_string(),
+            reason: reason.to_string(),
+            effect: Effect::Notify,
+            ops: vec!["exec".to_string()],
+            clause_op: "exec".to_string(),
+            clause_source_index: 0,
+            kernel_op: "exec".to_string(),
+            target_kind: dsl::ast::Kind::Exec,
+            target_pattern: "git".to_string(),
+            target_arg: None,
+            source: None,
+        }
+    }
+
+    #[test]
+    fn contexts_from_compiled_copies_meta_and_labels() {
+        // `contexts_from_compiled` builds one feedback context per compiled rule
+        // over the shared label table; no base or branch test calls it.
+        let compiled = dsl::Compiled {
+            bytes: vec![1, 2, 3],
+            reasons: vec!["reason-a".to_string(), "reason-b".to_string()],
+            meta: vec![meta_for("r-a", "why a"), meta_for("r-b", "why b")],
+            labels: HashMap::from([("SECRET".to_string(), 1u64), ("TOKEN".to_string(), 2u64)]),
+            endpoint_resolutions: HashMap::new(),
+        };
+        let contexts = contexts_from_compiled(&compiled);
+        assert_eq!(contexts.len(), 2);
+        assert_eq!(contexts[0].meta.name, "r-a");
+        assert_eq!(contexts[0].meta.reason, "why a");
+        assert_eq!(contexts[1].meta.name, "r-b");
+        assert_eq!(contexts[1].meta.reason, "why b");
+        // Both contexts share the compiled label table.
+        assert_eq!(contexts[0].labels.get("SECRET"), Some(&1));
+        assert_eq!(contexts[1].labels.get("TOKEN"), Some(&2));
+    }
 }
