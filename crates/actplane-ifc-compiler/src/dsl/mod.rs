@@ -767,4 +767,28 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+
+    #[test]
+    fn make_clause_source_span_builds_a_one_based_line_span() {
+        // `make_clause_source_span` maps a 0-based line range `[start, end)`
+        // onto a 1-based source span: the recorded `start_line` is `start +
+        // 1`, the recorded `end_line` is `end`, and the text is the joined
+        // lines in `[start, end)`. No base test pins this mapping directly.
+        let lines: Vec<&str> = vec!["a", "b", "c", "d", "e"];
+        let s = make_clause_source_span(&lines, 1, 3);
+        assert_eq!(s.start_line, 2);
+        assert_eq!(s.end_line, 3);
+        assert_eq!(s.text, "b\nc");
+        // A single-line span: `start` and `end` coincide on the 0-based
+        // index, so `start_line` == `end_line`.
+        let s2 = make_clause_source_span(&lines, 0, 1);
+        assert_eq!(s2.start_line, 1);
+        assert_eq!(s2.end_line, 1);
+        assert_eq!(s2.text, "a");
+        // The exclusive end: the line at index `end` is not included.
+        let s3 = make_clause_source_span(&lines, 2, 4);
+        assert_eq!(s3.start_line, 3);
+        assert_eq!(s3.end_line, 4);
+        assert_eq!(s3.text, "c\nd");
+    }
 }
