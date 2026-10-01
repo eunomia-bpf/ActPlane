@@ -952,4 +952,21 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn mentions_no_git_push_flags_push_ban_phrasings() {
+        // `mentions_no_git_push` reports whether the lowercased task text
+        // carries an absolute no-push instruction, matching a fixed set of
+        // phrasings. No base or branch test pins this predicate directly.
+        assert!(mentions_no_git_push("do not push to origin"));
+        assert!(mentions_no_git_push("never push these commits"));
+        assert!(mentions_no_git_push("forbid git push"));
+        // The backtick-wrapped phrasing is a distinct needle.
+        assert!(mentions_no_git_push("do not run `git push`"));
+
+        // A plain instruction that is not a push ban is not flagged.
+        assert!(!mentions_no_git_push(
+            "run the test suite before committing"
+        ));
+        assert!(!mentions_no_git_push(""));
+    }
 }
