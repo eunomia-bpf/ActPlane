@@ -1072,3 +1072,33 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn join_policy_delta_fragments_joins_with_delta_headers() {
+        // `join_policy_delta_fragments` renders a policy delta as one block per
+        // source: `\n# delta <policy_ref>\n<src.trimmed>\n`. No base or branch
+        // test pins this joiner directly.
+        assert_eq!(join_policy_delta_fragments(Vec::new()), None);
+        assert_eq!(
+            join_policy_delta_fragments(vec![(
+                "main.dsl".to_string(),
+                "source main\n".to_string(),
+            )])
+            .expect("a delta list is Some"),
+            "\n# delta main.dsl\nsource main\n"
+        );
+        // Two fragments join in order, each with its own delta header.
+        assert_eq!(
+            join_policy_delta_fragments(vec![
+                ("a.dsl".to_string(), "  source a  ".to_string()),
+                ("b.dsl".to_string(), "source b\n".to_string()),
+            ])
+            .expect("a delta list is Some"),
+            "\n# delta a.dsl\nsource a\n\n# delta b.dsl\nsource b\n"
+        );
+    }
+}
