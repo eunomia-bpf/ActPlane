@@ -335,6 +335,39 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_out_of_vocabulary_unless_cond_is_rejected() {
+        // The `unless` clause accepts exactly three cond keywords: `target`,
+        // `lineage-includes`, and `after`. Anything else hits the
+        // catch-all `unknown unless cond '{w}'`. The unless cond is where
+        // the gate / lineage / since machinery lives, so a stray cond token
+        // (e.g. a misspelled `before`) is a common author mistake and must
+        // fail at parse time, not lower to a wrong `Cond`. Nobody pinned the
+        // closed cond-vocabulary guard.
+        use crate::dsl::parse::parse;
+        let err =
+            parse("rule r:\n  block exec \"git\" unless before exec \"/in\"\n  because \"z\"\n")
+                .expect_err("an unknown unless cond must be rejected");
+        assert_eq!(err, "unknown unless cond 'before'");
+
+        let err = parse("rule r:\n  block exec \"git\" unless when A\n  because \"z\"\n")
+            .expect_err("another unknown unless cond must be rejected");
+        assert_eq!(err, "unknown unless cond 'when'");
+
+        // Positive controls: each valid cond keyword parses and compiles.
+        for cond in [
+            "target \"x\"",
+            "lineage-includes exec \"/in\"",
+            "after exec \"/in\"",
+        ] {
+            let pol = parse(&format!(
+                "rule r:\n  block exec \"git\" unless {cond}\n  because \"z\"\n"
+            ))
+            .expect("a valid unless cond parses");
+            let _ = compile(&pol).expect("a valid unless cond compiles");
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
