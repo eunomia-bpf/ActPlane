@@ -335,6 +335,33 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_numeric_ipv4_pattern_packs_a_net_mask_or_returns_none() {
+        // `lower_numeric_ipv4` returns the `(net, mask)` pair only when the
+        // pattern's leading tokens are all octets; a non-numeric leading
+        // token (`api.internal`) or an empty string yields `None` (falling
+        // through to the `lower_ipv4` match-any default). Octets are packed
+        // little-endian: octet `k` into bit `8*k`. No base test pins the
+        // `None` returns or the partial/overflow packing.
+        // A hostname that merely contains dots is not a numeric IPv4.
+        assert_eq!(lower_numeric_ipv4("api.internal"), None);
+        // An empty pattern has no octets.
+        assert_eq!(lower_numeric_ipv4(""), None);
+        // A 3-octet prefix packs three octets into a 3-byte mask.
+        assert_eq!(lower_numeric_ipv4("1.2.3"), Some((0x00030201, 0x00FFFFFF)));
+        // Exactly four octets pack into a full /32.
+        assert_eq!(
+            lower_numeric_ipv4("1.2.3.4"),
+            Some((0x04030201, 0xFFFFFFFF))
+        );
+        // Tokens beyond the fourth are ignored, so a 6-token pattern packs
+        // identically to its first four octets.
+        assert_eq!(
+            lower_numeric_ipv4("1.2.3.4.5.6"),
+            lower_numeric_ipv4("1.2.3.4")
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
