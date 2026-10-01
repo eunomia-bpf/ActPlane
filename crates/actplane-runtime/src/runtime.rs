@@ -2108,4 +2108,38 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn load_child_policy_deltas_collects_files_then_inline() {
+        // `load_child_policy_deltas` collects child policy deltas from files
+        // followed by inline sources; no base or branch test calls it.
+        let dir = std::env::temp_dir().join(format!("actplane-deltas-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let a = dir.join("a.dsl");
+        let b = dir.join("b.dsl");
+        std::fs::write(&a, "rule a:\n  block exec \"git\"\n").unwrap();
+        std::fs::write(&b, "rule b:\n  kill write file \"/**\"\n").unwrap();
+
+        let deltas = load_child_policy_deltas(
+            &[a.clone(), b.clone()],
+            &["rule c:\n  notify connect endpoint \"*\"\n".to_string()],
+        )
+        .expect("deltas");
+        assert_eq!(deltas.len(), 3);
+        assert_eq!(deltas[0].0, a.display().to_string());
+        assert!(deltas[0].1.contains("rule a"));
+        assert_eq!(deltas[1].0, b.display().to_string());
+        assert!(deltas[1].1.contains("rule b"));
+        assert_eq!(deltas[2].0, "--delta-text[0]");
+        assert!(deltas[2].1.contains("rule c"));
+
+        // A missing file surfaces a read error naming the path.
+        let missing = dir.join("missing.dsl");
+        let err = load_child_policy_deltas(&[missing], &[])
+            .expect_err("missing file")
+            .to_string();
+        assert!(err.contains("cannot read child policy delta"), "{err}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
