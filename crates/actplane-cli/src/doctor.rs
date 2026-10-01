@@ -2591,4 +2591,56 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn render_dsl_cond_escapes_every_variant_through_dsl_literal() {
+        // `render_dsl_cond` renders a `Cond` to a DSL string, escaping every
+        // literal through `dsl_literal` (unlike `cond_summary`, which uses
+        // the raw text), and recurses for the `After` `since` events. No
+        // base or branch test pins this renderer directly.
+        assert_eq!(
+            render_dsl_cond(&Cond::Target {
+                negate: false,
+                pattern: "out.txt".into()
+            }),
+            "target \"out.txt\""
+        );
+        assert_eq!(
+            render_dsl_cond(&Cond::Target {
+                negate: true,
+                pattern: "out.txt".into()
+            }),
+            "target not \"out.txt\""
+        );
+        assert_eq!(
+            render_dsl_cond(&Cond::LineageIncludes {
+                exec: "agent".into()
+            }),
+            "lineage-includes exec \"agent\""
+        );
+
+        // `After` with an exit stamp and no `since`.
+        assert_eq!(
+            render_dsl_cond(&Cond::After {
+                gate_op: Op::Exec,
+                gate_pattern: "agent".into(),
+                gate_exit: Some(0),
+                since: Vec::new(),
+            }),
+            "after exec \"agent\" exits 0"
+        );
+
+        // `After` with two `since` events, escaped through `dsl_literal`.
+        assert_eq!(
+            render_dsl_cond(&Cond::After {
+                gate_op: Op::Open,
+                gate_pattern: "policy.dsl".into(),
+                gate_exit: None,
+                since: vec![
+                    (Op::Exec, "agent".into(), None),
+                    (Op::Connect, "10.0.0.0/8".into(), Some("r".into())),
+                ],
+            }),
+            "after open \"policy.dsl\" since exec \"agent\" or connect \"10.0.0.0/8\" \"r\""
+        );
+    }
 }
