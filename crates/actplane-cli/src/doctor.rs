@@ -2591,4 +2591,89 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn endpoint_support_detail_covers_all_resolution_branches() {
+        // `endpoint_support_detail` reports support for an endpoint pattern:
+        // numeric IPv4, a hostname that resolved to IPv4, a hostname with an
+        // empty resolution, and an unresolvable pattern. No base or branch
+        // test pins this directly.
+        use std::collections::HashMap;
+
+        let empty = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+
+        // Numeric IPv4.
+        assert_eq!(
+            endpoint_support_detail(&empty, "10.0.0.7", "source"),
+            (
+                true,
+                "endpoint source matches numeric IPv4 connect and recv paths".to_string(),
+                vec!["IPv6 is not enforced in-kernel"]
+            )
+        );
+
+        // A hostname that resolved to IPv4 addresses.
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::from([(
+                "example.com".to_string(),
+                vec!["93.184.215.14".to_string(), "93.184.215.15".to_string()],
+            )]),
+        };
+        assert_eq!(
+            endpoint_support_detail(&compiled, "example.com", "source"),
+            (
+                true,
+                "endpoint source hostname resolved to IPv4 address(es): \
+                 93.184.215.14, 93.184.215.15"
+                    .to_string(),
+                vec![
+                    "hostname is resolved at policy compile/load time",
+                    "DNS changes require policy reload",
+                    "IPv6 addresses are ignored",
+                ]
+            )
+        );
+
+        // A hostname with an empty resolution list.
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::from([("bad.host".to_string(), Vec::new())]),
+        };
+        assert_eq!(
+            endpoint_support_detail(&compiled, "bad.host", "source"),
+            (
+                false,
+                "endpoint source hostname did not resolve to an IPv4 address".to_string(),
+                vec![
+                    "hostname is resolved at policy compile/load time",
+                    "DNS changes require policy reload",
+                    "IPv6 addresses are ignored",
+                ]
+            )
+        );
+
+        // A pattern that is neither numeric IPv4 nor a known hostname.
+        assert_eq!(
+            endpoint_support_detail(&empty, "wildcard.*", "source"),
+            (
+                false,
+                "endpoint source pattern is not numeric IPv4 or an exact \
+                 resolvable hostname"
+                    .to_string(),
+                vec!["wildcard hostnames and IPv6 are not enforced in-kernel"]
+            )
+        );
+    }
 }
