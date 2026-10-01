@@ -343,3 +343,62 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn p(s: &str) -> P {
+        P {
+            t: lex(s).unwrap(),
+            i: 0,
+        }
+    }
+
+    #[test]
+    fn expr_folds_guard_terms_left_associatively_without_precedence() {
+        // `expr` parses the `when` guard: a `term` (a `not <label>` / `true`
+        // / bare label) folded left-to-right over `and`/`or`. The two
+        // operators share a single precedence level, so `and` does not bind
+        // tighter than `or`; each folds into a left-associative tree. No
+        // test in any open or merged branch pins this fold shape directly.
+        let e = |s: &str| p(s).expr().expect("guard parses");
+
+        assert_eq!(e("A"), Expr::Label("A".into()));
+        assert_eq!(e("true"), Expr::True);
+        assert_eq!(e("not X"), Expr::Not("X".into()));
+        assert_eq!(
+            e("A and B"),
+            Expr::And(
+                Box::new(Expr::Label("A".into())),
+                Box::new(Expr::Label("B".into()))
+            )
+        );
+
+        // `and` and `or` are the same precedence: `A and B or C` parses as
+        // `Or(And(A, B), C)`, not `Or(A, And(B, C))` and not a precedence
+        // tree.
+        assert_eq!(
+            e("A and B or C"),
+            Expr::Or(
+                Box::new(Expr::And(
+                    Box::new(Expr::Label("A".into())),
+                    Box::new(Expr::Label("B".into())),
+                )),
+                Box::new(Expr::Label("C".into())),
+            )
+        );
+
+        // Three `and`s nest left-associatively.
+        assert_eq!(
+            e("A and B and C"),
+            Expr::And(
+                Box::new(Expr::And(
+                    Box::new(Expr::Label("A".into())),
+                    Box::new(Expr::Label("B".into())),
+                )),
+                Box::new(Expr::Label("C".into())),
+            )
+        );
+    }
+}
