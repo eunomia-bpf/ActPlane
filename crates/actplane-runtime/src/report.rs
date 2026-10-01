@@ -625,4 +625,63 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+
+    #[test]
+    fn to_violation_maps_kernel_effects_and_provenance() {
+        // `to_violation` translates the eBPF crate's violation into the runtime
+        // reporting struct; no base or branch test calls it.
+        let kernel = |effect, provenance| ebpf_ifc_engine::Violation {
+            effect,
+            blocked: true,
+            killed: false,
+            comm: "git".to_string(),
+            pid: 11,
+            ppid: 1,
+            target: "/usr/bin/git".to_string(),
+            rule_id: 7,
+            op: 2,
+            domain_id: 5,
+            session_root: 11,
+            label: 4,
+            matched_label: 4,
+            matched_labels: 4,
+            provenance,
+            timestamp_ns: 99,
+        };
+
+        let no_prov = to_violation(&kernel(2, None));
+        assert_eq!(no_prov.rule_id, 7);
+        assert_eq!(no_prov.op, Some(2));
+        assert_eq!(no_prov.domain_id, Some(5));
+        assert_eq!(no_prov.session_root, Some(11));
+        assert_eq!(no_prov.effect.as_deref(), Some("kill"));
+        assert_eq!(no_prov.blocked, Some(true));
+        assert_eq!(no_prov.killed, Some(false));
+        assert_eq!(no_prov.matched_labels, Some(4));
+        assert!(no_prov.provenance.is_none());
+
+        // Effect code 3 is outside the known set.
+        assert_eq!(
+            to_violation(&kernel(3, None)).effect.as_deref(),
+            Some("unknown")
+        );
+
+        let with_prov = to_violation(&kernel(
+            1,
+            Some(ebpf_ifc_engine::Provenance {
+                label: 4,
+                timestamp_ns: 123,
+                pid: 42,
+                op: 3,
+                target: "10.0.0.1".to_string(),
+            }),
+        ));
+        assert_eq!(with_prov.effect.as_deref(), Some("block"));
+        let p = with_prov.provenance.expect("provenance");
+        assert_eq!(p.label, 4);
+        assert_eq!(p.pid, 42);
+        assert_eq!(p.op, 3);
+        assert_eq!(p.target, "10.0.0.1");
+        assert_eq!(p.timestamp_ns, 123);
+    }
 }
