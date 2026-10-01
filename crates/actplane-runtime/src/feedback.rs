@@ -204,4 +204,16 @@ mod tests {
         assert!(s.contains("acquired label SECRET"));
         assert!(s.contains("current `connect` `1.2.3.4` operation"));
     }
+    #[test]
+    fn json_str_quotes_and_escapes_like_json_string() {
+        // `json_str` renders a `&str` as a JSON string literal (quoted, with
+        // control characters and backslashes escaped) for embedding into
+        // feedback payloads. No base or branch test pins the quoting/escape
+        // behavior directly.
+        assert_eq!(json_str("hello"), "\"hello\"");
+        assert_eq!(json_str(""), "\"\"");
+        assert_eq!(json_str("a\"b"), "\"a\\\"b\"");
+        assert_eq!(json_str("a\nb"), "\"a\\nb\"");
+        assert_eq!(json_str("a\\b"), "\"a\\\\b\"");
+    }
 }
