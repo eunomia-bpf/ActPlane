@@ -698,4 +698,24 @@ mod tests {
             .to_string();
         assert!(err.contains("unsupported by the current DSL string syntax"));
     }
+    #[test]
+    fn validate_value_rejects_unsupported_characters() {
+        // `validate_value` accepts a non-empty template parameter value and
+        // rejects empty values plus any character the current DSL string
+        // syntax cannot carry. No base or branch test pins this validator
+        // directly.
+        assert!(validate_value("agent_exec", "codex").is_ok());
+        assert!(validate_value("agent_exec", "a/b c-9").is_ok());
+
+        // Empty value is rejected.
+        assert!(validate_value("agent_exec", "").is_err());
+
+        // Each unsupported character is rejected.
+        for bad in ["a\"b", "a\nb", "a\rb", "a{b", "a}b"] {
+            assert!(
+                validate_value("agent_exec", bad).is_err(),
+                "{bad:?} should be rejected"
+            );
+        }
+    }
 }
