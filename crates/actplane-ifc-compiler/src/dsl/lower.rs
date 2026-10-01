@@ -335,6 +335,20 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_nested_exec_path_lowers_to_its_basename_not_the_full_path() {
+        // `lower_exec` matches on `comm` (the basename), so any nested path
+        // -- relative or absolute -- is lowered through the `rsplit('/')`
+        // basename arm (lower.rs:102) rather than kept as a full path. A
+        // trailing star on the basename becomes a prefix on the stripped
+        // name. No base test pins these multi-segment lowerings; the base
+        // tests only cover single-component names.
+        assert_eq!(lower_exec("bin/git"), (M_EXACT, "git".into()));
+        assert_eq!(lower_exec("/usr/local/bin/ls"), (M_EXACT, "ls".into()));
+        // A star on the basename lowers to a prefix on the stripped name.
+        assert_eq!(lower_exec("bin/node*"), (M_PREFIX, "node".into()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
