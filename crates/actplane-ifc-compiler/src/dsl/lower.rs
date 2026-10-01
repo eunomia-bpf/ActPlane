@@ -335,6 +335,27 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_unterminated_string_is_rejected() {
+        // A quoted string token is lexed by scanning to the closing `"`. If
+        // the lexer reaches end-of-input first, the token is rejected with
+        // "unterminated string". This is the most common author error in a
+        // hand-edited policy, and a silent lexer recovery that swallowed the
+        // rest of the buffer as one token would miscompile every following
+        // declaration. Nobody pinned the guard.
+        use crate::dsl::parse::parse;
+        // The exec-pattern string is opened but never closed: the scanner
+        // runs to end-of-input and the `z` token is absorbed into the string.
+        let err = parse("rule r:\n  block exec \"git because \"z\"\n")
+            .expect_err("an unterminated string must be rejected");
+        assert_eq!(err, "unterminated string");
+
+        // Positive control: a fully-terminated string parses and compiles.
+        let pol = parse("rule r:\n  block exec \"git\" because \"z\"\n")
+            .expect("a terminated string parses");
+        let _ = compile(&pol).expect("a terminated-string policy compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
