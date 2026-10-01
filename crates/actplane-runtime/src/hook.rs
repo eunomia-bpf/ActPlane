@@ -323,4 +323,41 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    fn env_path_or_uses_env_then_default_and_absolutizes() {
+        // `env_path_or` resolves an env override or a default relative to cwd;
+        // no base or branch test calls it.
+        let cwd = Path::new("/base");
+        // `set_var` is process-global (`unsafe` in edition 2024); a
+        // test-specific key avoids collisions with other tests.
+        unsafe { std::env::set_var("ACT_TEST_ENV_PATH_OR", "rel/from-env.txt") };
+        assert_eq!(
+            env_path_or("ACT_TEST_ENV_PATH_OR", cwd, "fallback.txt"),
+            PathBuf::from("/base/rel/from-env.txt")
+        );
+        unsafe { std::env::set_var("ACT_TEST_ENV_PATH_OR", "/abs/from-env.txt") };
+        assert_eq!(
+            env_path_or("ACT_TEST_ENV_PATH_OR", cwd, "fallback.txt"),
+            PathBuf::from("/abs/from-env.txt")
+        );
+        unsafe { std::env::remove_var("ACT_TEST_ENV_PATH_OR") };
+        assert_eq!(
+            env_path_or("ACT_TEST_ENV_PATH_OR", cwd, "fallback.txt"),
+            PathBuf::from("/base/fallback.txt")
+        );
+    }
+
+    #[test]
+    fn is_descendant_of_walks_proc_ppid_chain() {
+        // `is_descendant_of` walks the live /proc ppid chain; no base or branch
+        // test calls it.
+        let me = std::process::id() as i32;
+        let ppid = parent_pid(me).expect("self ppid");
+        assert!(ppid > 0);
+        assert!(is_descendant_of(me, me));
+        assert!(is_descendant_of(me, ppid));
+        assert!(!is_descendant_of(ppid, me));
+        assert!(!is_descendant_of(1, me));
+    }
 }
