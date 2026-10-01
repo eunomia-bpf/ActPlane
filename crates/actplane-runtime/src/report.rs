@@ -625,4 +625,27 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+
+    #[test]
+    fn violation_accessors_expose_rule_and_domain_id() {
+        // `Violation::rule_id` / `domain_id` exposes the kernel fields; no base
+        // or branch test calls them.
+        let mut value = serde_json::json!({
+            "pid": 10,
+            "ppid": 1,
+            "comm": "git",
+            "target": "git",
+            "rule_id": 7,
+            "taint_label": 1u64,
+            "matched_label": 1u64,
+        });
+        let v: Violation = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(v.rule_id(), 7);
+        assert_eq!(v.domain_id(), None);
+
+        value["domain_id"] = serde_json::json!(23);
+        let v: Violation = serde_json::from_value(value).unwrap();
+        assert_eq!(v.rule_id(), 7);
+        assert_eq!(v.domain_id(), Some(23));
+    }
 }
