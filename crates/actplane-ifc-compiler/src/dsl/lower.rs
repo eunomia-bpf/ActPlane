@@ -335,6 +335,162 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// `unless target PAT` lowers into the `CRule` condition bytes that the
+    /// kernel's `te_cond_satisfied` reads (taint_engine.bpf.h:2094-2102):
+    /// `cond_kind`/`cond_neg` select the suppression, and either
+    /// `cond_match`/`cond_pat` (path/exec targets) or `cond_ipv4`/`cond_ipv4_mask`
+    /// (connect/recv targets) carry the pattern. `te_rule_effect` *skips* the
+    /// rule when the condition is satisfied (taint_engine.bpf.h:2158), so a
+    /// flipped `cond_neg`, a `cond_ipv4` leaked onto a path rule, or a swapped
+    /// target/condition pattern silently turns "block except in /work" into
+    /// "block in /work" (or the inverse) with no blob-size symptom. The
+    /// existing e4/e5-style tests only assert these policies *compile*; they
+    /// never read these bytes.
+    #[test]
+    fn unless_target_condition_bytes_stay_in_the_cond_region() {
+        // Non-network: the condition pattern routes to cond_match/cond_pat,
+        // never to cond_ipv4, and never into the rule's own target field.
+        let pol = crate::dsl::parse::parse(
+            r#"
+            source AGENT = exec "**/codex"
+            rule confine-writes:
+              block write file "/**" if AGENT unless target "/work/**"
+              because "agent may only modify /work"
+            "#,
+        )
+        .expect("parse confine policy");
+        let compiled = compile(&pol).expect("compile confine policy");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let cr = &cfg.rules[0];
+        assert_eq!(cr.op, OP_WRITE);
+
+        // The suppression is an un-negated target condition.
+        assert_eq!(
+            cr.cond_kind, C_TARGET,
+            "`unless target` must set TCOND_TARGET"
+        );
+        assert_eq!(cr.cond_neg, 0, "a plain `unless target` is not negated");
+
+        // The condition pattern goes to cond_pat, the rule target to `target`,
+        // and the connect-only fields stay zero on a path rule.
+        let (cm, clit) = lower_path("/work/**");
+        let (tm, tlit) = lower_path("/**");
+        assert_eq!(cr.cond_match, cm);
+        assert_eq!(cr.m, tm);
+        let mut want_cond = [0u8; PAT];
+        set_pat(&mut want_cond, &clit);
+        assert_eq!(
+            cr.cond_pat, want_cond,
+            "the condition pattern must land in cond_pat"
+        );
+        let mut want_tgt = [0u8; PAT];
+        set_pat(&mut want_tgt, &tlit);
+        assert_eq!(cr.target, want_tgt, "the rule target must stay in `target`");
+        assert_eq!(cr.cond_ipv4, 0, "a path rule must not carry a cond IPv4");
+        assert_eq!(
+            cr.cond_ipv4_mask, 0,
+            "a path rule must not carry a cond mask"
+        );
+
+        // The `when` mask region is orthogonal: the rule still requires the
+        // AGENT source bit.
+        assert_eq!(
+            cr.req,
+            compiled.labels.get("AGENT").copied().expect("AGENT bit")
+        );
+
+        // Control: a clause with no `unless` leaves the whole cond region in
+        // its C_NONE / zeroed default state.
+        let pol2 = crate::dsl::parse::parse(
+            r#"
+            source AGENT = exec "**/codex"
+            rule all-writes:
+              block write file "/**" if AGENT
+              because "no writes anywhere"
+            "#,
+        )
+        .expect("parse no-unless policy");
+        let c2: CConfig = unsafe {
+            std::ptr::read_unaligned(compile(&pol2).expect("ok").bytes.as_ptr() as *const CConfig)
+        };
+        let r2 = &c2.rules[0];
+        assert_eq!(r2.cond_kind, C_NONE, "no `unless` must leave TCOND_NONE");
+        assert_eq!(r2.cond_neg, 0);
+        let mut empty = [0u8; PAT];
+        assert_eq!(r2.cond_pat, empty);
+        assert_eq!(r2.cond_ipv4, 0);
+        assert_eq!(r2.cond_ipv4_mask, 0);
+    }
+
+    /// On connect/recv the condition pattern is a numeric endpoint and routes to
+    /// `cond_ipv4`/`cond_ipv4_mask` (not `cond_pat`), with `cond_neg` carrying
+    /// `not`. The kernel applies the negation at match time (`cond_neg ? !m : m`,
+    /// taint_engine.bpf.h:2102), so a negated single-IP condition must keep the
+    /// address set and flip only `cond_neg` -- zeroing the address would invert
+    /// the match against a `0/0` instead of negating it.
+    #[test]
+    fn connect_unless_target_routes_pattern_into_cond_ipv4() {
+        // The rule's own target endpoint and the condition endpoint differ, so a
+        // swap between the rule's `ipv4` and `cond_ipv4` is observable.
+        let pol = crate::dsl::parse::parse(
+            r#"
+            source NET = endpoint "127.0.0.1"
+            rule egress:
+              block connect endpoint "8.8.8.8" if NET unless target "10.0.0.0"
+              because "no egress to 10/8"
+            "#,
+        )
+        .expect("parse egress policy");
+        let compiled = compile(&pol).expect("compile egress policy");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let cr = &cfg.rules[0];
+        assert_eq!(cr.op, OP_CONNECT);
+        assert_eq!(cr.cond_kind, C_TARGET);
+        assert_eq!(cr.cond_neg, 0);
+
+        let (tgt_ip, tgt_mask) = lower_numeric_ipv4("8.8.8.8").expect("8.8.8.8 numeric");
+        let (cond_ip, cond_mask) = lower_numeric_ipv4("10.0.0.0").expect("10.0.0.0 numeric");
+        assert_eq!(cr.ipv4, tgt_ip, "the rule target keeps its own endpoint");
+        assert_eq!(cr.ipv4_mask, tgt_mask);
+        assert_eq!(
+            cr.cond_ipv4, cond_ip,
+            "the condition endpoint lands in cond_ipv4"
+        );
+        assert_eq!(cr.cond_ipv4_mask, cond_mask);
+        assert_ne!(
+            cr.ipv4, cr.cond_ipv4,
+            "target and condition endpoints must differ"
+        );
+        // A connect condition carries no cond_pat; its matcher stays the default.
+        assert_eq!(cr.cond_match, M_EXACT);
+        let mut empty = [0u8; PAT];
+        assert_eq!(cr.cond_pat, empty);
+
+        // `not` flips only cond_neg; the address stays set (the kernel negates).
+        let pol2 = crate::dsl::parse::parse(
+            r#"
+            source NET = endpoint "127.0.0.1"
+            rule allow-hosts:
+              block connect endpoint "*" if NET unless target not "127.0.0.1"
+              because "everything except localhost"
+            "#,
+        )
+        .expect("parse allow policy");
+        let c2: CConfig = unsafe {
+            std::ptr::read_unaligned(compile(&pol2).expect("ok").bytes.as_ptr() as *const CConfig)
+        };
+        let r2 = &c2.rules[0];
+        let (lo_ip, lo_mask) = lower_numeric_ipv4("127.0.0.1").expect("localhost numeric");
+        assert_eq!(r2.cond_neg, 1, "`not` must set cond_neg");
+        assert_eq!(
+            r2.cond_ipv4, lo_ip,
+            "negation must keep the address, not zero it"
+        );
+        assert_eq!(r2.cond_ipv4_mask, lo_mask);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
