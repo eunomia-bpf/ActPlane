@@ -952,4 +952,28 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn mentions_protected_push_approval_requires_context_and_push_or_protected() {
+        // `mentions_protected_push_approval` reports whether the lowercased
+        // task text asks for a protected-push approval: a push-approval
+        // context, AND either an explicit git-push / push-approval needle or
+        // a protected-branch / release-branch context. No base or branch
+        // test pins this predicate directly.
+        assert!(mentions_protected_push_approval(
+            "git push requires approval"
+        ));
+        assert!(mentions_protected_push_approval("approval for git push"));
+        // Push-approval context plus a protected-branch context.
+        assert!(mentions_protected_push_approval(
+            "push to master with push approval"
+        ));
+
+        // A git-push context without any push-approval context is not a
+        // match.
+        assert!(!mentions_protected_push_approval("git push the branch"));
+        assert!(!mentions_protected_push_approval(
+            "run the test suite before commit"
+        ));
+        assert!(!mentions_protected_push_approval(""));
+    }
 }
