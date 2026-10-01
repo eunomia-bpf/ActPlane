@@ -323,4 +323,34 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    fn hook_state_round_trips_through_atomic_store() {
+        // `store_hook_state` writes atomically via a `.tmp` rename and
+        // `load_hook_state` parses it back; neither had any call.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("nested").join("hook-state.json");
+        assert!(load_hook_state(&path).is_none());
+
+        let state = HookState {
+            feedback_file: Some("/tmp/proj/feedback.txt".to_string()),
+            root_pid: Some(4242),
+            offset: Some(17),
+        };
+        store_hook_state(&path, &state).expect("store");
+        // Intermediate temp file is gone after the rename.
+        assert!(!path.with_extension("tmp").exists());
+
+        let loaded = load_hook_state(&path).expect("load");
+        assert_eq!(
+            loaded.feedback_file.as_deref(),
+            Some("/tmp/proj/feedback.txt")
+        );
+        assert_eq!(loaded.root_pid, Some(4242));
+        assert_eq!(loaded.offset, Some(17));
+
+        // Malformed content parses to None rather than panicking.
+        std::fs::write(&path, b"{ not json").unwrap();
+        assert!(load_hook_state(&path).is_none());
+    }
 }
