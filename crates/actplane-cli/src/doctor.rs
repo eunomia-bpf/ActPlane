@@ -2591,4 +2591,61 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn render_check_error_json_reports_the_failure_record() {
+        // `render_check_error_json` renders the failed compile record: the
+        // actplane.compile.v1 schema, ok=false, the policy ref, the (optional)
+        // domain, and the error message, as pretty JSON with a trailing
+        // newline. No base or branch test pins this renderer directly.
+        let no_domain = ResolvedPolicy {
+            source: "policy.dsl".to_string(),
+            domain: None,
+        };
+        let got =
+            render_check_error_json("policy.dsl", Some(&no_domain), "unknown label: e1").unwrap();
+        assert!(got.ends_with('\n'));
+        let parsed: serde_json::Value =
+            serde_json::from_str(&got).expect("error json is valid JSON");
+        assert_eq!(
+            parsed,
+            json!({
+                "schema": "actplane.compile.v1",
+                "ok": false,
+                "policy_ref": "policy.dsl",
+                "domain": null,
+                "error": "unknown label: e1",
+            })
+        );
+
+        // A resolved domain is embedded as the same object `domain_json` renders.
+        let with_domain = ResolvedPolicy {
+            source: "web.dsl".to_string(),
+            domain: Some(DomainSummary {
+                name: "web".to_string(),
+                parent: Some("app".to_string()),
+                disabled: vec!["legacy".to_string()],
+                locked: vec!["egress".to_string()],
+                defaults: vec!["audit".to_string()],
+            }),
+        };
+        let got = render_check_error_json("web.dsl", Some(&with_domain), "no egress").unwrap();
+        let parsed: serde_json::Value =
+            serde_json::from_str(&got).expect("error json is valid JSON");
+        assert_eq!(
+            parsed,
+            json!({
+                "schema": "actplane.compile.v1",
+                "ok": false,
+                "policy_ref": "web.dsl",
+                "domain": {
+                    "name": "web",
+                    "parent": "app",
+                    "locked": ["egress"],
+                    "default": ["audit"],
+                    "disabled": ["legacy"],
+                },
+                "error": "no egress",
+            })
+        );
+    }
 }
