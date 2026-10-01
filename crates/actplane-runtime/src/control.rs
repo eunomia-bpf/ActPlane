@@ -380,4 +380,37 @@ mod tests {
         let err = send_request(dir.path(), json!({ "op": "status" })).unwrap_err();
         assert!(err.to_string().contains("stale ActPlane control state"));
     }
+
+    #[test]
+    fn read_state_parses_control_json_and_reports_errors() {
+        // `read_state` reads and parses the project control state file; no base
+        // or branch test calls it directly.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = read_state(dir.path()).unwrap_err().to_string();
+        assert!(missing.contains("read"), "{missing}");
+        assert!(missing.contains("control.json"), "{missing}");
+
+        let path = state_path(dir.path());
+        std::fs::create_dir_all(path.parent().expect("parent")).unwrap();
+        let state = ControlState {
+            schema: "actplane.control.v1".to_string(),
+            pid: 4242,
+            proc_start_time: Some(99),
+            socket_path: PathBuf::from("/tmp/actplane-test.sock"),
+            project_dir: dir.path().to_path_buf(),
+            parent_pid: 7,
+            parent_domain_id: 3,
+        };
+        std::fs::write(&path, serde_json::to_string(&state).unwrap()).unwrap();
+
+        let parsed = read_state(dir.path()).expect("state");
+        assert_eq!(parsed.pid, 4242);
+        assert_eq!(parsed.parent_domain_id, 3);
+        assert_eq!(parsed.socket_path, PathBuf::from("/tmp/actplane-test.sock"));
+
+        // Malformed JSON surfaces a parse error naming the path.
+        std::fs::write(&path, "{ not json").unwrap();
+        let bad = read_state(dir.path()).unwrap_err().to_string();
+        assert!(bad.contains("parse"), "{bad}");
+    }
 }
