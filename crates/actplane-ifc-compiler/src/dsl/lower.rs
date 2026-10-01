@@ -335,6 +335,71 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn lineage_cond_lowers_to_c_lineage() {
+        // `lineage-includes` is the last uncovered value of the kernel
+        // `cond_kind` enum (TCOND_LINEAGE = 1): the deny is relaxed only if the
+        // gate bit was set in an *ancestor* process mask. #57 pins C_AFTER and
+        // C_TARGET; this pins the LINEAGE byte and the gate it stamps.
+        let pol = crate::dsl::parse::parse(
+            "rule r:\n\
+             block exec \"git\" unless lineage-includes exec \"**/pytest\"\n\
+             because \"allow commits once the test suite has run\"\n",
+        )
+        .expect("parse lineage policy");
+        let compiled = compile(&pol).expect("compile lineage policy");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        assert_eq!(cfg.n_rules, 1, "one clause, no labels => one rule");
+        assert_eq!(cfg.n_updates, 1, "one lineage gate => one update");
+        assert_eq!(
+            cfg.rules[0].cond_kind, C_LINEAGE,
+            "`lineage-includes` lowers to TCOND_LINEAGE"
+        );
+        assert_eq!(cfg.rules[0].cond_neg, 0, "lineage cond carries no negation");
+        assert_eq!(cfg.rules[0].gate, 1u64, "lineage gate is the slot-0 bit");
+        assert_eq!(cfg.rules[0].gate_idx, 0, "lineage gate sits in slot 0");
+        // A lineage gate latches on ancestry, not on a matching exit status,
+        // so it stamps TAINT_GATE_IMMEDIATE (-1), never a concrete code.
+        assert_eq!(cfg.updates[0].op, OP_EXEC, "lineage gate is an exec event");
+        assert_eq!(
+            cfg.updates[0].m, M_EXACT,
+            "`**/pytest` -> exact comm `pytest`"
+        );
+        assert_eq!(
+            &cfg.updates[0].target[..6],
+            "pytest".as_bytes(),
+            "lineage gate target literal"
+        );
+        assert_eq!(
+            cfg.updates[0].gate_exit_code, GATE_IMMEDIATE,
+            "lineage gate stamps immediate (-1), not an exit status"
+        );
+        assert_eq!(cfg.updates[0].gates, 1u64, "slot 0 => bit 1<<0");
+        // Contrast: a clause with no `unless` leaves cond_kind at TCOND_NONE and
+        // produces no gate update at all.
+        let pol2 = crate::dsl::parse::parse(
+            "rule r:\n\
+             block exec \"git\"\n\
+             because \"deny commits outright\"\n",
+        )
+        .expect("parse label-free policy");
+        let cfg2: CConfig = unsafe {
+            std::ptr::read_unaligned(
+                compile(&pol2)
+                    .expect("compile label-free policy")
+                    .bytes
+                    .as_ptr() as *const CConfig,
+            )
+        };
+        assert_eq!(cfg2.n_rules, 1);
+        assert_eq!(cfg2.n_updates, 0, "no cond => no gate update");
+        assert_eq!(
+            cfg2.rules[0].cond_kind, C_NONE,
+            "no `unless` leaves cond_kind at TCOND_NONE"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
