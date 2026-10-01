@@ -335,6 +335,50 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn label_bits_are_assigned_in_sorted_name_order() {
+        // Label -> bit assignment is a pure function of the *sorted* label-name
+        // set (collect_label_names, lower.rs:812), not the order the author
+        // wrote the `source` lines. So A, B, C hold bits 0, 1, 2 regardless of
+        // source order, and the kernel req/forbid/add masks are reproducible.
+        // The engine matches on these masks, so a regression that assigned bits
+        // by first-encounter would silently move which operations each rule
+        // covers. To make the ordering observable, the sources are declared in
+        // reverse-sorted order (B, C, A); declaration-encounter assignment would
+        // put B=0x1, C=0x2, A=0x4, while the sorted order below pins B=0x2,
+        // C=0x4, A=0x1.
+        let pol = crate::dsl::parse::parse(
+            r#"
+            source B = exec "b"
+            source C = exec "c"
+            source A = exec "a"
+            rule r:
+              notify write file "/sink" if B or C or A
+            "#,
+        )
+        .expect("parse sources");
+        let compiled = compile(&pol).expect("compile sources");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        assert_eq!(cfg.n_rules, 3);
+        // `or` is left-associative (parse.rs:150), so the three disjunct rules
+        // are B, C, A; sorted bits A=0x1, B=0x2, C=0x4 put them at 0x2, 0x4, 0x1.
+        assert_eq!(cfg.rules[0].req, 0x2, "B should hold bit 1");
+        assert_eq!(cfg.rules[1].req, 0x4, "C should hold bit 2");
+        assert_eq!(cfg.rules[2].req, 0x1, "A should hold bit 0");
+        for r in &cfg.rules[..3] {
+            assert_eq!(r.forbid, 0, "these disjuncts only require, never forbid");
+        }
+        // The three source updates carry the same sorted bits (as a set, since
+        // the updates table is emitted in source-line order).
+        let mut add: Vec<u64> = cfg.updates[..cfg.n_updates as usize]
+            .iter()
+            .map(|u| u.add)
+            .collect();
+        add.sort();
+        assert_eq!(add, vec![0x1, 0x2, 0x4]);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
