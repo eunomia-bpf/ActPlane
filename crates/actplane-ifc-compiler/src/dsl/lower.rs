@@ -335,6 +335,77 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn positional_arg_truncates_to_the_kernel_arg_slot() {
+        // The parse layer accepts an arbitrarily-long quoted positional arg token
+        // (a `Tok::Str` with no length guard) and there is no arg-length compile
+        // error, so a too-long arg is truncated rather than rejected. The kernel
+        // stores it in a fixed `char arg[TAINT_ARG_LEN]` slot (TAINT_ARG_LEN = 24,
+        // taint.h), so set_pat keeps the first ARG-1 = 23 bytes and NUL-pads the
+        // rest. A regression that dropped that truncation -- or wrote past the
+        // NUL -- would corrupt the C-ABI arg field the kernel's exec argv matcher
+        // reads. #56 pins only the fitting short arg; the overflow boundary is
+        // unclaimed.
+        fn arg_field(kept: &str) -> [u8; ARG] {
+            let mut out = [0u8; ARG];
+            out[..kept.len()].copy_from_slice(kept.as_bytes());
+            out
+        }
+        let config = |src: &str| -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile(&pol).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        };
+
+        // 22 chars fits inside the 23-char data region: stored verbatim.
+        let cfg = config(
+            "rule r:\n  block exec \"git\" \"abcdefghijklmnopqrstuv\" if true\n  because \"z\"\n",
+        );
+        assert_eq!(
+            cfg.rules[0].arg,
+            arg_field("abcdefghijklmnopqrstuv"),
+            "a 22-char arg fits and is stored verbatim"
+        );
+
+        // 23 chars is the exact data region: the NUL lands on the slot's last byte.
+        let cfg = config(
+            "rule r:\n  block exec \"git\" \"abcdefghijklmnopqrstuvw\" if true\n  because \"z\"\n",
+        );
+        assert_eq!(
+            cfg.rules[0].arg,
+            arg_field("abcdefghijklmnopqrstuvw"),
+            "a 23-char arg fills the data region, NUL on the last byte"
+        );
+
+        // 25 chars overflows: only the first 23 bytes survive, NUL at index 23.
+        let cfg = config(
+            "rule r:\n  block exec \"git\" \"abcdefghijklmnopqrstuvwxy\" if true\n  because \"z\"\n",
+        );
+        assert_eq!(
+            cfg.rules[0].arg,
+            arg_field("abcdefghijklmnopqrstuvw"),
+            "a 25-char arg truncates to the first 23 bytes"
+        );
+
+        // 40 chars: the same boundary -- first 23 of 40 kept.
+        let cfg = config(
+            "rule r:\n  block exec \"git\" \"0123456789012345678901234567890123456789\" if true\n  because \"z\"\n",
+        );
+        assert_eq!(
+            cfg.rules[0].arg,
+            arg_field("01234567890123456789012"),
+            "a 40-char arg truncates to the first 23 bytes"
+        );
+
+        // An absent arg leaves the slot all-zero (the kernel's \"ignore argv\" case).
+        let cfg = config("rule r:\n  block exec \"git\" if true\n  because \"z\"\n");
+        assert_eq!(
+            cfg.rules[0].arg,
+            arg_field(""),
+            "an absent arg leaves the slot all-zero"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
