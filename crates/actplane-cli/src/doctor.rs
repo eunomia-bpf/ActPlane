@@ -2591,4 +2591,32 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn numeric_ipv4_endpoint_recognizes_wildcard_and_valid_quads() {
+        // `endpoint_pattern_is_numeric_ipv4` short-circuits on the `*`
+        // wildcard, then trims a single trailing dot and requires every
+        // dot-separated octet to parse as a `u8`, with 1..=4 octets total.
+        // No base or branch test pins this predicate directly.
+        assert!(endpoint_pattern_is_numeric_ipv4("*"));
+
+        // 1..=4 octets, each within a byte.
+        assert!(endpoint_pattern_is_numeric_ipv4("10"));
+        assert!(endpoint_pattern_is_numeric_ipv4("1.2.3"));
+        assert!(endpoint_pattern_is_numeric_ipv4("1.2.3.4"));
+
+        // `u8` boundary: 255 ok, 256 overflows a byte.
+        assert!(endpoint_pattern_is_numeric_ipv4("255.255.255.255"));
+        assert!(!endpoint_pattern_is_numeric_ipv4("256"));
+
+        // A single trailing dot is tolerated before splitting.
+        assert!(endpoint_pattern_is_numeric_ipv4("1.2.3.4."));
+
+        // Count bound: five octets exceeds the supported width.
+        assert!(!endpoint_pattern_is_numeric_ipv4("1.2.3.4.5"));
+
+        // Non-numeric or empty octets are rejected.
+        assert!(!endpoint_pattern_is_numeric_ipv4("a.b"));
+        assert!(!endpoint_pattern_is_numeric_ipv4("1..3"));
+        assert!(!endpoint_pattern_is_numeric_ipv4(""));
+    }
 }
