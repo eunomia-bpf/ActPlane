@@ -335,6 +335,29 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn the_valid_since_event_ops_fold_to_three_kernel_op_bytes() {
+        // `inval_op` lowers a `since` event op to the one `taint_op` byte that
+        // may invalidate a gate. Unlike `op_lowers` (which accepts all seven
+        // ops), only exec/read/write/open/unlink are valid here, and the
+        // op pairs that share a byte fold: `Read`/`Open` -> `OP_OPEN` and
+        // `Write`/`Unlink` -> `OP_WRITE`.
+        // The positive-side folding is unpinned: #121 pinned the reject
+        // (error) side; the valid-set byte mapping is a distinct surface.
+        assert_eq!(inval_op(Op::Exec).unwrap(), OP_EXEC);
+        assert_eq!(inval_op(Op::Read).unwrap(), OP_OPEN);
+        assert_eq!(inval_op(Op::Open).unwrap(), OP_OPEN);
+        assert_eq!(inval_op(Op::Write).unwrap(), OP_WRITE);
+        assert_eq!(inval_op(Op::Unlink).unwrap(), OP_WRITE);
+        // The two sharing pairs resolve to the same byte.
+        assert_eq!(inval_op(Op::Read).unwrap(), inval_op(Op::Open).unwrap());
+        assert_eq!(inval_op(Op::Write).unwrap(), inval_op(Op::Unlink).unwrap());
+        // `Connect` and `Recv` are network ops that can never invalidate a
+        // gate; both are rejected.
+        assert!(inval_op(Op::Connect).is_err());
+        assert!(inval_op(Op::Recv).is_err());
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
