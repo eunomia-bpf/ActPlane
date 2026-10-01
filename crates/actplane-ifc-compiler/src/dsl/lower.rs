@@ -335,6 +335,32 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// The kernel blob is a fixed-size rodata region holding at most
+    /// MAX_GATES (64) gate slots. A policy whose clauses reference more
+    /// distinct `after` gates than the blob can hold must be rejected at
+    /// compile time, not silently dropped. Each distinct gate pattern lowers
+    /// to a distinct gate slot, so 65 distinct `after exec` gates make the
+    /// 65th allocation trip the guard. No label is needed, so the 64-label
+    /// cap is never reached first; 65 rules stays under MAX_RULES.
+    #[test]
+    fn gate_overflow_beyond_max_gates_is_rejected() {
+        // MAX_GATES = 64. i in 0..=64 gives 65 distinct gate slots, so the
+        // 65th gate_bit sees next_gate == 64 and trips the guard.
+        let mut src = String::from("rule overflow:\n");
+        for i in 0..=MAX_GATES {
+            src.push_str(&format!(
+                "  notify write file \"/o{i}\" unless after exec \"/g{i}\"\n"
+            ));
+        }
+        src.push_str("  because \"overflow\"\n");
+        match crate::dsl::parse::parse(&src).and_then(|p| compile(&p)) {
+            Ok(_) => panic!("compile must fail past MAX_GATES"),
+            Err(err) => {
+                assert!(err.contains("too many gates"), "wrong error: {err}");
+            }
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
