@@ -1072,3 +1072,43 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn policy_audit_meta_from_fields_passes_through_all_option_fields() {
+        // `policy_audit_meta_from_fields` builds a `runtime::PolicyAuditMeta`
+        // from the control-path audit fields, passing `policy_ref` by value
+        // and cloning the three `&Option<String>` fields. No base or branch
+        // test pins this constructor directly.
+        let approved_by = Some("alice".to_string());
+        let approval_ref = Some("PR-42".to_string());
+        let generated_by = Some("tool".to_string());
+        assert_eq!(
+            policy_audit_meta_from_fields(
+                Some("policy.dsl".to_string()),
+                &approved_by,
+                &approval_ref,
+                &generated_by
+            ),
+            runtime::PolicyAuditMeta {
+                policy_ref: Some("policy.dsl".to_string()),
+                approved_by: Some("alice".to_string()),
+                approval_ref: Some("PR-42".to_string()),
+                generated_by: Some("tool".to_string()),
+            }
+        );
+        // Unset fields stay `None`.
+        assert_eq!(
+            policy_audit_meta_from_fields(None, &None, &None, &None),
+            runtime::PolicyAuditMeta {
+                policy_ref: None,
+                approved_by: None,
+                approval_ref: None,
+                generated_by: None,
+            }
+        );
+    }
+}
