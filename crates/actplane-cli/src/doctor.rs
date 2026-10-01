@@ -2591,4 +2591,42 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn format_domain_policy_rules_joins_locked_then_defaults() {
+        // `format_domain_policy_rules` renders the `locked` rules followed by
+        // the `defaults` rules of a domain, joined by `format_rule_list`
+        // (`", "` between, `"none"` when empty). No base or branch test
+        // pins this formatter directly.
+        let domain = DomainSummary {
+            name: "root".into(),
+            parent: None,
+            disabled: Vec::new(),
+            locked: vec!["no-git-branch".to_string(), "no-secret-exfil".to_string()],
+            defaults: vec!["test-before-commit".to_string()],
+        };
+        assert_eq!(
+            format_domain_policy_rules(&domain),
+            "no-git-branch, no-secret-exfil, test-before-commit"
+        );
+
+        // An empty domain renders as "none".
+        let empty = DomainSummary {
+            name: "empty".into(),
+            parent: None,
+            disabled: Vec::new(),
+            locked: Vec::new(),
+            defaults: Vec::new(),
+        };
+        assert_eq!(format_domain_policy_rules(&empty), "none");
+
+        // `defaults` are appended after `locked`.
+        let defaults_only = DomainSummary {
+            name: "d".into(),
+            parent: None,
+            disabled: Vec::new(),
+            locked: Vec::new(),
+            defaults: vec!["a".to_string(), "b".to_string()],
+        };
+        assert_eq!(format_domain_policy_rules(&defaults_only), "a, b");
+    }
 }
