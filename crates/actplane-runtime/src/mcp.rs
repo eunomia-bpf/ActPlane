@@ -2992,4 +2992,45 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn policy_audit_meta_from_args_maps_optional_string_fields() {
+        // `policy_audit_meta_from_args` reads the four optional policy audit
+        // metadata strings out of tool args into a `PolicyAuditMeta`: each
+        // present string maps to `Some`, each absent key to `None`, and a
+        // non-string field is an error. No base or branch test pins this
+        // helper directly.
+        // A fully-populated arg map yields every field set.
+        let full = serde_json::json!({
+            "policy_ref": "repo.yaml",
+            "approved_by": "reviewer",
+            "approval_ref": "PR-7",
+            "generated_by": "actplane",
+        })
+        .as_object()
+        .expect("object")
+        .clone();
+        assert_eq!(
+            policy_audit_meta_from_args(&full).expect("full args"),
+            PolicyAuditMeta {
+                policy_ref: Some("repo.yaml".to_string()),
+                approved_by: Some("reviewer".to_string()),
+                approval_ref: Some("PR-7".to_string()),
+                generated_by: Some("actplane".to_string()),
+            }
+        );
+
+        // An empty arg map yields the all-None default.
+        let empty = serde_json::json!({}).as_object().expect("object").clone();
+        assert_eq!(
+            policy_audit_meta_from_args(&empty).expect("empty args"),
+            PolicyAuditMeta::default()
+        );
+
+        // A non-string field is rejected.
+        let bad_ref = serde_json::json!({ "policy_ref": 7 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(policy_audit_meta_from_args(&bad_ref).is_err());
+    }
 }
