@@ -335,6 +335,31 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// The kernel blob is a fixed-size rodata region holding at most
+    /// MAX_RULES (128) rule slots. A policy that lowers to more rules than
+    /// the blob can hold must be rejected at compile time, not silently
+    /// truncated (which would drop rules the engine depends on). Each of 129
+    /// clauses lowers to exactly one rule, so the 129th trips the guard;
+    /// `if true` needs no label, so the 64-label cap is never reached first.
+    #[test]
+    fn rule_overflow_beyond_max_rules_is_rejected() {
+        // MAX_RULES = 128. i in 0..=128 gives 129 clauses => 129 rules > 128.
+        let mut src = String::from("rule overflow:\n");
+        for i in 0..=MAX_RULES {
+            src.push_str(&format!("  notify write file \"/o{i}\"\n"));
+        }
+        src.push_str("  because \"overflow\"\n");
+        match crate::dsl::parse::parse(&src).and_then(|p| compile(&p)) {
+            Ok(_) => panic!("compile must fail past MAX_RULES"),
+            Err(err) => {
+                assert!(
+                    err.contains("too many compiled rules"),
+                    "wrong error: {err}"
+                );
+            }
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
