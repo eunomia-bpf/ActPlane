@@ -335,6 +335,31 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_non_word_top_level_token_is_rejected() {
+        // A policy is a list of declarations, each starting with a word
+        // (`source`, `rule`, `declassify`, `endorse`, or the removed
+        // `label` keyword). A top-level non-word token -- a string literal,
+        // `=`, or `:` -- is not a declaration keyword, so the parser must
+        // reject it rather than mis-parse the body. The most common real
+        // mistake is opening a policy with a bare string (an author forgot
+        // the `rule r:` header).
+        use crate::dsl::parse::parse;
+        fn err(src: &str) -> String {
+            parse(src)
+                .map(|_| "OK".to_string())
+                .unwrap_or_else(|e| format!("Err({e})"))
+        }
+        assert_eq!(
+            err("\"git\""),
+            "Err(expected declaration, got Str(\"git\"))"
+        );
+        assert_eq!(err("= x"), "Err(expected declaration, got Eq)");
+        assert_eq!(err(": x"), "Err(expected declaration, got Colon)");
+        // Positive control: a well-formed rule still parses.
+        parse("rule r:\n  block exec \"git\" because \"z\"\n").expect("a valid rule parses");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
