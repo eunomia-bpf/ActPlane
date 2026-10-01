@@ -2992,4 +2992,34 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn json_optional_bool_parses_or_rejects_wrong_types() {
+        // `json_optional_bool` reads an optional boolean tool-call arg: absent
+        // keys yield `Ok(None)`, booleans yield `Ok(Some(..))`, and a
+        // non-boolean value is rejected. No base or branch test pins this
+        // helper directly.
+        let absent = serde_json::json!({ "other": true })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_bool(&absent, "flag").unwrap(), None);
+
+        let true_val = serde_json::json!({ "flag": true })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_bool(&true_val, "flag").unwrap(), Some(true));
+
+        let false_val = serde_json::json!({ "flag": false })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_bool(&false_val, "flag").unwrap(), Some(false));
+
+        let wrong = serde_json::json!({ "flag": 1 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(json_optional_bool(&wrong, "flag").is_err());
+    }
 }
