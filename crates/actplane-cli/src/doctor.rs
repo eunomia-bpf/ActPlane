@@ -2591,4 +2591,108 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn rule_meta_json_renders_base_fields_and_source_provenance() {
+        // `rule_meta_json` renders one JSON object per `RuleMeta`: the base rule
+        // fields, and the source-provenance block (source ref, line spans, the
+        // FNV-1a policy/clause hashes, clause text, binding mode, and the
+        // derived immutable flag) when the meta carries a source. No base or
+        // branch test pins this serializer directly.
+        use crate::dsl::{RuleMeta, RuleSourceMeta};
+        use std::collections::HashMap;
+
+        let meta = vec![
+            RuleMeta {
+                name: "guard".to_string(),
+                reason: "guard exec".to_string(),
+                effect: Effect::Notify,
+                ops: vec!["exec".to_string()],
+                clause_op: "exec".to_string(),
+                kernel_op: "execve".to_string(),
+                target_kind: Kind::Exec,
+                target_pattern: "python3".to_string(),
+                target_arg: None,
+                clause_source_index: 0,
+                source: None,
+            },
+            RuleMeta {
+                name: "egress".to_string(),
+                reason: "guard egress".to_string(),
+                effect: Effect::Block,
+                ops: vec!["connect".to_string()],
+                clause_op: "connect".to_string(),
+                kernel_op: "connect".to_string(),
+                target_kind: Kind::Endpoint,
+                target_pattern: "10.0.0.7".to_string(),
+                target_arg: None,
+                clause_source_index: 1,
+                source: Some(RuleSourceMeta {
+                    source_ref: "policy.dsl".to_string(),
+                    binding_mode: Some("locked".to_string()),
+                    start_line: 5,
+                    end_line: 9,
+                    text: "rule egress block connect 10.0.0.7\n".to_string(),
+                    clause_start_line: Some(6),
+                    clause_end_line: Some(8),
+                    clause_text: Some("block connect 10.0.0.7".to_string()),
+                }),
+            },
+        ];
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta,
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+
+        let got = rule_meta_json(&compiled);
+
+        // Rule 0 has no source: only the base fields are rendered.
+        assert_eq!(
+            got[0],
+            json!({
+                "rule_id": 0,
+                "name": "guard",
+                "effect": "notify",
+                "ops": ["exec"],
+                "clause_op": "exec",
+                "clause_source_index": 0,
+                "kernel_op": "execve",
+                "target_kind": "exec",
+                "target_pattern": "python3",
+                "target_arg": null,
+                "reason": "guard exec",
+            })
+        );
+
+        // Rule 1 carries a source: the base fields plus the source-provenance
+        // block. The source/clause hashes are asserted against the same FNV-1a
+        // routine the serializer calls, so the test stays hash-invariant.
+        let expected = json!({
+            "rule_id": 1,
+            "name": "egress",
+            "effect": "block",
+            "ops": ["connect"],
+            "clause_op": "connect",
+            "clause_source_index": 1,
+            "kernel_op": "connect",
+            "target_kind": "endpoint",
+            "target_pattern": "10.0.0.7",
+            "target_arg": null,
+            "reason": "guard egress",
+            "source_ref": "policy.dsl",
+            "source_start_line": 5,
+            "source_end_line": 9,
+            "source_hash": crate::audit::policy_hash("rule egress block connect 10.0.0.7\n"),
+            "source_text": "rule egress block connect 10.0.0.7\n",
+            "clause_start_line": 6,
+            "clause_end_line": 8,
+            "clause_hash": crate::audit::policy_hash("block connect 10.0.0.7"),
+            "clause_text": "block connect 10.0.0.7",
+            "binding_mode": "locked",
+            "immutable": true,
+        });
+        assert_eq!(got[1], expected);
+    }
 }
