@@ -625,4 +625,82 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+
+    #[test]
+    fn report_with_context_writes_feedback_and_event_files() {
+        // `report` derives feedback context from the rule id and
+        // `report_with_context` appends both the human feedback file and the
+        // structured event log; `append_feedback` creates parent dirs. None has
+        // a direct caller in the base or branch tests.
+
+        let root = std::env::temp_dir().join(format!("actplane-report-ctx-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let feedback_path = root.join("nested/feedback.txt");
+        let event_path = root.join("events.jsonl");
+
+        let mut labels = HashMap::new();
+        labels.insert("LOCAL_SECRET".to_string(), 1);
+        let ctx = RuleFeedbackContext {
+            meta: dsl::RuleMeta {
+                name: "local-rule".to_string(),
+                reason: "local reason".to_string(),
+                effect: Effect::Kill,
+                ops: vec!["exec".to_string()],
+                clause_op: "exec".to_string(),
+                clause_source_index: 0,
+                kernel_op: "exec".to_string(),
+                target_kind: dsl::ast::Kind::Exec,
+                target_pattern: "git".to_string(),
+                target_arg: None,
+                source: None,
+            },
+            labels: labels.clone(),
+        };
+        let v = Violation {
+            pid: 10,
+            ppid: 1,
+            comm: "git".to_string(),
+            target: "git".to_string(),
+            rule_id: 0,
+            op: Some(0),
+            domain_id: Some(23),
+            session_root: Some(10),
+            effect: Some("kill".to_string()),
+            blocked: Some(false),
+            killed: Some(true),
+            taint_label: 1,
+            matched_label: 1,
+            matched_labels: Some(1),
+            provenance: None,
+        };
+
+        report_with_context(Some(&ctx), &v, Some(&feedback_path), Some(&event_path));
+        let feedback_text = std::fs::read_to_string(&feedback_path).expect("feedback file created");
+        assert!(feedback_text.contains("Operation killed by rule `local-rule`"));
+        assert!(feedback_text.contains("----"));
+        let event_text = std::fs::read_to_string(&event_path).expect("event file");
+        let value: serde_json::Value = serde_json::from_str(event_text.trim()).expect("event json");
+        assert_eq!(value["schema"], "actplane.violation.v1");
+        assert_eq!(value["rule"]["name"], "local-rule");
+
+        // `report` maps rule_id -> context and appends the feedback file.
+        let via_report = root.join("via-report.txt");
+        let meta = vec![ctx.meta.clone()];
+        report(&meta, &labels, &v, Some(&via_report), None);
+        let report_text = std::fs::read_to_string(&via_report).expect("report feedback");
+        assert!(report_text.contains("local-rule"));
+
+        // A None context short-circuits: no feedback file is written.
+        let none_path = root.join("none.txt");
+        report_with_context(None, &v, Some(&none_path), None);
+        assert!(!none_path.exists());
+
+        // append_feedback appends rather than truncating.
+        append_feedback(&feedback_path, "second").expect("append");
+        let appended = std::fs::read_to_string(&feedback_path).expect("appended");
+        assert!(appended.contains("second\n----"));
+        assert!(appended.matches("----").count() >= 2);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
