@@ -767,4 +767,51 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+
+    #[test]
+    fn rule_source_spans_defaults_source_ref_and_shifts_span_for_a_marker() {
+        // `rule_source_spans` records one span per `rule` declaration. With
+        // no `# actplane-rule-source` marker, `source_ref` defaults to
+        // `"rule:{name}"`, no binding mode is captured, and `start_line` is
+        // the rule declaration line (1-based). No base test pins these
+        // extraction defaults directly (the base test goes through
+        // `Compiled.meta`).
+        let spans = rule_source_spans("rule guard:\n  block exec \"git\" if A\n");
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].source_ref, "rule:guard");
+        assert_eq!(spans[0].binding_mode, None);
+        assert_eq!(spans[0].name, "guard");
+        assert_eq!(spans[0].start_line, 1);
+        assert_eq!(spans[0].end_line, 2);
+        assert_eq!(spans[0].clauses.len(), 1);
+
+        // A `# actplane-rule-source` marker pulls `source_ref` / `binding_mode`
+        // from the marker and shifts `start_line` down to include the marker
+        // line.
+        let spans = rule_source_spans(
+            "# actplane-rule-source ref=r.secret mode=locked\nrule guard:\n  block exec \"git\" if A\n",
+        );
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].source_ref, "r.secret");
+        assert_eq!(spans[0].binding_mode, Some("locked".to_string()));
+        assert_eq!(spans[0].name, "guard");
+        assert_eq!(spans[0].start_line, 2);
+        assert_eq!(spans[0].end_line, 3);
+
+        // A source with no rule declarations yields no spans.
+        assert!(rule_source_spans("").is_empty());
+        assert!(rule_source_spans("\n  \n").is_empty());
+
+        // Consecutive rules each default to their own name with no crosstalk.
+        let spans = rule_source_spans(
+            "rule one:\n  block exec \"git\" if A\nrule two:\n  block read \"x\" if B\n",
+        );
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0].source_ref, "rule:one");
+        assert_eq!(spans[0].start_line, 1);
+        assert_eq!(spans[0].end_line, 2);
+        assert_eq!(spans[1].source_ref, "rule:two");
+        assert_eq!(spans[1].start_line, 3);
+        assert_eq!(spans[1].end_line, 4);
+    }
 }
