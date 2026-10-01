@@ -343,3 +343,56 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lex_emits_word_str_colon_eq_and_drops_comments() {
+        // `lex` is the pure front-end of the DSL: it turns a policy string
+        // into a flat token stream of `Word`, `Str`, `Colon`, and `Eq`
+        // tokens, skipping whitespace runs and `#`-to-end-of-line comments.
+        // No test in any open or merged branch pins the tokenizer's output
+        // stream directly.
+        assert_eq!(
+            lex("source SECRET = file \"**/.env\""),
+            Ok(vec![
+                Tok::Word("source".to_string()),
+                Tok::Word("SECRET".to_string()),
+                Tok::Eq,
+                Tok::Word("file".to_string()),
+                Tok::Str("**/.env".to_string()),
+            ])
+        );
+
+        // Whitespace runs and a `#` comment contribute no tokens; a `:` is
+        // its own token.
+        assert_eq!(
+            lex("  rule guard:\n# a comment\n"),
+            Ok(vec![
+                Tok::Word("rule".to_string()),
+                Tok::Word("guard".to_string()),
+                Tok::Colon,
+            ])
+        );
+
+        // A `:` mid-word and an `=` each split into separate tokens.
+        assert_eq!(
+            lex("a:b = c"),
+            Ok(vec![
+                Tok::Word("a".to_string()),
+                Tok::Colon,
+                Tok::Word("b".to_string()),
+                Tok::Eq,
+                Tok::Word("c".to_string()),
+            ])
+        );
+
+        // A string literal without a closing quote is a lex error.
+        assert_eq!(
+            lex("foo \"bar").err().as_deref(),
+            Some("unterminated string")
+        );
+    }
+}
