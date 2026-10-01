@@ -2591,4 +2591,96 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn event_rule_matches_signature_requires_notify_fields_and_identity() {
+        // `event_rule_matches_signature` matches a violation event against a
+        // `ClauseEventSignature`: the `rule` object must carry `effect ==
+        // "notify"`, the matching `clause_op` / `target_kind` / `target_pattern`
+        // / `target_arg`, and a clause identity (hash or text). No base or
+        // branch test pins this predicate directly.
+        let signature = ClauseEventSignature {
+            clause_op: "open",
+            target_kind: "file",
+            target_pattern: "out.txt".to_string(),
+            target_arg: None,
+            clause_text: "notify open file \"out.txt\"".to_string(),
+            clause_hash: "hash-1".to_string(),
+        };
+
+        // A fully-matching event (with a matching clause hash) matches.
+        assert!(event_rule_matches_signature(
+            &json!({
+                "rule": {
+                    "effect": "notify",
+                    "clause_op": "open",
+                    "target_kind": "file",
+                    "target_pattern": "out.txt",
+                    "clause_hash": "hash-1"
+                }
+            }),
+            &signature
+        ));
+
+        // No `rule` object at all.
+        assert!(!event_rule_matches_signature(
+            &json!({ "event": "x" }),
+            &signature
+        ));
+
+        // A non-notify effect never matches.
+        assert!(!event_rule_matches_signature(
+            &json!({
+                "rule": {
+                    "effect": "block",
+                    "clause_op": "open",
+                    "target_kind": "file",
+                    "target_pattern": "out.txt",
+                    "clause_hash": "hash-1"
+                }
+            }),
+            &signature
+        ));
+
+        // A mismatched target pattern fails.
+        assert!(!event_rule_matches_signature(
+            &json!({
+                "rule": {
+                    "effect": "notify",
+                    "clause_op": "open",
+                    "target_kind": "file",
+                    "target_pattern": "other.txt",
+                    "clause_hash": "hash-1"
+                }
+            }),
+            &signature
+        ));
+
+        // A supplied `target_arg` when the signature expects none fails.
+        assert!(!event_rule_matches_signature(
+            &json!({
+                "rule": {
+                    "effect": "notify",
+                    "clause_op": "open",
+                    "target_kind": "file",
+                    "target_pattern": "out.txt",
+                    "target_arg": "w",
+                    "clause_hash": "hash-1"
+                }
+            }),
+            &signature
+        ));
+
+        // All rule fields match but the clause identity is missing.
+        assert!(!event_rule_matches_signature(
+            &json!({
+                "rule": {
+                    "effect": "notify",
+                    "clause_op": "open",
+                    "target_kind": "file",
+                    "target_pattern": "out.txt"
+                }
+            }),
+            &signature
+        ));
+    }
 }
