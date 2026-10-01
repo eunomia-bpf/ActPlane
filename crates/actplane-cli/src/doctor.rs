@@ -2591,4 +2591,17 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn op_name_maps_every_operation_to_its_kernel_name() {
+        // `op_name` renders each `Op` variant to the short name the report
+        // and support-detail paths use. No base or branch test pins this
+        // mapping directly.
+        assert_eq!(op_name(Op::Exec), "exec");
+        assert_eq!(op_name(Op::Read), "read");
+        assert_eq!(op_name(Op::Write), "write");
+        assert_eq!(op_name(Op::Unlink), "unlink");
+        assert_eq!(op_name(Op::Connect), "connect");
+        assert_eq!(op_name(Op::Recv), "recv");
+        assert_eq!(op_name(Op::Open), "open");
+    }
 }
