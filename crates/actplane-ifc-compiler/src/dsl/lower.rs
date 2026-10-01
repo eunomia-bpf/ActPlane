@@ -335,6 +335,24 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn middle_segment_globs_lower_to_contains() {
+        // A middle-segment directory glob `**/mid/**` (any depth under `mid`)
+        // and `**/mid/*` (files directly inside `mid`) both lower to a
+        // M_CONTAINS substring search for `"/mid/"`, not a suffix match. The
+        // kernel matcher for M_CONTAINS is a substring scan, so the two glob
+        // forms are equivalent for the engine (both mean "a `mid` directory in
+        // the path"); the distinction from `**/mid` (M_SUFFIX `/mid`, an
+        // end-of-path match) is what a regression could quietly erase. The
+        // in-tree path test pins the leaf/suffix forms (`**/*.js`,
+        // `**/sec.env` -> M_SUFFIX) but not these directory-contains forms.
+        assert_eq!(lower_path("**/mid/**"), (M_CONTAINS, "/mid/".into()));
+        assert_eq!(lower_path("**/mid/*"), (M_CONTAINS, "/mid/".into()));
+        // Contrast: with no trailing star the middle segment is a suffix, so
+        // it is an end-of-path match, not a contains scan.
+        assert_eq!(lower_path("**/mid"), (M_SUFFIX, "/mid".into()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
