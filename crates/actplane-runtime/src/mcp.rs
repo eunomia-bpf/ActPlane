@@ -2992,4 +2992,48 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn child_status_from_json_parses_state_and_rejects_unknown() {
+        // `child_status_from_json` turns a child record's `state` field into
+        // a `ChildStatus`: `"running"`/`"terminated"` map to their variants,
+        // `"exited"` maps to `Exited` carrying the optional code/signal, and
+        // any other (or missing) state yields `None`. No base or branch test
+        // pins this helper directly.
+        let running = child_status_from_json(&serde_json::json!({ "state": "running" }));
+        assert!(matches!(running, Some(ChildStatus::Running)));
+
+        let terminated = child_status_from_json(&serde_json::json!({ "state": "terminated" }));
+        assert!(matches!(terminated, Some(ChildStatus::Terminated)));
+
+        // An exited child carries its optional exit code and signal.
+        let exited = child_status_from_json(&serde_json::json!({
+            "state": "exited",
+            "code": 2,
+            "signal": 9,
+        }));
+        assert!(matches!(
+            exited,
+            Some(ChildStatus::Exited {
+                code: Some(2),
+                signal: Some(9)
+            })
+        ));
+
+        // An exited child with no code/signal carries `None` for both.
+        let exited_bare = child_status_from_json(&serde_json::json!({ "state": "exited" }));
+        assert!(matches!(
+            exited_bare,
+            Some(ChildStatus::Exited {
+                code: None,
+                signal: None
+            })
+        ));
+
+        // An unknown state is not a known variant.
+        let unknown = child_status_from_json(&serde_json::json!({ "state": "paused" }));
+        assert!(unknown.is_none());
+
+        // A missing state field yields `None`.
+        assert!(child_status_from_json(&serde_json::json!({})).is_none());
+    }
 }
