@@ -2992,4 +2992,25 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn local_tool_response_wraps_ok_and_error() {
+        // `local_tool_response` unwraps a successful CallToolResult into an
+        // {ok,text,result} envelope and a failure into {ok,error}, while
+        // `invalid_params` builds an INVALID_PARAMS ErrorData. Neither has a
+        // direct caller in the base or branch tests.
+        let ok = CallToolResult::success(vec![ContentBlock::text("hello")]);
+        let value = local_tool_response(Ok(ok));
+        assert_eq!(value["ok"], true);
+        assert_eq!(value["text"], "hello");
+        assert_eq!(value["result"]["content"][0]["text"], "hello");
+
+        let err = local_tool_response(Err(invalid_params("bad argument")));
+        assert_eq!(err["ok"], false);
+        assert!(err["error"].as_str().unwrap().contains("bad argument"));
+
+        let data = invalid_params("missing `foo`");
+        assert_eq!(data.code, ErrorCode::INVALID_PARAMS);
+        assert_eq!(data.message, "missing `foo`");
+    }
 }
