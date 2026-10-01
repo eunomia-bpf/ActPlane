@@ -7884,4 +7884,29 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+    #[test]
+    fn group_legacy_config_counts_file_and_net_classes() {
+        // `group_legacy_config` buckets a legacy config's enabled edges by op
+        // class: file edges (open/write), network edges (connect/recv), and
+        // everything else. It sorts the enabled slices by class (mutating the
+        // config) and returns the per-slice class-0 and class-1 counts as
+        // `[updates_c0, updates_c1, rules_c0, rules_c1]`. No base or branch
+        // test pins this helper directly.
+        let mut cfg: CConfig = unsafe { std::mem::zeroed() };
+        cfg.n_updates = 4;
+        cfg.updates[0].op = OP_WRITE;
+        cfg.updates[1].op = OP_OPEN;
+        cfg.updates[2].op = OP_CONNECT;
+        cfg.updates[3].op = OP_RECV;
+        cfg.n_rules = 2;
+        cfg.rules[0].op = OP_WRITE;
+        cfg.rules[1].op = OP_CONNECT;
+        let groups = group_legacy_config(&mut cfg);
+        // Two file updates, two network updates, one file rule, one network rule.
+        assert_eq!(groups, [2, 2, 1, 1]);
+
+        // A zero-sized config has no enabled edges to group.
+        let mut empty: CConfig = unsafe { std::mem::zeroed() };
+        assert_eq!(group_legacy_config(&mut empty), [0, 0, 0, 0]);
+    }
 }
