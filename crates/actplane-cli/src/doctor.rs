@@ -2591,4 +2591,19 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn event_summary_renders_op_pattern_and_optional_arg() {
+        // `event_summary` renders `<op_name> "<pattern>"`, appending
+        // ` "<arg>"` only when a positional argument is present. No base or
+        // branch test pins this formatter directly.
+        assert_eq!(event_summary(Op::Exec, "agent", None), "exec \"agent\"");
+        assert_eq!(
+            event_summary(Op::Open, "policy.dsl", Some("r".into())),
+            "open \"policy.dsl\" \"r\""
+        );
+        assert_eq!(
+            event_summary(Op::Connect, "10.0.0.0/8", None),
+            "connect \"10.0.0.0/8\""
+        );
+    }
 }
