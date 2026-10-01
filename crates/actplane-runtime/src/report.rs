@@ -625,4 +625,25 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+    #[test]
+    fn label_name_resolves_a_known_bit_and_falls_back_to_hex() {
+        // `label_name` resolves a single label bit to its name; an unknown
+        // bit falls back to the `0x…` hex form so an unrecognized bit can
+        // never panic the feedback formatter. No base or branch test pins
+        // this behavior directly.
+        let mut labels = HashMap::new();
+        labels.insert("LOCAL_SECRET".to_string(), 1);
+        labels.insert("LOCAL_TOKEN".to_string(), 2);
+
+        // A known bit resolves to its declared name.
+        assert_eq!(label_name(&labels, 1), "LOCAL_SECRET");
+        assert_eq!(label_name(&labels, 2), "LOCAL_TOKEN");
+
+        // An unknown bit falls back to its hex form.
+        assert_eq!(label_name(&labels, 4), "0x4");
+
+        // An empty map has no resolvable names; the zero bit is `0x0`.
+        let empty = HashMap::new();
+        assert_eq!(label_name(&empty, 0), "0x0");
+    }
 }
