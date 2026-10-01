@@ -335,6 +335,103 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// `since` invalidators and the rules that consume them are two separate
+    /// kernel tables that must stay coherent. `inval_slot` dedupes each
+    /// invalidator to a slot index `i` and allocates an *update* carrying
+    /// `invals = 1<<i` (the bit the engine ORs into `inval_epoch` on a
+    /// matching event, taint_engine.bpf.h:1194-1211); the rule that lists the
+    /// invalidator under `since` carries `since_mask = OR of those bits` and,
+    /// for v2 staleness, the engine reads `inval_epoch[i]` for every `i` set
+    /// in `since_mask` (`te_after_satisfied`, taint_engine.bpf.h:1257-1273).
+    /// A rule `since_mask` bit with no matching `invals` update -- or a wrong
+    /// index -- would make the gate never/always go stale with no
+    /// compile-time or blob-size symptom. Pin the cross-table coherence.
+    #[test]
+    fn since_inval_bits_stay_coherent_with_updates() {
+        let pol = crate::dsl::parse::parse(
+            "rule r:\n\
+             block exec \"git\" unless after exec \"**/pytest\"\n\
+               since write \"src/**\" or write \"tests/**\"\n\
+             because \"tests must stay green before committing\"\n",
+        )
+        .expect("parse since policy");
+        let compiled = compile(&pol).expect("compile since policy");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+
+        // One gate update (`**/pytest`, no `exits`) plus two distinct inval
+        // updates (`src/**`, `tests/**`) => three updates.
+        assert_eq!(cfg.n_updates, 3, "one gate + two since invalidators");
+        assert_eq!(cfg.n_rules, 1, "one rule");
+
+        // The inval updates are exactly the ones with a non-zero `invals`
+        // mask; they must NOT carry gate bits or an exit code.
+        let inval_bits: Vec<u64> = cfg.updates[..cfg.n_updates as usize]
+            .iter()
+            .map(|u| (u.op, u.invals, u.gates, u.gate_exit_code))
+            .filter(|&(_, invals, _, _)| invals != 0)
+            .map(|(_, invals, _, _)| invals)
+            .collect();
+        assert_eq!(inval_bits, vec![1u64, 2u64], "inval slots 0 and 1");
+        for u in &cfg.updates[..cfg.n_updates as usize] {
+            if u.invals != 0 {
+                assert_eq!(u.op, OP_WRITE, "both invalidators are write events");
+                assert_eq!(u.gates, 0, "inval update must not carry gate bits");
+                assert_eq!(
+                    u.gate_exit_code, GATE_IMMEDIATE,
+                    "inval update carries no exit code"
+                );
+            }
+        }
+
+        // The rule's `since_mask` must equal the OR of the allocated inval
+        // bits, and agree with its v2 staleness lookup.
+        let r = &cfg.rules[0];
+        assert_eq!(r.since_mask, 3u64, "rule references inval slots 0 and 1");
+        assert_eq!(r.cond_kind, C_AFTER, "unless-after lowers to TCOND_AFTER");
+        assert_eq!(r.gate, 1u64, "gate is slot 0");
+        assert_eq!(r.gate_idx, 0, "gate index 0");
+        // Cross-table: every since_mask bit has a matching invals update.
+        for i in 0..64 {
+            if r.since_mask & (1u64 << i) != 0 {
+                assert!(
+                    cfg.updates[..cfg.n_updates as usize]
+                        .iter()
+                        .any(|u| u.invals == (1u64 << i)),
+                    "since_mask bit {i} must have a matching inval update"
+                );
+            }
+        }
+    }
+
+    /// Control: `after` with no `since` keeps v1 latching semantics --
+    /// `since_mask == 0`, no inval updates, and the gate still latches by its
+    /// single bit. This is the baseline that proves the v2 test above is about
+    /// the `since` mask, not a side effect of adding the gate.
+    #[test]
+    fn since_free_after_gate_has_no_inval_updates() {
+        let pol = crate::dsl::parse::parse(
+            "rule r:\n\
+             block exec \"git\" unless after exec \"**/pytest\"\n\
+             because \"tests must run before committing\"\n",
+        )
+        .expect("parse after-only policy");
+        let compiled = compile(&pol).expect("compile after-only policy");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+
+        assert_eq!(cfg.n_rules, 1, "one rule");
+        assert_eq!(cfg.rules[0].since_mask, 0, "no since => v1 latching");
+        assert_eq!(cfg.rules[0].gate, 1u64, "gate still latches by slot 0");
+        // No update carries an invals bit.
+        assert!(
+            cfg.updates[..cfg.n_updates as usize]
+                .iter()
+                .all(|u| u.invals == 0),
+            "after-only policy allocates no inval updates"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
