@@ -625,4 +625,19 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+    #[test]
+    fn kernel_op_name_maps_each_kernel_op_byte_to_its_feedback_verb() {
+        // `kernel_op_name` maps a kernel op byte (the `op` field carried by a
+        // `Violation`) to the human-readable feedback verb. This is a
+        // byte-for-byte ABI surface: the kernel packs ops as 0..=4, and any
+        // other value falls back to the generic "op" so a future op byte can
+        // never panic the feedback formatter. No base or branch test pins
+        // these mappings directly.
+        assert_eq!(kernel_op_name(0), "exec");
+        assert_eq!(kernel_op_name(1), "read");
+        assert_eq!(kernel_op_name(2), "write");
+        assert_eq!(kernel_op_name(3), "connect");
+        assert_eq!(kernel_op_name(4), "recv");
+        assert_eq!(kernel_op_name(5), "op");
+    }
 }
