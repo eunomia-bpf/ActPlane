@@ -181,4 +181,15 @@ mod tests {
         assert_eq!(status_numeric_field(status, "Gid:"), Some(1001));
         assert_eq!(status_numeric_field(status, "Nope:"), None);
     }
+    #[test]
+    fn process_stable_id_formats_known_and_unknown_start_time() {
+        // `process_stable_id` builds the stable identifier that anchors
+        // per-process audit records to a single process incarnation. No base
+        // or branch test pins the `Some`/`None` formatting directly.
+        assert_eq!(
+            process_stable_id(42, Some(1234567890)),
+            "pid:42:start:1234567890"
+        );
+        assert_eq!(process_stable_id(42, None), "pid:42:start:unknown");
+    }
 }
