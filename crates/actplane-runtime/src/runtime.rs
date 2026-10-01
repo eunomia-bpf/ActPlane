@@ -2108,4 +2108,28 @@ mod tests {
             "repo-supervisor"
         );
     }
+    #[test]
+    fn internal_rejection_builds_a_static_rejected_evaluation() {
+        // `ApprovalEvaluation::internal_rejection` builds a deterministically
+        // rejected evaluation: nothing is enforced/required/accepted, the
+        // workflow is the static approval one, and the supplied reason is
+        // carried in `rejection_reason`. No base or branch test pins this
+        // constructor directly.
+        let ev = ApprovalEvaluation::internal_rejection("policy requires an approver".to_string());
+        assert!(!ev.enforced);
+        assert!(!ev.required);
+        assert!(!ev.accepted);
+        assert_eq!(ev.workflow, "append_delta_static_approval");
+        assert!(ev.missing_fields.is_empty());
+        assert!(ev.allowed_approvers.is_empty());
+        assert_eq!(
+            ev.rejection_reason.as_deref(),
+            Some("policy requires an approver")
+        );
+
+        // The constructor is total: an empty reason is also carried through.
+        let empty = ApprovalEvaluation::internal_rejection(String::new());
+        assert_eq!(empty.rejection_reason.as_deref(), Some(""));
+        assert!(!empty.accepted);
+    }
 }
