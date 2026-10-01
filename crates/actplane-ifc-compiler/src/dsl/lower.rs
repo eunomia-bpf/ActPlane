@@ -335,6 +335,46 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn endpoint_sources_emit_their_update_matcher_bytes() {
+        // An `endpoint` source lowers to one connect and one recv update.
+        // The kernel matches network edges against the numeric `ipv4` /
+        // `ipv4_mask` byte pair (`ts_endp`), not a target string, so the
+        // matcher region of each update is inert: `m = M_ANY`, empty
+        // `target`, empty `arg`. #78 pinned the `ipv4` / `ipv4_mask`
+        // resolution and the base test pinned the connect/recv `op` split,
+        // but nobody pinned the `m` / `target` / `arg` region -- a
+        // regression that stamped a target literal (or a non-M_ANY `m`)
+        // onto the network-edge update would go uncaught here.
+        fn cstr<const N: usize>(p: &[u8; N]) -> String {
+            let end = p.iter().position(|b| *b == 0).unwrap_or(N);
+            String::from_utf8_lossy(&p[..end]).into_owned()
+        }
+        let pol = crate::dsl::parse::parse(r#"source NET = endpoint "8.8.8.8""#)
+            .expect("parse endpoint source");
+        let compiled = compile(&pol).expect("compile endpoint source");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        assert_eq!(cfg.n_updates, 2, "one connect + one recv update");
+        let (ipv4, mask) = lower_ipv4("8.8.8.8");
+        for u in &cfg.updates[..cfg.n_updates as usize] {
+            match u.op {
+                OP_CONNECT | OP_RECV => {}
+                other => panic!("endpoint source update op {} not a network op", other),
+            }
+            assert_eq!(u.m, M_ANY, "network-edge update matches by ip, not target");
+            assert_eq!(
+                cstr(&u.target),
+                "",
+                "no target literal rides a network-edge update"
+            );
+            assert_eq!(cstr(&u.arg), "", "no arg rides a network-edge update");
+            assert_eq!(u.ipv4, ipv4, "numeric endpoint lands in ipv4");
+            assert_eq!(u.ipv4_mask, mask, "endpoint mask lands in ipv4_mask");
+            assert_eq!(u.add, 1u64, "the source grants NET's label bit");
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
