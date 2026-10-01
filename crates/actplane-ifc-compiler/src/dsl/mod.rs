@@ -300,6 +300,61 @@ mod tests {
         assert_eq!(c.labels.get("REVIEWED"), Some(&1u64));
     }
 
+    /// `compile_str_with_labels` guards the runtime delta ABI: a delta policy
+    /// is handed the label-bit map allocated by an *earlier* delta, and must
+    /// reference those labels without shifting their bit positions. Before
+    /// allocating new labels, `validate_label_bindings` rejects (never
+    /// panics) any binding that would corrupt that ABI -- a zero or multi-bit
+    /// mask, a bit claimed by two names, or an empty label name. Each of
+    /// these would otherwise silently alias or shift a label onto another
+    /// label's kernel bit and corrupt every later delta's `req`/`forbid`.
+    #[test]
+    fn compile_with_labels_rejects_invalid_label_bindings() {
+        // A minimal parseable delta that references one pre-existing label.
+        let delta = "rule d:\n  notify exec \"git\" if SECRET\n  because \"secret in use\"\n";
+
+        // A zero mask collapses the label into the "no labels" state.
+        let mut zero = HashMap::new();
+        zero.insert("SECRET".to_string(), 0u64);
+        assert!(
+            compile_str_with_labels(delta, &zero).is_err(),
+            "zero mask must be rejected"
+        );
+
+        // A multi-bit mask would seed two labels at once and break first-free
+        // allocation for every subsequent label.
+        let mut multi = HashMap::new();
+        multi.insert("SECRET".to_string(), 0b11);
+        assert!(
+            compile_str_with_labels(delta, &multi).is_err(),
+            "non-power-of-two mask must be rejected"
+        );
+
+        // A bit claimed by two names aliases two labels onto one kernel bit.
+        let mut dup = HashMap::new();
+        dup.insert("SECRET".to_string(), 1u64 << 3);
+        dup.insert("REVIEWED".to_string(), 1u64 << 3);
+        assert!(
+            compile_str_with_labels(delta, &dup).is_err(),
+            "duplicate bit assignment must be rejected"
+        );
+
+        // An empty label name is indistinguishable from "no label" downstream.
+        let mut empty = HashMap::new();
+        empty.insert(String::new(), 1u64 << 3);
+        assert!(
+            compile_str_with_labels(delta, &empty).is_err(),
+            "empty label name must be rejected"
+        );
+
+        // Control: a well-formed distinct single-bit map still compiles, so the
+        // rejections above are the guard, not a broken happy path.
+        let mut good = HashMap::new();
+        good.insert("SECRET".to_string(), 1u64 << 5);
+        let c = compile_str_with_labels(delta, &good).expect("valid bindings compile");
+        assert_eq!(c.labels.get("SECRET"), Some(&(1u64 << 5)));
+    }
+
     #[test]
     fn rule_source_metadata_records_marker_span_and_text() {
         let c = compile_str(
