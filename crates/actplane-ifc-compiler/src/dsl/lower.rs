@@ -335,6 +335,41 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn connect_and_recv_targets_ignore_the_pattern() {
+        // For net ops (connect / recv) the target string is irrelevant: the
+        // kernel matches network edges on endpoint *labels*, not on a target
+        // pattern, so lower_target always returns (M_ANY, "") for these ops
+        // (lower.rs:768). Any pattern, including a bare wildcard or a concrete
+        // dotted endpoint, collapses to the same match-anything byte. A
+        // regression that started threading the target pattern through for net
+        // ops would silently turn a label match into a (wrong) string match.
+        assert_eq!(
+            lower_target(OP_CONNECT, Kind::Endpoint, "10.0.0.0/8"),
+            (M_ANY, String::new())
+        );
+        assert_eq!(
+            lower_target(OP_RECV, Kind::Endpoint, "10.1.2.3/32"),
+            (M_ANY, String::new())
+        );
+        assert_eq!(
+            lower_target(OP_CONNECT, Kind::Endpoint, "*"),
+            (M_ANY, String::new())
+        );
+
+        // Contrast: the non-net ops DO thread the target pattern through. Exec
+        // delegates to lower_exec (comm match), and the default file ops
+        // delegate to lower_path, so the target string is load-bearing there.
+        assert_eq!(
+            lower_target(OP_EXEC, Kind::Exec, "bash"),
+            (M_EXACT, "bash".into())
+        );
+        assert_eq!(
+            lower_target(OP_OPEN, Kind::File, "/tmp/x"),
+            (M_EXACT, "/tmp/x".into())
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
