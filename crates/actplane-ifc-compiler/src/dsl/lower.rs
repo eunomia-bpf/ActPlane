@@ -335,6 +335,32 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn absolute_wildcard_paths_lower_to_prefix() {
+        // An absolute path's leading `/` is a stable start anchor, so every
+        // wildcard form lowers to M_PREFIX (the kernel does a start-anchored
+        // prefix scan). M_CONTAINS (a substring scan) is only reachable for
+        // repo-relative paths, which have no start anchor and so fall back to a
+        // substring match. The in-tree `absolute_paths_keep_absolute_semantics`
+        // test pins the `/**` -> M_PREFIX and no-wildcard -> M_EXACT forms; the
+        // `/*`, internal-`*`, and trailing-`*` absolute branches below are what
+        // a regression could quietly collapse to M_CONTAINS, silently turning a
+        // start-anchored prefix into a substring match.
+        assert_eq!(lower_path("/data/**"), (M_PREFIX, "/data/".into()));
+        assert_eq!(lower_path("/data/x/*"), (M_PREFIX, "/data/x/".into()));
+        assert_eq!(lower_path("/data/*/y"), (M_PREFIX, "/data/".into()));
+        assert_eq!(lower_path("/data/x*"), (M_PREFIX, "/data/x".into()));
+        // The repo-relative counterparts have no start anchor, so the same
+        // wildcard shapes fall to a M_CONTAINS substring scan. This contrast is
+        // what makes the absolute M_PREFIX branches load-bearing.
+        assert_eq!(lower_path("data/x/*"), (M_CONTAINS, "data/x/".into()));
+        assert_eq!(lower_path("data/*/y"), (M_CONTAINS, "data/".into()));
+        assert_eq!(lower_path("data/x*"), (M_CONTAINS, "data/x".into()));
+        // A bare `**` still lowers to M_ANY (match any), independent of the
+        // prefix/contains split.
+        assert_eq!(lower_path("**"), (M_ANY, String::new()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
