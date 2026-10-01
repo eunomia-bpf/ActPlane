@@ -2992,4 +2992,37 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn policy_audit_meta_json_emits_only_present_fields() {
+        // `policy_audit_meta_json` builds a child record's policy audit
+        // metadata object from a `PolicyAuditMeta`: every `None` field is
+        // omitted, so an all-`None` meta yields `None`, and a meta with any
+        // field yields an object containing only the present fields. No
+        // base or branch test pins this builder directly.
+        // An all-None meta is omitted entirely.
+        assert!(policy_audit_meta_json(&PolicyAuditMeta::default()).is_none());
+
+        // A single present field yields an object with just that key.
+        let ref_only = PolicyAuditMeta {
+            policy_ref: Some("repo.yaml".to_string()),
+            ..PolicyAuditMeta::default()
+        };
+        assert_eq!(
+            policy_audit_meta_json(&ref_only).as_ref(),
+            Some(&serde_json::json!({ "policy_ref": "repo.yaml" }))
+        );
+
+        // A fully-populated meta yields every key, in the object.
+        let full = PolicyAuditMeta {
+            policy_ref: Some("repo.yaml".to_string()),
+            approved_by: Some("reviewer".to_string()),
+            approval_ref: Some("PR-7".to_string()),
+            generated_by: Some("actplane".to_string()),
+        };
+        let built = policy_audit_meta_json(&full).expect("full meta builds");
+        assert_eq!(built["policy_ref"], serde_json::json!("repo.yaml"));
+        assert_eq!(built["approved_by"], serde_json::json!("reviewer"));
+        assert_eq!(built["approval_ref"], serde_json::json!("PR-7"));
+        assert_eq!(built["generated_by"], serde_json::json!("actplane"));
+    }
 }
