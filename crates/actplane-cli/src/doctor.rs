@@ -2591,4 +2591,95 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn annotation_rule_matches_signature_allows_an_absent_effect() {
+        // `annotation_rule_matches_signature` is the annotation-log sibling of
+        // `event_rule_matches_signature`. Its `effect` field is optional: an
+        // absent effect passes, while a present but non-notify effect (e.g.
+        // `"block"`) rejects the match. A positive also requires the clause
+        // identity (hash or text). No base or branch test pins this predicate
+        // directly.
+        let signature = ClauseEventSignature {
+            clause_op: "open",
+            target_kind: "file",
+            target_pattern: "out.txt".to_string(),
+            target_arg: None,
+            clause_text: "notify open file \"out.txt\"".to_string(),
+            clause_hash: "hash-1".to_string(),
+        };
+
+        // An explicit `notify` effect plus matching fields and identity.
+        assert!(annotation_rule_matches_signature(
+            &json!({
+                "rule": {
+                    "effect": "notify",
+                    "clause_op": "open",
+                    "target_kind": "file",
+                    "target_pattern": "out.txt",
+                    "clause_hash": "hash-1"
+                }
+            }),
+            &signature
+        ));
+
+        // An absent effect still matches when the remaining fields agree.
+        assert!(annotation_rule_matches_signature(
+            &json!({
+                "rule": {
+                    "clause_op": "open",
+                    "target_kind": "file",
+                    "target_pattern": "out.txt",
+                    "clause_hash": "hash-1"
+                }
+            }),
+            &signature
+        ));
+
+        // No `rule` object at all.
+        assert!(!annotation_rule_matches_signature(
+            &json!({ "event": "x" }),
+            &signature
+        ));
+
+        // A present non-notify effect rejects the match.
+        assert!(!annotation_rule_matches_signature(
+            &json!({
+                "rule": {
+                    "effect": "block",
+                    "clause_op": "open",
+                    "target_kind": "file",
+                    "target_pattern": "out.txt",
+                    "clause_hash": "hash-1"
+                }
+            }),
+            &signature
+        ));
+
+        // A mismatched target pattern fails.
+        assert!(!annotation_rule_matches_signature(
+            &json!({
+                "rule": {
+                    "effect": "notify",
+                    "clause_op": "open",
+                    "target_kind": "file",
+                    "target_pattern": "other.txt",
+                    "clause_hash": "hash-1"
+                }
+            }),
+            &signature
+        ));
+
+        // All rule fields match but the clause identity is missing.
+        assert!(!annotation_rule_matches_signature(
+            &json!({
+                "rule": {
+                    "effect": "notify",
+                    "clause_op": "open",
+                    "target_kind": "file",
+                    "target_pattern": "out.txt"
+                }
+            }),
+            &signature
+        ));
+    }
 }
