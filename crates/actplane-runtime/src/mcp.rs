@@ -2992,4 +2992,44 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn child_status_json_encodes_each_state_variant() {
+        // `child_status_json` is the forward builder of `child_status_from_json`:
+        // each `ChildStatus` variant encodes to a JSON object with its `state`
+        // tag (and, for `Exited`, its optional code/signal). No base or branch
+        // test pins this builder directly.
+        let running = child_status_json(&ChildStatus::Running);
+        assert_eq!(running, serde_json::json!({ "state": "running" }));
+
+        let terminated = child_status_json(&ChildStatus::Terminated);
+        assert_eq!(terminated, serde_json::json!({ "state": "terminated" }));
+
+        // An exited child carries its optional code and signal.
+        let exited = child_status_json(&ChildStatus::Exited {
+            code: Some(3),
+            signal: Some(15),
+        });
+        assert_eq!(
+            exited,
+            serde_json::json!({
+                "state": "exited",
+                "code": 3,
+                "signal": 15,
+            })
+        );
+
+        // An exited child with no code/signal emits nulls.
+        let exited_bare = child_status_json(&ChildStatus::Exited {
+            code: None,
+            signal: None,
+        });
+        assert_eq!(
+            exited_bare,
+            serde_json::json!({
+                "state": "exited",
+                "code": null,
+                "signal": null,
+            })
+        );
+    }
 }
