@@ -2108,4 +2108,46 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn append_delta_gate_from_config_maps_each_field() {
+        // `AppendDeltaApprovalGate::from_config` copies every knob out of the
+        // parsed YAML config, so the gate must accept an approver listed in
+        // `allowed_approvers` and reject an unknown one. No base or branch test
+        // calls `from_config`.
+        let config = crate::config::AppendDeltaApprovalConfig {
+            required: true,
+            require_approval_ref: true,
+            require_generated_by: false,
+            allowed_approvers: vec!["repo-supervisor".to_string()],
+        };
+        let gate = AppendDeltaApprovalGate::from_config(&config);
+
+        let accepted = gate.evaluate(&PolicyAuditMeta {
+            approved_by: Some("repo-supervisor".to_string()),
+            approval_ref: Some("ticket-7".to_string()),
+            ..PolicyAuditMeta::default()
+        });
+        assert!(accepted.accepted, "{:?}", accepted.rejection_reason);
+        assert!(accepted.enforced && accepted.required);
+        assert!(accepted.missing_fields.is_empty());
+        assert_eq!(
+            accepted.allowed_approvers,
+            vec!["repo-supervisor".to_string()]
+        );
+
+        let unknown = gate.evaluate(&PolicyAuditMeta {
+            approved_by: Some("someone-else".to_string()),
+            approval_ref: Some("ticket-7".to_string()),
+            ..PolicyAuditMeta::default()
+        });
+        assert!(!unknown.accepted);
+        assert!(
+            unknown.rejection_reason.as_deref().is_some_and(
+                |r| r.contains("not in runtime.approval.append_delta.allowed_approvers")
+            ),
+            "{:?}",
+            unknown.rejection_reason
+        );
+    }
 }
