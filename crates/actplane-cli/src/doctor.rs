@@ -2591,4 +2591,115 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn rollout_recommendation_selects_the_effect_and_support_branch() {
+        // `rollout_recommendation` returns a 3-tuple (observe note, readiness
+        // note, promotion rationale) that depends on the clause `effect` and
+        // whether the current / block backend is supported. No base or branch
+        // test pins this recommender directly.
+        use crate::dsl::ast::Target;
+
+        let clause = |effect: Effect| Clause {
+            op: Op::Open,
+            target: Target {
+                kind: Kind::File,
+                pattern: "out.txt".to_string(),
+                arg: None,
+            },
+            when: Expr::True,
+            unless: None,
+            effect,
+            source_index: 0,
+        };
+        let detail = |supported: bool, reason: &str| SupportDetail {
+            supported,
+            status: "ok",
+            mode: "bpf-lsm",
+            pre_op: true,
+            reason: reason.to_string(),
+            limitations: Vec::new(),
+        };
+
+        // Notify + block backend supported: collect a baseline, then allow a
+        // later promotion.
+        let (observe, ready, why) = rollout_recommendation(
+            &clause(Effect::Notify),
+            &detail(true, "ok"),
+            &detail(true, "ok"),
+        );
+        assert_eq!(observe, "already notify; collect baseline event volume");
+        assert_eq!(
+            ready,
+            "eligible for later block if the observed events are all unwanted"
+        );
+        assert_eq!(
+            why,
+            "promotion changes timing from post-event report to pre-operation denial"
+        );
+
+        // Notify + block backend unsupported: keep observe, and name the reason.
+        let (observe, ready, why) = rollout_recommendation(
+            &clause(Effect::Notify),
+            &detail(true, "ok"),
+            &detail(false, "no bpf-lsm"),
+        );
+        assert_eq!(observe, "already notify; keep as observe/report-only");
+        assert_eq!(ready, "do not promote to block yet: no bpf-lsm");
+        assert_eq!(why, "promotion would overclaim backend support");
+
+        // Block + current backend supported: observe first, then block is
+        // eligible.
+        let (observe, ready, why) = rollout_recommendation(
+            &clause(Effect::Block),
+            &detail(true, "ok"),
+            &detail(true, "ok"),
+        );
+        assert_eq!(
+            observe,
+            "use notify-only observe policy for this clause before enforcement"
+        );
+        assert_eq!(
+            ready,
+            "eligible for block after observe period and false-positive review"
+        );
+        assert_eq!(
+            why,
+            "block denies before syscall commit only on hosts with matching BPF-LSM and hook profile"
+        );
+
+        // Block + current backend unsupported: do not deploy as block yet.
+        let (observe, ready, why) = rollout_recommendation(
+            &clause(Effect::Block),
+            &detail(false, "no bpf-lsm"),
+            &detail(false, "no bpf-lsm"),
+        );
+        assert_eq!(
+            observe,
+            "use notify-only observe policy for this clause before enforcement"
+        );
+        assert_eq!(ready, "do not deploy as block yet: no bpf-lsm");
+        assert_eq!(
+            why,
+            "the declared block effect is not enforceable by the current backend selection"
+        );
+
+        // Kill is constant regardless of backend support.
+        let (observe, ready, why) = rollout_recommendation(
+            &clause(Effect::Kill),
+            &detail(true, "ok"),
+            &detail(true, "ok"),
+        );
+        assert_eq!(
+            observe,
+            "use notify-only observe policy for this clause before enforcement"
+        );
+        assert_eq!(
+            ready,
+            "promote to kill only after manual review; kill is post-event termination"
+        );
+        assert_eq!(
+            why,
+            "the triggering syscall may already have completed before termination"
+        );
+    }
 }
