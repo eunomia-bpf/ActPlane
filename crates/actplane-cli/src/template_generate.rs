@@ -952,4 +952,26 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn mentions_release_protected_push_context_flags_protected_push_phrasings() {
+        // `mentions_release_protected_push_context` reports whether the
+        // lowercased task text mentions a protected-branch / release-branch
+        // push context, matching a fixed set of phrasings. No base or branch
+        // test pins this predicate directly.
+        assert!(mentions_release_protected_push_context(
+            "push to main only after review"
+        ));
+        assert!(mentions_release_protected_push_context(
+            "protect the release branch"
+        ));
+        assert!(mentions_release_protected_push_context(
+            "the protected ref must stay clean"
+        ));
+
+        // Text without a protected-push context is not flagged.
+        assert!(!mentions_release_protected_push_context(
+            "run the test suite before committing"
+        ));
+        assert!(!mentions_release_protected_push_context(""));
+    }
 }
