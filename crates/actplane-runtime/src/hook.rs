@@ -323,4 +323,35 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    fn env_path_or_prefers_env_then_defaults_under_cwd() {
+        // `env_path_or` resolves a hook path from an env override or a cwd
+        // default, absolutizing relative results; no base or branch test calls
+        // it.
+        let cwd = Path::new("/tmp/actplane-cwd");
+        let probe = "ACTPLANE_TEST_ENV_PATH_OR";
+
+        // Unset -> default join cwd.
+        unsafe { std::env::remove_var(probe) };
+        assert_eq!(
+            env_path_or(probe, cwd, ".actplane/feedback.txt"),
+            cwd.join(".actplane/feedback.txt")
+        );
+
+        // Relative env value is absolutized against cwd.
+        unsafe { std::env::set_var(probe, "custom/feedback.txt") };
+        assert_eq!(
+            env_path_or(probe, cwd, ".actplane/feedback.txt"),
+            cwd.join("custom/feedback.txt")
+        );
+
+        // Absolute env value is returned verbatim.
+        unsafe { std::env::set_var(probe, "/var/tmp/absolute.txt") };
+        assert_eq!(
+            env_path_or(probe, cwd, ".actplane/feedback.txt"),
+            PathBuf::from("/var/tmp/absolute.txt")
+        );
+        unsafe { std::env::remove_var(probe) };
+    }
 }
