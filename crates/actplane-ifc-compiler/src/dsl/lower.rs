@@ -335,6 +335,20 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_star_suffixed_exec_pattern_lowers_to_a_prefix_match() {
+        // An exec pattern with a `*` suffix matches any comm beginning with
+        // the prefix. `lower_exec` strips the glob suffix and drops any path
+        // prefix, so the kernel match is a prefix match on the basename: the
+        // distinct case from the exact-basename `M_EXACT` lowering (which
+        // drops no wildcard) and the full-wildcard `M_ANY` lowering.
+        assert_eq!(lower_exec("git*"), (M_PREFIX, "git".into()));
+        assert_eq!(lower_exec("/usr/bin/git*"), (M_PREFIX, "git".into()));
+        assert_eq!(lower_exec("**/git*"), (M_PREFIX, "git".into()));
+        // Control: no wildcard suffix -> exact match on the basename.
+        assert_eq!(lower_exec("git"), (M_EXACT, "git".into()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
