@@ -2591,4 +2591,40 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn render_dsl_expr_joins_composites_without_parentheses() {
+        // `render_dsl_expr` renders an `Expr` to a DSL string, unlike
+        // `expr_summary` which parenthesizes composites: `True` -> "true",
+        // `Label` -> the label, `Not` -> "not <label>", and `And` / `Or`
+        // join their operands with " and " / " or " without parentheses.
+        // No base or branch test pins this renderer directly.
+        assert_eq!(render_dsl_expr(&Expr::True), "true");
+        assert_eq!(render_dsl_expr(&Expr::Label("repo".into())), "repo");
+        assert_eq!(render_dsl_expr(&Expr::Not("leak".into())), "not leak");
+        assert_eq!(
+            render_dsl_expr(&Expr::And(
+                Box::new(Expr::Label("repo".into())),
+                Box::new(Expr::Label("agent".into()))
+            )),
+            "repo and agent"
+        );
+        assert_eq!(
+            render_dsl_expr(&Expr::Or(
+                Box::new(Expr::Label("repo".into())),
+                Box::new(Expr::Not("leak".into()))
+            )),
+            "repo or not leak"
+        );
+        // A nested composite flattens without introducing parentheses.
+        assert_eq!(
+            render_dsl_expr(&Expr::And(
+                Box::new(Expr::And(
+                    Box::new(Expr::Label("a".into())),
+                    Box::new(Expr::Label("b".into()))
+                )),
+                Box::new(Expr::Label("c".into()))
+            )),
+            "a and b and c"
+        );
+    }
 }
