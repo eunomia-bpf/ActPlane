@@ -335,6 +335,72 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_gate_without_an_exits_clause_defaults_to_gate_immediate() {
+        // `gate_exit_code` is how the engine knows which exit code stamps a
+        // gate. `TAINT_GATE_IMMEDIATE` (-1) means the gate latches on any
+        // matching event with no exit-code check, while a concrete code
+        // (0..255) makes the engine wait for that specific exit code via
+        // `te_exit_status_matches`. The compiler's `gate_bit` helper sets
+        // `gate_exit_code` from the optional `exits` clause; when the clause
+        // is absent, the byte must default to GATE_IMMEDIATE. #57 pinned
+        // the explicit-code cases (`exits 0`, `exits 2`), but the no-exits
+        // default is load-bearing: a regression that zeroed the default
+        // would silently turn "gate on any matching event" into "gate on
+        // exit code 0", changing the gate's fire condition for every rule
+        // that omits `exits`.
+        fn gate_code(src: &str) -> i32 {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile(&pol).expect("compile policy");
+            let g: CConfig =
+                unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+            g.updates[..g.n_updates as usize]
+                .iter()
+                .find(|u| u.gates != 0)
+                .map(|u| u.gate_exit_code)
+                .expect("a gate update is allocated")
+        }
+
+        // No `exits` clause: the gate update's exit code defaults to the
+        // kernel's GATE_IMMEDIATE sentinel, not zero.
+        assert_eq!(
+            gate_code(
+                "source S = file \"/**/.env\"\n\
+                 rule r:\n\
+                   block exec \"git\" if S unless after exec \"/pytest\"\n\
+                   because \"test before commit\"\n"
+            ),
+            GATE_IMMEDIATE,
+            "no `exits` clause defaults to GATE_IMMEDIATE (-1)"
+        );
+
+        // `exits 0` is a *specific* exit code, not the immediate sentinel:
+        // it must differ from the default, so an "latch on any event" rule
+        // and a "latch on exit 0" rule compile to different gate bytes.
+        assert_eq!(
+            gate_code(
+                "source S = file \"/**/.env\"\n\
+                 rule r:\n\
+                   block exec \"git\" if S unless after exec \"/pytest\" exits 0\n\
+                   because \"test before commit\"\n"
+            ),
+            0,
+            "`exits 0` carries the concrete exit code 0"
+        );
+
+        // And a non-zero exit code passes through verbatim.
+        assert_eq!(
+            gate_code(
+                "source S = file \"/**/.env\"\n\
+                 rule r:\n\
+                   block exec \"git\" if S unless after exec \"/pytest\" exits 42\n\
+                   because \"test before commit\"\n"
+            ),
+            42,
+            "`exits 42` carries the concrete exit code 42"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
