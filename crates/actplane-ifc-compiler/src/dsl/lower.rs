@@ -335,6 +335,26 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn exec_patterns_lower_to_comm_basename() {
+        // The kernel exec hook matches `comm` (process basename, <= 15 bytes),
+        // never the full path. So `exec "/usr/bin/git"` and `exec "git"` must
+        // lower to the same (match, literal). lower_exec canonicalizes by
+        // taking the last '/'-segment.
+        assert_eq!(lower_exec("git"), (M_EXACT, "git".into()));
+        assert_eq!(
+            lower_exec("/usr/bin/git"),
+            lower_exec("git"),
+            "full-path and bare-name exec patterns must canonicalize to the same comm match"
+        );
+        assert_eq!(lower_exec("/bin/echo"), (M_EXACT, "echo".into()));
+
+        // A trailing '*' becomes a comm prefix match (e.g. `python*`), not an
+        // exact match: the base is `python` and the `*` is stripped.
+        assert_eq!(lower_exec("python*"), (M_PREFIX, "python".into()));
+        assert_eq!(lower_exec("/usr/local/bin/pip*"), (M_PREFIX, "pip".into()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
