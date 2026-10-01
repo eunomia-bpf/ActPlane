@@ -323,4 +323,44 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    fn discover_matching_feedback_picks_latest_matching_run() {
+        // `discover_matching_feedback` scans .actplane/runs for hook states that
+        // match this agent and returns the latest; no base or branch test calls
+        // it.
+        let me = std::process::id() as i32;
+        let dir = tempfile::tempdir().expect("tempdir");
+        let cwd = dir.path();
+
+        // No runs directory -> None.
+        assert!(discover_matching_feedback(cwd).is_none());
+
+        let runs = cwd.join(".actplane/runs");
+        let write_run = |name: &str, root_pid: Option<i32>, feedback: &str| {
+            let run = runs.join(name);
+            std::fs::create_dir_all(&run).unwrap();
+            store_hook_state(
+                &run.join("hook-state.json"),
+                &HookState {
+                    feedback_file: Some(feedback.to_string()),
+                    root_pid,
+                    offset: None,
+                },
+            )
+            .unwrap();
+        };
+        // A matching run (self root) and two non-matching runs.
+        write_run("run-a", Some(me), "/tmp/feedback-a.txt");
+        write_run("run-b", Some(i32::MAX), "/tmp/feedback-b.txt");
+        write_run("run-c", Some(i32::MAX), "/tmp/feedback-c.txt");
+
+        let found = discover_matching_feedback(cwd).expect("matching run");
+        assert_eq!(found.feedback, PathBuf::from("/tmp/feedback-a.txt"));
+        assert!(found.state.ends_with("run-a/hook-state.json"));
+
+        // Once that run's state is gone, discovery finds nothing.
+        std::fs::remove_file(runs.join("run-a/hook-state.json")).unwrap();
+        assert!(discover_matching_feedback(cwd).is_none());
+    }
 }
