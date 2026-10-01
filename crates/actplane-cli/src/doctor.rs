@@ -2591,4 +2591,43 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn endpoint_pattern_supported_detects_numeric_ipv4_or_resolved_hostname() {
+        // `endpoint_pattern_supported` reports whether an endpoint pattern is
+        // supported: either a numeric IPv4 pattern or a hostname that resolved
+        // to at least one address at compile/load time. No base or branch
+        // test pins this predicate directly.
+        use std::collections::HashMap;
+
+        fn empty_compiled() -> dsl::Compiled {
+            dsl::Compiled {
+                bytes: Vec::new(),
+                reasons: Vec::new(),
+                meta: Vec::new(),
+                labels: HashMap::new(),
+                endpoint_resolutions: HashMap::new(),
+            }
+        }
+
+        // Numeric IPv4 patterns are always supported, with an empty backend.
+        let empty = empty_compiled();
+        assert!(endpoint_pattern_supported(&empty, "*"));
+        assert!(endpoint_pattern_supported(&empty, "93.184.215.14"));
+
+        // A hostname with no resolution entry is not supported.
+        assert!(!endpoint_pattern_supported(&empty, "api.example.com"));
+
+        // A hostname that resolved to at least one address is supported.
+        let mut resolved = empty_compiled();
+        resolved
+            .endpoint_resolutions
+            .insert("api.example.com".into(), vec!["93.184.215.14".into()]);
+        assert!(endpoint_pattern_supported(&resolved, "api.example.com"));
+
+        // A hostname whose resolution yielded no address is not supported.
+        resolved
+            .endpoint_resolutions
+            .insert("stale.example.com".into(), Vec::new());
+        assert!(!endpoint_pattern_supported(&resolved, "stale.example.com"));
+    }
 }
