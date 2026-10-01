@@ -7884,4 +7884,33 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+    #[test]
+    fn feature_gate_error_names_missing_features_and_hints() {
+        // `feature_gate_error` renders the features a delta needs that the
+        // loaded engine lacks: each missing feature is named, relevant
+        // remediation hints are appended, and the raw `needed`/`supported`/
+        // `missing` masks are echoed in hex. No base or branch test pins this
+        // helper directly.
+        // A single missing network feature names it and carries its hex tail.
+        let connect = feature_gate_error("delta", FEAT_CONNECT, 0, FEAT_CONNECT);
+        assert!(connect
+            .starts_with("delta requires features not enabled when the eBPF engine was loaded: "));
+        assert!(connect.contains("connect rules or sources"));
+        assert!(connect.ends_with("needed=0x10, supported=0x0, missing=0x10"));
+
+        // Multiple missing matcher features are named in a stable order.
+        let matchers = feature_gate_error(
+            "delta",
+            FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX,
+            0,
+            FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX,
+        );
+        assert!(matchers.contains("path contains matches, path suffix matches"));
+
+        // An empty `missing` mask names nothing but still carries the base
+        // hint and echoes the zero masks.
+        let none = feature_gate_error("delta", 0, 0, 0);
+        assert!(none.contains("loaded: . "));
+        assert!(none.ends_with("needed=0x0, supported=0x0, missing=0x0"));
+    }
 }
