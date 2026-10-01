@@ -1072,3 +1072,31 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_policy_audit_meta_fields_writes_only_present_optional_fields() {
+        // `add_policy_audit_meta_fields` copies each audit field that is
+        // `Some` onto a control request, leaving unset fields absent rather
+        // than writing JSON `null`, and preserving existing keys. No base or
+        // branch test pins this helper directly.
+        let mut request = serde_json::json!({ "op": "append_policy_delta" });
+        add_policy_audit_meta_fields(
+            &mut request,
+            &runtime::PolicyAuditMeta {
+                policy_ref: Some("policy.dsl".to_string()),
+                approved_by: Some("alice".to_string()),
+                approval_ref: None,
+                generated_by: Some("tool".to_string()),
+            },
+        );
+        assert_eq!(request["policy_ref"], "policy.dsl");
+        assert_eq!(request["approved_by"], "alice");
+        assert_eq!(request["generated_by"], "tool");
+        assert!(request.get("approval_ref").is_none());
+        assert_eq!(request["op"], "append_policy_delta");
+    }
+}
