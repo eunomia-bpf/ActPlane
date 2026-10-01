@@ -335,6 +335,72 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// `endorse` and `declassify` are opposite directions of the same xform:
+    /// `endorse` *grants* a label on a gate exec, `declassify` *strips* it.
+    /// They lower to a single exec update with the label bit placed in exactly
+    /// one of `add` / `del` (lower.rs: `add: if endorse { bit } else { 0 },
+    /// del: if endorse { 0 } else { bit }`). The kernel applies that as
+    /// `ns.labels = (ns.labels | c.add) & ~c.del` (taint_engine.bpf.h:1610),
+    /// so a flipped or dual-set mask silently grants where it should strip
+    /// (or vice versa), inverting every rule gated on that label -- with no
+    /// compile-time or blob-size symptom. Pin the direction, relative to the
+    /// actually-allocated label bit so the assert is not brittle to slot order.
+    #[test]
+    fn endorse_and_declassify_set_opposite_add_del_directions() {
+        let pol = crate::dsl::parse::parse(
+            "source S1 = file \"**/.env\"\n\
+             source S2 = file \"**/secrets.json\"\n\
+             endorse S1 by exec \"**/approve\"\n\
+             declassify S2 by exec \"**/redact\"\n\
+             rule guard:\n\
+               block exec \"git\" if S1\n\
+               because \"approve before commit\"\n",
+        )
+        .expect("parse xform policy");
+        let compiled = compile(&pol).expect("compile xform policy");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+
+        let s1 = compiled.labels.get("S1").copied().expect("S1 label bit");
+        let s2 = compiled.labels.get("S2").copied().expect("S2 label bit");
+
+        // Locate the two exec updates by their lowered comm target.
+        let updates = &cfg.updates[..cfg.n_updates as usize];
+        let approve = updates
+            .iter()
+            .find(|u| u.op == OP_EXEC && &u.target[..6] == "approv".as_bytes())
+            .expect("endorse exec update present");
+        let redact = updates
+            .iter()
+            .find(|u| u.op == OP_EXEC && &u.target[..6] == "redact".as_bytes())
+            .expect("declassify exec update present");
+
+        // Endorse grants: the S1 bit goes into `add`, `del` stays clear.
+        assert_eq!(approve.add, s1, "endorse carries S1 in `add`");
+        assert_eq!(approve.del, 0, "endorse must not strip anything");
+        // Declassify strips: the S2 bit goes into `del`, `add` stays clear.
+        assert_eq!(redact.add, 0, "declassify must not grant anything");
+        assert_eq!(redact.del, s2, "declassify carries S2 in `del`");
+
+        // Both directions are mutually exclusive per update: a xform update
+        // never grants and strips the same bit in one event.
+        for u in updates {
+            assert_eq!(
+                u.add & u.del,
+                0,
+                "an update must not set the same bit in both `add` and `del`"
+            );
+        }
+
+        // A `file` source grants its own label via `add` only (the control that
+        // proves the xform `del` direction is specific to declassify).
+        let env_src = updates
+            .iter()
+            .find(|u| u.op == OP_OPEN && u.add == s1)
+            .expect("S1 source update present");
+        assert_eq!(env_src.del, 0, "a source never strips a label");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
