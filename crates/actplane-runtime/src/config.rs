@@ -851,4 +851,65 @@ domains:
             );
         }
     }
+
+    #[test]
+    fn resolve_domain_inner_and_summary_map_fields() {
+        // `resolve_domain_inner` accumulates inherited locked rules and
+        // `summary_for_domain` projects them (plus parent/disabled) into a
+        // DomainSummary; both report unknown domains. Neither has a direct
+        // caller in the base or branch tests.
+        let config: FileConfig = serde_yaml::from_str(
+            r#"
+default_domain: review
+rules:
+  locked:
+    ifc: |
+      rule locked:
+        kill exec "git"
+        because "locked"
+  extra:
+    ifc: |
+      rule extra:
+        kill exec "curl"
+        because "extra"
+domains:
+  base:
+    bind:
+      - rule: locked
+        mode: locked
+  review:
+    parent: base
+    bind:
+      - rule: extra
+        mode: locked
+"#,
+        )
+        .expect("config");
+
+        assert!(
+            resolve_domain_inner(&config, "nope", &mut BTreeSet::new())
+                .unwrap_err()
+                .to_string()
+                .contains("unknown domain")
+        );
+
+        let bound = vec!["extra".to_string(), "locked".to_string()];
+        let resolved =
+            resolve_domain_inner(&config, "review", &mut BTreeSet::new()).expect("resolved");
+        assert_eq!(resolved.locked.iter().cloned().collect::<Vec<_>>(), bound);
+        assert!(resolved.defaults.is_empty());
+
+        let summary = summary_for_domain(&config, "review", resolved.clone()).expect("summary");
+        assert_eq!(summary.name, "review");
+        assert_eq!(summary.parent.as_deref(), Some("base"));
+        assert_eq!(summary.locked, bound);
+        assert!(summary.defaults.is_empty());
+        assert!(summary.disabled.is_empty());
+        assert!(
+            summary_for_domain(&config, "nope", resolved)
+                .unwrap_err()
+                .to_string()
+                .contains("unknown domain")
+        );
+    }
 }
