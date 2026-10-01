@@ -204,4 +204,27 @@ mod tests {
         assert!(s.contains("acquired label SECRET"));
         assert!(s.contains("current `connect` `1.2.3.4` operation"));
     }
+    #[test]
+    fn provenance_line_renders_the_provenance_or_empty_when_absent() {
+        // `provenance_line` renders the "acquired label … at kernel timestamp"
+        // provenance line for a feedback payload, or an empty string when the
+        // violation carries no provenance. No base or branch test pins either
+        // branch directly.
+        let p = Provenance {
+            label: "SECRET".to_string(),
+            origin_pid: 1234,
+            origin_op: "open".to_string(),
+            origin_target: "/etc/secrets".to_string(),
+            origin_timestamp_ns: 999,
+        };
+
+        // A `Some` provenance renders the full line with a trailing newline.
+        assert_eq!(
+            provenance_line(Some(&p), "connect", "1.2.3.4"),
+            "- Provenance: PID 1234 acquired label SECRET at kernel timestamp 999 ns via `open` `/etc/secrets`; that label propagated through process state to the current `connect` `1.2.3.4` operation.\n"
+        );
+
+        // An absent provenance renders nothing.
+        assert_eq!(provenance_line(None, "connect", "1.2.3.4"), "");
+    }
 }
