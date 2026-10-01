@@ -2591,4 +2591,16 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn dsl_literal_flattens_whitespace_and_single_quotes() {
+        // `dsl_literal` flattens newlines and carriage returns into spaces
+        // and swaps double quotes for single quotes, so a value can be
+        // embedded in a DSL string literal. No base or branch test pins
+        // this formatter directly.
+        assert_eq!(dsl_literal("plain"), "plain");
+        assert_eq!(dsl_literal("a\nb\rc"), "a b c");
+        assert_eq!(dsl_literal("say \"hi\""), "say 'hi'");
+        // Both substitutions apply to the same value.
+        assert_eq!(dsl_literal("a\n\"b\""), "a 'b'");
+    }
 }
