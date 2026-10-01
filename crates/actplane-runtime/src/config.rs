@@ -851,4 +851,54 @@ domains:
             );
         }
     }
+
+    #[test]
+    fn discover_policy_walks_up_to_nearest_policy_file() {
+        // `discover_policy` climbs from a start directory to the filesystem
+        // root, returning the first DEFAULT_POLICY_FILES hit. No base or branch
+        // test calls it.
+        let root = std::env::temp_dir().join(format!(
+            "actplane-discover-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let deep = root.join("a").join("b");
+        fs::create_dir_all(&deep).unwrap();
+
+        // No policy anywhere under the tree: the walk escapes to the root.
+        assert_eq!(discover_policy(&deep), None);
+
+        // Nearest ancestor wins: a policy two levels up.
+        let top_policy = root.join("actplane.yaml");
+        fs::write(&top_policy, "policy: |\n").unwrap();
+        assert_eq!(
+            discover_policy(&deep).as_deref(),
+            Some(top_policy.as_path())
+        );
+
+        // A policy in the start directory shadows the ancestor.
+        let near_policy = deep.join(".actplane").join("policy.yaml");
+        fs::create_dir_all(near_policy.parent().unwrap()).unwrap();
+        fs::write(&near_policy, "policy: |\n").unwrap();
+        assert_eq!(
+            discover_policy(&deep).as_deref(),
+            Some(near_policy.as_path())
+        );
+
+        // DEFAULT_POLICY_FILES order: actplane.yaml beats .actplane/policy.yaml
+        // within the same directory.
+        let same_plain = root.join("a").join("actplane.yaml");
+        let same_nested = root.join("a").join(".actplane").join("policy.yaml");
+        fs::create_dir_all(same_nested.parent().unwrap()).unwrap();
+        fs::write(&same_plain, "policy: |\n").unwrap();
+        fs::write(&same_nested, "policy: |\n").unwrap();
+        let sub = root.join("a").join("c").join("d");
+        fs::create_dir_all(&sub).unwrap();
+        assert_eq!(discover_policy(&sub).as_deref(), Some(same_plain.as_path()));
+
+        let _ = fs::remove_dir_all(&root);
+    }
 }
