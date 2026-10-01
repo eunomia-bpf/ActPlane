@@ -343,3 +343,27 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kind_maps_all_three_kind_spellings_to_their_variants() {
+        // `P::kind` maps the source-kind verb to its `Kind` variant,
+        // accepting exactly the three kind spellings and rejecting anything
+        // else with a message that echoes the offending word. No test in any
+        // open or merged branch pins this verb-to-kind mapping directly.
+        for (w, k) in [
+            ("file", Kind::File),
+            ("endpoint", Kind::Endpoint),
+            ("exec", Kind::Exec),
+        ] {
+            assert_eq!(P::kind(w).unwrap(), k);
+        }
+
+        // An unknown kind is an error whose message carries the offending word.
+        assert_eq!(P::kind("socket").unwrap_err(), "unknown kind 'socket'");
+        assert_eq!(P::kind("").unwrap_err(), "unknown kind ''");
+    }
+}
