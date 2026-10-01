@@ -380,4 +380,20 @@ mod tests {
         let err = send_request(dir.path(), json!({ "op": "status" })).unwrap_err();
         assert!(err.to_string().contains("stale ActPlane control state"));
     }
+
+    #[test]
+    fn peer_credentials_reports_connected_peer() {
+        // `peer_credentials` reads SO_PEERCRED from a connected socket; no base
+        // or branch test calls it.
+        let (server, client) = std::os::unix::net::UnixStream::pair().expect("socketpair");
+        let cred = peer_credentials(&server).expect("peer credentials");
+        let me = std::process::id() as i32;
+        assert_eq!(cred.pid, me);
+        assert_eq!(cred.uid, unsafe { libc::geteuid() });
+        assert_eq!(cred.gid, unsafe { libc::getegid() });
+        assert_eq!(cred.identity.pid, me);
+        assert_eq!(cred.identity.uid, Some(unsafe { libc::geteuid() }));
+        // The client end sees the same peer.
+        assert_eq!(peer_credentials(&client).unwrap().pid, me);
+    }
 }
