@@ -7884,4 +7884,42 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+    #[test]
+    fn validate_legacy_config_enforces_linux_5_10_limits() {
+        // `validate_legacy_config` enforces the Linux 5.10 compatibility
+        // limits on a legacy config: the update/rule counts stay within the
+        // legacy maxima, sources may not use `@arg`/domains (or unsupported
+        // match modes), and rules may not use `@arg`, recv/file-block effects,
+        // or contains/long-suffix match modes. No base or branch test pins this
+        // helper directly.
+        // A small config of a plain open source and a plain open rule passes.
+        let mut ok_cfg: CConfig = unsafe { std::mem::zeroed() };
+        ok_cfg.n_updates = 1;
+        ok_cfg.updates[0].op = OP_OPEN;
+        ok_cfg.n_rules = 1;
+        ok_cfg.rules[0].op = OP_OPEN;
+        assert!(validate_legacy_config(&ok_cfg).is_ok());
+
+        // More updates than Linux 5.10 can hold is rejected up front.
+        let mut over: CConfig = unsafe { std::mem::zeroed() };
+        over.n_updates = LEGACY_MAX_UPDATES as u32 + 1;
+        let err = validate_legacy_config(&over).expect_err("over count");
+        assert!(err.to_string().contains("at most 64 updates"));
+
+        // A source using a domain exceeds the compatibility limits.
+        let mut domain_src: CConfig = unsafe { std::mem::zeroed() };
+        domain_src.n_updates = 1;
+        domain_src.updates[0].op = OP_OPEN;
+        domain_src.updates[0].domain_id = 1;
+        let err = validate_legacy_config(&domain_src).expect_err("domain source");
+        assert!(err.to_string().contains("source matches"));
+
+        // A blocking open rule exceeds the 5.10 rule compatibility limits.
+        let mut block_rule: CConfig = unsafe { std::mem::zeroed() };
+        block_rule.n_rules = 1;
+        block_rule.rules[0].op = OP_OPEN;
+        block_rule.rules[0].effect = EFFECT_BLOCK;
+        let err = validate_legacy_config(&block_rule).expect_err("block rule");
+        assert!(err.to_string().contains("rules exclude"));
+    }
 }
