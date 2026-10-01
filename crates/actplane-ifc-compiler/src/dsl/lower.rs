@@ -418,7 +418,7 @@ mod tests {
         let r2 = &c2.rules[0];
         assert_eq!(r2.cond_kind, C_NONE, "no `unless` must leave TCOND_NONE");
         assert_eq!(r2.cond_neg, 0);
-        let mut empty = [0u8; PAT];
+        let empty = [0u8; PAT];
         assert_eq!(r2.cond_pat, empty);
         assert_eq!(r2.cond_ipv4, 0);
         assert_eq!(r2.cond_ipv4_mask, 0);
@@ -466,7 +466,7 @@ mod tests {
         );
         // A connect condition carries no cond_pat; its matcher stays the default.
         assert_eq!(cr.cond_match, M_EXACT);
-        let mut empty = [0u8; PAT];
+        let empty = [0u8; PAT];
         assert_eq!(cr.cond_pat, empty);
 
         // `not` flips only cond_neg; the address stays set (the kernel negates).
