@@ -335,6 +335,52 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn validate_label_bindings_rejects_bad_masks_and_duplicate_bits() {
+        use std::collections::HashMap;
+        // `validate_label_bindings` accepts each label only if its name is
+        // non-empty, its mask is a single power of two, and that bit has not
+        // been claimed by an earlier label. The `Ok` value is the OR of the
+        // accepted bits. No base test pins these validation arms directly.
+        // Two distinct power-of-two bits are accepted; `Ok` is their OR.
+        let ok: HashMap<String, u64> = [("a".to_string(), 0b01u64), ("b".to_string(), 0b10u64)]
+            .into_iter()
+            .collect();
+        assert_eq!(validate_label_bindings(&ok).unwrap(), 0b11);
+        // An empty binding map is valid and uses no bits.
+        let empty: HashMap<String, u64> = HashMap::new();
+        assert_eq!(validate_label_bindings(&empty).unwrap(), 0);
+
+        // A label with an empty name is rejected.
+        let empty_name: HashMap<String, u64> = [(String::new(), 0b01u64)].into_iter().collect();
+        assert_eq!(
+            validate_label_bindings(&empty_name).err().as_deref(),
+            Some("label names must not be empty")
+        );
+
+        // A mask that is not a single power of two (zero, or multi-bit) is
+        // rejected with the offending bit printed in hex.
+        let zero: HashMap<String, u64> = [("z".to_string(), 0u64)].into_iter().collect();
+        assert_eq!(
+            validate_label_bindings(&zero).err().as_deref(),
+            Some("label `z` has invalid bit mask 0x0")
+        );
+        let multi: HashMap<String, u64> = [("n".to_string(), 0b101u64)].into_iter().collect();
+        assert_eq!(
+            validate_label_bindings(&multi).err().as_deref(),
+            Some("label `n` has invalid bit mask 0x5")
+        );
+
+        // Two labels claiming the same bit are rejected.
+        let dup: HashMap<String, u64> = [("x".to_string(), 0b100u64), ("y".to_string(), 0b100u64)]
+            .into_iter()
+            .collect();
+        assert_eq!(
+            validate_label_bindings(&dup).err().as_deref(),
+            Some("label bit 0x4 is assigned more than once")
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
