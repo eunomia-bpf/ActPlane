@@ -2108,4 +2108,13 @@ mod tests {
             "repo-supervisor"
         );
     }
+    #[test]
+    fn kind_name_maps_each_kind_to_its_feedback_verb() {
+        // `kind_name` maps each `dsl::ast::Kind` to the feedback target-kind
+        // word the audit metadata reports for it. No base or branch test pins
+        // this mapping directly.
+        assert_eq!(kind_name(dsl::ast::Kind::File), "file");
+        assert_eq!(kind_name(dsl::ast::Kind::Endpoint), "endpoint");
+        assert_eq!(kind_name(dsl::ast::Kind::Exec), "exec");
+    }
 }
