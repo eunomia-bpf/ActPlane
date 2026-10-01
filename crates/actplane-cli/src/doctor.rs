@@ -2591,4 +2591,43 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn annotation_count_reads_annotation_counts_defaulting_to_zero() {
+        // `annotation_count` looks up a single key in a `ClauseObservation`'s
+        // annotation counter map, returning the stored count for a present key
+        // and `0` for an absent one. No base or branch test pins this accessor
+        // directly.
+        let observation = ClauseObservation {
+            count: 6,
+            actions: BTreeMap::new(),
+            targets: Vec::new(),
+            domains: BTreeMap::new(),
+            annotations: BTreeMap::from([
+                ("true_positive".to_string(), 3),
+                ("false_positive".to_string(), 2),
+                ("noise".to_string(), 1),
+            ]),
+            annotation_notes: Vec::new(),
+        };
+
+        // A present key returns its stored count.
+        assert_eq!(annotation_count(&observation, "true_positive"), 3);
+        assert_eq!(annotation_count(&observation, "false_positive"), 2);
+        assert_eq!(annotation_count(&observation, "noise"), 1);
+
+        // An absent key defaults to zero.
+        assert_eq!(annotation_count(&observation, "needs_review"), 0);
+        assert_eq!(annotation_count(&observation, "not-a-key"), 0);
+
+        // An observation with no annotations at all returns zero for every key.
+        let empty = ClauseObservation {
+            count: 0,
+            actions: BTreeMap::new(),
+            targets: Vec::new(),
+            domains: BTreeMap::new(),
+            annotations: BTreeMap::new(),
+            annotation_notes: Vec::new(),
+        };
+        assert_eq!(annotation_count(&empty, "true_positive"), 0);
+    }
 }
