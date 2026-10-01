@@ -335,6 +335,40 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_match_literal_is_truncated_to_the_kernel_buffer_cap() {
+        // `set_pat` mirrors the kernel match-buffer ABI: it stores at most
+        // `buf.len() - 1` bytes (leaving room for the NUL terminator) and
+        // NUL-terminates at `buf[n]`. This is the same limit AGENTS.md flags
+        // as "Match buffers must be >= TAINT_PAT_LEN". No base test pins
+        // the truncation cap directly.
+        // Within the cap: the NUL lands right after the last byte.
+        let mut p = [0u8; PAT];
+        set_pat(&mut p, "git");
+        assert_eq!(p.iter().position(|&b| b == 0), Some("git".len()));
+        // Over the PAT cap: truncated to `PAT - 1` stored bytes, NUL at the
+        // last byte of the buffer.
+        let long: String = std::iter::repeat('a').take(100).collect();
+        let mut p2 = [0u8; PAT];
+        set_pat(&mut p2, &long);
+        let stored = String::from_utf8_lossy(&p2[..PAT - 1]).into_owned();
+        assert_eq!(
+            stored,
+            std::iter::repeat('a').take(PAT - 1).collect::<String>()
+        );
+        assert_eq!(p2[PAT - 1], 0);
+        // Over the ARG cap: truncated to `ARG - 1` stored bytes.
+        let longarg: String = std::iter::repeat('b').take(100).collect();
+        let mut a = [0u8; ARG];
+        set_pat(&mut a, &longarg);
+        let stored_arg = String::from_utf8_lossy(&a[..ARG - 1]).into_owned();
+        assert_eq!(
+            stored_arg,
+            std::iter::repeat('b').take(ARG - 1).collect::<String>()
+        );
+        assert_eq!(a[ARG - 1], 0);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
