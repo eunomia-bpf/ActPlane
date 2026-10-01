@@ -335,6 +335,50 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn file_sources_emit_their_update_target_matcher_bytes() {
+        // A `file` source lowers its pattern through lower_path into the
+        // update's CUpdate.m + CUpdate.target, and the kernel matches open
+        // events against that byte pair to decide which events grant the
+        // source label. #60 pinned a source update's add/del *direction*
+        // (it located the source update by op + add + del) but never pinned
+        // the m/target bytes, so a regression that dropped m or mis-truncated
+        // the source target would go uncaught here.
+        //
+        // The decision pinned: the same glob shape lowers to M_CONTAINS when
+        // repo-relative (no start anchor, substring scan) but M_PREFIX when
+        // absolute (start-anchored, prefix scan) -- the lower_path dispatch
+        // a source update relies on, exactly as a rule's own target does.
+        fn tgt(p: &[u8; PAT]) -> String {
+            let end = p.iter().position(|b| *b == 0).unwrap_or(PAT);
+            String::from_utf8_lossy(&p[..end]).into_owned()
+        }
+        fn cfg(src: &str) -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile(&pol).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        }
+
+        // Absolute directory glob: start-anchored prefix scan on "/data/".
+        let u = &cfg("source S = file \"/data/**\"\n").updates[0];
+        assert_eq!(u.op, OP_OPEN, "a file source is an open event");
+        assert_eq!(u.m, M_PREFIX, "absolute glob -> start-anchored prefix");
+        assert_eq!(tgt(&u.target), "/data/");
+
+        // Repo-relative directory glob: no start anchor, so substring scan.
+        let u = &cfg("source S = file \"data/**\"\n").updates[0];
+        assert_eq!(u.op, OP_OPEN);
+        assert_eq!(u.m, M_CONTAINS, "repo-rel glob -> substring scan");
+        assert_eq!(tgt(&u.target), "data/");
+
+        // An absolute exact path has no wildcard and a start anchor, so it
+        // lowers to M_EXACT on the full path.
+        let u = &cfg("source S = file \"/etc/passwd\"\n").updates[0];
+        assert_eq!(u.op, OP_OPEN);
+        assert_eq!(u.m, M_EXACT, "absolute exact path -> exact match");
+        assert_eq!(tgt(&u.target), "/etc/passwd");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
