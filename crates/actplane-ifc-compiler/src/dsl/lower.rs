@@ -335,6 +335,77 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn rule_ids_track_lowered_rule_position_not_clause_index() {
+        // `CRule.rule_id` is the index the kernel uses to look up the
+        // human-readable reason for a violation: `taint_engine.bpf.h` records
+        // `e->matched_rule = rp->rule_id` and the loader indexes the `reasons`
+        // table by that id. It is set to `meta.len()` -- the lowered rule's
+        // own position in the reasons/meta tables -- not the clause index.
+        //
+        // On a DNF split this matters: a clause like `B or C` lowers to two
+        // disjunct rules that must carry two distinct, consecutive
+        // `rule_id`s (1 and 2), not the same clause index. A regression that
+        // emitted the clause index (or reset the counter per clause) would
+        // desync `rule_id` from the reasons table, and the kernel would
+        // surface the wrong reason (or read past the table) on a violation.
+        use std::collections::HashMap;
+        let labels = [
+            ("A".to_string(), 1u64),
+            ("B".to_string(), 2u64),
+            ("C".to_string(), 4u64),
+        ]
+        .into_iter()
+        .collect::<HashMap<_, _>>();
+        let s = "source A = file \"/**/a\"\n\
+                 source B = file \"/**/b\"\n\
+                 source C = file \"/**/c\"\n\
+                 rule r:\n\
+                   block exec \"git\" if A\n\
+                   notify exec \"git\" if B or C\n\
+                   because \"z\"\n";
+        let pol = crate::dsl::parse::parse(s).expect("parse policy");
+        let compiled = compile_with_labels(&pol, &labels).expect("compile policy");
+        let g: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+
+        // Clause 0 (`A`) -> 1 rule; clause 1 (`B or C`) -> 2 disjunct rules.
+        assert_eq!(g.n_rules, 3, "one disjunct for `A`, two for `B or C`");
+        // The kernel indexes reasons by `rule_id`, so the table and the ids
+        // must stay in lockstep: three reasons for three lowered rules.
+        assert_eq!(
+            compiled.reasons.len(),
+            3,
+            "one reason entry per lowered rule"
+        );
+        let ids: Vec<u32> = g.rules[..g.n_rules as usize]
+            .iter()
+            .map(|r| r.rule_id)
+            .collect();
+        assert_eq!(ids, vec![0u32, 1, 2], "`rule_id` is the lowered position");
+
+        // The two rules from the same `B or C` clause get distinct
+        // consecutive ids (1 and 2), not a duplicated clause index: the
+        // second rule is `C`'s disjunct and must not reuse the first's id.
+        let by_req: Vec<u32> = g.rules[..g.n_rules as usize]
+            .iter()
+            .filter(|r| r.req == 2u64 || r.req == 4u64)
+            .map(|r| r.rule_id)
+            .collect();
+        assert!(
+            by_req.contains(&1) && by_req.contains(&2),
+            "`B or C` -> ids 1 and 2"
+        );
+        // Every id bounds the reasons table the kernel will index into.
+        for r in &g.rules[..g.n_rules as usize] {
+            assert!(
+                (r.rule_id as usize) < compiled.reasons.len(),
+                "`rule_id` {id} must index a reason entry",
+                id = r.rule_id
+            );
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
