@@ -2108,4 +2108,41 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn exit_code_reports_normal_and_signal_termination() {
+        // `exit_code` normalizes a process ExitStatus; no base or branch test
+        // calls it.
+        use std::os::unix::process::ExitStatusExt;
+        assert_eq!(exit_code(std::process::ExitStatus::from_raw(0)), 0);
+        assert_eq!(exit_code(std::process::ExitStatus::from_raw(7 << 8)), 7);
+        assert_eq!(exit_code(std::process::ExitStatus::from_raw(9)), 137);
+    }
+
+    #[test]
+    fn scoped_feedback_paths_rebase_under_run_dir() {
+        // `scoped_feedback_paths` moves feedback artifacts into a per-run dir;
+        // no base or branch test calls it.
+        let base = FeedbackPaths {
+            feedback: PathBuf::from("/tmp/proj/.actplane/feedback.txt"),
+            state: PathBuf::from("/tmp/proj/.actplane/hook-state.json"),
+            audit: PathBuf::from("/tmp/proj/.actplane/audit.jsonl"),
+            events: PathBuf::from("/tmp/proj/.actplane/events.jsonl"),
+        };
+        let scoped = scoped_feedback_paths(&base, "mcp");
+        let run_dir = PathBuf::from("/tmp/proj/.actplane/runs");
+        let child_dir = scoped.feedback.parent().unwrap();
+        assert_eq!(child_dir.parent().unwrap(), run_dir);
+        assert!(
+            child_dir
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("mcp-")
+        );
+        assert_eq!(scoped.feedback.file_name().unwrap(), "feedback.txt");
+        assert_eq!(scoped.state.file_name().unwrap(), "hook-state.json");
+        assert_eq!(scoped.audit.file_name().unwrap(), "audit.jsonl");
+        assert_eq!(scoped.events.file_name().unwrap(), "events.jsonl");
+    }
 }
