@@ -2591,4 +2591,19 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn format_rule_list_renders_space_comma_join_and_none_when_empty() {
+        // `format_rule_list` renders a non-empty rule list as a
+        // comma-space-joined string (distinct from `format_sample_list`'s
+        // bare comma join), or "none" when empty. No base or branch test
+        // pins this formatter directly.
+        let empty: Vec<String> = Vec::new();
+        assert_eq!(format_rule_list(&empty), "none");
+
+        let rules = vec!["r1".to_string(), "r2".to_string()];
+        assert_eq!(format_rule_list(&rules), "r1, r2");
+
+        let one = vec!["only".to_string()];
+        assert_eq!(format_rule_list(&one), "only");
+    }
 }
