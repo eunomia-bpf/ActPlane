@@ -2992,4 +2992,48 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn child_supervision_json_reports_adopted_or_wait_handle() {
+        // `child_supervision_json` describes how a child's exit status will
+        // be observed: an adopted child (non-`None` `adopted_unix_ms`) polls
+        // with coarse exit-status precision, a wait-handle child reports a
+        // precise status. No base or branch test pins this helper directly.
+        fn record(adopted_unix_ms: Option<u64>) -> ChildRecord {
+            ChildRecord {
+                launch_id: "L".to_string(),
+                pid: 1,
+                child_id: 1,
+                scope_id: 1,
+                cmd: vec![],
+                stdout: PathBuf::from("/tmp/out.log"),
+                stderr: PathBuf::from("/tmp/err.log"),
+                meta: PathBuf::from("/tmp/meta.json"),
+                proc_start_time: None,
+                policy: None,
+                policy_audit_meta: PolicyAuditMeta::default(),
+                restart_policy: RestartPolicy::Never,
+                restart_count: 0,
+                restart_limit: 0,
+                restart_backoff_ms: 0,
+                last_exit_unix_ms: None,
+                restart_alerted_unix_ms: None,
+                adopted_unix_ms,
+                restarted_from: None,
+                replacement_child_id: None,
+                status: Arc::new(Mutex::new(ChildStatus::Running)),
+            }
+        }
+
+        // An adopted child reports adopted-polling mode with coarse precision.
+        let adopted = child_supervision_json(&record(Some(12345)));
+        assert_eq!(adopted["mode"], serde_json::json!("adopted_polling"));
+        assert_eq!(adopted["adopted_unix_ms"], serde_json::json!(12345));
+        assert_eq!(adopted["exit_status_precise"], serde_json::json!(false));
+
+        // A wait-handle child reports null adoption with precise precision.
+        let wait_handle = child_supervision_json(&record(None));
+        assert_eq!(wait_handle["mode"], serde_json::json!("wait_handle"));
+        assert_eq!(wait_handle["adopted_unix_ms"], serde_json::Value::Null);
+        assert_eq!(wait_handle["exit_status_precise"], serde_json::json!(true));
+    }
 }
