@@ -2591,4 +2591,75 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn source_support_detail_reports_each_kind() {
+        // `source_support_detail` reports whether a source of a given kind is
+        // enforceable: `Exec` is applied on exec, `File` is applied through the
+        // open/read flow with a conservative open-time caveat, and `Endpoint`
+        // delegates to the endpoint support detail (numeric IPv4 vs hostname
+        // resolution). No base or branch test pins this directly.
+        use std::collections::HashMap;
+
+        let empty = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+
+        assert_eq!(
+            source_support_detail(&empty, Kind::Exec, "python3"),
+            (
+                true,
+                "exec source labels are applied on process exec".to_string(),
+                Vec::new()
+            )
+        );
+
+        assert_eq!(
+            source_support_detail(&empty, Kind::File, "/repo"),
+            (
+                true,
+                "file source labels are applied through file open/read flow".to_string(),
+                vec!["open-time file source handling is conservative"]
+            )
+        );
+
+        // A numeric IPv4 endpoint source is supported with the IPv6 caveat.
+        assert_eq!(
+            source_support_detail(&empty, Kind::Endpoint, "10.0.0.7"),
+            (
+                true,
+                "endpoint source matches numeric IPv4 connect and recv paths".to_string(),
+                vec!["IPv6 is not enforced in-kernel"]
+            )
+        );
+
+        // A hostname source with a non-empty resolution reports the address.
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::from([(
+                "example.com".to_string(),
+                vec!["93.184.215.14".to_string()],
+            )]),
+        };
+        assert_eq!(
+            source_support_detail(&compiled, Kind::Endpoint, "example.com"),
+            (
+                true,
+                "endpoint source hostname resolved to IPv4 address(es): \
+                 93.184.215.14"
+                    .to_string(),
+                vec![
+                    "hostname is resolved at policy compile/load time",
+                    "DNS changes require policy reload",
+                    "IPv6 addresses are ignored",
+                ]
+            )
+        );
+    }
 }
