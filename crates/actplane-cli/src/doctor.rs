@@ -2591,4 +2591,63 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn push_evidence_warning_caps_warnings_with_a_sentinel() {
+        // `push_evidence_warning` appends to `evidence.warnings` while fewer
+        // than 8 are stored. At exactly 8, the next call appends a single
+        // "additional ... omitted" sentinel instead of the warning; further
+        // calls are no-ops. No base or branch test pins this saturating
+        // accessor directly.
+        let mut evidence = RolloutEvidence {
+            event_paths: Vec::new(),
+            annotation_paths: Vec::new(),
+            total_events: 0,
+            total_annotations: 0,
+            ignored_lines: 0,
+            ignored_annotations: 0,
+            warnings: Vec::new(),
+            clauses: BTreeMap::new(),
+        };
+
+        // The first 8 warnings are all stored verbatim.
+        for i in 0..8 {
+            push_evidence_warning(&mut evidence, format!("warning-{i}"));
+        }
+        assert_eq!(
+            evidence.warnings,
+            vec![
+                "warning-0",
+                "warning-1",
+                "warning-2",
+                "warning-3",
+                "warning-4",
+                "warning-5",
+                "warning-6",
+                "warning-7",
+            ]
+        );
+
+        // The 9th call substitutes a sentinel for the warning it was given.
+        push_evidence_warning(&mut evidence, "warning-8".to_string());
+        assert_eq!(
+            evidence.warnings,
+            vec![
+                "warning-0",
+                "warning-1",
+                "warning-2",
+                "warning-3",
+                "warning-4",
+                "warning-5",
+                "warning-6",
+                "warning-7",
+                "additional rollout event-log warnings omitted",
+            ]
+        );
+        assert!(!evidence.warnings.contains(&"warning-8".to_string()));
+
+        // Further calls are no-ops once the sentinel is in place.
+        let before = evidence.warnings.len();
+        push_evidence_warning(&mut evidence, "warning-9".to_string());
+        assert_eq!(evidence.warnings.len(), before);
+    }
 }
