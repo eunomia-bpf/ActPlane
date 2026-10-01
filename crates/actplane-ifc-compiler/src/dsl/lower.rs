@@ -335,6 +335,20 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_trailing_star_exec_pattern_keeps_the_prefix_up_to_the_star() {
+        // `lower_exec` only treats a trailing `*` as a prefix match:
+        // `base.strip_suffix('*')` yields the `M_PREFIX` literal. The literal
+        // keeps every character before the star, including a dash, so a
+        // hyphenated pattern lowers to a prefix on the whole `name-`
+        // substring, not just the bare token. No base test pins a
+        // trailing-star pattern with a trailing dash.
+        assert_eq!(lower_exec("git-*"), (M_PREFIX, "git-".into()));
+        assert_eq!(lower_exec("node-*"), (M_PREFIX, "node-".into()));
+        // Control: a star directly on the token strips to the bare name.
+        assert_eq!(lower_exec("git*"), (M_PREFIX, "git".into()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
