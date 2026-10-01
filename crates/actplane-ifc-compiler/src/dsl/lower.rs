@@ -335,6 +335,59 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn gate_updates_carry_no_label_movement() {
+        // A gate update latches only the gate bit on the matching event; it
+        // must not grant or strip any label, so `add` and `del` stay zero.
+        // The contrast that makes this load-bearing: a `file` source in the
+        // same policy grants its own bit via `add` on the open event, so a
+        // regression that OR'd a source/grant bit into the gate's `add` (or a
+        // `del` into the gate) would silently move a label when the gate fires
+        // -- an information-flow violation the kernel would propagate. #57
+        // pinned the gate *bit* coherence (slot bits match rule references)
+        // and #87 the inval arg byte, but neither pinned that the gate update
+        // keeps its `add`/`del` regions empty.
+        let pol = crate::dsl::parse::parse(
+            "source S = file \"/**/.env\"\n\
+             rule r:\n\
+               block exec \"git\" if S unless after exec \"/pytest\" exits 0\n\
+               because \"test before commit\"\n",
+        )
+        .expect("parse policy");
+        let compiled = compile(&pol).expect("compile policy");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        let sbit = compiled.labels.get("S").copied().expect("S label bit");
+
+        // Locate the gate update (the one carrying a non-zero gate bit) and
+        // the source update (the one that grants S).
+        let updates = &cfg.updates[..cfg.n_updates as usize];
+        let gate = updates
+            .iter()
+            .find(|u| u.gates != 0)
+            .expect("a gate update is allocated");
+        let source = updates
+            .iter()
+            .find(|u| u.add == sbit)
+            .expect("the S source update is allocated");
+
+        // The gate update latches its gate bit and carries no exit code beyond
+        // the `exits 0` byte, but it must not move any label.
+        assert_eq!(gate.op, OP_EXEC, "the gate is an exec event");
+        assert_eq!(gate.gates, 1u64, "the gate is slot 0");
+        assert_eq!(gate.gate_exit_code, 0, "`exits 0` carries code 0");
+        assert_eq!(gate.add, 0, "a gate update must not grant a label");
+        assert_eq!(gate.del, 0, "a gate update must not strip a label");
+        assert_eq!(gate.invals, 0, "a gate update is not a since invalidator");
+
+        // The source update is the control that proves the `add` direction is
+        // specific to label-granting events: it grants S and strips nothing.
+        assert_eq!(source.op, OP_OPEN, "a file source is an open event");
+        assert_eq!(source.add, sbit, "the source grants its own bit");
+        assert_eq!(source.del, 0, "a source never strips a label");
+        assert_eq!(source.gates, 0, "a source update is not a gate");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
