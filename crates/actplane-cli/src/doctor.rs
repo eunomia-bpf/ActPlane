@@ -2591,4 +2591,96 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn clause_support_joins_the_reason_with_limitations() {
+        // `clause_support` collapses a clause's support detail into a single
+        // string: the reason when there are no limitations, or the reason
+        // joined to the comma-separated limitations otherwise. It delegates to
+        // `clause_support_detail`. No base or branch test pins this formatter
+        // directly.
+        use std::collections::HashMap;
+
+        let empty = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+
+        // No limitations: the bare tracepoint report reason.
+        assert_eq!(
+            clause_support(
+                Effect::Notify,
+                Op::Exec,
+                Kind::Exec,
+                "python3",
+                None,
+                &empty,
+                true
+            ),
+            "post-exec tracepoint report"
+        );
+
+        // Block of an exec with an argv: pre-exec is impossible, with the
+        // kill-exec limitation appended.
+        assert_eq!(
+            clause_support(
+                Effect::Block,
+                Op::Exec,
+                Kind::Exec,
+                "python3",
+                Some("run"),
+                &empty,
+                true
+            ),
+            "argv is only available after exec, so this cannot block pre-exec, \
+             use kill exec for post-exec termination"
+        );
+
+        // Block of a plain exec under BPF-LSM: pre-op denial, no limitations.
+        assert_eq!(
+            clause_support(
+                Effect::Block,
+                Op::Exec,
+                Kind::Exec,
+                "python3",
+                None,
+                &empty,
+                true
+            ),
+            "pre-op block via BPF-LSM bprm_check_security"
+        );
+
+        // Block of a numeric-IPv4 connect under BPF-LSM: pre-op denial with
+        // the IPv4-only limitation.
+        assert_eq!(
+            clause_support(
+                Effect::Block,
+                Op::Connect,
+                Kind::Endpoint,
+                "10.0.0.7",
+                None,
+                &empty,
+                true
+            ),
+            "pre-op block via BPF-LSM socket_connect, IPv4 only"
+        );
+
+        // Block requested without BPF-LSM active: unsupported, with the
+        // tracepoint-fallback limitation.
+        assert_eq!(
+            clause_support(
+                Effect::Block,
+                Op::Exec,
+                Kind::Exec,
+                "python3",
+                None,
+                &empty,
+                false
+            ),
+            "BPF-LSM is not active on this host, notify and kill still use \
+             tracepoint paths where available"
+        );
+    }
 }
