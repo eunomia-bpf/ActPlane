@@ -335,6 +335,40 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_after_gate_with_a_non_gateable_op_is_rejected() {
+        // An `after` gate only supports exec/read/write: the gate's taint_op
+        // is what the engine stamps as the epoch. `connect`/`recv` are not
+        // gateable, and the restriction is a compile-time check in
+        // `gate_bit`. The parser accepts any op word (`P::op`), so this is
+        // reached only during lowering.
+        use crate::dsl::parse::parse;
+        // `connect` is not a valid gate op.
+        let pol = parse("rule r:\n  block exec \"git\" unless after connect \"10.0.0.5\"\n")
+            .expect("an after connect gate parses");
+        match compile(&pol) {
+            Ok(_) => panic!("an after connect gate must be rejected"),
+            Err(err) => assert_eq!(
+                err,
+                "`after connect` is not supported as a gate (use exec/read/write)"
+            ),
+        }
+        // `recv` is likewise not a valid gate op.
+        let pol = parse("rule r:\n  block exec \"git\" unless after recv \"10.0.0.5\"\n")
+            .expect("an after recv gate parses");
+        match compile(&pol) {
+            Ok(_) => panic!("an after recv gate must be rejected"),
+            Err(err) => assert_eq!(
+                err,
+                "`after recv` is not supported as a gate (use exec/read/write)"
+            ),
+        }
+        // Positive control: `exec` is a valid gate op and compiles.
+        let pol = parse("rule r:\n  block exec \"git\" unless after exec \"/in\"\n")
+            .expect("an after exec gate parses");
+        compile(&pol).expect("an after exec gate compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
