@@ -625,4 +625,81 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+
+    #[test]
+    fn provenance_details_resolve_labels_and_gate_on_matching_origin() {
+        // `provenance_json` and `matched_label_details` build the corrective
+        // feedback payload; neither is called by any base or branch test.
+        let mut labels = HashMap::new();
+        labels.insert("TOKEN_A".to_string(), 1);
+        labels.insert("TOKEN_B".to_string(), 2);
+        let ctx = RuleFeedbackContext {
+            meta: dsl::RuleMeta {
+                name: "r".to_string(),
+                reason: "why".to_string(),
+                effect: Effect::Block,
+                ops: vec!["read".to_string()],
+                clause_op: "read".to_string(),
+                clause_source_index: 0,
+                kernel_op: "read".to_string(),
+                target_kind: dsl::ast::Kind::File,
+                target_pattern: "x".to_string(),
+                target_arg: None,
+                source: None,
+            },
+            labels: labels.clone(),
+        };
+        let prov = ViolationProvenance {
+            label: 1,
+            timestamp_ns: 4242,
+            pid: 77,
+            op: 3,
+            target: "10.0.0.1".to_string(),
+        };
+
+        // Known label -> resolved name; unknown -> hex fallback.
+        let pj = provenance_json(Some(&ctx), &prov);
+        assert_eq!(pj["label"], "TOKEN_A");
+        assert_eq!(pj["label_mask"], "0x1");
+        assert_eq!(pj["origin_pid"], 77);
+        assert_eq!(pj["origin_op"], "connect");
+        assert_eq!(pj["origin_target"], "10.0.0.1");
+        assert_eq!(pj["origin_timestamp_ns"], 4242);
+        let unknown = ViolationProvenance {
+            label: 4,
+            ..prov.clone()
+        };
+        assert_eq!(provenance_json(None, &unknown)["label"], "0x4");
+
+        // matched_label_details walks the mask and attaches provenance only to
+        // the bit that matches the reported origin.
+        let v = Violation {
+            pid: 5,
+            ppid: 1,
+            comm: "c".to_string(),
+            target: "t".to_string(),
+            rule_id: 0,
+            op: Some(3),
+            domain_id: None,
+            session_root: None,
+            effect: None,
+            blocked: None,
+            killed: None,
+            taint_label: 3,
+            matched_label: 3,
+            matched_labels: Some(3),
+            provenance: Some(prov),
+        };
+        let details = matched_label_details(Some(&ctx), &v, 0b11);
+        let arr = details.as_array().expect("array");
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0]["label"], "TOKEN_A");
+        assert_eq!(arr[0]["provenance_status"], "reported_first_origin");
+        assert_eq!(arr[0]["causal_chain_complete"], false);
+        assert_eq!(arr[0]["provenance"]["origin_op"], "connect");
+        assert_eq!(arr[1]["label"], "TOKEN_B");
+        assert_eq!(arr[1]["provenance_status"], "not_reported");
+        assert!(arr[1]["provenance"].is_null());
+        assert_eq!(arr[1]["causal_chain"].as_array().unwrap().len(), 0);
+    }
 }
