@@ -2108,4 +2108,24 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn have_bpf_caps_reflects_euid_and_capeff_bits() {
+        // `have_bpf_caps` is root-short-circuited and otherwise requires both
+        // CAP_BPF (39) and CAP_SYS_ADMIN (21) to be effective. This recomputes
+        // the same predicate from /proc/self/status independently. No base or
+        // branch test calls `have_bpf_caps`.
+        let euid = unsafe { libc::geteuid() };
+        let eff = std::fs::read_to_string("/proc/self/status")
+            .ok()
+            .and_then(|s| {
+                s.lines()
+                    .find_map(|l| l.strip_prefix("CapEff:"))
+                    .and_then(|h| u64::from_str_radix(h.trim(), 16).ok())
+            })
+            .unwrap_or(0);
+        let has = |bit: u32| eff & (1u64 << bit) != 0;
+        let expected = euid == 0 || (has(39) && has(21));
+        assert_eq!(have_bpf_caps(), expected);
+    }
 }
