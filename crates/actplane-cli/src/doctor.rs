@@ -2591,4 +2591,71 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn append_rollout_evidence_summary_renders_the_evidence_block() {
+        // `append_rollout_evidence_summary` appends a deterministic
+        // "observe evidence:" block. An empty evidence set short-circuits to a
+        // single "no log supplied" line; a populated set lists the event /
+        // annotation paths, the parsed counts, any ignored lines, and any
+        // warnings (ignored lines and warnings are omitted when zero / empty).
+        // No base or branch test pins this appender directly.
+        let empty = RolloutEvidence {
+            event_paths: Vec::new(),
+            annotation_paths: Vec::new(),
+            total_events: 0,
+            total_annotations: 0,
+            ignored_lines: 0,
+            ignored_annotations: 0,
+            warnings: Vec::new(),
+            clauses: BTreeMap::new(),
+        };
+        let mut out = String::new();
+        append_rollout_evidence_summary(&mut out, &empty);
+        assert_eq!(
+            out,
+            "\nobserve evidence:\n  - no event or annotation log supplied; \
+             pass --events .actplane/events.jsonl after an observe run and \
+             --annotations <annotations.jsonl> after classification\n"
+        );
+
+        let populated = RolloutEvidence {
+            event_paths: vec![PathBuf::from("ev1.jsonl")],
+            annotation_paths: vec![PathBuf::from("an1.jsonl")],
+            total_events: 10,
+            total_annotations: 5,
+            ignored_lines: 2,
+            ignored_annotations: 1,
+            warnings: vec!["warn-a".to_string()],
+            clauses: BTreeMap::new(),
+        };
+        let mut out = String::new();
+        append_rollout_evidence_summary(&mut out, &populated);
+        assert_eq!(
+            out,
+            "\nobserve evidence:\n  - event log: ev1.jsonl\n  - annotation log: \
+             an1.jsonl\n  - parsed violation events: 10\n  - parsed rollout \
+             annotations: 5\n  - ignored non-violation or malformed lines: 2\n  - \
+             ignored malformed or stale annotations: 1\n  - warning: warn-a\n"
+        );
+
+        // A populated set with zero ignored lines and no warnings omits those
+        // optional lines.
+        let no_ignored = RolloutEvidence {
+            event_paths: vec![PathBuf::from("ev1.jsonl")],
+            annotation_paths: Vec::new(),
+            total_events: 3,
+            total_annotations: 0,
+            ignored_lines: 0,
+            ignored_annotations: 0,
+            warnings: Vec::new(),
+            clauses: BTreeMap::new(),
+        };
+        let mut out = String::new();
+        append_rollout_evidence_summary(&mut out, &no_ignored);
+        assert_eq!(
+            out,
+            "\nobserve evidence:\n  - event log: ev1.jsonl\n  - parsed violation \
+             events: 3\n  - parsed rollout annotations: 0\n"
+        );
+    }
 }
