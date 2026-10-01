@@ -335,6 +335,30 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_repo_relative_exact_path_with_no_in_range_suffix_falls_back_to_parent() {
+        // `shorten_repo_relative_exact_literal` caps the kernel literal at
+        // `MAX_CONTAINS_LITERAL` (16). Before the last-resort parent
+        // fallback it walks every `/`-suffixed candidate looking for one that
+        // still contains a slash and fits under the cap (the multi-skip walk
+        // pinned by the in-range-segment test). When no such candidate
+        // exists - a single-slash path whose leaf has no further slash - it
+        // falls back to the `<parent>/` form.
+        // 18 chars: the only slash-split candidate is `leaf`, which has no
+        // slash of its own, so the walk finds nothing and the fallback
+        // yields `longerparentx/`.
+        assert_eq!(
+            lower_path("longerparentx/leaf"),
+            (M_CONTAINS, "longerparentx/".into())
+        );
+        // A path of exactly the cap length with a slash is used verbatim, no
+        // shortening.
+        assert_eq!(
+            lower_path("node_modules/foo"),
+            (M_CONTAINS, "node_modules/foo".into())
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
