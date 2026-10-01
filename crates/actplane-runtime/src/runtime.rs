@@ -2108,4 +2108,53 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn fresh_runtime_domain_id_is_even_nonzero_and_varies() {
+        // `fresh_runtime_domain_id` hashes time/pid/salt into a domain id that
+        // avoids the reserved global id and stays non-zero; no base or branch
+        // test calls it directly.
+        let id = fresh_runtime_domain_id(4242, 7);
+        assert!(id != 0 && id != GLOBAL_ACTIVE_DOMAIN_ID);
+        assert_eq!(id & 1, 0, "low bit is cleared");
+        // The fallback branch (triggered by a zero or reserved id) forces the
+        // odd `salt | 1` marker, so it can never collide with the reserved id.
+        assert_ne!(fresh_runtime_domain_id(0, 0), GLOBAL_ACTIVE_DOMAIN_ID);
+        let a = fresh_runtime_domain_id(100, 1);
+        let b = fresh_runtime_domain_id(200, 2);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn target_user_requires_root_euid_and_sudo_env() {
+        // `target_user` only consults SUDO_UID/SUDO_GID when running as root;
+        // `run_as_root` short-circuits to None immediately. No base or branch
+        // test calls it.
+        assert_eq!(target_user(true), None);
+        let euid = unsafe { libc::geteuid() };
+        let saved = (
+            std::env::var("SUDO_UID").ok(),
+            std::env::var("SUDO_GID").ok(),
+        );
+        if euid == 0 {
+            unsafe { std::env::set_var("SUDO_UID", "1234") };
+            unsafe { std::env::set_var("SUDO_GID", "5678") };
+            assert_eq!(target_user(false), Some((1234, 5678)));
+            unsafe { std::env::set_var("SUDO_UID", "not-a-number") };
+            assert_eq!(target_user(false), None);
+        } else {
+            // Non-root euid short-circuits regardless of the env vars.
+            unsafe { std::env::set_var("SUDO_UID", "1234") };
+            unsafe { std::env::set_var("SUDO_GID", "5678") };
+            assert_eq!(target_user(false), None);
+        }
+        match saved.0 {
+            Some(v) => unsafe { std::env::set_var("SUDO_UID", v) },
+            None => unsafe { std::env::remove_var("SUDO_UID") },
+        }
+        match saved.1 {
+            Some(v) => unsafe { std::env::set_var("SUDO_GID", v) },
+            None => unsafe { std::env::remove_var("SUDO_GID") },
+        }
+    }
 }
