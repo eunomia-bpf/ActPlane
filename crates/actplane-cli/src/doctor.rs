@@ -2591,4 +2591,72 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn source_support_json_renders_one_object_per_source() {
+        // `source_support_json` renders one JSON object per policy source,
+        // projecting `source_support_detail` into label / kind / pattern /
+        // supported / reason / limitations. No base or branch test pins this
+        // serializer directly.
+        use std::collections::HashMap;
+
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+
+        let policy = Policy {
+            labels: Vec::new(),
+            sources: vec![
+                Source {
+                    label: "e1".to_string(),
+                    kind: Kind::Exec,
+                    pattern: "python3".to_string(),
+                },
+                Source {
+                    label: "f1".to_string(),
+                    kind: Kind::File,
+                    pattern: "/tmp/x".to_string(),
+                },
+                Source {
+                    label: "n1".to_string(),
+                    kind: Kind::Endpoint,
+                    pattern: "10.0.0.7".to_string(),
+                },
+            ],
+            rules: Vec::new(),
+            xforms: Vec::new(),
+        };
+
+        let got = source_support_json(&policy, &compiled);
+        let expected = vec![
+            json!({
+                "label": "e1",
+                "kind": "exec",
+                "pattern": "python3",
+                "supported": true,
+                "reason": "exec source labels are applied on process exec",
+                "limitations": [],
+            }),
+            json!({
+                "label": "f1",
+                "kind": "file",
+                "pattern": "/tmp/x",
+                "supported": true,
+                "reason": "file source labels are applied through file open/read flow",
+                "limitations": ["open-time file source handling is conservative"],
+            }),
+            json!({
+                "label": "n1",
+                "kind": "endpoint",
+                "pattern": "10.0.0.7",
+                "supported": true,
+                "reason": "endpoint source matches numeric IPv4 connect and recv paths",
+                "limitations": ["IPv6 is not enforced in-kernel"],
+            }),
+        ];
+        assert_eq!(got, expected);
+    }
 }
