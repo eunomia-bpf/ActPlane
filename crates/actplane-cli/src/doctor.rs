@@ -2591,4 +2591,111 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn clause_condition_warnings_flags_unusable_endpoint_target_conditions() {
+        // `clause_condition_warnings` flags endpoint `unless target` conditions
+        // that cannot be enforced: a hostname resolving to multiple IPv4
+        // addresses, an empty resolution, or an unresolvable pattern. Numeric
+        // IPv4 and a single resolved hostname produce no warning. No base or
+        // branch test pins this directly.
+        use crate::dsl::ast::Target;
+        use std::collections::HashMap;
+
+        let with_resolutions = |resolutions: HashMap<String, Vec<String>>| dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: resolutions,
+        };
+
+        let target_clause = |pattern: &str, negate: bool| Clause {
+            op: Op::Connect,
+            target: Target {
+                kind: Kind::Endpoint,
+                pattern: pattern.to_string(),
+                arg: None,
+            },
+            when: Expr::True,
+            unless: Some(Cond::Target {
+                negate,
+                pattern: pattern.to_string(),
+            }),
+            effect: Effect::Notify,
+            source_index: 0,
+        };
+
+        // Numeric IPv4: no warning.
+        let compiled = with_resolutions(HashMap::new());
+        assert!(clause_condition_warnings(&target_clause("10.0.0.7", false), &compiled).is_empty());
+
+        // Exactly one resolved address: no warning.
+        let compiled = with_resolutions(HashMap::from([(
+            "one.com".to_string(),
+            vec!["1.2.3.4".to_string()],
+        )]));
+        assert!(clause_condition_warnings(&target_clause("one.com", false), &compiled).is_empty());
+
+        // Multiple resolved addresses: one multi-hostname warning.
+        let compiled = with_resolutions(HashMap::from([(
+            "many.com".to_string(),
+            vec!["1.2.3.4".to_string(), "5.6.7.8".to_string()],
+        )]));
+        let warnings = clause_condition_warnings(&target_clause("many.com", false), &compiled);
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings[0].code,
+            "endpoint_target_condition_multi_ipv4_hostname"
+        );
+        assert_eq!(
+            warnings[0].message,
+            "unless target \"many.com\" resolves to multiple IPv4 addresses, but \
+             endpoint target conditions can store one address in the current ABI; \
+             the condition fails closed."
+        );
+
+        // Empty resolution: one unresolved-hostname warning.
+        let compiled = with_resolutions(HashMap::from([("none.com".to_string(), Vec::new())]));
+        let warnings = clause_condition_warnings(&target_clause("none.com", false), &compiled);
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings[0].code,
+            "endpoint_target_condition_unresolved_hostname"
+        );
+        assert_eq!(
+            warnings[0].message,
+            "unless target \"none.com\" did not resolve to an IPv4 address at \
+             compile/load time; the condition fails closed."
+        );
+
+        // Unresolvable pattern: one unsupported-pattern warning.
+        let warnings = clause_condition_warnings(
+            &target_clause("bad.*", false),
+            &with_resolutions(HashMap::new()),
+        );
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings[0].code,
+            "endpoint_target_condition_unsupported_pattern"
+        );
+        assert_eq!(
+            warnings[0].message,
+            "unless target \"bad.*\" uses a wildcard hostname or IPv6 pattern; \
+             endpoint target conditions support numeric IPv4 or a single resolved \
+             IPv4 hostname."
+        );
+
+        // A negated target condition inserts " not" after "target".
+        let compiled = with_resolutions(HashMap::from([(
+            "many.com".to_string(),
+            vec!["1.2.3.4".to_string(), "5.6.7.8".to_string()],
+        )]));
+        let warnings = clause_condition_warnings(&target_clause("many.com", true), &compiled);
+        assert_eq!(
+            warnings[0].message,
+            "unless target not \"many.com\" resolves to multiple IPv4 addresses, \
+             but endpoint target conditions can store one address in the current \
+             ABI; the condition fails closed."
+        );
+    }
 }
