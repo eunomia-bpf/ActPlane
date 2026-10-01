@@ -323,4 +323,55 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    fn read_new_feedback_advances_offset_and_returns_new_blocks() {
+        // `read_new_feedback`/`read_new_feedback_locked` return only the bytes
+        // appended since the recorded offset and persist the new offset; no
+        // base or branch test calls them.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = dir.path().join("feedback.txt");
+        let state_path = dir.path().join("hook-state.json");
+        let selection = HookSelection {
+            feedback: feedback.clone(),
+            state: state_path.clone(),
+        };
+
+        // Missing feedback -> empty, no state written.
+        assert_eq!(read_new_feedback(&selection).unwrap(), "");
+        assert!(load_hook_state(&state_path).is_none());
+
+        let block_a = "rule a\n  blocked\n";
+        std::fs::write(&feedback, block_a).unwrap();
+        // First read seeds the offset at the current length, so nothing new.
+        assert_eq!(read_new_feedback(&selection).unwrap(), "");
+        assert_eq!(
+            load_hook_state(&state_path).unwrap().offset,
+            Some(block_a.len() as u64)
+        );
+
+        // Appending a separator-delimited block returns the new block only.
+        let block_b = "\n----\nrule b\n  killed\n";
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&feedback)
+            .unwrap();
+        std::io::Write::write_all(&mut file, block_b.as_bytes()).unwrap();
+        drop(file);
+        let got = read_new_feedback(&selection).unwrap();
+        assert_eq!(got, "rule b\n  killed");
+        assert_eq!(
+            load_hook_state(&state_path).unwrap().offset,
+            Some((block_a.len() + block_b.len()) as u64)
+        );
+
+        // Whitespace-only growth yields nothing.
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&feedback)
+            .unwrap();
+        std::io::Write::write_all(&mut file, b"\n\n").unwrap();
+        drop(file);
+        assert_eq!(read_new_feedback(&selection).unwrap(), "");
+    }
 }
