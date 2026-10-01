@@ -952,4 +952,22 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn skip_dependency_scan_dir_flags_vcs_build_and_interpreter_dirs() {
+        // `skip_dependency_scan_dir` reports whether a directory name is a
+        // VCS, build-output, or interpreter cache directory that the
+        // dependency scan must skip. No base or branch test pins this
+        // predicate directly.
+        assert!(skip_dependency_scan_dir(".git"));
+        assert!(skip_dependency_scan_dir("target"));
+        assert!(skip_dependency_scan_dir("node_modules"));
+        assert!(skip_dependency_scan_dir(".venv"));
+        assert!(skip_dependency_scan_dir("venv"));
+        assert!(skip_dependency_scan_dir("__pycache__"));
+
+        // A source directory is not skipped.
+        assert!(!skip_dependency_scan_dir("src"));
+        assert!(!skip_dependency_scan_dir("deps"));
+        assert!(!skip_dependency_scan_dir(""));
+    }
 }
