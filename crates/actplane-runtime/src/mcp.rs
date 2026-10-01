@@ -2992,4 +2992,47 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn latest_run_feedback_picks_most_recently_modified_run() {
+        // `latest_run_feedback` scans .actplane/runs and returns the run whose
+        // feedback.txt was modified last; no base or branch test calls it.
+        let root =
+            std::env::temp_dir().join(format!("actplane-latest-feedback-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(latest_run_feedback(&root).is_none());
+
+        let old = root.join(".actplane/runs/run-old");
+        let new = root.join(".actplane/runs/run-new");
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::create_dir_all(&new).unwrap();
+        std::fs::write(old.join("feedback.txt"), "old").unwrap();
+        std::fs::write(new.join("feedback.txt"), "new").unwrap();
+
+        set_mtime(&old.join("feedback.txt"), 1_000);
+        set_mtime(&new.join("feedback.txt"), 2_000);
+        assert_eq!(latest_run_feedback(&root), Some(new.join("feedback.txt")));
+
+        // Flipping the timestamps flips the winner.
+        set_mtime(&old.join("feedback.txt"), 3_000);
+        assert_eq!(latest_run_feedback(&root), Some(old.join("feedback.txt")));
+
+        fn set_mtime(path: &std::path::Path, secs: i64) {
+            let times = [
+                libc::timespec {
+                    tv_sec: secs,
+                    tv_nsec: 0,
+                },
+                libc::timespec {
+                    tv_sec: secs,
+                    tv_nsec: 0,
+                },
+            ];
+            let c = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()).unwrap();
+            let rc = unsafe { libc::utimensat(libc::AT_FDCWD, c.as_ptr(), times.as_ptr(), 0) };
+            assert_eq!(rc, 0, "utimensat failed");
+        }
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
