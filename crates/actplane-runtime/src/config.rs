@@ -851,4 +851,32 @@ domains:
             );
         }
     }
+    #[test]
+    fn validate_runtime_config_rejects_empty_approver_entries() {
+        // `validate_runtime_config` rejects a runtime config whose
+        // `allowed_approvers` list contains an empty (or whitespace) entry;
+        // a config with only well-formed approvers (or none) validates. No
+        // base or branch test pins both branches directly.
+        let path = Path::new("/repo/actplane.yaml");
+
+        // A whitespace-only approver is rejected, naming the offending path.
+        let bad: FileConfig = serde_yaml::from_str(
+            "runtime:\n  approval:\n    append_delta:\n      allowed_approvers:\n        - repo-supervisor\n        - \"   \"\n",
+        )
+        .unwrap();
+        let err = validate_runtime_config(&bad, path).unwrap_err().to_string();
+        assert!(err.contains("must not contain empty entries"));
+        assert!(err.contains("/repo/actplane.yaml"));
+
+        // Well-formed approvers validate.
+        let good: FileConfig = serde_yaml::from_str(
+            "runtime:\n  approval:\n    append_delta:\n      allowed_approvers:\n        - repo-supervisor\n        - owner\n",
+        )
+        .unwrap();
+        assert!(validate_runtime_config(&good, path).is_ok());
+
+        // No approvers configured validates trivially.
+        let empty: FileConfig = serde_yaml::from_str("").unwrap();
+        assert!(validate_runtime_config(&empty, path).is_ok());
+    }
 }
