@@ -851,4 +851,19 @@ domains:
             );
         }
     }
+    #[test]
+    fn domain_names_joins_sorted_keys_and_reports_none_when_empty() {
+        // `domain_names` renders the domain names for a config: the
+        // `BTreeMap` keys joined by ", ", or "none" when there are no
+        // domains. No base or branch test pins either branch directly.
+
+        // Empty config -> "none".
+        let empty: FileConfig = serde_yaml::from_str("").unwrap();
+        assert_eq!(domain_names(&empty), "none");
+
+        // Populated domains -> sorted keys joined by ", ".
+        let cfg: FileConfig =
+            serde_yaml::from_str("domains:\n  beta: {}\n  alpha: {}\n  gamma: {}\n").unwrap();
+        assert_eq!(domain_names(&cfg), "alpha, beta, gamma");
+    }
 }
