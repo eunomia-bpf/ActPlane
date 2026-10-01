@@ -2591,4 +2591,36 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn append_label_bits_sorts_labels_by_mask() {
+        // `append_label_bits` renders each compiled label as `  - {name} =
+        // {mask:#x}`, sorted ascending by the numeric mask. An empty label set
+        // renders a single "  - none" line. No base or branch test pins this
+        // appender directly.
+        use std::collections::HashMap;
+
+        let compiled = |labels: HashMap<String, u64>| dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels,
+            endpoint_resolutions: HashMap::new(),
+        };
+
+        // Empty label set: a single "none" line.
+        let mut out = String::new();
+        append_label_bits(&mut out, &compiled(HashMap::new()));
+        assert_eq!(out, "  - none\n");
+
+        // Populated: sorted ascending by mask, each rendered as `name = 0x…`.
+        // The input map is unordered; the output order is by mask value.
+        let labels = HashMap::from([
+            ("repo".to_string(), 4u64),
+            ("tmp".to_string(), 1u64),
+            ("net".to_string(), 2u64),
+        ]);
+        let mut out = String::new();
+        append_label_bits(&mut out, &compiled(labels));
+        assert_eq!(out, "  - tmp = 0x1\n  - net = 0x2\n  - repo = 0x4\n");
+    }
 }
