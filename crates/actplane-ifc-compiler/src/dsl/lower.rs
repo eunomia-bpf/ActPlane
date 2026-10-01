@@ -335,6 +335,33 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn prefix_glob_internal_star_lowers_to_contains() {
+        // The `**/`-prefix arm of `lower_path` splits on the inner token:
+        //   `**/mid/**`, `**/mid/*` -> M_CONTAINS "/mid/"   (midseg slash-wrap, #74)
+        //   `**/*.so`               -> M_SUFFIX   ".so"     (leading star, in-tree)
+        //   `**/lib-*.so`           -> M_CONTAINS "lib-*.so" (internal star, THIS test)
+        // The internal-star case is the unclaimed one: the inner token is neither a
+        // `/**`/`/*` midseg suffix nor a leading star, so it falls to the generic
+        // `**/` fallback, which emits M_CONTAINS with the raw inner literal -- the
+        // `*` byte is KEPT, because `taint_contains` (taint.h) is a literal
+        // substring scan, not a glob. A regression that collapsed this arm to
+        // M_SUFFIX, or stripped the star, would silently change what the kernel
+        // matches.
+        assert_eq!(lower_path("**/lib-*.so"), (M_CONTAINS, "lib-*.so".into()));
+        // A long inner token: `shorten_contains_literal` truncates to the 16-char
+        // cap, but the star still survives inside the kept window.
+        assert_eq!(
+            lower_path("**/verylonglibname-*.so"),
+            (M_CONTAINS, "longlibname-*.so".into())
+        );
+        // Contrast: a `**/` token whose star is LEADING is an M_SUFFIX end-match,
+        // not a M_CONTAINS substring scan. This sibling is what keeps the split
+        // real: the same arm must route an internal star to M_CONTAINS and a
+        // leading star to M_SUFFIX.
+        assert_eq!(lower_path("**/*.so"), (M_SUFFIX, ".so".into()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
