@@ -2992,4 +2992,48 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn meta_json_record(policy: Option<String>) -> ChildRecord {
+        ChildRecord {
+            launch_id: "meta-json-test".to_string(),
+            pid: 4242,
+            child_id: 902,
+            scope_id: 3,
+            cmd: vec!["/bin/echo".to_string(), "hi".to_string()],
+            stdout: PathBuf::from("/tmp/actplane-meta-out.log"),
+            stderr: PathBuf::from("/tmp/actplane-meta-err.log"),
+            meta: PathBuf::from("/tmp/actplane-meta.json"),
+            proc_start_time: Some(999),
+            policy: policy.clone(),
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 0,
+            restart_backoff_ms: 0,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        }
+    }
+
+    #[test]
+    fn child_record_meta_json_adds_policy_only_when_attached() {
+        // `child_record_meta_json` wraps `child_record_json` and conditionally
+        // embeds the policy text; no base or branch test calls it.
+        let with_policy = meta_json_record(Some("rule r:\n  notify exec \"x\"\n".to_string()));
+        let value = child_record_meta_json(&with_policy);
+        assert_eq!(value["launch_id"], "meta-json-test");
+        assert_eq!(value["child_id"], 902);
+        assert_eq!(value["policy"], "rule r:\n  notify exec \"x\"\n");
+        assert_eq!(value["policy_attached"], true);
+        assert_eq!(value["status"]["state"], "running");
+
+        let without_policy = meta_json_record(None);
+        let value = child_record_meta_json(&without_policy);
+        assert_eq!(value["policy_attached"], false);
+        assert!(value.get("policy").is_none());
+    }
 }
