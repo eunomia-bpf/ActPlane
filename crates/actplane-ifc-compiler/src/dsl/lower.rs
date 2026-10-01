@@ -335,6 +335,44 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_since_invalidator_with_a_non_invalidator_op_is_rejected() {
+        // `since` gates only invalidate on exec/read/write/open/unlink. The
+        // parser accepts any op word (`P::op`), so the restriction is a
+        // compile-time check in `inval_op`. A `connect`/`recv` invalidator
+        // must reject rather than silently map to the wrong taint_op.
+        use crate::dsl::parse::parse;
+        // `connect` is not a valid invalidator op.
+        let pol = parse(
+            "rule r:\n  block exec \"git\" unless after exec \"/in\" since connect \"10.0.0.5\"\n",
+        )
+        .expect("a since connect rule parses");
+        match compile(&pol) {
+            Ok(_) => panic!("a since connect invalidator must be rejected"),
+            Err(err) => assert_eq!(
+                err,
+                "`since connect` is not a valid invalidator (use exec/read/write/open/unlink)"
+            ),
+        }
+        // `recv` is likewise not a valid invalidator op.
+        let pol = parse(
+            "rule r:\n  block exec \"git\" unless after exec \"/in\" since recv \"10.0.0.5\"\n",
+        )
+        .expect("a since recv rule parses");
+        match compile(&pol) {
+            Ok(_) => panic!("a since recv invalidator must be rejected"),
+            Err(err) => assert_eq!(
+                err,
+                "`since recv` is not a valid invalidator (use exec/read/write/open/unlink)"
+            ),
+        }
+        // Positive control: `exec` is a valid invalidator op and compiles.
+        let pol =
+            parse("rule r:\n  block exec \"git\" unless after exec \"/in\" since exec \"/in\"\n")
+                .expect("a since exec rule parses");
+        compile(&pol).expect("a since exec invalidator compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
