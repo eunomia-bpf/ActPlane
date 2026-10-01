@@ -181,4 +181,30 @@ mod tests {
         assert_eq!(status_numeric_field(status, "Gid:"), Some(1001));
         assert_eq!(status_numeric_field(status, "Nope:"), None);
     }
+
+    #[test]
+    fn proc_readers_and_identity_to_json_use_live_process() {
+        // The existing identity tests only exercise the explicit uid/gid
+        // override; these pin the direct /proc readers and ProcessIdentity::to_json.
+        let pid = std::process::id() as i32;
+        assert!(proc_start_time_for_pid(pid).is_some());
+        assert_eq!(
+            proc_status_uid_gid(pid),
+            (
+                Some(unsafe { libc::geteuid() }),
+                Some(unsafe { libc::getegid() }),
+            )
+        );
+        assert!(proc_comm(pid).is_some());
+        assert!(proc_exe(pid).is_some());
+
+        let identity = ProcessIdentity::capture(pid, None, None);
+        let value = identity.to_json();
+        assert_eq!(value["pid"], pid);
+        assert!(value["stable_id"].as_str().unwrap().starts_with("pid:"));
+        assert_eq!(
+            value["uid"].as_u64(),
+            Some(u64::from(unsafe { libc::geteuid() }))
+        );
+    }
 }
