@@ -767,4 +767,35 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+
+    #[test]
+    fn is_clause_head_classifies_effect_and_verb_pairs() {
+        // `is_clause_head` recognizes a clause head only when the first token
+        // is one of the effects and the second is one of the operation verbs.
+        let effects = ["notify", "block", "kill"];
+        let verbs = ["exec", "read", "write", "unlink", "connect", "recv", "open"];
+        // Every supported (effect, verb) pair is a clause head.
+        for e in effects {
+            for v in verbs {
+                let head = format!("{e} {v}");
+                assert!(is_clause_head(&head), "expected a clause head: {head}");
+            }
+        }
+        // A clause head requires both a known effect and a known verb: an
+        // unknown verb, an unknown effect, a bare effect, or an empty token
+        // all fail.
+        assert!(
+            !is_clause_head("notify foo"),
+            "an unknown verb must not be a clause head"
+        );
+        assert!(
+            !is_clause_head("warn exec"),
+            "an unknown effect must not be a clause head"
+        );
+        assert!(
+            !is_clause_head("notify"),
+            "a bare effect without a verb is not a clause head"
+        );
+        assert!(!is_clause_head(""), "an empty token is not a clause head");
+    }
 }
