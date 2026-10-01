@@ -335,6 +335,40 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_rule_exceeding_the_sixty_four_since_invalidator_cap_is_rejected() {
+        // `since` invalidators occupy a global 64-bit slot table
+        // (`inval_slots` / `next_inval` on the compile `Ctx`), shared across
+        // the whole policy. Exceeding the cap must reject at compile time
+        // rather than overflow a `since_mask` `u64` or silently drop an
+        // invalidator. #101 pinned cross-rule dedup of the shared slot;
+        // nobody pinned the cap itself.
+        use crate::dsl::parse::parse;
+        // Build a single rule carrying `n` distinct `since` invalidators
+        // (`exec "/i{n}"`), joined with `or`.
+        fn build(n: usize) -> String {
+            let since: Vec<String> = (0..n).map(|i| format!("exec \"/i{i}\"")).collect();
+            let since = since.join(" or ");
+            format!("rule r:\n  block exec \"git\" unless after exec \"/in\" since {since}\n")
+        }
+
+        // Boundary: 64 distinct invalidators is exactly the cap and compiles.
+        let pol = parse(&build(64)).expect("64 distinct since invalidators parse");
+        compile(&pol).expect("64 distinct since invalidators compile");
+
+        // 65 distinct invalidators trip the global cap.
+        let pol = parse(&build(65)).expect("65 distinct since invalidators parse");
+        let err = compile(&pol).expect_err("more than 64 since invalidators must be rejected");
+        assert_eq!(err, "too many `since` invalidators (max 64)");
+
+        // Dedup control: repeated identical invalidators do not consume new
+        // slots, so a duplicate list stays well under the cap.
+        let pol =
+            parse("rule r:\n  block exec \"git\" unless after exec \"/in\" since exec \"/i0\" or exec \"/i0\"\n")
+                .expect("a duplicated since invalidator parses");
+        compile(&pol).expect("duplicated since invalidators dedup and compile");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
