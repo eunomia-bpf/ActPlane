@@ -2591,4 +2591,69 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn render_observe_clause_joins_target_when_and_unless() {
+        // `render_observe_clause` renders one observe-policy clause as
+        // `notify <op> [<kind> ]"<pattern>"[ "<arg>"] [if <expr>] [unless
+        // <cond>]`. The `Exec` target renders its optional argument, while
+        // `File` / `Endpoint` targets render only the pattern (qualified by
+        // `kind_name`). `when` and `unless` are delegated to `render_dsl_expr`
+        // and `render_dsl_cond`. No base or branch test pins this renderer
+        // directly.
+        use crate::dsl::ast::Target;
+
+        let clause =
+            |kind: Kind, pattern: &str, arg: Option<String>, when: Expr, unless: Option<Cond>| {
+                Clause {
+                    op: Op::Open,
+                    target: Target {
+                        kind,
+                        pattern: pattern.to_string(),
+                        arg,
+                    },
+                    when,
+                    unless,
+                    effect: Effect::Notify,
+                    source_index: 0,
+                }
+            };
+
+        // A bare Exec target with no argument, gate, or condition.
+        assert_eq!(
+            render_observe_clause(&clause(Kind::Exec, "agent", None, Expr::True, None)),
+            "notify open \"agent\""
+        );
+
+        // A File target renders its kind qualifier but not the argument.
+        assert_eq!(
+            render_observe_clause(&clause(
+                Kind::File,
+                "out.txt",
+                Some("w".into()),
+                Expr::And(
+                    Box::new(Expr::Label("repo".into())),
+                    Box::new(Expr::Label("agent".into()))
+                ),
+                None
+            )),
+            "notify open file \"out.txt\" if repo and agent"
+        );
+
+        // An Endpoint target with a negated condition.
+        assert_eq!(
+            render_observe_clause(&clause(
+                Kind::Endpoint,
+                "10.0.0.0/8",
+                None,
+                Expr::True,
+                Some(Cond::After {
+                    gate_op: Op::Open,
+                    gate_pattern: "policy.dsl".into(),
+                    gate_exit: None,
+                    since: Vec::new(),
+                })
+            )),
+            "notify open endpoint \"10.0.0.0/8\" unless after open \"policy.dsl\""
+        );
+    }
 }
