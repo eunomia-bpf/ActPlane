@@ -2591,4 +2591,129 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn clause_support_json_renders_one_object_per_clause() {
+        // `clause_support_json` renders one JSON object per clause, projecting
+        // `clause_support_detail` into the support fields plus the clause's
+        // condition warnings. No base or branch test pins this serializer
+        // directly.
+        use crate::dsl::ast::{Rule, Target};
+        use std::collections::HashMap;
+
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+
+        let policy = Policy {
+            labels: Vec::new(),
+            sources: Vec::new(),
+            rules: vec![
+                Rule {
+                    name: "guard".to_string(),
+                    clauses: vec![Clause {
+                        op: Op::Exec,
+                        target: Target {
+                            kind: Kind::Exec,
+                            pattern: "python3".to_string(),
+                            arg: None,
+                        },
+                        when: Expr::True,
+                        unless: None,
+                        effect: Effect::Notify,
+                        source_index: 0,
+                    }],
+                    reason: "guard exec".to_string(),
+                },
+                Rule {
+                    name: "egress".to_string(),
+                    clauses: vec![
+                        Clause {
+                            op: Op::Connect,
+                            target: Target {
+                                kind: Kind::Endpoint,
+                                pattern: "10.0.0.7".to_string(),
+                                arg: None,
+                            },
+                            when: Expr::True,
+                            unless: None,
+                            effect: Effect::Block,
+                            source_index: 0,
+                        },
+                        Clause {
+                            op: Op::Connect,
+                            target: Target {
+                                kind: Kind::Endpoint,
+                                pattern: "api.evil".to_string(),
+                                arg: None,
+                            },
+                            when: Expr::True,
+                            unless: None,
+                            effect: Effect::Block,
+                            source_index: 0,
+                        },
+                    ],
+                    reason: "guard egress".to_string(),
+                },
+            ],
+            xforms: Vec::new(),
+        };
+
+        let got = clause_support_json(&policy, &compiled, true);
+        let expected = vec![
+            json!({
+                "rule": "guard",
+                "clause_index": 0,
+                "effect": "notify",
+                "op": "exec",
+                "target_kind": "exec",
+                "target_pattern": "python3",
+                "target_arg": null,
+                "supported": true,
+                "status": "supported",
+                "mode": "tracepoint",
+                "pre_op": false,
+                "reason": "post-exec tracepoint report",
+                "limitations": [],
+                "condition_warnings": [],
+            }),
+            json!({
+                "rule": "egress",
+                "clause_index": 0,
+                "effect": "block",
+                "op": "connect",
+                "target_kind": "endpoint",
+                "target_pattern": "10.0.0.7",
+                "target_arg": null,
+                "supported": true,
+                "status": "supported",
+                "mode": "bpf-lsm",
+                "pre_op": true,
+                "reason": "pre-op block via BPF-LSM socket_connect",
+                "limitations": ["IPv4 only"],
+                "condition_warnings": [],
+            }),
+            json!({
+                "rule": "egress",
+                "clause_index": 1,
+                "effect": "block",
+                "op": "connect",
+                "target_kind": "endpoint",
+                "target_pattern": "api.evil",
+                "target_arg": null,
+                "supported": false,
+                "status": "unsupported",
+                "mode": "none",
+                "pre_op": false,
+                "reason": "endpoint target pattern is not numeric IPv4 or an exact \
+                          resolvable hostname",
+                "limitations": ["wildcard hostnames and IPv6 are not enforced in-kernel"],
+                "condition_warnings": [],
+            }),
+        ];
+        assert_eq!(got, expected);
+    }
 }
