@@ -335,6 +335,53 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn and_forms_or_two_labels_into_a_single_two_bit_mask() {
+        use std::collections::HashMap;
+        let labels: HashMap<String, u64> = [("A".to_string(), 1u64), ("B".to_string(), 2u64)]
+            .into_iter()
+            .collect();
+        let dsl = |src: &str| -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile_with_labels(&pol, &labels).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        };
+        // `dnf`'s And arm ORs the two disjuncts' bits into one field
+        // (`(ra | rb, fa | fb)`), so `A and B` is a single rule whose `req`
+        // carries BOTH bits, not two single-bit rules. The kernel's
+        // taint_mask_ok ANDs the node's label mask against `req`, so a node
+        // must have every required bit set. #55 pinned only the single-bit
+        // `not -> forbid` routing; #75 the sorted bit mapping. Nobody pins the
+        // two-bit `req`/`forbid` mask that an `and` builds. A regression that
+        // replaced the `|` with an overwrite (last label wins) would silently
+        // drop a required/forbidden label.
+        // `A and B`: one disjunct; req carries A|B = 0b11.
+        let cfg = dsl("rule r:\n  notify write file \"/sink\" if A and B\n  because \"z\"\n");
+        assert_eq!(cfg.n_rules, 1, "`and` joins, not splits: one disjunct");
+        assert_eq!(cfg.rules[0].req, 0b11, "`A and B` -> req carries both bits");
+        assert_eq!(cfg.rules[0].forbid, 0, "no `not` in this clause");
+        // `not A and not B`: one disjunct; forbid carries A|B = 0b11.
+        let cfg =
+            dsl("rule r:\n  notify write file \"/sink\" if not A and not B\n  because \"z\"\n");
+        assert_eq!(cfg.n_rules, 1, "`and` joins, not splits: one disjunct");
+        assert_eq!(
+            cfg.rules[0].req, 0,
+            "no positive requirement in this clause"
+        );
+        assert_eq!(
+            cfg.rules[0].forbid, 0b11,
+            "`not A and not B` -> forbid carries both bits"
+        );
+        // The two mask fields of a single rule stay disjoint.
+        for r in &cfg.rules[..1] {
+            assert_eq!(
+                r.req & r.forbid,
+                0,
+                "a rule cannot require and forbid one bit"
+            );
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
