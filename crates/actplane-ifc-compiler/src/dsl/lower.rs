@@ -335,6 +335,33 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_long_repo_relative_exact_literal_shortens_to_a_fitting_subsegment() {
+        // `shorten_repo_relative_exact_literal` keeps an exact repo-relative
+        // path verbatim when it fits the `M_CONTAINS` cap, otherwise walks
+        // down to the first sub-segment (a tail still containing `/`) that
+        // fits, and finally falls back to the parent-dir `/<parent>/` form.
+        // No base test pins these cap-walk arms directly; they only surface
+        // through full `lower_path` calls.
+        // Within the cap: kept verbatim.
+        assert_eq!(
+            shorten_repo_relative_exact_literal("src/main.rs"),
+            "src/main.rs"
+        );
+        // Over the cap: the first sub-segment that still fits is kept,
+        // dropping the long leading prefix.
+        assert_eq!(
+            shorten_repo_relative_exact_literal("docs/api/types/v2/mod.rs"),
+            "types/v2/mod.rs"
+        );
+        // Over the cap with no sub-segment that fits: fall back to the
+        // parent directory form.
+        assert_eq!(
+            shorten_repo_relative_exact_literal("vendor/libtool-main"),
+            "vendor/"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
