@@ -851,4 +851,23 @@ domains:
             );
         }
     }
+    #[test]
+    fn absolutize_keeps_absolute_paths_and_joins_relative_paths_to_base() {
+        // `absolutize` resolves a policy-referenced path against a base dir:
+        // absolute paths pass through unchanged, relative paths join to the
+        // base. No base or branch test pins both branches directly.
+        let base = Path::new("/srv/actplane");
+
+        // An absolute path is returned verbatim.
+        assert_eq!(
+            absolutize(Path::new("/etc/actplane/policy.dsl"), base),
+            Path::new("/etc/actplane/policy.dsl").to_path_buf()
+        );
+
+        // A relative path joins to the base.
+        assert_eq!(
+            absolutize(Path::new("policies/local.dsl"), base),
+            Path::new("/srv/actplane/policies/local.dsl").to_path_buf()
+        );
+    }
 }
