@@ -7884,4 +7884,53 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+    #[test]
+    fn merge_cap_state_combines_masks_and_fills_zero_ids() {
+        // `merge_cap_state` folds an update into a base capability state:
+        // the parent/scope ids are taken from the update only when the base
+        // leaves them unset, while every mask and the label set are ORed.
+        // No base or branch test pins this fold directly.
+        let base = CapState {
+            scope_id: 7,
+            labels: 0b0001,
+            authority_mask: 0b0001,
+            target_mask: 0b0010,
+            restrict_mask: 0b0100,
+            gate_mask: 0b1000,
+            label_mask: 0b0001,
+            ..CapState::default()
+        };
+        let update = CapState {
+            parent: 9,
+            scope_id: 11,
+            labels: 0b0010,
+            authority_mask: 0b1000,
+            target_mask: 0b0001,
+            restrict_mask: 0b0010,
+            gate_mask: 0b0100,
+            label_mask: 0b1000,
+            ..CapState::default()
+        };
+
+        let merged = merge_cap_state(base, update);
+
+        // The update's parent/scope fill in only where the base left them 0.
+        assert_eq!(merged.parent, 9);
+        assert_eq!(merged.scope_id, 7); // base scope already set, kept
+
+        // Masks and labels combine with OR.
+        assert_eq!(merged.labels, 0b0011);
+        assert_eq!(merged.authority_mask, 0b1001);
+        assert_eq!(merged.target_mask, 0b0011);
+        assert_eq!(merged.restrict_mask, 0b0110);
+        assert_eq!(merged.gate_mask, 0b1100);
+        assert_eq!(merged.label_mask, 0b1001);
+
+        // A base with no scope lets the update's scope through.
+        let base_no_scope = CapState {
+            scope_id: 0,
+            ..CapState::default()
+        };
+        assert_eq!(merge_cap_state(base_no_scope, update).scope_id, 11);
+    }
 }
