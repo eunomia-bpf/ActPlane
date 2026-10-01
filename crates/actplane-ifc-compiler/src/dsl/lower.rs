@@ -335,6 +335,38 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_non_exec_target_with_a_wrong_kind_word_is_rejected() {
+        // A non-exec target must name its node kind as one of `file`,
+        // `endpoint`, or `exec`. A present-but-invalid kind word is
+        // rejected with "expected kind in target, got '{w}'". This is the
+        // distinct guard from the missing-kind rejection ("expected node
+        // kind in target", #111) and from the source-path kind
+        // vocabulary (#105). Without it, a misspelled kind (`proc`,
+        // `blob`) would be silently ignored and the pattern misparsed.
+        use crate::dsl::parse::parse;
+        let err = parse("rule r:\n  block open proc \"/etc/passwd\"\n")
+            .expect_err("a wrong target kind word must be rejected");
+        assert_eq!(err, "expected kind in target, got 'proc'");
+
+        let err = parse("rule r:\n  block connect proc \"8.8.8.8\"\n")
+            .expect_err("a wrong target kind word must be rejected");
+        assert_eq!(err, "expected kind in target, got 'proc'");
+
+        let err = parse("rule r:\n  block open blob \"/etc/passwd\"\n")
+            .expect_err("another wrong target kind word must be rejected");
+        assert_eq!(err, "expected kind in target, got 'blob'");
+
+        // Positive controls: the valid target kinds parse and compile.
+        for pol in [
+            "rule r:\n  block open file \"/etc/passwd\"\n",
+            "rule r:\n  block connect endpoint \"8.8.8.8\"\n",
+        ] {
+            let p = parse(pol).expect("a valid target kind parses");
+            let _ = compile(&p).expect("a valid target compiles");
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
