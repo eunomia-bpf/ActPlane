@@ -335,6 +335,53 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn and_over_or_distributes_the_conjunct_across_every_disjunct() {
+        // The `dnf` And arm is a cross-product: every disjunct of the left
+        // operand is combined with every disjunct of the right. Because the
+        // parser is a left-associative `and`/`or` chain, `A or B and C` is
+        // `(A or B) and C`, so the conjunct `C` is distributed into *both*
+        // `or` disjuncts, producing two rules whose `req` masks are
+        // `A|C` and `B|C`. The kernel evaluates each disjunct `CRule`
+        // independently, so a regression that collapsed the cross-product
+        // (kept only one disjunct, or dropped the distributed conjunct)
+        // would under-block.
+        //
+        // #55 pinned the flat `and` (one disjunct, a two-bit mask) and the
+        // flat `or` (two single-bit disjuncts); neither pins that `and`
+        // over an `or` multiplies the disjunct count and ORs the conjunct
+        // into each one.
+        use std::collections::HashMap;
+        fn dsl(src: &str) -> CConfig {
+            let labels = [
+                ("A".to_string(), 1u64),
+                ("B".to_string(), 2u64),
+                ("C".to_string(), 4u64),
+            ]
+            .into_iter()
+            .collect::<HashMap<_, _>>();
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile_with_labels(&pol, &labels).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        }
+
+        // `(A or B) and C` -> the two `or` disjuncts each get `C` ORed in.
+        let g = dsl("rule r:\n  block exec \"x\" if A or B and C\n  because \"z\"\n");
+        assert_eq!(g.n_rules, 2, "the conjunct distributes into both `or` arms");
+        let reqs: Vec<u64> = g.rules[..2].iter().map(|r| r.req).collect();
+        assert!(reqs.contains(&5u64), "one disjunct is A|C = 0b101");
+        assert!(reqs.contains(&6u64), "the other is B|C = 0b110");
+        for r in &g.rules[..2] {
+            assert_eq!(r.forbid, 0, "no disjunct forbids a label");
+        }
+
+        // A flat `and` stays a single disjunct: the cross-product of two
+        // singletons is one mask, not two rules.
+        let g = dsl("rule r:\n  block exec \"x\" if A and B\n  because \"z\"\n");
+        assert_eq!(g.n_rules, 1, "a flat `and` is one disjunct");
+        assert_eq!(g.rules[0].req, 3u64, "`A and B` requires both");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
