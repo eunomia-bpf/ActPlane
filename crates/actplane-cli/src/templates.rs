@@ -698,4 +698,29 @@ mod tests {
             .to_string();
         assert!(err.contains("unsupported by the current DSL string syntax"));
     }
+    #[test]
+    fn template_values_fills_defaults_and_applies_overrides() {
+        let template = get("test-before-commit").unwrap();
+        let values = template_values(template, &[]).unwrap();
+        assert_eq!(
+            values,
+            BTreeMap::from([
+                ("agent_exec".to_string(), "**".to_string()),
+                ("test_exec".to_string(), "**/pytest".to_string()),
+                ("changed_paths".to_string(), "src/**,tests/**".to_string()),
+            ])
+        );
+
+        let values = template_values(
+            template,
+            &[
+                "agent_exec=codex".to_string(),
+                "test_exec=**/pnpm".to_string(),
+            ],
+        )
+        .unwrap();
+        assert_eq!(values["agent_exec"], "codex");
+        assert_eq!(values["test_exec"], "**/pnpm");
+        assert_eq!(values["changed_paths"], "src/**,tests/**");
+    }
 }
