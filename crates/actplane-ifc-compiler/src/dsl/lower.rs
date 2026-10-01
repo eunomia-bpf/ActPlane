@@ -335,6 +335,24 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_trailing_dot_dotted_prefix_lowers_to_a_subnet_mask() {
+        // An IPv4 endpoint written as a dotted prefix (trailing dot, no CIDR
+        // slash) matches an entire subnet: `10.0.0.` is /24, `10.0.` is /16,
+        // `10.` is /8. `lower_numeric_ipv4` packs octet k at bit 8*k, so the
+        // leading octet lands in the low byte and the mask sets the
+        // corresponding low groups. The base endpoint tests pin only the
+        // exact-host /32 form; this pins the dotted-prefix subnet form.
+        // /24: `10.0.0.` -> net 10 (low byte), mask 0x00FFFFFF
+        assert_eq!(lower_ipv4("10.0.0."), (10, 0x00FFFFFF));
+        // /16: `10.0.` -> net 10, mask 0x0000FFFF
+        assert_eq!(lower_ipv4("10.0."), (10, 0x0000FFFF));
+        // /8: `10.` -> net 10, mask 0x000000FF
+        assert_eq!(lower_ipv4("10."), (10, 0x000000FF));
+        // Control: an exact host has all four octets set -> /32.
+        assert_eq!(lower_ipv4("10.1.2.3"), (0x0302010A, 0xFFFFFFFF));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
