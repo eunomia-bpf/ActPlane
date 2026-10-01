@@ -2591,4 +2591,119 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn rollout_clause_signatures_indexes_one_signature_per_clause() {
+        // `rollout_clause_signatures` builds a `BTreeMap` keyed by
+        // `(rule name, source index)` holding one `ClauseEventSignature` per
+        // clause in the policy, where the signature records the clause op,
+        // target kind, target pattern, optional target arg, the rendered
+        // observe-clause text, and the FNV-1a hash of that text. No base or
+        // branch test pins this indexer directly.
+        use crate::dsl::ast::{Rule, Target};
+
+        let policy = Policy {
+            labels: vec!["repo".to_string()],
+            sources: vec![Source {
+                label: "repo".to_string(),
+                kind: Kind::File,
+                pattern: "/repo".to_string(),
+            }],
+            rules: vec![
+                Rule {
+                    name: "guard".to_string(),
+                    clauses: vec![
+                        Clause {
+                            op: Op::Write,
+                            target: Target {
+                                kind: Kind::File,
+                                pattern: "out.txt".to_string(),
+                                arg: None,
+                            },
+                            when: Expr::True,
+                            unless: None,
+                            effect: Effect::Notify,
+                            source_index: 0,
+                        },
+                        Clause {
+                            op: Op::Connect,
+                            target: Target {
+                                kind: Kind::Endpoint,
+                                pattern: "10.0.0.7".to_string(),
+                                arg: None,
+                            },
+                            when: Expr::Label("repo".to_string()),
+                            unless: None,
+                            effect: Effect::Notify,
+                            source_index: 1,
+                        },
+                    ],
+                    reason: "guard the repo".to_string(),
+                },
+                Rule {
+                    name: "trace".to_string(),
+                    clauses: vec![Clause {
+                        op: Op::Exec,
+                        target: Target {
+                            kind: Kind::Exec,
+                            pattern: "python3".to_string(),
+                            arg: Some("run".to_string()),
+                        },
+                        when: Expr::True,
+                        unless: None,
+                        effect: Effect::Notify,
+                        source_index: 0,
+                    }],
+                    reason: "trace exec".to_string(),
+                },
+            ],
+            xforms: Vec::new(),
+        };
+
+        let signatures = rollout_clause_signatures(&policy);
+        // One entry per clause, keyed by (rule name, source index).
+        assert_eq!(signatures.len(), 3);
+
+        let file_clause = signatures
+            .get(&("guard".to_string(), 0))
+            .expect("guard clause 0 present");
+        assert_eq!(file_clause.clause_op, "write");
+        assert_eq!(file_clause.target_kind, "file");
+        assert_eq!(file_clause.target_pattern, "out.txt");
+        assert_eq!(file_clause.target_arg, None);
+        // The observe-clause text is prefixed with "  " and uses the fixed
+        // "notify" action verb; the hash is the FNV-1a of that same text.
+        assert_eq!(file_clause.clause_text, "  notify write file \"out.txt\"");
+        assert_eq!(
+            file_clause.clause_hash,
+            crate::audit::policy_hash(&file_clause.clause_text)
+        );
+
+        let endpoint_clause = signatures
+            .get(&("guard".to_string(), 1))
+            .expect("guard clause 1 present");
+        assert_eq!(endpoint_clause.clause_op, "connect");
+        assert_eq!(endpoint_clause.target_kind, "endpoint");
+        assert_eq!(endpoint_clause.target_pattern, "10.0.0.7");
+        assert_eq!(
+            endpoint_clause.clause_text,
+            "  notify connect endpoint \"10.0.0.7\" if repo"
+        );
+        assert_eq!(
+            endpoint_clause.clause_hash,
+            crate::audit::policy_hash(&endpoint_clause.clause_text)
+        );
+
+        let exec_clause = signatures
+            .get(&("trace".to_string(), 0))
+            .expect("trace clause 0 present");
+        assert_eq!(exec_clause.clause_op, "exec");
+        assert_eq!(exec_clause.target_kind, "exec");
+        assert_eq!(exec_clause.target_pattern, "python3");
+        assert_eq!(exec_clause.target_arg, Some("run".to_string()));
+        assert_eq!(exec_clause.clause_text, "  notify exec \"python3\" \"run\"");
+        assert_eq!(
+            exec_clause.clause_hash,
+            crate::audit::policy_hash(&exec_clause.clause_text)
+        );
+    }
 }
