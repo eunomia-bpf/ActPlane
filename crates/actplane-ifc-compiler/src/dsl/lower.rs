@@ -335,6 +335,41 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn connect_and_recv_are_not_valid_gates() {
+        // A `after <op>` gate arms a rule on that event class, so the gate
+        // update must carry the kernel taint_op of the gating event. The
+        // engine can only arm a gate from exec/read/write events (see
+        // gate_bit in lower.rs), so `connect` and `recv` are rejected at
+        // compile time. The parse layer accepts any op word after `after`, so
+        // the rejection only surfaces during lowering; pin it here so the
+        // error string and op set stay honest. #57 pins the `after exec`
+        // accept row; #73 pins the equivalent `since` invalidator reject.
+        let base = |op: &str| {
+            crate::dsl::parse::parse(&format!(
+                r#"rule sink:
+                  notify write file "/sink" unless after {op} "/cfg""#
+            ))
+            .expect("parse gate rule")
+        };
+        for bad in ["connect", "recv"] {
+            let pol = base(bad);
+            match compile(&pol) {
+                Ok(_) => panic!("after {bad} should not compile as a gate"),
+                Err(e) => assert!(
+                    e.contains("not supported as a gate"),
+                    "unexpected error for after {bad}: {e}"
+                ),
+            }
+        }
+        // Positive control: `after read` IS a valid gate, so the same shape
+        // compiles cleanly. This proves the rejection is specific to
+        // connect/recv rather than to the whole `after` construction.
+        let pol = base("read");
+        let compiled = compile(&pol).expect("after read is a valid gate");
+        assert!(!compiled.bytes.is_empty());
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
