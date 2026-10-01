@@ -335,6 +335,30 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn ipv4_kernel_packing_round_trips_through_the_string_form() {
+        // `ipv4_to_kernel` packs octet `k` into bit `8*k` to match the
+        // kernel's `sin_addr.s_addr` byte order; `kernel_ipv4_to_string` is
+        // its documented inverse. Neither is asserted by the endpoint tests
+        // (which only pin `lower_ipv4` results), so this pins the packing
+        // order and the round-trip directly.
+        let cases: [(&std::net::Ipv4Addr, u32); 4] = [
+            (&std::net::Ipv4Addr::new(127, 0, 0, 1), 0x0100007F),
+            (&std::net::Ipv4Addr::new(10, 0, 0, 1), 0x0100000A),
+            (&std::net::Ipv4Addr::new(192, 168, 1, 254), 0xFE01A8C0),
+            (&std::net::Ipv4Addr::new(0, 0, 0, 0), 0),
+        ];
+        for (addr, expected_kernel) in cases {
+            let kernel = ipv4_to_kernel(*addr);
+            assert_eq!(kernel, expected_kernel, "pack order for {addr}");
+            assert_eq!(
+                kernel_ipv4_to_string(kernel),
+                addr.to_string(),
+                "round-trip for {addr}"
+            );
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
