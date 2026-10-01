@@ -851,4 +851,46 @@ domains:
             );
         }
     }
+
+    #[test]
+    fn load_policy_handles_rule_and_discovery() {
+        // `load_policy` short-circuits an inline `--rule` into a rootless
+        // config, falls back to `discover_policy` when no `--policy` is given,
+        // surfaces the missing-policy error shape, and rejects an explicit
+        // path. No base or branch test calls it.
+        let rule = PolicyInput {
+            rule: Some("rule r:\n  block exec \"x\" if A\n  because \"z\"\n".to_string()),
+            ..Default::default()
+        };
+        let loaded = load_policy(&rule).expect("inline rule loads");
+        assert!(loaded.path.is_none());
+        assert_eq!(
+            loaded.config.policy.as_deref(),
+            Some("rule r:\n  block exec \"x\" if A\n  because \"z\"\n")
+        );
+
+        // Repository root has an `actplane.yaml`, so running from here exercises
+        // the discovery fallback (result is not asserted, only that it is taken).
+        let discovered = PolicyInput::default();
+        if discover_policy(&std::env::current_dir().expect("cwd")).is_some() {
+            assert!(load_policy(&discovered).is_ok());
+        }
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = PolicyInput {
+            policy: Some(dir.path().join("nope.yaml")),
+            ..Default::default()
+        };
+        let err = load_policy(&missing).err().expect("missing policy");
+        assert!(err.to_string().contains("nope.yaml"), "{err}");
+
+        let raw_dsl = dir.path().join("rule.dsl");
+        std::fs::write(&raw_dsl, "rule r:\n  block exec \"x\"\n").unwrap();
+        let explicit = PolicyInput {
+            policy: Some(raw_dsl),
+            ..Default::default()
+        };
+        let err = load_policy(&explicit).err().expect("raw dsl rejected");
+        assert!(err.to_string().contains("raw DSL file"), "{err}");
+    }
 }
