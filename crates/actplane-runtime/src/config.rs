@@ -851,4 +851,50 @@ domains:
             );
         }
     }
+
+    #[test]
+    fn load_policy_path_gates_suffix_shape_and_root() {
+        // `load_policy_path` rejects raw DSL, enforces the legacy/rules shape,
+        // and picks the policy root (cwd for an explicit policy, else the file's
+        // parent); no base or branch test calls it directly.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let cwd = dir.path();
+        let policy_dir = cwd.join("nested");
+        std::fs::create_dir_all(&policy_dir).unwrap();
+
+        // Raw DSL file -> rejected before parsing.
+        let dsl = cwd.join("rules.dsl");
+        std::fs::write(&dsl, "rule r:\n  notify exec \"ls\"\n  because \"x\"\n").unwrap();
+        let err = load_policy_path(&dsl, false, cwd)
+            .err()
+            .expect("dsl")
+            .to_string();
+        assert!(err.contains("raw DSL file"), "{err}");
+
+        // Legacy policy root: implicit path uses the file's parent, explicit uses cwd.
+        let legacy = policy_dir.join("actplane.yaml");
+        std::fs::write(
+            &legacy,
+            "policy: \"rule r:\\n  notify exec \\\"ls\\\"\\n  because \\\"x\\\"\\n\"\n",
+        )
+        .unwrap();
+        let implicit = load_policy_path(&legacy, false, cwd).expect("implicit");
+        assert_eq!(implicit.root, policy_dir);
+        assert_eq!(implicit.path.as_deref(), Some(legacy.as_path()));
+        let explicit = load_policy_path(&legacy, true, cwd).expect("explicit");
+        assert_eq!(explicit.root, cwd);
+
+        // Mixing legacy policy with rules/domains is rejected.
+        let mixed = cwd.join("mixed.yaml");
+        std::fs::write(
+            &mixed,
+            "policy: \"rule r:\\n  notify exec \\\"ls\\\"\\n  because \\\"x\\\"\\n\"\nrules:\n  r:\n    ifc: \"rule r:\\n  notify exec \\\"ls\\\"\\n  because \\\"x\\\"\\n\"\ndomains:\n  d:\n    bind: []\n",
+        )
+        .unwrap();
+        let err = load_policy_path(&mixed, false, cwd)
+            .err()
+            .expect("mixed")
+            .to_string();
+        assert!(err.contains("cannot mix legacy"), "{err}");
+    }
 }
