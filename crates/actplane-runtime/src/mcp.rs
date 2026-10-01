@@ -2992,4 +2992,28 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+    #[test]
+    fn first_tool_text_reads_the_first_content_text() {
+        // `first_tool_text` pulls the first content entry's `text` out of a
+        // tool-call value, or `None` when the shape is absent. No base or
+        // branch test pins this helper directly.
+        // A well-formed content array with a text entry yields that text.
+        let ok = serde_json::json!({
+            "content": [ { "text": "first" }, { "text": "second" } ]
+        });
+        assert_eq!(first_tool_text(&ok).as_deref(), Some("first"));
+
+        // A nested content array with no text field yields None.
+        let no_text = serde_json::json!({
+            "content": [ { "data": "x" } ]
+        });
+        assert_eq!(first_tool_text(&no_text), None);
+
+        // No content array at all yields None.
+        assert_eq!(first_tool_text(&serde_json::json!({})), None);
+
+        // An empty content array has no first entry.
+        let empty = serde_json::json!({ "content": [] });
+        assert_eq!(first_tool_text(&empty), None);
+    }
 }
