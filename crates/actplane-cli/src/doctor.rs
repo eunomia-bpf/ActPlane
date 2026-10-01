@@ -2591,4 +2591,24 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn source_flow_summary_describes_label_flow_per_kind() {
+        // `source_flow_summary` renders the human-readable label-flow
+        // description for each `Kind`. No base or branch test pins this
+        // summary text directly.
+        assert_eq!(
+            source_flow_summary(Kind::Exec),
+            "matching exec adds the label to the process and fork descendants"
+        );
+        assert_eq!(
+            source_flow_summary(Kind::File),
+            "matching file carries the label; reads copy it into the process, \
+             writes copy process labels into the file"
+        );
+        assert_eq!(
+            source_flow_summary(Kind::Endpoint),
+            "matching IPv4 endpoint carries the label; recv copies it into the \
+             process, connect records egress labels"
+        );
+    }
 }
