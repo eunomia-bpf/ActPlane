@@ -2591,4 +2591,27 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn expr_summary_renders_every_expr_variant() {
+        // `expr_summary` renders an `Expr` to a human-readable string,
+        // recursing for the `And`/`Or` composites. No base or branch test
+        // pins this formatter directly.
+        assert_eq!(expr_summary(&Expr::True), "true");
+        assert_eq!(expr_summary(&Expr::Label("secret".into())), "secret");
+        assert_eq!(expr_summary(&Expr::Not("public".into())), "not public");
+        assert_eq!(
+            expr_summary(&Expr::And(
+                Box::new(Expr::Label("a".into())),
+                Box::new(Expr::Label("b".into())),
+            )),
+            "(a and b)"
+        );
+        assert_eq!(
+            expr_summary(&Expr::Or(
+                Box::new(Expr::Not("a".into())),
+                Box::new(Expr::True),
+            )),
+            "(not a or true)"
+        );
+    }
 }
