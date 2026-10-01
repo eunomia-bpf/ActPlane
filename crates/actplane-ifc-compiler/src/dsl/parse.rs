@@ -343,3 +343,83 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_builds_the_full_policy_ast_from_sources_xforms_and_rules() {
+        // `parse` is the public front-end of the DSL: a policy string becomes
+        // a `Policy` of `Source`/`Xform`/`Rule`/`Clause` nodes. No test in
+        // any open or merged branch pins the parsed `Policy` structure
+        // directly; lower.rs only ever forwards `parse` into `compile` and
+        // asserts on the lowered `Compiled` blob.
+        let src = r#"
+            source AGENT = exec "**/agent"
+            source NET = endpoint "10.0.0.0"
+            declassify NET by exec "**/sanitize"
+            rule guard:
+              block exec "git" "refactor" if AGENT and NET unless target "10.0.0.0"
+              because "no egress"
+        "#;
+        let got = parse(src).expect("multi-construct policy parses");
+        assert_eq!(
+            got,
+            Policy {
+                labels: Vec::new(),
+                sources: vec![
+                    Source {
+                        label: "AGENT".into(),
+                        kind: Kind::Exec,
+                        pattern: "**/agent".into(),
+                    },
+                    Source {
+                        label: "NET".into(),
+                        kind: Kind::Endpoint,
+                        pattern: "10.0.0.0".into(),
+                    },
+                ],
+                rules: vec![Rule {
+                    name: "guard".into(),
+                    clauses: vec![Clause {
+                        op: Op::Exec,
+                        target: Target {
+                            kind: Kind::Exec,
+                            pattern: "**/git".into(),
+                            arg: Some("refactor".into()),
+                        },
+                        when: Expr::And(
+                            Box::new(Expr::Label("AGENT".into())),
+                            Box::new(Expr::Label("NET".into())),
+                        ),
+                        unless: Some(Cond::Target {
+                            negate: false,
+                            pattern: "10.0.0.0".into(),
+                        }),
+                        effect: Effect::Block,
+                        source_index: 0,
+                    }],
+                    reason: "no egress".into(),
+                }],
+                xforms: vec![Xform {
+                    endorse: false,
+                    label: "NET".into(),
+                    gate: "**/sanitize".into(),
+                }],
+            }
+        );
+
+        // A second positional string after the target arg is not consumed and
+        // surfaces as an "expected declaration" lex/parse error.
+        let stray = parse("rule x:\n  block exec \"git\" \"a\" \"b\"");
+        assert_eq!(
+            stray.err().as_deref(),
+            Some("expected declaration, got Str(\"b\")")
+        );
+
+        // Re-declaring a rule name is rejected with the offending name.
+        let dup = parse("rule x:\n  block exec \"git\" because \"r\"\nrule x:\n  block exec \"g\"");
+        assert_eq!(dup.err().as_deref(), Some("duplicate rule name `x`"));
+    }
+}
