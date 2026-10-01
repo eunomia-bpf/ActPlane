@@ -952,4 +952,44 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn dependency_manifest_name_recognizes_lockfiles_and_requirements_txt() {
+        // `is_dependency_manifest_name` matches an explicit lockfile whitelist
+        // plus any `requirements*.txt` file. No base or branch test pins this
+        // classifier directly; it is only reached through the dependency-path
+        // inference.
+        let manifest = [
+            "Cargo.lock",
+            "Cargo.toml",
+            "package-lock.json",
+            "pnpm-lock.yaml",
+            "yarn.lock",
+            "bun.lockb",
+            "package.json",
+            "go.sum",
+            "go.mod",
+            "requirements.txt",
+            "requirements-dev.txt",
+            "pyproject.toml",
+            "poetry.lock",
+            "uv.lock",
+        ];
+        for name in manifest {
+            assert!(
+                is_dependency_manifest_name(name),
+                "{name} should be a manifest"
+            );
+        }
+
+        // The `requirements*.txt` suffix rule covers arbitrary variants.
+        assert!(is_dependency_manifest_name("requirements-prod.txt"));
+        assert!(is_dependency_manifest_name("requirements-test.txt"));
+
+        // Not a manifest: wrong extension, missing suffix, or not a lockfile.
+        assert!(!is_dependency_manifest_name("Makefile"));
+        assert!(!is_dependency_manifest_name("cargo.toml")); // case-sensitive
+        assert!(!is_dependency_manifest_name("requirements")); // no .txt
+        assert!(!is_dependency_manifest_name("requirements.md"));
+        assert!(!is_dependency_manifest_name("lock.json"));
+    }
 }
