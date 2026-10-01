@@ -2108,4 +2108,42 @@ mod tests {
             "repo-supervisor"
         );
     }
+    #[test]
+    fn control_plane_cap_state_grants_the_control_plane_authority_set() {
+        // `control_plane_cap_state` builds the capability state the control
+        // plane runs with, from a caller's label. It grants a fixed
+        // authority set, restricts targets to self + child, and widens the
+        // gate/label masks. No base or branch test pins this mapping directly.
+        let label = 0b101u64;
+        let caps = control_plane_cap_state(label);
+
+        // The caller label is carried through verbatim.
+        assert_eq!(caps.labels, label);
+
+        // The control plane always runs in scope 1, from the root.
+        assert_eq!(caps.scope_id, 1);
+        assert_eq!(caps.parent, 0);
+
+        // The granted authority set: bind/narrow/add-label/require-gate/
+        // declassify/delegate, and no other authority.
+        let granted = AUTH_BIND_RULE
+            | AUTH_NARROW_SCOPE
+            | AUTH_ADD_LABEL
+            | AUTH_REQUIRE_GATE
+            | AUTH_DECLASSIFY
+            | AUTH_DELEGATE;
+        assert_eq!(caps.authority_mask, granted);
+        // Restriction authority is deliberately not granted to the control plane.
+        assert_eq!(
+            caps.authority_mask & ebpf_ifc_engine::capability::AUTH_ADD_RESTRICTION,
+            0
+        );
+
+        // Targets are limited to self and children; gate/label masks are wide.
+        assert_eq!(caps.target_mask, TARGET_SELF | TARGET_CHILD);
+        assert_eq!(caps.gate_mask, u64::MAX);
+        assert_eq!(caps.label_mask, u64::MAX);
+        // The restrict mask is not touched.
+        assert_eq!(caps.restrict_mask, 0);
+    }
 }
