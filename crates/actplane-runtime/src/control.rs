@@ -380,4 +380,30 @@ mod tests {
         let err = send_request(dir.path(), json!({ "op": "status" })).unwrap_err();
         assert!(err.to_string().contains("stale ActPlane control state"));
     }
+
+    #[test]
+    fn read_request_parses_line_and_temp_socket_path_is_unique() {
+        // `read_request` reads one JSON line from a connected unix stream and
+        // rejects blank input; `temp_socket_path` embeds the euid and pid in a
+        // per-call-unique socket name. No base or branch test calls either.
+        use std::io::Write;
+
+        let (mut client, server) = std::os::unix::net::UnixStream::pair().expect("pair");
+        client.write_all(b"{\"op\":\"status\"}\n").unwrap();
+        let value = read_request(&server).expect("request");
+        assert_eq!(value["op"], "status");
+
+        let (mut blank, server2) = std::os::unix::net::UnixStream::pair().expect("pair");
+        blank.write_all(b"\n").unwrap();
+        let err = read_request(&server2).unwrap_err().to_string();
+        assert!(err.contains("empty control request"), "{err}");
+
+        let a = temp_socket_path(4242);
+        let b = temp_socket_path(4242);
+        let euid = unsafe { libc::geteuid() };
+        let name = a.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(name.starts_with(&format!("actplane-control-{euid}-4242-")));
+        assert!(name.ends_with(".sock"));
+        assert_ne!(a, b, "each call uses a fresh timestamp");
+    }
 }
