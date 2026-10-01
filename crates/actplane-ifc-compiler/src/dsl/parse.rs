@@ -343,3 +343,38 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parser(tokens: Vec<Tok>) -> P {
+        P { t: tokens, i: 0 }
+    }
+
+    #[test]
+    fn term_parses_not_true_and_bare_label_atoms() {
+        // `term` is the lowest-precedence expression layer lifted by `expr`:
+        // it recognizes `not <word>` negation, the `true` literal, and a bare
+        // label word. No base or branch test calls `term` directly.
+
+        let mut p = parser(vec![Tok::Word("not".into()), Tok::Word("SECRET".into())]);
+        assert_eq!(p.term().unwrap(), Expr::Not("SECRET".to_string()));
+
+        let mut p = parser(vec![Tok::Word("true".into())]);
+        assert_eq!(p.term().unwrap(), Expr::True);
+
+        let mut p = parser(vec![Tok::Word("AGENT".into())]);
+        assert_eq!(p.term().unwrap(), Expr::Label("AGENT".to_string()));
+
+        // `not` consumes the following word verbatim, even a reserved spelling.
+        let mut p = parser(vec![Tok::Word("not".into()), Tok::Word("true".into())]);
+        assert_eq!(p.term().unwrap(), Expr::Not("true".to_string()));
+
+        // A non-word token is not a valid atom, and `not` needs a word.
+        let mut p = parser(vec![Tok::Colon]);
+        assert!(p.term().is_err());
+        let mut p = parser(vec![Tok::Word("not".into())]);
+        assert!(p.term().is_err());
+    }
+}
