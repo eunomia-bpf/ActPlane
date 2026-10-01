@@ -335,6 +335,33 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_long_contains_literal_shortens_to_the_shortest_fitting_segment() {
+        // `shorten_contains_literal` caps a `M_CONTAINS` literal at
+        // `MAX_CONTAINS_LITERAL` (16 chars, the kernel `TAINT_PAT_LEN`
+        // headroom). It walks a preference chain: verbatim if already short,
+        // else trim the leading '/', else keep the first `/`-segment that
+        // fits, else the last segment, else a hard 16-char tail. No base
+        // test pins this helper's cap-walk arms directly; they only surface
+        // through full `lower_path` calls.
+        // Within the cap: kept verbatim.
+        assert_eq!(shorten_contains_literal("/var/log/"), "/var/log/");
+        // Over the cap: trimming the leading '/' brings it to exactly the cap.
+        assert_eq!(
+            shorten_contains_literal("/aaaaaaaaaaaaaaaa"),
+            "aaaaaaaaaaaaaaaa"
+        );
+        // Over the cap and still over after trimming: the first '/'-segment
+        // that fits is kept, dropping the long leading prefix.
+        assert_eq!(shorten_contains_literal("/aaaaaaaaaaaaaaaa/bbbb/"), "bbbb/");
+        // A segment later in the walk, still within the cap, is kept even
+        // when it is longer than a shorter earlier segment.
+        assert_eq!(
+            shorten_contains_literal("/opt/data/files/xy/"),
+            "data/files/xy/"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
