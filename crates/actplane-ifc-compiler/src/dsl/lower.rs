@@ -335,6 +335,19 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_kernel_packed_ipv4_reverses_to_its_dotted_quad_string() {
+        // `kernel_ipv4_to_string` is the string inverse of `ipv4_to_kernel`:
+        // it unpacks a kernel-packed little-endian IPv4 (octet 0 in the low
+        // byte) back into its dotted-quad form. No base test pins this
+        // unpack; the base tests only exercise the pack direction.
+        assert_eq!(kernel_ipv4_to_string(0x0100007F), "127.0.0.1");
+        assert_eq!(kernel_ipv4_to_string(0x08080808), "8.8.8.8");
+        assert_eq!(kernel_ipv4_to_string(0x0000000A), "10.0.0.0");
+        // Control: the zero pack is the all-zero quad.
+        assert_eq!(kernel_ipv4_to_string(0), "0.0.0.0");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
