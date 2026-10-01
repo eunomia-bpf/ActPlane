@@ -335,6 +335,24 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_double_star_middle_segment_lowers_to_a_contains_literal() {
+        // A `**/X/**` pattern matches anything *inside* `X` at any depth, and
+        // `**/X/*` matches files directly inside `X`. Both lower to the
+        // `M_CONTAINS "/X/"` substring form (the engine matches the path
+        // against the `/{inner}/` literal). The base test pins only the
+        // `**/X` suffix form (`M_SUFFIX`), not the fully-globbed middle.
+        assert_eq!(
+            lower_path("**/secrets/**"),
+            (M_CONTAINS, "/secrets/".into())
+        );
+        // `**/X/*` (files directly inside) lowers to the same literal.
+        assert_eq!(lower_path("**/secrets/*"), (M_CONTAINS, "/secrets/".into()));
+        // Control: a bare `**/X` (no trailing glob) is a suffix match, not a
+        // contains literal.
+        assert_eq!(lower_path("**/bin"), (M_SUFFIX, "/bin".into()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
