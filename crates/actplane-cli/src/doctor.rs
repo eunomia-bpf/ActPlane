@@ -2591,4 +2591,53 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn event_clause_identity_matches_hash_preferred_over_text() {
+        // `event_clause_identity_matches` decides whether a parsed event/annotation
+        // `rule` object refers to the same clause as a `ClauseEventSignature`. A
+        // present `clause_hash` takes precedence over `clause_text`, and only a
+        // string-valued field is honoured (a non-string is ignored). No base or
+        // branch test pins this predicate directly.
+        let signature = ClauseEventSignature {
+            clause_op: "open",
+            target_kind: "file",
+            target_pattern: "out.txt".to_string(),
+            target_arg: None,
+            clause_text: "notify open file \"out.txt\"".to_string(),
+            clause_hash: "hash-1".to_string(),
+        };
+
+        // A present `clause_hash` matching the signature wins outright.
+        assert!(event_clause_identity_matches(
+            &json!({ "clause_hash": "hash-1", "clause_text": "ignored" }),
+            &signature
+        ));
+        // A mismatched `clause_hash` fails even when the text matches.
+        assert!(!event_clause_identity_matches(
+            &json!({ "clause_hash": "other", "clause_text": "notify open file \"out.txt\"" }),
+            &signature
+        ));
+
+        // No hash: fall back to `clause_text`.
+        assert!(event_clause_identity_matches(
+            &json!({ "clause_text": "notify open file \"out.txt\"" }),
+            &signature
+        ));
+        assert!(!event_clause_identity_matches(
+            &json!({ "clause_text": "something else" }),
+            &signature
+        ));
+
+        // A non-string `clause_hash` is ignored, so the text is consulted.
+        assert!(event_clause_identity_matches(
+            &json!({ "clause_hash": 42, "clause_text": "notify open file \"out.txt\"" }),
+            &signature
+        ));
+
+        // Neither field present: no identity.
+        assert!(!event_clause_identity_matches(
+            &json!({ "other": "x" }),
+            &signature
+        ));
+    }
 }
