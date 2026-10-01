@@ -2591,4 +2591,52 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn endpoint_limitations_reports_ipv4_only_and_hostname_caveats() {
+        // `endpoint_limitations` returns the enforcement caveats for an
+        // endpoint pattern: a single "IPv4 only" caveat for numeric IPv4 and
+        // unresolved patterns, and three caveats for a hostname that
+        // resolved to an address at compile/load time. No base or branch
+        // test pins this function directly.
+        use std::collections::HashMap;
+
+        fn empty_compiled() -> dsl::Compiled {
+            dsl::Compiled {
+                bytes: Vec::new(),
+                reasons: Vec::new(),
+                meta: Vec::new(),
+                labels: HashMap::new(),
+                endpoint_resolutions: HashMap::new(),
+            }
+        }
+
+        // Numeric IPv4 patterns carry only the "IPv4 only" caveat.
+        let empty = empty_compiled();
+        assert_eq!(
+            endpoint_limitations(&empty, "93.184.215.14"),
+            vec!["IPv4 only"]
+        );
+        assert_eq!(endpoint_limitations(&empty, "*"), vec!["IPv4 only"]);
+
+        // An unresolved hostname carries only the "IPv4 only" caveat.
+        assert_eq!(
+            endpoint_limitations(&empty, "api.example.com"),
+            vec!["IPv4 only"]
+        );
+
+        // A hostname that resolved carries the resolution caveats plus
+        // "IPv4 only".
+        let mut resolved = empty_compiled();
+        resolved
+            .endpoint_resolutions
+            .insert("api.example.com".into(), vec!["93.184.215.14".into()]);
+        assert_eq!(
+            endpoint_limitations(&resolved, "api.example.com"),
+            vec![
+                "hostname resolved at policy compile/load time",
+                "DNS changes require policy reload",
+                "IPv4 only",
+            ]
+        );
+    }
 }
