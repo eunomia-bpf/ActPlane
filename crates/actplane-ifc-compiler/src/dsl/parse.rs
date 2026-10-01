@@ -343,3 +343,31 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn op_maps_all_seven_verb_spelling_to_its_variant() {
+        // `P::op` maps the op verb to its `Op` variant, accepting exactly the
+        // seven op spellings and rejecting anything else with a message that
+        // echoes the offending word. No test in any open or merged branch
+        // pins this verb-to-op mapping directly.
+        for (w, op) in [
+            ("exec", Op::Exec),
+            ("read", Op::Read),
+            ("write", Op::Write),
+            ("unlink", Op::Unlink),
+            ("connect", Op::Connect),
+            ("recv", Op::Recv),
+            ("open", Op::Open),
+        ] {
+            assert_eq!(P::op(w).unwrap(), op);
+        }
+
+        // An unknown verb is an error whose message carries the offending word.
+        assert_eq!(P::op("chmod").unwrap_err(), "unknown op 'chmod'");
+        assert_eq!(P::op("").unwrap_err(), "unknown op ''");
+    }
+}
