@@ -625,4 +625,83 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+
+    fn context_for_rule(rule_id: usize, effect: Effect) -> RuleFeedbackContext {
+        RuleFeedbackContext {
+            meta: dsl::RuleMeta {
+                name: format!("rule-{rule_id}"),
+                reason: format!("reason-{rule_id}"),
+                effect,
+                ops: vec!["exec".to_string()],
+                clause_op: "exec".to_string(),
+                clause_source_index: 0,
+                kernel_op: "exec".to_string(),
+                target_kind: dsl::ast::Kind::Exec,
+                target_pattern: "git".to_string(),
+                target_arg: None,
+                source: None,
+            },
+            labels: HashMap::from([("LOCAL_SECRET".to_string(), 1u64)]),
+        }
+    }
+
+    #[test]
+    fn report_routes_meta_and_labels_and_writes_both_files() {
+        // `report` looks up the rule context from the compiled meta and labels
+        // and forwards it to `report_with_context`; no base or branch test calls
+        // either.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = dir.path().join("feedback.txt");
+        let events = dir.path().join("events.jsonl");
+
+        let meta = vec![
+            context_for_rule(0, Effect::Notify).meta,
+            context_for_rule(1, Effect::Kill).meta,
+        ];
+        let labels = HashMap::from([("LOCAL_SECRET".to_string(), 1u64)]);
+        let violation = |rule_id: usize| Violation {
+            pid: 10,
+            ppid: 1,
+            comm: "git".to_string(),
+            target: "git".to_string(),
+            rule_id,
+            op: Some(0),
+            domain_id: Some(4),
+            session_root: Some(10),
+            effect: None,
+            blocked: Some(false),
+            killed: Some(rule_id == 1),
+            taint_label: 1,
+            matched_label: 1,
+            matched_labels: Some(1),
+            provenance: Some(ViolationProvenance {
+                label: 1,
+                timestamp_ns: 42,
+                pid: 9,
+                op: 1,
+                target: "/tmp/local".to_string(),
+            }),
+        };
+
+        // In-range rule id -> feedback + event files populated from the meta.
+        report(
+            &meta,
+            &labels,
+            &violation(1),
+            Some(&feedback),
+            Some(&events),
+        );
+        let fb = std::fs::read_to_string(&feedback).expect("feedback");
+        assert!(fb.contains("killed by rule `rule-1`"), "{fb}");
+        assert!(fb.contains("acquired label LOCAL_SECRET"), "{fb}");
+        let ev = std::fs::read_to_string(&events).expect("events");
+        assert!(ev.contains("\"name\":\"rule-1\""));
+        assert!(ev.contains("\"action\":\"kill\""));
+
+        // Out-of-range rule id -> no context, so no feedback file is written
+        // (the event file still records the raw violation).
+        let orphan = dir.path().join("orphan-feedback.txt");
+        report(&meta, &labels, &violation(9), Some(&orphan), None);
+        assert!(!orphan.exists());
+    }
 }
