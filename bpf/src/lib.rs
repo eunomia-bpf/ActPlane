@@ -7884,4 +7884,21 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+    #[test]
+    fn scope_subset_accepts_zero_or_widening_scopes() {
+        // `scope_subset` checks that a new domain scope is within the
+        // parent's: a zero scope (meaning "no scope" on either side) is
+        // always allowed, and otherwise the new scope must be a value >= the
+        // old one. No base or branch test pins this helper directly.
+        // A zero new or old scope is always a subset.
+        assert!(scope_subset(0, 5));
+        assert!(scope_subset(7, 0));
+        assert!(scope_subset(0, 0));
+
+        // Equal and widening scopes are subsets; narrowing is not.
+        assert!(scope_subset(3, 3));
+        assert!(scope_subset(5, 2));
+        assert!(!scope_subset(1, 4));
+        assert!(!scope_subset(2, 5));
+    }
 }
