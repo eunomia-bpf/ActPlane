@@ -2591,4 +2591,71 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn append_clause_observation_renders_only_the_supplied_paths() {
+        // `append_clause_observation` appends per-clause observation lines, but
+        // only for the log kinds actually supplied: an event line only when
+        // `event_paths` is non-empty, an annotation line only when
+        // `annotation_paths` is non-empty. With no logs at all it is a no-op.
+        // A `None` observation prints a "0 / none" placeholder; a `Some` one
+        // renders the (BTree-sorted) counts and sample lists. No base or
+        // branch test pins this appender directly.
+        let evidence = |event: bool, annotation: bool| {
+            let mut ev = RolloutEvidence {
+                event_paths: Vec::new(),
+                annotation_paths: Vec::new(),
+                total_events: 0,
+                total_annotations: 0,
+                ignored_lines: 0,
+                ignored_annotations: 0,
+                warnings: Vec::new(),
+                clauses: BTreeMap::new(),
+            };
+            if event {
+                ev.event_paths.push(PathBuf::from("ev.jsonl"));
+            }
+            if annotation {
+                ev.annotation_paths.push(PathBuf::from("an.jsonl"));
+            }
+            ev
+        };
+
+        // No logs: nothing is appended.
+        let mut out = String::new();
+        append_clause_observation(&mut out, &evidence(false, false), None);
+        assert_eq!(out, "");
+
+        // A `None` observation with both kinds of log prints both placeholders.
+        let mut out = String::new();
+        append_clause_observation(&mut out, &evidence(true, true), None);
+        assert_eq!(
+            out,
+            "       observed events: 0 in supplied logs\n       annotations: none for \
+             this clause\n"
+        );
+
+        // A `Some` observation with only an event log renders the event line,
+        // with BTree-sorted `actions` / `domains` and a sample `targets` list.
+        let observation = ClauseObservation {
+            count: 3,
+            actions: BTreeMap::from([("open".to_string(), 2), ("connect".to_string(), 1)]),
+            targets: vec!["out.txt".to_string(), "in.txt".to_string()],
+            domains: BTreeMap::from([("repo".to_string(), 3)]),
+            annotations: BTreeMap::new(),
+            annotation_notes: Vec::new(),
+        };
+        let mut out = String::new();
+        append_clause_observation(&mut out, &evidence(true, false), Some(&observation));
+        assert_eq!(
+            out,
+            "       observed events: 3; actions=connect=1,open=2; domains=repo=3; \
+             targets=out.txt,in.txt\n"
+        );
+
+        // A `Some` observation with only an annotation log renders the
+        // annotation line, with BTree-sorted `annotations` and sample `notes`.
+        let mut out = String::new();
+        append_clause_observation(&mut out, &evidence(false, true), Some(&observation));
+        assert_eq!(out, "       annotations: none; notes=none\n");
+    }
 }
