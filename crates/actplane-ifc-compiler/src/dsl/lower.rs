@@ -335,6 +335,130 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// A dotted-prefix endpoint (trailing dot, e.g. `"10.0.0."`) lowers to a
+    /// *partial* IPv4 mask, not a full-IP `/32`. The kernel matches connect/recv
+    /// targets and `unless target` conditions by `(ip & mask) == net`
+    /// (`taint_mask_ok` in `bpf/taint.h`; the connect condition branch in
+    /// `te_cond_satisfied`, `bpf/taint_engine.bpf.h`), so a lowerer that silently
+    /// widens a `/24` target to `/32` (or drops the trailing-dot rule) changes
+    /// exactly which hosts match -- a byte-diff that no blob-size check sees.
+    /// The net/mask bytes are anchored on the documented contract
+    /// (`"10.0.0."` -> /24, `"172.16."` -> /16, lower.rs and
+    /// `docs/rule-language.md:113`), which is a host-independent `<< (8*k)`
+    /// shift of each dotted octet -- so hardcoding them here is non-circular
+    /// and would catch a regression in the mask-width rule.
+    #[test]
+    fn prefix_endpoint_lowers_to_a_partial_ipv4_mask() {
+        let pol = crate::dsl::parse::parse(
+            r#"
+            rule egress-24:
+              block connect endpoint "10.0.0." if true unless target "172.16."
+              because "no egress into 10/24 or 172.16/16"
+            "#,
+        )
+        .expect("parse prefix-egress policy");
+        let compiled = compile(&pol).expect("compile prefix-egress policy");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        assert_eq!(cfg.n_rules, 1, "a single numeric target lowers to one rule");
+        let cr = &cfg.rules[0];
+        assert_eq!(cr.op, OP_CONNECT);
+        assert_eq!(
+            cr.cond_kind, C_TARGET,
+            "`unless target` must set TCOND_TARGET"
+        );
+        assert_eq!(cr.cond_neg, 0, "a plain `unless target` is not negated");
+
+        // Target "10.0.0." is a /24: 3 dotted octets -> 24-bit mask.
+        // net = 10, mask = 0x00ffffff.
+        assert_eq!(
+            cr.ipv4, 0x0000_000a,
+            "a dotted prefix keeps the network base as the net field"
+        );
+        assert_eq!(
+            cr.ipv4_mask, 0x00ff_ffff,
+            "three dotted octets must give a 24-bit (/24) mask, not 0xffffffff"
+        );
+
+        // Condition "172.16." is a /16: 2 dotted octets -> 16-bit mask.
+        // net = 172 | (16<<8) = 0x000010ac, mask = 0x0000ffff.
+        assert_eq!(
+            cr.cond_ipv4, 0x0000_10ac,
+            "the condition prefix keeps its own network base in cond_ipv4"
+        );
+        assert_eq!(
+            cr.cond_ipv4_mask, 0x0000_ffff,
+            "two dotted octets must give a 16-bit (/16) mask, not 0xffffffff"
+        );
+        // The target and condition masks have *different widths* (24 vs 16 bits),
+        // so a swap between the target and condition endpoint fields is observable.
+        assert_ne!(
+            cr.ipv4_mask, cr.cond_ipv4_mask,
+            "the target and condition prefixes have different widths"
+        );
+    }
+
+    /// The mask width is set *only* by the number of dotted octets: the trailing
+    /// dot is the separator, not a data octet. This pins the contrast between a
+    /// `/24` prefix (`"10.0.0."`), a full host (`"10.0.0.0"`, `/32`), and the
+    /// match-any wildcard (`"*"` -> `0/0`). All three share no DNS lookup.
+    #[test]
+    fn endpoint_mask_width_depends_on_dotted_octet_count() {
+        // "/24" vs "/32": same network base, different mask width.
+        let c24: CConfig = unsafe {
+            let p = crate::dsl::parse::parse(
+                r#"
+                    rule t24:
+                      block connect endpoint "10.0.0." if true
+                      because "a /24 net"
+                    "#,
+            )
+            .expect("parse /24 policy");
+            std::ptr::read_unaligned(compile(&p).expect("ok").bytes.as_ptr() as *const CConfig)
+        };
+        let c32: CConfig = unsafe {
+            let p = crate::dsl::parse::parse(
+                r#"
+                    rule t32:
+                      block connect endpoint "10.0.0.0" if true
+                      because "a single host"
+                    "#,
+            )
+            .expect("parse /32 policy");
+            std::ptr::read_unaligned(compile(&p).expect("ok").bytes.as_ptr() as *const CConfig)
+        };
+        assert_eq!(
+            c24.rules[0].ipv4, c32.rules[0].ipv4,
+            "the same dotted network base yields the same net field"
+        );
+        assert_eq!(
+            c24.rules[0].ipv4_mask, 0x00ff_ffff,
+            "trailing dot -> /24 mask"
+        );
+        assert_eq!(
+            c32.rules[0].ipv4_mask, 0xffff_ffff,
+            "a fully-dotted address is a /32 (single host)"
+        );
+
+        // Match-any: "*" lowers to net 0, mask 0 (match any endpoint).
+        let cstar: CConfig = unsafe {
+            let p = crate::dsl::parse::parse(
+                r#"
+                    rule tany:
+                      block connect endpoint "*" if true
+                      because "any endpoint"
+                    "#,
+            )
+            .expect("parse wildcard policy");
+            std::ptr::read_unaligned(compile(&p).expect("ok").bytes.as_ptr() as *const CConfig)
+        };
+        assert_eq!(cstar.rules[0].ipv4, 0);
+        assert_eq!(
+            cstar.rules[0].ipv4_mask, 0,
+            "`*` must be the match-any (0,0) pair, not a zero net with a /32 mask"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
