@@ -767,4 +767,44 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+
+    #[test]
+    fn clause_source_spans_extracts_heads_and_stops_at_because() {
+        // `clause_source_spans` walks the lines between a rule declaration
+        // (0-based `rule_decl`) and the exclusive `rule_end`, starting a new
+        // clause at every clause head, stopping at the first `because` line,
+        // and emitting a 1-based span for each head. No base test pins the
+        // direct span extraction (the base test only checks the
+        // `Compiled.meta` summary fields).
+        let lines: Vec<&str> = vec![
+            "rule guard:",
+            "  block exec \"git\" if A",
+            "  kill read \"x\" if B",
+            "  because \"needs review\"",
+        ];
+        let sp = clause_source_spans(&lines, 0, 4);
+        assert_eq!(sp.len(), 2);
+        assert_eq!(sp[0].start_line, 2);
+        assert_eq!(sp[0].end_line, 2);
+        assert_eq!(sp[0].text, "  block exec \"git\" if A");
+        assert_eq!(sp[1].start_line, 3);
+        assert_eq!(sp[1].end_line, 3);
+        assert_eq!(sp[1].text, "  kill read \"x\" if B");
+
+        // Without a `because` line, every head up to `rule_end` is a clause.
+        let lines2: Vec<&str> = vec![
+            "rule guard:",
+            "  block exec \"git\" if A",
+            "  kill read \"x\" if B",
+        ];
+        let sp2 = clause_source_spans(&lines2, 0, 3);
+        assert_eq!(sp2.len(), 2);
+        assert_eq!(sp2[0].text, "  block exec \"git\" if A");
+        assert_eq!(sp2[1].text, "  kill read \"x\" if B");
+
+        // No clause heads in the block: no spans are emitted.
+        let lines3: Vec<&str> = vec!["rule guard:", "because \"no clauses\""];
+        let sp3 = clause_source_spans(&lines3, 0, 2);
+        assert!(sp3.is_empty());
+    }
 }
