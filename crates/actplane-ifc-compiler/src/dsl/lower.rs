@@ -335,6 +335,34 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_source_declaration_requires_an_equals_between_name_and_kind() {
+        // A `source` declaration is `source <name> = <kind> "<pattern>"`. After
+        // the label name the parser demands an `=` token; anything else is
+        // rejected with "expected '=' in source, got {tok}". Without the
+        // guard, a stray word or `:` after the name would be misparsed as the
+        // node kind rather than a structural error. Nobody pinned the
+        // source-equals guard.
+        use crate::dsl::parse::parse;
+        let err = parse("source S file \"/**/s\"\n")
+            .expect_err("a missing '=' in a source must be rejected");
+        assert!(
+            err.starts_with("expected '=' in source, got "),
+            "the error names the offending token: {err}"
+        );
+        let err = parse("source S : file \"/**/s\"\n")
+            .expect_err("a wrong token in a source must be rejected");
+        assert!(
+            err.starts_with("expected '=' in source, got "),
+            "the error names the offending token: {err}"
+        );
+
+        // Positive control: a well-formed source declaration parses and
+        // compiles.
+        let pol = parse("source S = file \"/**/s\"\n").expect("a source parses");
+        let _ = compile(&pol).expect("a valid source compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
