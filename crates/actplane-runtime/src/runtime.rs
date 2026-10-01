@@ -2108,4 +2108,39 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn watch_policy_rejects_parent_domain_and_bad_attach_pid() {
+        // `watch_policy` forwards to `watch_policy_for_pid`, whose argument
+        // gates reject unsupported `--parent-domain` and an attach pid <= 1
+        // before any engine or capability work. No base or branch test calls
+        // either entry point.
+        let cli = PolicyInput {
+            rule: Some("sink exec \"x\"".to_string()),
+            ..Default::default()
+        };
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+
+        let err = rt
+            .block_on(watch_policy(&cli, true))
+            .expect_err("parent-domain unsupported");
+        assert!(
+            err.to_string().contains("--parent-domain is not supported"),
+            "{err}"
+        );
+
+        let err = rt
+            .block_on(watch_policy_for_pid(&cli, false, 1))
+            .expect_err("attach pid must exceed 1");
+        assert!(err.to_string().contains("invalid parent pid"), "{err}");
+
+        let err = rt
+            .block_on(watch_policy_for_pid(&cli, false, 0))
+            .expect_err("attach pid must exceed 1");
+        assert!(err.to_string().contains("invalid parent pid"), "{err}");
+    }
 }
