@@ -335,6 +335,111 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn non_exec_gates_route_their_target_through_lower_path() {
+        // #57 pins the *exec* gate: `after exec "**/pytest"` lowers the pattern
+        // through `lower_exec` (comm basename -> exact `pytest`). A non-exec
+        // gate (`after read` / `after write`) instead lowers its target through
+        // `lower_path`, and stamps the file-side taint_op. Nobody pins that
+        // routing. A regression that forced every gate through `lower_exec`, or
+        // mis-mapped the gate op to the wrong taint_op, would silently change
+        // both the op byte and the target literal the kernel matches to arm the
+        // gate -- the gate would arm on the wrong event.
+        fn find_gate(cfg: &CConfig) -> CUpdate {
+            cfg.updates[..cfg.n_updates as usize]
+                .iter()
+                .find(|u| u.gates != 0 && u.invals == 0)
+                .cloned()
+                .expect("an after clause allocates a gate update")
+        }
+        fn config(src: &str) -> CConfig {
+            let pol = crate::dsl::parse::parse(src).expect("parse policy");
+            let compiled = compile(&pol).expect("compile policy");
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) }
+        }
+        fn target_field(lit: &str) -> [u8; PAT] {
+            let mut out = [0u8; PAT];
+            let n = lit.len().min(PAT - 1);
+            out[..n].copy_from_slice(&lit.as_bytes()[..n]);
+            out
+        }
+
+        // `after read "/cfg"`: an absolute exact path. lower_path("/cfg") is
+        // M_EXACT; the gate stamps OP_OPEN (read maps to the open op).
+        let cfg = config(
+            "rule r:\n\
+             notify write file \"/sink\" unless after read \"/cfg\"\n\
+             because \"guard the sink until the cfg is read\"\n",
+        );
+        assert_eq!(
+            cfg.n_updates, 1,
+            "a single after clause, no since => one gate update"
+        );
+        let gate = find_gate(&cfg);
+        assert_eq!(gate.op, OP_OPEN, "a read gate stamps OP_OPEN");
+        assert_eq!(gate.m, M_EXACT, "lower_path(\"/cfg\") -> M_EXACT");
+        assert_eq!(
+            gate.target,
+            target_field("/cfg"),
+            "the read gate's target literal is the lowered path"
+        );
+        assert_eq!(gate.gates, 1u64, "slot 0 => bit 1<<0");
+        assert_eq!(
+            gate.gate_exit_code, GATE_IMMEDIATE,
+            "a non-exec gate carries no exit status"
+        );
+        // The rule references the same slot: matching bit AND index.
+        assert_eq!(
+            cfg.rules[0].cond_kind, C_AFTER,
+            "an after clause -> C_AFTER"
+        );
+        assert_eq!(cfg.rules[0].gate, 1u64, "the rule references slot 0's bit");
+        assert_eq!(
+            cfg.rules[0].gate_idx, 0,
+            "the rule references slot 0's index"
+        );
+
+        // `after write "src/**"`: a repo-relative directory glob. lower_path
+        // gives M_CONTAINS "src/"; the gate stamps OP_WRITE.
+        let cfg = config(
+            "rule r:\n\
+             notify write file \"/sink\" unless after write \"src/**\"\n\
+             because \"guard the sink until a source file is written\"\n",
+        );
+        let gate = find_gate(&cfg);
+        assert_eq!(gate.op, OP_WRITE, "a write gate stamps OP_WRITE");
+        assert_eq!(
+            gate.m, M_CONTAINS,
+            "lower_path(\"src/**\") -> M_CONTAINS \"src/\""
+        );
+        assert_eq!(
+            gate.target,
+            target_field("src/"),
+            "the write gate's contains literal"
+        );
+
+        // The load-bearing contrast: the same `**/x` shape under a read gate goes
+        // through lower_path (M_SUFFIX "/cfg.dat"), whereas under an exec gate it
+        // would go through lower_exec (M_EXACT "cfg.dat"). Different literals
+        // prove the routing, not just the op byte.
+        let cfg = config(
+            "rule r:\n\
+             notify write file \"/sink\" unless after read \"**/cfg.dat\"\n\
+             because \"guard the sink until the config is read back\"\n",
+        );
+        let gate = find_gate(&cfg);
+        assert_eq!(gate.op, OP_OPEN, "a read gate stamps OP_OPEN");
+        assert_eq!(
+            gate.m, M_SUFFIX,
+            "lower_path(\"**/cfg.dat\") -> M_SUFFIX, not lower_exec's M_EXACT"
+        );
+        assert_eq!(
+            gate.target,
+            target_field("/cfg.dat"),
+            "the read gate's suffix literal is \"/cfg.dat\" (lower_path), not \"cfg.dat\" (lower_exec)"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
