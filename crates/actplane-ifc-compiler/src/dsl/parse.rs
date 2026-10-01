@@ -343,3 +343,66 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mk(s: &str) -> P {
+        P {
+            t: lex(s).unwrap(),
+            i: 0,
+        }
+    }
+
+    #[test]
+    fn peek_next_is_word_word_string_eat_walk_the_token_stream() {
+        // The P instance methods are the low-level cursor/verb contracts every
+        // higher parser builds on. No test in any open or merged branch pins
+        // them directly.
+
+        // `peek` reports the current token without consuming; `next` clones
+        // and advances.
+        let mut p = mk("a");
+        assert_eq!(p.peek(), Some(&Tok::Word("a".into())));
+        assert_eq!(p.next(), Some(Tok::Word("a".into())));
+        assert_eq!(p.peek(), None);
+
+        // `is_word` matches the current token against an exact word.
+        let p = mk("a");
+        assert!(p.is_word("a"));
+        assert!(!p.is_word("b"));
+        assert!(!mk("").is_word("a"));
+
+        // `word` consumes a `Word` token and errors on a non-word, naming the
+        // offending token.
+        let mut p = mk("x y");
+        assert_eq!(p.word(), Ok("x".into()));
+        assert_eq!(p.peek(), Some(&Tok::Word("y".into())));
+        assert_eq!(
+            mk("\"a\"").word(),
+            Err("expected word, got Some(Str(\"a\"))".into())
+        );
+        assert_eq!(mk("").word(), Err("expected word, got None".into()));
+
+        // `string` consumes a `Str` token and errors on a non-string.
+        let mut p = mk("\"s\"");
+        assert_eq!(p.string(), Ok("s".into()));
+        assert_eq!(
+            mk("w").string(),
+            Err("expected string, got Some(Word(\"w\"))".into())
+        );
+
+        // `eat` only succeeds when the current token is the exact word.
+        let mut p = mk("k");
+        assert_eq!(p.eat("k"), Ok(()));
+        let mut p = mk("k");
+        assert_eq!(
+            p.eat("z"),
+            Err("expected 'z', got Some(Word(\"k\"))".into())
+        );
+        // A same-text string is not the word.
+        let mut p = mk("\"q\"");
+        assert_eq!(p.eat("q"), Err("expected 'q', got Some(Str(\"q\"))".into()));
+    }
+}
