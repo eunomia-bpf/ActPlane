@@ -625,4 +625,13 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+    #[test]
+    fn effect_name_maps_each_effect_to_its_feedback_verb() {
+        // `effect_name` maps a rule effect to the feedback verb string
+        // written into violation payloads. No base or branch test pins this
+        // mapping directly.
+        assert_eq!(effect_name(Effect::Notify), "notify");
+        assert_eq!(effect_name(Effect::Block), "block");
+        assert_eq!(effect_name(Effect::Kill), "kill");
+    }
 }
