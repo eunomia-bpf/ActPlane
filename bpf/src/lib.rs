@@ -7884,4 +7884,35 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+    #[test]
+    fn config_has_file_write_detects_write_operations() {
+        // `config_has_file_write` reports whether an enabled update or rule
+        // carries the WRITE op (a file mutation edge). No base or branch test
+        // pins this helper directly.
+        // An enabled update with a WRITE op is detected.
+        let mut write_update: CConfig = unsafe { std::mem::zeroed() };
+        write_update.n_updates = 1;
+        write_update.updates[0].op = OP_WRITE;
+        assert!(config_has_file_write(&write_update));
+
+        // An enabled rule with a WRITE op is detected.
+        let mut write_rule: CConfig = unsafe { std::mem::zeroed() };
+        write_rule.n_rules = 1;
+        write_rule.rules[0].op = OP_WRITE;
+        assert!(config_has_file_write(&write_rule));
+
+        // Non-write ops are not counted: a non-zero `n_updates` whose entries
+        // are exec/open/connect is not a file write.
+        let mut no_write: CConfig = unsafe { std::mem::zeroed() };
+        no_write.n_updates = 2;
+        no_write.updates[0].op = OP_EXEC;
+        no_write.updates[1].op = OP_OPEN;
+        no_write.n_rules = 1;
+        no_write.rules[0].op = OP_CONNECT;
+        assert!(!config_has_file_write(&no_write));
+
+        // A zero-sized config has no enabled edges, so no file write.
+        let empty: CConfig = unsafe { std::mem::zeroed() };
+        assert!(!config_has_file_write(&empty));
+    }
 }
