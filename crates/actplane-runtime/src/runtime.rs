@@ -2108,4 +2108,24 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn run_id_and_attach_pid_resolution() {
+        // `run_id` mints a per-invocation id; `parent_pid` and
+        // `attach_pid_from_env_or_parent` resolve the attach target. None had
+        // any call in the base or branch suite.
+        let me = std::process::id() as i32;
+        let run = run_id("watch");
+        let suffix = run
+            .strip_prefix(&format!("watch-{me}-"))
+            .expect("run id shaped <prefix>-<pid>-<nanos>");
+        assert!(suffix.parse::<u128>().is_ok());
+
+        assert_eq!(parent_pid(), unsafe { libc::getppid() as i32 });
+
+        unsafe { std::env::set_var(ATTACH_PID_ENV, "4321") };
+        assert_eq!(attach_pid_from_env_or_parent(), 4321);
+        unsafe { std::env::remove_var(ATTACH_PID_ENV) };
+        assert_eq!(attach_pid_from_env_or_parent(), parent_pid());
+    }
 }
