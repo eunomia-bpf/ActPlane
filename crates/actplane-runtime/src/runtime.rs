@@ -2108,4 +2108,32 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn prepare_feedback_files_creates_empty_owned_files() {
+        // `prepare_feedback_files` creates each output's parent chain and
+        // truncates the feedback/audit/events files; no base or branch test
+        // calls it.
+        let dir = std::env::temp_dir().join(format!("actplane-prepare-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let paths = FeedbackPaths {
+            feedback: dir.join("run/feedback.txt"),
+            state: dir.join("run/state.json"),
+            audit: dir.join("logs/audit.jsonl"),
+            events: dir.join("logs/events.jsonl"),
+        };
+
+        prepare_feedback_files(&paths, None).expect("prepare");
+        assert!(paths.feedback.is_file());
+        assert!(paths.audit.is_file());
+        assert!(paths.events.is_file());
+        assert_eq!(std::fs::read_to_string(&paths.feedback).unwrap(), "");
+
+        // Existing content is truncated on a second prepare.
+        std::fs::write(&paths.feedback, "stale").unwrap();
+        prepare_feedback_files(&paths, None).expect("re-prepare");
+        assert_eq!(std::fs::read_to_string(&paths.feedback).unwrap(), "");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
