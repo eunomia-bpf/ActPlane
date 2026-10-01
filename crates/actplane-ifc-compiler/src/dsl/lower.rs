@@ -335,6 +335,19 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn localhost_resolves_to_the_loopback_ipv4_kernel_value() {
+        // `resolve_hostname_ipv4s` special-cases `localhost` (case-insensitive)
+        // to the loopback address instead of doing a DNS lookup, so the
+        // lowering is fully deterministic. No base test pins this value
+        // directly; it only surfaces through a full `compile` of an endpoint
+        // rule targeting `localhost`.
+        let loopback = ipv4_to_kernel(Ipv4Addr::new(127, 0, 0, 1));
+        assert_eq!(resolve_hostname_ipv4s("localhost"), vec![loopback]);
+        // The special-case is case-insensitive.
+        assert_eq!(resolve_hostname_ipv4s("LocalHost"), vec![loopback]);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
