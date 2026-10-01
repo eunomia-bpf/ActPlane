@@ -335,6 +335,32 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_duplicate_rule_name_is_rejected() {
+        // Two `rule` declarations sharing a name are rejected at parse time.
+        // The name keys the corrective-feedback reason lookup: `Compiled.meta`
+        // and `reasons` are indexed per lowered rule, and the name is what a
+        // report uses to address a rule's reason. A regression that dropped
+        // the duplicate guard would let two rules shadow one another and the
+        // name-based feedback would resolve to the wrong (or first) rule.
+        use crate::dsl::parse::parse;
+        let err = parse(
+            "rule r:\n  notify exec \"a\" because \"z\"\n\
+             rule r:\n  notify exec \"b\" because \"z\"\n",
+        )
+        .expect_err("two rules sharing a name must be rejected");
+        assert_eq!(err, "duplicate rule name `r`");
+
+        // Positive control: distinct names parse into two rules and compile.
+        let pol = parse(
+            "rule a:\n  notify exec \"a\" because \"z\"\n\
+                   rule b:\n  notify exec \"b\" because \"z\"\n",
+        )
+        .expect("two distinct rule names parse");
+        assert_eq!(pol.rules.len(), 2);
+        let _ = compile(&pol).expect("distinct-name policy compiles");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
