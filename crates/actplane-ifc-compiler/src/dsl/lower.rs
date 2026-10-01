@@ -335,6 +335,34 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_deep_repo_relative_path_shortens_to_the_first_in_range_segment() {
+        // `lower_path` on a repo-relative exact path caps the kernel literal
+        // at `MAX_CONTAINS_LITERAL` (16) via `shorten_repo_relative_exact_literal`,
+        // which walks down past every `/`-suffixed candidate that is still
+        // over the cap and returns the first one that fits. The base tests
+        // only cover single-step shortenings, so the multi-skip walk is
+        // unpinned.
+        // 19 chars: the `b/...` suffix (17 chars) is over the cap and is
+        // skipped; `c/d/e/f/g/h/i.js` (16 chars) fits and still contains a
+        // slash, so it is returned.
+        assert_eq!(
+            lower_path("a/b/c/d/e/f/g/h/i.js"),
+            (M_CONTAINS, "c/d/e/f/g/h/i.js".into())
+        );
+        // Two over-cap suffixes are skipped before landing on a fitting one.
+        assert_eq!(
+            lower_path("src/google/adk/agents/x.json"),
+            (M_CONTAINS, "agents/x.json".into())
+        );
+        // Control: a repo-relative exact path already within the cap is used
+        // verbatim, no shortening.
+        assert_eq!(
+            lower_path("pyproject.toml"),
+            (M_CONTAINS, "pyproject.toml".into())
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
