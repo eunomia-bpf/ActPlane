@@ -343,3 +343,25 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clause_effect_classifies_only_the_three_action_verbs() {
+        // `P::clause_effect` maps the clause head verb to its `Effect`,
+        // accepting exactly the three action verbs (`notify`, `block`,
+        // `kill`) and rejecting everything else. No test in any open or
+        // merged branch pins this verb-to-effect classification directly.
+        assert_eq!(P::clause_effect("notify"), Some(Effect::Notify));
+        assert_eq!(P::clause_effect("block"), Some(Effect::Block));
+        assert_eq!(P::clause_effect("kill"), Some(Effect::Kill));
+
+        // The match is case-sensitive and vocabulary-closed: a capitalized
+        // form, a non-verb, and the empty string all classify to `None`.
+        assert_eq!(P::clause_effect("Kill"), None);
+        assert_eq!(P::clause_effect("deny"), None);
+        assert_eq!(P::clause_effect(""), None);
+    }
+}
