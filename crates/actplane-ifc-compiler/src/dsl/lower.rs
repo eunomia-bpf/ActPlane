@@ -335,6 +335,65 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// `lower_effect` copies the `Effect` verb into the `CRule.effect` byte, the
+    /// exact kernel ABI `enum taint_effect` in `bpf/taint.h` (NOTIFY=0,
+    /// BLOCK=1, KILL=2). The kernel decides corrective-feedback severity from
+    /// this byte, so a renumbering drift in `lower.rs` (say, BLOCK/NOTIFY
+    /// swapped) silently turns a hard deny into a no-op report -- or a report
+    /// into a SIGKILL -- with no blob-size symptom. No test read this byte.
+    ///
+    /// Each rule is located by its target literal (order-independent via
+    /// `pat_eq`), not by index, so the pin holds even if clause lowering order
+    /// changes.
+    #[test]
+    fn rule_effect_bytes_match_the_kernel_abi() {
+        let pol = crate::dsl::parse::parse(
+            r#"
+            source AGENT = exec "**/codex"
+            rule n:
+              notify write file "/a" if AGENT
+              because "n"
+            rule b:
+              block write file "/b" if AGENT
+              because "b"
+            rule k:
+              kill write file "/c" if AGENT
+              because "k"
+            "#,
+        )
+        .expect("parse effect policy");
+        let cfg: CConfig = unsafe {
+            std::ptr::read_unaligned(
+                compile(&pol).expect("compile effect policy").bytes.as_ptr() as *const CConfig
+            )
+        };
+        assert_eq!(cfg.n_rules, 3, "one lowered rule per clause");
+
+        fn effect_for(cfg: &CConfig, target: &str) -> u8 {
+            for r in &cfg.rules[..cfg.n_rules as usize] {
+                if r.op == OP_WRITE && pat_eq(&r.target, target) {
+                    return r.effect;
+                }
+            }
+            panic!("no write rule for target {target}");
+        }
+        assert_eq!(
+            effect_for(&cfg, "/a"),
+            EFFECT_NOTIFY,
+            "`notify` must lower to TEFFECT_NOTIFY"
+        );
+        assert_eq!(
+            effect_for(&cfg, "/b"),
+            EFFECT_BLOCK,
+            "`block` must lower to TEFFECT_BLOCK"
+        );
+        assert_eq!(
+            effect_for(&cfg, "/c"),
+            EFFECT_KILL,
+            "`kill` must lower to TEFFECT_KILL"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
