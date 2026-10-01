@@ -2992,4 +2992,58 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn identity_record(pid: i32, proc_start_time: Option<u64>) -> ChildRecord {
+        ChildRecord {
+            launch_id: "identity-test".to_string(),
+            pid,
+            child_id: 903,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/actplane-identity-out.log"),
+            stderr: PathBuf::from("/tmp/actplane-identity-err.log"),
+            meta: PathBuf::from("/tmp/actplane-identity-meta.json"),
+            proc_start_time,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 0,
+            restart_backoff_ms: 0,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        }
+    }
+
+    #[test]
+    fn process_identity_matches_guards_pid_and_start_time() {
+        // `process_identity_matches` decides whether a persisted pid still
+        // refers to the same supervised child; no base or branch test calls it.
+        let me = std::process::id() as i32;
+
+        // Non-positive pid never matches.
+        assert!(!process_identity_matches(&identity_record(0, None)));
+        assert!(!process_identity_matches(&identity_record(-1, None)));
+
+        // No recorded start time falls back to a liveness check.
+        assert!(process_identity_matches(&identity_record(me, None)));
+
+        // A recorded start time must equal the live one.
+        let live = proc_start_time(me).expect("self start time");
+        assert!(process_identity_matches(&identity_record(me, Some(live))));
+        assert!(!process_identity_matches(&identity_record(
+            me,
+            Some(live + 1)
+        )));
+
+        // Positive pid with no live /proc entry fails the identity check.
+        assert!(!process_identity_matches(&identity_record(
+            i32::MAX,
+            Some(1)
+        )));
+    }
 }
