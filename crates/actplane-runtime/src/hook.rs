@@ -323,4 +323,75 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    fn feedback_selection_prefers_matching_state_then_discovery_then_default() {
+        // `hook_matches_agent` and `select_feedback_file` decide which feedback
+        // file a hook reads; no base or branch test calls them.
+        let me = std::process::id() as i32;
+
+        // No root pid -> any agent matches; a foreign root pid does not, and a
+        // self-root matches via the pid chain.
+        assert!(hook_matches_agent(&HookState {
+            feedback_file: None,
+            root_pid: None,
+            offset: None,
+        }));
+        assert!(!hook_matches_agent(&HookState {
+            feedback_file: None,
+            root_pid: Some(i32::MAX),
+            offset: None,
+        }));
+        assert!(hook_matches_agent(&HookState {
+            feedback_file: None,
+            root_pid: Some(me),
+            offset: None,
+        }));
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let cwd = dir.path();
+        let state_path = cwd.join("state.json");
+        let feedback = cwd.join("feedback.txt");
+        let default_feedback = cwd.join("default.txt");
+        let default_state = cwd.join("default-state.json");
+
+        // Matching default state wins and returns its recorded feedback path.
+        store_hook_state(
+            &state_path,
+            &HookState {
+                feedback_file: Some(feedback.to_string_lossy().to_string()),
+                root_pid: Some(me),
+                offset: None,
+            },
+        )
+        .unwrap();
+        let picked = select_feedback_file(cwd, &default_feedback, &state_path).expect("picked");
+        assert_eq!(picked.feedback, feedback);
+        assert_eq!(picked.state, state_path);
+
+        // A non-matching default state returns discovery (which finds nothing
+        // here), so the default feedback file is not consulted.
+        std::fs::write(&default_feedback, "x").unwrap();
+        let foreign_state = cwd.join("foreign-state.json");
+        store_hook_state(
+            &foreign_state,
+            &HookState {
+                feedback_file: Some(feedback.to_string_lossy().to_string()),
+                root_pid: Some(i32::MAX),
+                offset: None,
+            },
+        )
+        .unwrap();
+        assert!(select_feedback_file(cwd, &default_feedback, &foreign_state).is_none());
+
+        // With no state at all, discovery runs first and, finding nothing,
+        // falls back to the default feedback file when it exists.
+        let fallback =
+            select_feedback_file(cwd, &default_feedback, &default_state).expect("fallback");
+        assert_eq!(fallback.feedback, default_feedback);
+        assert_eq!(fallback.state, default_state);
+
+        std::fs::remove_file(&default_feedback).unwrap();
+        assert!(select_feedback_file(cwd, &default_feedback, &default_state).is_none());
+    }
 }
