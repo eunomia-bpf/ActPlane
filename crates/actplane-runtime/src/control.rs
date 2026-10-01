@@ -380,4 +380,30 @@ mod tests {
         let err = send_request(dir.path(), json!({ "op": "status" })).unwrap_err();
         assert!(err.to_string().contains("stale ActPlane control state"));
     }
+
+    #[test]
+    fn chown_and_set_mode_apply_filesystem_changes() {
+        // `chown_path` and `set_mode` prepare the control socket/state files for
+        // the invoking user; no base or branch test calls them.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("control.json");
+        std::fs::write(&file, "{}").unwrap();
+
+        // set_mode tightens permissions.
+        set_mode(&file, 0o600).expect("set mode");
+        assert_eq!(
+            std::fs::metadata(&file).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+
+        // chown_path to the current owner is a no-op success.
+        let uid = unsafe { libc::geteuid() };
+        let gid = unsafe { libc::getegid() };
+        chown_path(&file, uid, gid).expect("chown self");
+
+        // A missing path surfaces the underlying OS error.
+        let missing = dir.path().join("nope.json");
+        assert!(chown_path(&missing, uid, gid).is_err());
+        assert!(set_mode(&missing, 0o600).is_err());
+    }
 }
