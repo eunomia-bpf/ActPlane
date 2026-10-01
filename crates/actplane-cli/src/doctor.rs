@@ -2591,4 +2591,33 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn normalize_rollout_classification_maps_alias_spelling_variants() {
+        // `normalize_rollout_classification` trims, lowercases, and folds a
+        // set of spelling aliases into one of five canonical rollout
+        // classes. No base or branch test pins this normalizer directly.
+        assert_eq!(
+            normalize_rollout_classification("true-positive"),
+            "true_positive"
+        );
+        assert_eq!(
+            normalize_rollout_classification("wanted_kill"),
+            "true_positive"
+        );
+        assert_eq!(normalize_rollout_classification("fp"), "false_positive");
+        assert_eq!(normalize_rollout_classification("benign"), "allowed");
+        assert_eq!(normalize_rollout_classification("noise"), "noise");
+        assert_eq!(
+            normalize_rollout_classification("needs-review"),
+            "needs_review"
+        );
+
+        // Whitespace and case are tolerated before matching.
+        assert_eq!(normalize_rollout_classification("  FP "), "false_positive");
+        assert_eq!(normalize_rollout_classification("Expected"), "allowed");
+
+        // Unknown tokens fall through to needs_review.
+        assert_eq!(normalize_rollout_classification("bogus"), "needs_review");
+        assert_eq!(normalize_rollout_classification(""), "needs_review");
+    }
 }
