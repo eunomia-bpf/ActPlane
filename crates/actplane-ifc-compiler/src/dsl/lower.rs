@@ -335,6 +335,21 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn the_connect_family_ops_lower_to_their_own_kernel_op_bytes() {
+        // `op_lowers` maps a single-op `Op` to its kernel op byte. The
+        // connect-family ops each lower to their own distinct byte rather
+        // than collapsing onto a shared one (in contrast to the write
+        // family, where `Write` and `Unlink` share `OP_WRITE`). No base
+        // test pins the single-op arms directly.
+        assert_eq!(op_lowers(Op::Exec).unwrap(), &[OP_EXEC]);
+        assert_eq!(op_lowers(Op::Connect).unwrap(), &[OP_CONNECT]);
+        assert_eq!(op_lowers(Op::Recv).unwrap(), &[OP_RECV]);
+        // Control: the two write-family ops collapse onto the same byte.
+        assert_eq!(op_lowers(Op::Write).unwrap(), &[OP_WRITE]);
+        assert_eq!(op_lowers(Op::Unlink).unwrap(), &[OP_WRITE]);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
