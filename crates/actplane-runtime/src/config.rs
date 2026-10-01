@@ -851,4 +851,66 @@ domains:
             );
         }
     }
+
+    #[test]
+    fn load_policy_path_guards_shape_extension_and_root() {
+        // `load_policy_path` reads a YAML policy file, validates its shape, and
+        // picks the root; no base or branch test calls it.
+        let dir = std::env::temp_dir().join(format!("actplane-lpp-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+
+        // A `.dsl` path is rejected before any read.
+        let dsl = dir.join("policy.dsl");
+        let err = load_policy_path(&dsl, false, &dir)
+            .err()
+            .expect("dsl rejected")
+            .to_string();
+        assert!(err.contains("raw DSL file"), "{err}");
+
+        // A missing file reports a read error.
+        let missing = dir.join("missing.yaml");
+        let err = load_policy_path(&missing, false, &dir)
+            .err()
+            .expect("missing rejected")
+            .to_string();
+        assert!(err.contains("reading"), "{err}");
+
+        // Mixing legacy `policy: |` with `rules:`/`domains:` is rejected.
+        let mixed = dir.join("mixed.yaml");
+        fs::write(
+            &mixed,
+            "policy: |\n  rule r:\n    block exec \"git\"\nrules:\n  r:\n    ifc: |\n      rule r:\n        block exec \"git\"\ndomains:\n  session: {}\n",
+        )
+        .unwrap();
+        let err = load_policy_path(&mixed, false, &dir)
+            .err()
+            .expect("mixed rejected")
+            .to_string();
+        assert!(err.contains("cannot mix legacy"), "{err}");
+
+        // Neither a legacy block nor both `rules:`+`domains:` is rejected.
+        let neither = dir.join("neither.yaml");
+        fs::write(
+            &neither,
+            "rules:\n  r:\n    ifc: |\n      rule r:\n        block exec \"git\"\n",
+        )
+        .unwrap();
+        let err = load_policy_path(&neither, false, &dir)
+            .err()
+            .expect("neither rejected")
+            .to_string();
+        assert!(err.contains("must contain either"), "{err}");
+
+        // A valid file loads; the root is the file's parent, or cwd when the
+        // policy was named explicitly.
+        let good = dir.join("good.yaml");
+        fs::write(&good, "policy: |\n  rule r:\n    block exec \"git\"\n").unwrap();
+        let loaded = load_policy_path(&good, false, &dir).unwrap();
+        assert_eq!(loaded.root, dir);
+        assert_eq!(loaded.path.as_deref(), Some(good.as_path()));
+        let explicit = load_policy_path(&good, true, Path::new("/cwd-root")).unwrap();
+        assert_eq!(explicit.root, PathBuf::from("/cwd-root"));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
