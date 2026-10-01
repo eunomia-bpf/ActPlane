@@ -380,4 +380,42 @@ mod tests {
         let err = send_request(dir.path(), json!({ "op": "status" })).unwrap_err();
         assert!(err.to_string().contains("stale ActPlane control state"));
     }
+
+    fn control_state(pid: i32, proc_start_time: Option<u64>) -> ControlState {
+        ControlState {
+            schema: "actplane.control.v1".to_string(),
+            pid,
+            proc_start_time,
+            socket_path: PathBuf::from("/tmp/actplane-test.sock"),
+            project_dir: PathBuf::new(),
+            parent_pid: 1,
+            parent_domain_id: 1,
+        }
+    }
+
+    #[test]
+    fn control_process_matches_guards_pid_and_start_time() {
+        // `control_process_matches` decides whether a recorded control state
+        // still refers to the live process; no base or branch test calls it.
+        let me = std::process::id() as i32;
+        assert!(!control_process_matches(&control_state(0, None)));
+        assert!(!control_process_matches(&control_state(-1, None)));
+
+        // Live pid with no recorded start time -> exists check.
+        assert!(control_process_matches(&control_state(me, None)));
+        assert!(!control_process_matches(&control_state(i32::MAX, None)));
+
+        // Recorded start time must match the live process.
+        let live_start = proc_start_time(me).expect("live start time");
+        assert!(control_process_matches(&control_state(
+            me,
+            Some(live_start)
+        )));
+        assert!(!control_process_matches(&control_state(
+            me,
+            Some(live_start + 1)
+        )));
+        // A recorded start time with no live process is never a match.
+        assert!(!control_process_matches(&control_state(i32::MAX, Some(1))));
+    }
 }
