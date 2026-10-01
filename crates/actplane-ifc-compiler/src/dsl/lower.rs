@@ -335,6 +335,39 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn connect_and_recv_are_not_valid_since_invalidators() {
+        // A `since <op>` clause must stamp a gate with the kernel taint_op of
+        // the invalidating event. The engine can only invalidate a gate from
+        // exec/read/write events (see inval_op in lower.rs), so `connect` and
+        // `recv` are rejected at compile time. The parse layer accepts any op
+        // word after `since`, so the rejection only surfaces during lowering;
+        // pin it here so the error string and op set stay honest.
+        let base = |op: &str| {
+            crate::dsl::parse::parse(&format!(
+                r#"rule sink:
+                  notify write file "/sink" unless after exec "/in" since {op} "/cfg""#
+            ))
+            .expect("parse since rule")
+        };
+        for bad in ["connect", "recv"] {
+            let pol = base(bad);
+            match compile(&pol) {
+                Ok(_) => panic!("since {bad} should not compile as an invalidator"),
+                Err(e) => assert!(
+                    e.contains("not a valid invalidator"),
+                    "unexpected error for since {bad}: {e}"
+                ),
+            }
+        }
+        // Positive control: `since read` IS a valid invalidator, so the same
+        // shape compiles cleanly. This proves the rejection is specific to
+        // connect/recv rather than to the whole `since` construction.
+        let pol = base("read");
+        let compiled = compile(&pol).expect("since read is a valid invalidator");
+        assert!(!compiled.bytes.is_empty());
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
