@@ -380,4 +380,54 @@ mod tests {
         let err = send_request(dir.path(), json!({ "op": "status" })).unwrap_err();
         assert!(err.to_string().contains("stale ActPlane control state"));
     }
+
+    #[test]
+    fn handle_stream_dispatches_and_reports_bad_request() {
+        // `handle_stream` reads one request line, hands it to the handler with
+        // the peer credentials, and replies with the encoded JSON plus newline;
+        // a blank request becomes an {ok:false,error} response. No base or
+        // branch test calls it directly.
+        use std::io::{BufRead, BufReader, Write};
+        use std::sync::Mutex;
+
+        let (client, server) = std::os::unix::net::UnixStream::pair().expect("pair");
+        let seen = Arc::new(Mutex::new(None));
+        let seen_cb = seen.clone();
+        let handler = Arc::new(move |request: Value, peer: Option<PeerCred>| {
+            let response = json!({ "op": request["op"], "peer_pid": peer.as_ref().map(|p| p.pid) });
+            *seen_cb.lock().expect("lock") = Some((request, peer));
+            response
+        });
+        let server_thread = std::thread::spawn(move || handle_stream(server, handler));
+
+        let mut client = client;
+        client.write_all(b"{\"op\":\"status\"}\n").unwrap();
+        let mut line = String::new();
+        BufReader::new(&client).read_line(&mut line).unwrap();
+        let value: Value = serde_json::from_str(&line).expect("response json");
+        assert_eq!(value["op"], "status");
+        assert_eq!(value["peer_pid"], std::process::id() as i64);
+        server_thread.join().expect("handle_stream");
+        let (request, peer) = seen.lock().expect("lock").clone().expect("observed");
+        assert_eq!(request["op"], "status");
+        assert_eq!(peer.expect("peer creds").pid, std::process::id() as i32);
+
+        // Bad request -> error envelope, handler never invoked.
+        let (client2, server2) = std::os::unix::net::UnixStream::pair().expect("pair");
+        let handler2 = Arc::new(|_r: Value, _p: Option<PeerCred>| json!({ "ok": true }));
+        let t2 = std::thread::spawn(move || handle_stream(server2, handler2));
+        let mut client2 = client2;
+        client2.write_all(b"\n").unwrap();
+        let mut line2 = String::new();
+        BufReader::new(&client2).read_line(&mut line2).unwrap();
+        let value2: Value = serde_json::from_str(&line2).expect("response json");
+        assert_eq!(value2["ok"], false);
+        assert!(
+            value2["error"]
+                .as_str()
+                .unwrap()
+                .contains("empty control request")
+        );
+        t2.join().expect("handle_stream");
+    }
 }
