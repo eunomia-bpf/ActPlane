@@ -323,4 +323,30 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    fn write_hook_state_records_feedback_path_root_and_offset() {
+        // `write_hook_state` seeds hook state (feedback path, root pid, and the
+        // feedback file's current length as the read offset); no base or branch
+        // test calls it.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = dir.path().join("feedback.txt");
+        std::fs::write(&feedback, "hello world").unwrap();
+        let state_path = dir.path().join("nested/state.json");
+
+        write_hook_state(&state_path, &feedback, 777).expect("write");
+        let state = load_hook_state(&state_path).expect("state");
+        assert_eq!(
+            state.feedback_file.as_deref(),
+            Some(feedback.to_str().unwrap())
+        );
+        assert_eq!(state.root_pid, Some(777));
+        assert_eq!(state.offset, Some("hello world".len() as u64));
+
+        // A missing feedback file records offset 0.
+        let missing = dir.path().join("missing.txt");
+        write_hook_state(&state_path, &missing, 8).expect("write missing");
+        let state = load_hook_state(&state_path).expect("state");
+        assert_eq!(state.offset, Some(0));
+    }
 }
