@@ -2108,4 +2108,13 @@ mod tests {
             "repo-supervisor"
         );
     }
+    #[test]
+    fn effect_name_maps_each_effect_to_its_feedback_verb() {
+        // `effect_name` maps each `dsl::ast::Effect` to the feedback verb the
+        // audit metadata reports for it. No base or branch test pins this
+        // mapping directly.
+        assert_eq!(effect_name(dsl::ast::Effect::Notify), "notify");
+        assert_eq!(effect_name(dsl::ast::Effect::Block), "block");
+        assert_eq!(effect_name(dsl::ast::Effect::Kill), "kill");
+    }
 }
