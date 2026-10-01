@@ -2992,4 +2992,63 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn refresh_child_record_status_marks_dead_running_child_exited() {
+        // `refresh_child_record_status` flips a Running record to Exited when
+        // its process identity no longer matches; no base or branch test calls
+        // it.
+        let project_dir =
+            std::env::temp_dir().join(format!("actplane-refresh-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&project_dir);
+        std::fs::create_dir_all(&project_dir).unwrap();
+
+        let mut record = ChildRecord {
+            launch_id: "refresh-test".to_string(),
+            pid: i32::MAX,
+            child_id: 904,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: project_dir.join("stdout.log"),
+            stderr: project_dir.join("stderr.log"),
+            meta: project_dir.join("meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 0,
+            restart_backoff_ms: 0,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        };
+
+        refresh_child_record_status(&mut record);
+        assert!(matches!(
+            *record.status.lock().expect("status"),
+            ChildStatus::Exited {
+                code: None,
+                signal: None
+            }
+        ));
+        assert!(record.last_exit_unix_ms.is_some());
+        // The refreshed record was persisted.
+        assert!(record.meta.is_file());
+
+        // A non-Running record is left untouched.
+        *record.status.lock().unwrap() = ChildStatus::Terminated;
+        let before = record.last_exit_unix_ms;
+        refresh_child_record_status(&mut record);
+        assert!(matches!(
+            *record.status.lock().expect("status"),
+            ChildStatus::Terminated
+        ));
+        assert_eq!(record.last_exit_unix_ms, before);
+
+        let _ = std::fs::remove_dir_all(&project_dir);
+    }
 }
