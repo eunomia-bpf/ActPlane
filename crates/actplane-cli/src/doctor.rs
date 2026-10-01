@@ -2591,4 +2591,49 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn enforcement_timing_maps_effect_and_support_to_timing() {
+        // `enforcement_timing` renders the enforcement-timing string for an
+        // `Effect` given backend support. When the backend does not support
+        // enforcement it always reports "not enforceable". No base or branch
+        // test pins this mapping directly.
+        fn detail(supported: bool, pre_op: bool) -> SupportDetail {
+            SupportDetail {
+                supported,
+                status: "",
+                mode: "",
+                pre_op,
+                reason: String::new(),
+                limitations: Vec::new(),
+            }
+        }
+
+        // Unsupported backend: every effect is not enforceable.
+        for effect in [Effect::Notify, Effect::Block, Effect::Kill] {
+            assert_eq!(
+                enforcement_timing(effect, &detail(false, true)),
+                "not enforceable by the current backend selection"
+            );
+        }
+
+        // Supported backends.
+        assert_eq!(
+            enforcement_timing(Effect::Notify, &detail(true, true)),
+            "post-event report; operation proceeds"
+        );
+        assert_eq!(
+            enforcement_timing(Effect::Kill, &detail(true, true)),
+            "post-event termination; the triggering syscall may already have completed"
+        );
+        // Block with a pre-operation backend.
+        assert_eq!(
+            enforcement_timing(Effect::Block, &detail(true, true)),
+            "pre-operation denial before syscall commit"
+        );
+        // Block without a pre-operation backend.
+        assert_eq!(
+            enforcement_timing(Effect::Block, &detail(true, false)),
+            "block requested, but no pre-operation backend is available"
+        );
+    }
 }
