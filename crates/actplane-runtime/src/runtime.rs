@@ -2108,4 +2108,38 @@ mod tests {
             "repo-supervisor"
         );
     }
+    #[test]
+    fn runner_label_prefers_command_label_over_agent() {
+        use std::collections::HashMap;
+
+        // `runner_label` resolves the label the runner attaches: the
+        // `COMMAND` label when present, else the `AGENT` fallback, else an
+        // error. No base or branch test pins this resolution directly.
+        fn with_labels(labels: HashMap<String, u64>) -> dsl::Compiled {
+            dsl::Compiled {
+                bytes: vec![],
+                reasons: vec![],
+                meta: vec![],
+                labels,
+                endpoint_resolutions: HashMap::new(),
+            }
+        }
+
+        // `COMMAND` wins when both labels are present.
+        let mut both = HashMap::new();
+        both.insert("COMMAND".to_string(), 0b01u64);
+        both.insert("AGENT".to_string(), 0b10u64);
+        assert_eq!(runner_label(&with_labels(both)).unwrap(), 0b01u64);
+
+        // With no `COMMAND`, the `AGENT` label is the fallback.
+        let mut agent_only = HashMap::new();
+        agent_only.insert("AGENT".to_string(), 0b10u64);
+        assert_eq!(runner_label(&with_labels(agent_only)).unwrap(), 0b10u64);
+
+        // Neither label: the runner label is unavailable.
+        let err = runner_label(&with_labels(HashMap::new())).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("COMMAND"));
+        assert!(msg.contains("AGENT"));
+    }
 }
