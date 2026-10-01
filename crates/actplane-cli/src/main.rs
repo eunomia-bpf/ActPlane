@@ -1072,3 +1072,27 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parent_domain_control_mutation_error_names_the_operation_and_recovery_path() {
+        // `parent_domain_control_mutation_error` renders the single-line error
+        // message for a control mutation attempted in `--parent-domain` mode,
+        // naming the offending operation and the two recovery paths. No base
+        // or branch test pins this formatter directly.
+        assert_eq!(
+            parent_domain_control_mutation_error("pause"),
+            "pause is unavailable in --parent-domain mode; start watch without \
+             --parent-domain, or use mcp --auto-attach-parent, to create an \
+             authority-bearing runtime parent domain"
+        );
+        // A different operation name is substituted in the leading position.
+        assert!(
+            parent_domain_control_mutation_error("stop")
+                .starts_with("stop is unavailable in --parent-domain mode")
+        );
+    }
+}
