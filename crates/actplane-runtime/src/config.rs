@@ -851,4 +851,54 @@ domains:
             );
         }
     }
+
+    fn domain_config(src: &str) -> FileConfig {
+        serde_yaml::from_str(src).unwrap()
+    }
+
+    #[test]
+    fn resolve_domain_merges_inherited_bindings() {
+        // `resolve_domain` resolves a domain's effective locked/default rule
+        // sets through its parent chain; no base or branch test calls it.
+        let config = domain_config(
+            r#"
+rules:
+  locked-rule:
+    ifc: |
+      rule locked-rule:
+        kill exec "git"
+        because "locked"
+  default-rule:
+    ifc: |
+      rule default-rule:
+        notify exec "ls"
+        because "default"
+domains:
+  session:
+    bind:
+      - rule: locked-rule
+        mode: locked
+      - rule: default-rule
+        mode: default
+  review:
+    parent: session
+    disable:
+      - default-rule
+"#,
+        );
+
+        let session = resolve_domain(&config, "session").unwrap();
+        assert_eq!(session.locked, BTreeSet::from(["locked-rule".to_string()]));
+        assert_eq!(
+            session.defaults,
+            BTreeSet::from(["default-rule".to_string()])
+        );
+
+        let review = resolve_domain(&config, "review").unwrap();
+        assert!(review.locked.contains("locked-rule"));
+        assert!(!review.defaults.contains("default-rule"));
+
+        let unknown = resolve_domain(&config, "missing").unwrap_err().to_string();
+        assert!(unknown.contains("unknown domain `missing`"), "{unknown}");
+    }
 }
