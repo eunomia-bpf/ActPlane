@@ -952,4 +952,18 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn append_comment_block_renders_one_line_per_source_line() {
+        let mut out = String::new();
+        append_comment_block(&mut out, "task", "first\nsecond");
+        assert_eq!(out, "# task: first\n# task: second\n");
+
+        let mut out2 = String::new();
+        append_comment_block(&mut out2, "task", "a\nb\n");
+        assert_eq!(out2, "# task: a\n# task: b\n");
+
+        let mut out3 = String::new();
+        append_comment_block(&mut out3, "task", "");
+        assert_eq!(out3, "# task: \n");
+    }
 }
