@@ -1072,3 +1072,52 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn policy_audit_meta_from_delta_args_leaves_policy_ref_unset() {
+        // The delta control path has no single policy file, so
+        // `policy_audit_meta_from_delta_args` builds a `PolicyAuditMeta` with
+        // `policy_ref == None` and passes the three optional audit fields
+        // through unchanged. No base or branch test pins it directly.
+        let args = DeltaAddArgs {
+            target_id: None,
+            domain_id: None,
+            deltas: Vec::new(),
+            delta_text: Vec::new(),
+            approved_by: Some("alice".to_string()),
+            approval_ref: Some("PR-7".to_string()),
+            generated_by: Some("tool".to_string()),
+        };
+        assert_eq!(
+            policy_audit_meta_from_delta_args(&args),
+            runtime::PolicyAuditMeta {
+                policy_ref: None,
+                approved_by: Some("alice".to_string()),
+                approval_ref: Some("PR-7".to_string()),
+                generated_by: Some("tool".to_string()),
+            }
+        );
+        let unset = DeltaAddArgs {
+            target_id: Some(3),
+            domain_id: None,
+            deltas: Vec::new(),
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        assert_eq!(
+            policy_audit_meta_from_delta_args(&unset),
+            runtime::PolicyAuditMeta {
+                policy_ref: None,
+                approved_by: None,
+                approval_ref: None,
+                generated_by: None,
+            }
+        );
+    }
+}
