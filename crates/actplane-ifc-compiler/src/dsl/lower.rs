@@ -335,6 +335,66 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn collect_expr_labels_walks_the_expression_tree_into_a_deduped_set() {
+        // `collect_expr_labels` gathers every `Label`/`Not` name reachable in
+        // an `Expr`, recursing through `And`/`Or`, ignoring `True`, and
+        // deduplicating through the caller's set. No base test pins the
+        // collector's arms directly; it is only exercised through
+        // `collect_label_names`.
+        use std::collections::BTreeSet;
+
+        // A leaf `Label` and a leaf `Not` each contribute their name.
+        let mut leaf: BTreeSet<String> = BTreeSet::new();
+        collect_expr_labels(&Expr::Label("A".to_string()), &mut leaf);
+        assert_eq!(leaf.iter().collect::<Vec<_>>(), &["A"]);
+        let mut neg: BTreeSet<String> = BTreeSet::new();
+        collect_expr_labels(&Expr::Not("B".to_string()), &mut neg);
+        assert_eq!(neg.iter().collect::<Vec<_>>(), &["B"]);
+
+        // `True` contributes no labels.
+        let mut t: BTreeSet<String> = BTreeSet::new();
+        collect_expr_labels(&Expr::True, &mut t);
+        assert!(t.is_empty());
+
+        // `And`/`Or` recurse into both branches.
+        let tree = Expr::And(
+            Box::new(Expr::Label("A".to_string())),
+            Box::new(Expr::Or(
+                Box::new(Expr::Label("B".to_string())),
+                Box::new(Expr::Not("C".to_string())),
+            )),
+        );
+        let mut reached: BTreeSet<String> = BTreeSet::new();
+        collect_expr_labels(&tree, &mut reached);
+        assert_eq!(reached.iter().collect::<Vec<_>>(), &["A", "B", "C"]);
+
+        // The same name reached through several paths is recorded once.
+        let dup = Expr::And(
+            Box::new(Expr::Label("X".to_string())),
+            Box::new(Expr::Or(
+                Box::new(Expr::Label("X".to_string())),
+                Box::new(Expr::Not("X".to_string())),
+            )),
+        );
+        let mut deduped: BTreeSet<String> = BTreeSet::new();
+        collect_expr_labels(&dup, &mut deduped);
+        assert_eq!(deduped.iter().collect::<Vec<_>>(), &["X"]);
+
+        // The collector fills a `BTreeSet`, so iteration is lexicographic even
+        // when the tree lists the labels out of order.
+        let out_of_order = Expr::Or(
+            Box::new(Expr::Label("b".to_string())),
+            Box::new(Expr::Or(
+                Box::new(Expr::Label("c".to_string())),
+                Box::new(Expr::Label("a".to_string())),
+            )),
+        );
+        let mut sorted: BTreeSet<String> = BTreeSet::new();
+        collect_expr_labels(&out_of_order, &mut sorted);
+        assert_eq!(sorted.iter().collect::<Vec<_>>(), &["a", "b", "c"]);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
