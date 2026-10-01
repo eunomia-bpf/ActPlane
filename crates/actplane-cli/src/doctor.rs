@@ -2591,4 +2591,18 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn format_sample_list_renders_comma_join_and_none_when_empty() {
+        // `format_sample_list` renders a non-empty value list as a
+        // comma-joined string, or "none" when empty. No base or branch test
+        // pins this formatter directly.
+        let empty: Vec<String> = Vec::new();
+        assert_eq!(format_sample_list(&empty), "none");
+
+        let samples = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        assert_eq!(format_sample_list(&samples), "a,b,c");
+
+        let one = vec!["only".to_string()];
+        assert_eq!(format_sample_list(&one), "only");
+    }
 }
