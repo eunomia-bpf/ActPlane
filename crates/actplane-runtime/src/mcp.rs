@@ -2992,4 +2992,31 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn local_control_status_reports_attachment_and_project_dir() {
+        // `local_control_status` renders the supervisor `status` operation:
+        // the project dir, whether a control handle is attached (with its
+        // parent pid/domain when so), and the tracked child count. No base or
+        // branch test calls it.
+        let dir = std::env::temp_dir().join(format!(
+            "actplane-status-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(dir.clone()));
+        let value = server.local_control_status();
+        assert_eq!(value["ok"], true);
+        assert_eq!(value["result"]["attached"], false);
+        assert_eq!(value["result"]["project_dir"], dir.display().to_string());
+        assert_eq!(value["result"]["control"], Value::Null);
+        assert_eq!(value["result"]["child_count"], 0);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
