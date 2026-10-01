@@ -335,6 +335,60 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_exits_code_outside_the_u8_range_is_rejected() {
+        // `exits N` carries the gate's exit-status match into the `u8`
+        // `gate_exit_code` ABI byte. The parse layer validates `N` with
+        // `N.parse::<u8>()`, so out-of-range or non-numeric literals are
+        // rejected at parse time with the exact message
+        // "expected exit code 0..255, got '{N}'". #57 pinned the valid
+        // bytes (0 and 2) and #98 pinned the no-exits default (-1 /
+        // GATE_IMMEDIATE); nobody pinned the *range* guard -- a regression
+        // that silently wrapped a 9-bit literal into the byte would
+        // mis-match the kernel's exit-status comparison.
+        use crate::dsl::parse::parse;
+        fn gate(src: &str) -> Result<String, String> {
+            match parse(src) {
+                Ok(_) => Ok(String::new()),
+                Err(e) => Err(e),
+            }
+        }
+        // Upper bound: 256 does not fit a u8.
+        let err = gate(
+            "rule r:\n  block exec \"git\" unless after exec \"/in\" exits 256\n  because \"z\"\n",
+        )
+        .expect_err("256 must be rejected");
+        assert_eq!(err, "expected exit code 0..255, got '256'");
+        // A clearly-out-of-range literal.
+        let err = gate(
+            "rule r:\n  block exec \"git\" unless after exec \"/in\" exits 300\n  because \"z\"\n",
+        )
+        .expect_err("300 must be rejected");
+        assert_eq!(err, "expected exit code 0..255, got '300'");
+        // A non-numeric literal.
+        let err = gate(
+            "rule r:\n  block exec \"git\" unless after exec \"/in\" exits abc\n  because \"z\"\n",
+        )
+        .expect_err("abc must be rejected");
+        assert_eq!(err, "expected exit code 0..255, got 'abc'");
+        // A negative literal (the lexer still tokenizes it as a word).
+        let err = gate(
+            "rule r:\n  block exec \"git\" unless after exec \"/in\" exits -1\n  because \"z\"\n",
+        )
+        .expect_err("-1 must be rejected");
+        assert_eq!(err, "expected exit code 0..255, got '-1'");
+
+        // Positive controls: the two inclusive bounds parse.
+        let _ = gate(
+            "rule r:\n  block exec \"git\" unless after exec \"/in\" exits 0\n  because \"z\"\n",
+        )
+        .expect("exits 0 parses");
+        let _ = gate(
+            "rule r:\n  block exec \"git\" unless after exec \"/in\" exits 255\n  because \"z\"\n",
+        )
+        .expect("exits 255 parses");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
