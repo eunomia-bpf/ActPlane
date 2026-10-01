@@ -335,6 +335,32 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_out_of_vocabulary_declaration_is_rejected() {
+        // The top-level declaration vocabulary is closed: the parser accepts
+        // exactly `label` (which itself rejects as removed), `source`,
+        // `endorse` / `declassify`, and `rule`; anything else hits the
+        // catch-all `unknown declaration '{kw}'`. #104 pinned the removed
+        // `label` keyword; nobody pinned the catch-all. A stray top-level
+        // keyword must fail at parse time rather than be silently ignored.
+        use crate::dsl::parse::parse;
+        let err = parse("foo AGENT = exec \"/**/s\"\n")
+            .expect_err("an unknown top-level declaration must be rejected");
+        assert_eq!(err, "unknown declaration 'foo'");
+
+        // Positive controls: each valid declaration keyword parses and
+        // compiles.
+        for pol in [
+            "source S = file \"/**/s\"\n",
+            "endorse S by exec \"/in\"\n",
+            "declassify S by exec \"/in\"\n",
+            "rule r:\n  block exec \"git\" because \"z\"\n",
+        ] {
+            let p = parse(pol).expect("a valid declaration parses");
+            let _ = compile(&p).expect("a valid-declaration policy compiles");
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
