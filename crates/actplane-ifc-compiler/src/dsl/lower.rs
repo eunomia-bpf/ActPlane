@@ -335,6 +335,18 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_single_label_host_is_a_hostname_candidate_but_an_empty_one_is_not() {
+        // `hostname_candidate` decides whether an endpoint pattern is a DNS
+        // name (resolved to IPv4s) or treated as a literal. A single-label
+        // host with no dot (`localhost`) is still a valid hostname candidate,
+        // but an empty pattern is rejected. The base test pins only the
+        // wildcard rejection and the two-label `api.internal` accept; these
+        // boundaries are unpinned.
+        assert_eq!(hostname_candidate("localhost"), Some("localhost"));
+        assert_eq!(hostname_candidate(""), None);
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
