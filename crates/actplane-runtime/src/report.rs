@@ -625,4 +625,33 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+    #[test]
+    fn matched_op_name_maps_a_violation_op_byte_to_its_feedback_verb() {
+        // `matched_op_name` lifts the optional kernel op byte carried by a
+        // `Violation` into its feedback verb via `kernel_op_name`. No base or
+        // branch test pins this pass-through (including the `None` case)
+        // directly.
+        let mk = |op: Option<u32>| Violation {
+            pid: 10,
+            ppid: 1,
+            comm: "git".to_string(),
+            target: "git".to_string(),
+            rule_id: 0,
+            op,
+            domain_id: Some(23),
+            session_root: Some(10),
+            effect: None,
+            blocked: None,
+            killed: None,
+            taint_label: 1,
+            matched_label: 1,
+            matched_labels: Some(1),
+            provenance: None,
+        };
+
+        assert_eq!(matched_op_name(&mk(Some(0))), Some("exec"));
+        assert_eq!(matched_op_name(&mk(Some(3))), Some("connect"));
+        assert_eq!(matched_op_name(&mk(Some(5))), Some("op"));
+        assert_eq!(matched_op_name(&mk(None)), None);
+    }
 }
