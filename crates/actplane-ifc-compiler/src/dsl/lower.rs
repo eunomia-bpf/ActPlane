@@ -335,6 +335,24 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn an_absolute_path_with_an_interior_wildcard_lowers_to_a_prefix_match() {
+        // An absolute path whose star is NOT at the terminal position
+        // (`/var/log/*.log`, `/opt/**/*.conf`) is lowered through the
+        // interior-wildcard arm to a prefix match on the substring up to the
+        // first star. This is the `find('*')` branch (lower.rs:208-212),
+        // distinct from the terminal `/*` suffix arm (lower.rs:193-200) that
+        // the absolute single-star test pins. No base test asserts these
+        // interior-star absolute lowerings.
+        assert_eq!(lower_path("/var/log/*.log"), (M_PREFIX, "/var/log/".into()));
+        // A `**` interior glob on an absolute path lowers to the prefix up
+        // to the first star.
+        assert_eq!(lower_path("/opt/**/*.conf"), (M_PREFIX, "/opt/".into()));
+        // Control: an absolute path with no star is an exact match, not a
+        // prefix.
+        assert_eq!(lower_path("/opt/file"), (M_EXACT, "/opt/file".into()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
