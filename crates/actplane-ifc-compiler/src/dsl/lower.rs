@@ -335,6 +335,40 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    /// Two `file` sources on the same path lower to byte-identical `CUpdate`
+    /// tuples (same `op`/matcher/target/`ipv4`/`gate_exit_code`), differing only
+    /// in the label bit they add. `add_update` must therefore coalesce them into
+    /// a *single* update whose `add` mask carries both bits -- not two updates.
+    ///
+    /// The kernel engine walks `CConfig.updates` once and applies the first
+    /// matching update, so a missed coalesce silently loses the second source's
+    /// label: the process would carry only one source's taint. No test exercised
+    /// this OR-dedup. Label bits come from `collect_label_names` (a `BTreeSet`),
+    /// so `A` is bit 0 and `B` is bit 1 -- the coalesced `add` is deterministically
+    /// `0b11`.
+    #[test]
+    fn same_path_sources_coalesce_into_one_update() {
+        let pol = crate::dsl::parse::parse(
+            r#"
+            source A = file "/etc/passwd"
+            source B = file "/etc/passwd"
+            "#,
+        )
+        .expect("parse two same-path sources");
+        let compiled = compile(&pol).expect("compile same-path sources");
+        let cfg: CConfig =
+            unsafe { std::ptr::read_unaligned(compiled.bytes.as_ptr() as *const CConfig) };
+        assert_eq!(cfg.n_updates, 1, "identical update tuples must coalesce");
+        let u = &cfg.updates[0];
+        assert_eq!(u.op, OP_OPEN, "a `file` source lowers to an open update");
+        assert_eq!(u.m, M_EXACT, "a plain path lowers to an exact matcher");
+        assert_eq!(
+            u.add, 0b11,
+            "both source label bits must land in the single coalesced update"
+        );
+        assert_eq!(u.del, 0, "sources only add labels");
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
