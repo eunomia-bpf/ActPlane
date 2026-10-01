@@ -2591,4 +2591,13 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn kind_name_maps_every_target_kind_to_its_name() {
+        // `kind_name` renders each `Kind` variant to the short name the
+        // support-detail and source-summary paths use. No base or branch test
+        // pins this mapping directly.
+        assert_eq!(kind_name(Kind::File), "file");
+        assert_eq!(kind_name(Kind::Endpoint), "endpoint");
+        assert_eq!(kind_name(Kind::Exec), "exec");
+    }
 }
