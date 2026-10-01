@@ -952,4 +952,33 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn mentions_dependency_update_gate_requires_both_contexts() {
+        // `mentions_dependency_update_gate` reports whether the lowercased
+        // task text carries a dependency-update gate: either the literal
+        // tag, or both a dependency context AND a validation context. No
+        // base or branch test pins this predicate directly.
+        // The explicit tag short-circuits the two-context requirement.
+        assert!(mentions_dependency_update_gate(
+            "use the dependency-update-gate policy"
+        ));
+
+        // Both a dependency context and a validation context present.
+        assert!(mentions_dependency_update_gate(
+            "validate the lockfile before commit"
+        ));
+        assert!(mentions_dependency_update_gate(
+            "run cargo test after the dependency update"
+        ));
+
+        // Dependency context alone, with no validation context, is not a
+        // gate.
+        assert!(!mentions_dependency_update_gate("update the dependencies"));
+        // Validation context alone, with no dependency context, is not a
+        // gate.
+        assert!(!mentions_dependency_update_gate(
+            "run the test suite before commit"
+        ));
+        assert!(!mentions_dependency_update_gate(""));
+    }
 }
