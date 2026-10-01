@@ -625,4 +625,33 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+    #[test]
+    fn label_names_for_mask_decomposes_a_mask_low_to_high_with_hex_fallback() {
+        // `label_names_for_mask` walks bits 0..64 low-to-high and emits a
+        // name per set bit, falling back to the `0x…` hex form for bits with
+        // no declared label. No base or branch test pins this decomposition
+        // order or fallback directly.
+        let mut labels = HashMap::new();
+        labels.insert("LOCAL_SECRET".to_string(), 1);
+        labels.insert("LOCAL_TOKEN".to_string(), 4);
+
+        // Both bits resolve to their declared names, in low-to-high order.
+        assert_eq!(
+            label_names_for_mask(&labels, 5),
+            vec!["LOCAL_SECRET", "LOCAL_TOKEN"]
+        );
+
+        // A set bit with no declared label falls back to its hex form,
+        // still in low-to-high position.
+        assert_eq!(
+            label_names_for_mask(&labels, 7),
+            vec!["LOCAL_SECRET", "0x2", "LOCAL_TOKEN"]
+        );
+
+        // An empty map yields only hex names for every set bit.
+        assert_eq!(label_names_for_mask(&HashMap::new(), 3), vec!["0x1", "0x2"]);
+
+        // The all-zero mask decomposes to nothing.
+        assert!(label_names_for_mask(&labels, 0).is_empty());
+    }
 }
