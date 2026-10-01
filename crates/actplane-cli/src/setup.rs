@@ -325,4 +325,33 @@ mod tests {
         assert!(policy.contains("test-before-commit"));
         dsl::compile_str(&policy).unwrap();
     }
+    #[test]
+    fn json_has_command_finds_nested_and_array_commands() {
+        // `json_has_command` reports whether a JSON value anywhere (an object,
+        // a nested object, or an array element) has a `command` field equal to
+        // the given string; it is the helper behind `codex_hook_has_actplane_command`
+        // and `project_mcp_auto_attach_ok`. No base or branch test pins this
+        // recursive helper directly.
+        let cmd = "actplane";
+        assert!(json_has_command(&serde_json::json!({"command": cmd}), cmd));
+        // Recursion into a nested object.
+        assert!(json_has_command(
+            &serde_json::json!({
+                "mcpServers": { "actplane": { "command": cmd } }
+            }),
+            cmd
+        ));
+        // Recursion into an array element.
+        assert!(json_has_command(
+            &serde_json::json!([{"command": cmd}]),
+            cmd
+        ));
+        // A different command string is a miss.
+        assert!(!json_has_command(
+            &serde_json::json!({"command": "other"}),
+            cmd
+        ));
+        // A scalar value has no command field.
+        assert!(!json_has_command(&serde_json::json!("plain"), cmd));
+    }
 }
