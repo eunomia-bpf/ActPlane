@@ -335,6 +335,54 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_boolean_when_expr_expands_to_a_disjunction_of_label_masks() {
+        // `dnf` lowers a boolean `when` expression to a disjunction of
+        // `(req_mask, forbid_mask)` pairs. A label is a required bit, a
+        // negated label is a forbidden bit, and an `And` crosses its two
+        // operands' disjuncts (each pair's masks are OR'd together). The
+        // base endpoint/exec tests never exercise this expansion directly.
+        let mut ctx = Ctx {
+            labels: HashMap::from([
+                ("A".to_string(), 1u64),
+                ("B".to_string(), 2u64),
+                ("C".to_string(), 4u64),
+            ]),
+            used_labels: 0,
+            updates: Vec::new(),
+            gate_bits: HashMap::new(),
+            next_gate: 0,
+            inval_slots: HashMap::new(),
+            next_inval: 0,
+            endpoint_cache: HashMap::new(),
+            endpoint_resolutions: HashMap::new(),
+        };
+        // A single label is a one-requirement disjunct.
+        assert_eq!(
+            dnf(&Expr::Label("A".into()), &mut ctx).unwrap(),
+            vec![(1, 0)]
+        );
+        // A negated label is a single forbidden bit.
+        assert_eq!(dnf(&Expr::Not("B".into()), &mut ctx).unwrap(), vec![(0, 2)]);
+        // `And(Or(A, Not B), C)` crosses the two disjuncts of the `Or`
+        // with the single `C` disjunct: `A` -> (1|4, 0), `Not B` ->
+        // (0|4, 2).
+        assert_eq!(
+            dnf(
+                &Expr::And(
+                    Box::new(Expr::Or(
+                        Box::new(Expr::Label("A".into())),
+                        Box::new(Expr::Not("B".into()))
+                    )),
+                    Box::new(Expr::Label("C".into()))
+                ),
+                &mut ctx
+            )
+            .unwrap(),
+            vec![(5, 0), (4, 2)]
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
