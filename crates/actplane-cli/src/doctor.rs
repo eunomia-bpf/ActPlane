@@ -2591,4 +2591,26 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn source_summary_renders_label_kind_and_pattern() {
+        // `source_summary` renders `source <label> = <kind> "<pattern>"`,
+        // routing the kind through `kind_name`. No base or branch test pins
+        // this summary directly.
+        let file = Source {
+            label: "repo".to_string(),
+            kind: Kind::File,
+            pattern: "policy.dsl".to_string(),
+        };
+        assert_eq!(source_summary(&file), "source repo = file \"policy.dsl\"");
+
+        let endpoint = Source {
+            label: "egress".to_string(),
+            kind: Kind::Endpoint,
+            pattern: "10.0.0.0/8".to_string(),
+        };
+        assert_eq!(
+            source_summary(&endpoint),
+            "source egress = endpoint \"10.0.0.0/8\""
+        );
+    }
 }
