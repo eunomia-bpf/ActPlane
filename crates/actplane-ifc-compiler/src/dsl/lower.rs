@@ -335,6 +335,21 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_leading_wildcard_in_an_exec_pattern_is_preserved() {
+        // `lower_exec` strips only a trailing `*` (turning the match into
+        // `M_PREFIX`); a leading `*` is part of the basename and survives in
+        // the literal, so `*git*` lowers to a prefix match on `*git`, not on
+        // `git`. This is the case the `git*` trailing-wildcard test leaves
+        // unpinned.
+        // Trailing `*` stripped; leading `*` preserved in the prefix literal.
+        assert_eq!(lower_exec("*git*"), (M_PREFIX, "*git".into()));
+        // No trailing `*`: the leading `*` makes the whole literal exact.
+        assert_eq!(lower_exec("*git"), (M_EXACT, "*git".into()));
+        // A path prefix is still dropped regardless of the leading wildcard.
+        assert_eq!(lower_exec("/bin/ls*"), (M_PREFIX, "ls".into()));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
