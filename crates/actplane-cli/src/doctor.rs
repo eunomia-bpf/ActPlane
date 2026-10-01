@@ -2591,4 +2591,60 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+    #[test]
+    fn domain_json_renders_the_domain_summary_or_null() {
+        // `domain_json` serializes a resolved policy's domain summary. A
+        // `None` domain renders as JSON `null`; a `Some` domain renders the
+        // name, optional parent, locked, default, and disabled fields. No base
+        // or branch test pins this serializer directly.
+        let no_domain = ResolvedPolicy {
+            source: "inline".to_string(),
+            domain: None,
+        };
+        assert_eq!(domain_json(&no_domain), Value::Null);
+
+        // A domain summary with every field populated, including `parent`.
+        let some_domain = ResolvedPolicy {
+            source: "inline".to_string(),
+            domain: Some(DomainSummary {
+                name: "repo".to_string(),
+                parent: Some("org".to_string()),
+                locked: vec!["git".to_string()],
+                defaults: vec!["notify".to_string()],
+                disabled: vec!["rm".to_string()],
+            }),
+        };
+        assert_eq!(
+            domain_json(&some_domain),
+            json!({
+                "name": "repo",
+                "parent": "org",
+                "locked": ["git"],
+                "default": ["notify"],
+                "disabled": ["rm"],
+            })
+        );
+
+        // A domain with no parent: the `parent` key is JSON `null`.
+        let no_parent = ResolvedPolicy {
+            source: "inline".to_string(),
+            domain: Some(DomainSummary {
+                name: "repo".to_string(),
+                parent: None,
+                locked: Vec::new(),
+                defaults: Vec::new(),
+                disabled: Vec::new(),
+            }),
+        };
+        assert_eq!(
+            domain_json(&no_parent),
+            json!({
+                "name": "repo",
+                "parent": Value::Null,
+                "locked": [],
+                "default": [],
+                "disabled": [],
+            })
+        );
+    }
 }
