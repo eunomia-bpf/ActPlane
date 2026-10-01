@@ -2992,4 +2992,57 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn feedback_file_resolves_from_policy_and_discovery() {
+        // `discover_policy_file` walks up for actplane.yaml /
+        // .actplane/policy.yaml, and `feedback_file` derives the feedback path
+        // from the policy root, its config, or a latest run; no base or branch
+        // test calls either.
+        let root =
+            std::env::temp_dir().join(format!("actplane-feedback-file-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let project = root.join("project");
+        let nested = project.join("sub");
+        std::fs::create_dir_all(&nested).unwrap();
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project.clone()));
+
+        // No policy anywhere -> default under the project dir.
+        assert!(server.discover_policy_file().is_none());
+        assert_eq!(
+            server.feedback_file(),
+            project.join(".actplane/last-violation.txt")
+        );
+
+        // A policy with an explicit feedback path resolves relative to its root.
+        std::fs::write(
+            project.join("actplane.yaml"),
+            "policy: \"rule r:\\n  notify exec \\\"ls\\\"\\n  because \\\"x\\\"\\n\"\nfeedback:\n  path: custom/feedback.txt\n",
+        )
+        .unwrap();
+        assert_eq!(
+            server.discover_policy_file(),
+            Some(project.join("actplane.yaml"))
+        );
+        assert_eq!(server.feedback_file(), project.join("custom/feedback.txt"));
+
+        // A child directory's server discovers the ancestor policy and falls
+        // back to the default under that policy's root when none is configured.
+        std::fs::write(
+            project.join("actplane.yaml"),
+            "policy: \"rule r:\\n  notify exec \\\"ls\\\"\\n  because \\\"x\\\"\\n\"\n",
+        )
+        .unwrap();
+        let child = ActPlaneMcp::new_with_control_and_project_dir(None, Some(nested));
+        assert_eq!(
+            child.discover_policy_file(),
+            Some(project.join("actplane.yaml"))
+        );
+        assert_eq!(
+            child.feedback_file(),
+            project.join(".actplane/last-violation.txt")
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
