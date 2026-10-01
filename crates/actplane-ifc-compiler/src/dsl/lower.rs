@@ -335,6 +335,36 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn a_non_exec_target_requires_an_explicit_node_kind() {
+        // An `exec` target may omit its kind (the op implies it), but a
+        // non-exec op (`open`, `write`, `connect`, `recv`) must name the
+        // node kind its target refers to: the parser cannot infer it. A
+        // missing kind is rejected with "expected node kind in target".
+        // Without this guard a `block open "/etc/passwd"` would silently
+        // parse as if the pattern were the target node, with no kind.
+        // #105 pinned the wrong-kind-word rejection ("expected kind in
+        // target, got '{w}'"); nobody pinned the missing-kind guard.
+        use crate::dsl::parse::parse;
+        let err = parse("rule r:\n  block open \"/etc/passwd\"\n")
+            .expect_err("a non-exec target without a node kind must be rejected");
+        assert_eq!(err, "expected node kind in target");
+
+        let err = parse("rule r:\n  block connect \"8.8.8.8\"\n")
+            .expect_err("a connect target without a node kind must be rejected");
+        assert_eq!(err, "expected node kind in target");
+
+        // Positive controls: the two non-exec ops that carry a valid node
+        // kind parse and compile.
+        for pol in [
+            "rule r:\n  block open file \"/etc/passwd\"\n",
+            "rule r:\n  block connect endpoint \"8.8.8.8\"\n",
+        ] {
+            let p = parse(pol).expect("a non-exec target with a node kind parses");
+            let _ = compile(&p).expect("a valid non-exec target compiles");
+        }
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
