@@ -952,4 +952,20 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn mentions_any_reports_first_matched_needle() {
+        // `mentions_any` reports whether any needle is a substring of the
+        // haystack; it is the primitive every `mentions_*` template predicate
+        // builds on. No base or branch test pins this helper directly.
+        assert!(mentions_any(
+            "the release branch must stay clean",
+            &["main", "release branch", "push"]
+        ));
+        // An empty needle list never matches.
+        assert!(!mentions_any("any text", &[]));
+        // An empty haystack never matches a non-empty needle list.
+        assert!(!mentions_any("", &["release"]));
+        // A partial substring match counts as a hit.
+        assert!(mentions_any("push to main", &["main"]));
+    }
 }
