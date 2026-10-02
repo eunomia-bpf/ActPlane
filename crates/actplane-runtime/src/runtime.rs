@@ -2108,4 +2108,37 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn have_bpf_caps_is_true_for_root_and_tracks_cap_eff_bits() {
+        if unsafe { libc::geteuid() } == 0 {
+            assert!(have_bpf_caps(), "root always has BPF caps");
+            return;
+        }
+        let eff = std::fs::read_to_string("/proc/self/status")
+            .ok()
+            .and_then(|s| {
+                s.lines()
+                    .find_map(|l| l.strip_prefix("CapEff:"))
+                    .and_then(|h| u64::from_str_radix(h.trim(), 16).ok())
+            })
+            .unwrap_or(0);
+        let expected = eff & (1u64 << 39) != 0 && eff & (1u64 << 21) != 0;
+        assert_eq!(have_bpf_caps(), expected, "CapEff {eff:#x} must decide");
+    }
+
+    #[test]
+    fn bpf_cap_gate_is_a_noop_once_caps_are_present() {
+        // Only probe the pass-through arm: without caps the gate either re-execs
+        // through sudo or exits the process, so it cannot be observed in-process.
+        if !have_bpf_caps() {
+            return;
+        }
+        let extra = [("ACT_PLANE_PROBE", "1".to_string())];
+        let result = require_bpf_caps_or_elevate_with_env(false, &extra);
+        assert!(
+            result.is_ok(),
+            "caps present means no elevation: {result:?}"
+        );
+    }
 }
