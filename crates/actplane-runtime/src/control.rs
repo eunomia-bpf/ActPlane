@@ -380,4 +380,41 @@ mod tests {
         let err = send_request(dir.path(), json!({ "op": "status" })).unwrap_err();
         assert!(err.to_string().contains("stale ActPlane control state"));
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn sudo_target_user_needs_root_with_sudo_ids() {
+        if unsafe { libc::geteuid() } != 0 {
+            assert_eq!(sudo_target_user(), None);
+            return;
+        }
+        let saved = (
+            std::env::var("SUDO_UID").ok(),
+            std::env::var("SUDO_GID").ok(),
+        );
+        unsafe {
+            std::env::remove_var("SUDO_UID");
+            std::env::remove_var("SUDO_GID");
+        }
+        assert_eq!(sudo_target_user(), None);
+        unsafe {
+            std::env::set_var("SUDO_UID", "12345");
+            std::env::set_var("SUDO_GID", "678");
+        }
+        assert_eq!(sudo_target_user(), Some((12345, 678)));
+        unsafe {
+            std::env::set_var("SUDO_UID", "not-a-number");
+        }
+        assert_eq!(sudo_target_user(), None);
+        unsafe {
+            match saved.0 {
+                Some(v) => std::env::set_var("SUDO_UID", v),
+                None => std::env::remove_var("SUDO_UID"),
+            }
+            match saved.1 {
+                Some(v) => std::env::set_var("SUDO_GID", v),
+                None => std::env::remove_var("SUDO_GID"),
+            }
+        }
+    }
 }
