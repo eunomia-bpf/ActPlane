@@ -851,4 +851,62 @@ domains:
             );
         }
     }
+    #[test]
+    fn policy_shape_errors_name_the_conflict() {
+        let mixed = serde_yaml::from_str::<FileConfig>(
+            r#"
+policy: |
+  rule r:
+    block exec "git"
+    because "x"
+rules:
+  r:
+    ifc: |
+      rule r:
+        block exec "git"
+        because "x"
+domains:
+  session: {}
+"#,
+        )
+        .unwrap();
+        let err = validate_policy_shape(&mixed, Path::new("actplane.yaml")).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("cannot mix legacy `policy: |` with `rules:`/`domains:`"),
+            "err: {err}"
+        );
+
+        let domainless = serde_yaml::from_str::<FileConfig>(
+            r#"
+rules:
+  r:
+    ifc: |
+      rule r:
+        block exec "git"
+        because "x"
+"#,
+        )
+        .unwrap();
+        let err = validate_policy_shape(&domainless, Path::new("actplane.yaml")).unwrap_err();
+        assert!(
+            err.to_string().contains(
+                "must contain either a non-empty `policy: |` block or both `rules:` and `domains:`"
+            ),
+            "err: {err}"
+        );
+    }
+
+    #[test]
+    fn empty_policy_block_is_rejected_at_resolve_time() {
+        let loaded = load("policy: |\n");
+        let err = policy_source(&loaded, None).unwrap_err();
+        assert_eq!(err.to_string(), "`policy: |` block must not be empty");
+
+        let err = policy_source(&loaded, Some("session")).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "`--domain` requires a policy file with `rules:` and `domains:`"
+        );
+    }
 }
