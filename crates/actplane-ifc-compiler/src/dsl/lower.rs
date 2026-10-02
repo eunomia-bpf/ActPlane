@@ -335,6 +335,26 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn numeric_ipv4_patterns_lower_to_prefix_masks() {
+        assert_eq!(lower_numeric_ipv4("*"), Some((0, 0)));
+        assert_eq!(
+            lower_numeric_ipv4("10.0.0.5"),
+            Some((ipv4_to_kernel("10.0.0.5".parse().unwrap()), u32::MAX))
+        );
+        assert_eq!(
+            lower_numeric_ipv4("10.0.0."),
+            Some((ipv4_to_kernel("10.0.0.0".parse().unwrap()), 0x00ff_ffff))
+        );
+        assert_eq!(lower_numeric_ipv4("10.0.0.256"), None);
+        assert_eq!(lower_numeric_ipv4("not-an-ip"), None);
+    }
+
+    #[test]
+    fn non_numeric_endpoint_patterns_lower_to_match_any() {
+        assert_eq!(lower_ipv4("api.internal"), (0, u32::MAX));
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
