@@ -952,4 +952,42 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+
+    #[test]
+    fn dependency_scan_finds_manifests_and_skips_vendor_dirs() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        std::fs::write(root.join("Cargo.toml"), "[package]").unwrap();
+        std::fs::write(root.join("package-lock.json"), "{}").unwrap();
+        std::fs::create_dir(root.join("crates")).unwrap();
+        std::fs::create_dir(root.join("crates/app")).unwrap();
+        std::fs::write(root.join("crates/app/go.mod"), "module app").unwrap();
+
+        std::fs::create_dir(root.join("node_modules")).unwrap();
+        std::fs::write(root.join("node_modules/package.json"), "{}").unwrap();
+        std::fs::create_dir(root.join("target")).unwrap();
+        std::fs::write(root.join("target/Cargo.toml"), "[package]").unwrap();
+
+        let found = infer_dependency_paths(root);
+        let items = found.split(',').collect::<Vec<_>>();
+        assert!(items.contains(&"Cargo.toml"), "{found}");
+        assert!(items.contains(&"package-lock.json"), "{found}");
+        assert!(items.contains(&"crates/app/go.mod"), "{found}");
+        assert!(!items.iter().any(|p| p.contains("node_modules")), "{found}");
+        assert!(!items.iter().any(|p| p.starts_with("target/")), "{found}");
+    }
+
+    #[test]
+    fn dependency_scan_falls_back_to_default_globs_when_empty() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let found = infer_dependency_paths(tmp.path());
+        assert!(found.starts_with("Cargo.lock,package-lock.json"), "{found}");
+
+        assert!(is_dependency_manifest_name("Cargo.lock"));
+        assert!(is_dependency_manifest_name("pyproject.toml"));
+        assert!(!is_dependency_manifest_name("README.md"));
+        assert!(skip_dependency_scan_dir(".git"));
+        assert!(skip_dependency_scan_dir("node_modules"));
+        assert!(!skip_dependency_scan_dir("src"));
+    }
 }
