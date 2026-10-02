@@ -707,6 +707,44 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `doctor` prints a human-readable setup report and exits non-zero when any
+// check is a problem. Exact counts are host-dependent (BTF, privileges,
+// installed hooks), so assert the policy resolution lines and the missing-file
+// failure, which are deterministic.
+#[test]
+fn doctor_reports_policy_state_and_missing_policy_error() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = tmp.path().join("p.yaml");
+    fs::copy(fixture("01_secret_no_exfil.yaml"), &policy).unwrap();
+
+    let output = run(&["doctor", "--policy", policy.to_str().unwrap()]);
+    let out = stdout(&output);
+    assert!(out.contains("ActPlane doctor"), "stdout: {out}");
+    assert!(
+        out.contains(&format!("✓ policy: {} (2 rule(s))", policy.display())),
+        "stdout: {out}"
+    );
+    assert!(out.contains("kernel BTF:"), "stdout: {out}");
+    assert!(out.contains("eBPF privilege:"), "stdout: {out}");
+    assert!(out.contains("setup has"), "stdout: {out}");
+
+    // A policy path that does not exist is reported as a problem.
+    let missing = run(&[
+        "doctor",
+        "--policy",
+        tmp.path().join("absent.yaml").to_str().unwrap(),
+    ]);
+    assert!(!missing.status.success());
+    assert!(
+        stdout(&missing).contains(&format!(
+            "✗ policy: reading {}",
+            tmp.path().join("absent.yaml").display()
+        )),
+        "stdout: {}",
+        stdout(&missing)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
