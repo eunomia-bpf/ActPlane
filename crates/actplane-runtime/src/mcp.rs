@@ -2992,4 +2992,42 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn default_project_dir_honors_actplane_then_codex_variables() {
+        let vars = [
+            "ACTPLANE_PROJECT_DIR",
+            "CODEX_PROJECT_DIR",
+            "CODEX_WORKSPACE",
+            "CLAUDE_PROJECT_DIR",
+        ];
+        let saved: Vec<(String, Option<String>)> = vars
+            .iter()
+            .map(|v| ((*v).to_string(), std::env::var(v).ok()))
+            .collect();
+        for v in vars {
+            unsafe { std::env::remove_var(v) };
+        }
+
+        assert_eq!(default_project_dir(), std::env::current_dir().unwrap());
+
+        unsafe { std::env::set_var("CLAUDE_PROJECT_DIR", "/tmp/claude-dir") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/claude-dir"));
+
+        unsafe { std::env::set_var("CODEX_WORKSPACE", "/tmp/codex-ws") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/codex-ws"));
+
+        unsafe { std::env::set_var("CODEX_PROJECT_DIR", "/tmp/codex-dir") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/codex-dir"));
+
+        unsafe { std::env::set_var("ACTPLANE_PROJECT_DIR", "/tmp/actplane-dir") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/actplane-dir"));
+
+        for (key, value) in saved {
+            match value {
+                Some(value) => unsafe { std::env::set_var(key, value) },
+                None => unsafe { std::env::remove_var(key) },
+            }
+        }
+    }
 }
