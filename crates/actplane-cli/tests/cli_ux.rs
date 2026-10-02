@@ -707,6 +707,56 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `feedback-hook` honors `ACTPLANE_FEEDBACK_FILE` / `ACTPLANE_HOOK_STATE`
+// overrides, and after the state's offset it emits only the appended tail,
+// not the whole file.
+#[test]
+fn feedback_hook_honors_env_override_and_emits_only_new_tail() {
+    let tmp = tempfile::tempdir().unwrap();
+    let feedback = tmp.path().join("alt-feedback.txt");
+    fs::write(&feedback, "HEAD\nTAIL-NEW\n").unwrap();
+    let state = tmp.path().join("hook-state.json");
+    fs::write(
+        &state,
+        serde_json::to_string_pretty(&serde_json::json!({
+            "feedback_file": feedback,
+            "offset": 5,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let stdin = serde_json::to_string(&serde_json::json!({ "cwd": tmp.path() })).unwrap();
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .env("ACTPLANE_FEEDBACK_FILE", &feedback)
+        .env("ACTPLANE_HOOK_STATE", &state)
+        .args(["feedback-hook"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(stdin.as_bytes())?;
+            child.wait_with_output()
+        })
+        .expect("run feedback-hook");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("feedback-hook stdout JSON");
+    let context = value["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("additionalContext string");
+    assert!(
+        context.contains("TAIL-NEW"),
+        "context must include the appended tail: {context}"
+    );
+    assert!(
+        !context.contains("HEAD"),
+        "context must not repeat consumed bytes: {context}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
