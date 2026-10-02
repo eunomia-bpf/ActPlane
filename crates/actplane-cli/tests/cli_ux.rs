@@ -707,6 +707,36 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `--version` reports the crate version, and `help <subcommand>` routes to the
+// same text as `<subcommand> --help`.
+#[test]
+fn version_and_help_subcommand_route_correctly() {
+    let version = run(&["--version"]);
+    assert!(version.status.success(), "stderr: {}", stderr(&version));
+    assert_eq!(
+        stdout(&version).trim(),
+        format!("actplane {}", env!("CARGO_PKG_VERSION"))
+    );
+
+    let short = run(&["-V"]);
+    assert_eq!(stdout(&short), stdout(&version));
+
+    for command in ["compile", "control", "init"] {
+        let via_subcommand = run(&["help", command]);
+        let via_flag = run(&[command, "--help"]);
+        assert!(
+            via_subcommand.status.success(),
+            "help {command} stderr: {}",
+            stderr(&via_subcommand)
+        );
+        assert_eq!(
+            stdout(&via_subcommand),
+            stdout(&via_flag),
+            "`help {command}` must match `{command} --help`"
+        );
+    }
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
