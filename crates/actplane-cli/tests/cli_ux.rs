@@ -707,6 +707,45 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// The MCP server forwards an `initialize` carrying well-formed `_meta` as an
+// unknown request (the CLI does not implement the initialize method), replying
+// -32601 method not found while the session stays alive and exits cleanly.
+#[test]
+fn mcp_reports_method_not_found_for_valid_initialize() {
+    use std::io::Write as _;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule r:\n    notify exec \"git\" if COMMAND\n    because \"x\"\n",
+    )
+    .unwrap();
+
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("mcp")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2025-06-18\",\"io.modelcontextprotocol/clientCapabilities\":{\"roots\":{}}}}}\n",
+        )
+        .unwrap();
+    let output = child.wait_with_output().expect("mcp output");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let response: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("mcp initialize response");
+    assert_eq!(response["jsonrpc"], "2.0");
+    assert_eq!(response["id"], 1);
+    assert_eq!(response["error"]["code"], -32601);
+    assert_eq!(response["error"]["message"], "initialize");
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
