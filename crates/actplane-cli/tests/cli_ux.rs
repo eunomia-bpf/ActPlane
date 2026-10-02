@@ -707,6 +707,35 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// A policy declaring `runtime.approval.append_delta` renders its admission
+// model in the `--explain` runtime-delta section.
+#[test]
+fn compile_explain_renders_append_delta_approval_config() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\nruntime:\n  approval:\n    append_delta:\n      required: true\n      require_approval_ref: true\n      require_generated_by: true\n      allowed_approvers: [alice, bob]\npolicy: |\n  source COMMAND = exec \"**\"\n  rule r:\n    notify exec \"git\" if COMMAND\n    because \"x\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["compile", "--explain"])
+        .output()
+        .expect("run compile --explain");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    for expected in [
+        "runtime delta admission:\n  - append policy delta approval: required",
+        "required metadata: approved_by, approval_ref, generated_by",
+        "allowed approvers: alice, bob",
+        "admission model: static_metadata_allowlist",
+        "external_verified=false, signature=null",
+    ] {
+        assert!(out.contains(expected), "missing {expected:?} in:\n{out}");
+    }
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
