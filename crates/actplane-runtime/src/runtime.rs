@@ -2108,4 +2108,46 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn send_signal_reports_unknown_and_self_pids() {
+        // A pid well past the kernel's pid ceiling is never live.
+        let err = send_signal(99_999_999, libc::SIGCONT).unwrap_err();
+        assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
+        let err = send_process_group_signal(99_999_999, libc::SIGCONT).unwrap_err();
+        assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
+
+        // Signalling our own live pid surfaces whatever the sandbox permits.
+        let self_pid = std::process::id();
+        let err = send_signal(self_pid, libc::SIGSTOP).unwrap_err();
+        assert!(
+            matches!(
+                err.raw_os_error(),
+                Some(libc::EACCES) | Some(libc::EPERM) | Some(libc::ESRCH)
+            ),
+            "unexpected error from self-signal: {err}"
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn proc_state_code_reads_own_process_state() {
+        let state = proc_state_code(std::process::id()).expect("own state");
+        assert!(
+            matches!(state, 'R' | 'S' | 'D' | 'T' | 't'),
+            "unexpected state {state:?}"
+        );
+        let err = proc_state_code(99_999_999).unwrap_err();
+        assert_eq!(err.raw_os_error(), Some(libc::ENOENT));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn wait_for_stopped_process_times_out_on_own_pid() {
+        let err =
+            wait_for_stopped_process(std::process::id(), Duration::from_millis(1)).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::TimedOut);
+        assert!(err.to_string().contains("last observed process state was"));
+    }
 }
