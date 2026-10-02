@@ -2591,4 +2591,66 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn check_policy_reports_status_and_writes_error_reports() {
+        let good = r#"
+            source SECRET = file "**/.env"
+            rule no-exfil:
+              block connect endpoint "*" if SECRET
+              because "secret data must not leave the host"
+        "#;
+        let compiling = PolicyInput {
+            policy: None,
+            rule: Some(good.to_string()),
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+        };
+        assert_eq!(
+            check_policy(&compiling, false, false, None, false).unwrap(),
+            0
+        );
+
+        let dir = tempfile::tempdir().unwrap();
+        let report = dir.path().join("report.json");
+        let unparseable = PolicyInput {
+            policy: None,
+            rule: Some("rule :".to_string()),
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+        };
+        assert_eq!(
+            check_policy(&unparseable, true, false, Some(&report), false).unwrap(),
+            1
+        );
+        let value: Value =
+            serde_json::from_str(&std::fs::read_to_string(&report).unwrap()).unwrap();
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["policy_ref"], "--rule");
+
+        let policy_file = dir.path().join("actplane.yaml");
+        std::fs::write(
+            &policy_file,
+            "policy: |\n  rule r:\n    notify exec \"git\"\n    because \"x\"\n",
+        )
+        .unwrap();
+        let domain_cli = PolicyInput {
+            policy: Some(policy_file.clone()),
+            rule: None,
+            domain: Some("work".to_string()),
+            run_as_root: false,
+            internal_elevated: false,
+        };
+        let report2 = dir.path().join("report2.json");
+        assert_eq!(
+            check_policy(&domain_cli, true, false, Some(&report2), false).unwrap(),
+            1
+        );
+        let value: Value =
+            serde_json::from_str(&std::fs::read_to_string(&report2).unwrap()).unwrap();
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["policy_ref"], policy_file.display().to_string());
+    }
 }
