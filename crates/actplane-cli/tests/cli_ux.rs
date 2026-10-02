@@ -707,6 +707,92 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// Non-default restart supervision and approval metadata are forwarded verbatim,
+// and `--delta <file>` is embedded with its path as the provenance comment.
+#[cfg(unix)]
+#[test]
+fn control_launch_child_forwards_restart_and_approval_options() {
+    let tmp = tempfile::tempdir().unwrap();
+    let socket_path = tmp.path().join("control.sock");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": std::process::id() as i32,
+            "proc_start_time": null,
+            "socket_path": socket_path,
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": 2222,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    fs::write(
+        tmp.path().join("delta.dsl"),
+        "rule d:\n  notify exec \"git\" if true\n  because \"y\"\n",
+    )
+    .unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept control client");
+        let mut line = String::new();
+        std::io::BufReader::new(stream.try_clone().expect("clone stream"))
+            .read_line(&mut line)
+            .expect("read request");
+        tx.send(serde_json::from_str::<serde_json::Value>(&line).expect("request JSON"))
+            .expect("send request");
+        std::io::Write::write_all(&mut stream, b"{\"ok\":true,\"text\":\"launched\"}\n")
+            .expect("write response");
+    });
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args([
+            "control",
+            "launch-child",
+            "--child-id",
+            "7",
+            "--scope-id",
+            "9",
+            "--restart-policy",
+            "on_exit",
+            "--restart-limit",
+            "5",
+            "--restart-backoff-ms",
+            "250",
+            "--approved-by",
+            "reviewer",
+            "--approval-ref",
+            "ticket-1",
+            "--generated-by",
+            "cli-test",
+            "--delta",
+            tmp.path().join("delta.dsl").to_str().unwrap(),
+            "/bin/true",
+        ])
+        .output()
+        .expect("run control launch-child");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let request = rx.recv().expect("launch request");
+    handle.join().expect("control server thread");
+
+    assert_eq!(request["restart_policy"], "on_exit");
+    assert_eq!(request["restart_limit"], 5);
+    assert_eq!(request["restart_backoff_ms"], 250);
+    assert_eq!(request["scope_id"], 9);
+    assert_eq!(request["approved_by"], "reviewer");
+    assert_eq!(request["approval_ref"], "ticket-1");
+    assert_eq!(request["generated_by"], "cli-test");
+    let policy = request["policy"].as_str().expect("policy");
+    assert!(policy.contains("# delta "), "policy: {policy}");
+    assert!(policy.contains("rule d:"), "policy: {policy}");
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
