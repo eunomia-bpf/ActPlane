@@ -707,6 +707,77 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `tools/list` enumerates the child-domain control tools the MCP server
+// exposes, with `pid`, `policy`, and `cmd` the only required inputs.
+#[test]
+fn mcp_tools_list_enumerates_child_domain_tools() {
+    use std::io::Write as _;
+    let tmp = tempfile::tempdir().unwrap();
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("mcp")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"c\",\"version\":\"1\"}}}\n{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}\n",
+        )
+        .unwrap();
+    let output = child.wait_with_output().expect("mcp output");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let mut listed = None;
+    for line in stdout(&output).lines() {
+        let message: serde_json::Value = serde_json::from_str(line).expect("mcp json line");
+        if message["id"] == 2 {
+            listed = Some(message);
+        }
+    }
+    let listed = listed.expect("tools/list response");
+    let tools = listed["result"]["tools"].as_array().expect("tools array");
+    assert_eq!(tools.len(), 8, "unexpected tool set: {listed}");
+    for name in [
+        "bind_child_domain",
+        "append_policy_delta",
+        "launch_child_domain",
+        "list_child_domains",
+        "read_child_domain_logs",
+        "terminate_child_domain",
+        "restart_child_domain",
+        "reconcile_child_domains",
+    ] {
+        assert!(
+            tools.iter().any(|tool| tool["name"] == name),
+            "missing tool {name} in {listed}"
+        );
+    }
+    let required = |name: &str| {
+        tools
+            .iter()
+            .find(|tool| tool["name"] == name)
+            .and_then(|tool| tool["inputSchema"]["required"].as_array().cloned())
+            .unwrap_or_default()
+    };
+    assert_eq!(
+        required("bind_child_domain"),
+        vec![serde_json::json!("pid")]
+    );
+    assert_eq!(
+        required("append_policy_delta"),
+        vec![serde_json::json!("policy")]
+    );
+    assert_eq!(
+        required("launch_child_domain"),
+        vec![serde_json::json!("cmd")]
+    );
+    assert!(required("list_child_domains").is_empty());
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
