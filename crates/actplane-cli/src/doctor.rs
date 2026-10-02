@@ -2591,4 +2591,68 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn format_sample_list_joins_or_reports_none() {
+        assert_eq!(format_sample_list(&[]), "none");
+        assert_eq!(format_sample_list(&["a".into(), "b".into()]), "a,b");
+    }
+
+    #[test]
+    fn source_summary_renders_label_kind_and_pattern() {
+        assert_eq!(
+            source_summary(&Source {
+                label: "UNTRUST".into(),
+                kind: Kind::File,
+                pattern: "**/.env".into(),
+            }),
+            "source UNTRUST = file \"**/.env\""
+        );
+    }
+
+    #[test]
+    fn source_flow_summary_describes_each_kind() {
+        assert!(source_flow_summary(Kind::Exec).contains("fork descendants"));
+        assert!(source_flow_summary(Kind::File).contains("reads copy"));
+        assert!(source_flow_summary(Kind::Endpoint).contains("egress labels"));
+    }
+
+    #[test]
+    fn clause_summary_renders_target_and_conditions() {
+        let clause = Clause {
+            op: Op::Exec,
+            target: crate::dsl::ast::Target {
+                kind: Kind::Exec,
+                pattern: "git".into(),
+                arg: Some("push".into()),
+            },
+            when: Expr::Label("T".into()),
+            unless: Some(Cond::Target {
+                negate: false,
+                pattern: "host".into(),
+            }),
+            effect: Effect::Block,
+            source_index: 0,
+        };
+        assert_eq!(
+            clause_summary(&clause),
+            "block exec \"git\" \"push\" if T unless target \"host\""
+        );
+    }
+
+    #[test]
+    fn policy_ref_for_cli_prefers_policy_then_rule_then_discovery() {
+        let mut cli = PolicyInput {
+            policy: None,
+            rule: None,
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+        };
+        assert_eq!(policy_ref_for_cli(&cli), "auto-discovered policy");
+        cli.rule = Some("exec git".into());
+        assert_eq!(policy_ref_for_cli(&cli), "--rule");
+        cli.policy = Some(PathBuf::from("/tmp/p.yaml"));
+        assert_eq!(policy_ref_for_cli(&cli), "/tmp/p.yaml");
+    }
 }
