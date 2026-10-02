@@ -2992,4 +2992,120 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn seeded_server(project_dir: PathBuf, records: Vec<ChildRecord>) -> ActPlaneMcp {
+        let mut children = HashMap::new();
+        for record in records {
+            children.insert(record.child_id, record);
+        }
+        ActPlaneMcp {
+            project_dir,
+            control: None,
+            children: Arc::new(Mutex::new(children)),
+        }
+    }
+
+    fn tool_text(result: &CallToolResult) -> String {
+        match result.content.first() {
+            Some(ContentBlock::Text(t)) => t.text.clone(),
+            other => panic!("expected text content, got {other:?}"),
+        }
+    }
+
+    fn reconcile_record(
+        child_id: u32,
+        status: ChildStatus,
+        restart_count: u32,
+        restart_limit: u32,
+        log_dir: &std::path::Path,
+    ) -> ChildRecord {
+        ChildRecord {
+            launch_id: format!("child-{child_id}"),
+            pid: 99_999_999,
+            child_id,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: log_dir.join("stdout.log"),
+            stderr: log_dir.join("stderr.log"),
+            meta: log_dir.join("meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::OnExit,
+            restart_count,
+            restart_limit,
+            restart_backoff_ms: DEFAULT_RESTART_BACKOFF_MS,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    #[test]
+    fn reconcile_marks_exhausted_restarts_as_blocked_alerts_once() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-7");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        // Exited child at its restart limit: no relaunch, one blocked alert.
+        let record = reconcile_record(
+            7,
+            ChildStatus::Exited {
+                code: Some(1),
+                signal: None,
+            },
+            DEFAULT_RESTART_LIMIT,
+            DEFAULT_RESTART_LIMIT,
+            &log_dir,
+        );
+        let server = seeded_server(tmp.path().to_path_buf(), vec![record]);
+
+        let first = server.do_reconcile_child_domains().expect("reconcile");
+        let value: Value = serde_json::from_str(&tool_text(&first)).expect("json");
+        assert_eq!(value["total"], 1);
+        assert_eq!(value["exited"], 1);
+        assert_eq!(value["running"], 0);
+        assert_eq!(value["restarted"].as_array().unwrap().len(), 0);
+        let alerts = value["alerts"].as_array().expect("alerts");
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0]["child_id"], 7);
+        assert_eq!(alerts[0]["status"], "blocked");
+        assert_eq!(alerts[0]["reason"], "restart limit reached");
+
+        // The alert is recorded, so a second reconcile does not repeat it.
+        let second = server.do_reconcile_child_domains().expect("reconcile");
+        let value: Value = serde_json::from_str(&tool_text(&second)).expect("json");
+        assert_eq!(value["alerts"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn child_state_predicates_classify_each_status() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-11");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        let mut record = reconcile_record(11, ChildStatus::Running, 0, 3, &log_dir);
+        assert!(child_record_running(&record));
+        assert!(!child_record_exited(&record));
+        assert!(!child_record_terminated(&record));
+        assert!(process_exists(std::process::id() as i32));
+        assert!(!process_exists(99_999_999));
+
+        *record.status.lock().unwrap() = ChildStatus::Terminated;
+        assert!(child_record_terminated(&record));
+        assert!(!child_record_running(&record));
+        assert!(
+            !child_record_should_relaunch(&record),
+            "terminated is not relaunched"
+        );
+
+        *record.status.lock().unwrap() = ChildStatus::Exited {
+            code: Some(0),
+            signal: None,
+        };
+        assert!(child_record_exited(&record));
+        record.replacement_child_id = Some(12);
+        assert!(!child_record_should_relaunch(&record), "already replaced");
+    }
 }
