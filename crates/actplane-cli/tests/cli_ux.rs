@@ -707,6 +707,46 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile --explain` renders the selected domain header with its rule list,
+// and omits `parent:` for a self-contained auto-selected domain.
+#[test]
+fn compile_explain_renders_domain_binding_header() {
+    let bound = run(&[
+        "--policy",
+        &fixture("15_domain_bindings.yaml"),
+        "--domain",
+        "review",
+        "compile",
+        "--explain",
+    ]);
+    assert!(bound.status.success(), "stderr: {}", stderr(&bound));
+    let out = stdout(&bound);
+    assert!(out.contains("domain: review"), "stdout: {out}");
+    assert!(out.contains("parent: session"), "stdout: {out}");
+    assert!(
+        out.contains("policy rules: no-git-branch, readonly"),
+        "stdout: {out}"
+    );
+
+    let auto = run(&[
+        "--policy",
+        &fixture("23_domain_single_auto_select.yaml"),
+        "compile",
+        "--explain",
+    ]);
+    assert!(auto.status.success(), "stderr: {}", stderr(&auto));
+    let out = stdout(&auto);
+    assert!(out.contains("domain: build"), "stdout: {out}");
+    assert!(
+        out.contains("policy rules: build-artifact-no-network"),
+        "stdout: {out}"
+    );
+    assert!(
+        !out.contains("parent:"),
+        "auto-selected domain has no parent: {out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
