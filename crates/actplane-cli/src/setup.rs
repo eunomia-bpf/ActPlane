@@ -325,4 +325,57 @@ mod tests {
         assert!(policy.contains("test-before-commit"));
         dsl::compile_str(&policy).unwrap();
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn setup_project_integrations_wires_and_preserves_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let previous = std::env::current_dir().expect("cwd");
+        std::env::set_current_dir(dir.path()).expect("chdir");
+
+        // First pass writes all three integration files.
+        let code = setup_project_integrations(false, true, true, true).expect("first pass");
+        assert_eq!(code, 0);
+        let hooks = dir.path().join(".codex/hooks.json");
+        let mcp = dir.path().join(".mcp.json");
+        let agents = dir.path().join("AGENTS.md");
+        assert!(codex_hook_has_actplane_command(
+            &std::fs::read_to_string(&hooks).expect("hooks")
+        ));
+        assert!(project_mcp_auto_attach_ok(
+            &std::fs::read_to_string(&mcp).expect("mcp")
+        ));
+        assert!(agents.is_file());
+
+        // Unrelated files and a foreign hook are preserved without --force.
+        std::fs::write(dir.path().join("keep.txt"), b"keep me").expect("keep");
+        std::fs::write(&mcp, r#"{"mcpServers":{"other":{"command":"x"}}}"#).expect("mcp");
+        std::fs::write(&hooks, r#"{"hooks":{"PostToolUse":[]}}"#).expect("hooks");
+        setup_project_integrations(false, true, true, false).expect("second pass");
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("keep.txt")).expect("keep"),
+            "keep me"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&hooks).expect("hooks"),
+            r#"{"hooks":{"PostToolUse":[]}}"#
+        );
+        let mcp_doc: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&mcp).expect("mcp")).expect("json");
+        assert_eq!(mcp_doc["mcpServers"]["other"]["command"], "x");
+        assert_eq!(mcp_doc["mcpServers"]["actplane"]["command"], "actplane");
+        assert!(agents.is_file());
+
+        // An existing AGENTS.md is kept without --force, replaced with --force.
+        std::fs::write(&agents, b"custom").expect("agents");
+        setup_project_integrations(false, false, false, true).expect("third pass");
+        assert_eq!(std::fs::read_to_string(&agents).expect("agents"), "custom");
+        setup_project_integrations(true, false, false, true).expect("force pass");
+        assert_eq!(
+            std::fs::read_to_string(&agents).expect("agents"),
+            AGENTS_STUB
+        );
+
+        std::env::set_current_dir(&previous).expect("restore cwd");
+    }
 }
