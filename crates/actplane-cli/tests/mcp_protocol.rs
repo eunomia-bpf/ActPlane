@@ -1381,3 +1381,85 @@ policy: |
     .expect("write policy");
     policy
 }
+
+#[test]
+fn mcp_stdio_jsonrpc_reports_feedback_resource_state() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-feedback-resource");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let absent = mcp.response(2);
+    let absent_text = absent["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("feedback text");
+    assert!(
+        absent_text.contains("No ActPlane feedback file yet"),
+        "{absent}"
+    );
+    assert!(
+        absent_text.contains("last-violation.txt"),
+        "feedback should name the expected path: {absent_text}"
+    );
+
+    let violation = tmp.path().join(".actplane").join("last-violation.txt");
+    std::fs::create_dir_all(violation.parent().expect("parent")).expect("mkdir");
+    std::fs::write(&violation, "TAINT_VIOLATION: read /etc/secret\n").expect("write violation");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let present = mcp.response(3);
+    let present_text = present["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("feedback text");
+    assert!(
+        present_text.contains("TAINT_VIOLATION: read /etc/secret"),
+        "{present}"
+    );
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_rejects_bad_child_arguments() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-child-arguments");
+
+    for (id, arguments, expected) in [
+        (
+            2,
+            json!({ "cmd": ["/bin/true"], "restart_policy": "always" }),
+            "`restart_policy` must be one of never or on_exit",
+        ),
+        (
+            3,
+            json!({ "child_id": 99999 }),
+            "unknown child domain 99999",
+        ),
+    ] {
+        let name = if id == 2 {
+            "launch_child_domain"
+        } else {
+            "read_child_domain_logs"
+        };
+        mcp.send(json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "tools/call",
+            "params": { "name": name, "arguments": arguments }
+        }));
+        let response = mcp.response(id);
+        assert_eq!(response["error"]["code"], -32602, "{name}: {response}");
+        assert_eq!(response["error"]["message"], expected, "{name}");
+    }
+}
