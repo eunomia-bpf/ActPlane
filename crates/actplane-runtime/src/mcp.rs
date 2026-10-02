@@ -2992,4 +2992,58 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn sudo_target_user_reads_sudo_uid_and_gid_only_when_root() {
+        let uid = std::env::var("SUDO_UID").ok();
+        let gid = std::env::var("SUDO_GID").ok();
+
+        if unsafe { libc::geteuid() } != 0 {
+            // Non-root callers never adopt a sudo target user.
+            assert_eq!(sudo_target_user(), None);
+            return;
+        }
+
+        unsafe {
+            std::env::remove_var("SUDO_UID");
+            std::env::remove_var("SUDO_GID");
+        }
+        assert_eq!(sudo_target_user(), None, "missing vars mean no target user");
+        unsafe { std::env::set_var("SUDO_UID", "not-a-number") };
+        assert_eq!(sudo_target_user(), None, "unparsable uid is rejected");
+        unsafe {
+            std::env::set_var("SUDO_UID", "1234");
+            std::env::set_var("SUDO_GID", "5678");
+        }
+        assert_eq!(sudo_target_user(), Some((1234, 5678)));
+
+        match uid {
+            Some(v) => unsafe { std::env::set_var("SUDO_UID", v) },
+            None => unsafe { std::env::remove_var("SUDO_UID") },
+        }
+        match gid {
+            Some(v) => unsafe { std::env::set_var("SUDO_GID", v) },
+            None => unsafe { std::env::remove_var("SUDO_GID") },
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn chown_path_requires_privilege_to_change_ownership() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let file = tmp.path().join("owned.txt");
+        std::fs::write(&file, "x").expect("write");
+
+        // A no-op chown to the file's current owner succeeds; a real change to
+        // another uid needs CAP_CHOWN, so non-root callers must see an error.
+        let meta = std::fs::metadata(&file).expect("metadata");
+        assert!(chown_path(&file, meta.uid(), meta.gid()).is_ok());
+        if unsafe { libc::geteuid() } != 0 {
+            assert!(
+                chown_path(&file, meta.uid().wrapping_add(1), meta.gid()).is_err(),
+                "changing owner without privilege must fail"
+            );
+        }
+    }
 }
