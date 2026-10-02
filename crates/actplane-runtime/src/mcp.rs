@@ -2992,4 +2992,113 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn tool_text(result: &CallToolResult) -> String {
+        match result.content.first() {
+            Some(ContentBlock::Text(t)) => t.text.clone(),
+            other => panic!("expected text content, got {other:?}"),
+        }
+    }
+
+    fn terminate_server(log_dir: &std::path::Path, status: ChildStatus) -> ActPlaneMcp {
+        let record = ChildRecord {
+            launch_id: "child-term".to_string(),
+            pid: 99_999_999,
+            child_id: 3,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: log_dir.join("stdout.log"),
+            stderr: log_dir.join("stderr.log"),
+            meta: log_dir.join("meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: DEFAULT_RESTART_LIMIT,
+            restart_backoff_ms: DEFAULT_RESTART_BACKOFF_MS,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        };
+        ActPlaneMcp {
+            project_dir: log_dir
+                .parent()
+                .and_then(|p| p.parent())
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_path_buf(),
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::from([(3u32, record)]))),
+        }
+    }
+
+    fn terminate_args(child_id: u32) -> Option<serde_json::Map<String, Value>> {
+        Some(serde_json::Map::from_iter([(
+            "child_id".to_string(),
+            serde_json::json!(child_id),
+        )]))
+    }
+
+    fn status_of(server: &ActPlaneMcp, child_id: u32) -> ChildStatus {
+        let children = server.children.lock().unwrap();
+        children[&child_id].status.lock().unwrap().clone()
+    }
+
+    #[test]
+    fn terminate_child_domain_reports_the_early_exit_arms() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-3");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+
+        let exited = terminate_server(
+            &log_dir,
+            ChildStatus::Exited {
+                code: Some(0),
+                signal: None,
+            },
+        );
+        let out = exited.do_terminate_child_domain(terminate_args(3)).unwrap();
+        assert!(tool_text(&out).contains("already exited"));
+
+        let terminated = terminate_server(&log_dir, ChildStatus::Terminated);
+        let out = terminated
+            .do_terminate_child_domain(terminate_args(3))
+            .unwrap();
+        assert!(tool_text(&out).contains("was already terminated"));
+    }
+
+    #[test]
+    fn terminate_child_domain_reconciles_a_dead_running_pid() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-3");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        let server = terminate_server(&log_dir, ChildStatus::Running);
+
+        // The recorded pid is dead, so the refresh flips it to Exited before the
+        // terminate path runs and reports the exit rather than signalling.
+        let out = server.do_terminate_child_domain(terminate_args(3)).unwrap();
+        assert!(tool_text(&out).contains("already exited"));
+        assert!(matches!(
+            status_of(&server, 3),
+            ChildStatus::Exited {
+                code: None,
+                signal: None
+            }
+        ));
+        assert!(log_dir.join("meta.json").is_file(), "record persisted");
+
+        // Unknown child id is an invalid-params error.
+        assert!(
+            server
+                .do_terminate_child_domain(terminate_args(404))
+                .is_err()
+        );
+        // Missing child id is rejected before lookup.
+        assert!(server.do_terminate_child_domain(None).is_err());
+    }
 }
