@@ -312,6 +312,61 @@ fn hook_context(feedback: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test(flavor = "current_thread")]
+    #[cfg(unix)]
+    async fn feedback_hook_emits_baseline_then_delivers_new_bytes() {
+        use std::os::unix::io::AsRawFd;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = dir.path().join("last-violation.txt");
+        std::fs::write(&feedback, "").expect("feedback");
+        let state = dir.path().join("hook-state.json");
+        let input = dir.path().join("input.json");
+        std::fs::write(
+            &input,
+            format!(
+                "{{\"cwd\":\"{}\",\"hook_event_name\":\"PostToolUse\"}}\n",
+                dir.path().display()
+            ),
+        )
+        .expect("input");
+
+        // SAFETY: single-threaded current-thread runtime; env is set and restored.
+        unsafe { std::env::set_var("ACTPLANE_FEEDBACK_FILE", &feedback) };
+        unsafe { std::env::set_var("ACTPLANE_HOOK_STATE", &state) };
+
+        // First invocation establishes the offset baseline and emits nothing.
+        let file = std::fs::File::open(&input).expect("open");
+        let saved = unsafe { libc::dup(0) };
+        assert!(saved >= 0, "dup(0) failed");
+        assert_eq!(unsafe { libc::dup2(file.as_raw_fd(), 0) }, 0, "dup2 failed");
+        let first = feedback_hook().await;
+        assert_eq!(unsafe { libc::dup2(saved, 0) }, 0, "restore failed");
+        unsafe { libc::close(saved) };
+        first.expect("first hook");
+        let text = std::fs::read_to_string(&state).expect("state");
+        let value: serde_json::Value = serde_json::from_str(&text).expect("state json");
+        assert_eq!(value["offset"], 0);
+        assert_eq!(value["root_pid"], serde_json::Value::Null);
+
+        // Appending feedback makes the next invocation report the new block.
+        let feedback_text = "TAINT_VIOLATION: read /etc/secret\n";
+        std::fs::write(&feedback, feedback_text).expect("append");
+        let file = std::fs::File::open(&input).expect("open");
+        let saved = unsafe { libc::dup(0) };
+        assert!(saved >= 0, "dup(0) failed");
+        assert_eq!(unsafe { libc::dup2(file.as_raw_fd(), 0) }, 0, "dup2 failed");
+        let second = feedback_hook().await;
+        assert_eq!(unsafe { libc::dup2(saved, 0) }, 0, "restore failed");
+        unsafe { libc::close(saved) };
+        second.expect("second hook");
+        let text = std::fs::read_to_string(&state).expect("state");
+        let value: serde_json::Value = serde_json::from_str(&text).expect("state json");
+        assert_eq!(value["offset"], feedback_text.len() as u64);
+
+        unsafe { std::env::remove_var("ACTPLANE_FEEDBACK_FILE") };
+        unsafe { std::env::remove_var("ACTPLANE_HOOK_STATE") };
+    }
 
     #[test]
     fn last_block_selects_latest_feedback() {
