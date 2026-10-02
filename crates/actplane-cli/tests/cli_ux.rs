@@ -707,6 +707,48 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// The human-mode `compile` report renders static backend-support warnings that
+// `--json` exposes structurally, and a warning-free policy says so.
+#[test]
+fn compile_renders_support_warnings_in_human_mode() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\npolicy: |\n  source WILD = endpoint \"*.internal\"\n  rule r:\n    notify connect endpoint \"*\" if WILD\n    because \"x\"\n",
+    )
+    .unwrap();
+
+    let warned = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("compile")
+        .output()
+        .expect("run compile");
+    assert!(warned.status.success(), "stderr: {}", stderr(&warned));
+    let out = stdout(&warned);
+    assert!(out.contains("⚠ 1 warning(s):"), "stdout: {out}");
+    assert!(
+        out.contains(
+            "source WILD = endpoint \"*.internal\" is unsupported: endpoint source pattern is not numeric IPv4 or an exact resolvable hostname."
+        ),
+        "stdout: {out}"
+    );
+
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule r:\n    notify exec \"git\" if COMMAND\n    because \"x\"\n",
+    )
+    .unwrap();
+    let clean = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("compile")
+        .output()
+        .expect("run compile");
+    assert!(clean.status.success(), "stderr: {}", stderr(&clean));
+    let out = stdout(&clean);
+    assert!(out.contains("✓ no warnings."), "stdout: {out}");
+    assert!(!out.contains("warning(s)"), "stdout: {out}");
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
