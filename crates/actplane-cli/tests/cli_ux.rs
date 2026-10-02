@@ -707,6 +707,51 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile`'s output modes (`--json`, `--explain`, `--domains`) are mutually
+// exclusive, and `--report-out` requires one of them.
+#[test]
+fn compile_output_modes_are_mutually_exclusive() {
+    let policy = fixture("15_domain_bindings.yaml");
+    for (a, b) in [
+        ("--json", "--explain"),
+        ("--domains", "--json"),
+        ("--domains", "--explain"),
+    ] {
+        let output = run(&["--policy", &policy, "compile", a, b]);
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{a} {b} stderr: {}",
+            stderr(&output)
+        );
+        assert!(
+            stderr(&output).contains(&format!("the argument '{a}' cannot be used with '{b}'")),
+            "{a} {b} stderr: {}",
+            stderr(&output)
+        );
+    }
+
+    let report_out = run(&[
+        "--policy",
+        &policy,
+        "compile",
+        "--domains",
+        "--report-out",
+        "/tmp/actplane-unused-report.txt",
+    ]);
+    assert_eq!(
+        report_out.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&report_out)
+    );
+    assert!(
+        stderr(&report_out).contains("--report-out requires --json or --explain"),
+        "stderr: {}",
+        stderr(&report_out)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
