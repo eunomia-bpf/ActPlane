@@ -1381,3 +1381,40 @@ policy: |
     .expect("write policy");
     policy
 }
+
+// `mcp --auto-attach-parent` without a discoverable policy fails before serving
+// any request, naming the missing policy source.
+#[test]
+fn mcp_auto_attach_parent_without_policy_reports_discovery_error() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .args(["mcp", "--auto-attach-parent"])
+        .spawn()
+        .expect("spawn mcp");
+    {
+        use std::io::Write as _;
+        child
+            .stdin
+            .take()
+            .expect("mcp stdin")
+            .write_all(
+                b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"actplane-test\",\"version\":\"0\"}}}\n",
+            )
+            .expect("write initialize");
+    }
+    let output = child.wait_with_output().expect("mcp output");
+    assert!(
+        !output.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("no actplane.yaml found; pass --policy <file> or --rule <dsl>"),
+        "stderr: {stderr}"
+    );
+}
