@@ -707,6 +707,35 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// The human compile report maps each rule to its backend hook in a
+// `backend support:` section, distinguishing exec and connect coverage.
+#[test]
+fn compile_renders_backend_support_lines_in_human_mode() {
+    let policy = r#"
+source COMMAND = exec "**"
+
+rule run:
+  notify exec "git" if COMMAND
+  because "exec coverage"
+
+rule call:
+  notify connect endpoint "1.2.3.4" if COMMAND
+  because "connect coverage"
+"#;
+    let output = run(&["--rule", policy, "compile"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(out.contains("backend support:"), "stdout: {out}");
+    assert!(
+        out.contains("- run: notify exec -> post-exec tracepoint report"),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("- call: notify connect -> connect tracepoint report, IPv4 only"),
+        "stdout: {out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
