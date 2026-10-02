@@ -204,4 +204,24 @@ mod tests {
         assert!(s.contains("acquired label SECRET"));
         assert!(s.contains("current `connect` `1.2.3.4` operation"));
     }
+
+    #[test]
+    fn trailing_tag_is_machine_readable_json() {
+        let s = format_payload(PayloadInput {
+            name: "no-git",
+            op: "exec",
+            target: "git",
+            reason: "no git allowed",
+            effect: Effect::Block,
+            blocked: true,
+            killed: false,
+            provenance: None,
+        });
+        let tag = s.lines().last().expect("tag line");
+        let value: serde_json::Value = serde_json::from_str(tag).expect("tag is JSON");
+        assert_eq!(value["actplane_rule"], "no-git");
+        assert_eq!(value["effect"], "block");
+        assert_eq!(value["action"], "block");
+        assert_eq!(value["retry_useful"], false);
+    }
 }
