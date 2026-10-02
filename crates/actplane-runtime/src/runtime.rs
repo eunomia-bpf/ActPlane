@@ -2108,4 +2108,55 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn catalog_register_domain_tracks_labels_and_gates_outputs() {
+        // `RuntimePolicyCatalog::register_domain` registers a domain's label
+        // set only when absent, while `append_outputs` drops violations whose
+        // domain was never registered. `register_domain` has no direct caller
+        // in the base or branch tests.
+        let compiled = dsl::compile_str("rule r:\n  block exec \"x\"\n").expect("compile");
+        let catalog = RuntimePolicyCatalog::from_compiled(&compiled, 7);
+        let inner = || catalog.inner.read().expect("lock");
+        assert_eq!(inner().domain_labels.get(&7).map(HashMap::len), Some(0));
+        assert!(!inner().domain_labels.contains_key(&9));
+
+        catalog.register_domain(9).expect("register");
+        assert!(inner().domain_labels.contains_key(&9));
+        assert_eq!(inner().domain_labels.get(&9).map(HashMap::len), Some(0));
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = dir.path().join("feedback.txt");
+        let events = dir.path().join("events.jsonl");
+        let engine_violation = |domain_id: u32| ebpf_ifc_engine::Violation {
+            effect: 0,
+            blocked: false,
+            killed: false,
+            comm: "git".to_string(),
+            pid: 10,
+            ppid: 1,
+            target: "git".to_string(),
+            rule_id: 0,
+            op: 0,
+            domain_id,
+            session_root: 10,
+            label: 1,
+            matched_label: 1,
+            matched_labels: 1,
+            provenance: None,
+            timestamp_ns: 0,
+        };
+        let violation = to_violation(&engine_violation(9));
+        catalog.append_outputs(&violation, &feedback, &events);
+        assert!(feedback.exists(), "registered domain emits feedback");
+
+        let before = std::fs::read_to_string(&feedback).unwrap();
+        let unregistered = to_violation(&engine_violation(1234));
+        catalog.append_outputs(&unregistered, &feedback, &events);
+        assert_eq!(
+            std::fs::read_to_string(&feedback).unwrap(),
+            before,
+            "unregistered domain is dropped"
+        );
+    }
 }
