@@ -263,6 +263,72 @@ fn compile_out_respects_force() {
 }
 
 #[test]
+fn compile_out_rejects_directory_and_symlink_targets() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = r#"
+rule noop:
+  notify exec "git" if true
+  because "noop"
+"#;
+
+    let output = run(&[
+        "--rule",
+        policy,
+        "compile",
+        "--out",
+        tmp.path().to_str().unwrap(),
+    ]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("is a directory, not an output file"));
+
+    let target = tmp.path().join("target.bin");
+    fs::write(&target, b"keep").unwrap();
+    let link = tmp.path().join("link.bin");
+    std::os::unix::fs::symlink(&target, &link).unwrap();
+    let output = run(&["--rule", policy, "compile", "--out", link.to_str().unwrap()]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("is a symlink"));
+    assert_eq!(fs::read(&target).unwrap(), b"keep");
+}
+
+#[test]
+fn compile_report_out_rejects_existing_file_and_missing_parent() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = r#"
+rule noop:
+  notify exec "git" if true
+  because "noop"
+"#;
+
+    let existing = tmp.path().join("review.txt");
+    fs::write(&existing, "keep").unwrap();
+    let output = run(&[
+        "--rule",
+        policy,
+        "compile",
+        "--json",
+        "--report-out",
+        existing.to_str().unwrap(),
+    ]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("already exists (use --force to overwrite)"));
+    assert_eq!(fs::read_to_string(&existing).unwrap(), "keep");
+
+    let missing = tmp.path().join("missing").join("review.txt");
+    let output = run(&[
+        "--rule",
+        policy,
+        "compile",
+        "--json",
+        "--report-out",
+        missing.to_str().unwrap(),
+    ]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("No such file or directory"));
+    assert!(!missing.exists());
+}
+
+#[test]
 fn init_lists_and_writes_templates_without_templates_command() {
     let output = run(&["init", "--list-templates"]);
     assert!(output.status.success(), "stderr: {}", stderr(&output));
