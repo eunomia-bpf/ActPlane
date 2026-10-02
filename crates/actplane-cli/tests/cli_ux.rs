@@ -714,3 +714,73 @@ fn stdout(output: &Output) -> String {
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
+
+#[test]
+fn compile_json_reports_policy_metadata() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = tmp.path().join("actplane.yaml");
+    fs::write(
+        &policy,
+        "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule noop:\n    notify exec \"__never__\" if COMMAND\n    because \"b\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .args(["--policy", policy.to_str().unwrap(), "compile", "--json"])
+        .output()
+        .expect("compile json");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let report: serde_json::Value = serde_json::from_str(&stdout(&output)).expect("compile json");
+    assert_eq!(report["schema"], "actplane.compile.v1");
+    assert_eq!(report["ok"], true);
+    assert_eq!(report["policy_ref"], policy.to_str().unwrap());
+    assert_eq!(report["domain"], serde_json::Value::Null);
+    assert_eq!(report["rule_count"], 1);
+    assert_eq!(report["warnings"], serde_json::json!([]));
+    let rule = &report["rules"][0];
+    assert_eq!(rule["name"], "noop");
+    assert_eq!(rule["reason"], "b");
+    assert_eq!(rule["effect"], "notify");
+    assert_eq!(rule["kernel_op"], "exec");
+    assert_eq!(rule["immutable"], false);
+    let clause = &report["backend_support"]["clauses"][0];
+    assert_eq!(clause["status"], "supported");
+    assert_eq!(clause["mode"], "tracepoint");
+}
+
+#[test]
+fn compile_explain_lists_lowered_matchers_and_flow() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = tmp.path().join("actplane.yaml");
+    fs::write(
+        &policy,
+        "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule noop:\n    notify exec \"__never__\" if COMMAND\n    because \"b\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .args(["--policy", policy.to_str().unwrap(), "compile", "--explain"])
+        .output()
+        .expect("compile explain");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("ActPlane policy review"), "{text}");
+    assert!(
+        text.contains(&format!("policy: {}", policy.display())),
+        "{text}"
+    );
+    assert!(text.contains("domain: none (flat policy)"), "{text}");
+    assert!(
+        text.contains("rules: 1 DSL rule(s), 1 lowered kernel matcher(s)"),
+        "{text}"
+    );
+    assert!(text.contains("  - COMMAND = 0x1"), "{text}");
+    assert!(text.contains("  - source COMMAND = exec \"**\""), "{text}");
+    assert!(text.contains("rules:\n  1. rule noop"), "{text}");
+    assert!(
+        text.contains("clause 1: notify exec \"**/__never__\" if COMMAND"),
+        "{text}"
+    );
+    assert!(text.contains("backend: tracepoint; pre_op=false"), "{text}");
+    assert!(text.contains("warnings: none"), "{text}");
+}
