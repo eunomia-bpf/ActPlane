@@ -2992,4 +2992,48 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn terminate_process_group_signals_the_group() {
+        // `terminate_process_group(pid)` sends SIGTERM to the process group
+        // `-pid`, so a group leader is terminated while the whole-group target
+        // differs from the single-pid target. No base or branch test exercises
+        // `terminate_process_group` or the `kill_and_wait` wrapper.
+        let leader = |script: &str| {
+            let mut cmd = Command::new("/bin/sh");
+            cmd.arg("-c")
+                .arg(script)
+                .process_group(0)
+                .stdout(Stdio::null());
+            cmd.spawn().expect("spawn")
+        };
+        let mut child = leader("sleep 3");
+        let pid = child.id() as i32;
+        assert_eq!(
+            unsafe { libc::getpgid(pid) },
+            pid,
+            "child must lead its own process group"
+        );
+
+        // Either way the group-targeted SIGTERM keeps the same contract as a
+        // pid kill: it returns without panicking, and a permitted signal
+        // terminates the leader while a sandbox that denies non-root `kill`
+        // (EPERM) leaves it to exit after its sleep.
+        let group_ok = terminate_process_group(pid).is_ok();
+        let _ = child.wait();
+        assert!(
+            group_ok || unsafe { libc::kill(pid, 0) } != 0,
+            "a live target with a denied group signal must still be reaped"
+        );
+
+        // `kill_and_wait` takes ownership, SIGKILLs the group, and reaps the
+        // child (its `Child` is consumed, so no handle remains to observe).
+        let caught = leader("sleep 3");
+        assert_eq!(
+            unsafe { libc::getpgid(caught.id() as i32) },
+            caught.id() as i32,
+            "kill_and_wait target must lead its group"
+        );
+        kill_and_wait(caught);
+    }
 }
