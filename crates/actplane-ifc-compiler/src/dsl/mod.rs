@@ -767,4 +767,93 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+
+    #[test]
+    fn rule_source_spans_cover_multiple_rules_and_inline_fallback() {
+        let spans = rule_source_spans(
+            "\
+# actplane-rule-source ref=rules.a.ifc mode=locked
+source A = file \"**/a\"
+rule one:
+  notify exec \"a\" if A
+  because \"one\"
+# actplane-rule-source ref=rules.b.ifc
+rule two:
+  block write \"b\" if A
+  because \"two\"
+",
+        );
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0].name, "one");
+        assert_eq!(spans[0].source_ref, "rules.a.ifc");
+        assert_eq!(spans[0].binding_mode.as_deref(), Some("locked"));
+        assert_eq!(spans[0].start_line, 2);
+        assert_eq!(spans[0].end_line, 5);
+        assert_eq!(spans[0].text.lines().count(), 4);
+        assert_eq!(spans[1].name, "two");
+        assert_eq!(spans[1].source_ref, "rules.b.ifc");
+        assert_eq!(spans[1].binding_mode, None);
+
+        let inline = rule_source_spans("rule lone:\n  kill read \"**\" if X\n  because \"l\"\n");
+        assert_eq!(inline.len(), 1);
+        assert_eq!(inline[0].source_ref, "rule:lone");
+        assert_eq!(inline[0].start_line, 1);
+    }
+
+    #[test]
+    fn clause_source_spans_stop_at_because_and_multiline_targets() {
+        let lines = [
+            "rule multi:",
+            "  notify exec \"lookup\" \\",
+            "    if SECRET",
+            "  block write \"log\" if SECRET",
+            "  because \"multi\"",
+            "  notify exec \"after\" if SECRET",
+        ];
+        let spans = clause_source_spans(&lines, 0, lines.len());
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0].start_line, 2);
+        assert_eq!(spans[0].end_line, 3);
+        assert_eq!(spans[0].text, "  notify exec \"lookup\" \\\n    if SECRET");
+        assert_eq!(spans[1].start_line, 4);
+        assert_eq!(spans[1].end_line, 4);
+
+        assert!(clause_source_spans(&["rule r:", "  because \"r\""], 0, 2).is_empty());
+    }
+
+    #[test]
+    fn source_span_classifiers_accept_only_canonical_shapes() {
+        assert!(is_clause_head("notify    exec \"x\""));
+        assert!(is_clause_head("kill connect \"1.2.3.4\""));
+        assert!(!is_clause_head("notify scan \"x\""));
+        assert!(!is_clause_head("allow exec \"x\""));
+        assert!(!is_clause_head("notify"));
+        assert!(!is_clause_head("   "));
+
+        assert!(is_top_level_decl("source A = file \"**\""));
+        assert!(is_top_level_decl("rule r:"));
+        assert!(is_top_level_decl("declassify A: exec \"x\""));
+        // Callers pass an already-trimmed line; leading whitespace is inert.
+        assert!(is_top_level_decl("  source A = file \"**\""));
+        assert!(!is_top_level_decl("because \"r\""));
+
+        assert_eq!(parse_rule_decl_name("rule ok:").as_deref(), Some("ok"));
+        assert_eq!(
+            parse_rule_decl_name("rule spaced : name").as_deref(),
+            Some("spaced")
+        );
+        assert_eq!(parse_rule_decl_name("  rule inner:  "), None);
+        assert_eq!(
+            parse_rule_decl_name("ruled out"),
+            None,
+            "prefix match must require the space"
+        );
+
+        let (source_ref, mode) = parse_rule_source_marker("ref=rules.x.ifc mode=locked extra=1");
+        assert_eq!(source_ref, "rules.x.ifc");
+        assert_eq!(mode.as_deref(), Some("locked"));
+        let (fallback, none) = parse_rule_source_marker("");
+        assert_eq!(fallback, "inline");
+        assert_eq!(none, None);
+    }
 }
