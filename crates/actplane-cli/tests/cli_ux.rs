@@ -707,6 +707,64 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// The `mcp` stdio server validates the opening `initialize` request before it
+// needs any kernel access, so these failures are deterministic without root.
+#[test]
+fn mcp_reports_initialize_handshake_errors() {
+    use std::io::Write as _;
+    let run_mcp = |stdin: &str| {
+        let mut child = Command::new(actplane())
+            .arg("mcp")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("spawn mcp");
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(stdin.as_bytes())
+            .unwrap();
+        child.wait_with_output().expect("mcp output")
+    };
+
+    let empty = run_mcp("");
+    assert_eq!(empty.status.code(), Some(1), "stderr: {}", stderr(&empty));
+    assert!(
+        stderr(&empty).contains("ConnectionClosed(\"initialize request\")"),
+        "stderr: {}",
+        stderr(&empty)
+    );
+    assert!(empty.stdout.is_empty(), "stdout: {}", stdout(&empty));
+
+    let malformed =
+        run_mcp("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}\n");
+    assert_eq!(
+        malformed.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&malformed)
+    );
+    let response: serde_json::Value =
+        serde_json::from_slice(&malformed.stdout).expect("mcp error response");
+    assert_eq!(response["jsonrpc"], "2.0");
+    assert_eq!(response["id"], 1);
+    assert_eq!(response["error"]["code"], -32602);
+    assert!(
+        response["error"]["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("clientCapabilities"),
+        "response: {response}"
+    );
+    assert!(
+        stderr(&malformed).contains("ExpectedInitializeRequest"),
+        "stderr: {}",
+        stderr(&malformed)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
