@@ -707,6 +707,37 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `doctor` reports a discovered policy that does not compile, distinct from a
+// missing policy, and exits non-zero.
+#[test]
+fn doctor_reports_noncompiling_discovered_policy() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\npolicy: |\n  rule bad:\n    prevent exec \"git\"\n    because \"unknown declaration\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("doctor")
+        .output()
+        .expect("run doctor");
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(
+        out.contains(&format!(
+            "✗ policy: {} does not compile: unknown declaration 'prevent'",
+            tmp.path().join("actplane.yaml").display()
+        )),
+        "stdout: {out}"
+    );
+    assert!(
+        !out.contains("no actplane.yaml found"),
+        "the policy exists, so it must not be reported as missing:\n{out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
