@@ -2591,4 +2591,154 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn evidence_with_events() -> RolloutEvidence {
+        RolloutEvidence {
+            event_paths: vec![PathBuf::from("events.jsonl")],
+            annotation_paths: Vec::new(),
+            total_events: 0,
+            total_annotations: 0,
+            ignored_lines: 0,
+            ignored_annotations: 0,
+            warnings: Vec::new(),
+            clauses: BTreeMap::new(),
+        }
+    }
+
+    fn observation_count(count: usize) -> ClauseObservation {
+        ClauseObservation {
+            count,
+            ..ClauseObservation::default()
+        }
+    }
+
+    fn condition_clause(op: Op, pattern: &str, unless: Option<Cond>) -> crate::dsl::ast::Clause {
+        crate::dsl::ast::Clause {
+            op,
+            target: crate::dsl::ast::Target {
+                kind: Kind::Endpoint,
+                pattern: pattern.to_string(),
+                arg: None,
+            },
+            when: Expr::True,
+            unless,
+            effect: Effect::Block,
+            source_index: 0,
+        }
+    }
+
+    fn compiled_with_endpoints(entries: &[(&str, Vec<&str>)]) -> dsl::Compiled {
+        let mut resolutions = std::collections::HashMap::new();
+        for (pattern, addrs) in entries {
+            resolutions.insert(
+                (*pattern).to_string(),
+                addrs.iter().map(|a| (*a).to_string()).collect(),
+            );
+        }
+        dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: std::collections::HashMap::new(),
+            endpoint_resolutions: resolutions,
+        }
+    }
+
+    #[test]
+    fn event_backed_promotion_note_returns_none_without_logs() {
+        let evidence = RolloutEvidence {
+            event_paths: Vec::new(),
+            annotation_paths: Vec::new(),
+            ..evidence_with_events()
+        };
+        assert_eq!(
+            event_backed_promotion_note(&evidence, None, Effect::Block, true),
+            None
+        );
+    }
+
+    #[test]
+    fn event_backed_promotion_note_kill_branches_on_observed_count() {
+        let evidence = evidence_with_events();
+        let seen =
+            event_backed_promotion_note(&evidence, Some(&observation_count(3)), Effect::Kill, true)
+                .unwrap();
+        assert!(seen.contains("observed 3 matching event(s)"));
+        let none = event_backed_promotion_note(&evidence, None, Effect::Kill, true).unwrap();
+        assert!(none.contains("0 matching events in supplied logs"));
+    }
+
+    #[test]
+    fn event_backed_promotion_note_block_branches() {
+        let evidence = evidence_with_events();
+        let no_backend =
+            event_backed_promotion_note(&evidence, None, Effect::Block, false).unwrap();
+        assert!(no_backend.contains("backend support is insufficient"));
+        let seen = event_backed_promotion_note(
+            &evidence,
+            Some(&observation_count(2)),
+            Effect::Block,
+            true,
+        )
+        .unwrap();
+        assert!(seen.contains("observed 2 matching event(s)"));
+        let none = event_backed_promotion_note(&evidence, None, Effect::Block, true).unwrap();
+        assert!(none.contains("0 matching events in supplied logs"));
+    }
+
+    #[test]
+    fn clause_condition_warnings_covers_resolution_states() {
+        let compiled = compiled_with_endpoints(&[
+            ("one.example", vec!["10.0.0.1"]),
+            ("multi.example", vec!["10.0.0.1", "10.0.0.2"]),
+            ("empty.example", vec![]),
+        ]);
+        let none = condition_clause(
+            Op::Connect,
+            "one.example",
+            Some(Cond::Target {
+                negate: false,
+                pattern: "one.example".into(),
+            }),
+        );
+        assert!(clause_condition_warnings(&none, &compiled).is_empty());
+        let multi = condition_clause(
+            Op::Recv,
+            "multi.example",
+            Some(Cond::Target {
+                negate: true,
+                pattern: "multi.example".into(),
+            }),
+        );
+        let warnings = clause_condition_warnings(&multi, &compiled);
+        assert_eq!(
+            warnings[0].code,
+            "endpoint_target_condition_multi_ipv4_hostname"
+        );
+        assert!(warnings[0].message.contains("not \"multi.example\""));
+        let empty = condition_clause(
+            Op::Connect,
+            "empty.example",
+            Some(Cond::Target {
+                negate: false,
+                pattern: "empty.example".into(),
+            }),
+        );
+        assert_eq!(
+            clause_condition_warnings(&empty, &compiled)[0].code,
+            "endpoint_target_condition_unresolved_hostname"
+        );
+        let wildcard = condition_clause(
+            Op::Connect,
+            "*.example",
+            Some(Cond::Target {
+                negate: false,
+                pattern: "*.example".into(),
+            }),
+        );
+        assert_eq!(
+            clause_condition_warnings(&wildcard, &compiled)[0].code,
+            "endpoint_target_condition_unsupported_pattern"
+        );
+    }
 }
