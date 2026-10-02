@@ -707,6 +707,52 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile --report-out` writes the JSON report and the explain review to the
+// requested file, leaving stdout empty.
+#[test]
+fn compile_report_out_writes_json_and_explain_artifacts() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = tmp.path().join("actplane.yaml");
+    fs::write(
+        &policy,
+        "version: 1\npolicy: |\n  rule r:\n    notify exec \"git\" if true\n    because \"x\"\n",
+    )
+    .unwrap();
+
+    let json_path = tmp.path().join("report.json");
+    let json = run(&[
+        "--policy",
+        policy.to_str().unwrap(),
+        "compile",
+        "--json",
+        "--report-out",
+        json_path.to_str().unwrap(),
+    ]);
+    assert!(json.status.success(), "stderr: {}", stderr(&json));
+    assert_eq!(stdout(&json), "");
+    let report: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&json_path).unwrap()).expect("json report");
+    assert!(report.get("backend_support").is_some(), "report: {report}");
+
+    let explain_path = tmp.path().join("report.txt");
+    let explain = run(&[
+        "--policy",
+        policy.to_str().unwrap(),
+        "compile",
+        "--explain",
+        "--report-out",
+        explain_path.to_str().unwrap(),
+    ]);
+    assert!(explain.status.success(), "stderr: {}", stderr(&explain));
+    assert_eq!(stdout(&explain), "");
+    assert!(
+        fs::read_to_string(&explain_path)
+            .unwrap()
+            .starts_with("ActPlane policy review"),
+        "explain artifact missing review header"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
