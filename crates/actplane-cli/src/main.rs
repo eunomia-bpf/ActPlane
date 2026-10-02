@@ -1072,3 +1072,115 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn preflight_output_file_classifies_rejections() {
+        let dir = tempdir().expect("tempdir");
+
+        // Missing file with a missing parent directory.
+        let orphan = dir.path().join("absent").join("out.bin");
+        let err = preflight_output_file(&orphan, false)
+            .err()
+            .expect("missing parent rejected")
+            .to_string();
+        assert_eq!(
+            err,
+            format!(
+                "parent directory for {} does not exist or is not a directory",
+                orphan.display()
+            )
+        );
+
+        // A directory is not an output file.
+        let sub = dir.path().join("adir");
+        std::fs::create_dir(&sub).expect("mkdir");
+        let err = preflight_output_file(&sub, true)
+            .err()
+            .expect("dir rejected")
+            .to_string();
+        assert_eq!(
+            err,
+            format!("{} is a directory, not an output file", sub.display())
+        );
+
+        // An existing file is rejected unless forced.
+        let existing = dir.path().join("out.bin");
+        std::fs::write(&existing, "old").expect("write");
+        let err = preflight_output_file(&existing, false)
+            .err()
+            .expect("existing file rejected")
+            .to_string();
+        assert_eq!(
+            err,
+            format!(
+                "{} already exists (use --force to overwrite)",
+                existing.display()
+            )
+        );
+        assert!(preflight_output_file(&existing, true).is_ok());
+
+        // A fresh path is keyed by canonical path.
+        let fresh = dir.path().join("fresh.bin");
+        assert!(preflight_output_file(&fresh, false).is_ok());
+
+        // A symlink is rejected even when the target is a regular file.
+        #[cfg(unix)]
+        {
+            let link = dir.path().join("link.bin");
+            std::os::unix::fs::symlink(&existing, &link).expect("symlink");
+            let err = preflight_output_file(&link, true)
+                .err()
+                .expect("symlink rejected")
+                .to_string();
+            assert_eq!(
+                err,
+                format!(
+                    "{} is a symlink; use the resolved target path instead",
+                    link.display()
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn write_output_helpers_refuse_to_clobber_without_force() {
+        let dir = tempdir().expect("tempdir");
+        let text = dir.path().join("policy.bin");
+        write_output_file(&text, "hello", false).expect("first write");
+        assert_eq!(std::fs::read_to_string(&text).expect("read"), "hello");
+        assert!(write_output_file(&text, "other", false).is_err());
+        write_output_file(&text, "other", true).expect("forced overwrite");
+        assert_eq!(std::fs::read_to_string(&text).expect("read"), "other");
+
+        let binary = dir.path().join("engine.bin");
+        write_binary_output_file(&binary, &[0, 1, 2], false).expect("binary write");
+        assert_eq!(std::fs::read(&binary).expect("read"), vec![0, 1, 2]);
+        assert!(write_binary_output_file(&binary, &[3], false).is_err());
+        write_binary_output_file(&binary, &[3], true).expect("forced binary overwrite");
+        assert_eq!(std::fs::read(&binary).expect("read"), vec![3]);
+    }
+
+    #[test]
+    fn append_delta_control_requests_reports_missing_socket() {
+        let dir = tempdir().expect("tempdir");
+        let args = DeltaAddArgs {
+            target_id: None,
+            domain_id: None,
+            deltas: Vec::new(),
+            delta_text: vec!["rule r:\n".to_string()],
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        let err = append_delta_control_requests(dir.path(), &args, "control delta add")
+            .err()
+            .expect("missing control socket")
+            .to_string();
+        assert!(err.contains("control.json"), "{err}");
+    }
+}
