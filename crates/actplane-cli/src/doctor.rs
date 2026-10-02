@@ -2591,4 +2591,38 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn codex_global_mcp_config_only_matches_exact_section() {
+        if std::env::var_os("HOME").is_none() {
+            return;
+        }
+        let mut problems = 0usize;
+        assert!(codex_global_mcp_actplane_config().is_none());
+
+        let home = tempfile::tempdir().expect("tempdir");
+        let previous = std::env::var_os("HOME");
+        // SAFETY: `doctor` filter runs this test alone; HOME is restored below.
+        unsafe { std::env::set_var("HOME", home.path()) };
+        assert!(codex_global_mcp_actplane_config().is_none());
+
+        let codex = home.path().join(".codex");
+        std::fs::create_dir_all(&codex).expect("codex dir");
+        let config = codex.join("config.toml");
+        std::fs::write(&config, "[mcp_servers.actplane_extra]\n").expect("config");
+        assert!(codex_global_mcp_actplane_config().is_none());
+
+        std::fs::write(&config, "  [mcp_servers.actplane]  \n").expect("config");
+        assert_eq!(
+            codex_global_mcp_actplane_config().as_deref(),
+            Some(config.as_path())
+        );
+
+        match previous {
+            Some(value) => unsafe { std::env::set_var("HOME", value) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        doctor_agent_files(home.path(), &mut problems);
+        assert_eq!(problems, 1);
+    }
 }
