@@ -2591,4 +2591,49 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn doctor_path_actplane_counts_only_a_missing_executable() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let bin = tmp.path().join("actplane");
+        std::fs::write(&bin, "#!/bin/sh\necho 'actplane 9.9.9'\n").expect("write probe");
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        }
+        let empty = tmp.path().join("empty");
+        std::fs::create_dir(&empty).expect("empty dir");
+        let original = std::env::var_os("PATH");
+
+        unsafe { std::env::set_var("PATH", tmp.path()) };
+        let mut problems = 0usize;
+        doctor_path_actplane(&mut problems);
+        assert_eq!(
+            problems, 0,
+            "an executable actplane on PATH is not a problem"
+        );
+        assert_eq!(
+            command_version(&bin).as_deref(),
+            Some("actplane 9.9.9"),
+            "the reported version comes from `--version`"
+        );
+
+        // A binary whose `--version` fails is still present, so it is not counted.
+        std::fs::write(&bin, "#!/bin/sh\nexit 3\n").expect("rewrite probe");
+        let mut problems = 0usize;
+        doctor_path_actplane(&mut problems);
+        assert_eq!(problems, 0);
+        assert_eq!(command_version(&bin), None);
+
+        // Only a PATH with no actplane at all increments the problem count.
+        unsafe { std::env::set_var("PATH", &empty) };
+        let mut problems = 0usize;
+        doctor_path_actplane(&mut problems);
+        assert_eq!(problems, 1);
+
+        match original {
+            Some(value) => unsafe { std::env::set_var("PATH", value) },
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+    }
 }
