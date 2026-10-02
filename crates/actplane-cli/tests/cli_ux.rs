@@ -707,6 +707,63 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `init --out <path>` writes to the requested path, requires the parent
+// directory to exist, and reports the concrete file when refusing to clobber.
+#[test]
+fn init_out_writes_requested_path_and_guards_existing_file() {
+    let tmp = tempfile::tempdir().unwrap();
+
+    let missing_parent = run(&[
+        "init",
+        "--out",
+        tmp.path().join("nested/policy.yaml").to_str().unwrap(),
+    ]);
+    assert_eq!(
+        missing_parent.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&missing_parent)
+    );
+    assert!(
+        stderr(&missing_parent).contains("parent directory for")
+            && stderr(&missing_parent).contains("does not exist or is not a directory"),
+        "stderr: {}",
+        stderr(&missing_parent)
+    );
+
+    let out = tmp.path().join("policy.yaml");
+    let first = run(&[
+        "init",
+        "--template",
+        "no-git-branch",
+        "--out",
+        out.to_str().unwrap(),
+    ]);
+    assert!(first.status.success(), "stderr: {}", stderr(&first));
+    let policy = fs::read_to_string(&out).unwrap();
+    assert!(
+        policy.contains("ActPlane policy generated from template `no-git-branch`"),
+        "policy: {policy}"
+    );
+
+    let again = run(&[
+        "init",
+        "--template",
+        "no-git-branch",
+        "--out",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(again.status.code(), Some(1), "stderr: {}", stderr(&again));
+    assert!(
+        stderr(&again).contains(&format!(
+            "{} already exists (use --force to overwrite)",
+            out.display()
+        )),
+        "stderr: {}",
+        stderr(&again)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
