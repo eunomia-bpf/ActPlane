@@ -325,4 +325,178 @@ mod tests {
         assert!(policy.contains("test-before-commit"));
         dsl::compile_str(&policy).unwrap();
     }
+    #[test]
+    fn json_has_command_finds_nested_and_array_commands() {
+        // `json_has_command` reports whether a JSON value anywhere (an object,
+        // a nested object, or an array element) has a `command` field equal to
+        // the given string; it is the helper behind `codex_hook_has_actplane_command`
+        // and `project_mcp_auto_attach_ok`. No base or branch test pins this
+        // recursive helper directly.
+        let cmd = "actplane";
+        assert!(json_has_command(&serde_json::json!({"command": cmd}), cmd));
+        // Recursion into a nested object.
+        assert!(json_has_command(
+            &serde_json::json!({
+                "mcpServers": { "actplane": { "command": cmd } }
+            }),
+            cmd
+        ));
+        // Recursion into an array element.
+        assert!(json_has_command(
+            &serde_json::json!([{"command": cmd}]),
+            cmd
+        ));
+        // A different command string is a miss.
+        assert!(!json_has_command(
+            &serde_json::json!({"command": "other"}),
+            cmd
+        ));
+        // A scalar value has no command field.
+        assert!(!json_has_command(&serde_json::json!("plain"), cmd));
+    }
+
+    #[test]
+    fn codex_hook_predicate_requires_the_actplane_command_anywhere() {
+        assert!(codex_hook_has_actplane_command(
+            r#"{"hooks":{"PostToolUse":[{"matcher":".*","hooks":[{"type":"command","command":"actplane feedback-hook"}]}]}}"#
+        ));
+        assert!(!codex_hook_has_actplane_command(
+            r#"{"hooks":{"PostToolUse":[{"hooks":[{"command":"other-hook"}]}]}}"#
+        ));
+        assert!(!codex_hook_has_actplane_command("not json"));
+        assert!(!codex_hook_has_actplane_command(""));
+    }
+
+    #[test]
+    fn project_mcp_predicate_requires_command_and_args_exactly() {
+        assert!(project_mcp_auto_attach_ok(PROJECT_MCP_JSON));
+        assert!(!project_mcp_auto_attach_ok("not json"));
+        assert!(!project_mcp_auto_attach_ok(r#"{"mcpServers":{}}"#));
+        assert!(!project_mcp_auto_attach_ok(
+            r#"{"mcpServers":{"actplane":{"command":"actplane"}}}"#
+        ));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn setup_project_integrations_wires_and_preserves_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let previous = std::env::current_dir().expect("cwd");
+        std::env::set_current_dir(dir.path()).expect("chdir");
+
+        // First pass writes all three integration files.
+        let code = setup_project_integrations(false, true, true, true).expect("first pass");
+        assert_eq!(code, 0);
+        let hooks = dir.path().join(".codex/hooks.json");
+        let mcp = dir.path().join(".mcp.json");
+        let agents = dir.path().join("AGENTS.md");
+        assert!(codex_hook_has_actplane_command(
+            &std::fs::read_to_string(&hooks).expect("hooks")
+        ));
+        assert!(project_mcp_auto_attach_ok(
+            &std::fs::read_to_string(&mcp).expect("mcp")
+        ));
+        assert!(agents.is_file());
+
+        // Unrelated files and a foreign hook are preserved without --force.
+        std::fs::write(dir.path().join("keep.txt"), b"keep me").expect("keep");
+        std::fs::write(&mcp, r#"{"mcpServers":{"other":{"command":"x"}}}"#).expect("mcp");
+        std::fs::write(&hooks, r#"{"hooks":{"PostToolUse":[]}}"#).expect("hooks");
+        setup_project_integrations(false, true, true, false).expect("second pass");
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("keep.txt")).expect("keep"),
+            "keep me"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&hooks).expect("hooks"),
+            r#"{"hooks":{"PostToolUse":[]}}"#
+        );
+        let mcp_doc: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&mcp).expect("mcp")).expect("json");
+        assert_eq!(mcp_doc["mcpServers"]["other"]["command"], "x");
+        assert_eq!(mcp_doc["mcpServers"]["actplane"]["command"], "actplane");
+        assert!(agents.is_file());
+
+        // An existing AGENTS.md is kept without --force, replaced with --force.
+        std::fs::write(&agents, b"custom").expect("agents");
+        setup_project_integrations(false, false, false, true).expect("third pass");
+        assert_eq!(std::fs::read_to_string(&agents).expect("agents"), "custom");
+        setup_project_integrations(true, false, false, true).expect("force pass");
+        assert_eq!(
+            std::fs::read_to_string(&agents).expect("agents"),
+            AGENTS_STUB
+        );
+
+        std::env::set_current_dir(&previous).expect("restore cwd");
+    }
+
+    #[test]
+    fn starter_policy_accessor_returns_the_embedded_policy() {
+        let policy = starter_policy();
+        assert!(!policy.trim().is_empty());
+        assert_eq!(policy, STARTER_POLICY);
+    }
+
+    #[test]
+    fn setup_project_mcp_writes_then_preserves_without_force() {
+        let tmp = tempfile::tempdir().unwrap();
+        setup_project_mcp(tmp.path(), false).unwrap();
+        let first = std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
+        assert!(project_mcp_auto_attach_ok(&first));
+
+        // A hand edit survives an unforced re-run, then is overwritten by force.
+        std::fs::write(tmp.path().join(".mcp.json"), r#"{"mcpServers":{}}"#).unwrap();
+        setup_project_mcp(tmp.path(), false).unwrap();
+        assert!(project_mcp_auto_attach_ok(
+            &std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap()
+        ));
+        setup_project_mcp(tmp.path(), true).unwrap();
+        assert!(project_mcp_auto_attach_ok(
+            &std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap()
+        ));
+    }
+
+    #[test]
+    fn setup_project_mcp_replaces_invalid_json_only_when_forced() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join(".mcp.json"), "{not json").unwrap();
+        setup_project_mcp(tmp.path(), false).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap(),
+            "{not json"
+        );
+        setup_project_mcp(tmp.path(), true).unwrap();
+        assert!(project_mcp_auto_attach_ok(
+            &std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap()
+        ));
+    }
+
+    #[test]
+    fn setup_codex_hook_writes_a_detectable_hook() {
+        let tmp = tempfile::tempdir().unwrap();
+        setup_codex_hook(tmp.path(), false).unwrap();
+        let hooks = std::fs::read_to_string(tmp.path().join(".codex/hooks.json")).unwrap();
+        assert!(codex_hook_has_actplane_command(&hooks));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn setup_agents_doc_writes_stub_then_honors_force() {
+        let tmp = tempfile::tempdir().unwrap();
+        setup_agents_doc(tmp.path(), false).unwrap();
+        let first = std::fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap();
+        assert_eq!(first, AGENTS_STUB);
+
+        std::fs::write(tmp.path().join("AGENTS.md"), "custom").unwrap();
+        setup_agents_doc(tmp.path(), false).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap(),
+            "custom"
+        );
+        setup_agents_doc(tmp.path(), true).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap(),
+            AGENTS_STUB
+        );
+    }
 }

@@ -1072,3 +1072,1237 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn init_args() -> InitArgs {
+        InitArgs {
+            out: None,
+            template: None,
+            params: Vec::new(),
+            generate: false,
+            instructions: Vec::new(),
+            task: None,
+            list_templates: false,
+            print: false,
+            with_codex: false,
+            with_mcp: false,
+            all: false,
+            force: false,
+        }
+    }
+
+    #[test]
+    fn init_command_rejects_conflicting_flag_combinations() {
+        let mut args = init_args();
+        args.instructions = vec![PathBuf::from("AGENTS.md")];
+        assert_eq!(
+            init_command(&args).err().map(|e| e.to_string()),
+            Some("--instructions and --task require --generate".into())
+        );
+
+        let mut args = init_args();
+        args.list_templates = true;
+        args.with_codex = true;
+        assert_eq!(
+            init_command(&args).err().map(|e| e.to_string()),
+            Some("--list-templates cannot be combined with write or integration flags".into())
+        );
+
+        let mut args = init_args();
+        args.list_templates = true;
+        args.params = vec!["k=v".into()];
+        assert_eq!(
+            init_command(&args).err().map(|e| e.to_string()),
+            Some("--list-templates cannot be combined with write or integration flags".into())
+        );
+
+        let mut args = init_args();
+        args.print = true;
+        args.all = true;
+        assert_eq!(
+            init_command(&args).err().map(|e| e.to_string()),
+            Some("--print cannot be combined with integration setup flags".into())
+        );
+    }
+
+    #[test]
+    fn add_policy_audit_meta_fields_writes_only_present_optional_fields() {
+        // `add_policy_audit_meta_fields` copies each audit field that is
+        // `Some` onto a control request, leaving unset fields absent rather
+        // than writing JSON `null`, and preserving existing keys. No base or
+        // branch test pins this helper directly.
+        let mut request = serde_json::json!({ "op": "append_policy_delta" });
+        add_policy_audit_meta_fields(
+            &mut request,
+            &runtime::PolicyAuditMeta {
+                policy_ref: Some("policy.dsl".to_string()),
+                approved_by: Some("alice".to_string()),
+                approval_ref: None,
+                generated_by: Some("tool".to_string()),
+            },
+        );
+        assert_eq!(request["policy_ref"], "policy.dsl");
+        assert_eq!(request["approved_by"], "alice");
+        assert_eq!(request["generated_by"], "tool");
+        assert!(request.get("approval_ref").is_none());
+        assert_eq!(request["op"], "append_policy_delta");
+    }
+    use tempfile::tempdir;
+
+    #[test]
+    fn parent_domain_control_mutation_error_names_the_operation() {
+        let message = parent_domain_control_mutation_error("append policy delta");
+        assert!(message.starts_with("append policy delta is unavailable in --parent-domain mode"));
+        assert!(message.contains("mcp --auto-attach-parent"));
+        assert!(message.ends_with("runtime parent domain"));
+    }
+
+    #[test]
+    fn reject_parent_domain_control_mutation_classifies_commands() {
+        let dir = tempdir().expect("tempdir");
+        let state_dir = dir.path().join(".actplane");
+        std::fs::create_dir_all(&state_dir).expect("mkdir");
+        let write_state = |parent_domain_id: u32| {
+            std::fs::write(
+                state_dir.join("control.json"),
+                serde_json::to_string(&serde_json::json!({
+                    "schema": "actplane.control.v1",
+                    "pid": std::process::id() as i32,
+                    "proc_start_time": null,
+                    "socket_path": dir.path().join("missing.sock"),
+                    "project_dir": dir.path(),
+                    "parent_pid": 1111,
+                    "parent_domain_id": parent_domain_id,
+                }))
+                .expect("serialize"),
+            )
+            .expect("write state");
+        };
+        let delta_add = |target: Option<u32>| ControlCommands::Delta {
+            command: DeltaCommands::Add(DeltaAddArgs {
+                target_id: target,
+                domain_id: None,
+                deltas: Vec::new(),
+                delta_text: Vec::new(),
+                approved_by: None,
+                approval_ref: None,
+                generated_by: None,
+            }),
+        };
+
+        write_state(ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID);
+        for command in [
+            ControlCommands::BindChild {
+                pid: 1234,
+                child_id: None,
+                scope_id: 0,
+            },
+            ControlCommands::LaunchChild {
+                child_id: None,
+                scope_id: 0,
+                deltas: Vec::new(),
+                delta_text: Vec::new(),
+                restart_policy: "never".to_string(),
+                restart_limit: 3,
+                restart_backoff_ms: 1000,
+                approved_by: None,
+                approval_ref: None,
+                generated_by: None,
+                cmd: vec!["/bin/true".to_string()],
+            },
+            delta_add(None),
+            delta_add(Some(ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID)),
+        ] {
+            let err = reject_parent_domain_control_mutation(dir.path(), &command)
+                .err()
+                .expect("parent-domain mutation rejected")
+                .to_string();
+            assert!(err.contains("unavailable in --parent-domain mode"), "{err}");
+        }
+
+        // A delta aimed at a child domain is allowed to proceed.
+        reject_parent_domain_control_mutation(dir.path(), &delta_add(Some(7)))
+            .expect("child-domain delta allowed");
+        reject_parent_domain_control_mutation(dir.path(), &ControlCommands::Status)
+            .expect("status allowed");
+
+        // A non-parent-domain engine allows every mutation.
+        write_state(0);
+        reject_parent_domain_control_mutation(dir.path(), &delta_add(None))
+            .expect("non-parent engine allows delta");
+    }
+
+    #[test]
+    fn print_control_response_reports_ok_text_and_errors() {
+        assert!(print_control_response(serde_json::json!({"ok": true, "text": "bound"})).is_ok());
+        assert!(
+            print_control_response(serde_json::json!({"ok": true, "result": {"bound": 1}})).is_ok()
+        );
+        assert!(print_control_response(serde_json::json!({"ok": true})).is_ok());
+        assert!(print_control_response(serde_json::json!({"ok": false})).is_err());
+        // A non-boolean `ok` is treated as failure and uses the default message.
+        let err = print_control_response(serde_json::json!({"ok": "yes", "text": "x"}))
+            .err()
+            .expect("non-bool ok")
+            .to_string();
+        assert_eq!(err, "ActPlane control request failed");
+
+        let err = print_control_response(serde_json::json!({"ok": false, "error": "boom"}))
+            .err()
+            .expect("error response")
+            .to_string();
+        assert_eq!(err, "boom");
+    }
+
+    #[test]
+    fn join_policy_delta_fragments_joins_with_delta_headers() {
+        // `join_policy_delta_fragments` renders a policy delta as one block per
+        // source: `\n# delta <policy_ref>\n<src.trimmed>\n`. No base or branch
+        // test pins this joiner directly.
+        assert_eq!(join_policy_delta_fragments(Vec::new()), None);
+        assert_eq!(
+            join_policy_delta_fragments(vec![(
+                "main.dsl".to_string(),
+                "source main\n".to_string(),
+            )])
+            .expect("a delta list is Some"),
+            "\n# delta main.dsl\nsource main\n"
+        );
+        // Two fragments join in order, each with its own delta header.
+        assert_eq!(
+            join_policy_delta_fragments(vec![
+                ("a.dsl".to_string(), "  source a  ".to_string()),
+                ("b.dsl".to_string(), "source b\n".to_string()),
+            ])
+            .expect("a delta list is Some"),
+            "\n# delta a.dsl\nsource a\n\n# delta b.dsl\nsource b\n"
+        );
+    }
+
+    #[test]
+    fn load_policy_delta_fragments_reads_files_then_inline() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let first = dir.path().join("a.dsl");
+        let second = dir.path().join("b.dsl");
+        std::fs::write(&first, "  rule a:\n    notify exec \"a\"\n  ").expect("write a");
+        std::fs::write(&second, "rule b:\n  notify exec \"b\"\n").expect("write b");
+
+        let deltas = load_policy_delta_fragments(
+            &[first.clone(), second],
+            &["rule c:\n  notify exec \"c\"".to_string()],
+        )
+        .expect("load deltas");
+        assert_eq!(deltas.len(), 3);
+        assert_eq!(deltas[0].0, first.display().to_string());
+        assert_eq!(deltas[0].1, "  rule a:\n    notify exec \"a\"\n  ");
+        assert_eq!(deltas[2].0, "--delta-text[0]");
+
+        let inline_only = load_policy_delta_fragments(&[], &["x".to_string(), "y".to_string()])
+            .expect("inline deltas");
+        assert_eq!(inline_only.len(), 2);
+        assert_eq!(inline_only[0].0, "--delta-text[0]");
+        assert_eq!(inline_only[1].0, "--delta-text[1]");
+        assert_eq!(inline_only[1].1, "y");
+
+        let empty = load_policy_delta_fragments(&[], &[]).expect("empty deltas");
+        assert!(empty.is_empty());
+    }
+
+    #[test]
+    fn load_policy_delta_fragments_reports_unreadable_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("absent.dsl");
+        let err = load_policy_delta_fragments(&[missing.clone()], &[])
+            .err()
+            .expect("missing delta errors");
+        let err = err.to_string();
+        assert!(err.starts_with(&format!("cannot read policy delta {}", missing.display())));
+        assert!(err.contains("No such file or directory"), "{err}");
+    }
+
+    #[test]
+    fn join_policy_delta_fragments_trims_and_headers_each_source() {
+        let joined = join_policy_delta_fragments(vec![
+            ("a.dsl".to_string(), "  rule a:\n  ".to_string()),
+            ("--delta-text[0]".to_string(), "rule b:".to_string()),
+        ])
+        .expect("joined");
+        assert_eq!(
+            joined,
+            "\n# delta a.dsl\nrule a:\n\n# delta --delta-text[0]\nrule b:\n"
+        );
+        assert!(join_policy_delta_fragments(Vec::new()).is_none());
+    }
+
+    #[test]
+    fn preflight_output_file_classifies_rejections() {
+        let dir = tempdir().expect("tempdir");
+
+        // Missing file with a missing parent directory.
+        let orphan = dir.path().join("absent").join("out.bin");
+        let err = preflight_output_file(&orphan, false)
+            .err()
+            .expect("missing parent rejected")
+            .to_string();
+        assert_eq!(
+            err,
+            format!(
+                "parent directory for {} does not exist or is not a directory",
+                orphan.display()
+            )
+        );
+
+        // A directory is not an output file.
+        let sub = dir.path().join("adir");
+        std::fs::create_dir(&sub).expect("mkdir");
+        let err = preflight_output_file(&sub, true)
+            .err()
+            .expect("dir rejected")
+            .to_string();
+        assert_eq!(
+            err,
+            format!("{} is a directory, not an output file", sub.display())
+        );
+
+        // An existing file is rejected unless forced.
+        let existing = dir.path().join("out.bin");
+        std::fs::write(&existing, "old").expect("write");
+        let err = preflight_output_file(&existing, false)
+            .err()
+            .expect("existing file rejected")
+            .to_string();
+        assert_eq!(
+            err,
+            format!(
+                "{} already exists (use --force to overwrite)",
+                existing.display()
+            )
+        );
+        assert!(preflight_output_file(&existing, true).is_ok());
+
+        // A fresh path is keyed by canonical path.
+        let fresh = dir.path().join("fresh.bin");
+        assert!(preflight_output_file(&fresh, false).is_ok());
+
+        // A symlink is rejected even when the target is a regular file.
+        #[cfg(unix)]
+        {
+            let link = dir.path().join("link.bin");
+            std::os::unix::fs::symlink(&existing, &link).expect("symlink");
+            let err = preflight_output_file(&link, true)
+                .err()
+                .expect("symlink rejected")
+                .to_string();
+            assert_eq!(
+                err,
+                format!(
+                    "{} is a symlink; use the resolved target path instead",
+                    link.display()
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn write_output_helpers_refuse_to_clobber_without_force() {
+        let dir = tempdir().expect("tempdir");
+        let text = dir.path().join("policy.bin");
+        write_output_file(&text, "hello", false).expect("first write");
+        assert_eq!(std::fs::read_to_string(&text).expect("read"), "hello");
+        assert!(write_output_file(&text, "other", false).is_err());
+        write_output_file(&text, "other", true).expect("forced overwrite");
+        assert_eq!(std::fs::read_to_string(&text).expect("read"), "other");
+
+        let binary = dir.path().join("engine.bin");
+        write_binary_output_file(&binary, &[0, 1, 2], false).expect("binary write");
+        assert_eq!(std::fs::read(&binary).expect("read"), vec![0, 1, 2]);
+        assert!(write_binary_output_file(&binary, &[3], false).is_err());
+        write_binary_output_file(&binary, &[3], true).expect("forced binary overwrite");
+        assert_eq!(std::fs::read(&binary).expect("read"), vec![3]);
+    }
+
+    #[test]
+    fn append_delta_control_requests_reports_missing_socket() {
+        let dir = tempdir().expect("tempdir");
+        let args = DeltaAddArgs {
+            target_id: None,
+            domain_id: None,
+            deltas: Vec::new(),
+            delta_text: vec!["rule r:\n".to_string()],
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        let err = append_delta_control_requests(dir.path(), &args, "control delta add")
+            .err()
+            .expect("missing control socket")
+            .to_string();
+        assert!(err.contains("control.json"), "{err}");
+    }
+
+    #[test]
+    fn preflight_output_file_rejects_non_regular_files() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        #[cfg(unix)]
+        {
+            let fifo = tmp.path().join("pipe");
+            let c_path =
+                std::ffi::CString::new(fifo.to_str().expect("fifo path")).expect("cstring");
+            assert_eq!(unsafe { libc::mkfifo(c_path.as_ptr(), 0o600) }, 0, "mkfifo");
+            let err = preflight_output_file(&fifo, true).expect_err("fifo rejected");
+            assert_eq!(
+                err.to_string(),
+                format!("{} is not a regular output file", fifo.display())
+            );
+        }
+        let missing_parent = tmp.path().join("nope").join("out.bin");
+        let err = preflight_output_file(&missing_parent, true).expect_err("missing parent");
+        assert_eq!(
+            err.to_string(),
+            format!(
+                "parent directory for {} does not exist or is not a directory",
+                missing_parent.display()
+            )
+        );
+    }
+
+    #[test]
+    fn template_project_root_prefers_policy_then_git() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = tmp.path().join("actplane.yaml");
+        std::fs::write(&policy, "version: 1\n").expect("policy");
+        assert_eq!(
+            template_project_root_from(tmp.path()).expect("policy root"),
+            tmp.path()
+        );
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(tmp.path().join(".git")).expect("git dir");
+        let nested = tmp.path().join("nested").join("deeper");
+        std::fs::create_dir_all(&nested).expect("nested");
+        assert_eq!(
+            template_project_root_from(&nested).expect("git root"),
+            tmp.path()
+        );
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        assert_eq!(
+            template_project_root_from(tmp.path()).expect("fallback root"),
+            tmp.path()
+        );
+    }
+
+    #[test]
+    fn format_rule_list_renders_domain_bindings() {
+        assert_eq!(format_rule_list(&[]), "none");
+        assert_eq!(format_rule_list(&["a".into(), "b".into()]), "a, b");
+        let domain = config::DomainSummary {
+            name: "review".into(),
+            parent: None,
+            disabled: vec!["x".into()],
+            locked: vec!["a".into()],
+            defaults: vec!["b".into(), "c".into()],
+        };
+        assert_eq!(format_domain_policy_rules(&domain), "a, b, c");
+    }
+
+    fn template_project_root_from(start: &Path) -> Result<PathBuf> {
+        let previous = std::env::current_dir()?;
+        std::env::set_current_dir(start)?;
+        let root = template_project_root();
+        std::env::set_current_dir(previous)?;
+        root
+    }
+
+    #[test]
+    fn parent_domain_control_mutation_error_names_the_operation_and_recovery_path() {
+        // `parent_domain_control_mutation_error` renders the single-line error
+        // message for a control mutation attempted in `--parent-domain` mode,
+        // naming the offending operation and the two recovery paths. No base
+        // or branch test pins this formatter directly.
+        assert_eq!(
+            parent_domain_control_mutation_error("pause"),
+            "pause is unavailable in --parent-domain mode; start watch without \
+             --parent-domain, or use mcp --auto-attach-parent, to create an \
+             authority-bearing runtime parent domain"
+        );
+        // A different operation name is substituted in the leading position.
+        assert!(
+            parent_domain_control_mutation_error("stop")
+                .starts_with("stop is unavailable in --parent-domain mode")
+        );
+    }
+
+    fn write_state_c2(project_dir: &Path, parent_domain_id: u32) {
+        let dir = project_dir.join(".actplane");
+        std::fs::create_dir_all(&dir).unwrap();
+        let state = control::ControlState {
+            schema: "actplane.control.v1".to_string(),
+            pid: 4321,
+            proc_start_time: None,
+            socket_path: dir.join("control.sock"),
+            project_dir: project_dir.to_path_buf(),
+            parent_pid: 4320,
+            parent_domain_id,
+        };
+        std::fs::write(
+            dir.join("control.json"),
+            serde_json::to_string(&state).unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn delta_add_c3(target_id: Option<u32>) -> DeltaAddArgs {
+        DeltaAddArgs {
+            target_id,
+            domain_id: None,
+            deltas: Vec::new(),
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        }
+    }
+
+    #[test]
+    fn reject_parent_domain_runtime_mutation_errors_only_for_global_parent() {
+        let dir = tempfile::tempdir().unwrap();
+        write_state_c2(dir.path(), ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID);
+        let err =
+            reject_parent_domain_runtime_mutation(dir.path(), "bind child domain").unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("bind child domain is unavailable in --parent-domain mode")
+        );
+        write_state_c2(dir.path(), 7);
+        assert!(reject_parent_domain_runtime_mutation(dir.path(), "bind child domain").is_ok());
+    }
+
+    #[test]
+    fn reject_parent_domain_control_mutation_selects_unsupported_operations() {
+        let dir = tempfile::tempdir().unwrap();
+        write_state_c2(dir.path(), ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID);
+        let bind = ControlCommands::BindChild {
+            pid: 1,
+            child_id: None,
+            scope_id: 0,
+        };
+        assert!(reject_parent_domain_control_mutation(dir.path(), &bind).is_err());
+        let status = ControlCommands::Status;
+        assert!(reject_parent_domain_control_mutation(dir.path(), &status).is_ok());
+        let add = ControlCommands::Delta {
+            command: DeltaCommands::Add(delta_add_c3(None)),
+        };
+        assert!(reject_parent_domain_control_mutation(dir.path(), &add).is_err());
+        let add_child = ControlCommands::Delta {
+            command: DeltaCommands::Add(delta_add_c3(Some(7))),
+        };
+        assert!(reject_parent_domain_control_mutation(dir.path(), &add_child).is_ok());
+    }
+
+    #[test]
+    fn policy_audit_meta_from_delta_args_leaves_policy_ref_unset() {
+        // The delta control path has no single policy file, so
+        // `policy_audit_meta_from_delta_args` builds a `PolicyAuditMeta` with
+        // `policy_ref == None` and passes the three optional audit fields
+        // through unchanged. No base or branch test pins it directly.
+        let args = DeltaAddArgs {
+            target_id: None,
+            domain_id: None,
+            deltas: Vec::new(),
+            delta_text: Vec::new(),
+            approved_by: Some("alice".to_string()),
+            approval_ref: Some("PR-7".to_string()),
+            generated_by: Some("tool".to_string()),
+        };
+        assert_eq!(
+            policy_audit_meta_from_delta_args(&args),
+            runtime::PolicyAuditMeta {
+                policy_ref: None,
+                approved_by: Some("alice".to_string()),
+                approval_ref: Some("PR-7".to_string()),
+                generated_by: Some("tool".to_string()),
+            }
+        );
+        let unset = DeltaAddArgs {
+            target_id: Some(3),
+            domain_id: None,
+            deltas: Vec::new(),
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        assert_eq!(
+            policy_audit_meta_from_delta_args(&unset),
+            runtime::PolicyAuditMeta {
+                policy_ref: None,
+                approved_by: None,
+                approval_ref: None,
+                generated_by: None,
+            }
+        );
+    }
+
+    #[test]
+    fn policy_audit_meta_from_fields_passes_through_all_option_fields() {
+        // `policy_audit_meta_from_fields` builds a `runtime::PolicyAuditMeta`
+        // from the control-path audit fields, passing `policy_ref` by value
+        // and cloning the three `&Option<String>` fields. No base or branch
+        // test pins this constructor directly.
+        let approved_by = Some("alice".to_string());
+        let approval_ref = Some("PR-42".to_string());
+        let generated_by = Some("tool".to_string());
+        assert_eq!(
+            policy_audit_meta_from_fields(
+                Some("policy.dsl".to_string()),
+                &approved_by,
+                &approval_ref,
+                &generated_by
+            ),
+            runtime::PolicyAuditMeta {
+                policy_ref: Some("policy.dsl".to_string()),
+                approved_by: Some("alice".to_string()),
+                approval_ref: Some("PR-42".to_string()),
+                generated_by: Some("tool".to_string()),
+            }
+        );
+        // Unset fields stay `None`.
+        assert_eq!(
+            policy_audit_meta_from_fields(None, &None, &None, &None),
+            runtime::PolicyAuditMeta {
+                policy_ref: None,
+                approved_by: None,
+                approval_ref: None,
+                generated_by: None,
+            }
+        );
+    }
+
+    #[test]
+    fn policy_input_copies_cli_fields_verbatim() {
+        // `policy_input` projects the global CLI arguments onto the runtime's
+        // `PolicyInput`, cloning policy/rule/domain and copying the two
+        // elevation booleans. No base or branch test pins it directly.
+        let cli = Cli {
+            policy: Some(PathBuf::from("/tmp/actplane.yaml")),
+            rule: Some("source COMMAND = exec \"**\"".to_string()),
+            domain: Some("team".to_string()),
+            run_as_root: true,
+            internal_elevated: false,
+            command: Commands::Doctor,
+        };
+        let input = policy_input(&cli);
+        assert_eq!(input.policy, Some(PathBuf::from("/tmp/actplane.yaml")));
+        assert_eq!(input.rule.as_deref(), Some("source COMMAND = exec \"**\""));
+        assert_eq!(input.domain.as_deref(), Some("team"));
+        assert!(input.run_as_root);
+        assert!(!input.internal_elevated);
+
+        let empty = Cli {
+            policy: None,
+            rule: None,
+            domain: None,
+            run_as_root: false,
+            internal_elevated: true,
+            command: Commands::Doctor,
+        };
+        let input = policy_input(&empty);
+        assert!(input.policy.is_none());
+        assert!(input.rule.is_none());
+        assert!(input.domain.is_none());
+        assert!(!input.run_as_root);
+        assert!(input.internal_elevated);
+    }
+
+    fn test_cli(policy: Option<PathBuf>) -> Cli {
+        Cli::try_parse_from(match policy {
+            Some(path) => vec![
+                "actplane".to_string(),
+                "--policy".to_string(),
+                path.display().to_string(),
+                "control".to_string(),
+                "status".to_string(),
+            ],
+            None => vec![
+                "actplane".to_string(),
+                "control".to_string(),
+                "status".to_string(),
+            ],
+        })
+        .expect("parse cli")
+    }
+
+    #[test]
+    fn has_local_instruction_file_matches_known_locations() {
+        let dir = tempdir().expect("tempdir");
+        assert!(!has_local_instruction_file(dir.path()));
+        for rel in [
+            "AGENTS.md",
+            "CLAUDE.md",
+            ".agents/AGENTS.md",
+            ".agents/instructions.md",
+            ".codex/AGENTS.md",
+        ] {
+            let path = dir.path().join(rel);
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+            std::fs::write(&path, "instructions").expect("write");
+            assert!(has_local_instruction_file(dir.path()), "{rel} should count");
+            std::fs::remove_file(&path).expect("remove");
+        }
+        std::fs::write(dir.path().join("docs.md"), "x").expect("write");
+        assert!(!has_local_instruction_file(dir.path()));
+    }
+
+    #[test]
+    fn control_project_dir_prefers_explicit_policy_parent() {
+        let dir = tempdir().expect("tempdir");
+        let policy_path = dir.path().join("elsewhere").join("actplane.yaml");
+        std::fs::create_dir_all(policy_path.parent().expect("parent")).expect("mkdir");
+        std::fs::write(&policy_path, "version: 1\npolicy: |\n  rule r:\n").expect("write");
+        let cli = test_cli(Some(policy_path.clone()));
+        assert_eq!(
+            control_project_dir(&cli).expect("project dir"),
+            policy_path.parent().expect("parent").to_path_buf()
+        );
+
+        let relative = test_cli(Some(PathBuf::from("actplane.yaml")));
+        let cwd = std::env::current_dir().expect("cwd");
+        assert_eq!(control_project_dir(&relative).expect("project dir"), cwd);
+    }
+
+    #[test]
+    fn append_delta_control_requests_requires_a_fragment() {
+        let dir = tempdir().expect("tempdir");
+        let args = DeltaAddArgs {
+            target_id: None,
+            domain_id: None,
+            deltas: Vec::new(),
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        let err = append_delta_control_requests(dir.path(), &args, "control delta add")
+            .err()
+            .expect("empty delta errors")
+            .to_string();
+        assert_eq!(err, "control delta add requires --delta or --delta-text");
+
+        let missing = dir.path().join("absent.dsl");
+        let args = DeltaAddArgs {
+            target_id: None,
+            domain_id: None,
+            deltas: vec![missing.clone()],
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        let err = append_delta_control_requests(dir.path(), &args, "control delta add")
+            .err()
+            .expect("missing delta errors")
+            .to_string();
+        assert!(
+            err.starts_with(&format!("cannot read policy delta {}", missing.display())),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn format_rule_list_joins_or_reports_none() {
+        assert_eq!(format_rule_list(&[]), "none");
+        assert_eq!(format_rule_list(&["a".into(), "b".into()]), "a, b");
+    }
+
+    #[test]
+    fn format_domain_policy_rules_concatenates_locked_then_defaults() {
+        let domain = config::DomainSummary {
+            name: "root".into(),
+            parent: None,
+            disabled: vec![],
+            locked: vec!["locked-one".into()],
+            defaults: vec!["default-two".into()],
+        };
+        assert_eq!(
+            format_domain_policy_rules(&domain),
+            "locked-one, default-two"
+        );
+    }
+
+    #[test]
+    fn join_policy_delta_fragments_frames_each_fragment() {
+        assert_eq!(join_policy_delta_fragments(vec![]), None);
+        let joined = join_policy_delta_fragments(vec![
+            ("a.dsl".into(), "  rule x: allow\n".into()),
+            ("b.dsl".into(), "rule y: deny".into()),
+        ])
+        .unwrap();
+        assert!(joined.contains("# delta a.dsl"));
+        assert!(joined.contains("rule x: allow"));
+        assert!(joined.contains("# delta b.dsl"));
+        assert!(joined.contains("rule y: deny"));
+        // Fragments are trimmed when embedded, not the header.
+        assert!(joined.contains("\nrule y: deny\n"));
+    }
+
+    #[test]
+    fn policy_audit_meta_from_fields_copies_each_option() {
+        let meta = policy_audit_meta_from_fields(
+            Some("p.yaml".into()),
+            &Some("alice".into()),
+            &None,
+            &Some("cli".into()),
+        );
+        assert_eq!(meta.policy_ref.as_deref(), Some("p.yaml"));
+        assert_eq!(meta.approved_by.as_deref(), Some("alice"));
+        assert_eq!(meta.approval_ref, None);
+        assert_eq!(meta.generated_by.as_deref(), Some("cli"));
+    }
+
+    #[test]
+    fn add_policy_audit_meta_fields_only_sets_present_options() {
+        let mut request = serde_json::json!({ "keep": 1 });
+        add_policy_audit_meta_fields(
+            &mut request,
+            &runtime::PolicyAuditMeta {
+                policy_ref: Some("p.yaml".into()),
+                approved_by: None,
+                approval_ref: Some("ticket-7".into()),
+                generated_by: None,
+            },
+        );
+        assert_eq!(request["keep"], 1);
+        assert_eq!(request["policy_ref"], "p.yaml");
+        assert_eq!(request["approval_ref"], "ticket-7");
+        assert!(request.get("approved_by").is_none());
+        assert!(request.get("generated_by").is_none());
+    }
+
+    #[test]
+    fn has_local_instruction_file_recognizes_known_names() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(!has_local_instruction_file(tmp.path()));
+        std::fs::write(tmp.path().join("AGENTS.md"), "").unwrap();
+        assert!(has_local_instruction_file(tmp.path()));
+    }
+
+    #[test]
+    fn write_output_file_writes_and_refuses_reuse_without_force() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("out.txt");
+        write_output_file(&path, "one", false).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "one");
+        assert!(write_output_file(&path, "two", false).is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "one");
+        write_output_file(&path, "two", true).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "two");
+    }
+
+    #[test]
+    fn write_binary_output_file_writes_bytes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("blob.bin");
+        write_binary_output_file(&path, &[0, 1, 2, 255], false).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), vec![0, 1, 2, 255]);
+    }
+
+    #[test]
+    fn preflight_rejects_directory_and_missing_parent() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(preflight_output_file(tmp.path(), true).is_err());
+        let missing = tmp.path().join("nope").join("out.txt");
+        assert!(preflight_output_file(&missing, false).is_err());
+    }
+}
+
+#[cfg(test)]
+mod main_guard_tests {
+    use super::*;
+
+    fn cli(policy: Option<PathBuf>, rule: Option<&str>) -> Cli {
+        Cli {
+            policy,
+            rule: rule.map(str::to_string),
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+            command: Commands::Compile(CompileArgs {
+                out: None,
+                json: false,
+                explain: false,
+                domains: false,
+                report_out: None,
+                force: false,
+            }),
+        }
+    }
+
+    fn attach(pid: i32) -> AttachArgs {
+        AttachArgs {
+            pid,
+            parent_domain: false,
+            child_domain: false,
+            domain_id: None,
+            child_id: None,
+            scope_id: 0,
+            deltas: Vec::new(),
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        }
+    }
+
+    fn rt() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+    }
+
+    #[test]
+    fn attach_command_requires_a_positive_pid_before_any_policy_load() {
+        let cli = cli(None, None);
+        for pid in [0, -1] {
+            let err = rt()
+                .block_on(attach_command(&cli, &attach(pid)))
+                .expect_err("non-positive pid is rejected");
+            assert_eq!(err.to_string(), "--pid must be positive");
+        }
+    }
+
+    #[test]
+    fn attach_command_rejects_parent_domain_with_child_options() {
+        let cli = cli(None, None);
+        let mut args = attach(42);
+        args.parent_domain = true;
+        args.deltas.push(PathBuf::from("child.dsl"));
+        let err = rt()
+            .block_on(attach_command(&cli, &args))
+            .expect_err("parent-domain plus child options is rejected");
+        assert_eq!(
+            err.to_string(),
+            "--parent-domain cannot be combined with child-domain attach options"
+        );
+    }
+
+    #[test]
+    fn compile_policy_requires_json_or_explain_for_report_out() {
+        let cli = cli(None, None);
+        let args = CompileArgs {
+            out: None,
+            json: false,
+            explain: false,
+            domains: false,
+            report_out: Some(PathBuf::from("review.txt")),
+            force: false,
+        };
+        let err = rt()
+            .block_on(compile_policy(&cli, &args))
+            .expect_err("report-out without a mode is rejected");
+        assert_eq!(err.to_string(), "--report-out requires --json or --explain");
+    }
+
+    #[test]
+    fn compile_policy_reports_a_policy_load_error_for_an_unparseable_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let policy = dir.path().join("actplane.yaml");
+        std::fs::write(
+            &policy,
+            "fallback:\n  kill_on_violation: true\npolicy: \"rule r:\\n  block exec \\\"git\\\"\\n  because \\\"x\\\"\"\n",
+        )
+        .expect("write policy");
+        let cli = cli(Some(policy), None);
+        let args = CompileArgs {
+            out: Some(dir.path().join("policy.bin")),
+            json: false,
+            explain: false,
+            domains: false,
+            report_out: None,
+            force: false,
+        };
+        let err = rt()
+            .block_on(compile_policy(&cli, &args))
+            .expect_err("unparseable policy is rejected");
+        assert!(
+            err.to_string().contains("policy"),
+            "unexpected error: {err}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod main_control_guard_tests {
+    use super::*;
+
+    fn write_state(project_dir: &Path, parent_domain_id: u32) {
+        let state = control::ControlState {
+            schema: "actplane.control.v1".to_string(),
+            pid: 1234,
+            proc_start_time: None,
+            socket_path: project_dir.join("sock"),
+            project_dir: project_dir.to_path_buf(),
+            parent_pid: 1234,
+            parent_domain_id,
+        };
+        let dir = project_dir.join(".actplane");
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        std::fs::write(
+            dir.join("control.json"),
+            serde_json::to_string(&state).expect("state json"),
+        )
+        .expect("write state");
+    }
+
+    fn delta_add(target_id: Option<u32>) -> ControlCommands {
+        ControlCommands::Delta {
+            command: DeltaCommands::Add(DeltaAddArgs {
+                target_id,
+                domain_id: None,
+                deltas: Vec::new(),
+                delta_text: Vec::new(),
+                approved_by: None,
+                approval_ref: None,
+                generated_by: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn control_mutation_guards_gate_on_the_running_engine_domain() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        write_state(dir.path(), ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID);
+        let target = Some(ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID);
+
+        // Only the global-active engine rejects authority-bearing mutations.
+        let err = reject_parent_domain_control_mutation(dir.path(), &delta_add(target))
+            .expect_err("global-active engine rejects delta add");
+        assert!(
+            err.to_string()
+                .contains("append policy delta is unavailable in --parent-domain mode"),
+            "unexpected error: {err}"
+        );
+
+        // Status and a non-global target are both allowed to proceed.
+        reject_parent_domain_control_mutation(dir.path(), &ControlCommands::Status)
+            .expect("status is not a mutation");
+        reject_parent_domain_control_mutation(dir.path(), &delta_add(Some(7)))
+            .expect("a bound child target is a mutation");
+
+        // A parent-domain engine never reaches the socket send path.
+        write_state(dir.path(), 5);
+        reject_parent_domain_control_mutation(dir.path(), &delta_add(target))
+            .expect("authority-bearing engine allows delta add");
+    }
+}
+
+#[cfg(test)]
+mod main_control_status_tests {
+    use super::*;
+
+    fn cli_with_policy(policy: PathBuf) -> Cli {
+        Cli {
+            policy: Some(policy),
+            rule: None,
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+            command: Commands::Doctor,
+        }
+    }
+
+    fn rt_c2() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+    }
+
+    #[test]
+    fn control_status_reports_a_stale_state_before_connecting() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let policy = dir.path().join("actplane.yaml");
+        std::fs::write(&policy, "policy: \"x\"\n").expect("write policy");
+
+        // A dead pid is stale: the command is refused before any socket connect.
+        let state = control::ControlState {
+            schema: "actplane.control.v1".to_string(),
+            pid: 99_999_999,
+            proc_start_time: None,
+            socket_path: dir.path().join(".actplane").join("sock"),
+            project_dir: dir.path().to_path_buf(),
+            parent_pid: 1,
+            parent_domain_id: 1,
+        };
+        let control_dir = dir.path().join(".actplane");
+        std::fs::create_dir_all(&control_dir).expect("mkdir");
+        std::fs::write(
+            control_dir.join("control.json"),
+            serde_json::to_string(&state).expect("state json"),
+        )
+        .expect("write state");
+
+        let cli = cli_with_policy(policy);
+        let err = rt_c2()
+            .block_on(control_command(&cli, &ControlCommands::Status))
+            .expect_err("stale state is rejected");
+        assert!(
+            err.to_string().contains("stale ActPlane control state"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn control_status_forwards_the_engine_response() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let policy = dir.path().join("actplane.yaml");
+        std::fs::write(&policy, "policy: \"x\"\n").expect("write policy");
+
+        // A live local control server backed by a trivial handler.
+        let guard = control::start_server(
+            dir.path(),
+            std::process::id() as i32,
+            1,
+            |request, _peer| serde_json::json!({ "ok": true, "result": request }),
+        )
+        .expect("start control server");
+
+        let cli = cli_with_policy(policy);
+        let code = rt_c2()
+            .block_on(control_command(&cli, &ControlCommands::Status))
+            .expect("status succeeds");
+        assert_eq!(code, 0);
+        drop(guard);
+
+        // After the guard drops the state file is gone, so the request is stale.
+        let err = rt_c2()
+            .block_on(control_command(&cli, &ControlCommands::Status))
+            .expect_err("state is removed with the guard");
+        assert!(err.to_string().contains("read"), "unexpected error: {err}");
+    }
+}
+
+#[cfg(test)]
+mod main_delta_guard_tests {
+    use super::*;
+
+    fn delta_add_c2(deltas: Vec<PathBuf>, delta_text: Vec<String>) -> DeltaAddArgs {
+        DeltaAddArgs {
+            target_id: Some(7),
+            domain_id: None,
+            deltas,
+            delta_text,
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        }
+    }
+
+    #[test]
+    fn delta_control_requests_require_a_fragment_before_any_socket_send() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let err = append_delta_control_requests(
+            dir.path(),
+            &delta_add_c2(Vec::new(), Vec::new()),
+            "control delta add",
+        )
+        .expect_err("no fragment is rejected");
+        assert_eq!(
+            err.to_string(),
+            "control delta add requires --delta or --delta-text"
+        );
+    }
+
+    #[test]
+    fn load_policy_delta_fragments_refs_files_and_inline_text() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("delta.dsl");
+        std::fs::write(&file, "rule r:\n  block exec \"git\"\n  because \"x\"\n").expect("write");
+
+        let fragments =
+            load_policy_delta_fragments(std::slice::from_ref(&file), &["inline body".to_string()])
+                .expect("fragments load");
+        assert_eq!(fragments.len(), 2);
+        assert_eq!(fragments[0].0, file.display().to_string());
+        assert!(fragments[0].1.contains("block exec \"git\""));
+        assert_eq!(fragments[1].0, "--delta-text[0]");
+        assert_eq!(fragments[1].1, "inline body");
+
+        let joined = join_policy_delta_fragments(fragments).expect("joined");
+        assert!(joined.contains("# delta --delta-text[0]"));
+        assert!(join_policy_delta_fragments(Vec::new()).is_none());
+    }
+
+    #[test]
+    fn load_policy_delta_fragments_reports_a_missing_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("absent.dsl");
+        let err = load_policy_delta_fragments(&[missing.clone()], &[])
+            .expect_err("missing delta file is rejected");
+        assert!(
+            err.to_string()
+                .starts_with(&format!("cannot read policy delta {}", missing.display())),
+            "unexpected error: {err}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod main_run_guard_tests {
+    use super::*;
+
+    fn run(pid: Option<u32>, deltas: Vec<PathBuf>) -> RunArgs {
+        RunArgs {
+            parent_domain: true,
+            child_id: pid,
+            scope_id: 0,
+            deltas,
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+            cmd: vec!["true".to_string()],
+        }
+    }
+
+    #[test]
+    fn run_command_rejects_parent_domain_with_any_child_mode_signal() {
+        let cli = Cli {
+            policy: None,
+            rule: None,
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+            command: Commands::Compile(CompileArgs {
+                out: None,
+                json: false,
+                explain: false,
+                domains: false,
+                report_out: None,
+                force: false,
+            }),
+        };
+        let rt = || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime")
+        };
+        // child_id alone, and a delta alone, each count as child mode.
+        for args in [
+            run(Some(7), Vec::new()),
+            run(None, vec![PathBuf::from("d.dsl")]),
+        ] {
+            let err = rt()
+                .block_on(run_command(&cli, &args))
+                .expect_err("parent-domain plus child mode is rejected");
+            assert_eq!(
+                err.to_string(),
+                "--parent-domain cannot be combined with child runtime delta options"
+            );
+        }
+    }
+}
