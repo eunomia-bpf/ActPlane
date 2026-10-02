@@ -2992,4 +2992,25 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn server_get_info_advertises_stdio_tools_and_resources() {
+        // `ActPlaneMcp::get_info` is the MCP handshake payload: it must
+        // advertise exactly the tools and resources capabilities and carry the
+        // ActPlane instruction text. No base or branch test calls it.
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, None);
+        let info = server.get_info();
+        assert!(info.capabilities.tools.is_some(), "tools advertised");
+        assert!(
+            info.capabilities.resources.is_some(),
+            "resources advertised"
+        );
+        assert!(
+            info.capabilities.prompts.is_none(),
+            "prompts not advertised"
+        );
+        let instructions = info.instructions.as_deref().expect("instructions");
+        assert!(instructions.starts_with("ActPlane: OS-level agent harness."));
+        assert!(instructions.contains("corrective feedback"));
+    }
 }
