@@ -707,6 +707,97 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `control bind-child` adopts an existing process into a child domain, and
+// `control launch-child` asks the parent to spawn a new child domain. Each
+// sends its own op over the repo control socket.
+#[cfg(unix)]
+#[test]
+fn control_bind_and_launch_child_send_their_ops() {
+    let tmp = tempfile::tempdir().unwrap();
+    let socket_path = tmp.path().join("control.sock");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": std::process::id() as i32,
+            "proc_start_time": null,
+            "socket_path": socket_path,
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": 2222,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = std::thread::spawn(move || {
+        for _ in 0..2 {
+            let (mut stream, _) = listener.accept().expect("accept control client");
+            let mut line = String::new();
+            std::io::BufReader::new(stream.try_clone().expect("clone stream"))
+                .read_line(&mut line)
+                .expect("read request");
+            tx.send(serde_json::from_str::<serde_json::Value>(&line).expect("request JSON"))
+                .expect("send request");
+            serde_json::to_writer(
+                &mut stream,
+                &serde_json::json!({ "ok": true, "text": "ok" }),
+            )
+            .expect("write response");
+            writeln!(stream).expect("write response newline");
+        }
+    });
+
+    let run_in_tmp = |args: &[&str]| {
+        let output = Command::new(actplane())
+            .current_dir(tmp.path())
+            .args(args)
+            .output()
+            .expect("run control command");
+        assert!(
+            output.status.success(),
+            "{args:?} stderr: {}",
+            stderr(&output)
+        );
+    };
+    run_in_tmp(&[
+        "control",
+        "bind-child",
+        "--pid",
+        "1234",
+        "--child-id",
+        "9",
+        "--scope-id",
+        "5",
+    ]);
+    run_in_tmp(&[
+        "control",
+        "launch-child",
+        "--child-id",
+        "3",
+        "--scope-id",
+        "5",
+        "/bin/echo",
+        "hi",
+    ]);
+    handle.join().expect("control server thread");
+
+    let bind = rx.recv().expect("bind request");
+    assert_eq!(bind["op"], "bind_child_domain");
+    assert_eq!(bind["pid"], 1234);
+    assert_eq!(bind["child_id"], 9);
+    assert_eq!(bind["scope_id"], 5);
+    let launch = rx.recv().expect("launch request");
+    assert_eq!(launch["op"], "launch_child_domain");
+    assert_eq!(launch["child_id"], 3);
+    assert_eq!(launch["scope_id"], 5);
+    assert_eq!(launch["cmd"], serde_json::json!(["/bin/echo", "hi"]));
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
