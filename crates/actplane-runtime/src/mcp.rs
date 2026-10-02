@@ -2686,6 +2686,112 @@ mod tests {
         assert!(json_string_vec(&bad_cmd, "cmd").is_err());
     }
 
+    fn json_args(json: serde_json::Value) -> serde_json::Map<String, Value> {
+        json.as_object().expect("object").clone()
+    }
+
+    #[test]
+    fn json_accessors_name_the_offending_key() {
+        let empty = json_args(serde_json::json!({}));
+        assert_eq!(
+            json_i32(&empty, "pid").unwrap_err().message,
+            "missing `pid`"
+        );
+        assert_eq!(
+            json_string(&empty, "policy").unwrap_err().message,
+            "missing string `policy`"
+        );
+        assert_eq!(
+            json_string_vec(&empty, "cmd").unwrap_err().message,
+            "missing `cmd`"
+        );
+
+        assert_eq!(
+            json_i32(&json_args(serde_json::json!({ "pid": 1.5 })), "pid")
+                .unwrap_err()
+                .message,
+            "`pid` must be an integer"
+        );
+        assert_eq!(
+            json_i32(
+                &json_args(serde_json::json!({ "pid": 2147483648i64 })),
+                "pid"
+            )
+            .unwrap_err()
+            .message,
+            "`pid` is out of range"
+        );
+        assert_eq!(
+            json_optional_string(&json_args(serde_json::json!({ "stream": 5 })), "stream")
+                .unwrap_err()
+                .message,
+            "`stream` must be a string"
+        );
+        assert_eq!(
+            json_string_vec(&json_args(serde_json::json!({ "cmd": "true" })), "cmd")
+                .unwrap_err()
+                .message,
+            "`cmd` must be an array of strings"
+        );
+        assert_eq!(
+            json_optional_u32(
+                &json_args(serde_json::json!({ "child_id": u64::MAX })),
+                "child_id"
+            )
+            .unwrap_err()
+            .message,
+            "`child_id` is out of range"
+        );
+        assert_eq!(
+            json_optional_bool(
+                &json_args(serde_json::json!({ "terminate_existing": "yes" })),
+                "terminate_existing"
+            )
+            .unwrap_err()
+            .message,
+            "`terminate_existing` must be a boolean"
+        );
+
+        let absent = json_args(serde_json::json!({}));
+        assert_eq!(
+            json_optional_bool(&absent, "missing").expect("absent"),
+            None
+        );
+        assert_eq!(json_optional_u64(&absent, "missing").expect("absent"), None);
+        assert_eq!(
+            json_optional_usize(&absent, "missing").expect("absent"),
+            None
+        );
+    }
+
+    #[test]
+    fn child_status_json_round_trips_through_its_parser() {
+        for status in [
+            ChildStatus::Running,
+            ChildStatus::Exited {
+                code: Some(3),
+                signal: None,
+            },
+            ChildStatus::Terminated,
+        ] {
+            let parsed = child_status_from_json(&child_status_json(&status)).expect("round trip");
+            let same = match (&status, &parsed) {
+                (ChildStatus::Running, ChildStatus::Running) => true,
+                (ChildStatus::Terminated, ChildStatus::Terminated) => true,
+                (
+                    ChildStatus::Exited { code, signal },
+                    ChildStatus::Exited {
+                        code: pcode,
+                        signal: psignal,
+                    },
+                ) => code == pcode && signal == psignal,
+                _ => false,
+            };
+            assert!(same, "round trip changed the status variant");
+        }
+        assert!(child_status_from_json(&serde_json::json!({ "state": "gone" })).is_none());
+    }
+
     #[test]
     fn spawn_stopped_child_can_be_killed_without_stdio_inheritance() {
         let cmd = vec!["/bin/true".to_string()];
