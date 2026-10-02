@@ -2992,4 +2992,44 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn secure_child_registry_enforces_owner_only_permissions_when_root() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let dir = tmp.path().join("children");
+        std::fs::create_dir(&dir).expect("create dir");
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o777)).expect("chmod");
+        secure_child_registry_dir(&dir).expect("secure dir");
+
+        let file = dir.join("record.json");
+        std::fs::write(&file, b"{}").expect("write file");
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o666)).expect("chmod");
+        secure_child_registry_file(&file).expect("secure file");
+
+        let euid = unsafe { libc::geteuid() };
+        if euid != 0 {
+            assert!(unsafe { libc::getuid() } != 0);
+        }
+        if euid == 0 {
+            let dir_meta = std::fs::metadata(&dir).expect("dir meta");
+            assert_eq!(dir_meta.mode() & 0o777, 0o755);
+            assert_eq!(dir_meta.uid(), 0);
+            let file_meta = std::fs::metadata(&file).expect("file meta");
+            assert_eq!(file_meta.mode() & 0o777, 0o644);
+            assert_eq!(file_meta.uid(), 0);
+        } else {
+            // Non-root leaves the existing permissions untouched.
+            assert_eq!(
+                std::fs::metadata(&dir).expect("dir meta").mode() & 0o777,
+                0o777
+            );
+            assert_eq!(
+                std::fs::metadata(&file).expect("file meta").mode() & 0o777,
+                0o666
+            );
+        }
+    }
 }
