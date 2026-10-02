@@ -707,6 +707,54 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// The `feedback-hook` adapter is a silent no-op when there is nothing new to
+// report: it exits 0 with empty stdout both when the offset is already at EOF
+// and when the feedback file does not exist.
+#[test]
+fn feedback_hook_is_silent_when_no_new_feedback() {
+    let tmp = tempfile::tempdir().unwrap();
+    let feedback = tmp.path().join("feedback.txt");
+    fs::write(&feedback, "ONE TWO\n").unwrap();
+    let at_eof = tmp.path().join("at-eof.json");
+    fs::write(
+        &at_eof,
+        serde_json::to_string(&serde_json::json!({ "feedback_file": feedback, "offset": 8 }))
+            .unwrap(),
+    )
+    .unwrap();
+
+    let missing = tmp.path().join("missing.txt");
+    let missing_state = tmp.path().join("missing.json");
+    fs::write(
+        &missing_state,
+        serde_json::to_string(&serde_json::json!({ "feedback_file": missing, "offset": 0 }))
+            .unwrap(),
+    )
+    .unwrap();
+
+    let stdin = serde_json::to_string(&serde_json::json!({ "cwd": tmp.path() })).unwrap();
+    for state in [&at_eof, &missing_state] {
+        let output = Command::new(actplane())
+            .current_dir(tmp.path())
+            .env("ACTPLANE_HOOK_STATE", state)
+            .args(["feedback-hook"])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .and_then(|mut child| {
+                child.stdin.take().unwrap().write_all(stdin.as_bytes())?;
+                child.wait_with_output()
+            })
+            .expect("run feedback-hook");
+        assert!(output.status.success(), "stderr: {}", stderr(&output));
+        assert!(
+            output.stdout.is_empty(),
+            "expected silent no-op, got stdout: {}",
+            stdout(&output)
+        );
+    }
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
