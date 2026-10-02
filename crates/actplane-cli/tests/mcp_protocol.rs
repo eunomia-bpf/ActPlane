@@ -1381,3 +1381,64 @@ policy: |
     .expect("write policy");
     policy
 }
+
+#[test]
+fn mcp_child_domain_tools_validate_arguments_without_an_engine() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-child-arg-validation");
+    let mut next = 10_i64;
+
+    // `restart_child_domain` requires an engine before it parses any argument.
+    let response = call_tool_raw(&mut mcp, &mut next, "restart_child_domain", json!({}));
+    assert_eq!(response["error"]["code"], -32603, "{response}");
+    assert_eq!(
+        response["error"]["message"],
+        "No eBPF engine attached (MCP not started with --auto-attach-parent)"
+    );
+    let response = call_tool_raw(
+        &mut mcp,
+        &mut next,
+        "restart_child_domain",
+        json!({ "child_id": 7 }),
+    );
+    assert_eq!(response["error"]["code"], -32603, "{response}");
+
+    for tool in ["read_child_domain_logs", "terminate_child_domain"] {
+        let response = call_tool_raw(&mut mcp, &mut next, tool, json!({}));
+        assert_eq!(response["error"]["code"], -32602, "{tool}: {response}");
+        assert_eq!(response["error"]["message"], "missing `child_id`");
+
+        let response = call_tool_raw(&mut mcp, &mut next, tool, json!({ "child_id": -1 }));
+        assert_eq!(response["error"]["code"], -32602, "{tool}: {response}");
+        assert_eq!(
+            response["error"]["message"],
+            "`child_id` must be a non-negative integer"
+        );
+
+        let response = call_tool_raw(&mut mcp, &mut next, tool, json!({ "child_id": 7 }));
+        assert_eq!(response["error"]["code"], -32602, "{tool}: {response}");
+        assert_eq!(response["error"]["message"], "unknown child domain 7");
+    }
+
+    let response = call_tool_raw(
+        &mut mcp,
+        &mut next,
+        "read_child_domain_logs",
+        json!({ "child_id": 0, "stream": "sideways" }),
+    );
+    assert_eq!(response["error"]["code"], -32602, "{response}");
+    assert_eq!(
+        response["error"]["message"],
+        "`stream` must be one of stdout, stderr, or both"
+    );
+
+    // `list_child_domains` and `reconcile_child_domains` take no registry entry,
+    // so they succeed against an empty registry even without an engine.
+    for tool in ["list_child_domains", "reconcile_child_domains"] {
+        let response = call_tool(&mut mcp, &mut next, tool, json!({}));
+        let text = tool_text(&response);
+        assert!(text.contains('['), "{tool}: {text}");
+    }
+}
