@@ -2591,4 +2591,100 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn run_meta(name: &str, clause_source_index: usize, kernel_op: &str) -> dsl::RuleMeta {
+        dsl::RuleMeta {
+            name: name.to_string(),
+            reason: String::new(),
+            effect: Effect::Notify,
+            ops: Vec::new(),
+            clause_op: "exec".to_string(),
+            kernel_op: kernel_op.to_string(),
+            target_kind: Kind::Exec,
+            target_pattern: "git".to_string(),
+            target_arg: None,
+            clause_source_index,
+            source: None,
+        }
+    }
+
+    #[test]
+    fn render_observe_clause_downgrades_to_notify_and_keeps_conditions() {
+        let clause = Clause {
+            op: Op::Exec,
+            target: crate::dsl::ast::Target {
+                kind: Kind::Exec,
+                pattern: "git".into(),
+                arg: Some("push".into()),
+            },
+            when: Expr::Label("T".into()),
+            unless: Some(Cond::Target {
+                negate: false,
+                pattern: "host".into(),
+            }),
+            effect: Effect::Kill,
+            source_index: 0,
+        };
+        assert_eq!(
+            render_observe_clause(&clause),
+            "notify exec \"git\" \"push\" if T unless target \"host\""
+        );
+
+        let file_clause = Clause {
+            op: Op::Read,
+            target: crate::dsl::ast::Target {
+                kind: Kind::File,
+                pattern: "**/.env".into(),
+                arg: None,
+            },
+            when: Expr::True,
+            unless: None,
+            effect: Effect::Block,
+            source_index: 0,
+        };
+        assert_eq!(
+            render_observe_clause(&file_clause),
+            "notify read file \"**/.env\""
+        );
+    }
+
+    #[test]
+    fn render_observe_dsl_prefixes_sources_and_xforms() {
+        let parsed = dsl::ast::Policy {
+            labels: vec!["T".into()],
+            sources: vec![Source {
+                label: "T".into(),
+                kind: Kind::File,
+                pattern: "**/.env".into(),
+            }],
+            rules: vec![],
+            xforms: vec![],
+        };
+        let dsl_text = render_observe_dsl(&parsed);
+        assert!(dsl_text.contains("source T = file \"**/.env\""));
+    }
+
+    #[test]
+    fn lowered_clause_summary_reports_zero_then_matching_matchers() {
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: vec![
+                run_meta("r", 0, "exec"),
+                run_meta("r", 0, "open"),
+                run_meta("r", 1, "write"),
+                run_meta("other", 0, "exec"),
+            ],
+            labels: std::collections::HashMap::new(),
+            endpoint_resolutions: std::collections::HashMap::new(),
+        };
+        assert_eq!(
+            lowered_clause_summary(&compiled, "r", 5),
+            "0 kernel matcher(s)"
+        );
+        let summary = lowered_clause_summary(&compiled, "r", 0);
+        assert!(summary.contains("2 kernel matcher(s)"));
+        assert!(summary.contains("rule_id(s) [0, 1]"));
+        assert!(summary.contains("kernel_op(s) [exec, open]"));
+    }
 }
