@@ -2591,4 +2591,85 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    const BLOCK_POLICY: &str = concat!(
+        "source COMMAND = exec \"**\"\n",
+        "rule guard:\n",
+        "  block open file \"/etc/secret\" if COMMAND\n",
+        "  because \"deny secret reads\"\n",
+    );
+
+    #[test]
+    fn render_rollout_artifacts_downgrades_effects_to_observe() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let policy_path = dir.path().join("actplane.yaml");
+        std::fs::write(
+            &policy_path,
+            format!("version: 1\npolicy: |\n{}", indent_policy(BLOCK_POLICY)),
+        )
+        .expect("write policy");
+        let input = PolicyInput {
+            policy: Some(policy_path.clone()),
+            ..PolicyInput::default()
+        };
+
+        let artifacts = render_rollout_artifacts(&input, &[], &[]).expect("artifacts");
+
+        assert!(
+            artifacts.plan.starts_with("ActPlane rollout plan\n"),
+            "{}",
+            artifacts.plan
+        );
+        assert!(
+            artifacts
+                .plan
+                .contains(&format!("policy: {}", policy_path.display())),
+            "{}",
+            artifacts.plan
+        );
+        assert!(
+            artifacts.plan.contains("rules: 1 DSL rule(s)"),
+            "{}",
+            artifacts.plan
+        );
+        assert!(
+            artifacts
+                .plan
+                .contains("clause 1: block open file \"/etc/secret\" if COMMAND"),
+            "{}",
+            artifacts.plan
+        );
+        assert!(
+            artifacts.plan.contains("bpf_lsm_inactive_for_block: guard"),
+            "{}",
+            artifacts.plan
+        );
+
+        assert!(
+            artifacts
+                .observe_policy_yaml
+                .contains("# ActPlane observe-first policy generated from"),
+            "{}",
+            artifacts.observe_policy_yaml
+        );
+        assert!(artifacts.observe_policy_yaml.contains("policy: |"));
+        assert!(
+            artifacts.observe_policy_yaml.contains("notify open file"),
+            "{}",
+            artifacts.observe_policy_yaml
+        );
+        assert!(
+            !artifacts.observe_policy_yaml.contains("block open file"),
+            "{}",
+            artifacts.observe_policy_yaml
+        );
+    }
+
+    fn indent_policy(policy: &str) -> String {
+        policy
+            .lines()
+            .map(|line| format!("  {line}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 }
