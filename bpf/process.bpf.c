@@ -260,6 +260,13 @@ struct {
 } ts_fileptr SEC(".maps");
 
 struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct fileptr_ref);
+} ts_fileptr_scratch SEC(".maps");
+
+struct {
 	__uint(type, BPF_MAP_TYPE_LRU_HASH);
 	__uint(max_entries, 65536);
 	__type(key, struct fd_key);
@@ -533,6 +540,13 @@ static __always_inline struct fd_scratch *fd_scratch_buf(void)
 	return bpf_map_lookup_elem(&ts_fd_scratch, &key);
 }
 
+static __always_inline struct fileptr_ref *fileptr_scratch_buf(void)
+{
+	__u32 key = 0;
+
+	return bpf_map_lookup_elem(&ts_fileptr_scratch, &key);
+}
+
 static __always_inline struct mmap_ref *mmap_scratch_buf(void)
 {
 	__u32 key = 0;
@@ -561,16 +575,17 @@ static __always_inline int te_file_id_equal(const struct file_id *a,
 static __noinline void te_store_fileptr_ref(struct file *file,
 					    const struct fd_ref *ref)
 {
-	struct fileptr_ref fpref = {};
+	struct fileptr_ref *fpref = fileptr_scratch_buf();
 	__u64 key;
 
-	if (!file)
+	if (!file || !fpref)
 		return;
-	if (te_resolve_file_id_from_file(file, &fpref.backing) < 0)
+	__builtin_memset(fpref, 0, sizeof(*fpref));
+	if (te_resolve_file_id_from_file(file, &fpref->backing) < 0)
 		return;
-	fpref.ref = *ref;
+	fpref->ref = *ref;
 	key = (__u64)file;
-	bpf_map_update_elem(&ts_fileptr, &key, &fpref, BPF_ANY);
+	bpf_map_update_elem(&ts_fileptr, &key, fpref, BPF_ANY);
 }
 
 static __always_inline struct fileptr_ref *te_lookup_fileptr_ref(struct file *file)
@@ -1349,21 +1364,20 @@ static __always_inline void exec_pipe_collect_updates(__u32 prefix)
 		__u32 domain_id = s->domain_ids[i];
 		if (!cap_domain_matches_pid(s->pid, domain_id))
 			continue;
-		struct te_update_ctx c = {
-			.pid = s->pid,
-			.domain_id = domain_id,
-			.op = TOP_EXEC,
-			.target = scratch->match,
-		};
-		if (prefix)
-			bpf_loop(te_update_count(TOP_EXEC), te_exec_update_prefix_cb, &c, 0);
-		else
-			bpf_loop(te_update_count(TOP_EXEC), te_exec_update_simple_cb, &c, 0);
-		s->add[i] |= c.add;
-		s->del[i] |= c.del;
-		s->gates[i] |= c.gates;
-		s->exit_gates[i] |= c.exit_gates;
-		s->invals[i] |= c.invals;
+		struct te_scan sctx = { .target = scratch->match };
+		struct te_acc *c;
+
+		if (!te_scan_start(TOP_EXEC, domain_id, 0))
+			return;
+		te_collect_exec_updates(&sctx, prefix);
+		c = te_uctx_scratch_buf();
+		if (!c)
+			return;
+		s->add[i] |= c->add;
+		s->del[i] |= c->del;
+		s->gates[i] |= c->gates;
+		s->exit_gates[i] |= c->exit_gates;
+		s->invals[i] |= c->invals;
 	}
 }
 
@@ -1800,9 +1814,14 @@ static __always_inline int te_handle_event(struct te_event *ev, struct file_id *
 	return 0;
 }
 
-static __always_inline int te_handle_file_event(pid_t pid, const char *target,
-						struct file_id *fid, __u32 access,
-						__u32 mode)
+/* Shared noinline subprogram: verified once and called from every file-event
+ * handler. Inlining this body (eval setup + te_check_file_labels matcher +
+ * emit_violation + te_read/te_write_flow glue) into each tracepoint program
+ * multiplies 6.8 verifier state work past its 1M-insn complexity budget,
+ * which is what pushed trace_rename_exit (inlined twice, old+new path) over. */
+static __noinline int te_handle_file_event(pid_t pid, const char *target,
+					  struct file_id *fid, __u32 access,
+					  __u32 mode)
 {
 	struct eval_scratch *scratch = eval_scratch_buf();
 	struct te_rule_eval *eval;
@@ -1814,18 +1833,16 @@ static __always_inline int te_handle_file_event(pid_t pid, const char *target,
 	__builtin_memset(scratch, 0, sizeof(*scratch));
 	eval = &scratch->eval;
 	__u32 current_domain_id = cap_domain_for_pid(pid);
-	__u64 global_labels = te_labels_for_domain(pid, 0);
-	__u64 current_labels = te_labels_for_domain(pid, current_domain_id);
+	eval->global_labels = te_labels_for_domain(pid, 0);
+	eval->current_labels = te_labels_for_domain(pid, current_domain_id);
 	int candidate = -1;
 
 	if ((policy_features & TE_POLICY_FILE_FLOW) && (access & TE_ACCESS_READ)) {
-		global_labels |= te_file_labels_domain(fid, target, pid, 0);
-		current_labels |= te_file_labels_domain(fid, target, pid, current_domain_id);
+		eval->global_labels |= te_file_labels_domain(fid, target, pid, 0);
+		eval->current_labels |= te_file_labels_domain(fid, target, pid, current_domain_id);
 	}
 
 	eval->pid = pid;
-	eval->global_labels = global_labels;
-	eval->current_labels = current_labels;
 	eval->current_domain_id = current_domain_id;
 	eval->effect = TEFFECT_BLOCK;
 	eval->effect_mask = te_supported_effects(mode);

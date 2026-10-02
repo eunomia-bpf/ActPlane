@@ -9,6 +9,7 @@
 #include <stdbool.h>
 
 #include "taint.h"
+#include "policy_features.h"
 
 #define RESET "\033[0m"
 #define GREEN "\033[32m"
@@ -109,6 +110,64 @@ static void test_arg(void)
 	check(arg_m(slots2, "push") == 0, "arg: push absent");
 }
 
+/* The production loader (process.c) and the diagnostic verifier loader
+ * (vvload.c) must derive the same program-autoload feature bits from a policy;
+ * a divergent copy in vvload.c once made its runs exercise a different program
+ * set than production. These checks pin the shared computation's contract. */
+static void test_policy_features(void)
+{
+	struct taint_config cfg;
+
+	memset(&cfg, 0, sizeof(cfg));
+	check(config_features(&cfg) == 0, "features: empty policy -> none");
+
+	/* A block-exec rule with a bare pattern pulls the pre-exec block hook; the
+	 * argv-sensitive form must NOT, because it cannot block pre-exec. */
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.n_rules = 1;
+	cfg.rules[0].op = TOP_EXEC;
+	cfg.rules[0].effect = TEFFECT_BLOCK;
+	check((config_features(&cfg) & TE_POLICY_BLOCK_EXEC) != 0,
+	      "features: bare block exec -> BLOCK_EXEC");
+	cfg.rules[0].arg[0] = 'p'; cfg.rules[0].arg[1] = '\0';
+	check((config_features(&cfg) & TE_POLICY_BLOCK_EXEC) == 0,
+	      "features: argv block exec -> no BLOCK_EXEC");
+
+	/* Write sinks drive the file-flow collectors; the path-match kind selects
+	 * which path matcher the kernel compiles in. */
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.n_rules = 1;
+	cfg.rules[0].op = TOP_WRITE;
+	cfg.rules[0].match = TAINT_MATCH_SUFFIX;
+	cfg.rules[0].cond_kind = TCOND_TARGET;
+	cfg.rules[0].cond_match = TAINT_MATCH_CONTAINS;
+	unsigned int f = config_features(&cfg);
+	check((f & TE_POLICY_FILE_FLOW) != 0, "features: write rule -> FILE_FLOW");
+	check((f & TE_POLICY_WRITE_RULES) != 0, "features: write rule -> WRITE_RULES");
+	check((f & TE_POLICY_PATH_SUFFIX) != 0, "features: write suffix -> PATH_SUFFIX");
+	check((f & TE_POLICY_PATH_CONTAINS) != 0, "features: target contains -> PATH_CONTAINS");
+
+	/* Open rules enable the open collectors and their own path matcher. */
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.n_rules = 1;
+	cfg.rules[0].op = TOP_OPEN;
+	cfg.rules[0].match = TAINT_MATCH_PREFIX;
+	f = config_features(&cfg);
+	check((f & TE_POLICY_OPEN_RULES) != 0, "features: open rule -> OPEN_RULES");
+	check((f & TE_POLICY_FILE_FLOW) == 0, "features: open rule alone -> no FILE_FLOW");
+
+	/* Updates contribute file-flow and network bits too. */
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.n_updates = 2;
+	cfg.updates[0].op = TOP_OPEN;
+	cfg.updates[0].match = TAINT_MATCH_CONTAINS;
+	cfg.updates[1].op = TOP_CONNECT;
+	f = config_features(&cfg);
+	check((f & TE_POLICY_FILE_FLOW) != 0, "features: open update -> FILE_FLOW");
+	check((f & TE_POLICY_PATH_CONTAINS) != 0, "features: open update contains -> PATH_CONTAINS");
+	check((f & TE_POLICY_CONNECT) != 0, "features: connect update -> CONNECT");
+}
+
 int main(void)
 {
 	printf("=== ActPlane taint predicate tests ===\n");
@@ -117,6 +176,7 @@ int main(void)
 	test_match();
 	test_mask();
 	test_arg();
+	test_policy_features();
 	printf("\n%d passed, %d failed\n", passed, failed);
 	return failed == 0 ? 0 : 1;
 }

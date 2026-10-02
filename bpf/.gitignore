@@ -7,6 +7,7 @@
 /process_new
 /sslsniff
 /stdiocap
+/vvload
 /test_taint
 /test_process_*
 target
