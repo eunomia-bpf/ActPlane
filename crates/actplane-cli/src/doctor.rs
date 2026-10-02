@@ -2591,4 +2591,63 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn check_policy_succeeds_and_reports_compile_failures() {
+        let good = PolicyInput {
+            rule: Some(
+                "source COMMAND = exec \"**\"\nrule guard:\n  notify exec \"/bin/true\" if COMMAND\n  because \"b\"\n"
+                    .to_string(),
+            ),
+            ..PolicyInput::default()
+        };
+        assert_eq!(
+            check_policy(&good, false, false, None, false).expect("ok"),
+            0
+        );
+
+        let report_dir = tempfile::tempdir().expect("tempdir");
+        let report = report_dir.path().join("report.json");
+        let bad = PolicyInput {
+            rule: Some("rule guard notify exec".to_string()),
+            ..PolicyInput::default()
+        };
+        assert_eq!(
+            check_policy(&bad, true, false, Some(&report), false).expect("reported"),
+            1
+        );
+        let value: Value =
+            serde_json::from_str(&std::fs::read_to_string(&report).expect("read")).expect("json");
+        assert_eq!(value["schema"], "actplane.compile.v1");
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["policy_ref"], "--rule");
+        assert_eq!(value["domain"], Value::Null);
+        assert!(
+            value["error"].as_str().expect("error").contains("expected"),
+            "{value}"
+        );
+
+        assert!(
+            check_policy(&bad, true, false, Some(&report), false).is_err(),
+            "existing report without force must error"
+        );
+    }
+
+    #[test]
+    fn policy_ref_for_cli_names_the_input() {
+        let auto = PolicyInput::default();
+        assert_eq!(policy_ref_for_cli(&auto), "auto-discovered policy");
+
+        let inline = PolicyInput {
+            rule: Some("rule r".into()),
+            ..PolicyInput::default()
+        };
+        assert_eq!(policy_ref_for_cli(&inline), "--rule");
+
+        let path = PolicyInput {
+            policy: Some(PathBuf::from("/tmp/policy.yaml")),
+            ..PolicyInput::default()
+        };
+        assert_eq!(policy_ref_for_cli(&path), "/tmp/policy.yaml");
+    }
 }
