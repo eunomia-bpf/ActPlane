@@ -1381,3 +1381,89 @@ policy: |
     .expect("write policy");
     policy
 }
+
+#[test]
+fn mcp_stdio_jsonrpc_reports_unknown_and_malformed_requests() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-jsonrpc-errors");
+
+    mcp.send(json!({ "jsonrpc": "2.0", "id": 2, "method": "ping", "params": {} }));
+    assert_eq!(mcp.response(2)["result"], json!({}));
+
+    mcp.send(json!({ "jsonrpc": "2.0", "id": 3, "method": "bogus/method", "params": {} }));
+    let unknown_method = mcp.response(3);
+    assert_eq!(unknown_method["error"]["code"], -32601);
+    assert_eq!(unknown_method["error"]["message"], "bogus/method");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "tools/call",
+        "params": { "name": "no_such_tool", "arguments": {} }
+    }));
+    let unknown_tool = mcp.response(4);
+    assert_eq!(unknown_tool["error"]["code"], -32601);
+    assert_eq!(
+        unknown_tool["error"]["message"],
+        "Unknown tool: no_such_tool"
+    );
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "tools/call",
+        "params": { "name": "terminate_child_domain", "arguments": {} }
+    }));
+    let missing_argument = mcp.response(5);
+    assert_eq!(missing_argument["error"]["code"], -32602);
+    assert_eq!(missing_argument["error"]["message"], "missing `child_id`");
+
+    mcp.send(json!({ "jsonrpc": "2.0", "id": 6, "method": "prompts/list", "params": {} }));
+    assert_eq!(mcp.response(6)["result"], json!({ "prompts": [] }));
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///no_such_resource" }
+    }));
+    let unknown_resource = mcp.response(7);
+    assert_eq!(unknown_resource["error"]["code"], -32602);
+    assert_eq!(
+        unknown_resource["error"]["message"],
+        "Unknown resource: actplane:///no_such_resource"
+    );
+}
+
+#[test]
+fn mcp_stdio_surfaces_invalid_policy_as_a_message() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = tmp.path().join("actplane.yaml");
+    std::fs::write(&policy, "version: 1\npolicy: |\n  rule broken\n").expect("policy");
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-invalid-policy");
+
+    mcp.send(json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {} }));
+    let tools = mcp.response(2);
+    assert!(
+        tools["result"]["tools"]
+            .as_array()
+            .is_some_and(|t| !t.is_empty()),
+        "expected tool list even for an invalid policy: {tools}"
+    );
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///policy" }
+    }));
+    let resource = mcp.response(3);
+    let text = resource["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("policy resource text");
+    assert!(text.contains("Policy compile error"), "{text}");
+    assert!(text.contains("expected ':' after rule name"), "{text}");
+}
