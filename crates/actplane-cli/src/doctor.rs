@@ -2591,4 +2591,137 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn evidence_with_annotations() -> RolloutEvidence {
+        RolloutEvidence {
+            event_paths: Vec::new(),
+            annotation_paths: vec![PathBuf::from("ann.jsonl")],
+            total_events: 0,
+            total_annotations: 0,
+            ignored_lines: 0,
+            ignored_annotations: 0,
+            warnings: Vec::new(),
+            clauses: BTreeMap::new(),
+        }
+    }
+
+    fn observation_with(pairs: &[(&str, usize)]) -> ClauseObservation {
+        let mut observation = ClauseObservation::default();
+        for (key, value) in pairs {
+            observation.annotations.insert((*key).to_string(), *value);
+        }
+        observation
+    }
+
+    #[test]
+    fn annotation_backed_promotion_note_returns_none_without_paths() {
+        let evidence = RolloutEvidence {
+            annotation_paths: Vec::new(),
+            ..evidence_with_annotations()
+        };
+        assert_eq!(
+            annotation_backed_promotion_note(&evidence, None, Effect::Block),
+            None
+        );
+    }
+
+    #[test]
+    fn annotation_backed_promotion_note_flags_negative_classes() {
+        let evidence = evidence_with_annotations();
+        let missing = annotation_backed_promotion_note(&evidence, None, Effect::Block).unwrap();
+        assert!(missing.contains("no annotations for this clause"));
+        let empty = observation_with(&[]);
+        assert!(
+            annotation_backed_promotion_note(&evidence, Some(&empty), Effect::Block)
+                .unwrap()
+                .contains("no annotations for this clause")
+        );
+        let negatives = observation_with(&[("false_positive", 2), ("allowed", 1)]);
+        let note =
+            annotation_backed_promotion_note(&evidence, Some(&negatives), Effect::Block).unwrap();
+        assert!(note.contains("do not promote yet"));
+        assert!(note.contains("false_positive=2"));
+        assert!(note.contains("allowed=1"));
+        let review = observation_with(&[("needs_review", 3)]);
+        assert!(
+            annotation_backed_promotion_note(&evidence, Some(&review), Effect::Block)
+                .unwrap()
+                .contains("3 annotated example(s) still need review")
+        );
+    }
+
+    #[test]
+    fn annotation_backed_promotion_note_suggests_kill_vs_block_promotion() {
+        let evidence = evidence_with_annotations();
+        let positives = observation_with(&[("true_positive", 2)]);
+        let kill =
+            annotation_backed_promotion_note(&evidence, Some(&positives), Effect::Kill).unwrap();
+        assert!(kill.contains("limited kill promotion"));
+        let block =
+            annotation_backed_promotion_note(&evidence, Some(&positives), Effect::Block).unwrap();
+        assert!(block.contains("limited promotion"));
+        let unrecognized = observation_with(&[("other", 1)]);
+        assert!(
+            annotation_backed_promotion_note(&evidence, Some(&unrecognized), Effect::Block)
+                .unwrap()
+                .contains("no recognized promotion class")
+        );
+    }
+
+    fn detail(supported: bool, reason: &str) -> SupportDetail {
+        SupportDetail {
+            supported,
+            status: if supported {
+                "supported"
+            } else {
+                "unsupported"
+            },
+            mode: "none",
+            pre_op: false,
+            reason: reason.to_string(),
+            limitations: Vec::new(),
+        }
+    }
+
+    fn clause_with_effect(effect: Effect) -> Clause {
+        Clause {
+            op: Op::Exec,
+            target: crate::dsl::ast::Target {
+                kind: Kind::Exec,
+                pattern: "git".into(),
+                arg: None,
+            },
+            when: Expr::True,
+            unless: None,
+            effect,
+            source_index: 0,
+        }
+    }
+
+    #[test]
+    fn rollout_recommendation_notify_branches_on_block_support() {
+        let clause = clause_with_effect(Effect::Notify);
+        let (_, next, _) =
+            rollout_recommendation(&clause, &detail(true, "ok"), &detail(true, "ok"));
+        assert!(next.contains("eligible for later block"));
+        let (_, next, _) =
+            rollout_recommendation(&clause, &detail(true, "ok"), &detail(false, "argv only"));
+        assert!(next.contains("do not promote to block yet: argv only"));
+    }
+
+    #[test]
+    fn rollout_recommendation_block_and_kill_branches() {
+        let block = clause_with_effect(Effect::Block);
+        let (_, ok_next, _) =
+            rollout_recommendation(&block, &detail(true, "ok"), &detail(true, "ok"));
+        assert!(ok_next.contains("eligible for block"));
+        let (_, bad_next, _) =
+            rollout_recommendation(&block, &detail(false, "no lsm"), &detail(false, "no lsm"));
+        assert!(bad_next.contains("do not deploy as block yet: no lsm"));
+        let kill = clause_with_effect(Effect::Kill);
+        let (_, kill_next, caveat) =
+            rollout_recommendation(&kill, &detail(true, "ok"), &detail(true, "ok"));
+        assert!(kill_next.contains("promote to kill only after manual review"));
+        assert!(caveat.contains("syscall may already have completed"));
+    }
 }
