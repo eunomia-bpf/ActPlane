@@ -2992,4 +2992,54 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn tool_text(result: &CallToolResult) -> String {
+        match result.content.first() {
+            Some(ContentBlock::Text(t)) => t.text.clone(),
+            other => panic!("expected text content, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn supervisor_reconciles_without_an_attached_control() {
+        // A budgeted relaunch must not try to audit through a missing control.
+        let record = ChildRecord {
+            launch_id: "child-sup".to_string(),
+            pid: 99_999_999,
+            child_id: 3,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("stdout.log"),
+            stderr: PathBuf::from("stderr.log"),
+            meta: PathBuf::from("meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::OnExit,
+            restart_count: DEFAULT_RESTART_LIMIT,
+            // The restart limit is exhausted so the record is a relaunch
+            // candidate whose restart is blocked.
+            restart_limit: DEFAULT_RESTART_LIMIT,
+            restart_backoff_ms: u64::MAX,
+            last_exit_unix_ms: Some(unix_time_ms()),
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        };
+        let server = ActPlaneMcp {
+            project_dir: PathBuf::from("."),
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::from([(3u32, record)]))),
+        };
+
+        let result = server.do_reconcile_child_domains().expect("reconcile");
+        let payload: Value =
+            serde_json::from_str(&tool_text(&result)).expect("reconcile json payload");
+        assert_eq!(payload["total"], 1);
+        assert_eq!(payload["exited"], 1);
+        assert_eq!(payload["alerts"].as_array().expect("alerts").len(), 1);
+        assert_eq!(payload["restarted"].as_array().expect("restarted").len(), 0);
+    }
 }
