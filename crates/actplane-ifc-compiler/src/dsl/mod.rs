@@ -767,4 +767,25 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+    #[test]
+    fn unknown_kinds_and_missing_target_kinds_are_named() {
+        let kind = compile_str("source A = frob \"x\"\n")
+            .err()
+            .expect("unknown kind");
+        assert_eq!(kind, "unknown kind 'frob'");
+
+        let node = compile_str("rule r:\n  notify connect \"x\" if true\n  because \"y\"\n")
+            .err()
+            .expect("connect target needs an endpoint node");
+        assert_eq!(node, "expected node kind in target");
+    }
+
+    #[test]
+    fn top_level_tokens_must_be_declarations() {
+        let colon = compile_str(":\n").err().expect("bare colon");
+        assert_eq!(colon, "expected declaration, got Colon");
+
+        let string = compile_str("\"hello\"\n").err().expect("bare string");
+        assert_eq!(string, "expected declaration, got Str(\"hello\")");
+    }
 }
