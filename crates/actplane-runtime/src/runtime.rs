@@ -2108,4 +2108,53 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn kill_process_group_and_wait_reaps_group() {
+        // Some sandboxes deny signals to non-root processes (EPERM on `kill`);
+        // probe empirically on a short-lived group-led child.
+        let can_signal = {
+            let mut probe = std::process::Command::new("/bin/sh");
+            probe
+                .arg("-c")
+                .arg("sleep 5")
+                .process_group(0)
+                .stdout(std::process::Stdio::null());
+            let mut child = probe.spawn().expect("probe spawn");
+            let pid = child.id() as i32;
+            let rc = unsafe { libc::kill(-pid, libc::SIGKILL) };
+            let _ = child.wait().expect("probe wait");
+            rc == 0
+        };
+
+        // `kill_process_group_and_wait` SIGKILLs the child's whole process
+        // group and then reaps the child. No base or branch test calls it.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        rt.block_on(async {
+            let mut cmd = tokio::process::Command::new("/bin/sh");
+            cmd.arg("-c").arg("sleep 30");
+            cmd.process_group(0);
+            let mut child = cmd.spawn().expect("spawn");
+            let pid = child.id().expect("spawned child has a pid");
+            // `process_group(0)` makes the child its own group leader, so
+            // `send_process_group_signal(pid)` reaches the whole tree.
+            assert_eq!(
+                unsafe { libc::getpgid(pid as i32) },
+                pid as i32,
+                "child must lead its own process group"
+            );
+            let start = std::time::Instant::now();
+            kill_process_group_and_wait(&mut child).await;
+            assert!(child.id().is_none(), "child reaped after group SIGKILL");
+            if can_signal {
+                assert!(
+                    start.elapsed() < std::time::Duration::from_secs(20),
+                    "group SIGKILL terminated the child promptly"
+                );
+            }
+        });
+    }
 }
