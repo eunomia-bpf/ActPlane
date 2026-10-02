@@ -2992,4 +2992,37 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn wait_for_stopped_process_times_out_on_a_running_child() {
+        // The child outlives the short waiter timeout, so the poll loop must
+        // give up on a state that is never T/t; `wait` then reaps it as it exits.
+        let mut child = std::process::Command::new("sleep")
+            .arg("0.2")
+            .spawn()
+            .expect("spawn sleep");
+        let pid = child.id() as i32;
+        let err = wait_for_stopped_process(pid, Duration::from_millis(20)).expect_err("timeout");
+        assert_eq!(err.kind(), std::io::ErrorKind::TimedOut);
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn proc_state_code_reads_live_pids_and_rejects_missing_ones() {
+        let state = proc_state_code(std::process::id() as i32).expect("own state");
+        assert!(matches!(state, 'R' | 'S' | 'D' | 'T' | 't'), "got {state}");
+        assert!(
+            proc_state_code(99_999_999).is_err(),
+            "dead pid has no /proc entry"
+        );
+    }
+
+    #[test]
+    fn signal_helpers_report_missing_targets() {
+        // Signal delivery to a nonexistent pid/group surfaces ESRCH as an error.
+        let err = send_signal(99_999_999, libc::SIGTERM).expect_err("dead pid");
+        assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
+        let err = terminate_process_group_with(99_999_999, libc::SIGTERM).expect_err("dead group");
+        assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
+    }
 }
