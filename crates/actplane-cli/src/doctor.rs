@@ -2591,4 +2591,103 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn render_dsl_expr_nests_and_chains_operators() {
+        assert_eq!(render_dsl_expr(&Expr::True), "true");
+        assert_eq!(render_dsl_expr(&Expr::Label("T".into())), "T");
+        assert_eq!(render_dsl_expr(&Expr::Not("T".into())), "not T");
+        let nested = Expr::And(
+            Box::new(Expr::Label("A".into())),
+            Box::new(Expr::Or(
+                Box::new(Expr::Label("B".into())),
+                Box::new(Expr::Label("C".into())),
+            )),
+        );
+        assert_eq!(render_dsl_expr(&nested), "A and B or C");
+    }
+
+    #[test]
+    fn render_dsl_event_appends_optional_argument() {
+        assert_eq!(render_dsl_event(Op::Exec, "git", None), "exec \"git\"");
+        assert_eq!(
+            render_dsl_event(Op::Exec, "git", Some("push")),
+            "exec \"git\" \"push\""
+        );
+    }
+
+    #[test]
+    fn render_dsl_cond_covers_lineage_target_and_after() {
+        assert_eq!(
+            render_dsl_cond(&Cond::Target {
+                negate: false,
+                pattern: "host".into()
+            }),
+            "target \"host\""
+        );
+        assert_eq!(
+            render_dsl_cond(&Cond::Target {
+                negate: true,
+                pattern: "host".into()
+            }),
+            "target not \"host\""
+        );
+        assert_eq!(
+            render_dsl_cond(&Cond::LineageIncludes { exec: "git".into() }),
+            "lineage-includes exec \"git\""
+        );
+        assert_eq!(
+            render_dsl_cond(&Cond::After {
+                gate_op: Op::Exec,
+                gate_pattern: "git".into(),
+                gate_exit: Some(1),
+                since: vec![(Op::Write, "f.txt".into(), None)],
+            }),
+            "after exec \"git\" exits 1 since write \"f.txt\""
+        );
+    }
+
+    #[test]
+    fn expr_summary_labels_boolean_structure() {
+        let nested = Expr::And(
+            Box::new(Expr::Label("A".into())),
+            Box::new(Expr::Or(
+                Box::new(Expr::Label("B".into())),
+                Box::new(Expr::Label("C".into())),
+            )),
+        );
+        assert_eq!(expr_summary(&nested), "(A and (B or C))");
+    }
+
+    #[test]
+    fn cond_summary_covers_target_after_and_empty_since() {
+        assert_eq!(
+            cond_summary(&Cond::Target {
+                negate: false,
+                pattern: "host".into()
+            }),
+            "target \"host\""
+        );
+        assert_eq!(
+            cond_summary(&Cond::After {
+                gate_op: Op::Exec,
+                gate_pattern: "git".into(),
+                gate_exit: None,
+                since: vec![],
+            }),
+            "after exec \"git\""
+        );
+        assert_eq!(
+            cond_summary(&Cond::After {
+                gate_op: Op::Exec,
+                gate_pattern: "git".into(),
+                gate_exit: Some(2),
+                since: vec![
+                    (Op::Write, "a".into(), None),
+                    (Op::Write, "b".into(), Some("x".into())),
+                ],
+            }),
+            "after exec \"git\" exits 2 since write \"a\" or write \"b\" \"x\""
+        );
+    }
 }
