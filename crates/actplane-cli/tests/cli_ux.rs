@@ -707,6 +707,31 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// The `--explain` sources section renders an endpoint source's flow direction
+// and the in-kernel IPv6 limitation.
+#[test]
+fn compile_explain_renders_endpoint_source_flow() {
+    let policy = fixture("18_untrusted_tool_network.yaml");
+    let output = run(&["--policy", &policy, "compile", "--explain"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(
+        out.contains("labels:\n  - TOOL = 0x1\n  - UNTRUST = 0x2"),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("source UNTRUST = endpoint \"*\"")
+            && out.contains(
+                "flow: matching IPv4 endpoint carries the label; recv copies it into the process, connect records egress labels"
+            ),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("limitations: IPv6 is not enforced in-kernel"),
+        "stdout: {out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
