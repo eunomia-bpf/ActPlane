@@ -707,6 +707,60 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `control children` reads the repo control socket and sends the
+// `list_child_domains` request, printing the server's text reply.
+#[cfg(unix)]
+#[test]
+fn control_children_queries_local_server() {
+    let tmp = tempfile::tempdir().unwrap();
+    let socket_path = tmp.path().join("control.sock");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": std::process::id() as i32,
+            "proc_start_time": null,
+            "socket_path": socket_path,
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": 2222,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept control client");
+        let mut line = String::new();
+        std::io::BufReader::new(stream.try_clone().expect("clone stream"))
+            .read_line(&mut line)
+            .expect("read request");
+        tx.send(serde_json::from_str::<serde_json::Value>(&line).expect("request JSON"))
+            .expect("send request");
+        serde_json::to_writer(
+            &mut stream,
+            &serde_json::json!({ "ok": true, "text": "2 child domain(s)" }),
+        )
+        .expect("write response");
+        writeln!(stream).expect("write response newline");
+    });
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["control", "children"])
+        .output()
+        .expect("run control children");
+    handle.join().expect("control server thread");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert_eq!(stdout(&output).trim(), "2 child domain(s)");
+    let request = rx.recv().expect("captured request");
+    assert_eq!(request["op"], "list_child_domains");
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
