@@ -851,4 +851,27 @@ domains:
             );
         }
     }
+    #[test]
+    fn load_policy_path_reports_raw_dsl_and_read_failures() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let dsl = dir.path().join("policy.dsl");
+        fs::write(&dsl, "rule r:\n  block exec \"git\"\n  because \"x\"\n").unwrap();
+        let err = match load_policy_path(&dsl, true, dir.path()) {
+            Ok(_) => panic!("raw DSL file must be rejected"),
+            Err(err) => err,
+        };
+        assert!(err.to_string().contains("is a raw DSL file"), "err: {err}");
+
+        let missing = dir.path().join("absent.yaml");
+        let err = match load_policy_path(&missing, true, dir.path()) {
+            Ok(_) => panic!("missing policy file must be rejected"),
+            Err(err) => err,
+        };
+        assert!(
+            err.to_string()
+                .starts_with(&format!("reading {}:", missing.display())),
+            "err: {err}"
+        );
+    }
 }
