@@ -1381,3 +1381,51 @@ policy: |
     .expect("write policy");
     policy
 }
+
+#[test]
+fn mcp_child_domain_tools_accept_domain_id_alias() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-domain-alias-schema");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        "params": {}
+    }));
+    let tools = mcp.response(2);
+    let by_name: std::collections::BTreeMap<&str, &Value> = tools["result"]["tools"]
+        .as_array()
+        .expect("tools array")
+        .iter()
+        .filter_map(|tool| tool.get("name").and_then(Value::as_str).map(|n| (n, tool)))
+        .collect();
+    for name in [
+        "read_child_domain_logs",
+        "terminate_child_domain",
+        "restart_child_domain",
+    ] {
+        let tool = by_name.get(name).unwrap_or_else(|| panic!("tool {name}"));
+        let schema = &tool["inputSchema"];
+        assert_eq!(
+            schema["oneOf"],
+            json!([
+                { "required": ["child_id"] },
+                { "required": ["domain_id"] }
+            ]),
+            "{name} schema: {schema}"
+        );
+        assert_eq!(schema["properties"]["domain_id"]["type"], "integer");
+    }
+    for name in ["list_child_domains", "reconcile_child_domains"] {
+        let schema = &by_name[name]["inputSchema"];
+        assert_eq!(schema["type"], "object", "{name}: {schema}");
+        assert_eq!(schema["properties"], json!({}), "{name}: {schema}");
+    }
+    assert_eq!(
+        by_name["bind_child_domain"]["inputSchema"]["properties"]["pid"]["type"],
+        "integer"
+    );
+}
