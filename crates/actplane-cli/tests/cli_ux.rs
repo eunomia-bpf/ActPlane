@@ -707,6 +707,34 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile --json` reports the resolved domain binding as a structured object
+// with locked/disabled/default rule partitions.
+#[test]
+fn compile_json_reports_domain_binding_object() {
+    let output = run(&[
+        "--policy",
+        &fixture("15_domain_bindings.yaml"),
+        "--domain",
+        "review",
+        "compile",
+        "--json",
+    ]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let report: serde_json::Value = serde_json::from_str(&stdout(&output)).expect("compile json");
+    assert_eq!(report["domain"]["name"], "review");
+    assert_eq!(report["domain"]["parent"], "session");
+    assert_eq!(
+        report["domain"]["locked"],
+        serde_json::json!(["no-git-branch", "readonly"])
+    );
+    assert_eq!(
+        report["domain"]["disabled"],
+        serde_json::json!(["no-network"])
+    );
+    assert_eq!(report["domain"]["default"], serde_json::json!([]));
+    assert_eq!(report["ok"], true);
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
