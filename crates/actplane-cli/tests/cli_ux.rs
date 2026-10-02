@@ -707,6 +707,40 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile --explain` prints the full policy review to stdout: labels, sources
+// and flows, per-rule lowering with limitations, and the event/audit semantics.
+#[test]
+fn compile_explain_prints_policy_review_report() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\npolicy: |\n  source AGENT = exec \"**\"\n  rule no-network:\n    notify connect endpoint \"*\" if AGENT unless target \"127.\"\n    because \"network review\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["compile", "--explain"])
+        .output()
+        .expect("run compile --explain");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    for expected in [
+        "ActPlane policy review",
+        "domain: none (flat policy)",
+        "rules: 1 DSL rule(s), 1 lowered kernel matcher(s)",
+        "labels:\n  - AGENT = 0x1",
+        "flow: matching exec adds the label to the process and fork descendants",
+        "1. rule no-network",
+        "reason: network review",
+        "limitations: IPv4 only",
+        "causal_chain is a reported single-hop origin",
+        "warnings: none",
+    ] {
+        assert!(out.contains(expected), "missing {expected:?} in:\n{out}");
+    }
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
