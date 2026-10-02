@@ -2591,4 +2591,45 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn render_check_explain_reports_flat_policy_review() {
+        let src = concat!(
+            "source COMMAND = exec \"**\"\n",
+            "rule guard:\n",
+            "  notify exec \"/bin/true\" if COMMAND\n",
+            "  because \"b\"\n",
+        );
+        let parsed = dsl::parse::parse(src).expect("parse");
+        let compiled = dsl::compile_str(src).expect("compile");
+        let resolved = ResolvedPolicy {
+            source: src.to_string(),
+            domain: None,
+        };
+        let loaded = LoadedPolicy {
+            config: crate::config::FileConfig::default(),
+            root: PathBuf::new(),
+            path: None,
+        };
+
+        let out = render_check_explain(
+            "--rule", &loaded, &resolved, &parsed, &compiled, "", false, false,
+        );
+        assert!(out.contains("ActPlane policy review"), "{out}");
+        assert!(out.contains("policy: --rule"), "{out}");
+        assert!(out.contains("domain: none (flat policy)"), "{out}");
+        assert!(
+            out.contains("rules: 1 DSL rule(s), 1 lowered kernel matcher(s)"),
+            "{out}"
+        );
+        assert!(out.contains("active LSMs: unknown"), "{out}");
+        assert!(out.contains("- BPF-LSM pre-op block: unavailable"), "{out}");
+        assert!(out.contains("COMMAND = 0x1"), "{out}");
+        assert!(out.contains("1. rule guard"), "{out}");
+        assert!(
+            out.contains("clause 1: notify exec \"/bin/true\" if COMMAND"),
+            "{out}"
+        );
+        assert!(out.contains("warnings: none"), "{out}");
+    }
 }
