@@ -707,6 +707,29 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `actplane.yaml` is discovered upward from cwd, so compiling from a nested
+// subdirectory uses the project-root policy and reports that path.
+#[test]
+fn policy_is_discovered_upward_from_nested_directory() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = tmp.path().join("actplane.yaml");
+    fs::copy(fixture("01_secret_no_exfil.yaml"), &policy).unwrap();
+    let nested = tmp.path().join("crates/inner/src");
+    fs::create_dir_all(&nested).unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(&nested)
+        .arg("compile")
+        .output()
+        .expect("run compile from nested dir");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(
+        out.contains(&format!("✓ {}: 2 rule(s) compile.", policy.display())),
+        "compile must report the discovered root policy:\n{out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
