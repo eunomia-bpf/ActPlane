@@ -707,6 +707,45 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile --json` reports source and clause spans and content hashes for each
+// rule, so provenance is addressable per rule and per clause.
+#[test]
+fn compile_json_reports_rule_provenance_spans() {
+    let output = run(&[
+        "--rule",
+        "source COMMAND = exec \"**\"\n  rule first:\n    kill exec \"git\" \"push\" if COMMAND\n    because \"a\"\n  rule second:\n    notify connect endpoint \"*\" if COMMAND\n    because \"b\"\n",
+        "compile",
+        "--json",
+    ]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let report: serde_json::Value = serde_json::from_str(&stdout(&output)).expect("compile json");
+    let rules = report["rules"].as_array().expect("rules array");
+    assert_eq!(rules.len(), 2);
+    let first = &rules[0];
+    assert_eq!(first["name"], "first");
+    assert_eq!(first["rule_id"], 0);
+    assert_eq!(first["source_start_line"], 2);
+    assert_eq!(first["source_end_line"], 4);
+    assert!(
+        first["source_hash"]
+            .as_str()
+            .unwrap_or("")
+            .starts_with("fnv1a64:"),
+        "source hash: {first}"
+    );
+    assert_eq!(first["clause_start_line"], 3);
+    assert_eq!(first["clause_end_line"], 3);
+    assert_eq!(first["clause_source_index"], 0);
+    assert_eq!(first["ops"], serde_json::json!(["exec"]));
+
+    let second = &rules[1];
+    assert_eq!(second["name"], "second");
+    assert_eq!(second["rule_id"], 1);
+    assert_eq!(second["source_start_line"], 5);
+    assert_eq!(second["clause_start_line"], 6);
+    assert_ne!(first["clause_hash"], second["clause_hash"]);
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
