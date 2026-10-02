@@ -39,6 +39,14 @@ static void test_streq(void)
 	check(p_streq("git", "ssh") == 0, "streq: different");
 	check(p_streq("git", "gitk") == 0, "streq: prefix is not equal");
 	check(p_streq("", "") == 1, "streq: both empty");
+	// taint_streq compares every byte of the padded TAINT_PAT_LEN buffer, so a
+	// difference anywhere up to the last byte must be detected.
+	char a[TAINT_PAT_LEN], b[TAINT_PAT_LEN];
+	memset(a, 'x', TAINT_PAT_LEN);
+	memset(b, 'x', TAINT_PAT_LEN);
+	check(taint_streq(a, b) == 1, "streq: full-length buffers equal");
+	b[TAINT_PAT_LEN - 1] = 'y';
+	check(taint_streq(a, b) == 0, "streq: last-byte difference detected");
 }
 
 static void test_prefix(void)
