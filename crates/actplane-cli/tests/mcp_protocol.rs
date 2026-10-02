@@ -1381,3 +1381,26 @@ policy: |
     .expect("write policy");
     policy
 }
+
+// A request that arrives before the `initialize` handshake is rejected with an
+// invalid-params error naming the missing handshake metadata.
+#[test]
+fn mcp_requests_before_initialize_report_missing_metadata() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/list",
+        "params": {}
+    }));
+    let listing = mcp.response(1);
+    assert_eq!(listing["error"]["code"], -32602, "listing: {listing}");
+    let message = listing["error"]["message"].as_str().unwrap_or_default();
+    assert!(
+        message.contains("request _meta is missing"),
+        "listing: {listing}"
+    );
+}
