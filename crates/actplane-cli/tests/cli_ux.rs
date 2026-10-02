@@ -707,6 +707,42 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// Argument combinations that `attach` and `init` reject should fail with a
+// non-zero status and the specific conflict message, before any engine work
+// (control socket, policy file, or integration writes) is attempted.
+#[test]
+fn cli_preflight_conflicts_fail_with_specific_errors() {
+    let cases: &[(&[&str], &str)] = &[
+        (&["attach", "--pid", "0"], "--pid must be positive"),
+        (
+            &["attach", "--pid", "5", "--parent-domain", "--child-domain"],
+            "--parent-domain cannot be combined with child-domain attach options",
+        ),
+        (
+            &["init", "--list-templates", "--force"],
+            "--list-templates cannot be combined with write or integration flags",
+        ),
+        (&["init", "--set", "a=b"], "--set requires --template"),
+        (
+            &["init", "--print", "--with-mcp"],
+            "--print cannot be combined with integration setup flags",
+        ),
+    ];
+    for (args, expected) in cases {
+        let output = run(args);
+        assert!(
+            !output.status.success(),
+            "{args:?} unexpectedly succeeded: {}",
+            stdout(&output)
+        );
+        assert!(
+            stderr(&output).contains(expected),
+            "{args:?} stderr missing {expected:?}: {}",
+            stderr(&output)
+        );
+    }
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
