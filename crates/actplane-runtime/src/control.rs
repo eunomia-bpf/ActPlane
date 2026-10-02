@@ -380,4 +380,23 @@ mod tests {
         let err = send_request(dir.path(), json!({ "op": "status" })).unwrap_err();
         assert!(err.to_string().contains("stale ActPlane control state"));
     }
+
+    #[test]
+    fn read_state_reports_missing_and_malformed_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+
+        let err = read_state(dir.path()).unwrap_err().to_string();
+        assert!(
+            err.starts_with(&format!("read {}: ", state_path(dir.path()).display())),
+            "unexpected: {err}"
+        );
+
+        std::fs::create_dir_all(state_path(dir.path()).parent().unwrap()).expect("mkdir");
+        std::fs::write(state_path(dir.path()), "{not json").expect("write");
+        let err = read_state(dir.path()).unwrap_err().to_string();
+        assert!(
+            err.starts_with(&format!("parse {}: ", state_path(dir.path()).display())),
+            "unexpected: {err}"
+        );
+    }
 }
