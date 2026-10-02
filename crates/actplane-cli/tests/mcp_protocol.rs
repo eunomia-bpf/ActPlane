@@ -1381,3 +1381,76 @@ policy: |
     .expect("write policy");
     policy
 }
+
+#[test]
+fn mcp_stdio_jsonrpc_reports_unknown_methods() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-unknown-method");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "nope/method",
+        "params": {}
+    }));
+    let unknown_method = mcp.response(2);
+    assert_eq!(unknown_method["error"]["code"], -32601, "{unknown_method}");
+    assert_eq!(unknown_method["error"]["message"], "nope/method");
+
+    // A call that omits `params` is reported by method name.
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call"
+    }));
+    let missing_params = mcp.response(3);
+    assert_eq!(missing_params["error"]["code"], -32601, "{missing_params}");
+    assert_eq!(missing_params["error"]["message"], "tools/call");
+
+    // Unknown resources are reported as an in-band tool error.
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///nope" }
+    }));
+    let unknown_resource = mcp.response(4);
+    assert_eq!(
+        unknown_resource["error"]["code"], -32602,
+        "{unknown_resource}"
+    );
+    assert_eq!(
+        unknown_resource["error"]["message"],
+        "Unknown resource: actplane:///nope"
+    );
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_reads_policy_resource_metadata() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-policy-resource");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///policy" }
+    }));
+    let response = mcp.response(2);
+    let contents = response["result"]["contents"].as_array().expect("contents");
+    assert_eq!(contents.len(), 1, "{response}");
+    assert_eq!(contents[0]["uri"], "actplane:///policy");
+    assert_eq!(contents[0]["mimeType"], "text/plain");
+    let text = contents[0]["text"].as_str().expect("text");
+    assert_eq!(
+        text,
+        format!(
+            "Policy valid ({}, 1 rules):\n  1. noop — notify exec (noop)\n",
+            policy.display()
+        )
+    );
+}
