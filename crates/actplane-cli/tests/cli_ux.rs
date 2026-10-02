@@ -714,3 +714,117 @@ fn stdout(output: &Output) -> String {
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
+
+fn run_with_path(args: &[&str], bin_dir: &std::path::Path, cwd: &std::path::Path) -> Output {
+    let path = format!(
+        "{}:{}",
+        bin_dir.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    Command::new(actplane())
+        .args(args)
+        .current_dir(cwd)
+        .env("PATH", path)
+        .output()
+        .unwrap_or_else(|e| panic!("run actplane {args:?}: {e}"))
+}
+
+#[test]
+fn doctor_reports_policy_readiness_and_problem_count() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = tmp.path().join("actplane.yaml");
+    fs::write(
+        &policy,
+        "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  \
+         rule noop:\n    notify exec \"__actplane_never__\" if COMMAND\n    because \"noop\"\n",
+    )
+    .expect("policy");
+    let hooks = tmp.path().join(".codex");
+    fs::create_dir_all(&hooks).expect("codex dir");
+    fs::write(
+        hooks.join("hooks.json"),
+        "{\"hooks\":{\"PostToolUse\":[{\"hooks\":[{\"command\":\"actplane feedback-hook\"}]}]}}",
+    )
+    .expect("hooks");
+
+    let bin_dir = std::path::Path::new(actplane()).parent().expect("bin dir");
+    let output = run_with_path(
+        &["--policy", policy.to_str().unwrap(), "doctor"],
+        bin_dir,
+        tmp.path(),
+    );
+    assert!(
+        output.status.success(),
+        "stdout: {}\nstderr: {}",
+        stdout(&output),
+        stderr(&output)
+    );
+    let text = stdout(&output);
+    assert!(text.starts_with("ActPlane doctor"), "{text}");
+    assert!(text.contains("✓ policy: "), "{text}");
+    assert!(text.contains("(1 rule(s))"), "{text}");
+    assert!(
+        text.contains(&format!(
+            "✓ feedback file: {}",
+            tmp.path().join(".actplane/last-violation.txt").display()
+        )),
+        "{text}"
+    );
+    assert!(
+        text.contains(&format!(
+            "✓ audit log: {}",
+            tmp.path().join(".actplane/audit.jsonl").display()
+        )),
+        "{text}"
+    );
+    assert!(
+        text.contains(&format!(
+            "✓ event log: {}",
+            tmp.path().join(".actplane/events.jsonl").display()
+        )),
+        "{text}"
+    );
+    assert!(text.contains("✓ Codex hook: "), "{text}");
+    assert!(
+        text.contains("⚠ project MCP config: .mcp.json missing"),
+        "{text}"
+    );
+    assert!(text.contains("✓ setup looks usable."), "{text}");
+
+    fs::write(
+        tmp.path().join("broken.yaml"),
+        "version: 1\npolicy: |\n  rule x\n",
+    )
+    .expect("broken");
+    let broken = run_with_path(
+        &[
+            "--policy",
+            tmp.path().join("broken.yaml").to_str().unwrap(),
+            "doctor",
+        ],
+        bin_dir,
+        tmp.path(),
+    );
+    assert!(!broken.status.success());
+    assert!(
+        stdout(&broken).contains("does not compile"),
+        "{}",
+        stdout(&broken)
+    );
+    assert!(
+        stdout(&broken).contains("✗ setup has 1 problem(s)."),
+        "{}",
+        stdout(&broken)
+    );
+}
+
+#[test]
+fn doctor_reports_missing_policy_without_an_engine() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let missing = tmp.path().join("absent.yaml");
+    let output = run(&["--policy", missing.to_str().unwrap(), "doctor"]);
+    assert!(!output.status.success());
+    let text = stdout(&output);
+    assert!(text.contains("✗ policy: "), "{text}");
+    assert!(text.contains("✗ setup has"), "{text}");
+}
