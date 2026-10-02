@@ -2992,4 +2992,76 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn child_id_record(status: ChildStatus) -> ChildRecord {
+        ChildRecord {
+            launch_id: "child-refresh".to_string(),
+            pid: i32::MAX,
+            child_id: 1,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/stdout.log"),
+            stderr: PathBuf::from("/tmp/stderr.log"),
+            meta: PathBuf::from("/tmp/meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 2,
+            restart_backoff_ms: 1000,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    #[test]
+    fn child_id_arg_accepts_child_id_then_domain_id() {
+        let both = serde_json::json!({ "child_id": 5, "domain_id": 6 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(child_id_arg(&both).expect("child_id wins"), 5);
+
+        let alias = serde_json::json!({ "domain_id": 6 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(child_id_arg(&alias).expect("domain_id alias"), 6);
+
+        let absent = serde_json::json!({}).as_object().expect("object").clone();
+        assert_eq!(
+            child_id_arg(&absent).unwrap_err().message,
+            "missing `child_id`"
+        );
+    }
+
+    #[test]
+    fn refresh_child_record_status_marks_dead_processes_exited() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut running = child_id_record(ChildStatus::Running);
+        running.meta = dir.path().join("running.json");
+        refresh_child_record_status(&mut running);
+        assert!(child_record_exited(&running), "dead pid becomes exited");
+        assert!(running.last_exit_unix_ms.is_some());
+
+        let mut live = child_id_record(ChildStatus::Running);
+        live.meta = dir.path().join("live.json");
+        live.pid = std::process::id() as i32;
+        live.proc_start_time = proc_start_time(live.pid);
+        refresh_child_record_status(&mut live);
+        assert!(child_record_running(&live), "live pid stays running");
+
+        let mut already = child_id_record(ChildStatus::Terminated);
+        already.meta = dir.path().join("already.json");
+        refresh_child_record_status(&mut already);
+        assert!(
+            child_record_terminated(&already),
+            "terminal status is left alone"
+        );
+    }
 }
