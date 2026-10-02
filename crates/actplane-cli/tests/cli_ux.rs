@@ -714,3 +714,67 @@ fn stdout(output: &Output) -> String {
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
+
+#[test]
+fn run_with_missing_child_delta_reports_the_path() {
+    let tmp = tempfile::tempdir().unwrap();
+    let missing = tmp.path().join("absent.dsl");
+    let policy = tmp.path().join("actplane.yaml");
+    fs::write(
+        &policy,
+        "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule noop:\n    notify exec \"__never__\" if COMMAND\n    because \"b\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .args([
+            "--policy",
+            policy.to_str().unwrap(),
+            "run",
+            "--delta",
+            missing.to_str().unwrap(),
+            "--",
+            "/bin/true",
+        ])
+        .output()
+        .expect("run with missing delta");
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains(&format!(
+            "cannot read child policy delta {}: No such file or directory",
+            missing.display()
+        )),
+        "stderr did not report the missing delta:\n{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn attach_child_domain_with_delta_requires_control_state() {
+    let tmp = tempfile::tempdir().unwrap();
+    let missing = tmp.path().join("absent.dsl");
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args([
+            "attach",
+            "--pid",
+            "1",
+            "--child-domain",
+            "--delta",
+            missing.to_str().unwrap(),
+        ])
+        .output()
+        .expect("attach with missing delta");
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains(&format!(
+            "read {}: No such file or directory",
+            state_dir.join("control.json").display()
+        )),
+        "stderr did not report the missing control state:\n{}",
+        stderr(&output)
+    );
+}
