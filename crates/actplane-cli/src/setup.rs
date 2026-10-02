@@ -325,4 +325,26 @@ mod tests {
         assert!(policy.contains("test-before-commit"));
         dsl::compile_str(&policy).unwrap();
     }
+
+    #[test]
+    fn codex_hook_predicate_requires_the_actplane_command_anywhere() {
+        assert!(codex_hook_has_actplane_command(
+            r#"{"hooks":{"PostToolUse":[{"matcher":".*","hooks":[{"type":"command","command":"actplane feedback-hook"}]}]}}"#
+        ));
+        assert!(!codex_hook_has_actplane_command(
+            r#"{"hooks":{"PostToolUse":[{"hooks":[{"command":"other-hook"}]}]}}"#
+        ));
+        assert!(!codex_hook_has_actplane_command("not json"));
+        assert!(!codex_hook_has_actplane_command(""));
+    }
+
+    #[test]
+    fn project_mcp_predicate_requires_command_and_args_exactly() {
+        assert!(project_mcp_auto_attach_ok(PROJECT_MCP_JSON));
+        assert!(!project_mcp_auto_attach_ok("not json"));
+        assert!(!project_mcp_auto_attach_ok(r#"{"mcpServers":{}}"#));
+        assert!(!project_mcp_auto_attach_ok(
+            r#"{"mcpServers":{"actplane":{"command":"actplane"}}}"#
+        ));
+    }
 }
