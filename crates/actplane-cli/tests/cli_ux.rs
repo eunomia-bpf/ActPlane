@@ -707,6 +707,58 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `init --template --set NAME=VALUE` substitutes template parameters into the
+// generated policy and rejects unknown names by listing the valid ones.
+#[test]
+fn init_template_set_substitutes_parameters_and_rejects_unknown() {
+    let output = run(&[
+        "init",
+        "--template",
+        "workspace-confinement",
+        "--set",
+        "agent_exec=my-agent",
+        "--set",
+        "writable_path=/srv/work",
+        "--print",
+    ]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let policy = stdout(&output);
+    assert!(
+        policy.contains("# Parameter agent_exec: my-agent")
+            && policy.contains("# Parameter writable_path: /srv/work"),
+        "policy must echo the substituted parameters:\n{policy}"
+    );
+    assert!(
+        policy.contains("exec \"my-agent\"") && policy.contains("unless target \"/srv/work\""),
+        "policy must substitute values into the rule body:\n{policy}"
+    );
+    assert!(
+        !policy.contains("{{"),
+        "no unsubstituted placeholders may remain:\n{policy}"
+    );
+
+    let unknown = run(&[
+        "init",
+        "--template",
+        "workspace-confinement",
+        "--set",
+        "nope=1",
+        "--print",
+    ]);
+    assert_eq!(
+        unknown.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&unknown)
+    );
+    let err = stderr(&unknown);
+    assert!(
+        err.contains("unknown parameter `nope` for template `workspace-confinement`")
+            && err.contains("available: agent_exec, writable_path"),
+        "stderr: {err}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
