@@ -2591,4 +2591,18 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn doctor_reports_problems_for_a_non_compiling_policy() {
+        let cli = PolicyInput {
+            policy: None,
+            rule: Some("rule :".to_string()),
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+        };
+        // A policy that fails to compile is always counted as a problem, so the
+        // exit status is 1 regardless of the host kernel/privilege checks.
+        assert_eq!(doctor(&cli).unwrap(), 1);
+    }
 }
