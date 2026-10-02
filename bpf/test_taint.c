@@ -58,6 +58,10 @@ static void test_match(void)
 	check(p_match(TAINT_MATCH_PREFIX, "/a/b", "/a") == 1, "match: prefix hit");
 	check(p_match(TAINT_MATCH_SUFFIX, "/home/u/.env", ".env") == 1, "match: suffix hit");
 	check(p_match(TAINT_MATCH_SUFFIX, "/home/u/app.py", ".env") == 0, "match: suffix miss");
+	check(p_match(TAINT_MATCH_SUFFIX, ".env", ".env") == 1, "match: suffix whole string hit");
+	check(p_match(TAINT_MATCH_SUFFIX, "env", ".env") == 0, "match: suffix longer than text rejected");
+	check(p_match(TAINT_MATCH_SUFFIX, "/f", "abcdefghijklmnopq") == 0, "match: suffix over-length literal rejected");
+	check(p_match(TAINT_MATCH_SUFFIX, "abcdefghijklmnop", "abcdefghijklmnop") == 1, "match: suffix at max length hit");
 	check(p_match(TAINT_MATCH_SUFFIX, "api.internal", ".internal") == 1, "match: host suffix");
 	check(p_match(TAINT_MATCH_ANY, "literally anything", "") == 1, "match: any");
 	check(p_match(TAINT_MATCH_CONTAINS, "/home/u/server/app/f", "/server/") == 1, "match: contains hit");
