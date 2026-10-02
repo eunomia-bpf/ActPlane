@@ -1072,3 +1072,103 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn test_cli(policy: Option<PathBuf>) -> Cli {
+        Cli::try_parse_from(match policy {
+            Some(path) => vec![
+                "actplane".to_string(),
+                "--policy".to_string(),
+                path.display().to_string(),
+                "control".to_string(),
+                "status".to_string(),
+            ],
+            None => vec![
+                "actplane".to_string(),
+                "control".to_string(),
+                "status".to_string(),
+            ],
+        })
+        .expect("parse cli")
+    }
+
+    #[test]
+    fn has_local_instruction_file_matches_known_locations() {
+        let dir = tempdir().expect("tempdir");
+        assert!(!has_local_instruction_file(dir.path()));
+        for rel in [
+            "AGENTS.md",
+            "CLAUDE.md",
+            ".agents/AGENTS.md",
+            ".agents/instructions.md",
+            ".codex/AGENTS.md",
+        ] {
+            let path = dir.path().join(rel);
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+            std::fs::write(&path, "instructions").expect("write");
+            assert!(has_local_instruction_file(dir.path()), "{rel} should count");
+            std::fs::remove_file(&path).expect("remove");
+        }
+        std::fs::write(dir.path().join("docs.md"), "x").expect("write");
+        assert!(!has_local_instruction_file(dir.path()));
+    }
+
+    #[test]
+    fn control_project_dir_prefers_explicit_policy_parent() {
+        let dir = tempdir().expect("tempdir");
+        let policy_path = dir.path().join("elsewhere").join("actplane.yaml");
+        std::fs::create_dir_all(policy_path.parent().expect("parent")).expect("mkdir");
+        std::fs::write(&policy_path, "version: 1\npolicy: |\n  rule r:\n").expect("write");
+        let cli = test_cli(Some(policy_path.clone()));
+        assert_eq!(
+            control_project_dir(&cli).expect("project dir"),
+            policy_path.parent().expect("parent").to_path_buf()
+        );
+
+        let relative = test_cli(Some(PathBuf::from("actplane.yaml")));
+        let cwd = std::env::current_dir().expect("cwd");
+        assert_eq!(control_project_dir(&relative).expect("project dir"), cwd);
+    }
+
+    #[test]
+    fn append_delta_control_requests_requires_a_fragment() {
+        let dir = tempdir().expect("tempdir");
+        let args = DeltaAddArgs {
+            target_id: None,
+            domain_id: None,
+            deltas: Vec::new(),
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        let err = append_delta_control_requests(dir.path(), &args, "control delta add")
+            .err()
+            .expect("empty delta errors")
+            .to_string();
+        assert_eq!(err, "control delta add requires --delta or --delta-text");
+
+        let missing = dir.path().join("absent.dsl");
+        let args = DeltaAddArgs {
+            target_id: None,
+            domain_id: None,
+            deltas: vec![missing.clone()],
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        let err = append_delta_control_requests(dir.path(), &args, "control delta add")
+            .err()
+            .expect("missing delta errors")
+            .to_string();
+        assert!(
+            err.starts_with(&format!("cannot read policy delta {}", missing.display())),
+            "{err}"
+        );
+    }
+}
