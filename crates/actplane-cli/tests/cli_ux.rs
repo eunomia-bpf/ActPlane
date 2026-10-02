@@ -707,6 +707,65 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `doctor` flags present-but-unwired Codex/MCP configs, and `init --with-codex
+// --with-mcp --force` repairs them so doctor stops complaining.
+#[test]
+fn doctor_flags_unwired_integrations_and_init_repairs_them() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::create_dir_all(tmp.path().join(".codex")).unwrap();
+    fs::write(
+        tmp.path().join(".codex/hooks.json"),
+        r#"{"hooks":{"PostToolUse":[{"hooks":[{"command":"echo hi"}]}]}}"#,
+    )
+    .unwrap();
+    fs::write(
+        tmp.path().join(".mcp.json"),
+        r#"{"mcpServers":{"other":{"command":"other"}}}"#,
+    )
+    .unwrap();
+
+    let before = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("doctor")
+        .output()
+        .expect("run doctor");
+    assert_eq!(before.status.code(), Some(1), "stderr: {}", stderr(&before));
+    let out = stdout(&before);
+    assert!(
+        out.contains("exists but is not wired to `actplane feedback-hook`")
+            && out.contains("init --with-codex --force"),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("does not auto-attach with PATH `actplane`")
+            && out.contains("init --with-mcp"),
+        "stdout: {out}"
+    );
+
+    let init = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--with-codex", "--with-mcp", "--force"])
+        .output()
+        .expect("run init --with-codex --with-mcp --force");
+    assert!(init.status.success(), "stderr: {}", stderr(&init));
+
+    let after = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("doctor")
+        .output()
+        .expect("run doctor");
+    let out = stdout(&after);
+    assert!(
+        out.contains("✓ Codex hook:") && out.contains("✓ project MCP config:"),
+        "doctor must see the repaired integrations:\n{out}"
+    );
+    assert!(
+        !out.contains("not wired to `actplane feedback-hook`")
+            && !out.contains("does not auto-attach"),
+        "stdout: {out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
