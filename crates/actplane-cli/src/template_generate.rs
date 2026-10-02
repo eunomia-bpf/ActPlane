@@ -952,4 +952,53 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+
+    #[test]
+    fn infer_agent_exec_only_names_an_agent_when_one_is_mentioned() {
+        assert_eq!(infer_agent_exec("run codex before editing"), "codex");
+        assert_eq!(infer_agent_exec("use claude code"), "claude");
+        assert_eq!(infer_agent_exec("codex and claude both"), "**");
+        assert_eq!(infer_agent_exec("no agent named"), "**");
+    }
+
+    #[test]
+    fn infer_test_exec_prefers_explicit_phrase_then_marker_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert_eq!(infer_test_exec(tmp.path(), "run pytest first"), "**/pytest");
+        assert_eq!(infer_test_exec(tmp.path(), "then pnpm test"), "**/pnpm");
+        assert_eq!(infer_test_exec(tmp.path(), "use npm test"), "**/npm");
+        assert_eq!(infer_test_exec(tmp.path(), "run cargo test"), "**/cargo");
+        assert_eq!(infer_test_exec(tmp.path(), "go test ./..."), "**/go");
+        assert_eq!(infer_test_exec(tmp.path(), "run the suite"), "**/pytest");
+        std::fs::write(tmp.path().join("pytest.ini"), "").unwrap();
+        assert_eq!(
+            infer_test_exec(tmp.path(), "cargo test is also fine"),
+            "**/pytest"
+        );
+    }
+
+    #[test]
+    fn infer_changed_paths_uses_present_source_roots_or_a_default() {
+        let empty = tempfile::tempdir().unwrap();
+        assert_eq!(infer_changed_paths(empty.path()), "src/**,tests/**");
+
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+        std::fs::create_dir_all(tmp.path().join("tests")).unwrap();
+        std::fs::create_dir_all(tmp.path().join("cmd")).unwrap();
+        let paths = infer_changed_paths(tmp.path());
+        assert!(paths.contains("src/**"));
+        assert!(paths.contains("tests/**"));
+        assert!(paths.contains("cmd/**"));
+        assert!(!paths.contains("pkg/**"));
+    }
+
+    #[test]
+    fn infer_secret_paths_includes_secrets_dir_only_when_present() {
+        let tmp = tempfile::tempdir().unwrap();
+        let base = infer_secret_paths(tmp.path());
+        assert_eq!(base, "**/.env,**/.npmrc,**/.pypirc");
+        std::fs::create_dir(tmp.path().join("secrets")).unwrap();
+        assert!(infer_secret_paths(tmp.path()).contains("**/secrets/**"));
+    }
 }
