@@ -707,6 +707,45 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// A policy whose YAML parses but whose DSL body has a syntax error fails to
+// compile, printing the parser diagnostic to stderr and exiting 1 in both the
+// human and `--json` modes.
+#[test]
+fn compile_reports_dsl_parse_error_with_location() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = tmp.path().join("bad.yaml");
+    fs::write(
+        &policy,
+        "version: 1\npolicy: |\n  rule broken\n    notify exec \"g\" if true\n",
+    )
+    .unwrap();
+
+    let human = run(&["--policy", policy.to_str().unwrap(), "compile"]);
+    assert_eq!(human.status.code(), Some(1), "stderr: {}", stderr(&human));
+    assert!(human.stdout.is_empty(), "stdout: {}", stdout(&human));
+    assert!(
+        stderr(&human).contains("✗ policy does not compile: expected ':' after rule name"),
+        "stderr: {}",
+        stderr(&human)
+    );
+
+    let json = run(&["--policy", policy.to_str().unwrap(), "compile", "--json"]);
+    assert_eq!(json.status.code(), Some(1), "stderr: {}", stderr(&json));
+    let value: serde_json::Value =
+        serde_json::from_slice(&json.stdout).expect("compile --json stdout");
+    assert_eq!(value["schema"], "actplane.compile.v1");
+    assert_eq!(value["ok"], false);
+    assert_eq!(value["policy_ref"], policy.to_str().unwrap());
+    assert!(
+        value["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("expected ':' after rule name"),
+        "json error: {}",
+        value["error"]
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
