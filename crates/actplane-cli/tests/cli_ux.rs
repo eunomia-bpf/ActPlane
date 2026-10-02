@@ -707,6 +707,64 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `--with-codex` writes the AGENTS.md guidance without clobbering an existing
+// file: it keeps an existing AGENTS.md, links to CLAUDE.md when present, and
+// writes a stub otherwise.
+#[test]
+fn init_with_codex_preserves_agents_guidance() {
+    // An existing AGENTS.md is kept verbatim.
+    let kept = tempfile::tempdir().unwrap();
+    fs::write(kept.path().join("AGENTS.md"), "# Mine\n").unwrap();
+    let output = Command::new(actplane())
+        .current_dir(kept.path())
+        .args(["init", "--with-codex"])
+        .output()
+        .expect("run init --with-codex");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("keeping") && stderr(&output).contains("AGENTS.md"),
+        "stderr: {}",
+        stderr(&output)
+    );
+    assert_eq!(
+        fs::read_to_string(kept.path().join("AGENTS.md")).unwrap(),
+        "# Mine\n"
+    );
+
+    // With CLAUDE.md present and no AGENTS.md, AGENTS.md is a symlink.
+    let linked = tempfile::tempdir().unwrap();
+    fs::write(linked.path().join("CLAUDE.md"), "# Claude guide\n").unwrap();
+    let output = Command::new(actplane())
+        .current_dir(linked.path())
+        .args(["init", "--with-codex"])
+        .output()
+        .expect("run init --with-codex");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let agents = linked.path().join("AGENTS.md");
+    assert!(
+        fs::symlink_metadata(&agents)
+            .unwrap()
+            .file_type()
+            .is_symlink(),
+        "AGENTS.md should be a symlink to CLAUDE.md"
+    );
+    assert_eq!(fs::read_to_string(&agents).unwrap(), "# Claude guide\n");
+
+    // With neither present, a stub is written.
+    let stub = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(stub.path())
+        .args(["init", "--with-codex"])
+        .output()
+        .expect("run init --with-codex");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let written = fs::read_to_string(stub.path().join("AGENTS.md")).unwrap();
+    assert!(
+        written.starts_with("# AGENTS.md"),
+        "stub should start with the AGENTS.md heading: {written}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
