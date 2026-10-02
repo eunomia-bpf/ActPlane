@@ -707,6 +707,30 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `doctor --rule` diagnoses inline DSL instead of a discovered policy file,
+// reporting the rule count on success and the parse error on failure.
+#[test]
+fn doctor_diagnoses_inline_rule_policy() {
+    let good = run(&[
+        "doctor",
+        "--rule",
+        "rule r1:\n  notify exec \"git\" if true\n  because \"x\"",
+    ]);
+    let out = stdout(&good);
+    assert!(
+        out.contains("✓ policy: --rule (1 rule(s))"),
+        "stdout: {out}"
+    );
+
+    let bad = run(&["doctor", "--rule", "garbage dsl"]);
+    assert_eq!(bad.status.code(), Some(1), "stderr: {}", stderr(&bad));
+    assert!(
+        stdout(&bad).contains("✗ policy: --rule does not compile: unknown declaration 'garbage'"),
+        "stdout: {}",
+        stdout(&bad)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
