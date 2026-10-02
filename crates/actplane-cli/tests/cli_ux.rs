@@ -707,6 +707,59 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `resources/list` advertises the policy and feedback resources, while
+// `prompts/list` is empty. Unknown tools and calls made without an attached
+// engine surface as distinct errors.
+#[test]
+fn mcp_lists_resources_and_prompts() {
+    use std::io::Write as _;
+    let tmp = tempfile::tempdir().unwrap();
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("mcp")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"c\",\"version\":\"1\"}}}\n{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"resources/list\",\"params\":{}}\n{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"prompts/list\",\"params\":{}}\n{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"no_such_tool\",\"arguments\":{}}}\n{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/call\",\"params\":{\"name\":\"bind_child_domain\",\"arguments\":{}}}\n",
+        )
+        .unwrap();
+    let output = child.wait_with_output().expect("mcp output");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let mut by_id = std::collections::BTreeMap::new();
+    for line in stdout(&output).lines() {
+        let message: serde_json::Value = serde_json::from_str(line).expect("mcp json line");
+        if let Some(id) = message["id"].as_u64() {
+            by_id.insert(id, message);
+        }
+    }
+    let resources = by_id[&2]["result"]["resources"]
+        .as_array()
+        .expect("resources array");
+    let uris: Vec<&str> = resources
+        .iter()
+        .filter_map(|resource| resource["uri"].as_str())
+        .collect();
+    assert!(
+        uris.contains(&"actplane:///policy") && uris.contains(&"actplane:///feedback"),
+        "unexpected resource set: {uris:?}"
+    );
+    assert_eq!(by_id[&3]["result"]["prompts"], serde_json::json!([]));
+    assert_eq!(by_id[&4]["error"]["code"], -32601);
+    assert_eq!(by_id[&4]["error"]["message"], "Unknown tool: no_such_tool");
+    assert_eq!(by_id[&5]["error"]["code"], -32603);
+    assert_eq!(
+        by_id[&5]["error"]["message"],
+        "No eBPF engine attached (MCP not started with --auto-attach-parent)"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
