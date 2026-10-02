@@ -698,4 +698,43 @@ mod tests {
             .to_string();
         assert!(err.contains("unsupported by the current DSL string syntax"));
     }
+
+    #[test]
+    fn validate_value_rejects_empty_and_dsl_metacharacters() {
+        assert!(validate_value("k", "ok").is_ok());
+        for bad in ["", "a\"b", "a\nb", "a\rb", "a{b", "a}b"] {
+            let err = validate_value("k", bad).unwrap_err().to_string();
+            assert!(
+                err.contains("parameter `k`"),
+                "unexpected message for {bad:?}: {err}"
+            );
+        }
+        assert_eq!(
+            validate_value("k", "").unwrap_err().to_string(),
+            "parameter `k` must not be empty"
+        );
+        assert_eq!(
+            validate_value("k", "a{b").unwrap_err().to_string(),
+            "parameter `k` contains characters unsupported by the current DSL string syntax"
+        );
+    }
+
+    #[test]
+    fn split_list_trims_items_and_rejects_empties() {
+        assert_eq!(split_list("a,b,c").unwrap(), vec!["a", "b", "c"]);
+        assert_eq!(split_list(" a , b ").unwrap(), vec!["a", "b"]);
+        assert_eq!(split_list("a").unwrap(), vec!["a"]);
+        assert_eq!(
+            split_list("a,,b").unwrap_err().to_string(),
+            "comma-separated template parameters must not contain empty items"
+        );
+        assert_eq!(
+            split_list("").unwrap_err().to_string(),
+            "comma-separated template parameters must not contain empty items"
+        );
+        assert_eq!(
+            split_list(" ").unwrap_err().to_string(),
+            "comma-separated template parameters must not contain empty items"
+        );
+    }
 }
