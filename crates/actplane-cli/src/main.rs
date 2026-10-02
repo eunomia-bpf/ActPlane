@@ -1072,3 +1072,68 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod main_delta_guard_tests {
+    use super::*;
+
+    fn delta_add(deltas: Vec<PathBuf>, delta_text: Vec<String>) -> DeltaAddArgs {
+        DeltaAddArgs {
+            target_id: Some(7),
+            domain_id: None,
+            deltas,
+            delta_text,
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        }
+    }
+
+    #[test]
+    fn delta_control_requests_require_a_fragment_before_any_socket_send() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let err = append_delta_control_requests(
+            dir.path(),
+            &delta_add(Vec::new(), Vec::new()),
+            "control delta add",
+        )
+        .expect_err("no fragment is rejected");
+        assert_eq!(
+            err.to_string(),
+            "control delta add requires --delta or --delta-text"
+        );
+    }
+
+    #[test]
+    fn load_policy_delta_fragments_refs_files_and_inline_text() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("delta.dsl");
+        std::fs::write(&file, "rule r:\n  block exec \"git\"\n  because \"x\"\n").expect("write");
+
+        let fragments =
+            load_policy_delta_fragments(std::slice::from_ref(&file), &["inline body".to_string()])
+                .expect("fragments load");
+        assert_eq!(fragments.len(), 2);
+        assert_eq!(fragments[0].0, file.display().to_string());
+        assert!(fragments[0].1.contains("block exec \"git\""));
+        assert_eq!(fragments[1].0, "--delta-text[0]");
+        assert_eq!(fragments[1].1, "inline body");
+
+        let joined = join_policy_delta_fragments(fragments).expect("joined");
+        assert!(joined.contains("# delta --delta-text[0]"));
+        assert!(join_policy_delta_fragments(Vec::new()).is_none());
+    }
+
+    #[test]
+    fn load_policy_delta_fragments_reports_a_missing_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("absent.dsl");
+        let err = load_policy_delta_fragments(&[missing.clone()], &[])
+            .expect_err("missing delta file is rejected");
+        assert!(
+            err.to_string()
+                .starts_with(&format!("cannot read policy delta {}", missing.display())),
+            "unexpected error: {err}"
+        );
+    }
+}
