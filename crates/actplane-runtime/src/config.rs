@@ -851,4 +851,72 @@ domains:
             );
         }
     }
+
+    const READY_POLICY: &str = "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule noop:\n    notify exec \"__never__\" if COMMAND\n    because \"b\"\n";
+
+    #[test]
+    fn discover_policy_walks_up_and_prefers_actplane_yaml() {
+        let dir = tempfile::tempdir().unwrap();
+        let nested = dir.path().join("a").join("b");
+        fs::create_dir_all(&nested).unwrap();
+        assert_eq!(discover_policy(&nested), None);
+
+        let yaml = dir.path().join("actplane.yaml");
+        fs::write(&yaml, READY_POLICY).unwrap();
+        assert_eq!(discover_policy(&nested).as_deref(), Some(yaml.as_path()));
+        assert_eq!(discover_policy(dir.path()).as_deref(), Some(yaml.as_path()));
+
+        // The dotdir candidate is found when no actplane.yaml exists.
+        fs::remove_file(&yaml).unwrap();
+        let dotdir = dir.path().join(".actplane").join("policy.yaml");
+        fs::create_dir_all(dotdir.parent().unwrap()).unwrap();
+        fs::write(&dotdir, READY_POLICY).unwrap();
+        assert_eq!(discover_policy(&nested).as_deref(), Some(dotdir.as_path()));
+    }
+
+    #[test]
+    fn load_policy_path_sets_root_from_explicit_flag() {
+        let dir = tempfile::tempdir().unwrap();
+        let policy = dir.path().join("actplane.yaml");
+        fs::write(&policy, READY_POLICY).unwrap();
+        let elsewhere = dir.path().join("elsewhere");
+        fs::create_dir_all(&elsewhere).unwrap();
+
+        // Explicit --policy keeps the invocation cwd as the project root.
+        let loaded = load_policy_path(&policy, true, &elsewhere).unwrap();
+        assert_eq!(loaded.root, elsewhere);
+        assert_eq!(loaded.path.as_deref(), Some(policy.as_path()));
+
+        // A discovered policy uses its own directory as the root.
+        let loaded = load_policy_path(&policy, false, &elsewhere).unwrap();
+        assert_eq!(loaded.root, dir.path());
+    }
+
+    #[test]
+    fn load_policy_path_rejects_raw_dsl() {
+        let dir = tempfile::tempdir().unwrap();
+        let dsl = dir.path().join("child.dsl");
+        fs::write(&dsl, "rule r:\n").unwrap();
+        let err = load_policy_path(&dsl, true, dir.path())
+            .err()
+            .expect("raw DSL rejected")
+            .to_string();
+        assert_eq!(
+            err,
+            format!(
+                "{} is a raw DSL file; policy files must be YAML with `policy: |`. Use `--rule` for one-off inline DSL.",
+                dsl.display()
+            )
+        );
+    }
+
+    #[test]
+    fn absolutize_joins_relative_paths_only() {
+        let base = Path::new("/base/dir");
+        assert_eq!(
+            absolutize(Path::new("actplane.yaml"), base),
+            base.join("actplane.yaml")
+        );
+        assert_eq!(absolutize(base, base), base);
+    }
 }
