@@ -2591,4 +2591,40 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn loaded_from_yaml(text: &str, path: Option<&str>) -> LoadedPolicy {
+        LoadedPolicy {
+            config: serde_yaml::from_str(text).unwrap(),
+            root: PathBuf::from("."),
+            path: path.map(PathBuf::from),
+        }
+    }
+
+    #[test]
+    fn render_policy_review_for_loaded_renders_and_propagates_errors() {
+        let loaded = loaded_from_yaml(
+            r#"
+policy: |
+  source SECRET = file "**/.env"
+  rule no-exfil:
+    block connect endpoint "*" if SECRET
+    because "secret data must not leave the host"
+"#,
+            Some("policy.yaml"),
+        );
+        let review = render_policy_review_for_loaded(&loaded, None).unwrap();
+        assert!(review.contains("ActPlane policy review"));
+        assert!(review.contains("policy: policy.yaml"));
+        assert!(review.contains("domain: none (flat policy)"));
+
+        let err = render_policy_review_for_loaded(&loaded, Some("work")).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("`--domain` requires a policy file")
+        );
+
+        let broken = loaded_from_yaml(r#"policy: "rule :""#, None);
+        let err = render_policy_review_for_loaded(&broken, None).unwrap_err();
+        assert!(err.to_string().contains("policy does not compile"));
+    }
 }
