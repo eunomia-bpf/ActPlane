@@ -707,6 +707,61 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// The root policy-source flags are mutually exclusive, and `--domain` without
+// a policy file fails at runtime.
+#[test]
+fn policy_source_flags_are_mutually_exclusive() {
+    let rule = "rule noop:\n  notify exec \"git\" if true\n  because \"noop\"\n";
+
+    let rule_vs_policy = run(&[
+        "--rule",
+        rule,
+        "--policy",
+        &fixture("01_secret_no_exfil.yaml"),
+        "compile",
+    ]);
+    assert_eq!(
+        rule_vs_policy.status.code(),
+        Some(2),
+        "stderr: {}",
+        stderr(&rule_vs_policy)
+    );
+    assert!(
+        stderr(&rule_vs_policy)
+            .contains("the argument '--rule <RULE>' cannot be used with '--policy <POLICY>'"),
+        "stderr: {}",
+        stderr(&rule_vs_policy)
+    );
+
+    let rule_vs_domain = run(&["--rule", rule, "--domain", "review", "compile"]);
+    assert_eq!(
+        rule_vs_domain.status.code(),
+        Some(2),
+        "stderr: {}",
+        stderr(&rule_vs_domain)
+    );
+    assert!(
+        stderr(&rule_vs_domain)
+            .contains("the argument '--rule <RULE>' cannot be used with '--domain <DOMAIN>'"),
+        "stderr: {}",
+        stderr(&rule_vs_domain)
+    );
+
+    let domain_without_policy = run(&["--domain", "review", "compile"]);
+    assert_eq!(
+        domain_without_policy.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&domain_without_policy)
+    );
+    assert!(
+        stderr(&domain_without_policy)
+            .contains("`--domain` requires a policy file with `rules:` and `domains:`"),
+        "stderr: {}",
+        stderr(&domain_without_policy)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
