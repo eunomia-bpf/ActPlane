@@ -2108,4 +2108,29 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn mark_non_stdio_fds_cloexec_flags_open_descriptors() {
+        use std::os::fd::AsRawFd;
+
+        let file = tempfile::tempfile().expect("tempfile");
+        let fd = file.as_raw_fd();
+        // Rust opens files with O_CLOEXEC, so clear it to observe the sweep.
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+        assert!(unsafe { libc::fcntl(fd, libc::F_SETFD, flags & !libc::FD_CLOEXEC) } >= 0);
+        assert_eq!(
+            unsafe { libc::fcntl(fd, libc::F_GETFD) } & libc::FD_CLOEXEC,
+            0
+        );
+
+        mark_non_stdio_fds_cloexec().expect("mark cloexec");
+        assert!(unsafe { libc::fcntl(fd, libc::F_GETFD) } & libc::FD_CLOEXEC != 0);
+        for stdio in [libc::STDIN_FILENO, libc::STDOUT_FILENO, libc::STDERR_FILENO] {
+            assert_eq!(
+                unsafe { libc::fcntl(stdio, libc::F_GETFD) } & libc::FD_CLOEXEC,
+                0
+            );
+        }
+    }
 }
