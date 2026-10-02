@@ -707,6 +707,69 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `--with-mcp` merges into an existing `.mcp.json` without dropping other
+// servers, keeps an invalid file unless `--force`, and replaces it with
+// `--force`.
+#[test]
+fn init_with_mcp_merges_existing_config() {
+    let merge = tempfile::tempdir().unwrap();
+    fs::write(
+        merge.path().join(".mcp.json"),
+        r#"{"mcpServers":{"other":{"command":"other","args":["x"]}},"note":"keep"}"#,
+    )
+    .unwrap();
+    let output = Command::new(actplane())
+        .current_dir(merge.path())
+        .args(["init", "--with-mcp"])
+        .output()
+        .expect("run init --with-mcp");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let doc: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(merge.path().join(".mcp.json")).unwrap()).unwrap();
+    assert_eq!(doc["note"], "keep");
+    assert_eq!(doc["mcpServers"]["other"]["command"], "other");
+    assert_eq!(doc["mcpServers"]["actplane"]["command"], "actplane");
+    assert_eq!(doc["mcpServers"]["actplane"]["args"][0], "mcp");
+
+    // Invalid JSON is kept unless --force.
+    let invalid = tempfile::tempdir().unwrap();
+    fs::write(invalid.path().join(".mcp.json"), "{not json").unwrap();
+    let output = Command::new(actplane())
+        .current_dir(invalid.path())
+        .args(["init", "--with-mcp"])
+        .output()
+        .expect("run init --with-mcp");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("keeping invalid") && stderr(&output).contains("--force"),
+        "stderr: {}",
+        stderr(&output)
+    );
+    assert_eq!(
+        fs::read_to_string(invalid.path().join(".mcp.json")).unwrap(),
+        "{not json"
+    );
+
+    // --force replaces invalid JSON with a valid config.
+    let forced = tempfile::tempdir().unwrap();
+    fs::write(forced.path().join(".mcp.json"), "{not json").unwrap();
+    let output = Command::new(actplane())
+        .current_dir(forced.path())
+        .args(["init", "--with-mcp", "--force"])
+        .output()
+        .expect("run init --with-mcp --force");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("replacing invalid"),
+        "stderr: {}",
+        stderr(&output)
+    );
+    let doc: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(forced.path().join(".mcp.json")).unwrap())
+            .expect("forced config must be valid JSON");
+    assert_eq!(doc["mcpServers"]["actplane"]["command"], "actplane");
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
