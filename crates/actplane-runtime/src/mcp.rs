@@ -2992,4 +2992,52 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn bare_server(project_dir: std::path::PathBuf) -> ActPlaneMcp {
+        ActPlaneMcp {
+            project_dir,
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    #[test]
+    fn load_and_validate_reports_one_line_per_compiled_rule() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(tmp.path().join("nested")).expect("mkdir");
+        let server = bare_server(tmp.path().join("nested"));
+
+        // No policy file anywhere in the ancestor chain.
+        assert_eq!(server.load_and_validate(), "No actplane.yaml found.");
+
+        let yaml = tmp.path().join("actplane.yaml");
+        std::fs::write(
+            &yaml,
+            "policy: |\n  rule r1:\n    notify exec \"git\"\n    because \"c1\"\n  rule r2:\n    notify exec \"cargo\"\n    because \"c2\"\n",
+        )
+        .expect("write");
+        let ok = server.load_and_validate();
+        assert!(ok.contains("Policy valid"), "{ok}");
+        assert!(ok.contains("2 rules"), "{ok}");
+        assert!(ok.contains("1. r1"), "{ok}");
+        assert!(ok.contains("2. r2"), "{ok}");
+        assert!(ok.contains("notify"), "{ok}");
+        assert!(ok.contains("c1"), "{ok}");
+
+        // A file without a `policy:` field is rejected by name.
+        std::fs::write(&yaml, "domains: []\n").expect("write");
+        let missing = server.load_and_validate();
+        assert!(missing.contains("has no `policy:` field"), "{missing}");
+        assert!(missing.contains("actplane.yaml"), "{missing}");
+
+        // Invalid DSL inside a valid YAML wrapper reports a compile error.
+        std::fs::write(&yaml, "policy: \"rule broken\"\n").expect("write");
+        let bad = server.load_and_validate();
+        assert!(bad.starts_with("Policy compile error:"), "{bad}");
+
+        // Malformed YAML is reported as a parse error with the path.
+        std::fs::write(&yaml, "policy: [unterminated\n").expect("write");
+        let yamlerr = server.load_and_validate();
+        assert!(yamlerr.contains("YAML parse error in"), "{yamlerr}");
+    }
 }
