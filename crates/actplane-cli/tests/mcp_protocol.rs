@@ -1381,3 +1381,85 @@ policy: |
     .expect("write policy");
     policy
 }
+
+#[test]
+fn mcp_stdio_jsonrpc_reports_unknown_tool_and_resource() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-error-surface");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": { "name": "definitely_not_a_tool", "arguments": {} }
+    }));
+    let unknown_tool = mcp.response(2);
+    assert_eq!(unknown_tool["error"]["code"], -32601, "{unknown_tool}");
+    assert!(
+        unknown_tool["error"]["message"]
+            .as_str()
+            .expect("message")
+            .contains("Unknown tool: definitely_not_a_tool"),
+        "{unknown_tool}"
+    );
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///definitely-not-a-resource" }
+    }));
+    let unknown_resource = mcp.response(3);
+    assert_eq!(
+        unknown_resource["error"]["code"], -32602,
+        "{unknown_resource}"
+    );
+    assert!(
+        unknown_resource["error"]["message"]
+            .as_str()
+            .expect("message")
+            .contains("Unknown resource: actplane:///definitely-not-a-resource"),
+        "{unknown_resource}"
+    );
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_reports_tool_argument_errors_in_band() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-argument-errors");
+
+    for (id, name, expected) in [
+        (2, "read_child_domain_logs", "missing `child_id`"),
+        (3, "terminate_child_domain", "missing `child_id`"),
+        (4, "launch_child_domain", "missing `cmd`"),
+        (5, "read_child_domain_logs", "unknown child domain 1"),
+    ] {
+        let arguments = if name == "read_child_domain_logs" && expected.starts_with("unknown") {
+            json!({ "child_id": 1 })
+        } else {
+            json!({})
+        };
+        mcp.send(json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "tools/call",
+            "params": { "name": name, "arguments": arguments }
+        }));
+        let response = mcp.response(id);
+        assert_eq!(response["error"]["code"], -32602, "{name}: {response}");
+        assert_eq!(response["error"]["message"], expected, "{name}");
+    }
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 6,
+        "method": "tools/call",
+        "params": { "name": "list_child_domains", "arguments": {} }
+    }));
+    let listing = mcp.response(6);
+    assert_eq!(listing["result"]["isError"], false, "{listing}");
+}
