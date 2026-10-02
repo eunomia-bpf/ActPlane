@@ -707,6 +707,63 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `resources/read` renders the policy validation summary and the latest
+// corrective feedback, and rejects an unknown URI with -32602.
+#[test]
+fn mcp_reads_policy_and_feedback_resources() {
+    use std::io::Write as _;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\npolicy: |\n  rule r:\n    notify exec \"git\" if true\n    because \"x\"\n",
+    )
+    .unwrap();
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("mcp")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"c\",\"version\":\"1\"}}}\n{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"resources/read\",\"params\":{\"uri\":\"actplane:///policy\"}}\n{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"resources/read\",\"params\":{\"uri\":\"actplane:///feedback\"}}\n{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"resources/read\",\"params\":{\"uri\":\"actplane:///missing\"}}\n",
+        )
+        .unwrap();
+    let output = child.wait_with_output().expect("mcp output");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let mut by_id = std::collections::BTreeMap::new();
+    for line in stdout(&output).lines() {
+        let message: serde_json::Value = serde_json::from_str(line).expect("mcp json line");
+        if let Some(id) = message["id"].as_u64() {
+            by_id.insert(id, message);
+        }
+    }
+    let policy_text = by_id[&2]["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("policy text");
+    assert!(
+        policy_text.contains("Policy valid") && policy_text.contains("1 rules"),
+        "policy text: {policy_text}"
+    );
+    let feedback_text = by_id[&3]["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("feedback text");
+    assert!(
+        feedback_text.contains("No ActPlane feedback file yet"),
+        "feedback text: {feedback_text}"
+    );
+    assert_eq!(by_id[&4]["error"]["code"], -32602);
+    assert_eq!(
+        by_id[&4]["error"]["message"],
+        "Unknown resource: actplane:///missing"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
