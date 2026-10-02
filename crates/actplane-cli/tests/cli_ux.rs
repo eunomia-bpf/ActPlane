@@ -714,3 +714,83 @@ fn stdout(output: &Output) -> String {
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
+
+#[test]
+fn compile_json_reports_parse_errors_as_json() {
+    let output = run(&["--rule", "rule broken", "compile", "--json"]);
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).is_empty(),
+        "report goes to stdout: {}",
+        stderr(&output)
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json error stdout");
+    assert_eq!(value["schema"], "actplane.compile.v1");
+    assert_eq!(value["ok"], false);
+    assert_eq!(value["policy_ref"], "--rule");
+    assert_eq!(value["domain"], serde_json::Value::Null);
+    assert!(
+        value["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("expected ':' after rule name"),
+        "error: {value}"
+    );
+}
+
+#[test]
+fn compile_json_reports_domain_resolution_errors_as_json() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = tmp.path().join("actplane.yaml");
+    let base = fs::read_to_string(fixture("15_domain_bindings.yaml")).unwrap();
+    fs::write(
+        &policy,
+        base.replace("parent: session", "parent: nonexistent"),
+    )
+    .unwrap();
+
+    let output = run(&[
+        "--policy",
+        policy.to_str().unwrap(),
+        "--domain",
+        "review",
+        "compile",
+        "--json",
+    ]);
+    assert!(!output.status.success());
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json error stdout");
+    assert_eq!(value["schema"], "actplane.compile.v1");
+    assert_eq!(value["ok"], false);
+    assert_eq!(value["policy_ref"], policy.to_str().unwrap());
+    assert_eq!(value["domain"], serde_json::Value::Null);
+    assert_eq!(value["error"], "unknown domain `nonexistent`");
+
+    fs::write(
+        &policy,
+        base.replace("default_domain: review", "default_domain: ghost"),
+    )
+    .unwrap();
+    let output = run(&["--policy", policy.to_str().unwrap(), "compile", "--json"]);
+    assert!(!output.status.success());
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json error stdout");
+    assert_eq!(value["ok"], false);
+    assert_eq!(
+        value["error"],
+        "default_domain `ghost` is not defined (available: review, session)"
+    );
+}
+
+#[test]
+fn compile_explain_reports_parse_failure_on_stderr() {
+    let output = run(&["--rule", "rule broken", "compile", "--explain"]);
+    assert!(!output.status.success());
+    assert!(stdout(&output).is_empty(), "stdout: {}", stdout(&output));
+    assert!(
+        stderr(&output).contains("policy does not compile"),
+        "stderr: {}",
+        stderr(&output)
+    );
+}
