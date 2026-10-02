@@ -107,6 +107,20 @@ static void test_arg(void)
 	te_tokenize_args(blob2, 3 + 1 + 6, slots2);
 	check(arg_m(slots2, "commit") == 1, "arg: commit present");
 	check(arg_m(slots2, "push") == 0, "arg: push absent");
+	// 18 single-char tokens; only the first MAX_ARG_SLOTS are kept.
+	char blob3[TAINT_ARGV_CAP] = {0}, slots3[TAINT_ARG_SLOTS_BUF] = {0};
+	memcpy(blob3, "a\0b\0c\0d\0e\0f\0g\0h\0i\0j\0k\0l\0m\0n\0o\0p\0q\0r", 35);
+	te_tokenize_args(blob3, 35, slots3);
+	check(arg_m(slots3, "p") == 1, "arg: last kept slot present");
+	check(arg_m(slots3, "q") == 0, "arg: overflow slot dropped");
+	check(arg_m(slots3, "r") == 0, "arg: further overflow slot dropped");
+	// A 30-char first token is truncated to TAINT_ARG_LEN - 1.
+	char blob4[TAINT_ARGV_CAP] = {0}, slots4[TAINT_ARG_SLOTS_BUF] = {0};
+	memcpy(blob4, "abcdefghijklmnopqrstuvwxyz0123\0tail", 30 + 1 + 4);
+	te_tokenize_args(blob4, 30 + 1 + 4, slots4);
+	check(slots4[0] == 'a' && slots4[22] == 'w' && slots4[23] == '\0',
+	      "arg: token truncated at slot width minus one");
+	check(arg_m(slots4, "tail") == 1, "arg: token after truncation still tokenized");
 }
 
 int main(void)
