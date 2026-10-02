@@ -707,6 +707,27 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile --domains` on a legacy single-policy file succeeds and explains
+// that no domains are defined.
+#[test]
+fn compile_domains_explains_legacy_policy() {
+    let policy = fixture("01_secret_no_exfil.yaml");
+    let output = run(&["--policy", &policy, "compile", "--domains"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stdout(&output).contains(&format!(
+            "{policy} uses legacy `policy: |`; no domains are defined."
+        )),
+        "stdout: {}",
+        stdout(&output)
+    );
+    assert!(
+        stdout(&output).contains("no domains are defined") && !stdout(&output).contains("domain:"),
+        "a legacy policy must not list any domain: {}",
+        stdout(&output)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
