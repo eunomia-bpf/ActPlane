@@ -2591,4 +2591,52 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn render_check_json_reports_static_matrix() {
+        let src = concat!(
+            "source COMMAND = exec \"**\"\n",
+            "rule guard:\n",
+            "  block open file \"/etc/secret\" if COMMAND\n",
+            "  because \"deny secret reads\"\n",
+        );
+        let parsed = dsl::parse::parse(src).expect("parse");
+        let compiled = dsl::compile_str(src).expect("compile");
+        let resolved = ResolvedPolicy {
+            source: src.to_string(),
+            domain: None,
+        };
+
+        let rendered = render_check_json(
+            "--rule",
+            &resolved,
+            &parsed,
+            &compiled,
+            "capability",
+            false,
+            false,
+        )
+        .expect("render");
+        let value: Value = serde_json::from_str(&rendered).expect("json");
+        assert_eq!(value["schema"], "actplane.compile.v1");
+        assert_eq!(value["ok"], true);
+        assert_eq!(value["policy_ref"], "--rule");
+        assert_eq!(value["domain"], Value::Null);
+        assert_eq!(value["host"]["active_lsms"], "capability");
+        assert_eq!(value["host"]["bpf_lsm_active"], false);
+        assert_eq!(value["host"]["force_tracepoint"], false);
+        assert_eq!(value["matrix_scope"], "static_policy_host_support");
+        assert_eq!(value["rule_count"], 1);
+        assert_eq!(value["rules"][0]["name"], "guard");
+        assert_eq!(value["backend_support"]["clauses"][0]["op"], "open");
+        assert_eq!(value["backend_support"]["clauses"][0]["effect"], "block");
+        assert!(
+            value["warnings"]
+                .as_array()
+                .expect("warnings")
+                .iter()
+                .any(|w| w["code"] == "bpf_lsm_inactive_for_block"),
+            "{rendered}"
+        );
+    }
 }
