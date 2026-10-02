@@ -2591,4 +2591,105 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn signature() -> ClauseEventSignature {
+        ClauseEventSignature {
+            clause_op: "exec",
+            target_kind: "exec",
+            target_pattern: "git".to_string(),
+            target_arg: None,
+            clause_text: "block exec \"git\"".to_string(),
+            clause_hash: "abc123".to_string(),
+        }
+    }
+
+    #[test]
+    fn event_rule_matches_signature_requires_exact_identity() {
+        let sig = signature();
+        let ok = serde_json::json!({
+            "rule": {
+                "effect": "notify",
+                "clause_op": "exec",
+                "target_kind": "exec",
+                "target_pattern": "git",
+                "clause_hash": "abc123"
+            }
+        });
+        assert!(event_rule_matches_signature(&ok, &sig));
+        let wrong_hash = serde_json::json!({
+            "rule": {
+                "effect": "notify",
+                "clause_op": "exec",
+                "target_kind": "exec",
+                "target_pattern": "git",
+                "clause_hash": "other"
+            }
+        });
+        assert!(!event_rule_matches_signature(&wrong_hash, &sig));
+        assert!(!event_rule_matches_signature(&serde_json::json!({}), &sig));
+    }
+
+    #[test]
+    fn event_clause_identity_matches_prefers_hash_then_text() {
+        let sig = signature();
+        assert!(event_clause_identity_matches(
+            &serde_json::json!({ "clause_hash": "abc123" }),
+            &sig
+        ));
+        assert!(!event_clause_identity_matches(
+            &serde_json::json!({ "clause_hash": "nope" }),
+            &sig
+        ));
+        assert!(event_clause_identity_matches(
+            &serde_json::json!({ "clause_text": "block exec \"git\"" }),
+            &sig
+        ));
+        assert!(!event_clause_identity_matches(
+            &serde_json::json!({ "clause_text": "different" }),
+            &sig
+        ));
+        assert!(!event_clause_identity_matches(&serde_json::json!({}), &sig));
+    }
+
+    #[test]
+    fn annotation_rule_matches_signature_accepts_notify_and_missing_effect() {
+        let sig = signature();
+        let notify = serde_json::json!({
+            "rule": {
+                "effect": "notify",
+                "clause_op": "exec",
+                "target_kind": "exec",
+                "target_pattern": "git",
+                "clause_hash": "abc123"
+            }
+        });
+        assert!(annotation_rule_matches_signature(&notify, &sig));
+        let no_effect = serde_json::json!({
+            "rule": {
+                "clause_op": "exec",
+                "target_kind": "exec",
+                "target_pattern": "git",
+                "clause_hash": "abc123"
+            }
+        });
+        assert!(annotation_rule_matches_signature(&no_effect, &sig));
+        let enforced = serde_json::json!({
+            "rule": {
+                "effect": "block",
+                "clause_op": "exec",
+                "target_kind": "exec",
+                "target_pattern": "git",
+                "clause_hash": "abc123"
+            }
+        });
+        assert!(!annotation_rule_matches_signature(&enforced, &sig));
+    }
+
+    #[test]
+    fn annotation_count_reads_or_defaults() {
+        let mut observation = ClauseObservation::default();
+        assert_eq!(annotation_count(&observation, "blocked"), 0);
+        observation.annotations.insert("blocked".to_string(), 3);
+        assert_eq!(annotation_count(&observation, "blocked"), 3);
+    }
 }
