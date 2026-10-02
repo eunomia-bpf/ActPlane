@@ -2992,4 +2992,87 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn bare_server(project_dir: std::path::PathBuf) -> ActPlaneMcp {
+        ActPlaneMcp {
+            project_dir,
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    #[test]
+    fn discover_policy_file_walks_up_to_the_nearest_actplane_yaml() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let nested = tmp.path().join("a/b/c");
+        std::fs::create_dir_all(&nested).expect("mkdir");
+        let server = bare_server(nested.clone());
+        assert!(server.discover_policy_file().is_none(), "no yaml yet");
+
+        // `.actplane/policy.yaml` in the cwd wins over a parent `actplane.yaml`.
+        let dot = nested.join(".actplane");
+        std::fs::create_dir_all(&dot).expect("mkdir");
+        let nested_yaml = dot.join("policy.yaml");
+        std::fs::write(&nested_yaml, "policy: \"\"\n").expect("write");
+        std::fs::write(tmp.path().join("actplane.yaml"), "policy: \"\"\n").expect("write");
+        assert_eq!(
+            server.discover_policy_file().as_deref(),
+            Some(nested_yaml.as_path())
+        );
+
+        // Removing the nested candidate falls back to the ancestor file.
+        std::fs::remove_file(&nested_yaml).expect("rm");
+        assert_eq!(
+            server.discover_policy_file().as_deref(),
+            Some(tmp.path().join("actplane.yaml").as_path())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn feedback_file_prefers_env_then_runs_then_config_path() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::write(tmp.path().join("actplane.yaml"), "policy: \"\"\n").expect("write");
+        let server = bare_server(tmp.path().to_path_buf());
+        let prior = std::env::var("ACTPLANE_FEEDBACK_FILE").ok();
+        unsafe {
+            std::env::remove_var("ACTPLANE_FEEDBACK_FILE");
+        }
+
+        // No runs dir, no feedback.path -> the default beside the policy.
+        assert_eq!(
+            server.feedback_file(),
+            tmp.path().join(DEFAULT_FEEDBACK_FILE)
+        );
+
+        // A `feedback.path` in the config is honored, relative to the root.
+        std::fs::write(
+            tmp.path().join("actplane.yaml"),
+            "policy: \"\"\nfeedback:\n  path: custom-feedback.txt\n",
+        )
+        .expect("write config");
+        assert_eq!(
+            server.feedback_file(),
+            tmp.path().join("custom-feedback.txt")
+        );
+
+        // The most recent `.actplane/runs/*/feedback.txt` wins over the config.
+        let run = tmp.path().join(".actplane/runs/run-1");
+        std::fs::create_dir_all(&run).expect("mkdir");
+        let run_feedback = run.join("feedback.txt");
+        std::fs::write(&run_feedback, "hooked").expect("write");
+        assert_eq!(server.feedback_file(), run_feedback);
+
+        // The environment override short-circuits everything else.
+        let env_path = tmp.path().join("env-feedback.txt");
+        unsafe {
+            std::env::set_var("ACTPLANE_FEEDBACK_FILE", &env_path);
+        }
+        assert_eq!(server.feedback_file(), env_path);
+
+        match prior {
+            Some(v) => unsafe { std::env::set_var("ACTPLANE_FEEDBACK_FILE", v) },
+            None => unsafe { std::env::remove_var("ACTPLANE_FEEDBACK_FILE") },
+        }
+    }
 }
