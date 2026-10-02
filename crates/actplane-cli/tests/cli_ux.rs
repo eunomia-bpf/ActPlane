@@ -707,6 +707,30 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile --explain` prints an `after ... since ...` staleness gate verbatim
+// in the clause line and reports the argv-based enforcement limitation.
+#[test]
+fn compile_explain_renders_stale_gate_clause() {
+    let policy = fixture("06_test_before_commit_since.yaml");
+    let output = run(&["--policy", &policy, "compile", "--explain"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(
+        out.contains(
+            "clause 1: block exec \"**/git\" \"commit\" if AGENT unless after exec \"**/pytest\" since write \"src/**\" or write \"tests/**\""
+        ),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("enforcement: unsupported; argv is only available after exec"),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("limitations: use kill exec for post-exec termination"),
+        "stdout: {out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
