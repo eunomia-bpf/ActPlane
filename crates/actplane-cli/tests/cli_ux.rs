@@ -707,6 +707,79 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `control launch-child --delta-text` embeds the inline fragment in the
+// request's `policy` field (with a provenance comment) and sends the documented
+// restart defaults.
+#[cfg(unix)]
+#[test]
+fn control_launch_child_sends_inline_delta_policy() {
+    use std::io::{BufRead as _, BufReader, Write as _};
+    use std::os::unix::net::UnixListener;
+    let tmp = tempfile::tempdir().unwrap();
+    let socket_path = tmp.path().join("control.sock");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": std::process::id() as i32,
+            "proc_start_time": null,
+            "socket_path": socket_path,
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": 2222,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        tx.send(serde_json::from_str::<serde_json::Value>(&line).unwrap())
+            .unwrap();
+        stream
+            .write_all(b"{\"ok\":true,\"text\":\"launched\"}\n")
+            .unwrap();
+    });
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args([
+            "control",
+            "launch-child",
+            "--child-id",
+            "3",
+            "--delta-text",
+            "rule x:\n  notify exec \"g\" if true\n  because \"y\"\n",
+            "/bin/echo",
+            "hi",
+        ])
+        .output()
+        .expect("run control command");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let request = rx.recv().expect("launch request");
+    handle.join().expect("control server thread");
+
+    assert_eq!(request["op"], "launch_child_domain");
+    assert_eq!(request["child_id"], 3);
+    assert_eq!(request["cmd"], serde_json::json!(["/bin/echo", "hi"]));
+    assert_eq!(request["scope_id"], 0);
+    assert_eq!(request["restart_policy"], "never");
+    assert_eq!(request["restart_limit"], 3);
+    assert_eq!(request["restart_backoff_ms"], 1000);
+    let policy = request["policy"].as_str().expect("policy");
+    assert!(
+        policy.contains("# delta --delta-text[0]"),
+        "policy: {policy}"
+    );
+    assert!(policy.contains("rule x:"), "policy: {policy}");
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
