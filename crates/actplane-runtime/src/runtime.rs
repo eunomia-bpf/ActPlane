@@ -2108,4 +2108,100 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn runner_label_prefers_command_then_agent() {
+        let command = dsl::compile_str("source COMMAND = exec \"**\"\n").expect("compile");
+        assert_eq!(
+            runner_label(&command).expect("COMMAND label"),
+            command.labels["COMMAND"]
+        );
+
+        let both =
+            dsl::compile_str("source AGENT = exec \"**/a\"\nsource COMMAND = exec \"**/c\"\n")
+                .expect("compile");
+        assert_eq!(
+            runner_label(&both).expect("COMMAND wins"),
+            both.labels["COMMAND"]
+        );
+
+        let agent = dsl::compile_str("source AGENT = exec \"**/claude\"\n").expect("compile");
+        assert_eq!(
+            runner_label(&agent).expect("AGENT fallback"),
+            agent.labels["AGENT"]
+        );
+
+        let bare = dsl::compile_str("rule r:\n  notify exec \"git\" if true\n  because \"x\"\n")
+            .expect("compile");
+        let err = runner_label(&bare).err().expect("no runner label");
+        assert!(
+            err.to_string().contains("label COMMAND"),
+            "unexpected: {err}"
+        );
+    }
+
+    #[test]
+    fn load_child_policy_deltas_reads_files_and_labels_inline() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("d.dsl");
+        std::fs::write(
+            &file,
+            "rule d:\n  notify exec \"x\" if true\n  because \"y\"\n",
+        )
+        .expect("write");
+        let deltas =
+            load_child_policy_deltas(std::slice::from_ref(&file), &["inline-dsl".to_string()])
+                .expect("deltas");
+        assert_eq!(deltas.len(), 2);
+        assert_eq!(deltas[0].0, file.display().to_string());
+        assert!(deltas[0].1.contains("rule d:"));
+        assert_eq!(deltas[1].0, "--delta-text[0]");
+        assert_eq!(deltas[1].1, "inline-dsl");
+
+        let missing = dir.path().join("missing.dsl");
+        let err = load_child_policy_deltas(std::slice::from_ref(&missing), &[])
+            .err()
+            .expect("missing delta");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("cannot read child policy delta"),
+            "unexpected: {msg}"
+        );
+        assert!(
+            msg.contains(&missing.display().to_string()),
+            "unexpected: {msg}"
+        );
+    }
+
+    #[test]
+    fn json_i32_accepts_only_in_range_integers() {
+        assert_eq!(json_i32(&json!(42)), Some(42));
+        assert_eq!(json_i32(&json!(-1)), Some(-1));
+        assert_eq!(json_i32(&json!(2147483648i64)), None);
+        assert_eq!(json_i32(&json!("42")), None);
+        assert_eq!(json_i32(&json!(null)), None);
+    }
+
+    #[test]
+    fn scoped_feedback_paths_scope_under_a_run_directory() {
+        let base = FeedbackPaths {
+            feedback: PathBuf::from("/repo/run/feedback.txt"),
+            state: PathBuf::from("/repo/run/hook-state.json"),
+            audit: PathBuf::from("/repo/run/audit.jsonl"),
+            events: PathBuf::from("/repo/run/events.jsonl"),
+        };
+        let scoped = scoped_feedback_paths(&base, "mcp");
+        assert!(
+            scoped
+                .feedback
+                .display()
+                .to_string()
+                .starts_with("/repo/run/runs/mcp-")
+        );
+        assert_eq!(scoped.feedback.file_name().unwrap(), "feedback.txt");
+        assert_eq!(scoped.audit.file_name().unwrap(), "audit.jsonl");
+        assert_eq!(scoped.state.file_name().unwrap(), "hook-state.json");
+        assert_eq!(scoped.events.file_name().unwrap(), "events.jsonl");
+        assert_ne!(scoped.feedback, base.feedback);
+    }
 }
