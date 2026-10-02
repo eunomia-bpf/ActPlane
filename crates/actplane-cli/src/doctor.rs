@@ -2591,4 +2591,155 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    const OBSERVE_POLICY: &str = concat!(
+        "source COMMAND = exec \"**\"\n",
+        "rule watch:\n",
+        "  notify read file \"/etc/secret\" if COMMAND\n",
+        "  because \"observe reads\"\n",
+    );
+
+    #[test]
+    fn normalize_rollout_classification_folds_aliases() {
+        assert_eq!(normalize_rollout_classification("TP"), "true_positive");
+        assert_eq!(
+            normalize_rollout_classification("true-positive"),
+            "true_positive"
+        );
+        assert_eq!(
+            normalize_rollout_classification("wanted_kill"),
+            "true_positive"
+        );
+        assert_eq!(normalize_rollout_classification(" FP "), "false_positive");
+        assert_eq!(normalize_rollout_classification("benign"), "allowed");
+        assert_eq!(normalize_rollout_classification("irrelevant"), "noise");
+        assert_eq!(
+            normalize_rollout_classification("needs-review"),
+            "needs_review"
+        );
+        assert_eq!(normalize_rollout_classification("???"), "needs_review");
+    }
+
+    #[test]
+    fn event_rule_matches_signature_requires_exact_metadata() {
+        let parsed = dsl::parse::parse(OBSERVE_POLICY).expect("parse");
+        let signatures = rollout_clause_signatures(&parsed);
+        let signature = signatures
+            .get(&("watch".to_string(), 0))
+            .expect("signature");
+        let matching = json!({
+            "rule": {
+                "effect": "notify",
+                "clause_op": signature.clause_op,
+                "target_kind": signature.target_kind,
+                "target_pattern": signature.target_pattern,
+                "target_arg": signature.target_arg,
+                "clause_hash": signature.clause_hash,
+            }
+        });
+        assert!(event_rule_matches_signature(&matching, signature));
+
+        let stale = json!({
+            "rule": {
+                "effect": "notify",
+                "clause_op": signature.clause_op,
+                "target_kind": signature.target_kind,
+                "target_pattern": "/etc/other",
+                "clause_hash": signature.clause_hash,
+            }
+        });
+        assert!(!event_rule_matches_signature(&stale, signature));
+
+        let enforced = json!({
+            "rule": {
+                "effect": "block",
+                "clause_op": signature.clause_op,
+                "target_kind": signature.target_kind,
+                "target_pattern": signature.target_pattern,
+                "clause_hash": signature.clause_hash,
+            }
+        });
+        assert!(!event_rule_matches_signature(&enforced, signature));
+
+        assert!(!event_rule_matches_signature(&json!({}), signature));
+    }
+
+    #[test]
+    fn load_rollout_evidence_classifies_events_and_annotations() {
+        let parsed = dsl::parse::parse(OBSERVE_POLICY).expect("parse");
+        let signatures = rollout_clause_signatures(&parsed);
+        let signature = signatures
+            .get(&("watch".to_string(), 0))
+            .expect("signature");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let events = dir.path().join("events.jsonl");
+        let annotations = dir.path().join("annotations.jsonl");
+        std::fs::write(
+            &events,
+            format!(
+                concat!(
+                    "{{\"schema\":\"actplane.violation.v1\",\"event\":\"taint_violation\",",
+                    "\"action\":\"report\",\"effect\":\"notify\",",
+                    "\"rule\":{{\"name\":\"watch\",\"clause_source_index\":0,",
+                    "\"effect\":\"notify\",\"clause_op\":\"{}\",\"target_kind\":\"{}\",",
+                    "\"target_pattern\":\"{}\",\"clause_hash\":\"{}\"}},",
+                    "\"target\":\"/etc/secret\",\"domain_id\":3}}\n",
+                    "not-json\n",
+                    "{{\"schema\":\"actplane.violation.v1\",\"event\":\"taint_violation\",",
+                    "\"action\":\"block\",\"effect\":\"block\",\"rule\":{{\"name\":\"watch\"}}}}\n",
+                ),
+                signature.clause_op,
+                signature.target_kind,
+                signature.target_pattern,
+                signature.clause_hash,
+            ),
+        )
+        .expect("write events");
+        std::fs::write(
+            &annotations,
+            format!(
+                concat!(
+                    "{{\"schema\":\"actplane.rollout.annotation.v1\",\"class\":\"TP\",",
+                    "\"rule\":{{\"name\":\"watch\",\"clause_source_index\":0,",
+                    "\"effect\":\"notify\",\"clause_op\":\"{}\",\"target_kind\":\"{}\",",
+                    "\"target_pattern\":\"{}\",\"clause_hash\":\"{}\"}},",
+                    "\"note\":\"expected read\"}}\n",
+                    "{{\"schema\":\"actplane.rollout.annotation.v1\"}}\n",
+                ),
+                signature.clause_op,
+                signature.target_kind,
+                signature.target_pattern,
+                signature.clause_hash,
+            ),
+        )
+        .expect("write annotations");
+
+        let evidence = load_rollout_evidence(&[events.clone()], &[annotations.clone()], &parsed)
+            .expect("load");
+        assert_eq!(evidence.total_events, 1);
+        assert_eq!(evidence.total_annotations, 1);
+        assert_eq!(evidence.ignored_lines, 2);
+        assert_eq!(evidence.ignored_annotations, 1);
+        assert_eq!(evidence.event_paths, vec![events]);
+        assert_eq!(evidence.annotation_paths, vec![annotations]);
+        assert!(
+            evidence.warnings.iter().any(|w| w.contains("is not JSON")),
+            "{:?}",
+            evidence.warnings
+        );
+
+        let observation = evidence
+            .clauses
+            .get(&("watch".to_string(), 0))
+            .expect("observation");
+        assert_eq!(observation.count, 1);
+        assert_eq!(observation.actions.get("report"), Some(&1));
+        assert_eq!(observation.targets, vec!["/etc/secret".to_string()]);
+        assert_eq!(observation.domains.get("3"), Some(&1));
+        assert_eq!(observation.annotations.get("true_positive"), Some(&1));
+        assert_eq!(
+            observation.annotation_notes,
+            vec!["expected read".to_string()]
+        );
+    }
 }
