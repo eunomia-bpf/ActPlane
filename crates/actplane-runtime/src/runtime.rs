@@ -2108,4 +2108,23 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    // `run_command` rejects a parent-domain request before `require_bpf_caps_or_elevate`,
+    // which calls `process::exit(1)` and so is uncatchable. This is the engine-free
+    // branch of the launch path and no base or branch test drives it.
+    #[test]
+    fn run_command_rejects_parent_domain_before_engine() {
+        let cli = PolicyInput {
+            internal_elevated: true,
+            ..PolicyInput::default()
+        };
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let err = rt
+            .block_on(run_command(&cli, &[], true))
+            .expect_err("parent domain must be rejected");
+        assert!(err.to_string().contains("--parent-domain"));
+    }
 }
