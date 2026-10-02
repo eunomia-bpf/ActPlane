@@ -2591,4 +2591,44 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn endpoint_pattern_numeric_ipv4_accepts_only_wildcard_or_addresses() {
+        assert!(endpoint_pattern_is_numeric_ipv4("*"));
+        assert!(endpoint_pattern_is_numeric_ipv4("10.0.0.5"));
+        assert!(endpoint_pattern_is_numeric_ipv4("10.0.0."));
+        assert!(endpoint_pattern_is_numeric_ipv4("127.0.0.1."));
+        assert!(!endpoint_pattern_is_numeric_ipv4("1.2.3.4.5"));
+        assert!(!endpoint_pattern_is_numeric_ipv4("api.internal"));
+        assert!(!endpoint_pattern_is_numeric_ipv4("10.0.0.256"));
+        assert!(!endpoint_pattern_is_numeric_ipv4("10..0.1"));
+        assert!(!endpoint_pattern_is_numeric_ipv4(""));
+    }
+
+    #[test]
+    fn dsl_literal_flattens_newlines_and_replaces_double_quotes() {
+        assert_eq!(dsl_literal("plain"), "plain");
+        assert_eq!(dsl_literal("line1\nline2"), "line1 line2");
+        assert_eq!(dsl_literal("a\r\nb"), "a  b");
+        assert_eq!(dsl_literal(r#"say "hi""#), "say 'hi'");
+    }
+
+    #[test]
+    fn rollout_classification_normalizes_synonyms_and_defaults_to_review() {
+        assert_eq!(normalize_rollout_classification("TP"), "true_positive");
+        assert_eq!(
+            normalize_rollout_classification(" false_positive "),
+            "false_positive"
+        );
+        assert_eq!(normalize_rollout_classification("benign"), "allowed");
+        assert_eq!(normalize_rollout_classification("irrelevant"), "noise");
+        assert_eq!(
+            normalize_rollout_classification("needs-review"),
+            "needs_review"
+        );
+        assert_eq!(
+            normalize_rollout_classification("anything-else"),
+            "needs_review"
+        );
+    }
 }
