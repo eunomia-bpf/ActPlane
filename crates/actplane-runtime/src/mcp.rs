@@ -2992,4 +2992,47 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn load_feedback_reports_each_file_state() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let feedback = tmp.path().join("feedback.txt");
+        let prior = std::env::var("ACTPLANE_FEEDBACK_FILE").ok();
+        unsafe {
+            std::env::set_var("ACTPLANE_FEEDBACK_FILE", &feedback);
+        }
+        let server = ActPlaneMcp {
+            project_dir: tmp.path().to_path_buf(),
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::new())),
+        };
+
+        // Missing file.
+        let missing = server.load_feedback();
+        assert!(
+            missing.contains("No ActPlane feedback file yet"),
+            "{missing}"
+        );
+
+        // Empty file.
+        std::fs::write(&feedback, "  \n").expect("write empty");
+        let empty = server.load_feedback();
+        assert!(
+            empty.contains("No ActPlane feedback has been written yet"),
+            "{empty}"
+        );
+
+        // Populated file includes the path and the content.
+        std::fs::write(&feedback, "blocked: run tests first").expect("write content");
+        let loaded = server.load_feedback();
+        assert!(loaded.contains("Latest ActPlane feedback"), "{loaded}");
+        assert!(loaded.contains("blocked: run tests first"), "{loaded}");
+        assert!(loaded.contains(&feedback.display().to_string()), "{loaded}");
+
+        match prior {
+            Some(v) => unsafe { std::env::set_var("ACTPLANE_FEEDBACK_FILE", v) },
+            None => unsafe { std::env::remove_var("ACTPLANE_FEEDBACK_FILE") },
+        }
+    }
 }
