@@ -767,4 +767,28 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+    #[test]
+    fn too_many_compiled_rules_are_rejected() {
+        let mut src = String::from("source A = exec \"**\"\n");
+        for i in 0..130 {
+            src.push_str(&format!(
+                "rule r{i}:\n  notify exec \"g{i}\" if A\n  because \"x{i}\"\n"
+            ));
+        }
+        let err = compile_str(&src).err().expect("130 rules exceed the cap");
+        assert_eq!(err, "too many compiled rules (130 > 128)");
+    }
+
+    #[test]
+    fn too_many_gates_are_rejected() {
+        let mut src = String::from("source A = exec \"**\"\nrule r:\n");
+        for i in 0..66 {
+            src.push_str(&format!(
+                "  notify exec \"g\" if A unless after exec \"p{i}\"\n"
+            ));
+        }
+        src.push_str("  because \"x\"\n");
+        let err = compile_str(&src).err().expect("66 gates exceed the cap");
+        assert_eq!(err, "too many gates");
+    }
 }
