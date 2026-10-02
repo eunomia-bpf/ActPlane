@@ -244,4 +244,48 @@ mod tests {
             Err(AdmitError::ScopeWiden)
         );
     }
+    fn delta(
+        required_mask: u64,
+        add_restrict_mask: u64,
+        add_label_mask: u64,
+        add_gate_mask: u64,
+        new_scope_id: u32,
+    ) -> DeltaRequest {
+        DeltaRequest {
+            required_mask,
+            add_restrict_mask,
+            add_label_mask,
+            add_gate_mask,
+            new_scope_id,
+            ..DeltaRequest::default()
+        }
+    }
+
+    #[test]
+    fn required_mask_combines_base_and_implied_authorities() {
+        // `required_mask` ORs together the base authority mask with the
+        // authority bits implied by the request's add-fields and scope
+        // change. Each add-field independently implies its authority bit;
+        // an empty request implies none. No base test pins this helper
+        // directly.
+
+        // An empty request implies no additional authority.
+        assert_eq!(required_mask(delta(0, 0, 0, 0, 0)), 0);
+
+        // The base required mask passes through verbatim.
+        let base = AUTH_BIND_RULE | AUTH_DELEGATE;
+        assert_eq!(required_mask(delta(base, 0, 0, 0, 0)), base);
+
+        // Each add-field independently implies its authority bit.
+        assert_eq!(required_mask(delta(0, 0b1, 0, 0, 0)), AUTH_ADD_RESTRICTION);
+        assert_eq!(required_mask(delta(0, 0, 0b1, 0, 0)), AUTH_ADD_LABEL);
+        assert_eq!(required_mask(delta(0, 0, 0, 0b1, 0)), AUTH_REQUIRE_GATE);
+        assert_eq!(required_mask(delta(0, 0, 0, 0, 2)), AUTH_NARROW_SCOPE);
+
+        // All add-fields combine with the base mask.
+        assert_eq!(
+            required_mask(delta(base, 0b1, 0b1, 0b1, 3)),
+            base | AUTH_ADD_RESTRICTION | AUTH_ADD_LABEL | AUTH_REQUIRE_GATE | AUTH_NARROW_SCOPE
+        );
+    }
 }
