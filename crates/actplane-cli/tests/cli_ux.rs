@@ -707,6 +707,46 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// The `runtime.approval` schema rejects a scalar `append_delta` and an unknown
+// `runtime` field with serde-derived messages.
+#[test]
+fn runtime_approval_schema_errors_are_reported() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = tmp.path().join("actplane.yaml");
+
+    fs::write(
+        &policy,
+        "version: 1\nruntime:\n  approval:\n    append_delta: true\npolicy: |\n  rule r:\n    notify exec \"git\" if true\n    because \"x\"\n",
+    )
+    .unwrap();
+    let scalar = run(&["--policy", policy.to_str().unwrap(), "compile"]);
+    assert_eq!(scalar.status.code(), Some(1), "stderr: {}", stderr(&scalar));
+    assert!(
+        stderr(&scalar).contains("runtime.approval.append_delta")
+            && stderr(&scalar).contains("expected struct AppendDeltaApprovalConfig"),
+        "stderr: {}",
+        stderr(&scalar)
+    );
+
+    fs::write(
+        &policy,
+        "version: 1\nruntime:\n  profile: x\npolicy: |\n  rule r:\n    notify exec \"git\" if true\n    because \"x\"\n",
+    )
+    .unwrap();
+    let unknown = run(&["--policy", policy.to_str().unwrap(), "compile"]);
+    assert_eq!(
+        unknown.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&unknown)
+    );
+    assert!(
+        stderr(&unknown).contains("runtime: unknown field `profile`, expected `approval`"),
+        "stderr: {}",
+        stderr(&unknown)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
