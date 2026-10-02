@@ -698,4 +698,24 @@ mod tests {
             .to_string();
         assert!(err.contains("unsupported by the current DSL string syntax"));
     }
+
+    #[test]
+    fn mediation_template_renders_override_and_compiles() {
+        let template = get("prod-db-via-migrate").unwrap();
+        let rendered = render_dsl(
+            template,
+            &[
+                "database_path=db/prod.sqlite".into(),
+                "mediator_exec=**/migrate-tool".into(),
+            ],
+        )
+        .unwrap();
+        assert!(rendered.contains("rule prod-db-via-migrate:"));
+        assert!(rendered.contains("block open file \"db/prod.sqlite\" if true"));
+        assert!(rendered.contains("unless lineage-includes exec \"**/migrate-tool\""));
+        assert!(
+            rendered.contains("because \"Access db/prod.sqlite only through **/migrate-tool.\"")
+        );
+        dsl::compile_str(&rendered).unwrap();
+    }
 }
