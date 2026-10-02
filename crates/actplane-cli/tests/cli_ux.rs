@@ -707,6 +707,42 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `run`, `watch`, and `attach` share the auto-attach precondition that the
+// policy must declare or reference a COMMAND (or legacy AGENT) label.
+#[test]
+fn autoattach_requires_command_label() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::copy(
+        fixture("01_secret_no_exfil.yaml"),
+        tmp.path().join("actplane.yaml"),
+    )
+    .unwrap();
+
+    const EXPECTED: &str = "run/auto-attach mode requires the policy to declare or reference label COMMAND (or AGENT for backward compatibility)";
+    for args in [
+        vec!["run", "/bin/true"],
+        vec!["watch"],
+        vec!["attach", "--pid", "5"],
+    ] {
+        let output = Command::new(actplane())
+            .current_dir(tmp.path())
+            .args(&args)
+            .output()
+            .expect("run auto-attach command");
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "{args:?} stderr: {}",
+            stderr(&output)
+        );
+        assert!(
+            stderr(&output).contains(EXPECTED),
+            "{args:?} stderr: {}",
+            stderr(&output)
+        );
+    }
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
