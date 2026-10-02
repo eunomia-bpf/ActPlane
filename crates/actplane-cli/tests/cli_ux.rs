@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::Path;
 use std::process::{Command, Output};
 
 #[cfg(unix)]
@@ -705,6 +706,78 @@ policy: |
     assert_eq!(request["approval_ref"], "ticket-7");
     assert_eq!(request["generated_by"], "cli-test");
     handle.join().expect("control server thread");
+}
+
+// `--with-codex` reconciles `.codex/hooks.json`: it leaves an already-wired
+// hook untouched, refreshes an absolute-path hook to the PATH command, and
+// keeps an unrelated hook unless `--force`.
+#[test]
+fn init_with_codex_reconciles_hook_config() {
+    let run_codex = |dir: &Path| {
+        Command::new(actplane())
+            .current_dir(dir)
+            .args(["init", "--with-codex"])
+            .output()
+            .expect("run init --with-codex")
+    };
+
+    let wired = tempfile::tempdir().unwrap();
+    fs::create_dir_all(wired.path().join(".codex")).unwrap();
+    let wired_hook =
+        r#"{"hooks":{"PostToolUse":[{"hooks":[{"command":"actplane feedback-hook"}]}],"x":1}}"#;
+    fs::write(wired.path().join(".codex/hooks.json"), wired_hook).unwrap();
+    let output = run_codex(wired.path());
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("already wired"),
+        "stderr: {}",
+        stderr(&output)
+    );
+    assert_eq!(
+        fs::read_to_string(wired.path().join(".codex/hooks.json")).unwrap(),
+        wired_hook,
+        "an already-wired hook must not be rewritten"
+    );
+
+    let refresh = tempfile::tempdir().unwrap();
+    fs::create_dir_all(refresh.path().join(".codex")).unwrap();
+    fs::write(
+        refresh.path().join(".codex/hooks.json"),
+        r#"{"hooks":{"PostToolUse":[{"hooks":[{"command":"/opt/bin/actplane feedback-hook"}]}]}}"#,
+    )
+    .unwrap();
+    let output = run_codex(refresh.path());
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("refreshing Codex hook"),
+        "stderr: {}",
+        stderr(&output)
+    );
+    let hooks: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(refresh.path().join(".codex/hooks.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        hooks["hooks"]["PostToolUse"][0]["hooks"][0]["command"],
+        "actplane feedback-hook"
+    );
+
+    let unrelated = tempfile::tempdir().unwrap();
+    fs::create_dir_all(unrelated.path().join(".codex")).unwrap();
+    let unrelated_hook = r#"{"hooks":{"PostToolUse":[{"hooks":[{"command":"echo hi"}]}]}}"#;
+    fs::write(unrelated.path().join(".codex/hooks.json"), unrelated_hook).unwrap();
+    let output = run_codex(unrelated.path());
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("keeping existing") && stderr(&output).contains("--force"),
+        "stderr: {}",
+        stderr(&output)
+    );
+    assert_eq!(
+        fs::read_to_string(unrelated.path().join(".codex/hooks.json")).unwrap(),
+        unrelated_hook,
+        "an unrelated hook must be kept"
+    );
 }
 
 fn stdout(output: &Output) -> String {
