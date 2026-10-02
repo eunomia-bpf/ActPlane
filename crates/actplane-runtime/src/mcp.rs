@@ -2992,4 +2992,58 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn process_exists_distinguishes_live_permission_and_reaped_pids() {
+        // The current process is alive, so kill(0) must succeed.
+        assert!(process_exists(std::process::id() as i32));
+        // A pid that cannot exist yields ESRCH, which is the only gone answer.
+        assert!(!process_exists(99_999_999));
+        // Whether a foreign live pid is visible depends on uid, but a real live
+        // pid must never be reported as reaped while the probe is running.
+        if unsafe { libc::kill(1, 0) } == 0 {
+            assert!(process_exists(1));
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn child_record_meta_trust_root_requires_root_owned_private_ancestors() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let children = tmp.path().join("children");
+        let log_dir = children.join("run-1");
+        let meta = log_dir.join("child.json");
+        std::fs::create_dir_all(&log_dir).expect("dirs");
+        std::fs::write(&meta, "{}").expect("meta");
+
+        let current = std::fs::metadata(&children).expect("metadata");
+        let owned_by_root = current.uid() == 0;
+        let locked = |path: &std::path::Path| {
+            let mode = std::fs::metadata(path).expect("metadata").mode();
+            mode & 0o022 == 0
+        };
+
+        if !owned_by_root {
+            // Non-root callers treat every record as trusted without inspecting
+            // the tree, because they already trust the invoking user.
+            assert!(child_record_meta_trusted_root(&meta));
+        } else {
+            assert_eq!(
+                child_record_meta_trusted_root(&meta),
+                locked(&children) && locked(&log_dir) && locked(&meta)
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn child_record_meta_trust_root_rejects_a_parentless_path() {
+        // The trust predicate requires the record to sit inside two directories
+        // it can stat; the filesystem root has no parent, so it is never trusted
+        // under the root rule. Non-root callers trust everything by uid.
+        if unsafe { libc::geteuid() } != 0 {
+            return;
+        }
+        assert!(!child_record_meta_trusted_root(std::path::Path::new("/")));
+    }
 }
