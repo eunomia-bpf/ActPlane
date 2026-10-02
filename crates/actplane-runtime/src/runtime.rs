@@ -2108,4 +2108,33 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn legacy_shutdown_signals_listens_for_term_and_interrupt() {
+        // `legacy_shutdown_signals` installs SIGINT and SIGTERM listeners for
+        // the legacy command loop. No base or branch test calls it.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        rt.block_on(async {
+            let mut signals = legacy_shutdown_signals().expect("install signal listeners");
+            let ready =
+                tokio::time::timeout(std::time::Duration::from_millis(200), signals[1].recv())
+                    .await;
+            assert!(ready.is_err(), "no pending SIGTERM before one is delivered");
+
+            let target = std::process::id() as i32;
+            if unsafe { libc::kill(target, libc::SIGTERM) } == 0 {
+                let seen =
+                    tokio::time::timeout(std::time::Duration::from_secs(2), signals[1].recv())
+                        .await;
+                assert!(
+                    seen.is_ok(),
+                    "SIGTERM listener observed the delivered signal"
+                );
+                assert!(seen.unwrap().is_some(), "SIGTERM stream yielded an event");
+            }
+        });
+    }
 }
