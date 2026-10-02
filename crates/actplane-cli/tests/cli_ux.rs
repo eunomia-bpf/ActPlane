@@ -707,6 +707,62 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `--generate` reads project instructions and picks templates from their
+// content: an instruction forbidding `git push` selects `no-git-push`.
+#[test]
+fn generate_selects_template_from_instruction_content() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"x\"\n").unwrap();
+    fs::write(
+        tmp.path().join("AGENTS.md"),
+        "# AGENTS\n\nAlways run tests before committing. Never push to main.\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--generate", "--print"])
+        .output()
+        .expect("run init --generate --print");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(
+        out.contains(&format!(
+            "# Instructions considered:\n# - {}",
+            tmp.path().join("AGENTS.md").display()
+        )),
+        "instructions source must be listed:\n{out}"
+    );
+    assert!(
+        stderr(&output).contains("selected no-git-push")
+            && stderr(&output).contains("project instructions forbid agent-run git push"),
+        "the git-push instruction must select no-git-push:\n{}",
+        stderr(&output)
+    );
+    assert!(
+        out.contains("# template: no-git-push")
+            && out.contains("kill exec \"git\" \"push\" if COMMAND"),
+        "the candidate policy must embed the selected rule:\n{out}"
+    );
+
+    let write = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--generate"])
+        .output()
+        .expect("run init --generate");
+    assert!(write.status.success(), "stderr: {}", stderr(&write));
+    let compiled = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("compile")
+        .output()
+        .expect("run compile");
+    assert!(
+        compiled.status.success(),
+        "generated candidate must compile: {}",
+        stderr(&compiled)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
