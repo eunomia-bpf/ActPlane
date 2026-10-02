@@ -1072,3 +1072,68 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod main_control_guard_tests {
+    use super::*;
+
+    fn write_state(project_dir: &Path, parent_domain_id: u32) {
+        let state = control::ControlState {
+            schema: "actplane.control.v1".to_string(),
+            pid: 1234,
+            proc_start_time: None,
+            socket_path: project_dir.join("sock"),
+            project_dir: project_dir.to_path_buf(),
+            parent_pid: 1234,
+            parent_domain_id,
+        };
+        let dir = project_dir.join(".actplane");
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        std::fs::write(
+            dir.join("control.json"),
+            serde_json::to_string(&state).expect("state json"),
+        )
+        .expect("write state");
+    }
+
+    fn delta_add(target_id: Option<u32>) -> ControlCommands {
+        ControlCommands::Delta {
+            command: DeltaCommands::Add(DeltaAddArgs {
+                target_id,
+                domain_id: None,
+                deltas: Vec::new(),
+                delta_text: Vec::new(),
+                approved_by: None,
+                approval_ref: None,
+                generated_by: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn control_mutation_guards_gate_on_the_running_engine_domain() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        write_state(dir.path(), ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID);
+        let target = Some(ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID);
+
+        // Only the global-active engine rejects authority-bearing mutations.
+        let err = reject_parent_domain_control_mutation(dir.path(), &delta_add(target))
+            .expect_err("global-active engine rejects delta add");
+        assert!(
+            err.to_string()
+                .contains("append policy delta is unavailable in --parent-domain mode"),
+            "unexpected error: {err}"
+        );
+
+        // Status and a non-global target are both allowed to proceed.
+        reject_parent_domain_control_mutation(dir.path(), &ControlCommands::Status)
+            .expect("status is not a mutation");
+        reject_parent_domain_control_mutation(dir.path(), &delta_add(Some(7)))
+            .expect("a bound child target is a mutation");
+
+        // A parent-domain engine never reaches the socket send path.
+        write_state(dir.path(), 5);
+        reject_parent_domain_control_mutation(dir.path(), &delta_add(target))
+            .expect("authority-bearing engine allows delta add");
+    }
+}
