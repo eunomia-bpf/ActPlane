@@ -707,6 +707,44 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `mcp --auto-attach-parent` enforces the same COMMAND-label precondition as
+// the other auto-attach entry points, over stdio.
+#[test]
+fn mcp_auto_attach_requires_command_label() {
+    use std::io::Write as _;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::copy(
+        fixture("01_secret_no_exfil.yaml"),
+        tmp.path().join("actplane.yaml"),
+    )
+    .unwrap();
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["mcp", "--auto-attach-parent"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn mcp --auto-attach-parent");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"c\",\"version\":\"1\"}}}\n",
+        )
+        .unwrap();
+    let output = child.wait_with_output().expect("mcp output");
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains(
+            "run/auto-attach mode requires the policy to declare or reference label COMMAND (or AGENT for backward compatibility)"
+        ),
+        "stderr: {}",
+        stderr(&output)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
