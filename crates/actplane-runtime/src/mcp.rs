@@ -2992,4 +2992,78 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn adopt_running_child_record_stamps_once_and_persists() {
+        // `adopt_running_child_record` adopts a running, not-yet-adopted record
+        // by stamping `adopted_unix_ms` and persisting the meta file; it skips
+        // records that are already adopted and records that are not running.
+        // No base or branch test calls it directly.
+        let project_dir = std::env::temp_dir().join(format!(
+            "actplane-mcp-adopt-test-{}-{}",
+            std::process::id(),
+            child_launch_id()
+        ));
+        let log_dir = project_dir
+            .join(".actplane")
+            .join("children")
+            .join("adopt-test");
+        let make = |status: ChildStatus, adopted: Option<u64>| ChildRecord {
+            launch_id: "adopt-test".to_string(),
+            pid: std::process::id() as i32,
+            child_id: 901,
+            scope_id: 5,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: log_dir.join("stdout.log"),
+            stderr: log_dir.join("stderr.log"),
+            meta: log_dir.join("meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 0,
+            restart_backoff_ms: 0,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: adopted,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        };
+
+        let mut running = make(ChildStatus::Running, None);
+        assert!(adopt_running_child_record(&mut running));
+        let stamp = running.adopted_unix_ms.expect("adoption stamp");
+        let persisted: Value =
+            serde_json::from_str(&std::fs::read_to_string(&running.meta).expect("persisted meta"))
+                .expect("meta json");
+        assert_eq!(persisted["adopted_unix_ms"].as_u64(), Some(stamp));
+        let loaded = load_child_records_with_adoptions(&project_dir);
+        assert_eq!(
+            loaded
+                .records
+                .get(&901)
+                .expect("loaded record")
+                .adopted_unix_ms,
+            Some(stamp)
+        );
+
+        // Re-adoption is a no-op and preserves the original stamp.
+        assert!(!adopt_running_child_record(&mut running));
+        assert_eq!(running.adopted_unix_ms, Some(stamp));
+
+        // A non-running record is skipped.
+        let mut exited = make(
+            ChildStatus::Exited {
+                code: Some(0),
+                signal: None,
+            },
+            None,
+        );
+        assert!(!adopt_running_child_record(&mut exited));
+        assert!(exited.adopted_unix_ms.is_none());
+
+        let _ = std::fs::remove_dir_all(project_dir);
+    }
 }
