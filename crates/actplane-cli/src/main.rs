@@ -1072,3 +1072,114 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_rule_list_joins_or_reports_none() {
+        assert_eq!(format_rule_list(&[]), "none");
+        assert_eq!(format_rule_list(&["a".into(), "b".into()]), "a, b");
+    }
+
+    #[test]
+    fn format_domain_policy_rules_concatenates_locked_then_defaults() {
+        let domain = config::DomainSummary {
+            name: "root".into(),
+            parent: None,
+            disabled: vec![],
+            locked: vec!["locked-one".into()],
+            defaults: vec!["default-two".into()],
+        };
+        assert_eq!(
+            format_domain_policy_rules(&domain),
+            "locked-one, default-two"
+        );
+    }
+
+    #[test]
+    fn join_policy_delta_fragments_frames_each_fragment() {
+        assert_eq!(join_policy_delta_fragments(vec![]), None);
+        let joined = join_policy_delta_fragments(vec![
+            ("a.dsl".into(), "  rule x: allow\n".into()),
+            ("b.dsl".into(), "rule y: deny".into()),
+        ])
+        .unwrap();
+        assert!(joined.contains("# delta a.dsl"));
+        assert!(joined.contains("rule x: allow"));
+        assert!(joined.contains("# delta b.dsl"));
+        assert!(joined.contains("rule y: deny"));
+        // Fragments are trimmed when embedded, not the header.
+        assert!(joined.contains("\nrule y: deny\n"));
+    }
+
+    #[test]
+    fn policy_audit_meta_from_fields_copies_each_option() {
+        let meta = policy_audit_meta_from_fields(
+            Some("p.yaml".into()),
+            &Some("alice".into()),
+            &None,
+            &Some("cli".into()),
+        );
+        assert_eq!(meta.policy_ref.as_deref(), Some("p.yaml"));
+        assert_eq!(meta.approved_by.as_deref(), Some("alice"));
+        assert_eq!(meta.approval_ref, None);
+        assert_eq!(meta.generated_by.as_deref(), Some("cli"));
+    }
+
+    #[test]
+    fn add_policy_audit_meta_fields_only_sets_present_options() {
+        let mut request = serde_json::json!({ "keep": 1 });
+        add_policy_audit_meta_fields(
+            &mut request,
+            &runtime::PolicyAuditMeta {
+                policy_ref: Some("p.yaml".into()),
+                approved_by: None,
+                approval_ref: Some("ticket-7".into()),
+                generated_by: None,
+            },
+        );
+        assert_eq!(request["keep"], 1);
+        assert_eq!(request["policy_ref"], "p.yaml");
+        assert_eq!(request["approval_ref"], "ticket-7");
+        assert!(request.get("approved_by").is_none());
+        assert!(request.get("generated_by").is_none());
+    }
+
+    #[test]
+    fn has_local_instruction_file_recognizes_known_names() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(!has_local_instruction_file(tmp.path()));
+        std::fs::write(tmp.path().join("AGENTS.md"), "").unwrap();
+        assert!(has_local_instruction_file(tmp.path()));
+    }
+
+    #[test]
+    fn write_output_file_writes_and_refuses_reuse_without_force() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("out.txt");
+        write_output_file(&path, "one", false).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "one");
+        assert!(write_output_file(&path, "two", false).is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "one");
+        write_output_file(&path, "two", true).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "two");
+    }
+
+    #[test]
+    fn write_binary_output_file_writes_bytes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("blob.bin");
+        write_binary_output_file(&path, &[0, 1, 2, 255], false).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), vec![0, 1, 2, 255]);
+    }
+
+    #[test]
+    fn preflight_rejects_directory_and_missing_parent() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(preflight_output_file(tmp.path(), true).is_err());
+        let missing = tmp.path().join("nope").join("out.txt");
+        assert!(preflight_output_file(&missing, false).is_err());
+    }
+}
