@@ -1381,3 +1381,60 @@ policy: |
     .expect("write policy");
     policy
 }
+
+// A malformed JSON line and a blank line do not terminate the session: the
+// server resumes serving subsequent valid requests.
+#[test]
+fn mcp_stdio_tolerates_malformed_lines() {
+    use std::io::{BufRead, Write as _};
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["--policy", policy.to_str().expect("policy path"), "mcp"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+    {
+        let stdin = child.stdin.as_mut().expect("mcp stdin");
+        stdin.write_all(b"{not json\n\n").expect("write malformed");
+        stdin
+            .write_all(
+                b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"actplane-test\",\"version\":\"0\"}}}\n",
+            )
+            .expect("write initialize");
+        stdin
+            .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}\n")
+            .expect("write tools/list");
+        stdin.flush().expect("flush");
+    }
+
+    let mut responses = std::collections::BTreeMap::new();
+    for line in std::io::BufReader::new(child.stdout.take().expect("stdout")).lines() {
+        let line = line.expect("stdout line");
+        if line.trim().is_empty() {
+            continue;
+        }
+        let value: Value = serde_json::from_str(&line).expect("response json");
+        if let Some(id) = value.get("id").and_then(Value::as_i64) {
+            responses.insert(id, value);
+        }
+        if responses.contains_key(&2) {
+            break;
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+
+    assert!(
+        responses.contains_key(&1),
+        "initialize after malformed line: {responses:?}"
+    );
+    let listing = responses.get(&2).expect("tools/list after malformed line");
+    assert!(
+        listing["result"]["tools"].as_array().is_some(),
+        "tools/list response: {listing}"
+    );
+}
