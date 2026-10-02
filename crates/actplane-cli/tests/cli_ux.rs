@@ -707,6 +707,38 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `init --print` emits the policy (starter or template-based) on stdout and
+// writes no files, unlike the default `init` write path.
+#[test]
+fn init_print_emits_policy_without_writing_files() {
+    let tmp = tempfile::tempdir().unwrap();
+
+    let starter = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--print"])
+        .output()
+        .expect("run init --print");
+    assert!(starter.status.success(), "stderr: {}", stderr(&starter));
+    let printed = stdout(&starter);
+    assert!(printed.contains("version: 1"), "stdout: {printed}");
+    assert!(
+        printed.contains("ActPlane project policy"),
+        "stdout: {printed}"
+    );
+    assert!(
+        fs::read_dir(tmp.path()).unwrap().next().is_none(),
+        "--print must not write files into cwd"
+    );
+
+    let templated = run(&["init", "--template", "test-before-commit", "--print"]);
+    assert!(templated.status.success(), "stderr: {}", stderr(&templated));
+    assert!(
+        stdout(&templated).contains("ActPlane policy generated from template `test-before-commit`"),
+        "stdout: {}",
+        stdout(&templated)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
