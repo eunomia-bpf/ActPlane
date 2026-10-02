@@ -7884,4 +7884,25 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    #[test]
+    fn pinned_engine_paths_compose_map_and_link_paths() {
+        let paths = PinnedEnginePaths::new("/tmp/actplane-pin-root");
+        assert_eq!(
+            paths.maps_dir(),
+            PathBuf::from("/tmp/actplane-pin-root/maps")
+        );
+        assert_eq!(
+            paths.links_dir(),
+            PathBuf::from("/tmp/actplane-pin-root/links")
+        );
+        assert_eq!(
+            paths.map("ts_proc"),
+            PathBuf::from("/tmp/actplane-pin-root/maps/ts_proc")
+        );
+        assert_eq!(
+            paths.link("ts_proc"),
+            PathBuf::from("/tmp/actplane-pin-root/links/ts_proc")
+        );
+    }
 }
