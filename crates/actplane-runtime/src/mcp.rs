@@ -2992,4 +2992,105 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn predicate_record(status: ChildStatus) -> ChildRecord {
+        ChildRecord {
+            launch_id: "child-predicate".to_string(),
+            pid: 1,
+            child_id: 1,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/stdout.log"),
+            stderr: PathBuf::from("/tmp/stderr.log"),
+            meta: PathBuf::from("/tmp/meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::OnExit,
+            restart_count: 0,
+            restart_limit: 2,
+            restart_backoff_ms: 1000,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    #[test]
+    fn child_record_predicates_follow_the_status_variant() {
+        let running = predicate_record(ChildStatus::Running);
+        let exited = predicate_record(ChildStatus::Exited {
+            code: Some(1),
+            signal: None,
+        });
+        let terminated = predicate_record(ChildStatus::Terminated);
+
+        assert!(child_record_running(&running));
+        assert!(!child_record_exited(&running));
+        assert!(!child_record_terminated(&running));
+
+        assert!(child_record_exited(&exited));
+        assert!(!child_record_running(&exited));
+        assert!(!child_record_terminated(&exited));
+
+        assert!(child_record_terminated(&terminated));
+        assert!(!child_record_running(&terminated));
+        assert!(!child_record_exited(&terminated));
+    }
+
+    #[test]
+    fn adopt_running_child_record_is_idempotent_and_status_scoped() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut running = predicate_record(ChildStatus::Running);
+        running.meta = dir.path().join("meta.json");
+        assert!(adopt_running_child_record(&mut running));
+        let first = running.adopted_unix_ms.expect("adopted stamp");
+        assert!(!adopt_running_child_record(&mut running), "idempotent");
+        assert_eq!(running.adopted_unix_ms, Some(first));
+
+        let mut exited = predicate_record(ChildStatus::Exited {
+            code: Some(0),
+            signal: None,
+        });
+        exited.meta = dir.path().join("exited-meta.json");
+        assert!(!adopt_running_child_record(&mut exited));
+        assert!(exited.adopted_unix_ms.is_none());
+    }
+
+    #[test]
+    fn restart_blocked_reason_requires_an_exhausted_on_exit_quota() {
+        let mut record = predicate_record(ChildStatus::Running);
+        record.restart_count = 2;
+        assert_eq!(child_restart_blocked_reason(&record), None, "still running");
+        assert!(
+            !child_record_should_relaunch(&record),
+            "running never relaunches"
+        );
+
+        *record.status.lock().expect("status") = ChildStatus::Exited {
+            code: Some(1),
+            signal: None,
+        };
+        assert_eq!(
+            child_restart_blocked_reason(&record),
+            Some("restart limit reached")
+        );
+        assert!(!child_record_should_relaunch(&record));
+
+        record.restart_count = 1;
+        assert_eq!(child_restart_blocked_reason(&record), None);
+        assert!(child_record_should_relaunch(&record), "quota left");
+
+        record.replacement_child_id = Some(9);
+        assert_eq!(child_restart_blocked_reason(&record), None);
+        assert!(!child_record_should_relaunch(&record), "replacement wins");
+
+        record.replacement_child_id = None;
+        record.restart_policy = RestartPolicy::Never;
+        assert_eq!(child_restart_blocked_reason(&record), None);
+        assert!(!child_record_should_relaunch(&record), "policy off");
+    }
 }
