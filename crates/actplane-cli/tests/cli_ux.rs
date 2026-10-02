@@ -707,6 +707,90 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `control logs`, `control stop`, and `control restart` each send their own
+// child-domain op over the repo control socket, carrying the flags through.
+#[cfg(unix)]
+#[test]
+fn control_child_lifecycle_commands_send_their_ops() {
+    let tmp = tempfile::tempdir().unwrap();
+    let socket_path = tmp.path().join("control.sock");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": std::process::id() as i32,
+            "proc_start_time": null,
+            "socket_path": socket_path,
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": 2222,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = std::thread::spawn(move || {
+        for _ in 0..3 {
+            let (mut stream, _) = listener.accept().expect("accept control client");
+            let mut line = String::new();
+            std::io::BufReader::new(stream.try_clone().expect("clone stream"))
+                .read_line(&mut line)
+                .expect("read request");
+            tx.send(serde_json::from_str::<serde_json::Value>(&line).expect("request JSON"))
+                .expect("send request");
+            serde_json::to_writer(
+                &mut stream,
+                &serde_json::json!({ "ok": true, "text": "ok" }),
+            )
+            .expect("write response");
+            writeln!(stream).expect("write response newline");
+        }
+    });
+
+    let run_in_tmp = |args: &[&str]| {
+        let output = Command::new(actplane())
+            .current_dir(tmp.path())
+            .args(args)
+            .output()
+            .expect("run control command");
+        assert!(
+            output.status.success(),
+            "{args:?} stderr: {}",
+            stderr(&output)
+        );
+    };
+    run_in_tmp(&[
+        "control",
+        "logs",
+        "--child-id",
+        "7",
+        "--stream",
+        "stdout",
+        "--max-bytes",
+        "1024",
+    ]);
+    run_in_tmp(&["control", "stop", "--child-id", "7"]);
+    run_in_tmp(&["control", "restart", "--child-id", "7"]);
+    handle.join().expect("control server thread");
+
+    let logs = rx.recv().expect("logs request");
+    assert_eq!(logs["op"], "read_child_domain_logs");
+    assert_eq!(logs["child_id"], 7);
+    assert_eq!(logs["stream"], "stdout");
+    assert_eq!(logs["max_bytes"], 1024);
+    assert_eq!(
+        rx.recv().expect("stop request")["op"],
+        "terminate_child_domain"
+    );
+    let restart = rx.recv().expect("restart request");
+    assert_eq!(restart["op"], "restart_child_domain");
+    assert_eq!(restart["terminate_existing"], false);
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
