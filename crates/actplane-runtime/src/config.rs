@@ -851,4 +851,58 @@ domains:
             );
         }
     }
+
+    fn domain_load(rules: &str, domains: &str) -> LoadedPolicy {
+        load(&format!("rules:\n{rules}domains:\n{domains}"))
+    }
+
+    const ONE_RULE: &str =
+        "  r:\n    ifc: |\n      rule r:\n        notify exec \"git\"\n        because \"x\"\n";
+
+    #[test]
+    fn select_domain_reports_unknown_and_undefined_defaults() {
+        let loaded = domain_load(ONE_RULE, "  d: {}\n");
+        assert_eq!(
+            policy_source(&loaded, Some("zzz")).unwrap_err().to_string(),
+            "unknown domain `zzz` (available: d)"
+        );
+
+        let loaded = load(&format!(
+            "rules:\n{ONE_RULE}domains:\n  a: {{}}\ndefault_domain: zzz\n"
+        ));
+        assert_eq!(
+            policy_source(&loaded, None).unwrap_err().to_string(),
+            "default_domain `zzz` is not defined (available: a)"
+        );
+    }
+
+    #[test]
+    fn resolve_domain_reports_empty_cycles_and_bad_bindings() {
+        let empty = domain_load(ONE_RULE, "  d: {}\n");
+        assert_eq!(
+            policy_source(&empty, Some("d")).unwrap_err().to_string(),
+            "domain `d` has no effective rules"
+        );
+
+        let cycle = domain_load(ONE_RULE, "  a:\n    parent: b\n  b:\n    parent: a\n");
+        assert_eq!(
+            policy_source(&cycle, Some("a")).unwrap_err().to_string(),
+            "domain parent cycle includes `a`"
+        );
+
+        let bind = domain_load(
+            ONE_RULE,
+            "  d:\n    bind:\n      - rule: nope\n        mode: locked\n",
+        );
+        assert_eq!(
+            policy_source(&bind, Some("d")).unwrap_err().to_string(),
+            "domain `d` binds unknown rule `nope`"
+        );
+
+        let disable = domain_load(ONE_RULE, "  d:\n    disable: [r]\n");
+        assert_eq!(
+            policy_source(&disable, Some("d")).unwrap_err().to_string(),
+            "domain `d` disables `r`, but it is not an inherited default rule"
+        );
+    }
 }
