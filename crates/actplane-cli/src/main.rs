@@ -1072,3 +1072,63 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load_policy_delta_fragments_reads_files_then_inline() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let first = dir.path().join("a.dsl");
+        let second = dir.path().join("b.dsl");
+        std::fs::write(&first, "  rule a:\n    notify exec \"a\"\n  ").expect("write a");
+        std::fs::write(&second, "rule b:\n  notify exec \"b\"\n").expect("write b");
+
+        let deltas = load_policy_delta_fragments(
+            &[first.clone(), second],
+            &["rule c:\n  notify exec \"c\"".to_string()],
+        )
+        .expect("load deltas");
+        assert_eq!(deltas.len(), 3);
+        assert_eq!(deltas[0].0, first.display().to_string());
+        assert_eq!(deltas[0].1, "  rule a:\n    notify exec \"a\"\n  ");
+        assert_eq!(deltas[2].0, "--delta-text[0]");
+
+        let inline_only = load_policy_delta_fragments(&[], &["x".to_string(), "y".to_string()])
+            .expect("inline deltas");
+        assert_eq!(inline_only.len(), 2);
+        assert_eq!(inline_only[0].0, "--delta-text[0]");
+        assert_eq!(inline_only[1].0, "--delta-text[1]");
+        assert_eq!(inline_only[1].1, "y");
+
+        let empty = load_policy_delta_fragments(&[], &[]).expect("empty deltas");
+        assert!(empty.is_empty());
+    }
+
+    #[test]
+    fn load_policy_delta_fragments_reports_unreadable_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("absent.dsl");
+        let err = load_policy_delta_fragments(&[missing.clone()], &[])
+            .err()
+            .expect("missing delta errors");
+        let err = err.to_string();
+        assert!(err.starts_with(&format!("cannot read policy delta {}", missing.display())));
+        assert!(err.contains("No such file or directory"), "{err}");
+    }
+
+    #[test]
+    fn join_policy_delta_fragments_trims_and_headers_each_source() {
+        let joined = join_policy_delta_fragments(vec![
+            ("a.dsl".to_string(), "  rule a:\n  ".to_string()),
+            ("--delta-text[0]".to_string(), "rule b:".to_string()),
+        ])
+        .expect("joined");
+        assert_eq!(
+            joined,
+            "\n# delta a.dsl\nrule a:\n\n# delta --delta-text[0]\nrule b:\n"
+        );
+        assert!(join_policy_delta_fragments(Vec::new()).is_none());
+    }
+}
