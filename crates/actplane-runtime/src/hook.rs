@@ -323,4 +323,29 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn read_stdin_collects_redirected_input() {
+        use std::os::unix::io::AsRawFd;
+
+        let input = tempfile::tempdir().expect("tempdir");
+        let path = input.path().join("payload.txt");
+        std::fs::write(&path, "TAINT_VIOLATION: read /etc/secret\n").expect("write");
+        let file = std::fs::File::open(&path).expect("open");
+
+        let saved = unsafe { libc::dup(0) };
+        assert!(saved >= 0, "dup(0) failed");
+        assert_eq!(unsafe { libc::dup2(file.as_raw_fd(), 0) }, 0, "dup2 failed");
+
+        let captured = read_stdin();
+
+        assert_eq!(unsafe { libc::dup2(saved, 0) }, 0, "restore failed");
+        unsafe { libc::close(saved) };
+
+        assert_eq!(
+            captured.expect("read stdin"),
+            "TAINT_VIOLATION: read /etc/secret\n"
+        );
+    }
 }
