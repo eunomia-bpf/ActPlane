@@ -2591,4 +2591,30 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn boot_lsm_probe_mirrors_the_live_cmdline_and_reports_active_lsms() {
+        // `/proc/cmdline` is the probe's first source, so whenever this boot's
+        // command line names bpf in `lsm=...`, the probe must resolve to it.
+        let cmdline = std::fs::read_to_string("/proc/cmdline").unwrap_or_default();
+        if text_has_bpf_lsm_arg(&cmdline) {
+            assert_eq!(
+                bpf_lsm_configured_for_next_boot(),
+                Some(PathBuf::from("/proc/cmdline"))
+            );
+        }
+
+        // The active-LSM reader reports a token list exactly when the kernel
+        // exposes the securityfs file, and `None` means it was unreadable.
+        match active_lsms() {
+            Some(lsms) => {
+                assert!(!lsms.trim().is_empty());
+                assert_eq!(
+                    lsm_list_has_bpf(&lsms),
+                    lsms.split(',').any(|name| name.trim() == "bpf")
+                );
+            }
+            None => assert!(std::fs::read_to_string("/sys/kernel/security/lsm").is_err()),
+        }
+    }
 }
