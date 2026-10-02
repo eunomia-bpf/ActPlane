@@ -2108,4 +2108,16 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn passwordless_sudo_available_matches_direct_sudo_probe() {
+        let expected = std::process::Command::new("sudo")
+            .args(["-n", "true"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        assert_eq!(passwordless_sudo_available(), expected);
+    }
 }
