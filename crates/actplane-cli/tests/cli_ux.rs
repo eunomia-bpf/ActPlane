@@ -707,6 +707,38 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// With no `--policy`, `doctor` discovers `actplane.yaml` upward from cwd. In a
+// fresh directory it reports the missing policy and the missing integrations,
+// and exits non-zero.
+#[test]
+fn doctor_reports_missing_discovered_policy() {
+    let tmp = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("doctor")
+        .output()
+        .expect("run doctor");
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(out.contains("ActPlane doctor"), "stdout: {out}");
+    assert!(
+        out.contains("no actplane.yaml found; pass --policy <file> or --rule <dsl>"),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("Codex hook: missing") && out.contains(".codex/hooks.json"),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("project MCP config: .mcp.json missing"),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("setup has") && out.contains("problem(s)"),
+        "stdout: {out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
