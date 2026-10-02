@@ -1381,3 +1381,58 @@ policy: |
     .expect("write policy");
     policy
 }
+
+#[test]
+fn mcp_stdio_jsonrpc_reads_feedback_resource_contents() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let feedback = tmp.path().join(".actplane").join("last-violation.txt");
+    std::fs::create_dir_all(feedback.parent().expect("parent")).expect("feedback dir");
+    std::fs::write(&feedback, "TAINT_VIOLATION: read /etc/secret\n").expect("write feedback");
+
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-feedback-resource");
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let response = mcp.response(2);
+    let contents = response["result"]["contents"].as_array().expect("contents");
+    assert_eq!(contents.len(), 1, "{response}");
+    assert_eq!(contents[0]["uri"], "actplane:///feedback");
+    assert_eq!(
+        contents[0]["text"].as_str().expect("text"),
+        format!(
+            "Latest ActPlane feedback ({}):\nTAINT_VIOLATION: read /etc/secret\n",
+            feedback.display()
+        )
+    );
+
+    // Without a feedback file the resource reports the expected path.
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-feedback-missing");
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let response = mcp.response(2);
+    let text = response["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("text");
+    assert_eq!(
+        text,
+        format!(
+            "No ActPlane feedback file yet ({}).",
+            tmp.path()
+                .join(".actplane")
+                .join("last-violation.txt")
+                .display()
+        )
+    );
+}
