@@ -707,6 +707,37 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// When a `domains:` policy omits `default_domain`, `compile` falls back to the
+// root domain instead of erroring.
+#[test]
+fn compile_falls_back_to_root_domain_without_default() {
+    let tmp = tempfile::tempdir().unwrap();
+    let full = fs::read_to_string(fixture("15_domain_bindings.yaml")).unwrap();
+    let stripped: String = full
+        .lines()
+        .filter(|line| !line.starts_with("default_domain:"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(tmp.path().join("actplane.yaml"), stripped).unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("compile")
+        .output()
+        .expect("run compile");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(out.contains("domain: session"), "stdout: {out}");
+    assert!(
+        !out.contains("parent:"),
+        "the root domain has no parent: {out}"
+    );
+    assert!(
+        out.contains("policy: no-git-branch, no-network"),
+        "stdout: {out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
