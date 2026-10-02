@@ -2614,6 +2614,33 @@ fn start_supervisor(server: ActPlaneMcp) -> SupervisorGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn policy_and_feedback_mtimes_follow_project_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let policy = dir.path().join("actplane.yaml");
+        std::fs::write(
+            &policy,
+            "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule r:\n    notify exec \"/bin/true\" if COMMAND\n    because \"b\"\n",
+        )
+        .expect("policy");
+
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(dir.path().into()));
+        assert!(server.policy_mtime().is_some());
+
+        let feedback = server.feedback_file();
+        assert_eq!(feedback, dir.path().join(".actplane/last-violation.txt"));
+        assert!(server.feedback_mtime().is_none());
+        std::fs::create_dir_all(feedback.parent().expect("parent")).expect("mkdir");
+        std::fs::write(&feedback, "TAINT_VIOLATION: read /etc/secret\n").expect("feedback");
+        assert!(server.feedback_mtime().is_some());
+    }
+
+    #[test]
+    fn policy_mtime_is_none_without_a_policy_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(dir.path().into()));
+        assert!(server.policy_mtime().is_none());
+    }
 
     #[test]
     fn bind_child_domain_args_parse_required_and_optional_fields() {
