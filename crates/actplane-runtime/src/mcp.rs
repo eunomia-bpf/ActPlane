@@ -2992,4 +2992,28 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn supervisor_guard_drop_signals_and_joins_its_thread() {
+        let stop = Arc::new(AtomicBool::new(false));
+        let observed = stop.clone();
+        let thread_stop = stop.clone();
+        let thread = std::thread::spawn(move || {
+            for _ in 0..1000 {
+                if thread_stop.load(Ordering::SeqCst) {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        });
+        assert!(!observed.load(Ordering::SeqCst));
+        drop(SupervisorGuard {
+            stop,
+            thread: Some(thread),
+        });
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "dropping the guard must request supervisor shutdown"
+        );
+    }
 }
