@@ -707,6 +707,54 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `--with-mcp` keeps a `.mcp.json` whose `mcpServers` is not an object unless
+// `--force`, which replaces it and preserves the rest of the document.
+#[test]
+fn init_with_mcp_keeps_non_object_servers() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join(".mcp.json"),
+        r#"{"mcpServers":5,"note":"keep"}"#,
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--with-mcp"])
+        .output()
+        .expect("run init --with-mcp");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("because `mcpServers` is not an object"),
+        "stderr: {}",
+        stderr(&output)
+    );
+    assert_eq!(
+        fs::read_to_string(tmp.path().join(".mcp.json")).unwrap(),
+        r#"{"mcpServers":5,"note":"keep"}"#
+    );
+
+    let forced = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--with-mcp", "--force"])
+        .output()
+        .expect("run init --with-mcp --force");
+    assert!(forced.status.success(), "stderr: {}", stderr(&forced));
+    assert!(
+        stderr(&forced).contains("wired MCP config"),
+        "stderr: {}",
+        stderr(&forced)
+    );
+    let doc: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(tmp.path().join(".mcp.json")).unwrap()).unwrap();
+    assert_eq!(doc["note"], "keep");
+    assert_eq!(doc["mcpServers"]["actplane"]["command"], "actplane");
+    assert_eq!(
+        doc["mcpServers"]["actplane"]["args"],
+        serde_json::json!(["mcp", "--auto-attach-parent"])
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
