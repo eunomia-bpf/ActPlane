@@ -335,6 +335,33 @@ mod tests {
         assert_eq!(hostname_candidate("*.internal"), None);
         assert_eq!(hostname_candidate("api.internal"), Some("api.internal"));
     }
+
+    #[test]
+    fn existing_label_bits_are_validated_before_reuse() {
+        let empty_name = HashMap::from([(String::new(), 1u64)]);
+        assert_eq!(
+            validate_label_bindings(&empty_name).unwrap_err(),
+            "label names must not be empty"
+        );
+
+        let multi_bit = HashMap::from([("A".to_string(), 0b11u64)]);
+        assert_eq!(
+            validate_label_bindings(&multi_bit).unwrap_err(),
+            "label `A` has invalid bit mask 0x3"
+        );
+
+        let zero_bit = HashMap::from([("A".to_string(), 0u64)]);
+        assert_eq!(
+            validate_label_bindings(&zero_bit).unwrap_err(),
+            "label `A` has invalid bit mask 0x0"
+        );
+
+        let duplicate = HashMap::from([("A".to_string(), 0b10u64), ("B".to_string(), 0b10u64)]);
+        assert_eq!(
+            validate_label_bindings(&duplicate).unwrap_err(),
+            "label bit 0x2 is assigned more than once"
+        );
+    }
 }
 
 fn ipv4_to_kernel(addr: Ipv4Addr) -> u32 {
