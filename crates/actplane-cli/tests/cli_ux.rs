@@ -707,6 +707,31 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `run --delta <FILE>` reads a child-domain delta and reports a missing file
+// before launching the command.
+#[test]
+fn run_reports_unreadable_child_delta_file() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\npolicy: |\n  source AGENT = exec \"**\"\n  rule noop:\n    notify exec \"git\" if AGENT\n    because \"noop\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["run", "--delta", "NOPE.dsl", "/bin/true"])
+        .output()
+        .expect("run run --delta");
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output)
+            .contains("cannot read child policy delta NOPE.dsl: No such file or directory"),
+        "stderr: {}",
+        stderr(&output)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
