@@ -1072,3 +1072,82 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preflight_output_file_rejects_non_regular_files() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        #[cfg(unix)]
+        {
+            let fifo = tmp.path().join("pipe");
+            let c_path =
+                std::ffi::CString::new(fifo.to_str().expect("fifo path")).expect("cstring");
+            assert_eq!(unsafe { libc::mkfifo(c_path.as_ptr(), 0o600) }, 0, "mkfifo");
+            let err = preflight_output_file(&fifo, true).expect_err("fifo rejected");
+            assert_eq!(
+                err.to_string(),
+                format!("{} is not a regular output file", fifo.display())
+            );
+        }
+        let missing_parent = tmp.path().join("nope").join("out.bin");
+        let err = preflight_output_file(&missing_parent, true).expect_err("missing parent");
+        assert_eq!(
+            err.to_string(),
+            format!(
+                "parent directory for {} does not exist or is not a directory",
+                missing_parent.display()
+            )
+        );
+    }
+
+    #[test]
+    fn template_project_root_prefers_policy_then_git() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = tmp.path().join("actplane.yaml");
+        std::fs::write(&policy, "version: 1\n").expect("policy");
+        assert_eq!(
+            template_project_root_from(tmp.path()).expect("policy root"),
+            tmp.path()
+        );
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(tmp.path().join(".git")).expect("git dir");
+        let nested = tmp.path().join("nested").join("deeper");
+        std::fs::create_dir_all(&nested).expect("nested");
+        assert_eq!(
+            template_project_root_from(&nested).expect("git root"),
+            tmp.path()
+        );
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        assert_eq!(
+            template_project_root_from(tmp.path()).expect("fallback root"),
+            tmp.path()
+        );
+    }
+
+    #[test]
+    fn format_rule_list_renders_domain_bindings() {
+        assert_eq!(format_rule_list(&[]), "none");
+        assert_eq!(format_rule_list(&["a".into(), "b".into()]), "a, b");
+        let domain = config::DomainSummary {
+            name: "review".into(),
+            parent: None,
+            disabled: vec!["x".into()],
+            locked: vec!["a".into()],
+            defaults: vec!["b".into(), "c".into()],
+        };
+        assert_eq!(format_domain_policy_rules(&domain), "a, b, c");
+    }
+
+    fn template_project_root_from(start: &Path) -> Result<PathBuf> {
+        let previous = std::env::current_dir()?;
+        std::env::set_current_dir(start)?;
+        let root = template_project_root();
+        std::env::set_current_dir(previous)?;
+        root
+    }
+}
