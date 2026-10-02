@@ -707,6 +707,36 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// Without `--domain`, `compile` uses the policy's `default_domain`, and an
+// explicit `--domain` selects a different domain with its own rule set.
+#[test]
+fn compile_resolves_default_domain_and_alternate_selection() {
+    let policy = fixture("15_domain_bindings.yaml");
+
+    let default = run(&["--policy", &policy, "compile"]);
+    assert!(default.status.success(), "stderr: {}", stderr(&default));
+    let out = stdout(&default);
+    assert!(out.contains("domain: review"), "stdout: {out}");
+    assert!(out.contains("parent: session"), "stdout: {out}");
+    assert!(
+        out.contains("policy: no-git-branch, readonly"),
+        "stdout: {out}"
+    );
+
+    let session = run(&["--policy", &policy, "--domain", "session", "compile"]);
+    assert!(session.status.success(), "stderr: {}", stderr(&session));
+    let out = stdout(&session);
+    assert!(out.contains("domain: session"), "stdout: {out}");
+    assert!(
+        out.contains("policy: no-git-branch, no-network"),
+        "stdout: {out}"
+    );
+    assert!(
+        !out.contains("readonly"),
+        "the session domain must not include the review rule: {out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
