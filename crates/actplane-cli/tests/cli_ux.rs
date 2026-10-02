@@ -707,6 +707,47 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `init --out` rejects a directory and a non-regular existing target, sharing
+// the output-path guard with `compile --out`.
+#[cfg(unix)]
+#[test]
+fn init_out_rejects_directory_and_non_regular_targets() {
+    let tmp = tempfile::tempdir().unwrap();
+
+    let dir = tmp.path().join("outdir");
+    fs::create_dir(&dir).unwrap();
+    let output = run(&[
+        "init",
+        "--template",
+        "no-git-branch",
+        "--out",
+        dir.to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("is a directory, not an output file"),
+        "stderr: {}",
+        stderr(&output)
+    );
+
+    let fifo = tmp.path().join("out.fifo");
+    let fifo_status = Command::new("mkfifo").arg(&fifo).status().expect("mkfifo");
+    assert!(fifo_status.success(), "mkfifo failed");
+    let output = run(&[
+        "init",
+        "--template",
+        "no-git-branch",
+        "--out",
+        fifo.to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("is not a regular output file"),
+        "stderr: {}",
+        stderr(&output)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
