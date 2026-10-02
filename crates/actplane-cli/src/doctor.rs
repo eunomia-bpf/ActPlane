@@ -2591,4 +2591,56 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn emit_check_report_writes_file_and_honors_force() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("report.json");
+        emit_check_report("{}", Some(&path), false, "compile report").unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "{}");
+        let err = emit_check_report("[]", Some(&path), false, "compile report").unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("already exists (use --force to overwrite)")
+        );
+        emit_check_report("[]", Some(&path), true, "compile report").unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "[]");
+    }
+
+    #[test]
+    fn render_observe_policy_yaml_annotates_and_indents_dsl() {
+        let resolved = ResolvedPolicy {
+            source: "cli".into(),
+            domain: Some(DomainSummary {
+                name: "work".into(),
+                parent: None,
+                disabled: Vec::new(),
+                locked: Vec::new(),
+                defaults: Vec::new(),
+            }),
+        };
+        let parsed = dsl::ast::Policy {
+            labels: Vec::new(),
+            sources: vec![Source {
+                label: "T".into(),
+                kind: Kind::File,
+                pattern: "**/.env".into(),
+            }],
+            rules: Vec::new(),
+            xforms: Vec::new(),
+        };
+        let yaml = render_observe_policy_yaml("policy.dsl", &resolved, &parsed);
+        assert!(yaml.contains("# ActPlane observe-first policy generated from policy.dsl."));
+        assert!(yaml.contains("# Source domain: work (flattened selected policy)."));
+        assert!(yaml.contains("version: 1"));
+        assert!(yaml.contains("policy: |"));
+        assert!(yaml.contains("  source T = file \"**/.env\""));
+
+        let no_domain = ResolvedPolicy {
+            source: "cli".into(),
+            domain: None,
+        };
+        let yaml = render_observe_policy_yaml("--rule", &no_domain, &parsed);
+        assert!(!yaml.contains("# Source domain:"));
+    }
 }
