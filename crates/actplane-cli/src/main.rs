@@ -1072,3 +1072,89 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod main_control_status_tests {
+    use super::*;
+
+    fn cli_with_policy(policy: PathBuf) -> Cli {
+        Cli {
+            policy: Some(policy),
+            rule: None,
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+            command: Commands::Doctor,
+        }
+    }
+
+    fn rt() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+    }
+
+    #[test]
+    fn control_status_reports_a_stale_state_before_connecting() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let policy = dir.path().join("actplane.yaml");
+        std::fs::write(&policy, "policy: \"x\"\n").expect("write policy");
+
+        // A dead pid is stale: the command is refused before any socket connect.
+        let state = control::ControlState {
+            schema: "actplane.control.v1".to_string(),
+            pid: 99_999_999,
+            proc_start_time: None,
+            socket_path: dir.path().join(".actplane").join("sock"),
+            project_dir: dir.path().to_path_buf(),
+            parent_pid: 1,
+            parent_domain_id: 1,
+        };
+        let control_dir = dir.path().join(".actplane");
+        std::fs::create_dir_all(&control_dir).expect("mkdir");
+        std::fs::write(
+            control_dir.join("control.json"),
+            serde_json::to_string(&state).expect("state json"),
+        )
+        .expect("write state");
+
+        let cli = cli_with_policy(policy);
+        let err = rt()
+            .block_on(control_command(&cli, &ControlCommands::Status))
+            .expect_err("stale state is rejected");
+        assert!(
+            err.to_string().contains("stale ActPlane control state"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn control_status_forwards_the_engine_response() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let policy = dir.path().join("actplane.yaml");
+        std::fs::write(&policy, "policy: \"x\"\n").expect("write policy");
+
+        // A live local control server backed by a trivial handler.
+        let guard = control::start_server(
+            dir.path(),
+            std::process::id() as i32,
+            1,
+            |request, _peer| serde_json::json!({ "ok": true, "result": request }),
+        )
+        .expect("start control server");
+
+        let cli = cli_with_policy(policy);
+        let code = rt()
+            .block_on(control_command(&cli, &ControlCommands::Status))
+            .expect("status succeeds");
+        assert_eq!(code, 0);
+        drop(guard);
+
+        // After the guard drops the state file is gone, so the request is stale.
+        let err = rt()
+            .block_on(control_command(&cli, &ControlCommands::Status))
+            .expect_err("state is removed with the guard");
+        assert!(err.to_string().contains("read"), "unexpected error: {err}");
+    }
+}
