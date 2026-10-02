@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::Path;
 use std::process::{Command, Output};
 
 #[cfg(unix)]
@@ -705,6 +706,83 @@ policy: |
     assert_eq!(request["approval_ref"], "ticket-7");
     assert_eq!(request["generated_by"], "cli-test");
     handle.join().expect("control server thread");
+}
+
+// `control status` reports each way the control endpoint can be unavailable:
+// missing state file, malformed state, and a state file pointing at an absent
+// socket.
+#[test]
+fn control_status_reports_unavailable_endpoint() {
+    let tmp = tempfile::tempdir().unwrap();
+    let run_in = |dir: &Path| {
+        Command::new(actplane())
+            .current_dir(dir)
+            .args(["control", "status"])
+            .output()
+            .expect("run control status")
+    };
+
+    let missing = run_in(tmp.path());
+    assert_eq!(
+        missing.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&missing)
+    );
+    assert!(
+        stderr(&missing).contains("control.json: No such file or directory"),
+        "stderr: {}",
+        stderr(&missing)
+    );
+
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        "{\"socket\":\"/tmp/x.sock\"}",
+    )
+    .unwrap();
+    let malformed = run_in(tmp.path());
+    assert_eq!(
+        malformed.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&malformed)
+    );
+    assert!(
+        stderr(&malformed).contains("parse")
+            && stderr(&malformed).contains("missing field `schema`"),
+        "stderr: {}",
+        stderr(&malformed)
+    );
+
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": 1,
+            "proc_start_time": null,
+            "socket_path": tmp.path().join("absent.sock"),
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": u32::MAX,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let absent_socket = run_in(tmp.path());
+    assert_eq!(
+        absent_socket.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&absent_socket)
+    );
+    assert!(
+        stderr(&absent_socket).contains("connect")
+            && stderr(&absent_socket).contains("absent.sock: No such file or directory"),
+        "stderr: {}",
+        stderr(&absent_socket)
+    );
 }
 
 fn stdout(output: &Output) -> String {
