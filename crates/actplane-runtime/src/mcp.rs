@@ -2992,4 +2992,67 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn unattached_server() -> ActPlaneMcp {
+        ActPlaneMcp {
+            project_dir: PathBuf::from("."),
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    fn args(pairs: &[(&str, Value)]) -> Option<serde_json::Map<String, Value>> {
+        Some(
+            pairs
+                .iter()
+                .map(|(k, v)| ((*k).to_string(), v.clone()))
+                .collect(),
+        )
+    }
+
+    fn err_message(result: Result<CallToolResult, rmcp::ErrorData>) -> String {
+        result.expect_err("expected error").message.to_string()
+    }
+
+    #[test]
+    fn engine_backed_handlers_require_an_attached_control() {
+        let server = unattached_server();
+        for message in [
+            err_message(server.do_bind_child_domain(args(&[("pid", serde_json::json!(1))]))),
+            err_message(server.do_append_policy_delta_for_actor(None, None, None)),
+            err_message(
+                server.do_launch_child_domain(args(&[("cmd", serde_json::json!(["/bin/true"]))])),
+            ),
+            err_message(
+                server.do_restart_child_domain(args(&[("child_id", serde_json::json!(1))])),
+            ),
+        ] {
+            assert!(
+                message.contains("No eBPF engine attached"),
+                "unexpected message: {message}"
+            );
+        }
+    }
+
+    #[test]
+    fn bind_checks_the_engine_before_its_arguments_but_launch_does_not() {
+        let server = unattached_server();
+        // bind resolves the control first, so the attachment error wins.
+        assert!(err_message(server.do_bind_child_domain(None)).contains("No eBPF engine attached"));
+        // launch validates `cmd` (and its emptiness) before the control lookup.
+        assert_eq!(
+            err_message(server.do_launch_child_domain(None)),
+            "missing `cmd`"
+        );
+        assert!(
+            err_message(server.do_launch_child_domain(args(&[("cmd", serde_json::json!([]))])))
+                .contains("cmd must not be empty")
+        );
+        assert!(
+            err_message(
+                server.do_launch_child_domain(args(&[("cmd", serde_json::json!(["/bin/true"]),)]))
+            )
+            .contains("No eBPF engine attached")
+        );
+    }
 }
