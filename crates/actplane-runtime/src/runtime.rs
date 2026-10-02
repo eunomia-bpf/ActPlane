@@ -2108,4 +2108,52 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn approval_rejection_records_reason_without_enforcement() {
+        let gate = AppendDeltaApprovalGate {
+            required: true,
+            require_approval_ref: false,
+            require_generated_by: false,
+            allowed_approvers: Vec::new(),
+        };
+        let meta = PolicyAuditMeta {
+            policy_ref: None,
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        let approval = gate.evaluate(&meta);
+        assert_eq!(approval.workflow, "append_delta_static_approval");
+        assert_eq!(approval.missing_fields, vec!["approved_by"]);
+        assert_eq!(
+            approval.rejection_reason.as_deref(),
+            Some("append policy delta requires approval metadata: missing approved_by")
+        );
+
+        let mut record = json!({});
+        apply_policy_audit_meta(&mut record, &meta, Some(&approval));
+        assert_eq!(record["approval_chain"]["enforced"], true);
+        assert_eq!(record["approval_chain"]["required"], true);
+        assert_eq!(record["approval_chain"]["decision"], "rejected");
+        assert_eq!(record["approval_chain"]["missing_fields"][0], "approved_by");
+        assert_eq!(
+            record["approval_chain"]["rejection_reason"],
+            "append policy delta requires approval metadata: missing approved_by"
+        );
+    }
+
+    #[test]
+    fn approval_chain_omitted_without_metadata_or_enforcement() {
+        let meta = PolicyAuditMeta {
+            policy_ref: Some("policy-delta.dsl".to_string()),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        let mut record = json!({});
+        apply_policy_audit_meta(&mut record, &meta, None);
+        assert_eq!(record["policy_ref"], "policy-delta.dsl");
+        assert!(record.get("approval_chain").is_none());
+    }
 }
