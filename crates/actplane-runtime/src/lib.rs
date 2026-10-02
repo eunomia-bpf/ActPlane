@@ -28,6 +28,7 @@ pub use actplane_ifc_compiler as dsl;
 pub mod audit;
 pub mod config;
 pub mod control;
+pub mod diagnostics;
 pub mod feedback;
 pub mod hook;
 pub mod mcp;

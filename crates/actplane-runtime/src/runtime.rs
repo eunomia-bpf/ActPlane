@@ -79,6 +79,7 @@ pub async fn watch_policy_for_pid(
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
     let agent_label = runner_label(&compiled)?;
+    crate::diagnostics::print_block_degradation_warnings(&compiled);
     let submitter_pid = std::process::id() as i32;
     let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x5741_5443);
     let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
@@ -943,6 +944,7 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
     let agent_label = runner_label(&compiled)?;
+    crate::diagnostics::print_block_degradation_warnings(&compiled);
     let submitter_pid = std::process::id() as i32;
     let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x4d43_5041);
     let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
@@ -1276,6 +1278,7 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
     let agent_label = runner_label(&compiled)?;
+    crate::diagnostics::print_block_degradation_warnings(&compiled);
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "run");
     let target_owner = target_user(cli.run_as_root);
     prepare_feedback_files(&feedback, target_owner)?;
@@ -1449,6 +1452,7 @@ pub async fn run_child_command(
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
     let compiled = dsl::compile_str(&policy)?;
     let agent_label = runner_label(&compiled)?;
+    crate::diagnostics::print_block_degradation_warnings(&compiled);
     let deltas = load_child_policy_deltas(delta_paths, delta_texts)?;
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "run-child");
     let target_owner = target_user(cli.run_as_root);
