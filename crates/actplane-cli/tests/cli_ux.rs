@@ -707,6 +707,93 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `feedback-hook` is the adapter that turns new bytes in the corrective
+// feedback file into an agent `additionalContext` payload. It reads the hook
+// event from stdin, locates the feedback file for the given cwd (honoring
+// `ACTPLANE_FEEDBACK_FILE` and the recorded hook state), emits the new bytes
+// once, advances the stored offset, and stays silent when nothing changed.
+#[test]
+fn feedback_hook_emits_new_feedback_once_and_advances_state() {
+    let tmp = tempfile::tempdir().unwrap();
+    let actplane_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&actplane_dir).unwrap();
+    let feedback_path = actplane_dir.join("last-violation.txt");
+    fs::write(&feedback_path, "TAINT_VIOLATION rule=first\n").unwrap();
+
+    // State records the current file length as the consumed offset, so the
+    // first invocation must emit the whole file.
+    let state_path = actplane_dir.join("feedback-hook.state.json");
+    fs::write(
+        &state_path,
+        serde_json::to_string_pretty(&serde_json::json!({
+            "feedback_file": feedback_path,
+            "offset": 0,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let stdin = serde_json::to_string(&serde_json::json!({
+        "cwd": tmp.path(),
+        "hook_event_name": "PreToolUse",
+    }))
+    .unwrap();
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["feedback-hook"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(stdin.as_bytes())?;
+            child.wait_with_output()
+        })
+        .expect("run feedback-hook");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("feedback-hook stdout JSON");
+    assert_eq!(value["hookSpecificOutput"]["hookEventName"], "PreToolUse");
+    let context = value["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("additionalContext string");
+    assert!(
+        context.contains("TAINT_VIOLATION rule=first"),
+        "context missing feedback payload: {context}"
+    );
+    assert!(
+        context.contains("authoritative feedback"),
+        "context missing kernel-feedback framing: {context}"
+    );
+
+    let state: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&state_path).unwrap()).unwrap();
+    assert_eq!(
+        state["offset"].as_u64(),
+        Some("TAINT_VIOLATION rule=first\n".len() as u64),
+        "hook state must advance the consumed offset"
+    );
+
+    // A second run with no appended bytes must stay silent.
+    let repeat = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["feedback-hook"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            child.stdin.take().unwrap().write_all(stdin.as_bytes())?;
+            child.wait_with_output()
+        })
+        .expect("rerun feedback-hook");
+    assert!(repeat.status.success(), "stderr: {}", stderr(&repeat));
+    assert!(
+        stdout(&repeat).trim().is_empty(),
+        "unchanged feedback must not re-emit: {}",
+        stdout(&repeat)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
