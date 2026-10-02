@@ -2614,6 +2614,33 @@ fn start_supervisor(server: ActPlaneMcp) -> SupervisorGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn policy_and_feedback_mtimes_follow_project_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let policy = dir.path().join("actplane.yaml");
+        std::fs::write(
+            &policy,
+            "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule r:\n    notify exec \"/bin/true\" if COMMAND\n    because \"b\"\n",
+        )
+        .expect("policy");
+
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(dir.path().into()));
+        assert!(server.policy_mtime().is_some());
+
+        let feedback = server.feedback_file();
+        assert_eq!(feedback, dir.path().join(".actplane/last-violation.txt"));
+        assert!(server.feedback_mtime().is_none());
+        std::fs::create_dir_all(feedback.parent().expect("parent")).expect("mkdir");
+        std::fs::write(&feedback, "TAINT_VIOLATION: read /etc/secret\n").expect("feedback");
+        assert!(server.feedback_mtime().is_some());
+    }
+
+    #[test]
+    fn policy_mtime_is_none_without_a_policy_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(dir.path().into()));
+        assert!(server.policy_mtime().is_none());
+    }
 
     #[test]
     fn bind_child_domain_args_parse_required_and_optional_fields() {
@@ -2684,6 +2711,112 @@ mod tests {
             .expect("object")
             .clone();
         assert!(json_string_vec(&bad_cmd, "cmd").is_err());
+    }
+
+    fn json_args(json: serde_json::Value) -> serde_json::Map<String, Value> {
+        json.as_object().expect("object").clone()
+    }
+
+    #[test]
+    fn json_accessors_name_the_offending_key() {
+        let empty = json_args(serde_json::json!({}));
+        assert_eq!(
+            json_i32(&empty, "pid").unwrap_err().message,
+            "missing `pid`"
+        );
+        assert_eq!(
+            json_string(&empty, "policy").unwrap_err().message,
+            "missing string `policy`"
+        );
+        assert_eq!(
+            json_string_vec(&empty, "cmd").unwrap_err().message,
+            "missing `cmd`"
+        );
+
+        assert_eq!(
+            json_i32(&json_args(serde_json::json!({ "pid": 1.5 })), "pid")
+                .unwrap_err()
+                .message,
+            "`pid` must be an integer"
+        );
+        assert_eq!(
+            json_i32(
+                &json_args(serde_json::json!({ "pid": 2147483648i64 })),
+                "pid"
+            )
+            .unwrap_err()
+            .message,
+            "`pid` is out of range"
+        );
+        assert_eq!(
+            json_optional_string(&json_args(serde_json::json!({ "stream": 5 })), "stream")
+                .unwrap_err()
+                .message,
+            "`stream` must be a string"
+        );
+        assert_eq!(
+            json_string_vec(&json_args(serde_json::json!({ "cmd": "true" })), "cmd")
+                .unwrap_err()
+                .message,
+            "`cmd` must be an array of strings"
+        );
+        assert_eq!(
+            json_optional_u32(
+                &json_args(serde_json::json!({ "child_id": u64::MAX })),
+                "child_id"
+            )
+            .unwrap_err()
+            .message,
+            "`child_id` is out of range"
+        );
+        assert_eq!(
+            json_optional_bool(
+                &json_args(serde_json::json!({ "terminate_existing": "yes" })),
+                "terminate_existing"
+            )
+            .unwrap_err()
+            .message,
+            "`terminate_existing` must be a boolean"
+        );
+
+        let absent = json_args(serde_json::json!({}));
+        assert_eq!(
+            json_optional_bool(&absent, "missing").expect("absent"),
+            None
+        );
+        assert_eq!(json_optional_u64(&absent, "missing").expect("absent"), None);
+        assert_eq!(
+            json_optional_usize(&absent, "missing").expect("absent"),
+            None
+        );
+    }
+
+    #[test]
+    fn child_status_json_round_trips_through_its_parser() {
+        for status in [
+            ChildStatus::Running,
+            ChildStatus::Exited {
+                code: Some(3),
+                signal: None,
+            },
+            ChildStatus::Terminated,
+        ] {
+            let parsed = child_status_from_json(&child_status_json(&status)).expect("round trip");
+            let same = match (&status, &parsed) {
+                (ChildStatus::Running, ChildStatus::Running) => true,
+                (ChildStatus::Terminated, ChildStatus::Terminated) => true,
+                (
+                    ChildStatus::Exited { code, signal },
+                    ChildStatus::Exited {
+                        code: pcode,
+                        signal: psignal,
+                    },
+                ) => code == pcode && signal == psignal,
+                _ => false,
+            };
+            assert!(same, "round trip changed the status variant");
+        }
+        assert!(child_status_from_json(&serde_json::json!({ "state": "gone" })).is_none());
     }
 
     #[test]
@@ -2991,5 +3124,2620 @@ mod tests {
             ChildStatus::Running
         ));
         let _ = std::fs::remove_dir_all(project_dir);
+    }
+
+    fn seeded_server(project_dir: PathBuf, records: Vec<ChildRecord>) -> ActPlaneMcp {
+        let mut children = HashMap::new();
+        for record in records {
+            children.insert(record.child_id, record);
+        }
+        ActPlaneMcp {
+            project_dir,
+            control: None,
+            children: Arc::new(Mutex::new(children)),
+        }
+    }
+
+    fn domain_record(
+        child_id: u32,
+        pid: i32,
+        status: ChildStatus,
+        log_dir: &std::path::Path,
+    ) -> ChildRecord {
+        ChildRecord {
+            launch_id: format!("child-{child_id}"),
+            pid,
+            child_id,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: log_dir.join("stdout.log"),
+            stderr: log_dir.join("stderr.log"),
+            meta: log_dir.join("meta.json"),
+            proc_start_time: proc_start_time(pid),
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: DEFAULT_RESTART_LIMIT,
+            restart_backoff_ms: DEFAULT_RESTART_BACKOFF_MS,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    fn tool_text(result: &CallToolResult) -> String {
+        match result.content.first() {
+            Some(ContentBlock::Text(t)) => t.text.clone(),
+            other => panic!("expected text content, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn list_child_domains_reports_every_registered_child_sorted_by_id() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-2");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        let server = seeded_server(
+            tmp.path().to_path_buf(),
+            vec![
+                domain_record(2, std::process::id() as i32, ChildStatus::Running, &log_dir),
+                domain_record(
+                    1,
+                    99_999_999,
+                    ChildStatus::Exited {
+                        code: Some(3),
+                        signal: None,
+                    },
+                    &log_dir,
+                ),
+            ],
+        );
+        let result = server.do_list_child_domains().expect("list");
+        let rows: Vec<Value> = serde_json::from_str(&tool_text(&result)).expect("json");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0]["child_id"], 1);
+        assert_eq!(rows[0]["status"]["state"], "exited");
+        assert_eq!(rows[0]["status"]["code"], 3);
+        assert_eq!(rows[1]["child_id"], 2);
+    }
+
+    #[test]
+    fn list_child_domains_refreshes_a_dead_running_child() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-9");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        // A "running" pid that no longer exists must be reconciled on read.
+        let server = seeded_server(
+            tmp.path().to_path_buf(),
+            vec![domain_record(9, 99_999_999, ChildStatus::Running, &log_dir)],
+        );
+        let result = server.do_list_child_domains().expect("list");
+        let rows: Vec<Value> = serde_json::from_str(&tool_text(&result)).expect("json");
+        assert_eq!(rows[0]["status"]["state"], "exited");
+    }
+
+    #[test]
+    fn read_child_domain_logs_bounds_and_filters_streams() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-5");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        std::fs::write(log_dir.join("stdout.log"), "0123456789").expect("write stdout");
+        std::fs::write(log_dir.join("stderr.log"), "abcdefghij").expect("write stderr");
+        let server = seeded_server(
+            tmp.path().to_path_buf(),
+            vec![domain_record(
+                5,
+                99_999_999,
+                ChildStatus::Terminated,
+                &log_dir,
+            )],
+        );
+
+        let mut args = serde_json::Map::new();
+        args.insert("child_id".to_string(), serde_json::json!(5));
+        args.insert("stream".to_string(), serde_json::json!("stdout"));
+        args.insert("max_bytes".to_string(), serde_json::json!(4));
+        let result = server
+            .do_read_child_domain_logs(Some(args))
+            .expect("read logs");
+        let value: Value = serde_json::from_str(&tool_text(&result)).expect("json");
+        assert_eq!(value["stdout"]["content"], "6789");
+        assert_eq!(value["stdout"]["truncated"], true);
+        assert!(value.get("stderr").is_none(), "stdout-only request");
+
+        let mut unknown = serde_json::Map::new();
+        unknown.insert("child_id".to_string(), serde_json::json!(404));
+        assert!(server.do_read_child_domain_logs(Some(unknown)).is_err());
+
+        let mut bad_stream = serde_json::Map::new();
+        bad_stream.insert("child_id".to_string(), serde_json::json!(5));
+        bad_stream.insert("stream".to_string(), serde_json::json!("sideways"));
+        assert!(server.do_read_child_domain_logs(Some(bad_stream)).is_err());
+    }
+
+    fn tool_text_c2(result: &CallToolResult) -> String {
+        match result.content.first() {
+            Some(ContentBlock::Text(t)) => t.text.clone(),
+            other => panic!("expected text content, got {other:?}"),
+        }
+    }
+
+    fn terminate_server(log_dir: &std::path::Path, status: ChildStatus) -> ActPlaneMcp {
+        let record = ChildRecord {
+            launch_id: "child-term".to_string(),
+            pid: 99_999_999,
+            child_id: 3,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: log_dir.join("stdout.log"),
+            stderr: log_dir.join("stderr.log"),
+            meta: log_dir.join("meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: DEFAULT_RESTART_LIMIT,
+            restart_backoff_ms: DEFAULT_RESTART_BACKOFF_MS,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        };
+        ActPlaneMcp {
+            project_dir: log_dir
+                .parent()
+                .and_then(|p| p.parent())
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_path_buf(),
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::from([(3u32, record)]))),
+        }
+    }
+
+    fn terminate_args(child_id: u32) -> Option<serde_json::Map<String, Value>> {
+        Some(serde_json::Map::from_iter([(
+            "child_id".to_string(),
+            serde_json::json!(child_id),
+        )]))
+    }
+
+    fn status_of(server: &ActPlaneMcp, child_id: u32) -> ChildStatus {
+        let children = server.children.lock().unwrap();
+        children[&child_id].status.lock().unwrap().clone()
+    }
+
+    #[test]
+    fn terminate_child_domain_reports_the_early_exit_arms() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-3");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+
+        let exited = terminate_server(
+            &log_dir,
+            ChildStatus::Exited {
+                code: Some(0),
+                signal: None,
+            },
+        );
+        let out = exited.do_terminate_child_domain(terminate_args(3)).unwrap();
+        assert!(tool_text_c2(&out).contains("already exited"));
+
+        let terminated = terminate_server(&log_dir, ChildStatus::Terminated);
+        let out = terminated
+            .do_terminate_child_domain(terminate_args(3))
+            .unwrap();
+        assert!(tool_text_c2(&out).contains("was already terminated"));
+    }
+
+    #[test]
+    fn terminate_child_domain_reconciles_a_dead_running_pid() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-3");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        let server = terminate_server(&log_dir, ChildStatus::Running);
+
+        // The recorded pid is dead, so the refresh flips it to Exited before the
+        // terminate path runs and reports the exit rather than signalling.
+        let out = server.do_terminate_child_domain(terminate_args(3)).unwrap();
+        assert!(tool_text_c2(&out).contains("already exited"));
+        assert!(matches!(
+            status_of(&server, 3),
+            ChildStatus::Exited {
+                code: None,
+                signal: None
+            }
+        ));
+        assert!(log_dir.join("meta.json").is_file(), "record persisted");
+
+        // Unknown child id is an invalid-params error.
+        assert!(
+            server
+                .do_terminate_child_domain(terminate_args(404))
+                .is_err()
+        );
+        // Missing child id is rejected before lookup.
+        assert!(server.do_terminate_child_domain(None).is_err());
+    }
+
+    fn record_with_status(status: ChildStatus) -> ChildRecord {
+        ChildRecord {
+            launch_id: "status-predicate-test".to_string(),
+            pid: std::process::id() as i32,
+            child_id: 900,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/actplane-status-out.log"),
+            stderr: PathBuf::from("/tmp/actplane-status-err.log"),
+            meta: PathBuf::from("/tmp/actplane-status-meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 0,
+            restart_backoff_ms: 0,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    #[test]
+    fn child_status_predicates_classify_each_variant() {
+        // `child_record_running/exited/terminated` each lock the record status
+        // and test exactly one `ChildStatus` variant. No base or branch test
+        // calls these predicates directly.
+        let running = record_with_status(ChildStatus::Running);
+        assert!(child_record_running(&running));
+        assert!(!child_record_exited(&running));
+        assert!(!child_record_terminated(&running));
+
+        let exited = record_with_status(ChildStatus::Exited {
+            code: Some(0),
+            signal: None,
+        });
+        assert!(!child_record_running(&exited));
+        assert!(child_record_exited(&exited));
+        assert!(!child_record_terminated(&exited));
+
+        let terminated = record_with_status(ChildStatus::Terminated);
+        assert!(!child_record_running(&terminated));
+        assert!(!child_record_exited(&terminated));
+        assert!(child_record_terminated(&terminated));
+    }
+
+    #[test]
+    fn adopt_running_child_record_stamps_once_and_persists() {
+        // `adopt_running_child_record` adopts a running, not-yet-adopted record
+        // by stamping `adopted_unix_ms` and persisting the meta file; it skips
+        // records that are already adopted and records that are not running.
+        // No base or branch test calls it directly.
+        let project_dir = std::env::temp_dir().join(format!(
+            "actplane-mcp-adopt-test-{}-{}",
+            std::process::id(),
+            child_launch_id()
+        ));
+        let log_dir = project_dir
+            .join(".actplane")
+            .join("children")
+            .join("adopt-test");
+        let make = |status: ChildStatus, adopted: Option<u64>| ChildRecord {
+            launch_id: "adopt-test".to_string(),
+            pid: std::process::id() as i32,
+            child_id: 901,
+            scope_id: 5,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: log_dir.join("stdout.log"),
+            stderr: log_dir.join("stderr.log"),
+            meta: log_dir.join("meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 0,
+            restart_backoff_ms: 0,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: adopted,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        };
+
+        let mut running = make(ChildStatus::Running, None);
+        assert!(adopt_running_child_record(&mut running));
+        let stamp = running.adopted_unix_ms.expect("adoption stamp");
+        let persisted: Value =
+            serde_json::from_str(&std::fs::read_to_string(&running.meta).expect("persisted meta"))
+                .expect("meta json");
+        assert_eq!(persisted["adopted_unix_ms"].as_u64(), Some(stamp));
+        let loaded = load_child_records_with_adoptions(&project_dir);
+        assert_eq!(
+            loaded
+                .records
+                .get(&901)
+                .expect("loaded record")
+                .adopted_unix_ms,
+            Some(stamp)
+        );
+
+        // Re-adoption is a no-op and preserves the original stamp.
+        assert!(!adopt_running_child_record(&mut running));
+        assert_eq!(running.adopted_unix_ms, Some(stamp));
+
+        // A non-running record is skipped.
+        let mut exited = make(
+            ChildStatus::Exited {
+                code: Some(0),
+                signal: None,
+            },
+            None,
+        );
+        assert!(!adopt_running_child_record(&mut exited));
+        assert!(exited.adopted_unix_ms.is_none());
+
+        let _ = std::fs::remove_dir_all(project_dir);
+    }
+
+    fn unattached_server() -> ActPlaneMcp {
+        ActPlaneMcp {
+            project_dir: PathBuf::from("."),
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    fn args(pairs: &[(&str, Value)]) -> Option<serde_json::Map<String, Value>> {
+        Some(
+            pairs
+                .iter()
+                .map(|(k, v)| ((*k).to_string(), v.clone()))
+                .collect(),
+        )
+    }
+
+    fn err_message(result: Result<CallToolResult, rmcp::ErrorData>) -> String {
+        result.expect_err("expected error").message.to_string()
+    }
+
+    #[test]
+    fn engine_backed_handlers_require_an_attached_control() {
+        let server = unattached_server();
+        for message in [
+            err_message(server.do_bind_child_domain(args(&[("pid", serde_json::json!(1))]))),
+            err_message(server.do_append_policy_delta_for_actor(None, None, None)),
+            err_message(
+                server.do_launch_child_domain(args(&[("cmd", serde_json::json!(["/bin/true"]))])),
+            ),
+            err_message(
+                server.do_restart_child_domain(args(&[("child_id", serde_json::json!(1))])),
+            ),
+        ] {
+            assert!(
+                message.contains("No eBPF engine attached"),
+                "unexpected message: {message}"
+            );
+        }
+    }
+
+    #[test]
+    fn bind_checks_the_engine_before_its_arguments_but_launch_does_not() {
+        let server = unattached_server();
+        // bind resolves the control first, so the attachment error wins.
+        assert!(err_message(server.do_bind_child_domain(None)).contains("No eBPF engine attached"));
+        // launch validates `cmd` (and its emptiness) before the control lookup.
+        assert_eq!(
+            err_message(server.do_launch_child_domain(None)),
+            "missing `cmd`"
+        );
+        assert!(
+            err_message(server.do_launch_child_domain(args(&[("cmd", serde_json::json!([]))])))
+                .contains("cmd must not be empty")
+        );
+        assert!(
+            err_message(
+                server.do_launch_child_domain(args(&[("cmd", serde_json::json!(["/bin/true"]),)]))
+            )
+            .contains("No eBPF engine attached")
+        );
+    }
+    #[test]
+    fn child_id_arg_prefers_child_id_and_falls_back_to_domain_id() {
+        // `child_id_arg` resolves the target child id from tool-call args,
+        // preferring an explicit `child_id` and falling back to a legacy
+        // `domain_id` when no `child_id` is present. No base or branch test
+        // pins this precedence directly.
+        let both = serde_json::json!({ "child_id": 7, "domain_id": 9 })
+            .as_object()
+            .expect("object")
+            .clone();
+        // An explicit `child_id` wins over a `domain_id` that is also present.
+        assert_eq!(child_id_arg(&both).unwrap(), 7);
+
+        let domain_only = serde_json::json!({ "domain_id": 42 })
+            .as_object()
+            .expect("object")
+            .clone();
+        // With no `child_id`, it falls back to `domain_id`.
+        assert_eq!(child_id_arg(&domain_only).unwrap(), 42);
+
+        let empty = serde_json::json!({}).as_object().expect("object").clone();
+        // Neither key present is an error.
+        assert!(child_id_arg(&empty).is_err());
+    }
+    #[test]
+    fn child_record_from_meta_decodes_full_and_minimal_metas() {
+        // `child_record_from_meta` is the decode inverse of `child_record_json`:
+        // a meta object becomes a `ChildRecord`, with `None`/missing fields
+        // falling back to their defaults (`log_dir`-relative paths, the
+        // restart-policy defaults, `Running` status). No base or branch test
+        // pins this helper directly.
+        // A full meta decodes every field.
+        let log_dir = PathBuf::from("/tmp/child-reg/4242");
+        let full = serde_json::json!({
+            "pid": 777,
+            "child_id": 8,
+            "scope_id": 9,
+            "launch_id": "L-1",
+            "cmd": ["/bin/true", "x"],
+            "stdout": "/s/out.log",
+            "stderr": "/s/err.log",
+            "meta": "/s/meta.json",
+            "proc_start_time": 55,
+            "policy": "rule r:",
+            "restart_policy": "on_exit",
+            "restart_count": 1,
+            "restart_limit": 5,
+            "restart_backoff_ms": 250,
+            "last_exit_unix_ms": 12,
+            "restarted_from": 7,
+            "status": { "state": "exited", "code": 2, "signal": 1 },
+        });
+        let record = child_record_from_meta(&full, log_dir.clone()).expect("full meta");
+        assert_eq!(record.launch_id, "L-1");
+        assert_eq!(record.pid, 777);
+        assert_eq!(record.child_id, 8);
+        assert_eq!(record.scope_id, 9);
+        assert_eq!(record.cmd, vec!["/bin/true".to_string(), "x".to_string()]);
+        assert_eq!(record.stdout, PathBuf::from("/s/out.log"));
+        assert_eq!(record.stderr, PathBuf::from("/s/err.log"));
+        assert_eq!(record.meta, PathBuf::from("/s/meta.json"));
+        assert_eq!(record.proc_start_time, Some(55));
+        assert_eq!(record.policy, Some("rule r:".to_string()));
+        assert_eq!(record.restart_policy, RestartPolicy::OnExit);
+        assert_eq!(record.restart_count, 1);
+        assert_eq!(record.restart_limit, 5);
+        assert_eq!(record.restart_backoff_ms, 250);
+        assert_eq!(record.last_exit_unix_ms, Some(12));
+        assert_eq!(record.restarted_from, Some(7));
+        assert!(matches!(
+            *record.status.lock().expect("status"),
+            ChildStatus::Exited {
+                code: Some(2),
+                signal: Some(1)
+            }
+        ));
+
+        // A minimal meta relies on every default: `launch_id` falls back to
+        // the log directory's file name, the three log paths are derived from
+        // it, and the restart fields take their defaults.
+        let minimal = serde_json::json!({
+            "pid": 3,
+            "child_id": 4,
+            "cmd": ["bin"],
+        });
+        let rec = child_record_from_meta(&minimal, log_dir.clone()).expect("minimal meta");
+        assert_eq!(rec.launch_id, "4242");
+        assert_eq!(rec.scope_id, 0);
+        assert_eq!(rec.stdout, log_dir.join("stdout.log"));
+        assert_eq!(rec.stderr, log_dir.join("stderr.log"));
+        assert_eq!(rec.meta, log_dir.join("meta.json"));
+        assert_eq!(rec.proc_start_time, None);
+        assert_eq!(rec.policy, None);
+        assert_eq!(rec.restart_policy, RestartPolicy::Never);
+        assert_eq!(rec.restart_count, 0);
+        assert_eq!(rec.restart_limit, DEFAULT_RESTART_LIMIT);
+        assert_eq!(rec.restart_backoff_ms, DEFAULT_RESTART_BACKOFF_MS);
+        assert!(matches!(
+            *rec.status.lock().expect("status"),
+            ChildStatus::Running
+        ));
+
+        // A meta missing the required `pid` cannot be decoded.
+        let no_pid = serde_json::json!({ "child_id": 4, "cmd": ["bin"] });
+        assert!(child_record_from_meta(&no_pid, log_dir.clone()).is_none());
+
+        // A meta missing the required `cmd` cannot be decoded.
+        let no_cmd = serde_json::json!({ "pid": 3, "child_id": 4 });
+        assert!(child_record_from_meta(&no_cmd, log_dir).is_none());
+    }
+
+    fn meta_json_record(policy: Option<String>) -> ChildRecord {
+        ChildRecord {
+            launch_id: "meta-json-test".to_string(),
+            pid: 4242,
+            child_id: 902,
+            scope_id: 3,
+            cmd: vec!["/bin/echo".to_string(), "hi".to_string()],
+            stdout: PathBuf::from("/tmp/actplane-meta-out.log"),
+            stderr: PathBuf::from("/tmp/actplane-meta-err.log"),
+            meta: PathBuf::from("/tmp/actplane-meta.json"),
+            proc_start_time: Some(999),
+            policy: policy.clone(),
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 0,
+            restart_backoff_ms: 0,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        }
+    }
+
+    #[test]
+    fn child_record_meta_json_adds_policy_only_when_attached() {
+        // `child_record_meta_json` wraps `child_record_json` and conditionally
+        // embeds the policy text; no base or branch test calls it.
+        let with_policy = meta_json_record(Some("rule r:\n  notify exec \"x\"\n".to_string()));
+        let value = child_record_meta_json(&with_policy);
+        assert_eq!(value["launch_id"], "meta-json-test");
+        assert_eq!(value["child_id"], 902);
+        assert_eq!(value["policy"], "rule r:\n  notify exec \"x\"\n");
+        assert_eq!(value["policy_attached"], true);
+        assert_eq!(value["status"]["state"], "running");
+
+        let without_policy = meta_json_record(None);
+        let value = child_record_meta_json(&without_policy);
+        assert_eq!(value["policy_attached"], false);
+        assert!(value.get("policy").is_none());
+    }
+    #[test]
+    fn child_status_json_encodes_each_state_variant() {
+        // `child_status_json` is the forward builder of `child_status_from_json`:
+        // each `ChildStatus` variant encodes to a JSON object with its `state`
+        // tag (and, for `Exited`, its optional code/signal). No base or branch
+        // test pins this builder directly.
+        let running = child_status_json(&ChildStatus::Running);
+        assert_eq!(running, serde_json::json!({ "state": "running" }));
+
+        let terminated = child_status_json(&ChildStatus::Terminated);
+        assert_eq!(terminated, serde_json::json!({ "state": "terminated" }));
+
+        // An exited child carries its optional code and signal.
+        let exited = child_status_json(&ChildStatus::Exited {
+            code: Some(3),
+            signal: Some(15),
+        });
+        assert_eq!(
+            exited,
+            serde_json::json!({
+                "state": "exited",
+                "code": 3,
+                "signal": 15,
+            })
+        );
+
+        // An exited child with no code/signal emits nulls.
+        let exited_bare = child_status_json(&ChildStatus::Exited {
+            code: None,
+            signal: None,
+        });
+        assert_eq!(
+            exited_bare,
+            serde_json::json!({
+                "state": "exited",
+                "code": null,
+                "signal": null,
+            })
+        );
+    }
+    #[test]
+    fn child_status_from_json_parses_state_and_rejects_unknown() {
+        // `child_status_from_json` turns a child record's `state` field into
+        // a `ChildStatus`: `"running"`/`"terminated"` map to their variants,
+        // `"exited"` maps to `Exited` carrying the optional code/signal, and
+        // any other (or missing) state yields `None`. No base or branch test
+        // pins this helper directly.
+        let running = child_status_from_json(&serde_json::json!({ "state": "running" }));
+        assert!(matches!(running, Some(ChildStatus::Running)));
+
+        let terminated = child_status_from_json(&serde_json::json!({ "state": "terminated" }));
+        assert!(matches!(terminated, Some(ChildStatus::Terminated)));
+
+        // An exited child carries its optional exit code and signal.
+        let exited = child_status_from_json(&serde_json::json!({
+            "state": "exited",
+            "code": 2,
+            "signal": 9,
+        }));
+        assert!(matches!(
+            exited,
+            Some(ChildStatus::Exited {
+                code: Some(2),
+                signal: Some(9)
+            })
+        ));
+
+        // An exited child with no code/signal carries `None` for both.
+        let exited_bare = child_status_from_json(&serde_json::json!({ "state": "exited" }));
+        assert!(matches!(
+            exited_bare,
+            Some(ChildStatus::Exited {
+                code: None,
+                signal: None
+            })
+        ));
+
+        // An unknown state is not a known variant.
+        let unknown = child_status_from_json(&serde_json::json!({ "state": "paused" }));
+        assert!(unknown.is_none());
+
+        // A missing state field yields `None`.
+        assert!(child_status_from_json(&serde_json::json!({})).is_none());
+    }
+    #[test]
+    fn child_supervision_json_reports_adopted_or_wait_handle() {
+        // `child_supervision_json` describes how a child's exit status will
+        // be observed: an adopted child (non-`None` `adopted_unix_ms`) polls
+        // with coarse exit-status precision, a wait-handle child reports a
+        // precise status. No base or branch test pins this helper directly.
+        fn record(adopted_unix_ms: Option<u64>) -> ChildRecord {
+            ChildRecord {
+                launch_id: "L".to_string(),
+                pid: 1,
+                child_id: 1,
+                scope_id: 1,
+                cmd: vec![],
+                stdout: PathBuf::from("/tmp/out.log"),
+                stderr: PathBuf::from("/tmp/err.log"),
+                meta: PathBuf::from("/tmp/meta.json"),
+                proc_start_time: None,
+                policy: None,
+                policy_audit_meta: PolicyAuditMeta::default(),
+                restart_policy: RestartPolicy::Never,
+                restart_count: 0,
+                restart_limit: 0,
+                restart_backoff_ms: 0,
+                last_exit_unix_ms: None,
+                restart_alerted_unix_ms: None,
+                adopted_unix_ms,
+                restarted_from: None,
+                replacement_child_id: None,
+                status: Arc::new(Mutex::new(ChildStatus::Running)),
+            }
+        }
+
+        // An adopted child reports adopted-polling mode with coarse precision.
+        let adopted = child_supervision_json(&record(Some(12345)));
+        assert_eq!(adopted["mode"], serde_json::json!("adopted_polling"));
+        assert_eq!(adopted["adopted_unix_ms"], serde_json::json!(12345));
+        assert_eq!(adopted["exit_status_precise"], serde_json::json!(false));
+
+        // A wait-handle child reports null adoption with precise precision.
+        let wait_handle = child_supervision_json(&record(None));
+        assert_eq!(wait_handle["mode"], serde_json::json!("wait_handle"));
+        assert_eq!(wait_handle["adopted_unix_ms"], serde_json::Value::Null);
+        assert_eq!(wait_handle["exit_status_precise"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn default_project_dir_honors_env_priority() {
+        // `default_project_dir` reads the first set of a documented env chain;
+        // the ctor with no explicit dir consumes it. No base or branch test
+        // calls it directly.
+        let keys = [
+            "ACTPLANE_PROJECT_DIR",
+            "CODEX_PROJECT_DIR",
+            "CODEX_WORKSPACE",
+            "CLAUDE_PROJECT_DIR",
+        ];
+        for key in keys {
+            unsafe { std::env::remove_var(key) };
+        }
+
+        // Highest-priority override wins over the lower ones.
+        unsafe { std::env::set_var("CLAUDE_PROJECT_DIR", "/tmp/plan-claude") };
+        unsafe { std::env::set_var("CODEX_WORKSPACE", "/tmp/plan-codex-ws") };
+        unsafe { std::env::set_var("CODEX_PROJECT_DIR", "/tmp/plan-codex") };
+        unsafe { std::env::set_var("ACTPLANE_PROJECT_DIR", "/tmp/plan-actplane") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/plan-actplane"));
+
+        // Dropping the top key falls through to the next in priority order.
+        unsafe { std::env::remove_var("ACTPLANE_PROJECT_DIR") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/plan-codex"));
+
+        // With no keys set, the current directory is used.
+        for key in keys {
+            unsafe { std::env::remove_var(key) };
+        }
+        assert_eq!(default_project_dir(), std::env::current_dir().expect("cwd"));
+    }
+
+    #[test]
+    fn ensure_local_parent_peer_requires_credentials() {
+        // `ensure_local_parent_peer` rejects a missing peer credential and
+        // otherwise delegates to control-plane actor checks (a no-op when the
+        // server has no engine attached); no base or branch test calls it.
+        let project =
+            std::env::temp_dir().join(format!("actplane-local-peer-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&project);
+        std::fs::create_dir_all(&project).unwrap();
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project.clone()));
+
+        let err = server
+            .ensure_local_parent_peer(None)
+            .expect_err("missing peer");
+        assert!(err.contains("peer credentials are unavailable"), "{err}");
+
+        let peer = local_control::PeerCred {
+            pid: std::process::id() as i32,
+            uid: unsafe { libc::geteuid() },
+            gid: unsafe { libc::getegid() },
+            identity: crate::audit::ProcessIdentity::capture(std::process::id() as i32, None, None),
+        };
+        // No engine attached -> the delegation short-circuits to Ok.
+        server
+            .ensure_local_parent_peer(Some(peer))
+            .expect("no engine");
+
+        let _ = std::fs::remove_dir_all(&project);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn load_feedback_reports_each_file_state() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let feedback = tmp.path().join("feedback.txt");
+        let prior = std::env::var("ACTPLANE_FEEDBACK_FILE").ok();
+        unsafe {
+            std::env::set_var("ACTPLANE_FEEDBACK_FILE", &feedback);
+        }
+        let server = ActPlaneMcp {
+            project_dir: tmp.path().to_path_buf(),
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::new())),
+        };
+
+        // Missing file.
+        let missing = server.load_feedback();
+        assert!(
+            missing.contains("No ActPlane feedback file yet"),
+            "{missing}"
+        );
+
+        // Empty file.
+        std::fs::write(&feedback, "  \n").expect("write empty");
+        let empty = server.load_feedback();
+        assert!(
+            empty.contains("No ActPlane feedback has been written yet"),
+            "{empty}"
+        );
+
+        // Populated file includes the path and the content.
+        std::fs::write(&feedback, "blocked: run tests first").expect("write content");
+        let loaded = server.load_feedback();
+        assert!(loaded.contains("Latest ActPlane feedback"), "{loaded}");
+        assert!(loaded.contains("blocked: run tests first"), "{loaded}");
+        assert!(loaded.contains(&feedback.display().to_string()), "{loaded}");
+
+        match prior {
+            Some(v) => unsafe { std::env::set_var("ACTPLANE_FEEDBACK_FILE", v) },
+            None => unsafe { std::env::remove_var("ACTPLANE_FEEDBACK_FILE") },
+        }
+    }
+
+    #[test]
+    fn feedback_file_resolves_from_policy_and_discovery() {
+        // `discover_policy_file` walks up for actplane.yaml /
+        // .actplane/policy.yaml, and `feedback_file` derives the feedback path
+        // from the policy root, its config, or a latest run; no base or branch
+        // test calls either.
+        let root =
+            std::env::temp_dir().join(format!("actplane-feedback-file-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let project = root.join("project");
+        let nested = project.join("sub");
+        std::fs::create_dir_all(&nested).unwrap();
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project.clone()));
+
+        // No policy anywhere -> default under the project dir.
+        assert!(server.discover_policy_file().is_none());
+        assert_eq!(
+            server.feedback_file(),
+            project.join(".actplane/last-violation.txt")
+        );
+
+        // A policy with an explicit feedback path resolves relative to its root.
+        std::fs::write(
+            project.join("actplane.yaml"),
+            "policy: \"rule r:\\n  notify exec \\\"ls\\\"\\n  because \\\"x\\\"\\n\"\nfeedback:\n  path: custom/feedback.txt\n",
+        )
+        .unwrap();
+        assert_eq!(
+            server.discover_policy_file(),
+            Some(project.join("actplane.yaml"))
+        );
+        assert_eq!(server.feedback_file(), project.join("custom/feedback.txt"));
+
+        // A child directory's server discovers the ancestor policy and falls
+        // back to the default under that policy's root when none is configured.
+        std::fs::write(
+            project.join("actplane.yaml"),
+            "policy: \"rule r:\\n  notify exec \\\"ls\\\"\\n  because \\\"x\\\"\\n\"\n",
+        )
+        .unwrap();
+        let child = ActPlaneMcp::new_with_control_and_project_dir(None, Some(nested));
+        assert_eq!(
+            child.discover_policy_file(),
+            Some(project.join("actplane.yaml"))
+        );
+        assert_eq!(
+            child.feedback_file(),
+            project.join(".actplane/last-violation.txt")
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    fn bare_server(project_dir: std::path::PathBuf) -> ActPlaneMcp {
+        ActPlaneMcp {
+            project_dir,
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    #[test]
+    fn discover_policy_file_walks_up_to_the_nearest_actplane_yaml() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let nested = tmp.path().join("a/b/c");
+        std::fs::create_dir_all(&nested).expect("mkdir");
+        let server = bare_server(nested.clone());
+        assert!(server.discover_policy_file().is_none(), "no yaml yet");
+
+        // `.actplane/policy.yaml` in the cwd wins over a parent `actplane.yaml`.
+        let dot = nested.join(".actplane");
+        std::fs::create_dir_all(&dot).expect("mkdir");
+        let nested_yaml = dot.join("policy.yaml");
+        std::fs::write(&nested_yaml, "policy: \"\"\n").expect("write");
+        std::fs::write(tmp.path().join("actplane.yaml"), "policy: \"\"\n").expect("write");
+        assert_eq!(
+            server.discover_policy_file().as_deref(),
+            Some(nested_yaml.as_path())
+        );
+
+        // Removing the nested candidate falls back to the ancestor file.
+        std::fs::remove_file(&nested_yaml).expect("rm");
+        assert_eq!(
+            server.discover_policy_file().as_deref(),
+            Some(tmp.path().join("actplane.yaml").as_path())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn feedback_file_prefers_env_then_runs_then_config_path() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::write(tmp.path().join("actplane.yaml"), "policy: \"\"\n").expect("write");
+        let server = bare_server(tmp.path().to_path_buf());
+        let prior = std::env::var("ACTPLANE_FEEDBACK_FILE").ok();
+        unsafe {
+            std::env::remove_var("ACTPLANE_FEEDBACK_FILE");
+        }
+
+        // No runs dir, no feedback.path -> the default beside the policy.
+        assert_eq!(
+            server.feedback_file(),
+            tmp.path().join(DEFAULT_FEEDBACK_FILE)
+        );
+
+        // A `feedback.path` in the config is honored, relative to the root.
+        std::fs::write(
+            tmp.path().join("actplane.yaml"),
+            "policy: \"\"\nfeedback:\n  path: custom-feedback.txt\n",
+        )
+        .expect("write config");
+        assert_eq!(
+            server.feedback_file(),
+            tmp.path().join("custom-feedback.txt")
+        );
+
+        // The most recent `.actplane/runs/*/feedback.txt` wins over the config.
+        let run = tmp.path().join(".actplane/runs/run-1");
+        std::fs::create_dir_all(&run).expect("mkdir");
+        let run_feedback = run.join("feedback.txt");
+        std::fs::write(&run_feedback, "hooked").expect("write");
+        assert_eq!(server.feedback_file(), run_feedback);
+
+        // The environment override short-circuits everything else.
+        let env_path = tmp.path().join("env-feedback.txt");
+        unsafe {
+            std::env::set_var("ACTPLANE_FEEDBACK_FILE", &env_path);
+        }
+        assert_eq!(server.feedback_file(), env_path);
+
+        match prior {
+            Some(v) => unsafe { std::env::set_var("ACTPLANE_FEEDBACK_FILE", v) },
+            None => unsafe { std::env::remove_var("ACTPLANE_FEEDBACK_FILE") },
+        }
+    }
+    #[test]
+    fn first_tool_text_reads_the_first_content_text() {
+        // `first_tool_text` pulls the first content entry's `text` out of a
+        // tool-call value, or `None` when the shape is absent. No base or
+        // branch test pins this helper directly.
+        // A well-formed content array with a text entry yields that text.
+        let ok = serde_json::json!({
+            "content": [ { "text": "first" }, { "text": "second" } ]
+        });
+        assert_eq!(first_tool_text(&ok).as_deref(), Some("first"));
+
+        // A nested content array with no text field yields None.
+        let no_text = serde_json::json!({
+            "content": [ { "data": "x" } ]
+        });
+        assert_eq!(first_tool_text(&no_text), None);
+
+        // No content array at all yields None.
+        assert_eq!(first_tool_text(&serde_json::json!({})), None);
+
+        // An empty content array has no first entry.
+        let empty = serde_json::json!({ "content": [] });
+        assert_eq!(first_tool_text(&empty), None);
+    }
+    #[test]
+    fn json_optional_bool_parses_or_rejects_wrong_types() {
+        // `json_optional_bool` reads an optional boolean tool-call arg: absent
+        // keys yield `Ok(None)`, booleans yield `Ok(Some(..))`, and a
+        // non-boolean value is rejected. No base or branch test pins this
+        // helper directly.
+        let absent = serde_json::json!({ "other": true })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_bool(&absent, "flag").unwrap(), None);
+
+        let true_val = serde_json::json!({ "flag": true })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_bool(&true_val, "flag").unwrap(), Some(true));
+
+        let false_val = serde_json::json!({ "flag": false })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_bool(&false_val, "flag").unwrap(), Some(false));
+
+        let wrong = serde_json::json!({ "flag": 1 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(json_optional_bool(&wrong, "flag").is_err());
+    }
+    #[test]
+    fn json_optional_u64_parses_or_rejects_non_integers() {
+        // `json_optional_u64` reads an optional u64 tool-call arg: an absent
+        // key yields `Ok(None)`, a non-negative integer yields `Ok(Some(..))`,
+        // and any other JSON value (negative, string, object) is rejected.
+        // No base or branch test pins this helper directly.
+        let absent = serde_json::json!({ "other": 1 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_u64(&absent, "max").unwrap(), None);
+
+        let good = serde_json::json!({ "max": 4096u64 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_u64(&good, "max").unwrap(), Some(4096));
+
+        let zero = serde_json::json!({ "max": 0 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(json_optional_u64(&zero, "max").unwrap(), Some(0));
+
+        let negative = serde_json::json!({ "max": -1 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(json_optional_u64(&negative, "max").is_err());
+
+        let string = serde_json::json!({ "max": "4096" })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(json_optional_u64(&string, "max").is_err());
+    }
+    #[test]
+    fn json_optional_usize_reads_in_range_integers_and_rejects_the_rest() {
+        // `json_optional_usize` reads an optional non-negative integer from
+        // tool args into a `usize`: an absent key is `None`, an in-range
+        // value is `Some(n)`, and a non-integer or negative value is an
+        // error. No base or branch test pins this helper directly.
+        let args = serde_json::json!({ "max_bytes": 4096, "absent_flag": "x" })
+            .as_object()
+            .expect("object")
+            .clone();
+
+        assert_eq!(
+            json_optional_usize(&args, "max_bytes").expect("max_bytes"),
+            Some(4096)
+        );
+        assert_eq!(
+            json_optional_usize(&args, "missing").expect("missing"),
+            None
+        );
+
+        // A string value is not an integer.
+        let string_arg = serde_json::json!({ "max_bytes": "4096" })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(json_optional_usize(&string_arg, "max_bytes").is_err());
+
+        // A negative value has no non-negative reading.
+        let negative_arg = serde_json::json!({ "max_bytes": -1 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(json_optional_usize(&negative_arg, "max_bytes").is_err());
+    }
+
+    #[test]
+    fn latest_run_feedback_picks_most_recently_modified_run() {
+        // `latest_run_feedback` scans .actplane/runs and returns the run whose
+        // feedback.txt was modified last; no base or branch test calls it.
+        let root =
+            std::env::temp_dir().join(format!("actplane-latest-feedback-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(latest_run_feedback(&root).is_none());
+
+        let old = root.join(".actplane/runs/run-old");
+        let new = root.join(".actplane/runs/run-new");
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::create_dir_all(&new).unwrap();
+        std::fs::write(old.join("feedback.txt"), "old").unwrap();
+        std::fs::write(new.join("feedback.txt"), "new").unwrap();
+
+        set_mtime(&old.join("feedback.txt"), 1_000);
+        set_mtime(&new.join("feedback.txt"), 2_000);
+        assert_eq!(latest_run_feedback(&root), Some(new.join("feedback.txt")));
+
+        // Flipping the timestamps flips the winner.
+        set_mtime(&old.join("feedback.txt"), 3_000);
+        assert_eq!(latest_run_feedback(&root), Some(old.join("feedback.txt")));
+
+        fn set_mtime(path: &std::path::Path, secs: i64) {
+            let times = [
+                libc::timespec {
+                    tv_sec: secs,
+                    tv_nsec: 0,
+                },
+                libc::timespec {
+                    tv_sec: secs,
+                    tv_nsec: 0,
+                },
+            ];
+            let c = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()).unwrap();
+            let rc = unsafe { libc::utimensat(libc::AT_FDCWD, c.as_ptr(), times.as_ptr(), 0) };
+            assert_eq!(rc, 0, "utimensat failed");
+        }
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    fn bare_server_c2(project_dir: std::path::PathBuf) -> ActPlaneMcp {
+        ActPlaneMcp {
+            project_dir,
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    #[test]
+    fn load_and_validate_reports_one_line_per_compiled_rule() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(tmp.path().join("nested")).expect("mkdir");
+        let server = bare_server_c2(tmp.path().join("nested"));
+
+        // No policy file anywhere in the ancestor chain.
+        assert_eq!(server.load_and_validate(), "No actplane.yaml found.");
+
+        let yaml = tmp.path().join("actplane.yaml");
+        std::fs::write(
+            &yaml,
+            "policy: |\n  rule r1:\n    notify exec \"git\"\n    because \"c1\"\n  rule r2:\n    notify exec \"cargo\"\n    because \"c2\"\n",
+        )
+        .expect("write");
+        let ok = server.load_and_validate();
+        assert!(ok.contains("Policy valid"), "{ok}");
+        assert!(ok.contains("2 rules"), "{ok}");
+        assert!(ok.contains("1. r1"), "{ok}");
+        assert!(ok.contains("2. r2"), "{ok}");
+        assert!(ok.contains("notify"), "{ok}");
+        assert!(ok.contains("c1"), "{ok}");
+
+        // A file without a `policy:` field is rejected by name.
+        std::fs::write(&yaml, "domains: []\n").expect("write");
+        let missing = server.load_and_validate();
+        assert!(missing.contains("has no `policy:` field"), "{missing}");
+        assert!(missing.contains("actplane.yaml"), "{missing}");
+
+        // Invalid DSL inside a valid YAML wrapper reports a compile error.
+        std::fs::write(&yaml, "policy: \"rule broken\"\n").expect("write");
+        let bad = server.load_and_validate();
+        assert!(bad.starts_with("Policy compile error:"), "{bad}");
+
+        // Malformed YAML is reported as a parse error with the path.
+        std::fs::write(&yaml, "policy: [unterminated\n").expect("write");
+        let yamlerr = server.load_and_validate();
+        assert!(yamlerr.contains("YAML parse error in"), "{yamlerr}");
+    }
+
+    fn detached_server() -> (ActPlaneMcp, tempfile::TempDir) {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(tmp.path().into()));
+        (server, tmp)
+    }
+
+    #[test]
+    fn local_control_request_rejects_non_object_and_missing_op() {
+        let (server, _tmp) = detached_server();
+
+        let value = server.handle_local_control_request(serde_json::json!([1, 2]), None);
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["error"], "control request must be a JSON object");
+
+        let value = server.handle_local_control_request(serde_json::json!({ "op": 7 }), None);
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["error"], "control request missing string `op`");
+
+        let value = server.handle_local_control_request(serde_json::json!({ "op": "frob" }), None);
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["error"], "unknown ActPlane control op `frob`");
+    }
+
+    #[test]
+    fn local_control_status_reports_project_dir_and_attachment() {
+        let (server, tmp) = detached_server();
+        let value =
+            server.handle_local_control_request(serde_json::json!({ "op": "status" }), None);
+        assert_eq!(value["ok"], true);
+        assert_eq!(value["result"]["attached"], false);
+        assert_eq!(value["result"]["child_count"], 0);
+        assert!(value["result"]["control"].is_null());
+        assert_eq!(
+            value["result"]["project_dir"],
+            tmp.path().display().to_string()
+        );
+        assert_eq!(server.control_parent(), None);
+    }
+
+    #[test]
+    fn local_control_peer_requiring_ops_reject_missing_credentials() {
+        let (server, _tmp) = detached_server();
+        for op in [
+            "bind_child_domain",
+            "append_policy_delta",
+            "launch_child_domain",
+            "list_child_domains",
+            "read_child_domain_logs",
+            "terminate_child_domain",
+            "restart_child_domain",
+            "reconcile_child_domains",
+        ] {
+            let value = server.handle_local_control_request(serde_json::json!({ "op": op }), None);
+            assert_eq!(value["ok"], false, "{op}: {value}");
+            assert_eq!(
+                value["error"], "local control peer credentials are unavailable",
+                "{op}: {value}"
+            );
+        }
+    }
+
+    #[test]
+    fn start_local_control_server_for_server_requires_an_attached_control() {
+        let server = ActPlaneMcp {
+            project_dir: PathBuf::from("."),
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::new())),
+        };
+        let err = start_local_control_server_for_server(server)
+            .err()
+            .expect("unattached control is rejected");
+        assert!(
+            err.to_string()
+                .contains("local control server requires an attached engine"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn local_control_status_reports_attachment_and_project_dir() {
+        // `local_control_status` renders the supervisor `status` operation:
+        // the project dir, whether a control handle is attached (with its
+        // parent pid/domain when so), and the tracked child count. No base or
+        // branch test calls it.
+        let dir = std::env::temp_dir().join(format!(
+            "actplane-status-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(dir.clone()));
+        let value = server.local_control_status();
+        assert_eq!(value["ok"], true);
+        assert_eq!(value["result"]["attached"], false);
+        assert_eq!(value["result"]["project_dir"], dir.display().to_string());
+        assert_eq!(value["result"]["control"], Value::Null);
+        assert_eq!(value["result"]["child_count"], 0);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+    #[test]
+    fn parse_restart_policy_str_maps_on_exit_and_defaults_to_never() {
+        // `parse_restart_policy_str` maps a launch arg's restart policy onto
+        // a `RestartPolicy`: `"on_exit"` (and its hyphenated spelling) yield
+        // `OnExit`, and any other text yields `Never`. No base or branch
+        // test pins this helper directly.
+        assert_eq!(parse_restart_policy_str("on_exit"), RestartPolicy::OnExit);
+        assert_eq!(parse_restart_policy_str("on-exit"), RestartPolicy::OnExit);
+
+        // Anything else (including a bare `Never` spelling and empty) is the
+        // no-restart default.
+        assert_eq!(parse_restart_policy_str("never"), RestartPolicy::Never);
+        assert_eq!(parse_restart_policy_str(""), RestartPolicy::Never);
+        assert_eq!(parse_restart_policy_str("bogus"), RestartPolicy::Never);
+    }
+    #[test]
+    fn policy_audit_meta_json_emits_only_present_fields() {
+        // `policy_audit_meta_json` builds a child record's policy audit
+        // metadata object from a `PolicyAuditMeta`: every `None` field is
+        // omitted, so an all-`None` meta yields `None`, and a meta with any
+        // field yields an object containing only the present fields. No
+        // base or branch test pins this builder directly.
+        // An all-None meta is omitted entirely.
+        assert!(policy_audit_meta_json(&PolicyAuditMeta::default()).is_none());
+
+        // A single present field yields an object with just that key.
+        let ref_only = PolicyAuditMeta {
+            policy_ref: Some("repo.yaml".to_string()),
+            ..PolicyAuditMeta::default()
+        };
+        assert_eq!(
+            policy_audit_meta_json(&ref_only).as_ref(),
+            Some(&serde_json::json!({ "policy_ref": "repo.yaml" }))
+        );
+
+        // A fully-populated meta yields every key, in the object.
+        let full = PolicyAuditMeta {
+            policy_ref: Some("repo.yaml".to_string()),
+            approved_by: Some("reviewer".to_string()),
+            approval_ref: Some("PR-7".to_string()),
+            generated_by: Some("actplane".to_string()),
+        };
+        let built = policy_audit_meta_json(&full).expect("full meta builds");
+        assert_eq!(built["policy_ref"], serde_json::json!("repo.yaml"));
+        assert_eq!(built["approved_by"], serde_json::json!("reviewer"));
+        assert_eq!(built["approval_ref"], serde_json::json!("PR-7"));
+        assert_eq!(built["generated_by"], serde_json::json!("actplane"));
+    }
+    #[test]
+    fn policy_audit_meta_from_args_maps_optional_string_fields() {
+        // `policy_audit_meta_from_args` reads the four optional policy audit
+        // metadata strings out of tool args into a `PolicyAuditMeta`: each
+        // present string maps to `Some`, each absent key to `None`, and a
+        // non-string field is an error. No base or branch test pins this
+        // helper directly.
+        // A fully-populated arg map yields every field set.
+        let full = serde_json::json!({
+            "policy_ref": "repo.yaml",
+            "approved_by": "reviewer",
+            "approval_ref": "PR-7",
+            "generated_by": "actplane",
+        })
+        .as_object()
+        .expect("object")
+        .clone();
+        assert_eq!(
+            policy_audit_meta_from_args(&full).expect("full args"),
+            PolicyAuditMeta {
+                policy_ref: Some("repo.yaml".to_string()),
+                approved_by: Some("reviewer".to_string()),
+                approval_ref: Some("PR-7".to_string()),
+                generated_by: Some("actplane".to_string()),
+            }
+        );
+
+        // An empty arg map yields the all-None default.
+        let empty = serde_json::json!({}).as_object().expect("object").clone();
+        assert_eq!(
+            policy_audit_meta_from_args(&empty).expect("empty args"),
+            PolicyAuditMeta::default()
+        );
+
+        // A non-string field is rejected.
+        let bad_ref = serde_json::json!({ "policy_ref": 7 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert!(policy_audit_meta_from_args(&bad_ref).is_err());
+    }
+    #[test]
+    fn policy_audit_meta_from_json_maps_string_fields_or_rejects_non_object() {
+        // `policy_audit_meta_from_json` reads a child record's policy audit
+        // metadata object: the four string fields map into the struct, each
+        // absent key reads as `None`, and a non-object value yields `None`.
+        // No base or branch test pins this helper directly.
+        let full = policy_audit_meta_from_json(&serde_json::json!({
+            "policy_ref": "repo.yaml",
+            "approved_by": "reviewer",
+            "approval_ref": "PR-7",
+            "generated_by": "actplane",
+        }));
+        assert_eq!(
+            full,
+            Some(PolicyAuditMeta {
+                policy_ref: Some("repo.yaml".to_string()),
+                approved_by: Some("reviewer".to_string()),
+                approval_ref: Some("PR-7".to_string()),
+                generated_by: Some("actplane".to_string()),
+            })
+        );
+
+        // An object with no keys reads every field as `None`.
+        let empty = policy_audit_meta_from_json(&serde_json::json!({}));
+        assert_eq!(empty, Some(PolicyAuditMeta::default()));
+
+        // A non-object value is not a metadata object.
+        assert!(policy_audit_meta_from_json(&serde_json::json!("repo.yaml")).is_none());
+    }
+
+    fn identity_record(pid: i32, proc_start_time: Option<u64>) -> ChildRecord {
+        ChildRecord {
+            launch_id: "identity-test".to_string(),
+            pid,
+            child_id: 903,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/actplane-identity-out.log"),
+            stderr: PathBuf::from("/tmp/actplane-identity-err.log"),
+            meta: PathBuf::from("/tmp/actplane-identity-meta.json"),
+            proc_start_time,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 0,
+            restart_backoff_ms: 0,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        }
+    }
+
+    #[test]
+    fn process_identity_matches_guards_pid_and_start_time() {
+        // `process_identity_matches` decides whether a persisted pid still
+        // refers to the same supervised child; no base or branch test calls it.
+        let me = std::process::id() as i32;
+
+        // Non-positive pid never matches.
+        assert!(!process_identity_matches(&identity_record(0, None)));
+        assert!(!process_identity_matches(&identity_record(-1, None)));
+
+        // No recorded start time falls back to a liveness check.
+        assert!(process_identity_matches(&identity_record(me, None)));
+
+        // A recorded start time must equal the live one.
+        let live = proc_start_time(me).expect("self start time");
+        assert!(process_identity_matches(&identity_record(me, Some(live))));
+        assert!(!process_identity_matches(&identity_record(
+            me,
+            Some(live + 1)
+        )));
+
+        // Positive pid with no live /proc entry fails the identity check.
+        assert!(!process_identity_matches(&identity_record(
+            i32::MAX,
+            Some(1)
+        )));
+    }
+
+    #[test]
+    fn process_exists_distinguishes_live_permission_and_reaped_pids() {
+        // The current process is alive, so kill(0) must succeed.
+        assert!(process_exists(std::process::id() as i32));
+        // A pid that cannot exist yields ESRCH, which is the only gone answer.
+        assert!(!process_exists(99_999_999));
+        // Whether a foreign live pid is visible depends on uid, but a real live
+        // pid must never be reported as reaped while the probe is running.
+        if unsafe { libc::kill(1, 0) } == 0 {
+            assert!(process_exists(1));
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn child_record_meta_trust_root_requires_root_owned_private_ancestors() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let children = tmp.path().join("children");
+        let log_dir = children.join("run-1");
+        let meta = log_dir.join("child.json");
+        std::fs::create_dir_all(&log_dir).expect("dirs");
+        std::fs::write(&meta, "{}").expect("meta");
+
+        let current = std::fs::metadata(&children).expect("metadata");
+        let owned_by_root = current.uid() == 0;
+        let locked = |path: &std::path::Path| {
+            let mode = std::fs::metadata(path).expect("metadata").mode();
+            mode & 0o022 == 0
+        };
+
+        if !owned_by_root {
+            // Non-root callers treat every record as trusted without inspecting
+            // the tree, because they already trust the invoking user.
+            assert!(child_record_meta_trusted_root(&meta));
+        } else {
+            assert_eq!(
+                child_record_meta_trusted_root(&meta),
+                locked(&children) && locked(&log_dir) && locked(&meta)
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn child_record_meta_trust_root_rejects_a_parentless_path() {
+        // The trust predicate requires the record to sit inside two directories
+        // it can stat; the filesystem root has no parent, so it is never trusted
+        // under the root rule. Non-root callers trust everything by uid.
+        if unsafe { libc::geteuid() } != 0 {
+            return;
+        }
+        assert!(!child_record_meta_trusted_root(std::path::Path::new("/")));
+    }
+
+    #[test]
+    fn refresh_child_record_status_marks_dead_running_child_exited() {
+        // `refresh_child_record_status` flips a Running record to Exited when
+        // its process identity no longer matches; no base or branch test calls
+        // it.
+        let project_dir =
+            std::env::temp_dir().join(format!("actplane-refresh-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&project_dir);
+        std::fs::create_dir_all(&project_dir).unwrap();
+
+        let mut record = ChildRecord {
+            launch_id: "refresh-test".to_string(),
+            pid: i32::MAX,
+            child_id: 904,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: project_dir.join("stdout.log"),
+            stderr: project_dir.join("stderr.log"),
+            meta: project_dir.join("meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 0,
+            restart_backoff_ms: 0,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        };
+
+        refresh_child_record_status(&mut record);
+        assert!(matches!(
+            *record.status.lock().expect("status"),
+            ChildStatus::Exited {
+                code: None,
+                signal: None
+            }
+        ));
+        assert!(record.last_exit_unix_ms.is_some());
+        // The refreshed record was persisted.
+        assert!(record.meta.is_file());
+
+        // A non-Running record is left untouched.
+        *record.status.lock().unwrap() = ChildStatus::Terminated;
+        let before = record.last_exit_unix_ms;
+        refresh_child_record_status(&mut record);
+        assert!(matches!(
+            *record.status.lock().expect("status"),
+            ChildStatus::Terminated
+        ));
+        assert_eq!(record.last_exit_unix_ms, before);
+
+        let _ = std::fs::remove_dir_all(&project_dir);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn secure_child_registry_enforces_owner_only_permissions_when_root() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let dir = tmp.path().join("children");
+        std::fs::create_dir(&dir).expect("create dir");
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o777)).expect("chmod");
+        secure_child_registry_dir(&dir).expect("secure dir");
+
+        let file = dir.join("record.json");
+        std::fs::write(&file, b"{}").expect("write file");
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o666)).expect("chmod");
+        secure_child_registry_file(&file).expect("secure file");
+
+        let euid = unsafe { libc::geteuid() };
+        if euid != 0 {
+            assert!(unsafe { libc::getuid() } != 0);
+        }
+        if euid == 0 {
+            let dir_meta = std::fs::metadata(&dir).expect("dir meta");
+            assert_eq!(dir_meta.mode() & 0o777, 0o755);
+            assert_eq!(dir_meta.uid(), 0);
+            let file_meta = std::fs::metadata(&file).expect("file meta");
+            assert_eq!(file_meta.mode() & 0o777, 0o644);
+            assert_eq!(file_meta.uid(), 0);
+        } else {
+            // Non-root leaves the existing permissions untouched.
+            assert_eq!(
+                std::fs::metadata(&dir).expect("dir meta").mode() & 0o777,
+                0o777
+            );
+            assert_eq!(
+                std::fs::metadata(&file).expect("file meta").mode() & 0o777,
+                0o666
+            );
+        }
+    }
+
+    fn restart_record(
+        policy: RestartPolicy,
+        last_exit_unix_ms: Option<u64>,
+        replacement_child_id: Option<u32>,
+    ) -> ChildRecord {
+        ChildRecord {
+            launch_id: "restart-scheduling-test".to_string(),
+            pid: std::process::id() as i32,
+            child_id: 901,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/actplane-restart-out.log"),
+            stderr: PathBuf::from("/tmp/actplane-restart-err.log"),
+            meta: PathBuf::from("/tmp/actplane-restart-meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: policy,
+            restart_count: 2,
+            restart_limit: 5,
+            restart_backoff_ms: 250,
+            last_exit_unix_ms,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        }
+    }
+
+    #[test]
+    fn restart_scheduling_computes_next_attempt_and_settings() {
+        // `next_restart_after_unix_ms`/`next_restart_settings` drive the
+        // supervision loop's restart backoff. Neither is called by any base or
+        // branch test.
+        let rec = restart_record(RestartPolicy::OnExit, Some(1000), None);
+        assert_eq!(rec.next_restart_after_unix_ms(), Some(1250));
+        let s = rec.next_restart_settings();
+        assert_eq!(s.policy, RestartPolicy::OnExit);
+        assert_eq!(s.count, 3);
+        assert_eq!(s.limit, 5);
+        assert_eq!(s.backoff_ms, 250);
+
+        // A replacement child already scheduled suppresses the next restart.
+        let replaced = restart_record(RestartPolicy::OnExit, Some(1000), Some(7));
+        assert_eq!(replaced.next_restart_after_unix_ms(), None);
+
+        // Never-restart policy suppresses regardless of exit time.
+        let never = restart_record(RestartPolicy::Never, Some(1000), None);
+        assert_eq!(never.next_restart_after_unix_ms(), None);
+
+        // OnExit without an observed exit time has no due timestamp yet.
+        let no_exit = restart_record(RestartPolicy::OnExit, None, None);
+        assert_eq!(no_exit.next_restart_after_unix_ms(), None);
+    }
+
+    #[test]
+    fn server_get_info_advertises_stdio_tools_and_resources() {
+        // `ActPlaneMcp::get_info` is the MCP handshake payload: it must
+        // advertise exactly the tools and resources capabilities and carry the
+        // ActPlane instruction text. No base or branch test calls it.
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, None);
+        let info = server.get_info();
+        assert!(info.capabilities.tools.is_some(), "tools advertised");
+        assert!(
+            info.capabilities.resources.is_some(),
+            "resources advertised"
+        );
+        assert!(
+            info.capabilities.prompts.is_none(),
+            "prompts not advertised"
+        );
+        let instructions = info.instructions.as_deref().expect("instructions");
+        assert!(instructions.starts_with("ActPlane: OS-level agent harness."));
+        assert!(instructions.contains("corrective feedback"));
+    }
+
+    #[test]
+    fn send_signal_reports_esrch_for_missing_pid() {
+        // `send_signal` is the thin libc::kill wrapper used to SIGCONT a
+        // launched child; it must surface ESRCH rather than panic. A living
+        // pid need not be signalable (sandboxes deny non-root SIGCONT), so the
+        // positive path is probed empirically before being asserted.
+        let err = send_signal(i32::MAX, libc::SIGCONT).expect_err("no such process");
+        assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
+
+        let mut child = std::process::Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn sleep");
+        let pid = child.id() as i32;
+        if send_signal(pid, libc::SIGCONT).is_ok() {
+            assert!(send_signal(pid, libc::SIGCONT).is_ok());
+        }
+        let _ = send_signal(pid, libc::SIGKILL);
+        let _ = child.wait();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn secure_child_registry_file_is_a_noop_for_non_root() {
+        // Non-root must leave the registry file untouched: only euid 0 chowns
+        // to root and forces 0644. Create a 0600 file and confirm the mode
+        // survives the call.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("meta.json");
+        std::fs::write(&path, b"{}").expect("write");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("chmod");
+
+        assert_ne!(unsafe { libc::geteuid() }, 0, "container runs non-root");
+        secure_child_registry_file(&path).expect("secure file");
+        let mode = std::fs::metadata(&path)
+            .expect("metadata")
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(mode, 0o600);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn sudo_target_user_reads_sudo_uid_and_gid_only_when_root() {
+        let uid = std::env::var("SUDO_UID").ok();
+        let gid = std::env::var("SUDO_GID").ok();
+
+        if unsafe { libc::geteuid() } != 0 {
+            // Non-root callers never adopt a sudo target user.
+            assert_eq!(sudo_target_user(), None);
+            return;
+        }
+
+        unsafe {
+            std::env::remove_var("SUDO_UID");
+            std::env::remove_var("SUDO_GID");
+        }
+        assert_eq!(sudo_target_user(), None, "missing vars mean no target user");
+        unsafe { std::env::set_var("SUDO_UID", "not-a-number") };
+        assert_eq!(sudo_target_user(), None, "unparsable uid is rejected");
+        unsafe {
+            std::env::set_var("SUDO_UID", "1234");
+            std::env::set_var("SUDO_GID", "5678");
+        }
+        assert_eq!(sudo_target_user(), Some((1234, 5678)));
+
+        match uid {
+            Some(v) => unsafe { std::env::set_var("SUDO_UID", v) },
+            None => unsafe { std::env::remove_var("SUDO_UID") },
+        }
+        match gid {
+            Some(v) => unsafe { std::env::set_var("SUDO_GID", v) },
+            None => unsafe { std::env::remove_var("SUDO_GID") },
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn chown_path_requires_privilege_to_change_ownership() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let file = tmp.path().join("owned.txt");
+        std::fs::write(&file, "x").expect("write");
+
+        // A no-op chown to the file's current owner succeeds; a real change to
+        // another uid needs CAP_CHOWN, so non-root callers must see an error.
+        let meta = std::fs::metadata(&file).expect("metadata");
+        assert!(chown_path(&file, meta.uid(), meta.gid()).is_ok());
+        if unsafe { libc::geteuid() } != 0 {
+            assert!(
+                chown_path(&file, meta.uid().wrapping_add(1), meta.gid()).is_err(),
+                "changing owner without privilege must fail"
+            );
+        }
+    }
+
+    #[test]
+    fn terminate_process_group_signals_the_group() {
+        // `terminate_process_group(pid)` sends SIGTERM to the process group
+        // `-pid`, so a group leader is terminated while the whole-group target
+        // differs from the single-pid target. No base or branch test exercises
+        // `terminate_process_group` or the `kill_and_wait` wrapper.
+        let leader = |script: &str| {
+            let mut cmd = Command::new("/bin/sh");
+            cmd.arg("-c")
+                .arg(script)
+                .process_group(0)
+                .stdout(Stdio::null());
+            cmd.spawn().expect("spawn")
+        };
+        let mut child = leader("sleep 3");
+        let pid = child.id() as i32;
+        assert_eq!(
+            unsafe { libc::getpgid(pid) },
+            pid,
+            "child must lead its own process group"
+        );
+
+        // Either way the group-targeted SIGTERM keeps the same contract as a
+        // pid kill: it returns without panicking, and a permitted signal
+        // terminates the leader while a sandbox that denies non-root `kill`
+        // (EPERM) leaves it to exit after its sleep.
+        let group_ok = terminate_process_group(pid).is_ok();
+        let _ = child.wait();
+        assert!(
+            group_ok || unsafe { libc::kill(pid, 0) } != 0,
+            "a live target with a denied group signal must still be reaped"
+        );
+
+        // `kill_and_wait` takes ownership, SIGKILLs the group, and reaps the
+        // child (its `Child` is consumed, so no handle remains to observe).
+        let caught = leader("sleep 3");
+        assert_eq!(
+            unsafe { libc::getpgid(caught.id() as i32) },
+            caught.id() as i32,
+            "kill_and_wait target must lead its group"
+        );
+        kill_and_wait(caught);
+    }
+
+    #[test]
+    fn local_tool_response_wraps_ok_and_error() {
+        // `local_tool_response` unwraps a successful CallToolResult into an
+        // {ok,text,result} envelope and a failure into {ok,error}, while
+        // `invalid_params` builds an INVALID_PARAMS ErrorData. Neither has a
+        // direct caller in the base or branch tests.
+        let ok = CallToolResult::success(vec![ContentBlock::text("hello")]);
+        let value = local_tool_response(Ok(ok));
+        assert_eq!(value["ok"], true);
+        assert_eq!(value["text"], "hello");
+        assert_eq!(value["result"]["content"][0]["text"], "hello");
+
+        let err = local_tool_response(Err(invalid_params("bad argument")));
+        assert_eq!(err["ok"], false);
+        assert!(err["error"].as_str().unwrap().contains("bad argument"));
+
+        let data = invalid_params("missing `foo`");
+        assert_eq!(data.code, ErrorCode::INVALID_PARAMS);
+        assert_eq!(data.message, "missing `foo`");
+    }
+
+    #[test]
+    fn unattached_handlers_report_missing_engine_with_internal_error() {
+        let project_dir = tempfile::tempdir().expect("tempdir");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(
+            None,
+            Some(project_dir.path().to_path_buf()),
+        );
+
+        let err = server
+            .do_append_policy_delta(None)
+            .expect_err("append must fail without an engine");
+        assert_eq!(err.code, ErrorCode::INTERNAL_ERROR);
+        assert!(err.message.contains("No eBPF engine attached"));
+
+        let err = server
+            .launch_child_domain_inner(
+                vec!["/bin/true".to_string()],
+                Some(9),
+                0,
+                None,
+                PolicyAuditMeta::default(),
+                None,
+                RestartSettings {
+                    policy: RestartPolicy::Never,
+                    count: 0,
+                    limit: 0,
+                    backoff_ms: 0,
+                },
+            )
+            .err()
+            .expect("launch must fail without an engine");
+        assert_eq!(err.code, ErrorCode::INTERNAL_ERROR);
+        assert!(err.message.contains("No eBPF engine attached"));
+    }
+
+    fn seeded_server_c2(project_dir: PathBuf, records: Vec<ChildRecord>) -> ActPlaneMcp {
+        let mut children = HashMap::new();
+        for record in records {
+            children.insert(record.child_id, record);
+        }
+        ActPlaneMcp {
+            project_dir,
+            control: None,
+            children: Arc::new(Mutex::new(children)),
+        }
+    }
+
+    fn tool_text_c3(result: &CallToolResult) -> String {
+        match result.content.first() {
+            Some(ContentBlock::Text(t)) => t.text.clone(),
+            other => panic!("expected text content, got {other:?}"),
+        }
+    }
+
+    fn reconcile_record(
+        child_id: u32,
+        status: ChildStatus,
+        restart_count: u32,
+        restart_limit: u32,
+        log_dir: &std::path::Path,
+    ) -> ChildRecord {
+        ChildRecord {
+            launch_id: format!("child-{child_id}"),
+            pid: 99_999_999,
+            child_id,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: log_dir.join("stdout.log"),
+            stderr: log_dir.join("stderr.log"),
+            meta: log_dir.join("meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::OnExit,
+            restart_count,
+            restart_limit,
+            restart_backoff_ms: DEFAULT_RESTART_BACKOFF_MS,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    #[test]
+    fn reconcile_marks_exhausted_restarts_as_blocked_alerts_once() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-7");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        // Exited child at its restart limit: no relaunch, one blocked alert.
+        let record = reconcile_record(
+            7,
+            ChildStatus::Exited {
+                code: Some(1),
+                signal: None,
+            },
+            DEFAULT_RESTART_LIMIT,
+            DEFAULT_RESTART_LIMIT,
+            &log_dir,
+        );
+        let server = seeded_server_c2(tmp.path().to_path_buf(), vec![record]);
+
+        let first = server.do_reconcile_child_domains().expect("reconcile");
+        let value: Value = serde_json::from_str(&tool_text_c3(&first)).expect("json");
+        assert_eq!(value["total"], 1);
+        assert_eq!(value["exited"], 1);
+        assert_eq!(value["running"], 0);
+        assert_eq!(value["restarted"].as_array().unwrap().len(), 0);
+        let alerts = value["alerts"].as_array().expect("alerts");
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0]["child_id"], 7);
+        assert_eq!(alerts[0]["status"], "blocked");
+        assert_eq!(alerts[0]["reason"], "restart limit reached");
+
+        // The alert is recorded, so a second reconcile does not repeat it.
+        let second = server.do_reconcile_child_domains().expect("reconcile");
+        let value: Value = serde_json::from_str(&tool_text_c3(&second)).expect("json");
+        assert_eq!(value["alerts"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn child_state_predicates_classify_each_status() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-11");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        let mut record = reconcile_record(11, ChildStatus::Running, 0, 3, &log_dir);
+        assert!(child_record_running(&record));
+        assert!(!child_record_exited(&record));
+        assert!(!child_record_terminated(&record));
+        assert!(process_exists(std::process::id() as i32));
+        assert!(!process_exists(99_999_999));
+
+        *record.status.lock().unwrap() = ChildStatus::Terminated;
+        assert!(child_record_terminated(&record));
+        assert!(!child_record_running(&record));
+        assert!(
+            !child_record_should_relaunch(&record),
+            "terminated is not relaunched"
+        );
+
+        *record.status.lock().unwrap() = ChildStatus::Exited {
+            code: Some(0),
+            signal: None,
+        };
+        assert!(child_record_exited(&record));
+        record.replacement_child_id = Some(12);
+        assert!(!child_record_should_relaunch(&record), "already replaced");
+    }
+
+    fn predicate_record(status: ChildStatus) -> ChildRecord {
+        ChildRecord {
+            launch_id: "child-predicate".to_string(),
+            pid: 1,
+            child_id: 1,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/stdout.log"),
+            stderr: PathBuf::from("/tmp/stderr.log"),
+            meta: PathBuf::from("/tmp/meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::OnExit,
+            restart_count: 0,
+            restart_limit: 2,
+            restart_backoff_ms: 1000,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    #[test]
+    fn child_record_predicates_follow_the_status_variant() {
+        let running = predicate_record(ChildStatus::Running);
+        let exited = predicate_record(ChildStatus::Exited {
+            code: Some(1),
+            signal: None,
+        });
+        let terminated = predicate_record(ChildStatus::Terminated);
+
+        assert!(child_record_running(&running));
+        assert!(!child_record_exited(&running));
+        assert!(!child_record_terminated(&running));
+
+        assert!(child_record_exited(&exited));
+        assert!(!child_record_running(&exited));
+        assert!(!child_record_terminated(&exited));
+
+        assert!(child_record_terminated(&terminated));
+        assert!(!child_record_running(&terminated));
+        assert!(!child_record_exited(&terminated));
+    }
+
+    #[test]
+    fn adopt_running_child_record_is_idempotent_and_status_scoped() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut running = predicate_record(ChildStatus::Running);
+        running.meta = dir.path().join("meta.json");
+        assert!(adopt_running_child_record(&mut running));
+        let first = running.adopted_unix_ms.expect("adopted stamp");
+        assert!(!adopt_running_child_record(&mut running), "idempotent");
+        assert_eq!(running.adopted_unix_ms, Some(first));
+
+        let mut exited = predicate_record(ChildStatus::Exited {
+            code: Some(0),
+            signal: None,
+        });
+        exited.meta = dir.path().join("exited-meta.json");
+        assert!(!adopt_running_child_record(&mut exited));
+        assert!(exited.adopted_unix_ms.is_none());
+    }
+
+    #[test]
+    fn restart_blocked_reason_requires_an_exhausted_on_exit_quota() {
+        let mut record = predicate_record(ChildStatus::Running);
+        record.restart_count = 2;
+        assert_eq!(child_restart_blocked_reason(&record), None, "still running");
+        assert!(
+            !child_record_should_relaunch(&record),
+            "running never relaunches"
+        );
+
+        *record.status.lock().expect("status") = ChildStatus::Exited {
+            code: Some(1),
+            signal: None,
+        };
+        assert_eq!(
+            child_restart_blocked_reason(&record),
+            Some("restart limit reached")
+        );
+        assert!(!child_record_should_relaunch(&record));
+
+        record.restart_count = 1;
+        assert_eq!(child_restart_blocked_reason(&record), None);
+        assert!(child_record_should_relaunch(&record), "quota left");
+
+        record.replacement_child_id = Some(9);
+        assert_eq!(child_restart_blocked_reason(&record), None);
+        assert!(!child_record_should_relaunch(&record), "replacement wins");
+
+        record.replacement_child_id = None;
+        record.restart_policy = RestartPolicy::Never;
+        assert_eq!(child_restart_blocked_reason(&record), None);
+        assert!(!child_record_should_relaunch(&record), "policy off");
+    }
+
+    #[test]
+    fn child_record_from_meta_requires_pid_child_id_and_cmd() {
+        let log_dir = PathBuf::from("/tmp/children/child-abc");
+        let full = serde_json::json!({
+            "pid": 42,
+            "child_id": 7,
+            "scope_id": 3,
+            "cmd": ["/bin/true", "--x"],
+        });
+        let record = child_record_from_meta(&full, log_dir.clone()).expect("record");
+        assert_eq!(record.pid, 42);
+        assert_eq!(record.child_id, 7);
+        assert_eq!(record.scope_id, 3);
+        assert_eq!(record.cmd, vec!["/bin/true".to_string(), "--x".to_string()]);
+        assert_eq!(record.launch_id, "child-abc");
+        assert_eq!(record.stdout, log_dir.join("stdout.log"));
+        assert_eq!(record.meta, log_dir.join("meta.json"));
+        assert_eq!(record.restart_policy, RestartPolicy::Never);
+        assert!(matches!(
+            *record.status.lock().expect("status"),
+            ChildStatus::Running
+        ));
+
+        for missing in ["cmd", "pid", "child_id"] {
+            let mut value = full.clone();
+            value.as_object_mut().expect("object").remove(missing);
+            assert!(
+                child_record_from_meta(&value, log_dir.clone()).is_none(),
+                "missing {missing} should not parse"
+            );
+        }
+    }
+
+    fn sample_record(adopted_unix_ms: Option<u64>) -> ChildRecord {
+        let log_dir = std::env::temp_dir().join(child_launch_id());
+        ChildRecord {
+            launch_id: "child-supervision-test".to_string(),
+            pid: 4242,
+            child_id: 909,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: log_dir.join("stdout.log"),
+            stderr: log_dir.join("stderr.log"),
+            meta: log_dir.join("meta.json"),
+            proc_start_time: Some(1),
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 1,
+            restart_backoff_ms: 100,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        }
+    }
+
+    #[test]
+    fn child_supervision_json_distinguishes_adopted_and_wait_handle() {
+        let wait_handle = child_supervision_json(&sample_record(None));
+        assert_eq!(wait_handle["mode"], "wait_handle");
+        assert_eq!(wait_handle["exit_status_precise"], true);
+        assert_eq!(wait_handle["adopted_unix_ms"], serde_json::Value::Null);
+
+        let adopted = child_supervision_json(&sample_record(Some(1234)));
+        assert_eq!(adopted["mode"], "adopted_polling");
+        assert_eq!(adopted["exit_status_precise"], false);
+        assert_eq!(adopted["adopted_unix_ms"], 1234);
+    }
+
+    fn child_id_record(status: ChildStatus) -> ChildRecord {
+        ChildRecord {
+            launch_id: "child-refresh".to_string(),
+            pid: i32::MAX,
+            child_id: 1,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/stdout.log"),
+            stderr: PathBuf::from("/tmp/stderr.log"),
+            meta: PathBuf::from("/tmp/meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 2,
+            restart_backoff_ms: 1000,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    #[test]
+    fn child_id_arg_accepts_child_id_then_domain_id() {
+        let both = serde_json::json!({ "child_id": 5, "domain_id": 6 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(child_id_arg(&both).expect("child_id wins"), 5);
+
+        let alias = serde_json::json!({ "domain_id": 6 })
+            .as_object()
+            .expect("object")
+            .clone();
+        assert_eq!(child_id_arg(&alias).expect("domain_id alias"), 6);
+
+        let absent = serde_json::json!({}).as_object().expect("object").clone();
+        assert_eq!(
+            child_id_arg(&absent).unwrap_err().message,
+            "missing `child_id`"
+        );
+    }
+
+    #[test]
+    fn refresh_child_record_status_marks_dead_processes_exited() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut running = child_id_record(ChildStatus::Running);
+        running.meta = dir.path().join("running.json");
+        refresh_child_record_status(&mut running);
+        assert!(child_record_exited(&running), "dead pid becomes exited");
+        assert!(running.last_exit_unix_ms.is_some());
+
+        let mut live = child_id_record(ChildStatus::Running);
+        live.meta = dir.path().join("live.json");
+        live.pid = std::process::id() as i32;
+        live.proc_start_time = proc_start_time(live.pid);
+        refresh_child_record_status(&mut live);
+        assert!(child_record_running(&live), "live pid stays running");
+
+        let mut already = child_id_record(ChildStatus::Terminated);
+        already.meta = dir.path().join("already.json");
+        refresh_child_record_status(&mut already);
+        assert!(
+            child_record_terminated(&already),
+            "terminal status is left alone"
+        );
+    }
+
+    #[test]
+    fn default_project_dir_honors_actplane_then_codex_variables() {
+        let vars = [
+            "ACTPLANE_PROJECT_DIR",
+            "CODEX_PROJECT_DIR",
+            "CODEX_WORKSPACE",
+            "CLAUDE_PROJECT_DIR",
+        ];
+        let saved: Vec<(String, Option<String>)> = vars
+            .iter()
+            .map(|v| ((*v).to_string(), std::env::var(v).ok()))
+            .collect();
+        for v in vars {
+            unsafe { std::env::remove_var(v) };
+        }
+
+        assert_eq!(default_project_dir(), std::env::current_dir().unwrap());
+
+        unsafe { std::env::set_var("CLAUDE_PROJECT_DIR", "/tmp/claude-dir") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/claude-dir"));
+
+        unsafe { std::env::set_var("CODEX_WORKSPACE", "/tmp/codex-ws") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/codex-ws"));
+
+        unsafe { std::env::set_var("CODEX_PROJECT_DIR", "/tmp/codex-dir") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/codex-dir"));
+
+        unsafe { std::env::set_var("ACTPLANE_PROJECT_DIR", "/tmp/actplane-dir") };
+        assert_eq!(default_project_dir(), PathBuf::from("/tmp/actplane-dir"));
+
+        for (key, value) in saved {
+            match value {
+                Some(value) => unsafe { std::env::set_var(key, value) },
+                None => unsafe { std::env::remove_var(key) },
+            }
+        }
+    }
+
+    #[test]
+    fn read_log_json_returns_whole_short_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("short.log");
+        std::fs::write(&path, "short body").expect("write");
+        let value = read_log_json(&path, 1024).expect("read");
+        assert_eq!(value["content"], "short body");
+        assert_eq!(value["truncated"], false);
+        assert_eq!(value["missing"], false);
+    }
+
+    #[test]
+    fn read_log_json_reports_internal_errors_for_directories() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let err = read_log_json(dir.path(), 16).err().expect("directory");
+        assert!(
+            err.message.contains("Read child log"),
+            "unexpected: {}",
+            err.message
+        );
+    }
+
+    #[test]
+    fn latest_run_feedback_returns_the_newest_run() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        assert!(latest_run_feedback(dir.path()).is_none(), "no runs dir");
+
+        let runs = dir.path().join(".actplane").join("runs");
+        for run in ["run-old", "run-new"] {
+            let run_dir = runs.join(run);
+            std::fs::create_dir_all(&run_dir).expect("run dir");
+            std::fs::write(run_dir.join("feedback.txt"), run).expect("feedback");
+        }
+
+        let found = latest_run_feedback(dir.path()).expect("feedback");
+        assert_eq!(found.file_name().unwrap(), "feedback.txt");
+        let run_name = found
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert_eq!(run_name, "run-new", "newest mtime wins");
+    }
+
+    #[test]
+    fn latest_run_feedback_aborts_on_a_feedbackless_run_dir() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let runs = dir.path().join(".actplane").join("runs");
+        let with_feedback = runs.join("run-good");
+        std::fs::create_dir_all(&with_feedback).expect("run dir");
+        std::fs::write(with_feedback.join("feedback.txt"), "x").expect("feedback");
+        assert!(latest_run_feedback(dir.path()).is_some());
+
+        std::fs::create_dir_all(runs.join("run-in-progress")).expect("run dir");
+        assert!(
+            latest_run_feedback(dir.path()).is_none(),
+            "a run dir without feedback.txt aborts resolution"
+        );
+    }
+
+    fn write_child_meta(project_dir: &std::path::Path, launch_id: &str, value: &Value) -> PathBuf {
+        let log_dir = project_dir
+            .join(".actplane")
+            .join("children")
+            .join(launch_id);
+        std::fs::create_dir_all(&log_dir).expect("log dir");
+        std::fs::write(
+            log_dir.join("meta.json"),
+            serde_json::to_string_pretty(value).expect("serialize"),
+        )
+        .expect("write meta");
+        log_dir
+    }
+
+    #[test]
+    fn load_child_records_skips_unreadable_and_malformed_metas() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let base = dir.path();
+        assert!(
+            load_child_records_with_adoptions(base).records.is_empty(),
+            "missing children dir loads nothing"
+        );
+
+        let good = write_child_meta(
+            base,
+            "child-good",
+            &serde_json::json!({ "pid": 1, "child_id": 11, "cmd": ["/bin/true"] }),
+        );
+        assert!(good.join("meta.json").is_file());
+        write_child_meta(
+            base,
+            "child-bad-json",
+            &serde_json::json!({ "pid": 1, "child_id": 12, "cmd": ["/bin/true"] }),
+        );
+        std::fs::write(
+            base.join(".actplane/children/child-bad-json/meta.json"),
+            "{not json",
+        )
+        .expect("corrupt meta");
+        write_child_meta(
+            base,
+            "child-no-cmd",
+            &serde_json::json!({ "pid": 1, "child_id": 13 }),
+        );
+
+        let loaded = load_child_records_with_adoptions(base);
+        assert_eq!(loaded.records.len(), 1, "only the well-formed record loads");
+        assert_eq!(loaded.records[&11].launch_id, "child-good");
+        assert_eq!(loaded.records[&11].meta, good.join("meta.json"));
+    }
+
+    fn pid_record(status: ChildStatus) -> ChildRecord {
+        ChildRecord {
+            launch_id: "child-pid".to_string(),
+            pid: i32::MAX,
+            child_id: 1,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/stdout.log"),
+            stderr: PathBuf::from("/tmp/stderr.log"),
+            meta: PathBuf::from("/tmp/meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 2,
+            restart_backoff_ms: 1000,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    #[test]
+    fn child_record_meta_trusted_accepts_secure_root_layout() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let log_dir = write_child_meta(
+            dir.path(),
+            "child-trusted",
+            &serde_json::json!({ "pid": 1, "child_id": 14, "cmd": ["/bin/true"] }),
+        );
+        let meta = log_dir.join("meta.json");
+        assert!(child_record_meta_trusted(&meta));
+        assert!(
+            child_record_meta_trusted(&dir.path().join("absent/meta.json")),
+            "non-root callers trust without stat"
+        );
+    }
+
+    #[test]
+    fn process_identity_matches_pid_reuse_without_start_time() {
+        assert!(!process_identity_matches(&pid_record(ChildStatus::Running)));
+        let mut self_record = pid_record(ChildStatus::Running);
+        self_record.pid = std::process::id() as i32;
+        assert!(process_identity_matches(&self_record), "live pid");
+        self_record.proc_start_time = proc_start_time(self_record.pid);
+        assert!(
+            process_identity_matches(&self_record),
+            "matching start time"
+        );
+        self_record.proc_start_time = Some(u64::MAX);
+        assert!(
+            !process_identity_matches(&self_record),
+            "start time mismatch"
+        );
+    }
+
+    #[test]
+    fn parse_restart_policy_str_accepts_the_two_aliases() {
+        assert_eq!(parse_restart_policy_str("on_exit"), RestartPolicy::OnExit);
+        assert_eq!(parse_restart_policy_str("on-exit"), RestartPolicy::OnExit);
+        assert_eq!(parse_restart_policy_str("always"), RestartPolicy::Never);
+        assert_eq!(parse_restart_policy_str(""), RestartPolicy::Never);
+    }
+
+    #[test]
+    fn local_tool_response_wraps_success_and_error() {
+        let ok = local_tool_response(Ok(CallToolResult::success(vec![ContentBlock::text(
+            "hello",
+        )])));
+        assert_eq!(ok["ok"], true);
+        assert_eq!(ok["text"], "hello");
+        assert_eq!(ok["result"]["content"][0]["text"], "hello");
+
+        let err = local_tool_response(Err(invalid_params("bad `pid`")));
+        assert_eq!(err["ok"], false);
+        assert!(
+            err["error"].as_str().unwrap().contains("bad `pid`"),
+            "unexpected: {err}"
+        );
+    }
+
+    #[test]
+    fn first_tool_text_reads_only_the_first_text_block() {
+        let value = serde_json::json!({ "content": [{ "text": "a" }, { "text": "b" }] });
+        assert_eq!(first_tool_text(&value), Some("a".to_string()));
+        assert_eq!(first_tool_text(&serde_json::json!({ "content": [] })), None);
+        assert_eq!(first_tool_text(&serde_json::json!({})), None);
+        assert_eq!(
+            first_tool_text(&serde_json::json!({ "content": [{ "image": "x" }] })),
+            None
+        );
+    }
+
+    #[test]
+    fn policy_audit_meta_json_round_trips_and_omits_defaults() {
+        assert!(policy_audit_meta_json(&PolicyAuditMeta::default()).is_none());
+
+        let value = policy_audit_meta_json(&PolicyAuditMeta {
+            policy_ref: Some("p.dsl".to_string()),
+            ..Default::default()
+        })
+        .expect("non-default meta");
+        assert_eq!(value["policy_ref"], "p.dsl");
+        assert!(value.get("approved_by").is_none());
+
+        let parsed = policy_audit_meta_from_json(&value).expect("parse");
+        assert_eq!(parsed.policy_ref.as_deref(), Some("p.dsl"));
+        assert!(parsed.approved_by.is_none());
+        assert!(policy_audit_meta_from_json(&serde_json::json!("nope")).is_none());
+    }
+
+    #[test]
+    fn read_log_json_reports_missing_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let value = read_log_json(&dir.path().join("nope.log"), 10).expect("missing log");
+        assert_eq!(value["missing"], true);
+        assert_eq!(value["content"], "");
+        assert_eq!(value["truncated"], false);
+    }
+
+    fn tool_text_c4(result: &CallToolResult) -> String {
+        match result.content.first() {
+            Some(ContentBlock::Text(t)) => t.text.clone(),
+            other => panic!("expected text content, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn supervisor_reconciles_without_an_attached_control() {
+        // A budgeted relaunch must not try to audit through a missing control.
+        let record = ChildRecord {
+            launch_id: "child-sup".to_string(),
+            pid: 99_999_999,
+            child_id: 3,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("stdout.log"),
+            stderr: PathBuf::from("stderr.log"),
+            meta: PathBuf::from("meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::OnExit,
+            restart_count: DEFAULT_RESTART_LIMIT,
+            // The restart limit is exhausted so the record is a relaunch
+            // candidate whose restart is blocked.
+            restart_limit: DEFAULT_RESTART_LIMIT,
+            restart_backoff_ms: u64::MAX,
+            last_exit_unix_ms: Some(unix_time_ms()),
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        };
+        let server = ActPlaneMcp {
+            project_dir: PathBuf::from("."),
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::from([(3u32, record)]))),
+        };
+
+        let result = server.do_reconcile_child_domains().expect("reconcile");
+        let payload: Value =
+            serde_json::from_str(&tool_text_c4(&result)).expect("reconcile json payload");
+        assert_eq!(payload["total"], 1);
+        assert_eq!(payload["exited"], 1);
+        assert_eq!(payload["alerts"].as_array().expect("alerts").len(), 1);
+        assert_eq!(payload["restarted"].as_array().expect("restarted").len(), 0);
+    }
+
+    #[test]
+    fn supervisor_guard_drop_signals_and_joins_its_thread() {
+        let stop = Arc::new(AtomicBool::new(false));
+        let observed = stop.clone();
+        let thread_stop = stop.clone();
+        let thread = std::thread::spawn(move || {
+            for _ in 0..1000 {
+                if thread_stop.load(Ordering::SeqCst) {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        });
+        assert!(!observed.load(Ordering::SeqCst));
+        drop(SupervisorGuard {
+            stop,
+            thread: Some(thread),
+        });
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "dropping the guard must request supervisor shutdown"
+        );
+    }
+
+    #[test]
+    fn wait_for_stopped_process_times_out_on_a_running_child() {
+        // The child outlives the short waiter timeout, so the poll loop must
+        // give up on a state that is never T/t; `wait` then reaps it as it exits.
+        let mut child = std::process::Command::new("sleep")
+            .arg("0.2")
+            .spawn()
+            .expect("spawn sleep");
+        let pid = child.id() as i32;
+        let err = wait_for_stopped_process(pid, Duration::from_millis(20)).expect_err("timeout");
+        assert_eq!(err.kind(), std::io::ErrorKind::TimedOut);
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn proc_state_code_reads_live_pids_and_rejects_missing_ones() {
+        let state = proc_state_code(std::process::id() as i32).expect("own state");
+        assert!(matches!(state, 'R' | 'S' | 'D' | 'T' | 't'), "got {state}");
+        assert!(
+            proc_state_code(99_999_999).is_err(),
+            "dead pid has no /proc entry"
+        );
+    }
+
+    #[test]
+    fn signal_helpers_report_missing_targets() {
+        // Signal delivery to a nonexistent pid/group surfaces ESRCH as an error.
+        let err = send_signal(99_999_999, libc::SIGTERM).expect_err("dead pid");
+        assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
+        let err = terminate_process_group_with(99_999_999, libc::SIGTERM).expect_err("dead group");
+        assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
     }
 }
