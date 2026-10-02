@@ -707,6 +707,42 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `init --template <id>` without `--out` writes `actplane.yaml` in the current
+// directory, and an unknown template id fails before writing anything.
+#[test]
+fn init_template_writes_default_path_and_reports_unknown_id() {
+    let tmp = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--template", "test-before-commit"])
+        .output()
+        .expect("run init --template");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("wrote template `test-before-commit` to actplane.yaml"),
+        "stderr: {}",
+        stderr(&output)
+    );
+    let written = fs::read_to_string(tmp.path().join("actplane.yaml")).expect("actplane.yaml");
+    assert!(written.contains("ActPlane policy generated from template `test-before-commit`"));
+
+    let unknown = run(&[
+        "init",
+        "--template",
+        "__nope__",
+        "--out",
+        tmp.path().join("x.yaml").to_str().unwrap(),
+    ]);
+    assert!(!unknown.status.success());
+    let err = stderr(&unknown);
+    assert!(err.contains("unknown template `__nope__`"), "stderr: {err}");
+    assert!(
+        err.contains("no-git-branch"),
+        "stderr should list available: {err}"
+    );
+    assert!(!tmp.path().join("x.yaml").exists());
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
