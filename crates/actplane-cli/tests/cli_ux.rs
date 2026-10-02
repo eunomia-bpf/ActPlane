@@ -707,6 +707,41 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `control children` reaches the control server, and the argument shape of
+// `bind-child` / `launch-child` is enforced by clap with a usage error.
+#[test]
+fn control_children_and_required_argument_errors() {
+    let tmp = tempfile::tempdir().unwrap();
+
+    let children = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["control", "children"])
+        .output()
+        .expect("run control children");
+    assert!(!children.status.success());
+    assert!(
+        stderr(&children).contains(".actplane/control.json"),
+        "stderr: {}",
+        stderr(&children)
+    );
+
+    let bind = run(&["control", "bind-child"]);
+    assert_eq!(bind.status.code(), Some(2), "stderr: {}", stderr(&bind));
+    let bind_err = stderr(&bind);
+    assert!(
+        bind_err.contains("required arguments") && bind_err.contains("--pid <PID>"),
+        "stderr: {bind_err}"
+    );
+
+    let launch = run(&["control", "launch-child"]);
+    assert_eq!(launch.status.code(), Some(2), "stderr: {}", stderr(&launch));
+    let launch_err = stderr(&launch);
+    assert!(
+        launch_err.contains("required arguments") && launch_err.contains("<CMD>..."),
+        "stderr: {launch_err}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
