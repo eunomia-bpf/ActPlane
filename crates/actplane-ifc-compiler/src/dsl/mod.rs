@@ -767,4 +767,41 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+    #[test]
+    fn too_many_labels_are_rejected() {
+        let mut src = String::new();
+        for i in 0..65 {
+            src.push_str(&format!("source E{i} = exec \"g{i}\"\n"));
+        }
+        let err = compile_str(&src).err().expect("65 labels exceed the cap");
+        assert_eq!(err, "too many labels (max 64)");
+    }
+
+    #[test]
+    fn too_many_since_invalidators_are_rejected() {
+        let mut src = String::from("source A = exec \"**\"\nrule r:\n");
+        for i in 0..66 {
+            src.push_str(&format!(
+                "  notify exec \"g\" if A unless after exec \"same\" since read \"f{i}\"\n"
+            ));
+        }
+        src.push_str("  because \"x\"\n");
+        let err = compile_str(&src)
+            .err()
+            .expect("66 invalidators exceed the cap");
+        assert_eq!(err, "too many `since` invalidators (max 64)");
+    }
+
+    #[test]
+    fn unsupported_after_gate_ops_are_named() {
+        let err = compile_str(
+            "source A = exec \"**\"\nrule r:\n  block exec \"git\" if A unless after recv \"x\"\n  because \"x\"\n",
+        )
+        .err()
+        .expect("recv is not a supported gate");
+        assert_eq!(
+            err,
+            "`after recv` is not supported as a gate (use exec/read/write)"
+        );
+    }
 }
