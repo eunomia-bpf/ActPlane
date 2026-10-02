@@ -707,6 +707,58 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// A reachable `control status` server receives the `status` op and the client
+// prints the reply text verbatim. The unusable-endpoint paths are covered
+// elsewhere.
+#[cfg(unix)]
+#[test]
+fn control_status_queries_live_server_and_prints_text() {
+    use std::io::{BufRead as _, BufReader, Write as _};
+    use std::os::unix::net::UnixListener;
+    let tmp = tempfile::tempdir().unwrap();
+    let socket_path = tmp.path().join("control.sock");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": std::process::id() as i32,
+            "proc_start_time": null,
+            "socket_path": socket_path,
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": 2222,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        tx.send(serde_json::from_str::<serde_json::Value>(&line).unwrap())
+            .unwrap();
+        stream
+            .write_all(b"{\"ok\":true,\"text\":\"engine root 7, 2 rules\"}\n")
+            .unwrap();
+    });
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["control", "status"])
+        .output()
+        .expect("run control status");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert_eq!(stdout(&output), "engine root 7, 2 rules\n");
+    let request = rx.recv().expect("status request");
+    handle.join().expect("control server thread");
+    assert_eq!(request["op"], "status");
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
