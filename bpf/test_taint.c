@@ -68,6 +68,10 @@ static void test_match(void)
 	check(p_exec_match(TAINT_MATCH_EXACT, "git", "git") == 1, "exec match: comm exact hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "redact", "redact") == 1, "exec match: argv0 exact hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "/tmp/ape/git", "git") == 0, "exec match: full path is not exact");
+	check(p_exec_match(TAINT_MATCH_PREFIX, "/usr/bin/python3", "/usr/bin/") == 1, "exec match: prefix hit");
+	check(p_exec_match(TAINT_MATCH_PREFIX, "/usr/local/bin/python3", "/usr/bin/") == 0, "exec match: prefix miss");
+	check(p_exec_match(TAINT_MATCH_ANY, "anything", "/usr/bin/") == 1, "exec match: any hit");
+	check(p_exec_match(TAINT_MATCH_ANY, "", "") == 1, "exec match: any empty");
 }
 
 static void test_mask(void)
