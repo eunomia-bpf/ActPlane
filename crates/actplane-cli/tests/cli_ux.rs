@@ -707,6 +707,39 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// The flat `compile --explain` report renders the host/backend profile, the
+// file-source flow support line, and the empty-transform note for a policy
+// with no transforms.
+#[test]
+fn compile_explain_renders_static_analysis_sections() {
+    let output = run(&[
+        "--policy",
+        &fixture("01_secret_no_exfil.yaml"),
+        "compile",
+        "--explain",
+    ]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(out.contains("domain: none (flat policy)"), "stdout: {out}");
+    assert!(
+        out.contains("engine profile: policy-selected attach set"),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("review scope: selected policy and current host support"),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("file source labels are applied through file open/read flow"),
+        "stdout: {out}"
+    );
+    assert!(
+        out.contains("coverage note: ordinary flows use the loaded hook profile"),
+        "stdout: {out}"
+    );
+    assert!(out.contains("transforms:\n  - none"), "stdout: {out}");
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
