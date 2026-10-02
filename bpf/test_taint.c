@@ -109,6 +109,18 @@ static void test_arg(void)
 	check(arg_m(slots2, "push") == 0, "arg: push absent");
 }
 
+/* te_nzmask / te_iszero64 are the branchless primitives every matcher builds on
+ * (suffix/prefix lengths, @arg equality, "" detection). Pin their exact masks. */
+static void test_branchless_helpers(void)
+{
+	check(te_nzmask(0) == 0, "nzmask: zero -> 0");
+	check(te_nzmask(1) == -1, "nzmask: nonzero -> all ones");
+	check(te_nzmask(0xff) == -1, "nzmask: high byte -> all ones");
+	check(te_iszero64(0) == -1, "iszero64: zero -> all ones");
+	check(te_iszero64(1) == 0, "iszero64: one -> 0");
+	check(te_iszero64(0x8000000000000000UL) == 0, "iszero64: high bit -> 0");
+}
+
 int main(void)
 {
 	printf("=== ActPlane taint predicate tests ===\n");
@@ -117,6 +129,7 @@ int main(void)
 	test_match();
 	test_mask();
 	test_arg();
+	test_branchless_helpers();
 	printf("\n%d passed, %d failed\n", passed, failed);
 	return failed == 0 ? 0 : 1;
 }
