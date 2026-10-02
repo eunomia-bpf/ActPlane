@@ -707,6 +707,66 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// Runtime-id flags (`--pid`, `--child-id`/`--domain-id`, `--scope-id`) are
+// unsigned integers parsed by clap, so non-numeric input exits 2 before any
+// policy work, and the `--domain-id`/`--child-id` aliases are exclusive.
+#[test]
+fn numeric_id_flags_reject_non_numeric_and_alias_conflicts() {
+    for (args, flag, value) in [
+        (
+            vec!["attach", "--pid", "1", "--domain-id", "abc"],
+            "--domain-id <DOMAIN_ID>",
+            "abc",
+        ),
+        (
+            vec![
+                "attach",
+                "--pid",
+                "1",
+                "--domain-id",
+                "1",
+                "--scope-id",
+                "abc",
+            ],
+            "--scope-id <SCOPE_ID>",
+            "abc",
+        ),
+        (
+            vec!["attach", "--pid", "1", "--child-id", "abc"],
+            "--child-id <CHILD_ID>",
+            "abc",
+        ),
+    ] {
+        let output = run(&args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
+        let err = stderr(&output);
+        assert!(
+            err.contains(&format!(
+                "invalid value '{value}' for '{flag}': invalid digit found in string"
+            )),
+            "{args:?} stderr: {err}"
+        );
+    }
+
+    let alias = run(&[
+        "attach",
+        "--pid",
+        "1",
+        "--domain-id",
+        "1",
+        "--child-id",
+        "2",
+    ]);
+    assert_eq!(alias.status.code(), Some(2));
+    let err = stderr(&alias);
+    assert!(
+        err.contains(
+            "the argument '--domain-id <DOMAIN_ID>' cannot be used with '--child-id <CHILD_ID>'"
+        ),
+        "stderr: {err}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
