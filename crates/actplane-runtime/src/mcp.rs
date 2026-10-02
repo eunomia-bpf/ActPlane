@@ -2992,4 +2992,37 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn child_record_from_meta_requires_pid_child_id_and_cmd() {
+        let log_dir = PathBuf::from("/tmp/children/child-abc");
+        let full = serde_json::json!({
+            "pid": 42,
+            "child_id": 7,
+            "scope_id": 3,
+            "cmd": ["/bin/true", "--x"],
+        });
+        let record = child_record_from_meta(&full, log_dir.clone()).expect("record");
+        assert_eq!(record.pid, 42);
+        assert_eq!(record.child_id, 7);
+        assert_eq!(record.scope_id, 3);
+        assert_eq!(record.cmd, vec!["/bin/true".to_string(), "--x".to_string()]);
+        assert_eq!(record.launch_id, "child-abc");
+        assert_eq!(record.stdout, log_dir.join("stdout.log"));
+        assert_eq!(record.meta, log_dir.join("meta.json"));
+        assert_eq!(record.restart_policy, RestartPolicy::Never);
+        assert!(matches!(
+            *record.status.lock().expect("status"),
+            ChildStatus::Running
+        ));
+
+        for missing in ["cmd", "pid", "child_id"] {
+            let mut value = full.clone();
+            value.as_object_mut().expect("object").remove(missing);
+            assert!(
+                child_record_from_meta(&value, log_dir.clone()).is_none(),
+                "missing {missing} should not parse"
+            );
+        }
+    }
 }
