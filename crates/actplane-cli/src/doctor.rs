@@ -2591,4 +2591,96 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn run_meta(name: &str, clause_source_index: usize, kernel_op: &str) -> dsl::RuleMeta {
+        dsl::RuleMeta {
+            name: name.to_string(),
+            reason: "because".to_string(),
+            effect: Effect::Block,
+            ops: vec!["exec".to_string()],
+            clause_op: "exec".to_string(),
+            kernel_op: kernel_op.to_string(),
+            target_kind: Kind::Exec,
+            target_pattern: "git".to_string(),
+            target_arg: Some("push".to_string()),
+            clause_source_index,
+            source: None,
+        }
+    }
+
+    #[test]
+    fn domain_json_renders_domain_or_null() {
+        let none = ResolvedPolicy {
+            source: "cli".into(),
+            domain: None,
+        };
+        assert_eq!(domain_json(&none), Value::Null);
+        let some = ResolvedPolicy {
+            source: "cli".into(),
+            domain: Some(DomainSummary {
+                name: "work".into(),
+                parent: Some("root".into()),
+                disabled: vec!["x".into()],
+                locked: vec!["a".into()],
+                defaults: vec!["d".into()],
+            }),
+        };
+        let value = domain_json(&some);
+        assert_eq!(value["name"], "work");
+        assert_eq!(value["parent"], "root");
+        assert_eq!(value["locked"], serde_json::json!(["a"]));
+        assert_eq!(value["default"], serde_json::json!(["d"]));
+        assert_eq!(value["disabled"], serde_json::json!(["x"]));
+    }
+
+    #[test]
+    fn render_check_error_json_reports_failure() {
+        let resolved = ResolvedPolicy {
+            source: "cli".into(),
+            domain: None,
+        };
+        let json_text = render_check_error_json("policy.dsl", Some(&resolved), "bad rule").unwrap();
+        let value: Value = serde_json::from_str(&json_text).unwrap();
+        assert_eq!(value["schema"], "actplane.compile.v1");
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["policy_ref"], "policy.dsl");
+        assert_eq!(value["error"], "bad rule");
+        assert!(json_text.ends_with('\n'));
+        let no_domain = render_check_error_json("policy.dsl", None, "bad rule").unwrap();
+        let value: Value = serde_json::from_str(&no_domain).unwrap();
+        assert!(value["domain"].is_null());
+    }
+
+    #[test]
+    fn rule_meta_json_includes_source_metadata_when_present() {
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: vec![dsl::RuleMeta {
+                source: Some(dsl::lower::RuleSourceMeta {
+                    source_ref: "policy.dsl".to_string(),
+                    binding_mode: Some("locked".to_string()),
+                    start_line: 1,
+                    end_line: 3,
+                    text: "rule body".to_string(),
+                    clause_start_line: Some(2),
+                    clause_end_line: Some(2),
+                    clause_text: Some("clause body".to_string()),
+                }),
+                ..run_meta("r", 0, "exec")
+            }],
+            labels: std::collections::HashMap::new(),
+            endpoint_resolutions: std::collections::HashMap::new(),
+        };
+        let out = rule_meta_json(&compiled);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0]["rule_id"], 0);
+        assert_eq!(out[0]["name"], "r");
+        assert_eq!(out[0]["effect"], "block");
+        assert_eq!(out[0]["target_kind"], "exec");
+        assert_eq!(out[0]["source_ref"], "policy.dsl");
+        assert_eq!(out[0]["immutable"], true);
+        assert_eq!(out[0]["clause_text"], "clause body");
+        assert!(out[0]["clause_hash"].is_string());
+    }
 }
