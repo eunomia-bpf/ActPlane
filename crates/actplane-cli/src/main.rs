@@ -1072,3 +1072,75 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn write_state(project_dir: &Path, parent_domain_id: u32) {
+        let dir = project_dir.join(".actplane");
+        std::fs::create_dir_all(&dir).unwrap();
+        let state = control::ControlState {
+            schema: "actplane.control.v1".to_string(),
+            pid: 4321,
+            proc_start_time: None,
+            socket_path: dir.join("control.sock"),
+            project_dir: project_dir.to_path_buf(),
+            parent_pid: 4320,
+            parent_domain_id,
+        };
+        std::fs::write(
+            dir.join("control.json"),
+            serde_json::to_string(&state).unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn delta_add(target_id: Option<u32>) -> DeltaAddArgs {
+        DeltaAddArgs {
+            target_id,
+            domain_id: None,
+            deltas: Vec::new(),
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        }
+    }
+
+    #[test]
+    fn reject_parent_domain_runtime_mutation_errors_only_for_global_parent() {
+        let dir = tempfile::tempdir().unwrap();
+        write_state(dir.path(), ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID);
+        let err =
+            reject_parent_domain_runtime_mutation(dir.path(), "bind child domain").unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("bind child domain is unavailable in --parent-domain mode")
+        );
+        write_state(dir.path(), 7);
+        assert!(reject_parent_domain_runtime_mutation(dir.path(), "bind child domain").is_ok());
+    }
+
+    #[test]
+    fn reject_parent_domain_control_mutation_selects_unsupported_operations() {
+        let dir = tempfile::tempdir().unwrap();
+        write_state(dir.path(), ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID);
+        let bind = ControlCommands::BindChild {
+            pid: 1,
+            child_id: None,
+            scope_id: 0,
+        };
+        assert!(reject_parent_domain_control_mutation(dir.path(), &bind).is_err());
+        let status = ControlCommands::Status;
+        assert!(reject_parent_domain_control_mutation(dir.path(), &status).is_ok());
+        let add = ControlCommands::Delta {
+            command: DeltaCommands::Add(delta_add(None)),
+        };
+        assert!(reject_parent_domain_control_mutation(dir.path(), &add).is_err());
+        let add_child = ControlCommands::Delta {
+            command: DeltaCommands::Add(delta_add(Some(7))),
+        };
+        assert!(reject_parent_domain_control_mutation(dir.path(), &add_child).is_ok());
+    }
+}
