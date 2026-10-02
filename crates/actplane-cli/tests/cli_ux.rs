@@ -707,6 +707,53 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile --report-out` refuses to clobber an existing artifact (even an empty
+// one) unless `--force` is given, and `--force` overwrites it.
+#[test]
+fn compile_report_out_rejects_existing_artifact_without_force() {
+    let tmp = tempfile::tempdir().unwrap();
+    let out = tmp.path().join("review.txt");
+    fs::write(&out, "stale\n").unwrap();
+    let policy = "rule noop:\n  notify exec \"git\" if true\n  because \"noop\"\n";
+
+    let without = run(&[
+        "--rule",
+        policy,
+        "compile",
+        "--explain",
+        "--report-out",
+        out.to_str().unwrap(),
+    ]);
+    assert_eq!(
+        without.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&without)
+    );
+    assert!(
+        stderr(&without).contains("already exists (use --force to overwrite)"),
+        "stderr: {}",
+        stderr(&without)
+    );
+    assert_eq!(fs::read_to_string(&out).unwrap(), "stale\n");
+
+    let forced = run(&[
+        "--rule",
+        policy,
+        "compile",
+        "--explain",
+        "--force",
+        "--report-out",
+        out.to_str().unwrap(),
+    ]);
+    assert!(forced.status.success(), "stderr: {}", stderr(&forced));
+    let artifact = fs::read_to_string(&out).unwrap();
+    assert!(
+        artifact.contains("ActPlane policy review"),
+        "artifact: {artifact}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
