@@ -2992,4 +2992,44 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn sample_record(adopted_unix_ms: Option<u64>) -> ChildRecord {
+        let log_dir = std::env::temp_dir().join(child_launch_id());
+        ChildRecord {
+            launch_id: "child-supervision-test".to_string(),
+            pid: 4242,
+            child_id: 909,
+            scope_id: 1,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: log_dir.join("stdout.log"),
+            stderr: log_dir.join("stderr.log"),
+            meta: log_dir.join("meta.json"),
+            proc_start_time: Some(1),
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 1,
+            restart_backoff_ms: 100,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(ChildStatus::Running)),
+        }
+    }
+
+    #[test]
+    fn child_supervision_json_distinguishes_adopted_and_wait_handle() {
+        let wait_handle = child_supervision_json(&sample_record(None));
+        assert_eq!(wait_handle["mode"], "wait_handle");
+        assert_eq!(wait_handle["exit_status_precise"], true);
+        assert_eq!(wait_handle["adopted_unix_ms"], serde_json::Value::Null);
+
+        let adopted = child_supervision_json(&sample_record(Some(1234)));
+        assert_eq!(adopted["mode"], "adopted_polling");
+        assert_eq!(adopted["exit_status_precise"], false);
+        assert_eq!(adopted["adopted_unix_ms"], 1234);
+    }
 }
