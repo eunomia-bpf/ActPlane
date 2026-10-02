@@ -714,3 +714,73 @@ fn stdout(output: &Output) -> String {
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
+
+#[test]
+fn doctor_reports_a_ready_project_policy() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule noop:\n    notify exec \"__never__\" if COMMAND\n    because \"b\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("doctor")
+        .output()
+        .expect("run doctor");
+    assert!(!output.status.success(), "doctor should report problems");
+    let stdout = stdout(&output);
+    assert!(stdout.contains("ActPlane doctor"), "{stdout}");
+    assert!(
+        stdout.contains(&format!(
+            "✓ policy: {} (1 rule(s))",
+            tmp.path().join("actplane.yaml").display()
+        )),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(&format!(
+            "✓ feedback file: {}",
+            tmp.path().join(".actplane/last-violation.txt").display()
+        )),
+        "{stdout}"
+    );
+    assert!(stdout.contains("✓ kernel BTF:"), "{stdout}");
+    assert!(stdout.contains("✓ eBPF privilege:"), "{stdout}");
+    assert!(stdout.contains("Next commands:"), "{stdout}");
+    assert!(stdout.contains("actplane compile"), "{stdout}");
+    assert!(
+        stdout.contains("sudo -E actplane run -- <agent-or-command>"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("✗ setup has 2 problem(s)."), "{stdout}");
+}
+
+#[test]
+fn doctor_reports_a_project_without_a_policy() {
+    let tmp = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("doctor")
+        .output()
+        .expect("run doctor");
+    assert!(!output.status.success());
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains("✗ policy: no actplane.yaml found; pass --policy <file> or --rule <dsl>"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("⚠ Codex instructions: AGENTS.md missing"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("⚠ project MCP config: .mcp.json missing"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("✗ setup has 3 problem(s)."), "{stdout}");
+    assert!(!stdout.contains("✓ feedback file:"), "{stdout}");
+    assert!(!stdout.contains("✓ audit log:"), "{stdout}");
+    assert!(!stdout.contains("✓ event log:"), "{stdout}");
+}
