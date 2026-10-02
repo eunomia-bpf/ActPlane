@@ -1381,3 +1381,44 @@ policy: |
     .expect("write policy");
     policy
 }
+
+#[test]
+fn mcp_feedback_resource_reports_latest_violation() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-feedback-resource");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let empty = mcp.response(2);
+    let text = empty["result"]["contents"][0]["text"]
+        .as_str()
+        .unwrap_or_else(|| panic!("feedback text: {empty}"));
+    assert!(text.contains("No ActPlane feedback file yet"), "{text}");
+
+    let feedback_dir = tmp.path().join(".actplane");
+    std::fs::create_dir_all(&feedback_dir).expect("create state dir");
+    std::fs::write(
+        feedback_dir.join("last-violation.txt"),
+        "TAINT_VIOLATION: blocked\n",
+    )
+    .expect("write violation");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let present = mcp.response(3);
+    let text = present["result"]["contents"][0]["text"]
+        .as_str()
+        .unwrap_or_else(|| panic!("feedback text: {present}"));
+    assert!(text.contains("Latest ActPlane feedback"), "{text}");
+    assert!(text.contains("TAINT_VIOLATION: blocked"), "{text}");
+}
