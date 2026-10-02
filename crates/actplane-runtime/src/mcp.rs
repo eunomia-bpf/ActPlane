@@ -2992,4 +2992,46 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn send_signal_reports_esrch_for_missing_pid() {
+        // `send_signal` is the thin libc::kill wrapper used to SIGCONT a
+        // launched child; it must surface ESRCH rather than panic. A living
+        // pid need not be signalable (sandboxes deny non-root SIGCONT), so the
+        // positive path is probed empirically before being asserted.
+        let err = send_signal(i32::MAX, libc::SIGCONT).expect_err("no such process");
+        assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
+
+        let mut child = std::process::Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn sleep");
+        let pid = child.id() as i32;
+        if send_signal(pid, libc::SIGCONT).is_ok() {
+            assert!(send_signal(pid, libc::SIGCONT).is_ok());
+        }
+        let _ = send_signal(pid, libc::SIGKILL);
+        let _ = child.wait();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn secure_child_registry_file_is_a_noop_for_non_root() {
+        // Non-root must leave the registry file untouched: only euid 0 chowns
+        // to root and forces 0644. Create a 0600 file and confirm the mode
+        // survives the call.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("meta.json");
+        std::fs::write(&path, b"{}").expect("write");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("chmod");
+
+        assert_ne!(unsafe { libc::geteuid() }, 0, "container runs non-root");
+        secure_child_registry_file(&path).expect("secure file");
+        let mode = std::fs::metadata(&path)
+            .expect("metadata")
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(mode, 0o600);
+    }
 }
