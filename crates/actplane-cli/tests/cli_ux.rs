@@ -707,6 +707,56 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `init`'s clap argument groups are enforced before any file is touched: the
+// listing/printing modes and the template/generate selectors are mutually
+// exclusive.
+#[test]
+fn init_arguments_are_mutually_exclusive() {
+    let tmp = tempfile::tempdir().unwrap();
+    let run_in = |args: &[&str]| {
+        Command::new(actplane())
+            .current_dir(tmp.path())
+            .args(args)
+            .output()
+            .expect("run init")
+    };
+
+    for (args, first, second) in [
+        (
+            vec!["init", "--list-templates", "--template", "no-git-branch"],
+            "'--list-templates'",
+            "'--template <TEMPLATE>'",
+        ),
+        (
+            vec!["init", "--list-templates", "--out", "x.yaml"],
+            "'--list-templates'",
+            "'--out <FILE>'",
+        ),
+        (
+            vec!["init", "--list-templates", "--print"],
+            "'--list-templates'",
+            "'--print'",
+        ),
+        (
+            vec!["init", "--print", "--out", "x.yaml"],
+            "'--print'",
+            "'--out <FILE>'",
+        ),
+    ] {
+        let output = run_in(&args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
+        let err = stderr(&output);
+        assert!(
+            err.contains("cannot be used with") && err.contains(first) && err.contains(second),
+            "{args:?} stderr: {err}"
+        );
+    }
+    assert!(
+        !tmp.path().join("x.yaml").exists(),
+        "a conflicting invocation must not write a file"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
