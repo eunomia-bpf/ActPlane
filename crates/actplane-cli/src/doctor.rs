@@ -2591,4 +2591,47 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn list_domains_handles_legacy_and_domain_policies() {
+        let dir = tempfile::tempdir().unwrap();
+        let legacy = dir.path().join("legacy.yaml");
+        std::fs::write(&legacy, "policy: |\n  rule r:\n    notify exec \"git\"\n").unwrap();
+        let legacy_cli = PolicyInput {
+            policy: Some(legacy),
+            rule: None,
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+        };
+        assert_eq!(list_domains(&legacy_cli).unwrap(), 0);
+
+        let scoped = dir.path().join("scoped.yaml");
+        std::fs::write(
+            &scoped,
+            r#"version: 1
+rules:
+  no-git-branch:
+    ifc: |
+      source COMMAND = exec "**"
+      rule no-git-branch:
+        kill exec "git" "branch" if COMMAND
+        because "do not create git branches"
+domains:
+  session:
+    bind:
+      - rule: no-git-branch
+        mode: locked
+"#,
+        )
+        .unwrap();
+        let scoped_cli = PolicyInput {
+            policy: Some(scoped),
+            rule: None,
+            domain: Some("session".to_string()),
+            run_as_root: false,
+            internal_elevated: false,
+        };
+        assert_eq!(list_domains(&scoped_cli).unwrap(), 0);
+    }
 }
