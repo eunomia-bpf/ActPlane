@@ -2992,4 +2992,21 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn start_local_control_server_for_server_requires_an_attached_control() {
+        let server = ActPlaneMcp {
+            project_dir: PathBuf::from("."),
+            control: None,
+            children: Arc::new(Mutex::new(HashMap::new())),
+        };
+        let err = start_local_control_server_for_server(server)
+            .err()
+            .expect("unattached control is rejected");
+        assert!(
+            err.to_string()
+                .contains("local control server requires an attached engine"),
+            "unexpected error: {err}"
+        );
+    }
 }
