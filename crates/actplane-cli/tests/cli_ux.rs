@@ -707,6 +707,62 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `--generate` is exclusive with `--template` and `--list-templates`, and an
+// unreadable `--instructions` file fails before any policy is written.
+#[test]
+fn generate_flag_conflicts_and_instruction_errors() {
+    let generate_template = run(&["init", "--generate", "--template", "no-git-branch"]);
+    assert_eq!(
+        generate_template.status.code(),
+        Some(2),
+        "stderr: {}",
+        stderr(&generate_template)
+    );
+    assert!(
+        stderr(&generate_template)
+            .contains("the argument '--generate' cannot be used with '--template <TEMPLATE>'"),
+        "stderr: {}",
+        stderr(&generate_template)
+    );
+
+    let list_generate = run(&["init", "--list-templates", "--generate"]);
+    assert_eq!(
+        list_generate.status.code(),
+        Some(2),
+        "stderr: {}",
+        stderr(&list_generate)
+    );
+    assert!(
+        stderr(&list_generate)
+            .contains("the argument '--list-templates' cannot be used with '--generate'"),
+        "stderr: {}",
+        stderr(&list_generate)
+    );
+
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"x\"\n").unwrap();
+    let instructions = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--generate", "--instructions", "NOPE.md"])
+        .output()
+        .expect("run init --generate --instructions");
+    assert_eq!(
+        instructions.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&instructions)
+    );
+    assert!(
+        stderr(&instructions).contains("reading instructions NOPE.md: No such file or directory"),
+        "stderr: {}",
+        stderr(&instructions)
+    );
+    assert!(
+        !tmp.path().join("actplane.yaml").exists(),
+        "no policy may be written when instructions are unreadable"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
