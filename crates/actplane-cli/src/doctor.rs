@@ -2591,4 +2591,46 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn doctor_agent_files_reports_wired_and_missing_integrations() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(tmp.path().join(".codex")).expect("codex dir");
+        std::fs::write(
+            tmp.path().join(".codex/hooks.json"),
+            r#"{"hooks":{"PostToolUse":[{"matcher":".*","hooks":[{"type":"command","command":"actplane feedback-hook"}]}]}}"#,
+        )
+        .expect("hooks");
+        std::fs::write(tmp.path().join("AGENTS.md"), "# AGENTS\n").expect("agents");
+        std::fs::write(
+            tmp.path().join(".mcp.json"),
+            r#"{"mcpServers":{"actplane":{"type":"stdio","command":"actplane","args":["mcp","--auto-attach-parent"]}}}"#,
+        )
+        .expect("mcp");
+
+        let mut problems = 0;
+        doctor_agent_files(tmp.path(), &mut problems);
+        assert_eq!(problems, 0);
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(tmp.path().join(".codex")).expect("codex dir");
+        std::fs::write(tmp.path().join(".codex/hooks.json"), r#"{"hooks":{}}"#).expect("hooks");
+        std::fs::write(tmp.path().join("AGENTS.md"), "# A\n").expect("agents");
+        std::fs::write(
+            tmp.path().join(".mcp.json"),
+            r#"{"mcpServers":{"actplane":{"command":"other","args":[]}}}"#,
+        )
+        .expect("mcp");
+
+        let mut problems = 0;
+        doctor_agent_files(tmp.path(), &mut problems);
+        assert_eq!(problems, 2);
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut problems = 0;
+        doctor_agent_files(tmp.path(), &mut problems);
+        // A missing Codex hook is the only hard failure; AGENTS.md and the
+        // project MCP config are advisories.
+        assert_eq!(problems, 1);
+    }
 }
