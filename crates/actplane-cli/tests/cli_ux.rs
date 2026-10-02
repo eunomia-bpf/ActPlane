@@ -707,6 +707,36 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// An endpoint target that is neither numeric IPv4 nor an exact resolvable
+// hostname is reported as an `endpoint_target_unsupported` warning, and the
+// affected endpoint source is reported separately.
+#[test]
+fn compile_json_reports_unsupported_endpoint_target_warning() {
+    let policy = r#"
+source WILD = endpoint "*.internal"
+
+rule r:
+  notify connect endpoint "*.internal" if WILD
+  because "x"
+"#;
+    let output = run(&["--rule", policy, "compile", "--json"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let report: serde_json::Value = serde_json::from_str(&stdout(&output)).expect("compile json");
+    let warnings = report["warnings"].as_array().expect("warnings array");
+    let codes: Vec<&str> = warnings
+        .iter()
+        .filter_map(|warning| warning["code"].as_str())
+        .collect();
+    assert!(
+        codes.contains(&"endpoint_source_unsupported"),
+        "warnings: {warnings:?}"
+    );
+    assert!(
+        codes.contains(&"endpoint_target_unsupported"),
+        "warnings: {warnings:?}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
