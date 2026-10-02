@@ -707,6 +707,84 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `control restart` forwards the fresh-domain id and terminate flag, and the
+// `logs`/`restart` `--domain-id` alias resolves into the `child_id` field.
+#[cfg(unix)]
+#[test]
+fn control_restart_forwards_fresh_domain_and_alias_resolves() {
+    let tmp = tempfile::tempdir().unwrap();
+    let socket_path = tmp.path().join("control.sock");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": std::process::id() as i32,
+            "proc_start_time": null,
+            "socket_path": socket_path,
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": 2222,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = std::thread::spawn(move || {
+        for _ in 0..2 {
+            let (mut stream, _) = listener.accept().expect("accept control client");
+            let mut line = String::new();
+            std::io::BufReader::new(stream.try_clone().expect("clone stream"))
+                .read_line(&mut line)
+                .expect("read request");
+            tx.send(serde_json::from_str::<serde_json::Value>(&line).expect("request JSON"))
+                .expect("send request");
+            serde_json::to_writer(
+                &mut stream,
+                &serde_json::json!({ "ok": true, "text": "ok" }),
+            )
+            .expect("write response");
+            writeln!(stream).expect("write response newline");
+        }
+    });
+
+    let run_in_tmp = |args: &[&str]| {
+        let output = Command::new(actplane())
+            .current_dir(tmp.path())
+            .args(args)
+            .output()
+            .expect("run control command");
+        assert!(
+            output.status.success(),
+            "{args:?} stderr: {}",
+            stderr(&output)
+        );
+    };
+    run_in_tmp(&[
+        "control",
+        "restart",
+        "--child-id",
+        "3",
+        "--new-child-id",
+        "55",
+        "--terminate-existing",
+    ]);
+    run_in_tmp(&["control", "logs", "--domain-id", "9"]);
+    handle.join().expect("control server thread");
+
+    let restart = rx.recv().expect("restart request");
+    assert_eq!(restart["op"], "restart_child_domain");
+    assert_eq!(restart["child_id"], 3);
+    assert_eq!(restart["new_child_id"], 55);
+    assert_eq!(restart["terminate_existing"], true);
+    let logs = rx.recv().expect("logs request");
+    assert_eq!(logs["op"], "read_child_domain_logs");
+    assert_eq!(logs["child_id"], 9);
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
