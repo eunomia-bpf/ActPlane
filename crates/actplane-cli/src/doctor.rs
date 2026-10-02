@@ -2591,4 +2591,52 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn compiled_with_endpoints(entries: &[(&str, Vec<&str>)]) -> dsl::Compiled {
+        let mut resolutions = std::collections::HashMap::new();
+        for (pattern, addrs) in entries {
+            resolutions.insert(
+                (*pattern).to_string(),
+                addrs.iter().map(|a| (*a).to_string()).collect(),
+            );
+        }
+        dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: std::collections::HashMap::new(),
+            endpoint_resolutions: resolutions,
+        }
+    }
+
+    #[test]
+    fn op_effect_and_kind_names_round_trip_their_enum_values() {
+        assert_eq!(op_name(Op::Exec), "exec");
+        assert_eq!(op_name(Op::Read), "read");
+        assert_eq!(op_name(Op::Write), "write");
+        assert_eq!(op_name(Op::Unlink), "unlink");
+        assert_eq!(op_name(Op::Connect), "connect");
+        assert_eq!(op_name(Op::Recv), "recv");
+        assert_eq!(op_name(Op::Open), "open");
+        assert_eq!(effect_name(Effect::Notify), "notify");
+        assert_eq!(effect_name(Effect::Block), "block");
+        assert_eq!(effect_name(Effect::Kill), "kill");
+        assert_eq!(kind_name(Kind::File), "file");
+        assert_eq!(kind_name(Kind::Endpoint), "endpoint");
+        assert_eq!(kind_name(Kind::Exec), "exec");
+    }
+
+    #[test]
+    fn endpoint_pattern_supported_accepts_numeric_or_resolved_hosts() {
+        let compiled = compiled_with_endpoints(&[("api.example", vec!["10.0.0.1"])]);
+        assert!(endpoint_pattern_supported(&compiled, "10.0.0.5"));
+        assert!(endpoint_pattern_supported(&compiled, "api.example"));
+        assert!(!endpoint_pattern_supported(&compiled, "other.example"));
+    }
+
+    #[test]
+    fn endpoint_pattern_supported_rejects_empty_resolution() {
+        let compiled = compiled_with_endpoints(&[("empty.example", vec![])]);
+        assert!(!endpoint_pattern_supported(&compiled, "empty.example"));
+    }
 }
