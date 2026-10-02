@@ -714,3 +714,70 @@ fn stdout(output: &Output) -> String {
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
+
+#[test]
+fn init_writes_a_compilable_starter_policy() {
+    let tmp = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("init")
+        .output()
+        .expect("run init");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("actplane: wrote starter policy to actplane.yaml"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(stderr(&output).contains("actplane compile"));
+    assert!(stderr(&output).contains("actplane doctor"));
+
+    let policy = tmp.path().join("actplane.yaml");
+    assert!(policy.is_file());
+    let compile = run(&["--policy", policy.to_str().unwrap(), "compile"]);
+    assert!(compile.status.success(), "stderr: {}", stderr(&compile));
+    assert!(
+        stdout(&compile).contains("compile."),
+        "{}",
+        stdout(&compile)
+    );
+}
+
+#[test]
+fn init_refuses_to_overwrite_without_force() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = tmp.path().join("actplane.yaml");
+    fs::write(&policy, "keep me").unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("init")
+        .output()
+        .expect("run init");
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains("actplane.yaml already exists (use --force to overwrite)"),
+        "{}",
+        stderr(&output)
+    );
+    assert_eq!(fs::read_to_string(&policy).unwrap(), "keep me");
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--force"])
+        .output()
+        .expect("run init --force");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert_ne!(fs::read_to_string(&policy).unwrap(), "keep me");
+}
+
+#[test]
+fn init_print_rejects_integration_flags() {
+    let output = run(&["init", "--print", "--with-codex"]);
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains("--print cannot be combined with integration setup flags"),
+        "{}",
+        stderr(&output)
+    );
+}
