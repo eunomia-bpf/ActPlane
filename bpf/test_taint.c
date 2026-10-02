@@ -68,6 +68,11 @@ static void test_match(void)
 	check(p_exec_match(TAINT_MATCH_EXACT, "git", "git") == 1, "exec match: comm exact hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "redact", "redact") == 1, "exec match: argv0 exact hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "/tmp/ape/git", "git") == 0, "exec match: full path is not exact");
+	// Unrecognized kind values fall through to the EXACT hit, not a silent match.
+	check(p_match(99u, "git", "git") == 1, "match: unknown kind -> exact hit");
+	check(p_match(99u, "git", "ssh") == 0, "match: unknown kind -> exact miss");
+	check(p_exec_match(99u, "/tmp/ape/git", "git") == 0, "exec match: unknown kind -> exact miss");
+	check(p_exec_match(99u, "git", "git") == 1, "exec match: unknown kind -> exact hit");
 }
 
 static void test_mask(void)
