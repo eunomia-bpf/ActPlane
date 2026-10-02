@@ -707,6 +707,54 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `init --all` composes with the policy-selection flags: `--generate` still
+// emits a generated rule set and writes every integration, while `--template`
+// restricts the policy to the named template.
+#[test]
+fn init_all_composes_with_policy_selection_flags() {
+    let generated = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(generated.path())
+        .args(["init", "--all", "--generate"])
+        .output()
+        .expect("run init --all --generate");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let err = stderr(&output);
+    assert!(
+        err.contains("actplane: wrote 2 generated template-backed rule set(s) to actplane.yaml"),
+        "stderr: {err}"
+    );
+    assert!(
+        err.contains("actplane: project integration ready"),
+        "stderr: {err}"
+    );
+    for path in [
+        ".codex/hooks.json",
+        ".mcp.json",
+        "AGENTS.md",
+        "actplane.yaml",
+    ] {
+        assert!(generated.path().join(path).is_file(), "missing {path}");
+    }
+
+    let templated = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(templated.path())
+        .args(["init", "--all", "--template", "no-git-branch"])
+        .output()
+        .expect("run init --all --template");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let policy = fs::read_to_string(templated.path().join("actplane.yaml")).unwrap();
+    assert!(
+        policy.contains("# ActPlane policy generated from template `no-git-branch`."),
+        "policy: {policy}"
+    );
+    assert!(
+        !policy.contains("rule no-secret-exfil:"),
+        "template selection leaked the starter rules: {policy}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
