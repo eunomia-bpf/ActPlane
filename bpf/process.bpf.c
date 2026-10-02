@@ -260,6 +260,13 @@ struct {
 } ts_fileptr SEC(".maps");
 
 struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct fileptr_ref);
+} ts_fileptr_scratch SEC(".maps");
+
+struct {
 	__uint(type, BPF_MAP_TYPE_LRU_HASH);
 	__uint(max_entries, 65536);
 	__type(key, struct fd_key);
@@ -533,6 +540,13 @@ static __always_inline struct fd_scratch *fd_scratch_buf(void)
 	return bpf_map_lookup_elem(&ts_fd_scratch, &key);
 }
 
+static __always_inline struct fileptr_ref *fileptr_scratch_buf(void)
+{
+	__u32 key = 0;
+
+	return bpf_map_lookup_elem(&ts_fileptr_scratch, &key);
+}
+
 static __always_inline struct mmap_ref *mmap_scratch_buf(void)
 {
 	__u32 key = 0;
@@ -561,16 +575,17 @@ static __always_inline int te_file_id_equal(const struct file_id *a,
 static __noinline void te_store_fileptr_ref(struct file *file,
 					    const struct fd_ref *ref)
 {
-	struct fileptr_ref fpref = {};
+	struct fileptr_ref *fpref = fileptr_scratch_buf();
 	__u64 key;
 
-	if (!file)
+	if (!file || !fpref)
 		return;
-	if (te_resolve_file_id_from_file(file, &fpref.backing) < 0)
+	__builtin_memset(fpref, 0, sizeof(*fpref));
+	if (te_resolve_file_id_from_file(file, &fpref->backing) < 0)
 		return;
-	fpref.ref = *ref;
+	fpref->ref = *ref;
 	key = (__u64)file;
-	bpf_map_update_elem(&ts_fileptr, &key, &fpref, BPF_ANY);
+	bpf_map_update_elem(&ts_fileptr, &key, fpref, BPF_ANY);
 }
 
 static __always_inline struct fileptr_ref *te_lookup_fileptr_ref(struct file *file)
@@ -1809,9 +1824,16 @@ static __always_inline int te_handle_file_event(pid_t pid, const char *target,
 
 	if (!te_pid_active(pid))
 		return 0;
+	/* The control plane stamps its own loader/watch/MCP pid into
+	 * te_protected_pids so an in-domain subject cannot signal or debug it. The
+	 * control-plane file guard rule would otherwise block that pid's own writes
+	 * to its scoped feedback/audit files, so exempt it from every file sink.
+	 * Only pids the runtime explicitly protected qualify, so no subject
+	 * process can use this to escape. */
+	if (te_pid_protected(pid))
+		return 0;
 	if (!scratch)
 		return 0;
-	__builtin_memset(scratch, 0, sizeof(*scratch));
 	eval = &scratch->eval;
 	__u32 current_domain_id = cap_domain_for_pid(pid);
 	__u64 global_labels = te_labels_for_domain(pid, 0);

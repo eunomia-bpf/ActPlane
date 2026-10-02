@@ -68,6 +68,9 @@ def verify_rq1() -> int:
 
 
 def load_summarizer_module():
+    # Kept off the product branch with the rest of the paper-only scripts; it
+    # lives on the artifact ref, so on master `require` below reports where to
+    # find it (docs/ARTIFACT.md).
     path = ROOT / "docs/eval_scripts/summarize_agent_sdk_results.py"
     require(path, "RQ2 summarizer is missing")
     spec = importlib.util.spec_from_file_location("actplane_rq2_summarizer", path)

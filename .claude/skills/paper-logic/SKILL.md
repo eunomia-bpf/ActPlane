@@ -16,7 +16,7 @@ containing the abstract) and confirm the file set with the user.
 This skill checks the **whole-paper layer**: does the argument hold together,
 do the numbers reconcile, is the terminology stable. For sentence-level prose
 (nominalizations, weak openings, word choice), run `/paper-review` per
-section; for applying fixes, run `/paper-fix`. Do not duplicate their
+section, which both reviews and applies its fixes. Do not duplicate its
 sentence-level findings. The one exception is section M's mechanical greps
 (punctuation, agreement), which enforce house style at whole-paper scope
 because they catch drift that per-section review misses.

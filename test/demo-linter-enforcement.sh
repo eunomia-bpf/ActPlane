@@ -1,29 +1,21 @@
 #!/bin/bash
-# Demo: OS-enforced linter via ActPlane
+# Demo: userspace linter rules for agent-invoked writes
 #
-# This script demonstrates that ActPlane can make linter enforcement
-# un-bypassable by hooking file writes at the kernel level and running
-# a userspace linter on every written file.
+# Runs `linter-check.sh` over a clean TypeScript file and a file carrying
+# three violations, showing the linter passes the first and rejects the
+# second with one message per rule.
 #
-# Architecture:
-#   1. ActPlane watches for TAINT_VIOLATION events (write to protected paths)
-#   2. On violation, the feedback hook calls linter-check.sh
-#   3. The linter inspects the file content
-#   4. If the linter fails, ActPlane kills the writing process
-#
-# This cannot be bypassed by:
-#   - Running bash directly instead of through the agent framework
-#   - Using echo/cat/tee instead of a tool's write function
-#   - Spawning a subprocess to do the write
-#   - Using direct syscalls (write/writev)
-#
-# Because the eBPF/LSM hook intercepts at the kernel level, below all
-# userspace abstractions.
+# Scope: this demo exercises the linter only. It does not drive ActPlane.
+# ActPlane has no per-violation userspace command hook. A kernel match is
+# appended to `.actplane/last-violation.txt` (and to the run mailbox), and
+# `actplane feedback-hook` forwards newly appended bytes to the agent as
+# `additionalContext`; it never executes a linter itself. Kernel coverage of
+# the write is `test/policies/14_linter_enforced_writes.yaml`, a `notify
+# write` rule gated on `after exec "**/lint"`. Running the linter is the
+# agent's step, taken after that feedback arrives.
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-ACTPLANE="$REPO_ROOT/target/release/actplane"
 LINTER="$SCRIPT_DIR/linter-check.sh"
 TESTDIR=$(mktemp -d /tmp/actplane-linter-demo.XXXX)
 
@@ -70,10 +62,8 @@ echo "  2. No console.log in production code"
 echo "  3. No hardcoded secrets (api_key, secret_key, password)"
 echo "  4. No bare 'except:' in Python"
 echo
-echo "In production, ActPlane hooks every write syscall via eBPF/LSM"
-echo "and triggers this linter before the write completes."
-echo "This makes linter enforcement un-bypassable — even direct"
-echo "syscall writes are intercepted at the kernel level."
+echo "The linter rules above are what an agent should run after ActPlane"
+echo "reports a linting match; ActPlane does not invoke the linter itself."
 
 # Cleanup
 rm -rf "$TESTDIR"

@@ -1,0 +1,187 @@
+VLOAD_PROG enforce_bprm_check_security fd=58 err=0
+VSTAT enforce_bprm_check_security processed 7 insns (limit 1000000) max_states_per_insn 0 total_states 0 peak_states 0 mark_read 0
+VLOAD_PROG enforce_file_open fd=58 err=0
+VSTAT enforce_file_open processed 36 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 2
+VLOAD_PROG enforce_file_permission fd=58 err=0
+VSTAT enforce_file_permission processed 23 insns (limit 1000000) max_states_per_insn 0 total_states 1 peak_states 1 mark_read 1
+VLOAD_PROG enforce_file_truncate fd=58 err=0
+VSTAT enforce_file_truncate processed 13 insns (limit 1000000) max_states_per_insn 0 total_states 1 peak_states 1 mark_read 1
+VLOAD_PROG enforce_mmap_file fd=58 err=0
+VSTAT enforce_mmap_file processed 106 insns (limit 1000000) max_states_per_insn 2 total_states 9 peak_states 9 mark_read 3
+VLOAD_PROG enforce_file_mprotect fd=58 err=0
+VSTAT enforce_file_mprotect processed 109 insns (limit 1000000) max_states_per_insn 2 total_states 10 peak_states 10 mark_read 4
+VLOAD_PROG enforce_path_truncate fd=58 err=0
+VSTAT enforce_path_truncate processed 13 insns (limit 1000000) max_states_per_insn 0 total_states 1 peak_states 1 mark_read 1
+VLOAD_PROG enforce_path_unlink fd=58 err=0
+VSTAT enforce_path_unlink processed 15 insns (limit 1000000) max_states_per_insn 0 total_states 1 peak_states 1 mark_read 1
+VLOAD_PROG enforce_path_rename fd=58 err=0
+VSTAT enforce_path_rename processed 29 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG enforce_socket_connect fd=58 err=0
+VSTAT enforce_socket_connect processed 15 insns (limit 1000000) max_states_per_insn 0 total_states 0 peak_states 0 mark_read 0
+VLOAD_PROG enforce_socket_recvmsg fd=58 err=0
+VSTAT enforce_socket_recvmsg processed 15 insns (limit 1000000) max_states_per_insn 0 total_states 0 peak_states 0 mark_read 0
+VLOAD_PROG enforce_task_kill fd=58 err=0
+VSTAT enforce_task_kill processed 57 insns (limit 1000000) max_states_per_insn 1 total_states 5 peak_states 5 mark_read 2
+VLOAD_PROG enforce_ptrace_access_check fd=58 err=0
+VSTAT enforce_ptrace_access_check processed 54 insns (limit 1000000) max_states_per_insn 0 total_states 5 peak_states 5 mark_read 3
+VLOAD_PROG enforce_bpf_syscall fd=58 err=0
+VSTAT enforce_bpf_syscall processed 79 insns (limit 1000000) max_states_per_insn 1 total_states 8 peak_states 8 mark_read 2
+VLOAD_PROG handle_fork fd=58 err=0
+VSTAT handle_fork processed 160714 insns (limit 1000000) max_states_per_insn 20 total_states 2018 peak_states 1549 mark_read 21
+VLOAD_PROG handle_exec fd=58 err=0
+VSTAT handle_exec processed 113240 insns (limit 1000000) max_states_per_insn 30 total_states 4555 peak_states 1454 mark_read 70
+VLOAD_PROG handle_exec_args fd=58 err=0
+VSTAT handle_exec_args processed 1772 insns (limit 1000000) max_states_per_insn 4 total_states 65 peak_states 63 mark_read 8
+VLOAD_PROG exec_tp_update_simple fd=58 err=0
+VSTAT exec_tp_update_simple processed 52533 insns (limit 1000000) max_states_per_insn 22 total_states 1823 peak_states 375 mark_read 21
+VLOAD_PROG exec_tp_update_prefix fd=58 err=0
+VSTAT exec_tp_update_prefix processed 113088 insns (limit 1000000) max_states_per_insn 32 total_states 5213 peak_states 1177 mark_read 49
+VLOAD_PROG exec_tp_rule_simple fd=58 err=0
+VSTAT exec_tp_rule_simple processed 2944 insns (limit 1000000) max_states_per_insn 4 total_states 136 peak_states 136 mark_read 33
+VLOAD_PROG exec_tp_rule_complex fd=58 err=0
+VSTAT exec_tp_rule_complex processed 29489 insns (limit 1000000) max_states_per_insn 17 total_states 672 peak_states 437 mark_read 42
+VLOAD_PROG handle_exit fd=58 err=0
+VSTAT handle_exit processed 24074 insns (limit 1000000) max_states_per_insn 11 total_states 446 peak_states 298 mark_read 21
+VLOAD_PROG trace_openat fd=58 err=0
+VSTAT trace_openat processed 30 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_FAIL trace_openat_exit load error -13
+combined stack size of 7 calls is 544. Too large
+VLOAD_PROG trace_open fd=58 err=0
+VSTAT trace_open processed 30 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_FAIL trace_open_exit load error -13
+combined stack size of 7 calls is 544. Too large
+VLOAD_PROG trace_openat2 fd=58 err=0
+VSTAT trace_openat2 processed 40 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_FAIL trace_openat2_exit load error -13
+combined stack size of 7 calls is 544. Too large
+VLOAD_PROG trace_creat fd=58 err=0
+VSTAT trace_creat processed 28 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_FAIL trace_creat_exit load error -13
+combined stack size of 7 calls is 544. Too large
+VLOAD_PROG trace_truncate fd=58 err=0
+VSTAT trace_truncate processed 28 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_FAIL trace_truncate_exit load error -13
+combined stack size of 7 calls is 544. Too large
+VLOAD_PROG trace_pipe fd=58 err=0
+VSTAT trace_pipe processed 26 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_pipe_exit fd=58 err=0
+VSTAT trace_pipe_exit processed 3149 insns (limit 1000000) max_states_per_insn 4 total_states 70 peak_states 70 mark_read 59
+VLOAD_PROG trace_pipe2 fd=58 err=0
+VSTAT trace_pipe2 processed 26 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_pipe2_exit fd=58 err=0
+VSTAT trace_pipe2_exit processed 3149 insns (limit 1000000) max_states_per_insn 4 total_states 70 peak_states 70 mark_read 59
+VLOAD_PROG trace_socketpair fd=58 err=0
+VSTAT trace_socketpair processed 31 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_socketpair_exit fd=58 err=0
+VSTAT trace_socketpair_exit processed 3156 insns (limit 1000000) max_states_per_insn 4 total_states 70 peak_states 70 mark_read 59
+VLOAD_PROG trace_bind fd=58 err=0
+VSTAT trace_bind processed 4910 insns (limit 1000000) max_states_per_insn 4 total_states 72 peak_states 70 mark_read 8
+VLOAD_PROG trace_bind_exit fd=58 err=0
+VSTAT trace_bind_exit processed 1469 insns (limit 1000000) max_states_per_insn 4 total_states 36 peak_states 36 mark_read 31
+VLOAD_PROG trace_accept fd=58 err=0
+VSTAT trace_accept processed 26 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_accept_exit fd=58 err=0
+VSTAT trace_accept_exit processed 1547 insns (limit 1000000) max_states_per_insn 4 total_states 43 peak_states 43 mark_read 35
+VLOAD_PROG trace_accept4 fd=58 err=0
+VSTAT trace_accept4 processed 26 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_accept4_exit fd=58 err=0
+VSTAT trace_accept4_exit processed 1547 insns (limit 1000000) max_states_per_insn 4 total_states 43 peak_states 43 mark_read 35
+VLOAD_PROG trace_unlink fd=58 err=0
+VSTAT trace_unlink processed 193617 insns (limit 1000000) max_states_per_insn 27 total_states 5153 peak_states 1868 mark_read 66
+VLOAD_PROG trace_unlinkat fd=58 err=0
+VSTAT trace_unlinkat processed 193617 insns (limit 1000000) max_states_per_insn 27 total_states 5153 peak_states 1868 mark_read 66
+VLOAD_PROG trace_rename fd=58 err=0
+VSTAT trace_rename processed 4620 insns (limit 1000000) max_states_per_insn 4 total_states 60 peak_states 52 mark_read 39
+VLOAD_FAIL trace_rename_exit load error -7
+BPF program is too large. Processed 1000001 insn
+VLOAD_PROG trace_rename_exit_flow fd=58 err=0
+VSTAT trace_rename_exit_flow processed 641633 insns (limit 1000000) max_states_per_insn 31 total_states 16068 peak_states 4494 mark_read 77
+VLOAD_PROG trace_renameat fd=58 err=0
+VSTAT trace_renameat processed 4620 insns (limit 1000000) max_states_per_insn 4 total_states 60 peak_states 52 mark_read 39
+VLOAD_FAIL trace_renameat_exit load error -7
+BPF program is too large. Processed 1000001 insn
+VLOAD_PROG trace_renameat_exit_flow fd=58 err=0
+VSTAT trace_renameat_exit_flow processed 641633 insns (limit 1000000) max_states_per_insn 31 total_states 16068 peak_states 4494 mark_read 77
+VLOAD_PROG trace_renameat2 fd=58 err=0
+VSTAT trace_renameat2 processed 4623 insns (limit 1000000) max_states_per_insn 4 total_states 60 peak_states 52 mark_read 39
+VLOAD_FAIL trace_renameat2_exit load error -7
+BPF program is too large. Processed 1000001 insn
+VLOAD_PROG trace_renameat2_exit_flow fd=58 err=0
+VSTAT trace_renameat2_exit_flow processed 641633 insns (limit 1000000) max_states_per_insn 31 total_states 16068 peak_states 4494 mark_read 77
+VLOAD_PROG trace_connect fd=58 err=0
+VSTAT trace_connect processed 53890 insns (limit 1000000) max_states_per_insn 17 total_states 1918 peak_states 1333 mark_read 81
+VLOAD_PROG trace_connect_exit fd=58 err=0
+VSTAT trace_connect_exit processed 1524 insns (limit 1000000) max_states_per_insn 4 total_states 41 peak_states 41 mark_read 31
+VLOAD_FAIL trace_read load error -13
+combined stack size of 5 calls is 544. Too large
+VLOAD_PROG trace_read_exit fd=58 err=0
+VSTAT trace_read_exit processed 174392 insns (limit 1000000) max_states_per_insn 27 total_states 4264 peak_states 1358 mark_read 56
+VLOAD_PROG trace_write fd=58 err=0
+VSTAT trace_write processed 193722 insns (limit 1000000) max_states_per_insn 27 total_states 5162 peak_states 1877 mark_read 66
+VLOAD_PROG trace_write_exit fd=58 err=0
+VSTAT trace_write_exit processed 168743 insns (limit 1000000) max_states_per_insn 27 total_states 5021 peak_states 1845 mark_read 71
+VLOAD_PROG trace_mmap fd=58 err=0
+VSTAT trace_mmap processed 37 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_mmap_exit fd=58 err=0
+VSTAT trace_mmap_exit processed 509049 insns (limit 1000000) max_states_per_insn 43 total_states 12835 peak_states 3238 mark_read 65
+VLOAD_PROG trace_mprotect fd=58 err=0
+VSTAT trace_mprotect processed 30 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_mprotect_exit fd=58 err=0
+VSTAT trace_mprotect_exit processed 505815 insns (limit 1000000) max_states_per_insn 43 total_states 12712 peak_states 3125 mark_read 66
+VLOAD_PROG trace_mremap fd=58 err=0
+VSTAT trace_mremap processed 30 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_mremap_exit fd=58 err=0
+VSTAT trace_mremap_exit processed 506308 insns (limit 1000000) max_states_per_insn 43 total_states 12734 peak_states 3143 mark_read 66
+VLOAD_PROG trace_munmap fd=58 err=0
+VSTAT trace_munmap processed 30 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_munmap_exit fd=58 err=0
+VSTAT trace_munmap_exit processed 170 insns (limit 1000000) max_states_per_insn 1 total_states 16 peak_states 16 mark_read 9
+VLOAD_PROG trace_sendto fd=58 err=0
+VSTAT trace_sendto processed 193729 insns (limit 1000000) max_states_per_insn 27 total_states 5162 peak_states 1877 mark_read 66
+VLOAD_PROG trace_sendto_exit fd=58 err=0
+VSTAT trace_sendto_exit processed 330561 insns (limit 1000000) max_states_per_insn 27 total_states 9333 peak_states 2853 mark_read 72
+VLOAD_FAIL trace_recvfrom load error -13
+combined stack size of 5 calls is 544. Too large
+VLOAD_PROG trace_recvfrom_exit fd=58 err=0
+VSTAT trace_recvfrom_exit processed 314312 insns (limit 1000000) max_states_per_insn 27 total_states 7445 peak_states 3929 mark_read 149
+VLOAD_PROG trace_sendmsg fd=58 err=0
+VSTAT trace_sendmsg processed 193721 insns (limit 1000000) max_states_per_insn 27 total_states 5162 peak_states 1877 mark_read 66
+VLOAD_PROG trace_sendmsg_exit fd=58 err=0
+VSTAT trace_sendmsg_exit processed 330561 insns (limit 1000000) max_states_per_insn 27 total_states 9333 peak_states 2853 mark_read 72
+VLOAD_FAIL trace_recvmsg load error -13
+combined stack size of 5 calls is 544. Too large
+VLOAD_PROG trace_recvmsg_exit fd=58 err=0
+VSTAT trace_recvmsg_exit processed 314312 insns (limit 1000000) max_states_per_insn 27 total_states 7445 peak_states 3929 mark_read 149
+VLOAD_PROG trace_close fd=58 err=0
+VSTAT trace_close processed 37 insns (limit 1000000) max_states_per_insn 0 total_states 3 peak_states 3 mark_read 2
+VLOAD_PROG trace_dup fd=58 err=0
+VSTAT trace_dup processed 26 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_dup_exit fd=58 err=0
+VSTAT trace_dup_exit processed 1598 insns (limit 1000000) max_states_per_insn 4 total_states 47 peak_states 47 mark_read 37
+VLOAD_PROG trace_dup2 fd=58 err=0
+VSTAT trace_dup2 processed 26 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_dup2_exit fd=58 err=0
+VSTAT trace_dup2_exit processed 1598 insns (limit 1000000) max_states_per_insn 4 total_states 47 peak_states 47 mark_read 37
+VLOAD_PROG trace_dup3 fd=58 err=0
+VSTAT trace_dup3 processed 26 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_dup3_exit fd=58 err=0
+VSTAT trace_dup3_exit processed 1598 insns (limit 1000000) max_states_per_insn 4 total_states 47 peak_states 47 mark_read 37
+VLOAD_PROG trace_fcntl fd=58 err=0
+VSTAT trace_fcntl processed 34 insns (limit 1000000) max_states_per_insn 0 total_states 3 peak_states 3 mark_read 1
+VLOAD_PROG trace_fcntl_exit fd=58 err=0
+VSTAT trace_fcntl_exit processed 1598 insns (limit 1000000) max_states_per_insn 4 total_states 47 peak_states 47 mark_read 37
+VLOAD_PROG trace_sendfile64 fd=58 err=0
+VSTAT trace_sendfile64 processed 28 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_sendfile64_exit fd=58 err=0
+VSTAT trace_sendfile64_exit processed 331080 insns (limit 1000000) max_states_per_insn 27 total_states 8442 peak_states 2487 mark_read 66
+VLOAD_PROG trace_copy_file_range fd=58 err=0
+VSTAT trace_copy_file_range processed 28 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_copy_file_range_exit fd=58 err=0
+VSTAT trace_copy_file_range_exit processed 331080 insns (limit 1000000) max_states_per_insn 27 total_states 8442 peak_states 2487 mark_read 66
+VLOAD_PROG trace_splice fd=58 err=0
+VSTAT trace_splice processed 28 insns (limit 1000000) max_states_per_insn 0 total_states 2 peak_states 2 mark_read 1
+VLOAD_PROG trace_splice_exit fd=58 err=0
+VSTAT trace_splice_exit processed 331080 insns (limit 1000000) max_states_per_insn 27 total_states 8442 peak_states 2487 mark_read 66
+VLOAD_PROG cap_drain_tick fd=58 err=0
+VSTAT cap_drain_tick processed 1254 insns (limit 1000000) max_states_per_insn 1 total_states 97 peak_states 97 mark_read 10
+VLOAD_DONE ok=82 fail=11 total=93

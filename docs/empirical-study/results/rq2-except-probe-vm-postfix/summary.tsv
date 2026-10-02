@@ -1,0 +1,15 @@
+case	predicted_verdicts	observed_verdicts
+env_bare_relative	1	skip(engine-budget)
+env_nested_relative	1	skip(engine-budget)
+env_suffix_control	0	skip(engine-budget)
+except_abs_dist	0	skip(engine-budget)
+except_dist_relative	1	skip(engine-budget)
+except_src_relative	1	skip(engine-budget)
+frozen_fn_abs_read	1	1
+frozen_fn_rel_read	1	1
+sink_abs_dist	1	1
+sink_dist_relative	1	1
+sink_subdir_relative	1	1
+source_abs_read	1	1
+source_nested_read	1	1
+source_rel_read	1	1

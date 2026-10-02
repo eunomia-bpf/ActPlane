@@ -42,6 +42,17 @@ kill > block > notify
 | `unlink file PAT` | Yes, with BPF-LSM | Yes | Use for destructive-operation policy. |
 | `connect endpoint PAT` | Yes for supported endpoint forms, with BPF-LSM | Yes | Numeric IPv4 support is strongest today. |
 | `recv endpoint PAT` | Yes for connected IPv4 recv, with BPF-LSM | Yes | Endpoint-source ingress support depends on hook profile. |
+| Built-in control-plane guard | Yes, with BPF-LSM | Yes | Always prepended by `run`, `watch`, and MCP auto-attach. |
+
+The last row is not an operation an operator writes. Every enforced launch
+prepends one built-in rule (named `actplane-control-plane`) that blocks writes
+to the loaded policy's `.actplane/` directory and to `actplane.yaml`, with only
+`.actplane/runs/*` left writable for the subject's own run record. It needs no
+extra hook class beyond the file-write hooks any `write file` clause selects, and
+`actplane compile` omits it, so the compiled blob an operator inspects is the
+policy as written rather than the running policy. The command refuses to start
+rather than dropping the guard when the project path does not fit the kernel's
+63-byte pattern window.
 
 ## Pattern Support
 
@@ -66,7 +77,7 @@ reserved when the engine loaded.
 | --- | --- |
 | default profile | Load the policy-selected attach set. |
 | `ACTPLANE_RESERVE_FILE_FLOW=1` | Reserve file-flow hooks for later runtime deltas. |
-| `ACTPLANE_ENABLE_ADVANCED_HOOKS=1` | Enable advanced file-flow hooks. |
+| `ACTPLANE_ENABLE_ADVANCED_HOOKS=1` (alias `ACTPLANE_ADVANCED_TRACEPOINTS`) | Enable advanced file-flow hooks. |
 | `ACTPLANE_HOOK_PROFILE=full` | Enable file flow, network, and block hook classes for future deltas. |
 
 Use the full profile for long-running MCP/watch sessions that will accept child
@@ -82,9 +93,20 @@ domain deltas whose final policy is not known at startup.
 | Real file identity | Strongest | Available for many fd-backed events; fallback uses path hash |
 | Argv-token exec policy | `kill`/`notify` after exec | `kill`/`notify` after exec |
 | Security claim for "operation never committed" | Use `block` | Do not claim pre-op denial |
+| Built-in control-plane guard | Pre-op deny | Match and feedback only |
+
 
 Tracepoint-only mode is still useful for observation, corrective feedback, and
 many harness-level policies. Use BPF-LSM for hard security boundaries.
+
+Set `ACTPLANE_FORCE_TRACEPOINT=1` to force tracepoint-only mode even when
+BPF-LSM is active on the host. The engine reads this flag directly
+(`ebpf_ifc_engine::bpf_lsm_active`), and `compile --json` (the `host` block) and
+`compile --explain` both report BPF-LSM as unavailable under it, so a `block`
+clause is reported as unsupported. Use it to reproduce the tracepoint backend a
+no-LSM runner uses, for example to confirm a policy still enforces its `kill`
+and `notify` clauses without pre-op denial. `actplane doctor` reports the same
+mode on its BPF-LSM line.
 
 ## Data-Flow Semantics
 
@@ -135,7 +157,7 @@ Rejected delta shape:
 - remove inherited rules
 - weaken parent policy
 - widen scope
-- remove labels or gates
+- remove gates (labels can be removed only through a `declassify` update, which requires `AUTH_DECLASSIFY`)
 - mutate an existing rule definition
 - introduce hook or matcher classes not reserved at load time
 
@@ -181,6 +203,23 @@ or project MCP auto-attach:
 ```bash
 actplane init --with-mcp
 ```
+
+## Engine Pin Root
+
+The `watch`, `mcp`, `attach`, and `run` commands all keep one engine for the
+session by opening a pinned singleton engine under a single bpffs directory,
+`/sys/fs/bpf/actplane/v1` (`bpf/src/lib.rs:34`). The
+first process to start loads the engine and pins its maps and links there, and
+later processes open the pinned objects instead of loading another engine
+(`bpf/src/lib.rs:1721`). This is what lets an MCP or watch session accept child
+domain deltas whose final policy is not known at startup.
+
+Set `ACTPLANE_BPF_PIN_ROOT` to relocate that directory. The engine reads it when
+it resolves the pin paths (`bpf/src/lib.rs:115`), so every process in the session
+must set the same value; a process that points at a different root installs a
+second engine rather than joining the first (`bpf/src/lib.rs:1988`). Use it when
+bpffs is mounted somewhere other than `/sys/fs/bpf`, for example under a
+container runtime that relocates it.
 
 ## Recommended Rollout
 

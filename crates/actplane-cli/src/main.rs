@@ -3,11 +3,12 @@
 
 //! ActPlane — OS-level agent harness.
 //!
-//! Loads an `actplane.yaml` project policy, lowers its embedded taint DSL to the
-//! kernel ABI, runs the embedded eBPF engine, and reports every kernel-detected
-//! rule match with the corrective-feedback payload.
+//! Loads an `actplane.yaml` or `.actplane/policy.yaml` project policy, lowers
+//! its embedded taint DSL to the kernel ABI, runs the embedded eBPF engine, and
+//! reports every kernel-detected rule match with the corrective-feedback payload.
 
 use clap::{Args, Parser, Subcommand};
+use std::io::Write as _;
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -18,7 +19,7 @@ mod template_generate;
 mod templates;
 
 pub use actplane_ifc_compiler as dsl;
-pub use actplane_runtime::{audit, config, control, hook, mcp, runtime};
+pub use actplane_runtime::{audit, config, control, feedback, hook, mcp, runtime};
 
 type AnyError = Box<dyn std::error::Error + Send + Sync>;
 type Result<T> = std::result::Result<T, AnyError>;
@@ -36,7 +37,7 @@ type Result<T> = std::result::Result<T, AnyError>;
       actplane compile --explain --report-out docs/actplane-review.txt\n\n  \
       # apply a one-line policy around a command (needs sudo for the eBPF load)\n  \
       sudo -E actplane --rule 'source COMMAND = exec \"**\"\n                       rule no-git-branch:\n                         kill exec \"git\" \"branch\" if COMMAND\n                         because \"create a branch via the host, not the agent\"' run claude -p '...'\n\n  \
-      # use a project policy file (auto-discovered as ./actplane.yaml upward)\n  \
+      # use a project policy file (auto-discovered upward: actplane.yaml or .actplane/policy.yaml)\n  \
       sudo -E actplane run <your agent command>\n\n  \
       # serve MCP resources and auto-attach to the parent agent when Codex starts it\n  \
       actplane mcp --auto-attach-parent\n\n  \
@@ -52,7 +53,8 @@ type Result<T> = std::result::Result<T, AnyError>;
       actplane control delta add --target-id <domain-id> --delta policy-delta.dsl\n\n\
     See docs/rule-language.md for the policy language.")]
 pub(crate) struct Cli {
-    /// Project policy YAML. Defaults to discovering actplane.yaml upward from cwd.
+    /// Project policy YAML. Defaults to discovering actplane.yaml or
+    /// .actplane/policy.yaml upward from cwd.
     #[arg(long, global = true, conflicts_with = "rule")]
     pub(crate) policy: Option<PathBuf>,
     /// Inline policy DSL used instead of a YAML file.
@@ -95,6 +97,12 @@ enum Commands {
         #[arg(long)]
         auto_attach_parent: bool,
     },
+    /// Explain the last recorded policy match (rule, effect, and remedy).
+    Explain(ExplainArgs),
+    /// Show or export the run audit log for this project.
+    Audit(AuditArgs),
+    /// Replay the run audit log as an ordered timeline of engine activity.
+    Replay(ReplayArgs),
     /// Control an already-running auto-attached ActPlane engine.
     Control {
         #[command(subcommand)]
@@ -388,6 +396,67 @@ struct DeltaAddArgs {
     generated_by: Option<String>,
 }
 
+#[derive(Args)]
+struct AuditArgs {
+    #[command(subcommand)]
+    command: AuditCommands,
+}
+
+#[derive(Subcommand)]
+enum AuditCommands {
+    /// Summarize the audit log: one line per record.
+    Show(AuditSourceArgs),
+    /// Emit the audit records as JSON.
+    Export(AuditExportArgs),
+}
+
+#[derive(Args)]
+struct AuditSourceArgs {
+    /// Read this audit log instead of resolving the project's.
+    #[arg(long, value_name = "FILE")]
+    path: Option<PathBuf>,
+}
+
+#[derive(Args)]
+struct AuditExportArgs {
+    /// Emit newline-delimited JSON, one record per line, instead of a
+    /// pretty-printed JSON array.
+    #[arg(long)]
+    jsonl: bool,
+    /// Read this audit log instead of resolving the project's.
+    #[arg(long, value_name = "FILE")]
+    path: Option<PathBuf>,
+}
+
+#[derive(Args)]
+struct ExplainArgs {
+    #[command(subcommand)]
+    command: ExplainCommands,
+}
+
+#[derive(Subcommand)]
+enum ExplainCommands {
+    /// Explain the most recent feedback payload in the run log.
+    Last(ExplainLastArgs),
+}
+
+#[derive(Args)]
+struct ExplainLastArgs {
+    /// Read this feedback file instead of resolving the project's.
+    #[arg(long, value_name = "FILE")]
+    path: Option<PathBuf>,
+}
+
+#[derive(Args)]
+struct ReplayArgs {
+    /// Emit the timeline as JSON instead of the text form.
+    #[arg(long)]
+    json: bool,
+    /// Read this audit log instead of resolving the project's.
+    #[arg(long, value_name = "FILE")]
+    path: Option<PathBuf>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
@@ -418,6 +487,9 @@ async fn main() -> Result<()> {
             0
         }
         Commands::Control { command } => control_command(&cli, command).await?,
+        Commands::Audit(args) => audit_command(&cli, args)?,
+        Commands::Explain(args) => explain_command(&cli, args)?,
+        Commands::Replay(args) => replay_command(&cli, args)?,
     };
     if code != 0 {
         std::process::exit(code);
@@ -964,6 +1036,134 @@ fn control_project_dir(cli: &Cli) -> Result<PathBuf> {
     Ok(cwd)
 }
 
+fn audit_command(cli: &Cli, args: &AuditArgs) -> Result<i32> {
+    let (path, records) = match &args.command {
+        AuditCommands::Show(source) => {
+            let path = audit_log_path(cli, source.path.as_deref())?;
+            let records = audit::read_records(&path)?;
+            (path, records)
+        }
+        AuditCommands::Export(export) => {
+            let path = audit_log_path(cli, export.path.as_deref())?;
+            let records = audit::read_records(&path)?;
+            let mut out = std::io::stdout().lock();
+            if export.jsonl {
+                // Re-emit each record's compact JSON, one per line, matching
+                // the log's own format.
+                for record in &records {
+                    serde_json::to_writer(&mut out, record)?;
+                    writeln!(out)?;
+                }
+            } else {
+                serde_json::to_writer_pretty(&mut out, &records)?;
+                writeln!(out)?;
+            }
+            return Ok(0);
+        }
+    };
+    if records.is_empty() {
+        println!("No ActPlane audit records in {}", path.display());
+        return Ok(0);
+    }
+    println!("{} record(s) in {}", records.len(), path.display());
+    for (i, record) in records.iter().enumerate() {
+        let event = record.get("event").and_then(|v| v.as_str()).unwrap_or("?");
+        let status = record.get("status").and_then(|v| v.as_str());
+        match status {
+            Some(status) => println!("  {}. {} ({})", i + 1, event, status),
+            None => println!("  {}. {}", i + 1, event),
+        }
+    }
+    Ok(0)
+}
+
+fn audit_log_path(cli: &Cli, explicit: Option<&Path>) -> Result<PathBuf> {
+    match explicit {
+        Some(path) => Ok(config::absolutize(path, &std::env::current_dir()?)),
+        None => Ok(audit::resolve_log_path(&control_project_dir(cli)?)),
+    }
+}
+
+fn replay_command(cli: &Cli, args: &ReplayArgs) -> Result<i32> {
+    let path = audit_log_path(cli, args.path.as_deref())?;
+    let steps = audit::replay_steps(&audit::read_records(&path)?);
+    if args.json {
+        let value = serde_json::json!({
+            "path": path.display().to_string(),
+            "step_count": steps.len(),
+            "steps": steps
+                .iter()
+                .map(|step| {
+                    serde_json::json!({
+                        "kind": step.kind.label(),
+                        "timestamp_unix_ns": step.timestamp_ns.map(|ns| ns.to_string()),
+                        "summary": step.summary,
+                        "record": step.record,
+                    })
+                })
+                .collect::<Vec<_>>(),
+        });
+        println!("{}", serde_json::to_string_pretty(&value)?);
+        return Ok(0);
+    }
+    if steps.is_empty() {
+        println!("No ActPlane audit records to replay in {}", path.display());
+        return Ok(0);
+    }
+    println!("{} step(s) from {}", steps.len(), path.display());
+    for (i, step) in steps.iter().enumerate() {
+        // The record's own append order is the causal order, so the log line
+        // number is the step number rather than a sort by the timestamp.
+        match step.timestamp_ns {
+            Some(ns) => println!(
+                "  {}. [{}] {} ({ns} ns)",
+                i + 1,
+                step.kind.label(),
+                step.summary
+            ),
+            None => println!("  {}. [{}] {}", i + 1, step.kind.label(), step.summary),
+        }
+    }
+    Ok(0)
+}
+
+fn explain_command(cli: &Cli, args: &ExplainArgs) -> Result<i32> {
+    let ExplainCommands::Last(last) = &args.command;
+    let path = match &last.path {
+        Some(path) => config::absolutize(path, &std::env::current_dir()?),
+        None => feedback::resolve_file_path(&control_project_dir(cli)?),
+    };
+    let entries = feedback::read_entries(&path)?;
+    let Some(entry) = entries.last() else {
+        println!(
+            "No ActPlane policy match recorded yet ({}).",
+            path.display()
+        );
+        return Ok(0);
+    };
+    let parsed = feedback::parse_entry(entry);
+    match &parsed.effect {
+        Some(effect) => println!("Last ActPlane match ({}):", effect),
+        None => println!("Last ActPlane match:"),
+    }
+    if let Some(rule) = &parsed.rule {
+        println!("  rule: {rule}");
+    }
+    if let Some(action) = &parsed.action {
+        println!("  action: {action}");
+    }
+    if let Some(retry) = parsed.retry_useful {
+        println!("  retry_useful: {retry}");
+    }
+    if !parsed.body.is_empty() {
+        println!();
+        println!("{}", parsed.body);
+    }
+    println!();
+    println!("({} payload(s) in {})", entries.len(), path.display());
+    Ok(0)
+}
+
 fn load_policy_delta_fragments(
     paths: &[PathBuf],
     inline: &[String],
@@ -1042,6 +1242,7 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
     let policy = policy_input(cli);
     let loaded = config::load_policy(&policy)?;
     let resolved = config::resolve_policy(&loaded, policy.domain.as_deref())?;
+    let parsed = dsl::parse::parse(&resolved.source)?;
     let compiled = dsl::compile_str(&resolved.source)?;
     write_binary_output_file(out, &compiled.bytes, args.force)?;
     if let Some(domain) = &resolved.domain {
@@ -1051,9 +1252,18 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
             format_domain_policy_rules(domain)
         );
     }
+    // Warnings derived from the policy and the blob alone hold wherever the blob
+    // is enforced; the host-dependent BPF-LSM warning is excluded, since this
+    // machine may not be the one enforcing it. Printing them keeps the minimal
+    // path from writing a blob whose rules do not mean what the policy wrote and
+    // reporting success silently.
+    for (code, message) in doctor::host_independent_warnings(&parsed, &compiled) {
+        eprintln!("ActPlane: warning [{}]: {}", code, message);
+    }
     eprintln!(
-        "ActPlane: compiled {} rule(s) to {}",
-        compiled.reasons.len(),
+        "ActPlane: compiled {} DSL rule(s), {} lowered kernel matcher(s) to {}",
+        compiled.dsl_rule_count,
+        compiled.meta.len(),
         out.display()
     );
     Ok(0)

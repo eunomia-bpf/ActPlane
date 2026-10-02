@@ -52,14 +52,17 @@ pub enum Cond {
     LineageIncludes {
         exec: String,
     },
-    /// `after OP X [exits N] [since EV ("or" EV)*]`. Each EV is an
+    /// `after OP X [ARG] [exits N] [since EV ("or" EV)*]`. Each EV is an
     /// (op, pattern, arg) event whose later occurrence makes the X gate stale.
-    /// `since` empty = v1 latching semantics (gate fired ever). `exits N` is
-    /// valid only for exec gates and stamps the gate after a matching process
-    /// exits with status N.
+    /// `since` empty = v1 latching semantics (gate fired ever). `ARG` and
+    /// `exits N` are valid only for exec gates: `ARG` restricts the gate to
+    /// matching argv tokens (so `after exec "pnpm" "test"` arms only on
+    /// `pnpm test`, not every `pnpm` subcommand), and `exits N` stamps the
+    /// gate after a matching process exits with status N.
     After {
         gate_op: Op,
         gate_pattern: String,
+        gate_arg: Option<String>,
         gate_exit: Option<u8>,
         since: Vec<(Op, String, Option<String>)>,
     },

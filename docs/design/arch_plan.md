@@ -209,7 +209,12 @@ authority。
 - feedback delivered to agent;
 - final artifact lineage.
 
-目标命令:
+`policy layer stack and hashes` 已落在 `append_policy_delta` 记录上：accepted
+delta 带 `effective_policy`（append 之后的 layer 栈），rejected delta 带
+`engine_effective_policy`（当时仍在生效的栈）。两者与 `actplane:///status`
+共用一个序列化形状，因此 audit 与 status 对同一时刻的栈给出一致答案。
+
+目标命令（`show`、`export --jsonl` 与 `replay` 已实现）:
 
 ```bash
 actplane audit show
@@ -243,6 +248,7 @@ actplane init
 actplane init --all
 actplane run -- <agent>
 actplane control status
+actplane explain last
 actplane doctor
 actplane compile --explain
 actplane compile --json
@@ -251,14 +257,19 @@ actplane control delta add --target-id <id> --delta policy.dsl
 cat .actplane/last-violation.txt
 ```
 
-MCP 保持 resource-first:
+MCP 保持 resource-first。当前暴露四个 resource:
 
 ```text
-actplane:///status
-actplane:///policy
-actplane:///feedback
-actplane:///audit
+actplane:///policy     # 已实现
+actplane:///feedback   # 已实现
+actplane:///status     # 已实现（JSON：attach 状态、parent domain、child 数、effective policy hash 与 layer 栈）
+actplane:///audit      # 已实现（JSON：audit log 路径、记录数与记录数组）
 ```
+
+这四个是当前 MCP 只读面的全部。`actplane audit show` / `audit export --jsonl`
+已实现，两者与 `actplane:///audit` resource 共用同一套路径解析与记录读取，因此
+命令行和 resource 报告同一条时间线。`actplane replay [--json]` 同样读取那条日志，
+把记录按 append 顺序还原成 attach / delta / child / violation 步骤的时间线。
 
 MCP 不应该默认提供大量 policy-mutating tools。修改 policy、创建 delegation、发放
 approval 这类动作应该走 ActPlane control plane，并验证 authority 和 monotonicity。
@@ -282,13 +293,13 @@ data-flow enforcement + delegation + feedback + audit**。
 建议路线:
 
 1. Stabilize setup, doctor, feedback hook, MCP auto-attach.
-2. Add `status` and `explain last`.
-3. Add built-in control-plane self-protection.
-4. Add policy layer metadata and effective policy hash.
+2. `explain last` 与 `actplane control status` 已实现。
+3. Built-in control-plane self-protection 已实现（`run` / `watch` / MCP 自动前置 `actplane-control-plane` 规则，内核豁免 runtime 自身 pid）。
+4. Effective policy hash 与 layer 元数据已实现（`control status` / `actplane:///status`）。
 5. Add `delegate` for subagent contracts.
 6. Add workspace/resource scopes for delegated principals.
 7. Add gate/approval tokens.
-8. Add audit timeline and replay/export.
+8. Audit timeline 与 replay/export 已实现（`audit show` / `export --jsonl` / `replay`）。
 9. Add policy tests/simulation.
 10. Add policy distribution and signed bundles.
 

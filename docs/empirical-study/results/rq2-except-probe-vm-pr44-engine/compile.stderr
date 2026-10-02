@@ -1,0 +1,6 @@
+ActPlane: warning [repo_relative_target_condition_partial]: probe_except: unless target "**/dist/**" is a repo-relative `**/<name>` or `**/<dir>/**` pattern; the condition stores one matcher, so it does not cover the bare/first-segment-relative form the target matcher does. The exception therefore over-fires on that form (a relative path is not excluded as intended). Use an absolute pattern, or split the exception into an explicit form.
+ActPlane: compiled 1 rule(s) to /tmp/actplane-except-probe.Tw2ClK/root/cfg_except.bin
+ActPlane: compiled 2 rule(s) to /tmp/actplane-except-probe.Tw2ClK/root/cfg_sink.bin
+ActPlane: compiled 1 rule(s) to /tmp/actplane-except-probe.Tw2ClK/root/cfg_source.bin
+ActPlane: compiled 1 rule(s) to /tmp/actplane-except-probe.Tw2ClK/root/cfg_frozen.bin
+ActPlane: compiled 2 rule(s) to /tmp/actplane-except-probe.Tw2ClK/root/cfg_env.bin

@@ -68,7 +68,7 @@ Keep in `master`:
 - `docs/ARTIFACT.md`.
 - Curated empirical-study summaries and aggregate artifacts under
   `docs/empirical-study/`.
-- Minimal benchmark scripts under `docs/`, currently `docs/rq2-performance/`.
+- Minimal benchmark scripts under `docs/`, currently `docs/design/rq2-performance/`.
 - Benchmark READMEs and `.gitignore` files that explain how to regenerate
   results.
 
@@ -92,10 +92,12 @@ raw backup ref listed above, not on `master`.
 ## Benchmark Scripts Kept Under Docs
 
 Performance benchmark scripts should stay under `docs/`, not at repository root.
-The product-facing path is:
+On `master` the product-facing path is `docs/design/rq2-performance/`. (On the
+`artifact-ready` branch the same scripts live at `docs/rq2-performance/`, so the
+result paths in the table below are written against that ref.)
 
 ```text
-docs/rq2-performance/
+docs/design/rq2-performance/
 ```
 
 This directory may keep:
