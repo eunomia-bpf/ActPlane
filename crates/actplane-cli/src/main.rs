@@ -1072,3 +1072,114 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn parent_domain_control_mutation_error_names_the_operation() {
+        let message = parent_domain_control_mutation_error("append policy delta");
+        assert!(message.starts_with("append policy delta is unavailable in --parent-domain mode"));
+        assert!(message.contains("mcp --auto-attach-parent"));
+        assert!(message.ends_with("runtime parent domain"));
+    }
+
+    #[test]
+    fn reject_parent_domain_control_mutation_classifies_commands() {
+        let dir = tempdir().expect("tempdir");
+        let state_dir = dir.path().join(".actplane");
+        std::fs::create_dir_all(&state_dir).expect("mkdir");
+        let write_state = |parent_domain_id: u32| {
+            std::fs::write(
+                state_dir.join("control.json"),
+                serde_json::to_string(&serde_json::json!({
+                    "schema": "actplane.control.v1",
+                    "pid": std::process::id() as i32,
+                    "proc_start_time": null,
+                    "socket_path": dir.path().join("missing.sock"),
+                    "project_dir": dir.path(),
+                    "parent_pid": 1111,
+                    "parent_domain_id": parent_domain_id,
+                }))
+                .expect("serialize"),
+            )
+            .expect("write state");
+        };
+        let delta_add = |target: Option<u32>| ControlCommands::Delta {
+            command: DeltaCommands::Add(DeltaAddArgs {
+                target_id: target,
+                domain_id: None,
+                deltas: Vec::new(),
+                delta_text: Vec::new(),
+                approved_by: None,
+                approval_ref: None,
+                generated_by: None,
+            }),
+        };
+
+        write_state(ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID);
+        for command in [
+            ControlCommands::BindChild {
+                pid: 1234,
+                child_id: None,
+                scope_id: 0,
+            },
+            ControlCommands::LaunchChild {
+                child_id: None,
+                scope_id: 0,
+                deltas: Vec::new(),
+                delta_text: Vec::new(),
+                restart_policy: "never".to_string(),
+                restart_limit: 3,
+                restart_backoff_ms: 1000,
+                approved_by: None,
+                approval_ref: None,
+                generated_by: None,
+                cmd: vec!["/bin/true".to_string()],
+            },
+            delta_add(None),
+            delta_add(Some(ebpf_ifc_engine::GLOBAL_ACTIVE_DOMAIN_ID)),
+        ] {
+            let err = reject_parent_domain_control_mutation(dir.path(), &command)
+                .err()
+                .expect("parent-domain mutation rejected")
+                .to_string();
+            assert!(err.contains("unavailable in --parent-domain mode"), "{err}");
+        }
+
+        // A delta aimed at a child domain is allowed to proceed.
+        reject_parent_domain_control_mutation(dir.path(), &delta_add(Some(7)))
+            .expect("child-domain delta allowed");
+        reject_parent_domain_control_mutation(dir.path(), &ControlCommands::Status)
+            .expect("status allowed");
+
+        // A non-parent-domain engine allows every mutation.
+        write_state(0);
+        reject_parent_domain_control_mutation(dir.path(), &delta_add(None))
+            .expect("non-parent engine allows delta");
+    }
+
+    #[test]
+    fn print_control_response_reports_ok_text_and_errors() {
+        assert!(print_control_response(serde_json::json!({"ok": true, "text": "bound"})).is_ok());
+        assert!(
+            print_control_response(serde_json::json!({"ok": true, "result": {"bound": 1}})).is_ok()
+        );
+        assert!(print_control_response(serde_json::json!({"ok": true})).is_ok());
+        assert!(print_control_response(serde_json::json!({"ok": false})).is_err());
+        // A non-boolean `ok` is treated as failure and uses the default message.
+        let err = print_control_response(serde_json::json!({"ok": "yes", "text": "x"}))
+            .err()
+            .expect("non-bool ok")
+            .to_string();
+        assert_eq!(err, "ActPlane control request failed");
+
+        let err = print_control_response(serde_json::json!({"ok": false, "error": "boom"}))
+            .err()
+            .expect("error response")
+            .to_string();
+        assert_eq!(err, "boom");
+    }
+}
