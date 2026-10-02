@@ -767,4 +767,44 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+    #[test]
+    fn removed_label_keyword_reports_replacement_hint() {
+        let err =
+            compile_str("label AGENT\nrule r:\n  block exec \"git\" if AGENT\n  because \"x\"\n")
+                .err()
+                .expect("`label` must be rejected");
+        assert_eq!(
+            err,
+            "the `label` keyword has been removed; use `source` instead (e.g. `source AGENT = exec \"**/your-agent\"`)"
+        );
+    }
+
+    #[test]
+    fn parse_errors_name_the_offending_token() {
+        let unknown = compile_str("frob X = exec \"**\"\n")
+            .err()
+            .expect("unknown decl");
+        assert_eq!(unknown, "unknown declaration 'frob'");
+
+        let unterminated = compile_str("source A = exec \"**\n")
+            .err()
+            .expect("unterminated");
+        assert_eq!(unterminated, "unterminated string");
+
+        let missing_colon = compile_str("rule r\n  notify exec \"g\" if true\n  because \"x\"\n")
+            .err()
+            .expect("missing rule colon");
+        assert_eq!(
+            missing_colon,
+            "expected ':' after rule name, got Some(Word(\"notify\"))"
+        );
+
+        let missing_equals = compile_str("source A exec \"**\"\n")
+            .err()
+            .expect("missing source equals");
+        assert_eq!(
+            missing_equals,
+            "expected '=' in source, got Some(Word(\"exec\"))"
+        );
+    }
 }
