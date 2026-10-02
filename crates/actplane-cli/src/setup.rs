@@ -325,4 +325,11 @@ mod tests {
         assert!(policy.contains("test-before-commit"));
         dsl::compile_str(&policy).unwrap();
     }
+
+    #[test]
+    fn starter_policy_accessor_returns_the_embedded_policy() {
+        let policy = starter_policy();
+        assert!(!policy.trim().is_empty());
+        assert_eq!(policy, STARTER_POLICY);
+    }
 }
