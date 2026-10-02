@@ -1083,3 +1083,57 @@ fn kernel_op_name(op: u8) -> &'static str {
         _ => "op",
     }
 }
+
+#[cfg(test)]
+mod shorten_tests {
+    use super::*;
+
+    #[test]
+    fn contains_literal_shortening_keeps_the_trailing_segment() {
+        // Anything already within the kernel suffix budget passes through.
+        assert_eq!(shorten_contains_literal("/etc/secret"), "/etc/secret");
+
+        // Over budget: leading separators are stripped first.
+        assert_eq!(
+            shorten_contains_literal(&format!("/{}", "a".repeat(MAX_CONTAINS_LITERAL))),
+            "a".repeat(MAX_CONTAINS_LITERAL)
+        );
+
+        // Otherwise the first `/` whose suffix fits the budget wins.
+        let long = format!("{}/keep", "x".repeat(30));
+        assert_eq!(shorten_contains_literal(&long), "keep");
+    }
+
+    #[test]
+    fn contains_literal_shortening_falls_back_to_a_hard_suffix() {
+        // No `/` appears, so the result is the last MAX_CONTAINS_LITERAL bytes.
+        let single = "z".repeat(40);
+        assert_eq!(
+            shorten_contains_literal(&single),
+            single[single.len() - MAX_CONTAINS_LITERAL..]
+        );
+
+        // Every candidate suffix is still too long, so the hard tail remains.
+        let long = format!("{}/keep/{}", "x".repeat(20), "y".repeat(20));
+        let out = shorten_contains_literal(&long);
+        assert_eq!(out, "y".repeat(MAX_CONTAINS_LITERAL));
+        assert!(long.ends_with(&out));
+    }
+
+    #[test]
+    fn repo_relative_exact_shortening_prefers_a_nested_tail() {
+        // Short paths are untouched.
+        assert_eq!(
+            shorten_repo_relative_exact_literal("src/main.rs"),
+            "src/main.rs"
+        );
+
+        // The first `/` that leaves a nested, short-enough tail wins.
+        let nested = format!("{}/a/b", "d".repeat(20));
+        assert_eq!(shorten_repo_relative_exact_literal(&nested), "a/b");
+
+        // With no nested short tail it defers to the parent directory.
+        let flat = format!("dir/{}", "f".repeat(40));
+        assert_eq!(shorten_repo_relative_exact_literal(&flat), "dir/");
+    }
+}
