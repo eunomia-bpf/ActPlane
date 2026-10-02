@@ -952,4 +952,38 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+
+    #[test]
+    fn summary_reports_id_and_first_reason() {
+        let generated = GeneratedPolicy {
+            root: PathBuf::from("."),
+            instruction_files: Vec::new(),
+            task: None,
+            templates: vec![
+                GeneratedTemplate {
+                    id: "no-git-branch",
+                    params: Vec::new(),
+                    reasons: vec!["workflow mentions branches".into(), "other".into()],
+                },
+                GeneratedTemplate {
+                    id: "dependency-gate",
+                    params: Vec::new(),
+                    reasons: Vec::new(),
+                },
+            ],
+            notes: Vec::new(),
+        };
+        assert_eq!(
+            summary(&generated),
+            vec![
+                "no-git-branch (workflow mentions branches)".to_string(),
+                "dependency-gate (selected)".to_string(),
+            ]
+        );
+        let empty = GeneratedPolicy {
+            templates: Vec::new(),
+            ..generated
+        };
+        assert!(summary(&empty).is_empty());
+    }
 }
