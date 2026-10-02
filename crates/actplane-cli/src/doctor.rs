@@ -2591,4 +2591,67 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn format_rule_list_joins_or_reports_none() {
+        assert_eq!(format_rule_list(&[]), "none");
+        assert_eq!(format_rule_list(&["a".into(), "b".into()]), "a, b");
+    }
+
+    #[test]
+    fn format_domain_policy_rules_lists_locked_then_defaults() {
+        let domain = DomainSummary {
+            name: "work".into(),
+            parent: None,
+            disabled: vec!["d".into()],
+            locked: vec!["locked1".into()],
+            defaults: vec!["default1".into(), "default2".into()],
+        };
+        assert_eq!(
+            format_domain_policy_rules(&domain),
+            "locked1, default1, default2"
+        );
+        let empty = DomainSummary {
+            name: "work".into(),
+            parent: None,
+            disabled: Vec::new(),
+            locked: Vec::new(),
+            defaults: Vec::new(),
+        };
+        assert_eq!(format_domain_policy_rules(&empty), "none");
+    }
+
+    #[test]
+    fn rollout_clause_signatures_keys_by_rule_and_source_index() {
+        let policy = Policy {
+            labels: Vec::new(),
+            sources: Vec::new(),
+            rules: vec![crate::dsl::ast::Rule {
+                name: "r".into(),
+                reason: String::new(),
+                clauses: vec![Clause {
+                    op: Op::Exec,
+                    target: crate::dsl::ast::Target {
+                        kind: Kind::Exec,
+                        pattern: "git".into(),
+                        arg: Some("push".into()),
+                    },
+                    when: Expr::True,
+                    unless: None,
+                    effect: Effect::Block,
+                    source_index: 3,
+                }],
+            }],
+            xforms: Vec::new(),
+        };
+        let signatures = rollout_clause_signatures(&policy);
+        assert_eq!(signatures.len(), 1);
+        let signature = signatures.get(&("r".to_string(), 3)).unwrap();
+        assert_eq!(signature.clause_op, "exec");
+        assert_eq!(signature.target_kind, "exec");
+        assert_eq!(signature.target_pattern, "git");
+        assert_eq!(signature.target_arg.as_deref(), Some("push"));
+        assert_eq!(signature.clause_text, "  notify exec \"git\" \"push\"");
+        assert!(!signature.clause_hash.is_empty());
+    }
 }
