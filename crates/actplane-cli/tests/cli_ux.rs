@@ -707,6 +707,41 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// With no discoverable policy, the policy MCP resource reports the missing
+// file instead of failing the request.
+#[test]
+fn mcp_policy_resource_reports_missing_policy() {
+    use std::io::Write as _;
+    let tmp = tempfile::tempdir().unwrap();
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("mcp")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"c\",\"version\":\"1\"}}}\n{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"resources/read\",\"params\":{\"uri\":\"actplane:///policy\"}}\n",
+        )
+        .unwrap();
+    let output = child.wait_with_output().expect("mcp output");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let response = stdout(&output)
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("mcp json line"))
+        .find(|message| message["id"] == 2)
+        .expect("policy resource response");
+    assert_eq!(
+        response["result"]["contents"][0]["text"],
+        "No actplane.yaml found."
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
