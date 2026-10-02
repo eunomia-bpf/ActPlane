@@ -707,6 +707,53 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile --out <path>` requires the parent directory to exist and reports
+// the rule count on success.
+#[test]
+fn compile_out_requires_parent_directory_and_reports_success() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = fixture("01_secret_no_exfil.yaml");
+
+    let missing_parent = run(&[
+        "--policy",
+        &policy,
+        "compile",
+        "--out",
+        tmp.path().join("nested/policy.bin").to_str().unwrap(),
+    ]);
+    assert_eq!(
+        missing_parent.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&missing_parent)
+    );
+    assert!(
+        stderr(&missing_parent).contains("parent directory for")
+            && stderr(&missing_parent).contains("does not exist or is not a directory"),
+        "stderr: {}",
+        stderr(&missing_parent)
+    );
+
+    let out = tmp.path().join("policy.bin");
+    let ok = run(&[
+        "--policy",
+        &policy,
+        "compile",
+        "--out",
+        out.to_str().unwrap(),
+    ]);
+    assert!(ok.status.success(), "stderr: {}", stderr(&ok));
+    assert!(
+        stderr(&ok).contains("compiled 2 rule(s) to"),
+        "stderr: {}",
+        stderr(&ok)
+    );
+    assert!(
+        fs::metadata(&out).unwrap().len() > 0,
+        "blob must be written"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
