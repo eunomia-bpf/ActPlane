@@ -1381,3 +1381,56 @@ policy: |
     .expect("write policy");
     policy
 }
+
+#[test]
+fn mcp_stdio_jsonrpc_rejects_bad_tool_arguments_without_engine() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-tool-arg-validation");
+
+    // Argument validation happens before the engine-ready check.
+    let cases = [
+        (
+            2,
+            json!({"name": "terminate_child_domain", "arguments": {"child_id": "x"}}),
+            "`child_id` must be a non-negative integer",
+        ),
+        (
+            3,
+            json!({"name": "read_child_domain_logs", "arguments": {"child_id": 1, "stream": "weird"}}),
+            "`stream` must be one of stdout, stderr, or both",
+        ),
+        (
+            4,
+            json!({"name": "terminate_child_domain", "arguments": {"child_id": 1}}),
+            "unknown child domain 1",
+        ),
+    ];
+    for (id, params, expected) in cases {
+        mcp.send(json!({"jsonrpc": "2.0", "id": id, "method": "tools/call", "params": params}));
+        let response = mcp.response(id);
+        assert_eq!(response["error"]["code"], -32602, "{response}");
+        assert_eq!(response["error"]["message"], expected, "{response}");
+    }
+
+    // Engine-dependent tools answer -32603 once their arguments parse.
+    for (id, name, arguments) in [
+        (5, "append_policy_delta", json!({"policy": "rule r:\n"})),
+        (6, "restart_child_domain", json!({"child_id": 1})),
+    ] {
+        mcp.send(json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "tools/call",
+            "params": { "name": name, "arguments": arguments }
+        }));
+        let response = mcp.response(id);
+        assert_eq!(response["error"]["code"], -32603, "{response}");
+        assert_eq!(
+            response["error"]["message"],
+            "No eBPF engine attached (MCP not started with --auto-attach-parent)",
+            "{response}"
+        );
+    }
+}
