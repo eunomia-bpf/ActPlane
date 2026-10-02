@@ -2591,4 +2591,64 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn render_check_explain_reports_domain_and_flat_modes() {
+        let loaded = LoadedPolicy {
+            config: crate::config::FileConfig::default(),
+            root: PathBuf::from("."),
+            path: Some(PathBuf::from("policy.dsl")),
+        };
+        let compiled = dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: std::collections::HashMap::new(),
+            endpoint_resolutions: std::collections::HashMap::new(),
+        };
+        let parsed = Policy {
+            labels: Vec::new(),
+            sources: Vec::new(),
+            rules: Vec::new(),
+            xforms: Vec::new(),
+        };
+        let with_domain = ResolvedPolicy {
+            source: "cli".into(),
+            domain: Some(DomainSummary {
+                name: "work".into(),
+                parent: Some("root".into()),
+                disabled: Vec::new(),
+                locked: vec!["owner-locked".into()],
+                defaults: Vec::new(),
+            }),
+        };
+        let out = render_check_explain(
+            "policy.dsl",
+            &loaded,
+            &with_domain,
+            &parsed,
+            &compiled,
+            "",
+            false,
+            false,
+        );
+        assert!(out.contains("domain: work"));
+        assert!(out.contains("parent: root"));
+        assert!(out.contains("policy rules: owner-locked"));
+        assert!(out.contains("  - active LSMs: unknown"));
+        assert!(out.contains("  - BPF-LSM pre-op block: unavailable"));
+        assert!(!out.contains("ACTPLANE_FORCE_TRACEPOINT: set"));
+        assert!(out.contains("rules: 0 DSL rule(s), 0 lowered kernel matcher(s)"));
+
+        let flat = ResolvedPolicy {
+            source: "cli".into(),
+            domain: None,
+        };
+        let out = render_check_explain(
+            "--rule", &loaded, &flat, &parsed, &compiled, "bpf", true, true,
+        );
+        assert!(out.contains("domain: none (flat policy)"));
+        assert!(out.contains("  - BPF-LSM pre-op block: available"));
+        assert!(out.contains("ACTPLANE_FORCE_TRACEPOINT: set"));
+    }
 }
