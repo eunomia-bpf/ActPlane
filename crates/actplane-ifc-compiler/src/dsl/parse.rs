@@ -343,3 +343,69 @@ pub fn parse(src: &str) -> Result<Policy, String> {
     }
     Ok(pol)
 }
+
+#[cfg(test)]
+mod error_tests {
+    use super::*;
+
+    fn err(src: &str) -> String {
+        parse(src).expect_err("expected a parse error")
+    }
+
+    #[test]
+    fn parse_reports_positional_errors_in_declarations() {
+        assert_eq!(
+            err("source SECRET file \"**\""),
+            "expected '=' in source, got Some(Word(\"file\"))"
+        );
+        assert_eq!(
+            err("rule missing_colon\n  notify exec \"x\" if true\n"),
+            "expected ':' after rule name, got Some(Word(\"notify\"))"
+        );
+    }
+
+    #[test]
+    fn parse_rejects_removed_and_unknown_declarations() {
+        assert_eq!(
+            err("label AGENT = exec \"**\""),
+            "the `label` keyword has been removed; use `source` instead \
+             (e.g. `source AGENT = exec \"**/your-agent\"`)"
+        );
+        assert_eq!(
+            err("banana X = file \"**\""),
+            "unknown declaration 'banana'"
+        );
+    }
+
+    #[test]
+    fn parse_rejects_a_dangling_guard_term() {
+        // `or` past the end of the rule: the rhs term reads an absent token.
+        assert_eq!(
+            err("rule r:\n  notify exec \"x\" if COMMAND or\n"),
+            "expected word, got None"
+        );
+    }
+
+    #[test]
+    fn parse_rejects_malformed_clause_tokens() {
+        // A leading clause word that is not an action verb is not consumed by
+        // the clause loop, so it reaches the declaration dispatcher.
+        assert_eq!(
+            err("rule r:\n  nonsense exec \"x\" if true\n  because \"r\"\n"),
+            "unknown declaration 'nonsense'"
+        );
+        assert_eq!(
+            err("rule r:\n  notify nonsense \"x\" if true\n  because \"r\"\n"),
+            "unknown op 'nonsense'"
+        );
+        assert_eq!(
+            err("rule r:\n  notify read file bool\n  because \"r\"\n"),
+            "expected string, got Some(Word(\"bool\"))"
+        );
+        assert_eq!(
+            err("rule r:\n  notify read\n"),
+            "expected node kind in target"
+        );
+        assert_eq!(err("rule r:\n  notify exec\n"), "expected string, got None");
+    }
+}
