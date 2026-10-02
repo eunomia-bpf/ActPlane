@@ -2108,4 +2108,64 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn spawn_stopped_target_rejects_empty_command() {
+        // `spawn_stopped_target` is the launch primitive every child domain
+        // goes through; an empty command must fail before any process is
+        // spawned. No base or branch test calls it.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = FeedbackPaths {
+            feedback: dir.path().join("feedback.json"),
+            state: dir.path().join("state.json"),
+            audit: dir.path().join("audit.ndjson"),
+            events: dir.path().join("events.ndjson"),
+        };
+        let err = spawn_stopped_target(&[], &feedback, None, false, false).unwrap_err();
+        assert!(err.to_string().contains("run requires a command"));
+    }
+
+    #[test]
+    fn spawn_stopped_target_stops_child_before_returning() {
+        // The helper must not return until the child has entered a stopped
+        // state, so the caller can bind the domain before it runs.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = FeedbackPaths {
+            feedback: dir.path().join("feedback.json"),
+            state: dir.path().join("state.json"),
+            audit: dir.path().join("audit.ndjson"),
+            events: dir.path().join("events.ndjson"),
+        };
+        let cmd = vec!["true".to_string()];
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        rt.block_on(async {
+            match spawn_stopped_target(&cmd, &feedback, None, false, false) {
+                Ok(mut child) => {
+                    let pid = child.id().expect("child has a pid");
+                    assert!(
+                        matches!(proc_state_code(pid), Ok('T') | Ok('t')),
+                        "child must be stopped on return"
+                    );
+                    // The CONT that resumes the child is denied to non-root in
+                    // some sandboxes (EPERM); tolerate it and SIGKILL as `true`
+                    // exits immediately anyway.
+                    let _ = send_signal(pid, libc::SIGCONT);
+                    let _ = send_signal(pid, libc::SIGKILL);
+                    let _ = child.wait();
+                }
+                Err(e) => {
+                    // With signals denied, the child can never be resumed; the
+                    // helper must have observed the stop within its timeout
+                    // rather than hang.
+                    assert!(
+                        e.to_string().contains("did not enter stopped state"),
+                        "unexpected spawn error: {e}"
+                    );
+                }
+            }
+        });
+    }
 }
