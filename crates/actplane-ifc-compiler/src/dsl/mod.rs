@@ -767,4 +767,35 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+
+    #[test]
+    fn event_update_table_rejects_overflow() {
+        let mut src = String::new();
+        for i in 0..64 {
+            for j in 0..6 {
+                src.push_str(&format!("source S{i} = exec \"c{i:02}_{j}\"\n"));
+            }
+        }
+        for i in 0..64 {
+            src.push_str(&format!(
+                "rule r{i}:\n  notify exec \"z{i:03}\" if S{i}\n  because \"b\"\n"
+            ));
+        }
+        let err = compile_str(&src).err().expect("overflows update table");
+        assert_eq!(err, "too many event updates (321 > 320)");
+
+        let mut smaller = String::new();
+        for i in 0..64 {
+            for j in 0..5 {
+                smaller.push_str(&format!("source S{i} = exec \"c{i:02}_{j}\"\n"));
+            }
+        }
+        for i in 0..64 {
+            smaller.push_str(&format!(
+                "rule r{i}:\n  notify exec \"z{i:03}\" if S{i}\n  because \"b\"\n"
+            ));
+        }
+        let compiled = ok(&smaller);
+        assert_eq!(compiled.meta.len(), 64);
+    }
 }
