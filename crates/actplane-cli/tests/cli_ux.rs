@@ -714,3 +714,89 @@ fn stdout(output: &Output) -> String {
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
+
+#[test]
+fn compile_report_out_respects_force() {
+    let tmp = tempfile::tempdir().unwrap();
+    let out = tmp.path().join("review.txt");
+    let policy = r#"
+rule noop:
+  notify exec "git" if true
+  because "noop"
+"#;
+    let args = [
+        "--rule",
+        policy,
+        "compile",
+        "--explain",
+        "--report-out",
+        out.to_str().unwrap(),
+    ];
+
+    let output = run(&args);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let first = fs::read_to_string(&out).unwrap();
+    assert!(first.contains("ActPlane policy review"));
+
+    let output = run(&args);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("already exists (use --force to overwrite)"));
+    assert_eq!(fs::read_to_string(&out).unwrap(), first);
+
+    let output = run(&[
+        "--rule",
+        policy,
+        "compile",
+        "--explain",
+        "--report-out",
+        out.to_str().unwrap(),
+        "--force",
+    ]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(stderr(&output).contains("wrote policy review"));
+    assert!(
+        fs::read_to_string(&out)
+            .unwrap()
+            .contains("ActPlane policy review")
+    );
+}
+
+#[test]
+fn compile_json_report_out_respects_force() {
+    let tmp = tempfile::tempdir().unwrap();
+    let out = tmp.path().join("report.json");
+    fs::write(&out, "stale").unwrap();
+    let policy = r#"
+rule noop:
+  notify exec "git" if true
+  because "noop"
+"#;
+
+    let output = run(&[
+        "--rule",
+        policy,
+        "compile",
+        "--json",
+        "--report-out",
+        out.to_str().unwrap(),
+    ]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("already exists (use --force to overwrite)"));
+    assert_eq!(fs::read_to_string(&out).unwrap(), "stale");
+
+    let output = run(&[
+        "--rule",
+        policy,
+        "compile",
+        "--json",
+        "--report-out",
+        out.to_str().unwrap(),
+        "--force",
+    ]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(stderr(&output).contains("wrote compile report"));
+    let written: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!(written["schema"], "actplane.compile.v1");
+    assert_eq!(written["ok"], true);
+}
