@@ -707,6 +707,50 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// A policy YAML that parses but has the wrong shape, or has empty `rules`,
+// fails validation with a message pointing at the offending section, and
+// `--json` reports the same failure structurally.
+#[test]
+fn compile_reports_policy_structure_validation_errors() {
+    let tmp = tempfile::tempdir().unwrap();
+
+    let malformed = tmp.path().join("malformed.yaml");
+    fs::write(&malformed, "version: 1\nrules:\n  - name: x\n").unwrap();
+    let output = run(&["--policy", malformed.to_str().unwrap(), "compile"]);
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("rules: invalid type: sequence, expected a map"),
+        "stderr: {}",
+        stderr(&output)
+    );
+
+    let empty = tmp.path().join("empty.yaml");
+    fs::write(&empty, "version: 1\nrules:\n").unwrap();
+    let output = run(&["--policy", empty.to_str().unwrap(), "compile"]);
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains(
+            "must contain either a non-empty `policy: |` block or both `rules:` and `domains:`"
+        ),
+        "stderr: {}",
+        stderr(&output)
+    );
+
+    let json = run(&["--policy", malformed.to_str().unwrap(), "compile", "--json"]);
+    assert_eq!(json.status.code(), Some(1), "stderr: {}", stderr(&json));
+    let value: serde_json::Value =
+        serde_json::from_slice(&json.stdout).expect("compile --json stdout");
+    assert_eq!(value["ok"], false);
+    assert!(
+        value["error"]
+            .as_str()
+            .unwrap()
+            .contains("rules: invalid type: sequence, expected a map"),
+        "json error: {}",
+        value["error"]
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
