@@ -2992,4 +2992,66 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn read_log_json_returns_whole_short_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("short.log");
+        std::fs::write(&path, "short body").expect("write");
+        let value = read_log_json(&path, 1024).expect("read");
+        assert_eq!(value["content"], "short body");
+        assert_eq!(value["truncated"], false);
+        assert_eq!(value["missing"], false);
+    }
+
+    #[test]
+    fn read_log_json_reports_internal_errors_for_directories() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let err = read_log_json(dir.path(), 16).err().expect("directory");
+        assert!(
+            err.message.contains("Read child log"),
+            "unexpected: {}",
+            err.message
+        );
+    }
+
+    #[test]
+    fn latest_run_feedback_returns_the_newest_run() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        assert!(latest_run_feedback(dir.path()).is_none(), "no runs dir");
+
+        let runs = dir.path().join(".actplane").join("runs");
+        for run in ["run-old", "run-new"] {
+            let run_dir = runs.join(run);
+            std::fs::create_dir_all(&run_dir).expect("run dir");
+            std::fs::write(run_dir.join("feedback.txt"), run).expect("feedback");
+        }
+
+        let found = latest_run_feedback(dir.path()).expect("feedback");
+        assert_eq!(found.file_name().unwrap(), "feedback.txt");
+        let run_name = found
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert_eq!(run_name, "run-new", "newest mtime wins");
+    }
+
+    #[test]
+    fn latest_run_feedback_aborts_on_a_feedbackless_run_dir() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let runs = dir.path().join(".actplane").join("runs");
+        let with_feedback = runs.join("run-good");
+        std::fs::create_dir_all(&with_feedback).expect("run dir");
+        std::fs::write(with_feedback.join("feedback.txt"), "x").expect("feedback");
+        assert!(latest_run_feedback(dir.path()).is_some());
+
+        std::fs::create_dir_all(runs.join("run-in-progress")).expect("run dir");
+        assert!(
+            latest_run_feedback(dir.path()).is_none(),
+            "a run dir without feedback.txt aborts resolution"
+        );
+    }
 }
