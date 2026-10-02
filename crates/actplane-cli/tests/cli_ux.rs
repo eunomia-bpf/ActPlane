@@ -707,6 +707,36 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `control delta add --delta <FILE>` reads the fragment from disk, and a
+// missing file is reported before any control-server connection.
+#[test]
+fn control_delta_add_reports_unreadable_delta_file() {
+    let tmp = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args([
+            "control",
+            "delta",
+            "add",
+            "--target-id",
+            "1",
+            "--delta",
+            "NOPE.dsl",
+        ])
+        .output()
+        .expect("run control delta add --delta");
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    let err = stderr(&output);
+    assert!(
+        err.contains("cannot read policy delta NOPE.dsl: No such file or directory"),
+        "stderr: {err}"
+    );
+    assert!(
+        !err.contains("control.json"),
+        "the delta must be read before the control server is contacted: {err}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
