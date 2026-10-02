@@ -2591,4 +2591,35 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    fn format_count_map_reports_none_then_sorted_pairs() {
+        let empty = BTreeMap::new();
+        assert_eq!(format_count_map(&empty), "none");
+
+        let mut counts = BTreeMap::new();
+        counts.insert("zeta".to_string(), 2usize);
+        counts.insert("alpha".to_string(), 5usize);
+        assert_eq!(format_count_map(&counts), "alpha=5,zeta=2");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn is_executable_requires_a_regular_executable_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempfile::tempdir().unwrap();
+
+        let plain = tmp.path().join("plain");
+        std::fs::write(&plain, "x").unwrap();
+        std::fs::set_permissions(&plain, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(!is_executable(&plain));
+
+        let exec = tmp.path().join("exec");
+        std::fs::write(&exec, "x").unwrap();
+        std::fs::set_permissions(&exec, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(is_executable(&exec));
+
+        assert!(!is_executable(tmp.path()));
+        assert!(!is_executable(&tmp.path().join("missing")));
+    }
 }
