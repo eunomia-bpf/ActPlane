@@ -2591,4 +2591,137 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn compiled_with_endpoints(entries: &[(&str, Vec<&str>)]) -> dsl::Compiled {
+        let mut resolutions = std::collections::HashMap::new();
+        for (pattern, addrs) in entries {
+            resolutions.insert(
+                (*pattern).to_string(),
+                addrs.iter().map(|a| (*a).to_string()).collect(),
+            );
+        }
+        dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: std::collections::HashMap::new(),
+            endpoint_resolutions: resolutions,
+        }
+    }
+
+    fn target(kind: Kind, pattern: &str, arg: Option<&str>) -> crate::dsl::ast::Target {
+        crate::dsl::ast::Target {
+            kind,
+            pattern: pattern.to_string(),
+            arg: arg.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn append_label_bits_lists_none_or_sorted_masks() {
+        let mut compiled = compiled_with_endpoints(&[]);
+        let mut out = String::new();
+        append_label_bits(&mut out, &compiled);
+        assert_eq!(out, "  - none\n");
+        compiled.labels.insert("high".into(), 0x10);
+        compiled.labels.insert("low".into(), 0x1);
+        let mut out = String::new();
+        append_label_bits(&mut out, &compiled);
+        assert_eq!(out, "  - low = 0x1\n  - high = 0x10\n");
+    }
+
+    #[test]
+    fn append_append_delta_approval_renders_required_and_optional_fields() {
+        let mut out = String::new();
+        append_append_delta_approval(&mut out, &AppendDeltaApprovalConfig::default());
+        assert!(out.contains("append policy delta approval: not required"));
+        assert!(out.contains("admission model: metadata_only"));
+
+        let required = AppendDeltaApprovalConfig {
+            required: true,
+            require_approval_ref: true,
+            require_generated_by: false,
+            allowed_approvers: vec!["alice".into(), "bob".into()],
+        };
+        let mut out = String::new();
+        append_append_delta_approval(&mut out, &required);
+        assert!(out.contains("required metadata: approved_by, approval_ref"));
+        assert!(out.contains("allowed approvers: alice, bob"));
+        assert!(out.contains("external_verified=false, signature=null"));
+
+        let any = AppendDeltaApprovalConfig {
+            required: true,
+            ..AppendDeltaApprovalConfig::default()
+        };
+        let mut out = String::new();
+        append_append_delta_approval(&mut out, &any);
+        assert!(out.contains("allowed approvers: any non-empty approved_by"));
+    }
+
+    #[test]
+    fn backend_support_warnings_flags_endpoint_and_argv_and_lsm() {
+        let compiled = compiled_with_endpoints(&[]);
+        let policy = Policy {
+            labels: Vec::new(),
+            sources: vec![Source {
+                label: "E".into(),
+                kind: Kind::Endpoint,
+                pattern: "*.example".into(),
+            }],
+            rules: vec![crate::dsl::ast::Rule {
+                name: "r".into(),
+                reason: String::new(),
+                clauses: vec![
+                    Clause {
+                        op: Op::Connect,
+                        target: target(Kind::Endpoint, "*.example", None),
+                        when: Expr::True,
+                        unless: None,
+                        effect: Effect::Notify,
+                        source_index: 0,
+                    },
+                    Clause {
+                        op: Op::Exec,
+                        target: target(Kind::Exec, "git", Some("push")),
+                        when: Expr::True,
+                        unless: None,
+                        effect: Effect::Block,
+                        source_index: 0,
+                    },
+                ],
+            }],
+            xforms: Vec::new(),
+        };
+        let codes: Vec<&str> = backend_support_warnings(&policy, &compiled, false)
+            .iter()
+            .map(|warning| warning.code)
+            .collect();
+        assert!(codes.contains(&"endpoint_source_unsupported"));
+        assert!(codes.contains(&"endpoint_target_unsupported"));
+        assert!(codes.contains(&"argv_block_exec_post_exec_only"));
+        assert!(codes.contains(&"bpf_lsm_inactive_for_block"));
+    }
+
+    #[test]
+    fn backend_support_warnings_empty_when_all_supported() {
+        let compiled = compiled_with_endpoints(&[]);
+        let policy = Policy {
+            labels: Vec::new(),
+            sources: Vec::new(),
+            rules: vec![crate::dsl::ast::Rule {
+                name: "r".into(),
+                reason: String::new(),
+                clauses: vec![Clause {
+                    op: Op::Read,
+                    target: target(Kind::File, "**/.env", None),
+                    when: Expr::True,
+                    unless: None,
+                    effect: Effect::Block,
+                    source_index: 0,
+                }],
+            }],
+            xforms: Vec::new(),
+        };
+        assert!(backend_support_warnings(&policy, &compiled, true).is_empty());
+    }
 }
