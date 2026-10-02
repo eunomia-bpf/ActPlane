@@ -2992,4 +2992,39 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn unattached_handlers_report_missing_engine_with_internal_error() {
+        let project_dir = tempfile::tempdir().expect("tempdir");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(
+            None,
+            Some(project_dir.path().to_path_buf()),
+        );
+
+        let err = server
+            .do_append_policy_delta(None)
+            .expect_err("append must fail without an engine");
+        assert_eq!(err.code, ErrorCode::INTERNAL_ERROR);
+        assert!(err.message.contains("No eBPF engine attached"));
+
+        let err = server
+            .launch_child_domain_inner(
+                vec!["/bin/true".to_string()],
+                Some(9),
+                0,
+                None,
+                PolicyAuditMeta::default(),
+                None,
+                RestartSettings {
+                    policy: RestartPolicy::Never,
+                    count: 0,
+                    limit: 0,
+                    backoff_ms: 0,
+                },
+            )
+            .err()
+            .expect("launch must fail without an engine");
+        assert_eq!(err.code, ErrorCode::INTERNAL_ERROR);
+        assert!(err.message.contains("No eBPF engine attached"));
+    }
 }
