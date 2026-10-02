@@ -707,6 +707,44 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// Every built-in template must produce a policy that compiles, so a template
+// cannot ship broken DSL.
+#[test]
+fn every_template_generates_a_compilable_policy() {
+    let listing = run(&["init", "--list-templates"]);
+    assert!(listing.status.success(), "stderr: {}", stderr(&listing));
+    let ids: Vec<String> = stdout(&listing)
+        .lines()
+        .skip(1)
+        .filter_map(|line| line.split_whitespace().next().map(str::to_string))
+        .collect();
+    assert_eq!(ids.len(), 10, "expected the 10 built-in templates: {ids:?}");
+
+    let tmp = tempfile::tempdir().unwrap();
+    for id in &ids {
+        let printed = run(&["init", "--template", id, "--print"]);
+        assert!(
+            printed.status.success(),
+            "template {id} failed to render: {}",
+            stderr(&printed)
+        );
+        assert!(
+            !stdout(&printed).contains("{{"),
+            "template {id} left placeholders: {}",
+            stdout(&printed)
+        );
+
+        let policy = tmp.path().join(format!("{id}.yaml"));
+        fs::write(&policy, printed.stdout).unwrap();
+        let compiled = run(&["--policy", policy.to_str().unwrap(), "compile"]);
+        assert!(
+            compiled.status.success(),
+            "template {id} did not compile:\n{}",
+            stderr(&compiled)
+        );
+    }
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
