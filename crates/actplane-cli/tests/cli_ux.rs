@@ -707,6 +707,47 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// A zero `--domain-id` in child-domain attach mode is rejected before the
+// control socket is contacted.
+#[test]
+fn attach_child_domain_rejects_zero_domain_id() {
+    let tmp = tempfile::tempdir().unwrap();
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": 1,
+            "proc_start_time": null,
+            "socket_path": tmp.path().join("control.sock"),
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": 2222,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args([
+            "attach",
+            "--pid",
+            "4242",
+            "--child-domain",
+            "--domain-id",
+            "0",
+        ])
+        .output()
+        .expect("run attach");
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("--domain-id must be nonzero"),
+        "stderr: {}",
+        stderr(&output)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
