@@ -952,4 +952,58 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+
+    #[test]
+    fn mentions_push_approval_exception_needs_push_and_approval() {
+        assert!(mentions_push_approval_exception(
+            "do not git push without approval"
+        ));
+        assert!(mentions_push_approval_exception(
+            "push to main requires approval"
+        ));
+        assert!(!mentions_push_approval_exception("git push the branch"));
+        assert!(!mentions_push_approval_exception(
+            "needs approval for the change"
+        ));
+    }
+
+    #[test]
+    fn mentions_push_approval_context_accepts_short_forms() {
+        assert!(mentions_push_approval_context("push approval needed"));
+        assert!(mentions_push_approval_context("approve-push required"));
+        assert!(mentions_push_approval_context(
+            "do not git push without approval"
+        ));
+        assert!(!mentions_push_approval_context("push the branch"));
+    }
+
+    #[test]
+    fn mentions_release_protected_push_context_matches_protected_wording() {
+        assert!(mentions_release_protected_push_context(
+            "a protected branch"
+        ));
+        assert!(mentions_release_protected_push_context("push to main"));
+        assert!(mentions_release_protected_push_context(
+            "release branch rules"
+        ));
+        assert!(!mentions_release_protected_push_context(
+            "push to a feature branch"
+        ));
+    }
+
+    #[test]
+    fn mentions_protected_push_approval_combines_context_and_target() {
+        assert!(mentions_protected_push_approval(
+            "git push to main requires approval"
+        ));
+        assert!(mentions_protected_push_approval(
+            "push approval for the release branch"
+        ));
+        // Approval context from "protected push" only, which is absent from the
+        // secondary target list and is not a protected/release scope phrase.
+        assert!(!mentions_protected_push_approval(
+            "protected push needs approval"
+        ));
+        assert!(!mentions_protected_push_approval("git push the branch"));
+    }
 }
