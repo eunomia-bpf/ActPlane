@@ -707,6 +707,60 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `init --all` writes the starter policy plus every project integration in one
+// pass: the Codex feedback hook, the MCP auto-attach config, and the AGENTS.md
+// guidance. Each artifact must contain the command/args the runtime expects.
+#[test]
+fn init_all_writes_policy_and_integration_files() {
+    let tmp = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--all"])
+        .output()
+        .expect("run init --all");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(
+        stderr(&output).contains("project integration ready"),
+        "stderr: {}",
+        stderr(&output)
+    );
+
+    // Starter policy: a valid, compilable actplane.yaml.
+    let policy = tmp.path().join("actplane.yaml");
+    let policy_text = fs::read_to_string(&policy).expect("actplane.yaml written");
+    assert!(policy_text.contains("version: 1"));
+    let compile = run(&["--policy", policy.to_str().unwrap(), "compile", "--explain"]);
+    assert!(compile.status.success(), "stderr: {}", stderr(&compile));
+
+    // Codex feedback hook wires the `feedback-hook` adapter.
+    let hooks: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(tmp.path().join(".codex/hooks.json")).unwrap())
+            .expect("hooks.json JSON");
+    let hook_command = hooks["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+        .as_str()
+        .expect("hook command string");
+    assert!(
+        hook_command.contains("actplane") && hook_command.contains("feedback-hook"),
+        "hook command: {hook_command}"
+    );
+
+    // MCP config points at the stdio server with auto-attach.
+    let mcp: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(tmp.path().join(".mcp.json")).unwrap())
+            .expect("mcp.json JSON");
+    assert_eq!(mcp["mcpServers"]["actplane"]["command"], "actplane");
+    let mcp_args = mcp["mcpServers"]["actplane"]["args"]
+        .as_array()
+        .expect("mcp args array");
+    assert!(mcp_args.iter().any(|a| a == "mcp"));
+    assert!(mcp_args.iter().any(|a| a == "--auto-attach-parent"));
+
+    // AGENTS.md guidance tells the agent to treat kernel feedback as authority.
+    let agents = fs::read_to_string(tmp.path().join("AGENTS.md")).expect("AGENTS.md written");
+    assert!(agents.contains("ActPlane"));
+    assert!(agents.contains(".actplane/last-violation.txt"));
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
