@@ -1381,3 +1381,36 @@ policy: |
     .expect("write policy");
     policy
 }
+
+// An unknown requested protocol version does not fail the handshake: the server
+// negotiates down to its latest supported version.
+#[test]
+fn mcp_initialize_negotiates_supported_protocol_version() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "9999-01-01",
+            "capabilities": {},
+            "clientInfo": { "name": "actplane-test", "version": "0" }
+        }
+    }));
+    let init = mcp.response(1);
+    assert!(
+        init.get("error").is_none(),
+        "unknown version should negotiate, not error: {init}"
+    );
+    let negotiated = init["result"]["protocolVersion"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    assert!(
+        negotiated != "9999-01-01" && !negotiated.is_empty(),
+        "negotiated version: {init}"
+    );
+}
