@@ -2591,4 +2591,138 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn compiled_with_endpoints(entries: &[(&str, Vec<&str>)]) -> dsl::Compiled {
+        let mut resolutions = std::collections::HashMap::new();
+        for (pattern, addrs) in entries {
+            resolutions.insert(
+                (*pattern).to_string(),
+                addrs.iter().map(|a| (*a).to_string()).collect(),
+            );
+        }
+        dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: std::collections::HashMap::new(),
+            endpoint_resolutions: resolutions,
+        }
+    }
+
+    #[test]
+    fn source_support_detail_covers_each_kind() {
+        let compiled = compiled_with_endpoints(&[]);
+        let (ok, reason, f_lim) = source_support_detail(&compiled, Kind::Exec, "git");
+        assert!(ok && reason.contains("exec"));
+        assert!(f_lim.is_empty());
+        let (ok, _, f_lim) = source_support_detail(&compiled, Kind::File, "**/.env");
+        assert!(ok && !f_lim.is_empty());
+        let (ok, _, _) = source_support_detail(&compiled, Kind::Endpoint, "10.0.0.1");
+        assert!(ok);
+    }
+
+    #[test]
+    fn endpoint_support_detail_distinguishes_numeric_resolved_and_unknown() {
+        let compiled = compiled_with_endpoints(&[
+            ("host.example", vec!["10.0.0.1"]),
+            ("empty.example", vec![]),
+        ]);
+        let (ok, _, _) = endpoint_support_detail(&compiled, "10.0.0.1", "target");
+        assert!(ok);
+        let (ok, reason, _) = endpoint_support_detail(&compiled, "host.example", "source");
+        assert!(ok && reason.contains("resolved"));
+        let (ok, reason, _) = endpoint_support_detail(&compiled, "empty.example", "target");
+        assert!(!ok && reason.contains("did not resolve"));
+        let (ok, reason, _) = endpoint_support_detail(&compiled, "*.example", "target");
+        assert!(!ok && reason.contains("not numeric IPv4"));
+    }
+
+    #[test]
+    fn endpoint_limitations_tracks_resolution_state() {
+        let compiled = compiled_with_endpoints(&[("host.example", vec!["10.0.0.1"])]);
+        assert_eq!(
+            endpoint_limitations(&compiled, "10.0.0.1"),
+            vec!["IPv4 only"]
+        );
+        assert!(
+            endpoint_limitations(&compiled, "host.example")
+                .contains(&"DNS changes require policy reload")
+        );
+        assert_eq!(
+            endpoint_limitations(&compiled, "unknown.example"),
+            vec!["IPv4 only"]
+        );
+        let with_extra = endpoint_limitations_with(&compiled, "unknown.example", "extra note");
+        assert_eq!(with_extra.last(), Some(&"extra note"));
+    }
+
+    #[test]
+    fn clause_support_detail_rejects_argv_block_and_unsupported_endpoints() {
+        let compiled = compiled_with_endpoints(&[]);
+        let argv = clause_support_detail(
+            &compiled,
+            Effect::Block,
+            Op::Exec,
+            Kind::Exec,
+            "git",
+            Some("push"),
+            true,
+        );
+        assert!(!argv.supported && argv.reason.contains("argv"));
+        let no_lsm = clause_support_detail(
+            &compiled,
+            Effect::Block,
+            Op::Exec,
+            Kind::Exec,
+            "git",
+            None,
+            false,
+        );
+        assert!(!no_lsm.supported && no_lsm.reason.contains("BPF-LSM is not active"));
+        let endpoint = clause_support_detail(
+            &compiled,
+            Effect::Block,
+            Op::Connect,
+            Kind::Endpoint,
+            "*.example",
+            None,
+            true,
+        );
+        assert!(!endpoint.supported && endpoint.status == "unsupported");
+    }
+
+    #[test]
+    fn clause_support_detail_marks_supported_effects() {
+        let compiled = compiled_with_endpoints(&[]);
+        let block = clause_support_detail(
+            &compiled,
+            Effect::Block,
+            Op::Exec,
+            Kind::Exec,
+            "git",
+            None,
+            true,
+        );
+        assert!(block.supported && block.mode == "bpf-lsm" && block.pre_op);
+        let notify = clause_support_detail(
+            &compiled,
+            Effect::Notify,
+            Op::Read,
+            Kind::File,
+            "**/.env",
+            None,
+            false,
+        );
+        assert!(notify.supported && notify.mode == "tracepoint" && !notify.pre_op);
+        let kill = clause_support_detail(
+            &compiled,
+            Effect::Kill,
+            Op::Connect,
+            Kind::Endpoint,
+            "10.0.0.1",
+            None,
+            false,
+        );
+        assert!(kill.supported && kill.mode == "tracepoint");
+    }
 }
