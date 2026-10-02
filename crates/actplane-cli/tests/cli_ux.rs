@@ -707,6 +707,34 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// For a policy with `domains:`, `doctor` annotates the policy line with the
+// resolved domain, honours an explicit `--domain`, and rejects an unknown one.
+#[test]
+fn doctor_annotates_domain_policy_resolution() {
+    let policy = fixture("15_domain_bindings.yaml");
+
+    let default = run(&["doctor", "--policy", &policy]);
+    let out = stdout(&default);
+    assert!(
+        out.contains(&format!("✓ policy: {policy} domain `review` (2 rule(s))")),
+        "stdout: {out}"
+    );
+
+    let session = run(&["doctor", "--policy", &policy, "--domain", "session"]);
+    assert!(
+        stdout(&session).contains(&format!("✓ policy: {policy} domain `session` (2 rule(s))")),
+        "stdout: {}",
+        stdout(&session)
+    );
+
+    let unknown = run(&["doctor", "--policy", &policy, "--domain", "bogus"]);
+    assert!(
+        stdout(&unknown).contains("✗ policy: unknown domain `bogus` (available: review, session)"),
+        "stdout: {}",
+        stdout(&unknown)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
