@@ -707,6 +707,41 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `--domain` selects a named runtime domain from a policy file. An unknown
+// name lists the available domains, and a policy without a `domains:` section
+// rejects `--domain` outright. cli_ux.rs covered only the success path.
+#[test]
+fn domain_selection_reports_unknown_and_domainless_policies() {
+    let unknown = run(&[
+        "--policy",
+        &fixture("15_domain_bindings.yaml"),
+        "--domain",
+        "nope",
+        "compile",
+    ]);
+    assert!(!unknown.status.success());
+    assert!(
+        stderr(&unknown).contains("unknown domain `nope` (available: review, session)"),
+        "stderr: {}",
+        stderr(&unknown)
+    );
+
+    let domainless = run(&[
+        "--policy",
+        &fixture("01_secret_no_exfil.yaml"),
+        "--domain",
+        "review",
+        "compile",
+    ]);
+    assert!(!domainless.status.success());
+    assert!(
+        stderr(&domainless)
+            .contains("`--domain` requires a policy file with `rules:` and `domains:`"),
+        "stderr: {}",
+        stderr(&domainless)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
