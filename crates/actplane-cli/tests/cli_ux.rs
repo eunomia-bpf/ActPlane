@@ -707,6 +707,49 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// The MCP server answers `ping` and `resources/templates/list`, and rejects an
+// unknown resource URI with an invalid-params error.
+#[test]
+fn mcp_answers_ping_and_templates_and_unknown_resource() {
+    use std::io::Write as _;
+    let tmp = tempfile::tempdir().unwrap();
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("mcp")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"c\",\"version\":\"1\"}}}\n{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"resources/templates/list\",\"params\":{}}\n{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"ping\",\"params\":{}}\n{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"resources/read\",\"params\":{\"uri\":\"actplane:///logs\"}}\n",
+        )
+        .unwrap();
+    let output = child.wait_with_output().expect("mcp output");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let mut by_id = std::collections::BTreeMap::new();
+    for line in stdout(&output).lines() {
+        let message: serde_json::Value = serde_json::from_str(line).expect("mcp json line");
+        if let Some(id) = message["id"].as_u64() {
+            by_id.insert(id, message);
+        }
+    }
+    assert_eq!(
+        by_id[&2]["result"]["resourceTemplates"],
+        serde_json::json!([])
+    );
+    assert_eq!(by_id[&3]["result"], serde_json::json!({}));
+    assert_eq!(by_id[&4]["error"]["code"], -32602);
+    assert_eq!(
+        by_id[&4]["error"]["message"],
+        "Unknown resource: actplane:///logs"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
