@@ -707,6 +707,42 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `control status` reports the unreachable control server when no state file
+// exists, and `control delta add` requires an inline or file delta.
+#[test]
+fn control_status_and_delta_input_guards() {
+    let tmp = tempfile::tempdir().unwrap();
+
+    let status = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["control", "status"])
+        .output()
+        .expect("run control status");
+    assert!(!status.status.success());
+    assert!(
+        stderr(&status).contains(".actplane/control.json"),
+        "stderr: {}",
+        stderr(&status)
+    );
+    assert!(
+        stderr(&status).contains("No such file or directory"),
+        "stderr: {}",
+        stderr(&status)
+    );
+
+    let delta = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["control", "delta", "add", "--target-id", "1"])
+        .output()
+        .expect("run control delta add");
+    assert!(!delta.status.success());
+    assert!(
+        stderr(&delta).contains("control delta add requires --delta or --delta-text"),
+        "stderr: {}",
+        stderr(&delta)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
