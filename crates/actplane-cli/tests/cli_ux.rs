@@ -707,6 +707,48 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// Without a discoverable policy, every engine-driving subcommand must fail
+// with the same actionable message (exit 1) instead of proceeding with an
+// empty policy. Discovery starts from cwd, so a fresh tempdir is isolated
+// from any actplane.yaml in the repository.
+#[test]
+fn engine_commands_without_policy_report_discovery_error() {
+    let tmp = tempfile::tempdir().unwrap();
+    for args in [&["compile"][..], &["watch"][..], &["run", "true"][..]] {
+        let output = Command::new(actplane())
+            .current_dir(tmp.path())
+            .args(args)
+            .output()
+            .unwrap_or_else(|e| panic!("run actplane {args:?}: {e}"));
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "{args:?} exited {:?}: {}",
+            output.status.code(),
+            stderr(&output)
+        );
+        assert!(
+            stderr(&output)
+                .contains("no actplane.yaml found; pass --policy <file> or --rule <dsl>"),
+            "{args:?} stderr: {}",
+            stderr(&output)
+        );
+    }
+}
+
+// `run` rejects `--parent-domain` when any child runtime-delta option is set.
+#[test]
+fn run_parent_domain_rejects_child_runtime_options() {
+    let output = run(&["run", "--parent-domain", "--child-id", "5", "true"]);
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output)
+            .contains("--parent-domain cannot be combined with child runtime delta options"),
+        "stderr: {}",
+        stderr(&output)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
