@@ -1381,3 +1381,37 @@ policy: |
     .expect("write policy");
     policy
 }
+
+// The `initialize` handshake advertises the server identity and instructions,
+// and echo-negotiates the requested protocol version.
+#[test]
+fn mcp_initialize_reports_server_info_and_instructions() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": { "name": "actplane-test", "version": "0" }
+        }
+    }));
+    let init = mcp.response(1);
+    let result = &init["result"];
+    assert_eq!(result["protocolVersion"], "2024-11-05", "init: {init}");
+    assert!(
+        result["serverInfo"]["name"].is_string(),
+        "serverInfo: {init}"
+    );
+    assert!(
+        result["instructions"]
+            .as_str()
+            .unwrap_or("")
+            .contains("ActPlane: OS-level agent harness"),
+        "instructions: {init}"
+    );
+}
