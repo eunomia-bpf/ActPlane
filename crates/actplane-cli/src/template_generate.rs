@@ -952,4 +952,69 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+
+    #[test]
+    fn truncate_to_char_boundary_never_splits_a_codepoint() {
+        let mut ascii = "abcdef".to_string();
+        assert!(truncate_to_char_boundary(&mut ascii, 3));
+        assert_eq!(ascii, "abc");
+
+        let mut short = "abc".to_string();
+        assert!(!truncate_to_char_boundary(&mut short, 3));
+        assert_eq!(short, "abc");
+
+        // "é" is two bytes, so a byte limit landing inside it backs up one byte.
+        let mut unicode = "aé".to_string();
+        assert!(truncate_to_char_boundary(&mut unicode, 2));
+        assert_eq!(unicode, "a");
+        assert!(unicode.len() <= 2);
+    }
+
+    #[test]
+    fn mentions_helpers_match_any_listed_phrase() {
+        assert!(!mentions_any("run the tests", &["pytest", "cargo test"]));
+        assert!(mentions_any(
+            "run cargo test now",
+            &["pytest", "cargo test"]
+        ));
+    }
+
+    #[test]
+    fn mentions_no_git_push_matches_ban_phrasings() {
+        assert!(mentions_no_git_push("do not push to main"));
+        assert!(mentions_no_git_push("never push directly"));
+        assert!(mentions_no_git_push("no git push allowed"));
+        assert!(!mentions_no_git_push("push the branch when ready"));
+    }
+
+    #[test]
+    fn mentions_test_before_commit_requires_both_phrases() {
+        assert!(mentions_test_before_commit("run pytest before committing"));
+        assert!(mentions_test_before_commit("test-before-commit applies"));
+        assert!(!mentions_test_before_commit("run pytest"));
+        assert!(!mentions_test_before_commit("commit the change"));
+    }
+
+    #[test]
+    fn mentions_dependency_update_gate_needs_dependency_and_validation() {
+        assert!(mentions_dependency_update_gate("dependency-update-gate"));
+        assert!(mentions_dependency_update_gate(
+            "a lockfile change must be validated with cargo test"
+        ));
+        assert!(!mentions_dependency_update_gate(
+            "a lockfile change happens"
+        ));
+        assert!(!mentions_dependency_update_gate("run cargo test"));
+    }
+
+    #[test]
+    fn append_comment_block_prefixes_every_line_under_the_label() {
+        let mut out = String::new();
+        append_comment_block(&mut out, "why", "first\nsecond");
+        assert_eq!(out, "# why: first\n# why: second\n");
+
+        let mut empty = String::new();
+        append_comment_block(&mut empty, "why", "");
+        assert_eq!(empty, "# why: \n");
+    }
 }
