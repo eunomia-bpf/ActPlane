@@ -323,4 +323,21 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    #[test]
+    fn hook_context_keeps_short_feedback_intact() {
+        let ctx = hook_context("blocked exec git");
+        assert!(ctx.contains("authoritative feedback from the kernel"));
+        assert!(ctx.ends_with("blocked exec git"));
+        assert!(!ctx.contains("truncated"));
+    }
+
+    #[test]
+    fn hook_context_truncates_to_the_tail() {
+        let long = format!("{}TAIL", "x".repeat(HOOK_MAX_CHARS + 100));
+        let ctx = hook_context(&long);
+        assert!(ctx.contains("... truncated ..."));
+        assert!(ctx.ends_with("TAIL"));
+        assert!(!ctx.contains(&"x".repeat(HOOK_MAX_CHARS + 1)));
+    }
 }
