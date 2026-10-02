@@ -1072,3 +1072,59 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn init_args() -> InitArgs {
+        InitArgs {
+            out: None,
+            template: None,
+            params: Vec::new(),
+            generate: false,
+            instructions: Vec::new(),
+            task: None,
+            list_templates: false,
+            print: false,
+            with_codex: false,
+            with_mcp: false,
+            all: false,
+            force: false,
+        }
+    }
+
+    #[test]
+    fn init_command_rejects_conflicting_flag_combinations() {
+        let mut args = init_args();
+        args.instructions = vec![PathBuf::from("AGENTS.md")];
+        assert_eq!(
+            init_command(&args).err().map(|e| e.to_string()),
+            Some("--instructions and --task require --generate".into())
+        );
+
+        let mut args = init_args();
+        args.list_templates = true;
+        args.with_codex = true;
+        assert_eq!(
+            init_command(&args).err().map(|e| e.to_string()),
+            Some("--list-templates cannot be combined with write or integration flags".into())
+        );
+
+        let mut args = init_args();
+        args.list_templates = true;
+        args.params = vec!["k=v".into()];
+        assert_eq!(
+            init_command(&args).err().map(|e| e.to_string()),
+            Some("--list-templates cannot be combined with write or integration flags".into())
+        );
+
+        let mut args = init_args();
+        args.print = true;
+        args.all = true;
+        assert_eq!(
+            init_command(&args).err().map(|e| e.to_string()),
+            Some("--print cannot be combined with integration setup flags".into())
+        );
+    }
+}
