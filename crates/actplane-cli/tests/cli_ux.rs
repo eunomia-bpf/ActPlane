@@ -707,6 +707,37 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// A policy YAML with an unknown top-level field fails to deserialize; both
+// `compile` and `run` report the file and the allowed field set.
+#[test]
+fn policy_yaml_unknown_field_reports_expected_keys() {
+    let tmp = tempfile::tempdir().unwrap();
+    let broken = tmp.path().join("broken.yaml");
+    fs::write(&broken, "not: [valid\n").unwrap();
+
+    for args in [
+        vec!["compile", "--policy", broken.to_str().unwrap()],
+        vec!["run", "--policy", broken.to_str().unwrap(), "/bin/true"],
+    ] {
+        let output = run(&args);
+        assert_eq!(output.status.code(), Some(1), "{args:?}");
+        let err = stderr(&output);
+        assert!(
+            err.contains(&format!(
+                "Error: \"parsing {}: unknown field `not`",
+                broken.display()
+            )),
+            "{args:?} stderr: {err}"
+        );
+        assert!(
+            err.contains(
+                "expected one of `version`, `policy`, `rules`, `domains`, `default_domain`, `runtime`, `feedback`"
+            ),
+            "{args:?} stderr: {err}"
+        );
+    }
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
