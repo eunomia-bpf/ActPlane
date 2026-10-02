@@ -2992,4 +2992,123 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn write_child_meta(project_dir: &std::path::Path, launch_id: &str, value: &Value) -> PathBuf {
+        let log_dir = project_dir
+            .join(".actplane")
+            .join("children")
+            .join(launch_id);
+        std::fs::create_dir_all(&log_dir).expect("log dir");
+        std::fs::write(
+            log_dir.join("meta.json"),
+            serde_json::to_string_pretty(value).expect("serialize"),
+        )
+        .expect("write meta");
+        log_dir
+    }
+
+    #[test]
+    fn load_child_records_skips_unreadable_and_malformed_metas() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let base = dir.path();
+        assert!(
+            load_child_records_with_adoptions(base).records.is_empty(),
+            "missing children dir loads nothing"
+        );
+
+        let good = write_child_meta(
+            base,
+            "child-good",
+            &serde_json::json!({ "pid": 1, "child_id": 11, "cmd": ["/bin/true"] }),
+        );
+        assert!(good.join("meta.json").is_file());
+        write_child_meta(
+            base,
+            "child-bad-json",
+            &serde_json::json!({ "pid": 1, "child_id": 12, "cmd": ["/bin/true"] }),
+        );
+        std::fs::write(
+            base.join(".actplane/children/child-bad-json/meta.json"),
+            "{not json",
+        )
+        .expect("corrupt meta");
+        write_child_meta(
+            base,
+            "child-no-cmd",
+            &serde_json::json!({ "pid": 1, "child_id": 13 }),
+        );
+
+        let loaded = load_child_records_with_adoptions(base);
+        assert_eq!(loaded.records.len(), 1, "only the well-formed record loads");
+        assert_eq!(loaded.records[&11].launch_id, "child-good");
+        assert_eq!(loaded.records[&11].meta, good.join("meta.json"));
+    }
+
+    fn pid_record(status: ChildStatus) -> ChildRecord {
+        ChildRecord {
+            launch_id: "child-pid".to_string(),
+            pid: i32::MAX,
+            child_id: 1,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: PathBuf::from("/tmp/stdout.log"),
+            stderr: PathBuf::from("/tmp/stderr.log"),
+            meta: PathBuf::from("/tmp/meta.json"),
+            proc_start_time: None,
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: 2,
+            restart_backoff_ms: 1000,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    #[test]
+    fn child_record_meta_trusted_accepts_secure_root_layout() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let log_dir = write_child_meta(
+            dir.path(),
+            "child-trusted",
+            &serde_json::json!({ "pid": 1, "child_id": 14, "cmd": ["/bin/true"] }),
+        );
+        let meta = log_dir.join("meta.json");
+        assert!(child_record_meta_trusted(&meta));
+        assert!(
+            child_record_meta_trusted(&dir.path().join("absent/meta.json")),
+            "non-root callers trust without stat"
+        );
+    }
+
+    #[test]
+    fn process_identity_matches_pid_reuse_without_start_time() {
+        assert!(!process_identity_matches(&pid_record(ChildStatus::Running)));
+        let mut self_record = pid_record(ChildStatus::Running);
+        self_record.pid = std::process::id() as i32;
+        assert!(process_identity_matches(&self_record), "live pid");
+        self_record.proc_start_time = proc_start_time(self_record.pid);
+        assert!(
+            process_identity_matches(&self_record),
+            "matching start time"
+        );
+        self_record.proc_start_time = Some(u64::MAX);
+        assert!(
+            !process_identity_matches(&self_record),
+            "start time mismatch"
+        );
+    }
+
+    #[test]
+    fn parse_restart_policy_str_accepts_the_two_aliases() {
+        assert_eq!(parse_restart_policy_str("on_exit"), RestartPolicy::OnExit);
+        assert_eq!(parse_restart_policy_str("on-exit"), RestartPolicy::OnExit);
+        assert_eq!(parse_restart_policy_str("always"), RestartPolicy::Never);
+        assert_eq!(parse_restart_policy_str(""), RestartPolicy::Never);
+    }
 }
