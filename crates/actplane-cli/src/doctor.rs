@@ -2591,4 +2591,97 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn compiled_with_endpoints(entries: &[(&str, Vec<&str>)]) -> dsl::Compiled {
+        let mut resolutions = std::collections::HashMap::new();
+        for (pattern, addrs) in entries {
+            resolutions.insert(
+                (*pattern).to_string(),
+                addrs.iter().map(|a| (*a).to_string()).collect(),
+            );
+        }
+        dsl::Compiled {
+            bytes: Vec::new(),
+            reasons: Vec::new(),
+            meta: Vec::new(),
+            labels: std::collections::HashMap::new(),
+            endpoint_resolutions: resolutions,
+        }
+    }
+
+    fn target(kind: Kind, pattern: &str, arg: Option<&str>) -> crate::dsl::ast::Target {
+        crate::dsl::ast::Target {
+            kind,
+            pattern: pattern.to_string(),
+            arg: arg.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn source_support_json_serializes_each_source() {
+        let compiled = compiled_with_endpoints(&[]);
+        let policy = Policy {
+            labels: Vec::new(),
+            sources: vec![Source {
+                label: "T".into(),
+                kind: Kind::File,
+                pattern: "**/.env".into(),
+            }],
+            rules: Vec::new(),
+            xforms: Vec::new(),
+        };
+        let out = source_support_json(&policy, &compiled);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0]["label"], "T");
+        assert_eq!(out[0]["kind"], "file");
+        assert_eq!(out[0]["supported"], true);
+    }
+
+    #[test]
+    fn clause_support_json_reports_status_and_condition_warnings() {
+        let compiled = compiled_with_endpoints(&[("multi.example", vec!["10.0.0.1", "10.0.0.2"])]);
+        let policy = Policy {
+            labels: Vec::new(),
+            sources: Vec::new(),
+            rules: vec![crate::dsl::ast::Rule {
+                name: "r".into(),
+                reason: String::new(),
+                clauses: vec![
+                    Clause {
+                        op: Op::Connect,
+                        target: target(Kind::Endpoint, "multi.example", None),
+                        when: Expr::True,
+                        unless: Some(Cond::Target {
+                            negate: false,
+                            pattern: "multi.example".into(),
+                        }),
+                        effect: Effect::Block,
+                        source_index: 0,
+                    },
+                    Clause {
+                        op: Op::Exec,
+                        target: target(Kind::Exec, "git", None),
+                        when: Expr::True,
+                        unless: None,
+                        effect: Effect::Notify,
+                        source_index: 1,
+                    },
+                ],
+            }],
+            xforms: Vec::new(),
+        };
+        let out = clause_support_json(&policy, &compiled, true);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0]["rule"], "r");
+        assert_eq!(out[0]["clause_index"], 0);
+        assert_eq!(out[0]["op"], "connect");
+        assert_eq!(out[0]["target_pattern"], "multi.example");
+        assert_eq!(out[0]["supported"], true);
+        let warnings = out[0]["condition_warnings"].as_array().unwrap();
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings[0]["code"],
+            "endpoint_target_condition_multi_ipv4_hostname"
+        );
+    }
 }
