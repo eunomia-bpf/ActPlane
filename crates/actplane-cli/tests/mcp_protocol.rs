@@ -1381,3 +1381,768 @@ policy: |
     .expect("write policy");
     policy
 }
+
+// `mcp --auto-attach-parent` without a discoverable policy fails before serving
+// any request, naming the missing policy source.
+#[test]
+fn mcp_auto_attach_parent_without_policy_reports_discovery_error() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .args(["mcp", "--auto-attach-parent"])
+        .spawn()
+        .expect("spawn mcp");
+    {
+        use std::io::Write as _;
+        child
+            .stdin
+            .take()
+            .expect("mcp stdin")
+            .write_all(
+                b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"actplane-test\",\"version\":\"0\"}}}\n",
+            )
+            .expect("write initialize");
+    }
+    let output = child.wait_with_output().expect("mcp output");
+    assert!(
+        !output.status.success(),
+        "stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("no actplane.yaml found; pass --policy <file> or --rule <dsl>"),
+        "stderr: {stderr}"
+    );
+}
+
+#[test]
+fn mcp_child_domain_tools_validate_arguments_without_an_engine() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-child-arg-validation");
+    let mut next = 10_i64;
+
+    // `restart_child_domain` requires an engine before it parses any argument.
+    let response = call_tool_raw(&mut mcp, &mut next, "restart_child_domain", json!({}));
+    assert_eq!(response["error"]["code"], -32603, "{response}");
+    assert_eq!(
+        response["error"]["message"],
+        "No eBPF engine attached (MCP not started with --auto-attach-parent)"
+    );
+    let response = call_tool_raw(
+        &mut mcp,
+        &mut next,
+        "restart_child_domain",
+        json!({ "child_id": 7 }),
+    );
+    assert_eq!(response["error"]["code"], -32603, "{response}");
+
+    for tool in ["read_child_domain_logs", "terminate_child_domain"] {
+        let response = call_tool_raw(&mut mcp, &mut next, tool, json!({}));
+        assert_eq!(response["error"]["code"], -32602, "{tool}: {response}");
+        assert_eq!(response["error"]["message"], "missing `child_id`");
+
+        let response = call_tool_raw(&mut mcp, &mut next, tool, json!({ "child_id": -1 }));
+        assert_eq!(response["error"]["code"], -32602, "{tool}: {response}");
+        assert_eq!(
+            response["error"]["message"],
+            "`child_id` must be a non-negative integer"
+        );
+
+        let response = call_tool_raw(&mut mcp, &mut next, tool, json!({ "child_id": 7 }));
+        assert_eq!(response["error"]["code"], -32602, "{tool}: {response}");
+        assert_eq!(response["error"]["message"], "unknown child domain 7");
+    }
+
+    let response = call_tool_raw(
+        &mut mcp,
+        &mut next,
+        "read_child_domain_logs",
+        json!({ "child_id": 0, "stream": "sideways" }),
+    );
+    assert_eq!(response["error"]["code"], -32602, "{response}");
+    assert_eq!(
+        response["error"]["message"],
+        "`stream` must be one of stdout, stderr, or both"
+    );
+
+    // `list_child_domains` and `reconcile_child_domains` take no registry entry,
+    // so they succeed against an empty registry even without an engine.
+    for tool in ["list_child_domains", "reconcile_child_domains"] {
+        let response = call_tool(&mut mcp, &mut next, tool, json!({}));
+        let text = tool_text(&response);
+        assert!(text.contains('['), "{tool}: {text}");
+    }
+}
+
+#[test]
+fn mcp_child_domain_tools_accept_domain_id_alias() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-domain-alias-schema");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        "params": {}
+    }));
+    let tools = mcp.response(2);
+    let by_name: std::collections::BTreeMap<&str, &Value> = tools["result"]["tools"]
+        .as_array()
+        .expect("tools array")
+        .iter()
+        .filter_map(|tool| tool.get("name").and_then(Value::as_str).map(|n| (n, tool)))
+        .collect();
+    for name in [
+        "read_child_domain_logs",
+        "terminate_child_domain",
+        "restart_child_domain",
+    ] {
+        let tool = by_name.get(name).unwrap_or_else(|| panic!("tool {name}"));
+        let schema = &tool["inputSchema"];
+        assert_eq!(
+            schema["oneOf"],
+            json!([
+                { "required": ["child_id"] },
+                { "required": ["domain_id"] }
+            ]),
+            "{name} schema: {schema}"
+        );
+        assert_eq!(schema["properties"]["domain_id"]["type"], "integer");
+    }
+    for name in ["list_child_domains", "reconcile_child_domains"] {
+        let schema = &by_name[name]["inputSchema"];
+        assert_eq!(schema["type"], "object", "{name}: {schema}");
+        assert_eq!(schema["properties"], json!({}), "{name}: {schema}");
+    }
+    assert_eq!(
+        by_name["bind_child_domain"]["inputSchema"]["properties"]["pid"]["type"],
+        "integer"
+    );
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_reports_feedback_resource_state() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-feedback-resource");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let absent = mcp.response(2);
+    let absent_text = absent["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("feedback text");
+    assert!(
+        absent_text.contains("No ActPlane feedback file yet"),
+        "{absent}"
+    );
+    assert!(
+        absent_text.contains("last-violation.txt"),
+        "feedback should name the expected path: {absent_text}"
+    );
+
+    let violation = tmp.path().join(".actplane").join("last-violation.txt");
+    std::fs::create_dir_all(violation.parent().expect("parent")).expect("mkdir");
+    std::fs::write(&violation, "TAINT_VIOLATION: read /etc/secret\n").expect("write violation");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let present = mcp.response(3);
+    let present_text = present["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("feedback text");
+    assert!(
+        present_text.contains("TAINT_VIOLATION: read /etc/secret"),
+        "{present}"
+    );
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_rejects_bad_child_arguments() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-child-arguments");
+
+    for (id, arguments, expected) in [
+        (
+            2,
+            json!({ "cmd": ["/bin/true"], "restart_policy": "always" }),
+            "`restart_policy` must be one of never or on_exit",
+        ),
+        (
+            3,
+            json!({ "child_id": 99999 }),
+            "unknown child domain 99999",
+        ),
+    ] {
+        let name = if id == 2 {
+            "launch_child_domain"
+        } else {
+            "read_child_domain_logs"
+        };
+        mcp.send(json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "tools/call",
+            "params": { "name": name, "arguments": arguments }
+        }));
+        let response = mcp.response(id);
+        assert_eq!(response["error"]["code"], -32602, "{name}: {response}");
+        assert_eq!(response["error"]["message"], expected, "{name}");
+    }
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_reads_feedback_resource_contents() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let feedback = tmp.path().join(".actplane").join("last-violation.txt");
+    std::fs::create_dir_all(feedback.parent().expect("parent")).expect("feedback dir");
+    std::fs::write(&feedback, "TAINT_VIOLATION: read /etc/secret\n").expect("write feedback");
+
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-feedback-resource");
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let response = mcp.response(2);
+    let contents = response["result"]["contents"].as_array().expect("contents");
+    assert_eq!(contents.len(), 1, "{response}");
+    assert_eq!(contents[0]["uri"], "actplane:///feedback");
+    assert_eq!(
+        contents[0]["text"].as_str().expect("text"),
+        format!(
+            "Latest ActPlane feedback ({}):\nTAINT_VIOLATION: read /etc/secret\n",
+            feedback.display()
+        )
+    );
+
+    // Without a feedback file the resource reports the expected path.
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-feedback-missing");
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let response = mcp.response(2);
+    let text = response["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("text");
+    assert_eq!(
+        text,
+        format!(
+            "No ActPlane feedback file yet ({}).",
+            tmp.path()
+                .join(".actplane")
+                .join("last-violation.txt")
+                .display()
+        )
+    );
+}
+
+#[test]
+fn mcp_feedback_resource_reports_latest_violation() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-feedback-resource");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let empty = mcp.response(2);
+    let text = empty["result"]["contents"][0]["text"]
+        .as_str()
+        .unwrap_or_else(|| panic!("feedback text: {empty}"));
+    assert!(text.contains("No ActPlane feedback file yet"), "{text}");
+
+    let feedback_dir = tmp.path().join(".actplane");
+    std::fs::create_dir_all(&feedback_dir).expect("create state dir");
+    std::fs::write(
+        feedback_dir.join("last-violation.txt"),
+        "TAINT_VIOLATION: blocked\n",
+    )
+    .expect("write violation");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///feedback" }
+    }));
+    let present = mcp.response(3);
+    let text = present["result"]["contents"][0]["text"]
+        .as_str()
+        .unwrap_or_else(|| panic!("feedback text: {present}"));
+    assert!(text.contains("Latest ActPlane feedback"), "{text}");
+    assert!(text.contains("TAINT_VIOLATION: blocked"), "{text}");
+}
+
+// The `initialize` handshake advertises the server identity and instructions,
+// and echo-negotiates the requested protocol version.
+#[test]
+fn mcp_initialize_reports_server_info_and_instructions() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": { "name": "actplane-test", "version": "0" }
+        }
+    }));
+    let init = mcp.response(1);
+    let result = &init["result"];
+    assert_eq!(result["protocolVersion"], "2024-11-05", "init: {init}");
+    assert!(
+        result["serverInfo"]["name"].is_string(),
+        "serverInfo: {init}"
+    );
+    assert!(
+        result["instructions"]
+            .as_str()
+            .unwrap_or("")
+            .contains("ActPlane: OS-level agent harness"),
+        "instructions: {init}"
+    );
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_reports_unknown_and_malformed_requests() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-jsonrpc-errors");
+
+    mcp.send(json!({ "jsonrpc": "2.0", "id": 2, "method": "ping", "params": {} }));
+    assert_eq!(mcp.response(2)["result"], json!({}));
+
+    mcp.send(json!({ "jsonrpc": "2.0", "id": 3, "method": "bogus/method", "params": {} }));
+    let unknown_method = mcp.response(3);
+    assert_eq!(unknown_method["error"]["code"], -32601);
+    assert_eq!(unknown_method["error"]["message"], "bogus/method");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "tools/call",
+        "params": { "name": "no_such_tool", "arguments": {} }
+    }));
+    let unknown_tool = mcp.response(4);
+    assert_eq!(unknown_tool["error"]["code"], -32601);
+    assert_eq!(
+        unknown_tool["error"]["message"],
+        "Unknown tool: no_such_tool"
+    );
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "tools/call",
+        "params": { "name": "terminate_child_domain", "arguments": {} }
+    }));
+    let missing_argument = mcp.response(5);
+    assert_eq!(missing_argument["error"]["code"], -32602);
+    assert_eq!(missing_argument["error"]["message"], "missing `child_id`");
+
+    mcp.send(json!({ "jsonrpc": "2.0", "id": 6, "method": "prompts/list", "params": {} }));
+    assert_eq!(mcp.response(6)["result"], json!({ "prompts": [] }));
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///no_such_resource" }
+    }));
+    let unknown_resource = mcp.response(7);
+    assert_eq!(unknown_resource["error"]["code"], -32602);
+    assert_eq!(
+        unknown_resource["error"]["message"],
+        "Unknown resource: actplane:///no_such_resource"
+    );
+}
+
+#[test]
+fn mcp_stdio_surfaces_invalid_policy_as_a_message() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = tmp.path().join("actplane.yaml");
+    std::fs::write(&policy, "version: 1\npolicy: |\n  rule broken\n").expect("policy");
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-invalid-policy");
+
+    mcp.send(json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {} }));
+    let tools = mcp.response(2);
+    assert!(
+        tools["result"]["tools"]
+            .as_array()
+            .is_some_and(|t| !t.is_empty()),
+        "expected tool list even for an invalid policy: {tools}"
+    );
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///policy" }
+    }));
+    let resource = mcp.response(3);
+    let text = resource["result"]["contents"][0]["text"]
+        .as_str()
+        .expect("policy resource text");
+    assert!(text.contains("Policy compile error"), "{text}");
+    assert!(text.contains("expected ':' after rule name"), "{text}");
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_reports_unknown_tool_and_resource() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-error-surface");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": { "name": "definitely_not_a_tool", "arguments": {} }
+    }));
+    let unknown_tool = mcp.response(2);
+    assert_eq!(unknown_tool["error"]["code"], -32601, "{unknown_tool}");
+    assert!(
+        unknown_tool["error"]["message"]
+            .as_str()
+            .expect("message")
+            .contains("Unknown tool: definitely_not_a_tool"),
+        "{unknown_tool}"
+    );
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///definitely-not-a-resource" }
+    }));
+    let unknown_resource = mcp.response(3);
+    assert_eq!(
+        unknown_resource["error"]["code"], -32602,
+        "{unknown_resource}"
+    );
+    assert!(
+        unknown_resource["error"]["message"]
+            .as_str()
+            .expect("message")
+            .contains("Unknown resource: actplane:///definitely-not-a-resource"),
+        "{unknown_resource}"
+    );
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_reports_tool_argument_errors_in_band() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-argument-errors");
+
+    for (id, name, expected) in [
+        (2, "read_child_domain_logs", "missing `child_id`"),
+        (3, "terminate_child_domain", "missing `child_id`"),
+        (4, "launch_child_domain", "missing `cmd`"),
+        (5, "read_child_domain_logs", "unknown child domain 1"),
+    ] {
+        let arguments = if name == "read_child_domain_logs" && expected.starts_with("unknown") {
+            json!({ "child_id": 1 })
+        } else {
+            json!({})
+        };
+        mcp.send(json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "tools/call",
+            "params": { "name": name, "arguments": arguments }
+        }));
+        let response = mcp.response(id);
+        assert_eq!(response["error"]["code"], -32602, "{name}: {response}");
+        assert_eq!(response["error"]["message"], expected, "{name}");
+    }
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 6,
+        "method": "tools/call",
+        "params": { "name": "list_child_domains", "arguments": {} }
+    }));
+    let listing = mcp.response(6);
+    assert_eq!(listing["result"]["isError"], false, "{listing}");
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_reports_unknown_methods() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-unknown-method");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "nope/method",
+        "params": {}
+    }));
+    let unknown_method = mcp.response(2);
+    assert_eq!(unknown_method["error"]["code"], -32601, "{unknown_method}");
+    assert_eq!(unknown_method["error"]["message"], "nope/method");
+
+    // A call that omits `params` is reported by method name.
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call"
+    }));
+    let missing_params = mcp.response(3);
+    assert_eq!(missing_params["error"]["code"], -32601, "{missing_params}");
+    assert_eq!(missing_params["error"]["message"], "tools/call");
+
+    // Unknown resources are reported as an in-band tool error.
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///nope" }
+    }));
+    let unknown_resource = mcp.response(4);
+    assert_eq!(
+        unknown_resource["error"]["code"], -32602,
+        "{unknown_resource}"
+    );
+    assert_eq!(
+        unknown_resource["error"]["message"],
+        "Unknown resource: actplane:///nope"
+    );
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_reads_policy_resource_metadata() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-policy-resource");
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/read",
+        "params": { "uri": "actplane:///policy" }
+    }));
+    let response = mcp.response(2);
+    let contents = response["result"]["contents"].as_array().expect("contents");
+    assert_eq!(contents.len(), 1, "{response}");
+    assert_eq!(contents[0]["uri"], "actplane:///policy");
+    assert_eq!(contents[0]["mimeType"], "text/plain");
+    let text = contents[0]["text"].as_str().expect("text");
+    assert_eq!(
+        text,
+        format!(
+            "Policy valid ({}, 1 rules):\n  1. noop — notify exec (noop)\n",
+            policy.display()
+        )
+    );
+}
+
+// A request that arrives before the `initialize` handshake is rejected with an
+// invalid-params error naming the missing handshake metadata.
+#[test]
+fn mcp_requests_before_initialize_report_missing_metadata() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/list",
+        "params": {}
+    }));
+    let listing = mcp.response(1);
+    assert_eq!(listing["error"]["code"], -32602, "listing: {listing}");
+    let message = listing["error"]["message"].as_str().unwrap_or_default();
+    assert!(
+        message.contains("request _meta is missing"),
+        "listing: {listing}"
+    );
+}
+
+// A malformed JSON line and a blank line do not terminate the session: the
+// server resumes serving subsequent valid requests.
+#[test]
+fn mcp_stdio_tolerates_malformed_lines() {
+    use std::io::{BufRead, Write as _};
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut child = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["--policy", policy.to_str().expect("policy path"), "mcp"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn mcp");
+    {
+        let stdin = child.stdin.as_mut().expect("mcp stdin");
+        stdin.write_all(b"{not json\n\n").expect("write malformed");
+        stdin
+            .write_all(
+                b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"actplane-test\",\"version\":\"0\"}}}\n",
+            )
+            .expect("write initialize");
+        stdin
+            .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}\n")
+            .expect("write tools/list");
+        stdin.flush().expect("flush");
+    }
+
+    let mut responses = std::collections::BTreeMap::new();
+    for line in std::io::BufReader::new(child.stdout.take().expect("stdout")).lines() {
+        let line = line.expect("stdout line");
+        if line.trim().is_empty() {
+            continue;
+        }
+        let value: Value = serde_json::from_str(&line).expect("response json");
+        if let Some(id) = value.get("id").and_then(Value::as_i64) {
+            responses.insert(id, value);
+        }
+        if responses.contains_key(&2) {
+            break;
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+
+    assert!(
+        responses.contains_key(&1),
+        "initialize after malformed line: {responses:?}"
+    );
+    let listing = responses.get(&2).expect("tools/list after malformed line");
+    assert!(
+        listing["result"]["tools"].as_array().is_some(),
+        "tools/list response: {listing}"
+    );
+}
+
+#[test]
+fn mcp_stdio_jsonrpc_rejects_bad_tool_arguments_without_engine() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+    initialize_mcp(&mut mcp, 1, "actplane-tool-arg-validation");
+
+    // Argument validation happens before the engine-ready check.
+    let cases = [
+        (
+            2,
+            json!({"name": "terminate_child_domain", "arguments": {"child_id": "x"}}),
+            "`child_id` must be a non-negative integer",
+        ),
+        (
+            3,
+            json!({"name": "read_child_domain_logs", "arguments": {"child_id": 1, "stream": "weird"}}),
+            "`stream` must be one of stdout, stderr, or both",
+        ),
+        (
+            4,
+            json!({"name": "terminate_child_domain", "arguments": {"child_id": 1}}),
+            "unknown child domain 1",
+        ),
+    ];
+    for (id, params, expected) in cases {
+        mcp.send(json!({"jsonrpc": "2.0", "id": id, "method": "tools/call", "params": params}));
+        let response = mcp.response(id);
+        assert_eq!(response["error"]["code"], -32602, "{response}");
+        assert_eq!(response["error"]["message"], expected, "{response}");
+    }
+
+    // Engine-dependent tools answer -32603 once their arguments parse.
+    for (id, name, arguments) in [
+        (5, "append_policy_delta", json!({"policy": "rule r:\n"})),
+        (6, "restart_child_domain", json!({"child_id": 1})),
+    ] {
+        mcp.send(json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "tools/call",
+            "params": { "name": name, "arguments": arguments }
+        }));
+        let response = mcp.response(id);
+        assert_eq!(response["error"]["code"], -32603, "{response}");
+        assert_eq!(
+            response["error"]["message"],
+            "No eBPF engine attached (MCP not started with --auto-attach-parent)",
+            "{response}"
+        );
+    }
+}
+
+// An unknown requested protocol version does not fail the handshake: the server
+// negotiates down to its latest supported version.
+#[test]
+fn mcp_initialize_negotiates_supported_protocol_version() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let policy = write_base_policy(tmp.path());
+    let mut mcp = McpProcess::start(&policy, tmp.path());
+
+    mcp.send(json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "9999-01-01",
+            "capabilities": {},
+            "clientInfo": { "name": "actplane-test", "version": "0" }
+        }
+    }));
+    let init = mcp.response(1);
+    assert!(
+        init.get("error").is_none(),
+        "unknown version should negotiate, not error: {init}"
+    );
+    let negotiated = init["result"]["protocolVersion"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
+    assert!(
+        negotiated != "9999-01-01" && !negotiated.is_empty(),
+        "negotiated version: {init}"
+    );
+}
