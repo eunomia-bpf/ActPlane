@@ -707,6 +707,45 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// Re-running bare `init` in a directory that already has the starter policy
+// refuses to overwrite it until `--force` is passed.
+#[test]
+fn init_refuses_to_clobber_existing_policy() {
+    let tmp = tempfile::tempdir().unwrap();
+    let first = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("init")
+        .output()
+        .expect("run init");
+    assert!(first.status.success(), "stderr: {}", stderr(&first));
+    let policy = tmp.path().join("actplane.yaml");
+    assert!(policy.exists(), "stdout: {}", stdout(&first));
+
+    let again = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("init")
+        .output()
+        .expect("run init again");
+    assert_eq!(again.status.code(), Some(1), "stdout: {}", stdout(&again));
+    assert!(
+        stderr(&again).contains("actplane.yaml already exists (use --force to overwrite)"),
+        "stderr: {}",
+        stderr(&again)
+    );
+
+    let forced = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["init", "--force"])
+        .output()
+        .expect("run init --force");
+    assert!(forced.status.success(), "stderr: {}", stderr(&forced));
+    assert!(
+        stderr(&forced).contains("wrote starter policy"),
+        "stderr: {}",
+        stderr(&forced)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
