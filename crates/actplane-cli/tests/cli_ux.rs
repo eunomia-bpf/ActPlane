@@ -714,3 +714,28 @@ fn stdout(output: &Output) -> String {
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
+
+#[cfg(unix)]
+#[test]
+fn compile_out_rejects_symlink_target() {
+    const POLICY: &str = r#"
+  source COMMAND = exec "**"
+  rule noop:
+    notify exec "__actplane_never__" if COMMAND
+    because "noop"
+"#;
+    let tmp = tempfile::tempdir().unwrap();
+    let real = tmp.path().join("real.bin");
+    let link = tmp.path().join("link.bin");
+    fs::write(&real, b"x").unwrap();
+    std::os::unix::fs::symlink(&real, &link).unwrap();
+
+    let output = run(&["--rule", POLICY, "compile", "--out", link.to_str().unwrap()]);
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains("is a symlink; use the resolved target path instead"),
+        "stderr: {}",
+        stderr(&output)
+    );
+    assert_eq!(fs::read(&real).unwrap(), b"x");
+}
