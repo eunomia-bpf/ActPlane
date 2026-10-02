@@ -2591,4 +2591,28 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn command_version_reports_successful_probes_only() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let good = dir.path().join("good-tool");
+        std::fs::write(&good, "#!/bin/sh\necho v9.9\n").expect("write");
+        std::fs::set_permissions(&good, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        assert_eq!(command_version(&good), Some("v9.9".to_string()));
+
+        let failing = dir.path().join("failing-tool");
+        std::fs::write(&failing, "#!/bin/sh\nexit 3\n").expect("write");
+        std::fs::set_permissions(&failing, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        assert_eq!(command_version(&failing), None);
+
+        let silent = dir.path().join("silent-tool");
+        std::fs::write(&silent, "#!/bin/sh\ntrue\n").expect("write");
+        std::fs::set_permissions(&silent, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        assert_eq!(command_version(&silent), None);
+
+        assert_eq!(command_version(&dir.path().join("missing-tool")), None);
+    }
 }
