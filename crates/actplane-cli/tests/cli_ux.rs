@@ -707,6 +707,56 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile` report modes are mutually exclusive, and the global policy source
+// is either a file or an inline rule, never both. clap enforces these before
+// the handler runs, so the exit code is 2 and the message names both flags.
+#[test]
+fn compile_and_policy_source_flag_conflicts_are_rejected() {
+    let cases: &[(&[&str], &str, &str)] = &[
+        (
+            &["compile", "--out", "/tmp/x.bin", "--json"],
+            "--out <FILE>",
+            "--json",
+        ),
+        (&["compile", "--json", "--explain"], "--json", "--explain"),
+        (
+            &["compile", "--out", "/tmp/x.bin", "--domains"],
+            "--out <FILE>",
+            "--domains",
+        ),
+        (
+            &[
+                "--policy",
+                "test/policies/01_secret_no_exfil.yaml",
+                "--rule",
+                "rule r: notify exec \"x\" if true",
+                "compile",
+                "--json",
+            ],
+            "--policy <POLICY>",
+            "--rule <RULE>",
+        ),
+    ];
+    for (args, first, second) in cases {
+        let output = run(args);
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{args:?} should be a clap usage error: {}",
+            stderr(&output)
+        );
+        let err = stderr(&output);
+        assert!(
+            err.contains(first) && err.contains(second),
+            "{args:?} stderr must name {first:?} and {second:?}: {err}"
+        );
+        assert!(
+            err.contains("cannot be used with"),
+            "{args:?} stderr: {err}"
+        );
+    }
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
