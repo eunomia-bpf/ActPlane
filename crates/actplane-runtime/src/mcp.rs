@@ -2992,4 +2992,137 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn seeded_server(project_dir: PathBuf, records: Vec<ChildRecord>) -> ActPlaneMcp {
+        let mut children = HashMap::new();
+        for record in records {
+            children.insert(record.child_id, record);
+        }
+        ActPlaneMcp {
+            project_dir,
+            control: None,
+            children: Arc::new(Mutex::new(children)),
+        }
+    }
+
+    fn domain_record(
+        child_id: u32,
+        pid: i32,
+        status: ChildStatus,
+        log_dir: &std::path::Path,
+    ) -> ChildRecord {
+        ChildRecord {
+            launch_id: format!("child-{child_id}"),
+            pid,
+            child_id,
+            scope_id: 0,
+            cmd: vec!["/bin/true".to_string()],
+            stdout: log_dir.join("stdout.log"),
+            stderr: log_dir.join("stderr.log"),
+            meta: log_dir.join("meta.json"),
+            proc_start_time: proc_start_time(pid),
+            policy: None,
+            policy_audit_meta: PolicyAuditMeta::default(),
+            restart_policy: RestartPolicy::Never,
+            restart_count: 0,
+            restart_limit: DEFAULT_RESTART_LIMIT,
+            restart_backoff_ms: DEFAULT_RESTART_BACKOFF_MS,
+            last_exit_unix_ms: None,
+            restart_alerted_unix_ms: None,
+            adopted_unix_ms: None,
+            restarted_from: None,
+            replacement_child_id: None,
+            status: Arc::new(Mutex::new(status)),
+        }
+    }
+
+    fn tool_text(result: &CallToolResult) -> String {
+        match result.content.first() {
+            Some(ContentBlock::Text(t)) => t.text.clone(),
+            other => panic!("expected text content, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn list_child_domains_reports_every_registered_child_sorted_by_id() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-2");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        let server = seeded_server(
+            tmp.path().to_path_buf(),
+            vec![
+                domain_record(2, std::process::id() as i32, ChildStatus::Running, &log_dir),
+                domain_record(
+                    1,
+                    99_999_999,
+                    ChildStatus::Exited {
+                        code: Some(3),
+                        signal: None,
+                    },
+                    &log_dir,
+                ),
+            ],
+        );
+        let result = server.do_list_child_domains().expect("list");
+        let rows: Vec<Value> = serde_json::from_str(&tool_text(&result)).expect("json");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0]["child_id"], 1);
+        assert_eq!(rows[0]["status"]["state"], "exited");
+        assert_eq!(rows[0]["status"]["code"], 3);
+        assert_eq!(rows[1]["child_id"], 2);
+    }
+
+    #[test]
+    fn list_child_domains_refreshes_a_dead_running_child() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-9");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        // A "running" pid that no longer exists must be reconciled on read.
+        let server = seeded_server(
+            tmp.path().to_path_buf(),
+            vec![domain_record(9, 99_999_999, ChildStatus::Running, &log_dir)],
+        );
+        let result = server.do_list_child_domains().expect("list");
+        let rows: Vec<Value> = serde_json::from_str(&tool_text(&result)).expect("json");
+        assert_eq!(rows[0]["status"]["state"], "exited");
+    }
+
+    #[test]
+    fn read_child_domain_logs_bounds_and_filters_streams() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_dir = tmp.path().join(".actplane/children/child-5");
+        std::fs::create_dir_all(&log_dir).expect("mkdir");
+        std::fs::write(log_dir.join("stdout.log"), "0123456789").expect("write stdout");
+        std::fs::write(log_dir.join("stderr.log"), "abcdefghij").expect("write stderr");
+        let server = seeded_server(
+            tmp.path().to_path_buf(),
+            vec![domain_record(
+                5,
+                99_999_999,
+                ChildStatus::Terminated,
+                &log_dir,
+            )],
+        );
+
+        let mut args = serde_json::Map::new();
+        args.insert("child_id".to_string(), serde_json::json!(5));
+        args.insert("stream".to_string(), serde_json::json!("stdout"));
+        args.insert("max_bytes".to_string(), serde_json::json!(4));
+        let result = server
+            .do_read_child_domain_logs(Some(args))
+            .expect("read logs");
+        let value: Value = serde_json::from_str(&tool_text(&result)).expect("json");
+        assert_eq!(value["stdout"]["content"], "6789");
+        assert_eq!(value["stdout"]["truncated"], true);
+        assert!(value.get("stderr").is_none(), "stdout-only request");
+
+        let mut unknown = serde_json::Map::new();
+        unknown.insert("child_id".to_string(), serde_json::json!(404));
+        assert!(server.do_read_child_domain_logs(Some(unknown)).is_err());
+
+        let mut bad_stream = serde_json::Map::new();
+        bad_stream.insert("child_id".to_string(), serde_json::json!(5));
+        bad_stream.insert("stream".to_string(), serde_json::json!("sideways"));
+        assert!(server.do_read_child_domain_logs(Some(bad_stream)).is_err());
+    }
 }
