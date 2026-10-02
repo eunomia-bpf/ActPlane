@@ -181,4 +181,20 @@ mod tests {
         assert_eq!(status_numeric_field(status, "Gid:"), Some(1001));
         assert_eq!(status_numeric_field(status, "Nope:"), None);
     }
+
+    #[test]
+    fn policy_hash_matches_fnv1a64_vectors() {
+        assert_eq!(policy_hash(""), "fnv1a64:cbf29ce484222325");
+        assert_eq!(policy_hash("a"), "fnv1a64:af63dc4c8601ec8c");
+        assert_eq!(policy_hash("abc"), "fnv1a64:e71fa2190541574b");
+    }
+
+    #[test]
+    fn policy_hash_handles_leading_whitespace_and_nul_bytes() {
+        assert_eq!(policy_hash(" a"), "fnv1a64:07c56707b48e65fa");
+        // NUL bytes exercise the `0x00 ^ 0x00` no-op XOR then multiply path.
+        assert_eq!(policy_hash("\0"), "fnv1a64:af63bd4c8601b7df");
+        assert_eq!(policy_hash("\0\0\0\0\0\0\0\0"), "fnv1a64:a8c7f832281a39c5");
+        assert_eq!(policy_hash("é"), "fnv1a64:0ac21707b7181e01");
+    }
 }
