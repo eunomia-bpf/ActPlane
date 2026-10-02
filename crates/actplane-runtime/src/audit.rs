@@ -181,4 +181,25 @@ mod tests {
         assert_eq!(status_numeric_field(status, "Gid:"), Some(1001));
         assert_eq!(status_numeric_field(status, "Nope:"), None);
     }
+
+    #[test]
+    fn non_object_audit_records_are_rejected() {
+        let path = tempfile::tempdir().unwrap().path().join("audit.jsonl");
+        let err = append_with_schema(&path, "actplane.audit.v1", &mut json!(5)).unwrap_err();
+        assert_eq!(err.to_string(), "JSONL record must be a JSON object");
+        assert!(!path.exists(), "rejected record must not create the file");
+    }
+
+    #[test]
+    fn audit_schema_is_overridable_and_object_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("nested/audit.jsonl");
+        let mut record = json!({"schema": "custom.v2", "timestamp_unix_ns": "1", "k": "v"});
+        append_with_schema(&path, "actplane.audit.v1", &mut record).expect("append");
+        let text = std::fs::read_to_string(&path).expect("read audit");
+        let value: Value = serde_json::from_str(text.trim()).expect("json line");
+        assert_eq!(value["schema"], "custom.v2");
+        assert_eq!(value["timestamp_unix_ns"], "1");
+        assert_eq!(value["k"], "v");
+    }
 }
