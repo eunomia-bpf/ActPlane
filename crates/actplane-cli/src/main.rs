@@ -1072,3 +1072,60 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod main_run_guard_tests {
+    use super::*;
+
+    fn run(pid: Option<u32>, deltas: Vec<PathBuf>) -> RunArgs {
+        RunArgs {
+            parent_domain: true,
+            child_id: pid,
+            scope_id: 0,
+            deltas,
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+            cmd: vec!["true".to_string()],
+        }
+    }
+
+    #[test]
+    fn run_command_rejects_parent_domain_with_any_child_mode_signal() {
+        let cli = Cli {
+            policy: None,
+            rule: None,
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+            command: Commands::Compile(CompileArgs {
+                out: None,
+                json: false,
+                explain: false,
+                domains: false,
+                report_out: None,
+                force: false,
+            }),
+        };
+        let rt = || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime")
+        };
+        // child_id alone, and a delta alone, each count as child mode.
+        for args in [
+            run(Some(7), Vec::new()),
+            run(None, vec![PathBuf::from("d.dsl")]),
+        ] {
+            let err = rt()
+                .block_on(run_command(&cli, &args))
+                .expect_err("parent-domain plus child mode is rejected");
+            assert_eq!(
+                err.to_string(),
+                "--parent-domain cannot be combined with child runtime delta options"
+            );
+        }
+    }
+}
