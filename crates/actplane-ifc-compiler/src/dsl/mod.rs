@@ -767,4 +767,20 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+    #[test]
+    fn lineage_includes_requires_the_exec_keyword() {
+        let err = compile_str(
+            "source A = exec \"**\"\nrule r:\n  block exec \"git\" if A unless lineage-includes frob \"x\"\n  because \"x\"\n",
+        )
+        .err()
+        .expect("lineage-includes must be followed by `exec`");
+        assert_eq!(err, "expected 'exec', got Some(Word(\"frob\"))");
+
+        assert!(
+            compile_str(
+                "source A = exec \"**\"\nrule r:\n  block exec \"git\" if A unless lineage-includes exec \"x\"\n  because \"x\"\n"
+            )
+            .is_ok()
+        );
+    }
 }
