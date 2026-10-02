@@ -952,4 +952,86 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+
+    #[test]
+    fn dependency_manifest_names_include_known_files_and_requirements_globs() {
+        assert!(is_dependency_manifest_name("Cargo.toml"));
+        assert!(is_dependency_manifest_name("go.mod"));
+        assert!(is_dependency_manifest_name("requirements.txt"));
+        assert!(is_dependency_manifest_name("requirements-dev.txt"));
+        assert!(!is_dependency_manifest_name("Cargo.lock.md"));
+        assert!(!is_dependency_manifest_name("requirements.txt.bak"));
+        assert!(!is_dependency_manifest_name("README.md"));
+    }
+
+    #[test]
+    fn skip_dependency_scan_dir_skips_only_vendored_dirs() {
+        for dir in [
+            ".git",
+            "target",
+            "node_modules",
+            ".venv",
+            "venv",
+            "__pycache__",
+        ] {
+            assert!(skip_dependency_scan_dir(dir), "{dir} should be skipped");
+        }
+        assert!(!skip_dependency_scan_dir("src"));
+        assert!(!skip_dependency_scan_dir("crates"));
+    }
+
+    #[test]
+    fn collect_dependency_paths_walks_nested_manifests_and_skips_vendored() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("Cargo.toml"), "").unwrap();
+        std::fs::create_dir_all(tmp.path().join("crates/inner")).unwrap();
+        std::fs::write(tmp.path().join("crates/inner/Cargo.lock"), "").unwrap();
+        std::fs::create_dir_all(tmp.path().join("node_modules/pkg")).unwrap();
+        std::fs::write(tmp.path().join("node_modules/pkg/package.json"), "").unwrap();
+
+        let mut out = BTreeSet::new();
+        collect_dependency_paths(tmp.path(), tmp.path(), 0, &mut out);
+        assert!(out.contains("Cargo.toml"));
+        assert!(out.contains("crates/inner/Cargo.lock"));
+        assert!(!out.iter().any(|p| p.contains("node_modules")));
+    }
+
+    #[test]
+    fn infer_protected_ref_prefers_instructions_then_head_then_main() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert_eq!(
+            infer_protected_ref(tmp.path(), "never push to main"),
+            "main"
+        );
+        assert_eq!(
+            infer_protected_ref(tmp.path(), "protect the release branch"),
+            "release"
+        );
+        assert_eq!(infer_protected_ref(tmp.path(), "no ref named"), "main");
+
+        std::fs::create_dir_all(tmp.path().join(".git")).unwrap();
+        std::fs::write(tmp.path().join(".git/HEAD"), "ref: refs/heads/develop\n").unwrap();
+        assert_eq!(infer_protected_ref(tmp.path(), "no ref named"), "develop");
+    }
+
+    #[test]
+    fn has_source_tree_detects_any_known_source_root() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(!has_source_tree(tmp.path()));
+        std::fs::create_dir(tmp.path().join("crates")).unwrap();
+        assert!(has_source_tree(tmp.path()));
+    }
+
+    #[test]
+    fn discover_instruction_files_returns_only_existing_candidates() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(discover_instruction_files(tmp.path()).is_empty());
+        std::fs::write(tmp.path().join("CLAUDE.md"), "x").unwrap();
+        std::fs::create_dir_all(tmp.path().join(".agents")).unwrap();
+        std::fs::write(tmp.path().join(".agents/AGENTS.md"), "x").unwrap();
+        let found = discover_instruction_files(tmp.path());
+        assert_eq!(found.len(), 2);
+        assert!(found.iter().any(|p| p.ends_with("CLAUDE.md")));
+        assert!(found.iter().any(|p| p.ends_with("AGENTS.md")));
+    }
 }
