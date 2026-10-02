@@ -2108,4 +2108,54 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn chown_path_reports_missing_paths_and_accepts_existing_ones() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let file = tmp.path().join("owned.txt");
+        std::fs::write(&file, b"x").expect("write");
+        let uid = unsafe { libc::getuid() };
+        let gid = unsafe { libc::getgid() };
+        chown_path(&file, uid, gid).expect("chown existing file");
+
+        let missing = tmp.path().join("missing.txt");
+        let err = chown_path(&missing, uid, gid).unwrap_err();
+        assert_eq!(err.raw_os_error(), Some(libc::ENOENT));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn target_user_needs_root_with_sudo_ids() {
+        assert_eq!(target_user(true), None);
+        if unsafe { libc::geteuid() } != 0 {
+            assert_eq!(target_user(false), None);
+            return;
+        }
+        // Root without SUDO_UID/SUDO_GID falls back to the real ids.
+        let saved = (
+            std::env::var("SUDO_UID").ok(),
+            std::env::var("SUDO_GID").ok(),
+        );
+        unsafe {
+            std::env::remove_var("SUDO_UID");
+            std::env::remove_var("SUDO_GID");
+        }
+        assert_eq!(target_user(false), None);
+        unsafe {
+            std::env::set_var("SUDO_UID", "12345");
+            std::env::set_var("SUDO_GID", "678");
+        }
+        assert_eq!(target_user(false), Some((12345, 678)));
+        unsafe {
+            match saved.0 {
+                Some(v) => std::env::set_var("SUDO_UID", v),
+                None => std::env::remove_var("SUDO_UID"),
+            }
+            match saved.1 {
+                Some(v) => std::env::set_var("SUDO_GID", v),
+                None => std::env::remove_var("SUDO_GID"),
+            }
+        }
+    }
 }
