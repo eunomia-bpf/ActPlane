@@ -707,6 +707,34 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `control logs`, `control stop`, and `control restart` require a child or
+// domain id, which `--domain-id` aliases, and fail before reaching the socket.
+#[test]
+fn control_child_commands_require_a_child_id() {
+    for (args, expected) in [
+        (
+            vec!["control", "logs"],
+            "control logs requires --child-id or --domain-id",
+        ),
+        (
+            vec!["control", "stop"],
+            "control stop requires --child-id or --domain-id",
+        ),
+        (
+            vec!["control", "restart"],
+            "control restart requires --child-id or --domain-id",
+        ),
+    ] {
+        let output = run(&args);
+        assert_eq!(output.status.code(), Some(1), "args: {args:?}");
+        assert!(
+            stderr(&output).contains(expected),
+            "args: {args:?} stderr: {}",
+            stderr(&output)
+        );
+    }
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
