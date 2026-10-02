@@ -2992,4 +2992,65 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    fn detached_server() -> (ActPlaneMcp, tempfile::TempDir) {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(tmp.path().into()));
+        (server, tmp)
+    }
+
+    #[test]
+    fn local_control_request_rejects_non_object_and_missing_op() {
+        let (server, _tmp) = detached_server();
+
+        let value = server.handle_local_control_request(serde_json::json!([1, 2]), None);
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["error"], "control request must be a JSON object");
+
+        let value = server.handle_local_control_request(serde_json::json!({ "op": 7 }), None);
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["error"], "control request missing string `op`");
+
+        let value = server.handle_local_control_request(serde_json::json!({ "op": "frob" }), None);
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["error"], "unknown ActPlane control op `frob`");
+    }
+
+    #[test]
+    fn local_control_status_reports_project_dir_and_attachment() {
+        let (server, tmp) = detached_server();
+        let value =
+            server.handle_local_control_request(serde_json::json!({ "op": "status" }), None);
+        assert_eq!(value["ok"], true);
+        assert_eq!(value["result"]["attached"], false);
+        assert_eq!(value["result"]["child_count"], 0);
+        assert!(value["result"]["control"].is_null());
+        assert_eq!(
+            value["result"]["project_dir"],
+            tmp.path().display().to_string()
+        );
+        assert_eq!(server.control_parent(), None);
+    }
+
+    #[test]
+    fn local_control_peer_requiring_ops_reject_missing_credentials() {
+        let (server, _tmp) = detached_server();
+        for op in [
+            "bind_child_domain",
+            "append_policy_delta",
+            "launch_child_domain",
+            "list_child_domains",
+            "read_child_domain_logs",
+            "terminate_child_domain",
+            "restart_child_domain",
+            "reconcile_child_domains",
+        ] {
+            let value = server.handle_local_control_request(serde_json::json!({ "op": op }), None);
+            assert_eq!(value["ok"], false, "{op}: {value}");
+            assert_eq!(
+                value["error"], "local control peer credentials are unavailable",
+                "{op}: {value}"
+            );
+        }
+    }
 }
