@@ -707,6 +707,53 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `--with-codex` and `--with-mcp` each wire only their own integration, and
+// neither overwrites an existing policy without `--force`.
+#[test]
+fn init_integration_flags_scope_their_writes() {
+    let codex = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(codex.path())
+        .args(["init", "--with-codex"])
+        .output()
+        .expect("run init --with-codex");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(codex.path().join("actplane.yaml").is_file());
+    assert!(codex.path().join(".codex/hooks.json").is_file());
+    assert!(codex.path().join("AGENTS.md").is_file());
+    assert!(
+        !codex.path().join(".mcp.json").exists(),
+        "--with-codex must not write MCP config"
+    );
+
+    let mcp = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(mcp.path())
+        .args(["init", "--with-mcp"])
+        .output()
+        .expect("run init --with-mcp");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(mcp.path().join("actplane.yaml").is_file());
+    assert!(mcp.path().join(".mcp.json").is_file());
+    assert!(
+        !mcp.path().join(".codex/hooks.json").exists(),
+        "--with-mcp must not write the Codex hook"
+    );
+
+    // Re-running without --force refuses to clobber the policy.
+    let repeat = Command::new(actplane())
+        .current_dir(codex.path())
+        .args(["init", "--with-codex"])
+        .output()
+        .expect("rerun init");
+    assert!(!repeat.status.success());
+    assert!(
+        stderr(&repeat).contains("actplane.yaml already exists (use --force to overwrite)"),
+        "stderr: {}",
+        stderr(&repeat)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
