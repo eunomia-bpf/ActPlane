@@ -707,6 +707,24 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `attach --pid 1` targets the init process, which cannot be attached as a
+// watched child, so the command rejects it before any policy discovery.
+#[test]
+fn attach_rejects_init_pid_before_policy_discovery() {
+    let tmp = tempfile::tempdir().unwrap();
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["attach", "--pid", "1"])
+        .output()
+        .expect("run attach --pid 1");
+    assert_eq!(output.status.code(), Some(1), "stderr: {}", stderr(&output));
+    assert!(output.stdout.is_empty(), "stdout: {}", stdout(&output));
+    assert_eq!(
+        stderr(&output).trim(),
+        "Error: \"invalid parent pid for watch attach: 1\""
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
