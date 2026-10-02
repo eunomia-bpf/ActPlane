@@ -707,6 +707,33 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// An `endorse` clause renders as the label-adding counterpart of `declassify`
+// in the `--explain` transforms section.
+#[test]
+fn compile_explain_renders_endorse_transform() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\npolicy: |\n  source TRUST = exec \"**/gate\"\n  rule r:\n    notify connect endpoint \"*\" if true\n    because \"x\"\n  endorse TRUST by exec \"**/approve\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["compile", "--explain"])
+        .output()
+        .expect("run compile --explain");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let out = stdout(&output);
+    assert!(out.contains("labels:\n  - TRUST = 0x1"), "stdout: {out}");
+    assert!(
+        out.contains(
+            "  - endorse TRUST by exec \"**/approve\" -> adds the label when the gate exec matches"
+        ),
+        "stdout: {out}"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
