@@ -707,6 +707,35 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `init --set` rejects malformed assignments: a missing `=`, an empty key, and
+// a value containing `=` (which yields an unknown key) all fail before writing.
+#[test]
+fn init_template_set_rejects_malformed_assignments() {
+    let tmp = tempfile::tempdir().unwrap();
+    let run_in_tmp = |value: &str| {
+        let output = Command::new(actplane())
+            .current_dir(tmp.path())
+            .args([
+                "init",
+                "--template",
+                "no-network",
+                "--set",
+                value,
+                "--print",
+            ])
+            .output()
+            .expect("run init --set");
+        assert!(!output.status.success(), "expected failure for {value:?}");
+        stderr(&output)
+    };
+
+    assert!(
+        run_in_tmp("agent_exec").contains("template parameter `agent_exec` must use key=value")
+    );
+    assert!(run_in_tmp("=x").contains("invalid template parameter key ``"));
+    assert!(run_in_tmp("a=b=c").contains("unknown parameter `a` for template `no-network`"));
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
