@@ -2591,4 +2591,87 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    fn evidence_with_paths(events: bool, annotations: bool) -> RolloutEvidence {
+        RolloutEvidence {
+            event_paths: if events {
+                vec![PathBuf::from("events.jsonl")]
+            } else {
+                Vec::new()
+            },
+            annotation_paths: if annotations {
+                vec![PathBuf::from("annotations.jsonl")]
+            } else {
+                Vec::new()
+            },
+            total_events: 0,
+            total_annotations: 0,
+            ignored_lines: 0,
+            ignored_annotations: 0,
+            warnings: Vec::new(),
+            clauses: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn append_rollout_evidence_summary_notes_missing_logs() {
+        let evidence = evidence_with_paths(false, false);
+        let mut out = String::new();
+        append_rollout_evidence_summary(&mut out, &evidence);
+        assert!(out.contains("observe evidence:"));
+        assert!(out.contains("no event or annotation log supplied"));
+    }
+
+    #[test]
+    fn append_rollout_evidence_summary_reports_counts_and_warnings() {
+        let mut evidence = evidence_with_paths(true, true);
+        evidence.total_events = 4;
+        evidence.total_annotations = 2;
+        evidence.ignored_lines = 1;
+        evidence.ignored_annotations = 3;
+        evidence.warnings.push("a warning".into());
+        let mut out = String::new();
+        append_rollout_evidence_summary(&mut out, &evidence);
+        assert!(out.contains("event log: events.jsonl"));
+        assert!(out.contains("annotation log: annotations.jsonl"));
+        assert!(out.contains("parsed violation events: 4"));
+        assert!(out.contains("parsed rollout annotations: 2"));
+        assert!(out.contains("ignored non-violation or malformed lines: 1"));
+        assert!(out.contains("ignored malformed or stale annotations: 3"));
+        assert!(out.contains("warning: a warning"));
+    }
+
+    #[test]
+    fn append_clause_observation_returns_early_without_logs() {
+        let evidence = evidence_with_paths(false, false);
+        let mut out = String::new();
+        append_clause_observation(&mut out, &evidence, None);
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn append_clause_observation_reports_missing_clause() {
+        let evidence = evidence_with_paths(true, true);
+        let mut out = String::new();
+        append_clause_observation(&mut out, &evidence, None);
+        assert!(out.contains("observed events: 0 in supplied logs"));
+        assert!(out.contains("annotations: none for this clause"));
+    }
+
+    #[test]
+    fn push_evidence_warning_caps_after_eight() {
+        let mut evidence = evidence_with_paths(false, false);
+        for i in 0..8 {
+            push_evidence_warning(&mut evidence, format!("w{}", i));
+        }
+        assert_eq!(evidence.warnings.len(), 8);
+        push_evidence_warning(&mut evidence, "ninth".into());
+        assert_eq!(evidence.warnings.len(), 9);
+        assert_eq!(
+            evidence.warnings.last().unwrap(),
+            "additional rollout event-log warnings omitted"
+        );
+        push_evidence_warning(&mut evidence, "tenth".into());
+        assert_eq!(evidence.warnings.len(), 9);
+    }
 }
