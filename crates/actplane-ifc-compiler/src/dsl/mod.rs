@@ -767,4 +767,36 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+    #[test]
+    fn unknown_ops_and_unless_conditions_are_named() {
+        let op = compile_str("rule r:\n  notify frob \"g\" if true\n  because \"x\"\n")
+            .err()
+            .expect("unknown op");
+        assert_eq!(op, "unknown op 'frob'");
+
+        let unless = compile_str(
+            "source A = exec \"**\"\nrule r:\n  block exec \"git\" if A unless frob \"x\"\n  because \"x\"\n",
+        )
+        .err()
+        .expect("unknown unless cond");
+        assert_eq!(unless, "unknown unless cond 'frob'");
+    }
+
+    #[test]
+    fn source_targets_require_words_and_strings() {
+        let word = compile_str("source = exec \"**\"\n")
+            .err()
+            .expect("missing word");
+        assert_eq!(word, "expected word, got Some(Eq)");
+
+        let string = compile_str("source A = exec 5\n")
+            .err()
+            .expect("word target");
+        assert_eq!(string, "expected string, got Some(Word(\"5\"))");
+
+        let kind = compile_str("rule r:\n  notify exec 5 if true\n  because \"x\"\n")
+            .err()
+            .expect("non-word target kind");
+        assert_eq!(kind, "expected kind in target, got '5'");
+    }
 }
