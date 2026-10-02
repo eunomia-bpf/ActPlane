@@ -2992,4 +2992,60 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(project_dir);
     }
+
+    #[test]
+    fn local_tool_response_wraps_success_and_error() {
+        let ok = local_tool_response(Ok(CallToolResult::success(vec![ContentBlock::text(
+            "hello",
+        )])));
+        assert_eq!(ok["ok"], true);
+        assert_eq!(ok["text"], "hello");
+        assert_eq!(ok["result"]["content"][0]["text"], "hello");
+
+        let err = local_tool_response(Err(invalid_params("bad `pid`")));
+        assert_eq!(err["ok"], false);
+        assert!(
+            err["error"].as_str().unwrap().contains("bad `pid`"),
+            "unexpected: {err}"
+        );
+    }
+
+    #[test]
+    fn first_tool_text_reads_only_the_first_text_block() {
+        let value = serde_json::json!({ "content": [{ "text": "a" }, { "text": "b" }] });
+        assert_eq!(first_tool_text(&value), Some("a".to_string()));
+        assert_eq!(first_tool_text(&serde_json::json!({ "content": [] })), None);
+        assert_eq!(first_tool_text(&serde_json::json!({})), None);
+        assert_eq!(
+            first_tool_text(&serde_json::json!({ "content": [{ "image": "x" }] })),
+            None
+        );
+    }
+
+    #[test]
+    fn policy_audit_meta_json_round_trips_and_omits_defaults() {
+        assert!(policy_audit_meta_json(&PolicyAuditMeta::default()).is_none());
+
+        let value = policy_audit_meta_json(&PolicyAuditMeta {
+            policy_ref: Some("p.dsl".to_string()),
+            ..Default::default()
+        })
+        .expect("non-default meta");
+        assert_eq!(value["policy_ref"], "p.dsl");
+        assert!(value.get("approved_by").is_none());
+
+        let parsed = policy_audit_meta_from_json(&value).expect("parse");
+        assert_eq!(parsed.policy_ref.as_deref(), Some("p.dsl"));
+        assert!(parsed.approved_by.is_none());
+        assert!(policy_audit_meta_from_json(&serde_json::json!("nope")).is_none());
+    }
+
+    #[test]
+    fn read_log_json_reports_missing_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let value = read_log_json(&dir.path().join("nope.log"), 10).expect("missing log");
+        assert_eq!(value["missing"], true);
+        assert_eq!(value["content"], "");
+        assert_eq!(value["truncated"], false);
+    }
 }
