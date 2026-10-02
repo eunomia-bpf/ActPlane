@@ -1072,3 +1072,119 @@ fn format_domain_policy_rules(domain: &config::DomainSummary) -> String {
     rules.extend(domain.defaults.clone());
     format_rule_list(&rules)
 }
+
+#[cfg(test)]
+mod main_guard_tests {
+    use super::*;
+
+    fn cli(policy: Option<PathBuf>, rule: Option<&str>) -> Cli {
+        Cli {
+            policy,
+            rule: rule.map(str::to_string),
+            domain: None,
+            run_as_root: false,
+            internal_elevated: false,
+            command: Commands::Compile(CompileArgs {
+                out: None,
+                json: false,
+                explain: false,
+                domains: false,
+                report_out: None,
+                force: false,
+            }),
+        }
+    }
+
+    fn attach(pid: i32) -> AttachArgs {
+        AttachArgs {
+            pid,
+            parent_domain: false,
+            child_domain: false,
+            domain_id: None,
+            child_id: None,
+            scope_id: 0,
+            deltas: Vec::new(),
+            delta_text: Vec::new(),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        }
+    }
+
+    fn rt() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+    }
+
+    #[test]
+    fn attach_command_requires_a_positive_pid_before_any_policy_load() {
+        let cli = cli(None, None);
+        for pid in [0, -1] {
+            let err = rt()
+                .block_on(attach_command(&cli, &attach(pid)))
+                .expect_err("non-positive pid is rejected");
+            assert_eq!(err.to_string(), "--pid must be positive");
+        }
+    }
+
+    #[test]
+    fn attach_command_rejects_parent_domain_with_child_options() {
+        let cli = cli(None, None);
+        let mut args = attach(42);
+        args.parent_domain = true;
+        args.deltas.push(PathBuf::from("child.dsl"));
+        let err = rt()
+            .block_on(attach_command(&cli, &args))
+            .expect_err("parent-domain plus child options is rejected");
+        assert_eq!(
+            err.to_string(),
+            "--parent-domain cannot be combined with child-domain attach options"
+        );
+    }
+
+    #[test]
+    fn compile_policy_requires_json_or_explain_for_report_out() {
+        let cli = cli(None, None);
+        let args = CompileArgs {
+            out: None,
+            json: false,
+            explain: false,
+            domains: false,
+            report_out: Some(PathBuf::from("review.txt")),
+            force: false,
+        };
+        let err = rt()
+            .block_on(compile_policy(&cli, &args))
+            .expect_err("report-out without a mode is rejected");
+        assert_eq!(err.to_string(), "--report-out requires --json or --explain");
+    }
+
+    #[test]
+    fn compile_policy_reports_a_policy_load_error_for_an_unparseable_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let policy = dir.path().join("actplane.yaml");
+        std::fs::write(
+            &policy,
+            "fallback:\n  kill_on_violation: true\npolicy: \"rule r:\\n  block exec \\\"git\\\"\\n  because \\\"x\\\"\"\n",
+        )
+        .expect("write policy");
+        let cli = cli(Some(policy), None);
+        let args = CompileArgs {
+            out: Some(dir.path().join("policy.bin")),
+            json: false,
+            explain: false,
+            domains: false,
+            report_out: None,
+            force: false,
+        };
+        let err = rt()
+            .block_on(compile_policy(&cli, &args))
+            .expect_err("unparseable policy is rejected");
+        assert!(
+            err.to_string().contains("policy"),
+            "unexpected error: {err}"
+        );
+    }
+}
