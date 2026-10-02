@@ -707,6 +707,50 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// Outside `--json`, policy-source load failures surface as plain `Error:`
+// messages, whether the path is a directory, missing, or the inline DSL is
+// invalid.
+#[test]
+fn policy_source_load_errors_are_reported_in_human_mode() {
+    let tmp = tempfile::tempdir().unwrap();
+
+    let dir = run(&["--policy", tmp.path().to_str().unwrap(), "compile"]);
+    assert_eq!(dir.status.code(), Some(1), "stderr: {}", stderr(&dir));
+    assert!(
+        stderr(&dir).contains("reading") && stderr(&dir).contains("Is a directory"),
+        "stderr: {}",
+        stderr(&dir)
+    );
+
+    let missing = run(&["--policy", "no-such-policy.yaml", "compile"]);
+    assert_eq!(
+        missing.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&missing)
+    );
+    assert!(
+        stderr(&missing).contains("reading")
+            && stderr(&missing).contains("no-such-policy.yaml")
+            && stderr(&missing).contains("No such file or directory"),
+        "stderr: {}",
+        stderr(&missing)
+    );
+
+    let invalid = run(&["--rule", "this is not a rule", "compile"]);
+    assert_eq!(
+        invalid.status.code(),
+        Some(1),
+        "stderr: {}",
+        stderr(&invalid)
+    );
+    assert!(
+        stderr(&invalid).contains("✗ policy does not compile: unknown declaration 'this'"),
+        "stderr: {}",
+        stderr(&invalid)
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
