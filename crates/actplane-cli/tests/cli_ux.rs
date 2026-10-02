@@ -707,6 +707,97 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `control delta add` resolves the `--domain-id` alias into `target_id` and
+// sends an on-disk `--delta` file with its path as the policy ref.
+#[cfg(unix)]
+#[test]
+fn control_delta_add_resolves_alias_and_file_source() {
+    let tmp = tempfile::tempdir().unwrap();
+    let socket_path = tmp.path().join("control.sock");
+    let listener = UnixListener::bind(&socket_path).unwrap();
+    let state_dir = tmp.path().join(".actplane");
+    fs::create_dir_all(&state_dir).unwrap();
+    fs::write(
+        state_dir.join("control.json"),
+        serde_json::to_string_pretty(&serde_json::json!({
+            "schema": "actplane.control.v1",
+            "pid": std::process::id() as i32,
+            "proc_start_time": null,
+            "socket_path": socket_path,
+            "project_dir": tmp.path(),
+            "parent_pid": 1111,
+            "parent_domain_id": 2222,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let delta_file = tmp.path().join("delta.dsl");
+    fs::write(
+        &delta_file,
+        "rule d:\n  notify exec \"git\" if true\n  because \"y\"\n",
+    )
+    .unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = std::thread::spawn(move || {
+        for _ in 0..2 {
+            let (mut stream, _) = listener.accept().expect("accept control client");
+            let mut line = String::new();
+            std::io::BufReader::new(stream.try_clone().expect("clone stream"))
+                .read_line(&mut line)
+                .expect("read request");
+            tx.send(serde_json::from_str::<serde_json::Value>(&line).expect("request JSON"))
+                .expect("send request");
+            serde_json::to_writer(
+                &mut stream,
+                &serde_json::json!({ "ok": true, "text": "ok" }),
+            )
+            .expect("write response");
+            writeln!(stream).expect("write response newline");
+        }
+    });
+
+    let alias = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args([
+            "control",
+            "delta",
+            "add",
+            "--domain-id",
+            "8",
+            "--delta-text",
+            "rule d:\n  notify exec \"git\" if true\n  because \"y\"",
+        ])
+        .output()
+        .expect("run delta add alias");
+    assert!(alias.status.success(), "stderr: {}", stderr(&alias));
+    let file = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args([
+            "control",
+            "delta",
+            "add",
+            "--delta",
+            delta_file.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run delta add file");
+    assert!(file.status.success(), "stderr: {}", stderr(&file));
+    handle.join().expect("control server thread");
+
+    let alias_request = rx.recv().expect("alias request");
+    assert_eq!(alias_request["op"], "append_policy_delta");
+    assert_eq!(alias_request["target_id"], 8);
+    assert_eq!(alias_request["policy_ref"], "--delta-text[0]");
+    let file_request = rx.recv().expect("file request");
+    assert_eq!(file_request["op"], "append_policy_delta");
+    assert_eq!(file_request["policy_ref"], delta_file.to_str().unwrap());
+    assert_eq!(
+        file_request["policy"],
+        "rule d:\n  notify exec \"git\" if true\n  because \"y\"\n"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
