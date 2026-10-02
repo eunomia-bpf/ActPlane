@@ -625,4 +625,42 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+
+    fn bare_violation(rule_id: usize, op: Option<u32>) -> Violation {
+        Violation {
+            pid: 10,
+            ppid: 1,
+            comm: "git".to_string(),
+            target: "git".to_string(),
+            rule_id,
+            op,
+            domain_id: Some(23),
+            session_root: Some(10),
+            effect: None,
+            blocked: Some(false),
+            killed: Some(false),
+            taint_label: 1,
+            matched_label: 1,
+            matched_labels: Some(1),
+            provenance: None,
+        }
+    }
+
+    #[test]
+    fn event_context_without_rule_meta_stays_well_formed() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("events.jsonl");
+        let v = bare_violation(0, Some(9));
+        append_violation_event_context(None, &v, &path);
+        let text = std::fs::read_to_string(&path).expect("event file");
+        let value: serde_json::Value = serde_json::from_str(text.trim()).expect("json line");
+        assert_eq!(value["schema"], "actplane.violation.v1");
+        assert_eq!(value["rule_id"], 0);
+        assert_eq!(value["effect"], "");
+        assert_eq!(value["action"], "report");
+        assert_eq!(value["op"], "op");
+        assert_eq!(value["op_code"], 9);
+        assert_eq!(value["rule"], serde_json::Value::Null);
+        assert_eq!(value["provenance"], serde_json::Value::Null);
+    }
 }
