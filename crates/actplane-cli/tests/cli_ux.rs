@@ -714,3 +714,46 @@ fn stdout(output: &Output) -> String {
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
+
+#[test]
+fn watch_requires_a_policy_declaring_command_label() {
+    let tmp = tempfile::tempdir().unwrap();
+    let policy = tmp.path().join("actplane.yaml");
+    fs::write(
+        &policy,
+        "version: 1\npolicy: |\n  rule r:\n    notify exec \"git\" if true\n    because \"b\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .args(["--policy", policy.to_str().unwrap(), "watch"])
+        .output()
+        .expect("run watch");
+    assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains(
+            "Error: \"run/auto-attach mode requires the policy to declare or reference label COMMAND (or AGENT for backward compatibility)\""
+        ),
+        "stderr did not explain the missing COMMAND label:\n{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn run_and_attach_require_their_targets() {
+    let run_output = run(&["run"]);
+    assert!(!run_output.status.success());
+    assert!(
+        stderr(&run_output).contains("<CMD>"),
+        "run without a command should report the missing target:\n{}",
+        stderr(&run_output)
+    );
+
+    let attach_output = run(&["attach"]);
+    assert!(!attach_output.status.success());
+    assert!(
+        stderr(&attach_output).contains("--pid <PID>"),
+        "attach without a pid should report the missing flag:\n{}",
+        stderr(&attach_output)
+    );
+}
