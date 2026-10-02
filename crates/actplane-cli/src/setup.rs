@@ -325,4 +325,67 @@ mod tests {
         assert!(policy.contains("test-before-commit"));
         dsl::compile_str(&policy).unwrap();
     }
+
+    #[test]
+    fn setup_project_mcp_writes_then_preserves_without_force() {
+        let tmp = tempfile::tempdir().unwrap();
+        setup_project_mcp(tmp.path(), false).unwrap();
+        let first = std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
+        assert!(project_mcp_auto_attach_ok(&first));
+
+        // A hand edit survives an unforced re-run, then is overwritten by force.
+        std::fs::write(tmp.path().join(".mcp.json"), r#"{"mcpServers":{}}"#).unwrap();
+        setup_project_mcp(tmp.path(), false).unwrap();
+        assert!(project_mcp_auto_attach_ok(
+            &std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap()
+        ));
+        setup_project_mcp(tmp.path(), true).unwrap();
+        assert!(project_mcp_auto_attach_ok(
+            &std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap()
+        ));
+    }
+
+    #[test]
+    fn setup_project_mcp_replaces_invalid_json_only_when_forced() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join(".mcp.json"), "{not json").unwrap();
+        setup_project_mcp(tmp.path(), false).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap(),
+            "{not json"
+        );
+        setup_project_mcp(tmp.path(), true).unwrap();
+        assert!(project_mcp_auto_attach_ok(
+            &std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap()
+        ));
+    }
+
+    #[test]
+    fn setup_codex_hook_writes_a_detectable_hook() {
+        let tmp = tempfile::tempdir().unwrap();
+        setup_codex_hook(tmp.path(), false).unwrap();
+        let hooks = std::fs::read_to_string(tmp.path().join(".codex/hooks.json")).unwrap();
+        assert!(codex_hook_has_actplane_command(&hooks));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn setup_agents_doc_writes_stub_then_honors_force() {
+        let tmp = tempfile::tempdir().unwrap();
+        setup_agents_doc(tmp.path(), false).unwrap();
+        let first = std::fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap();
+        assert_eq!(first, AGENTS_STUB);
+
+        std::fs::write(tmp.path().join("AGENTS.md"), "custom").unwrap();
+        setup_agents_doc(tmp.path(), false).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap(),
+            "custom"
+        );
+        setup_agents_doc(tmp.path(), true).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap(),
+            AGENTS_STUB
+        );
+    }
 }
