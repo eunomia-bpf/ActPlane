@@ -2108,4 +2108,36 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn watch_policy_rejects_parent_domain_before_loading_any_policy() {
+        let cli = PolicyInput::default();
+        let err = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+            .block_on(watch_policy_for_pid(&cli, true, std::process::id() as i32))
+            .expect_err("parent-domain watch is rejected");
+        assert!(err.to_string().contains("--parent-domain is not supported"));
+    }
+
+    #[test]
+    fn watch_policy_rejects_an_invalid_attach_pid_without_sudo() {
+        let cli = PolicyInput::default();
+        // pid 0 and the init pid cannot host a watch attach.
+        for attach_pid in [0, 1] {
+            let err = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime")
+                .block_on(watch_policy_for_pid(&cli, false, attach_pid))
+                .expect_err("invalid attach pid is rejected");
+            assert!(
+                err.to_string().contains(&format!(
+                    "invalid parent pid for watch attach: {attach_pid}"
+                )),
+                "unexpected error: {err}"
+            );
+        }
+    }
 }
