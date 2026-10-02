@@ -714,3 +714,55 @@ fn stdout(output: &Output) -> String {
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).to_string()
 }
+
+fn run_in_dir(dir: &std::path::Path, args: &[&str]) -> Output {
+    Command::new(actplane())
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap_or_else(|e| panic!("run actplane {args:?}: {e}"))
+}
+
+#[test]
+fn init_all_wires_every_project_integration() {
+    let tmp = tempfile::tempdir().unwrap();
+    let output = run_in_dir(tmp.path(), &["init", "--all"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+
+    for rel in [
+        "actplane.yaml",
+        "AGENTS.md",
+        ".mcp.json",
+        ".codex/hooks.json",
+    ] {
+        assert!(tmp.path().join(rel).is_file(), "{rel} should be written");
+    }
+    let err = stderr(&output);
+    assert!(err.contains("project integration ready in"));
+    assert!(err.contains("actplane compile"));
+}
+
+#[test]
+fn init_with_codex_leaves_mcp_config_untouched() {
+    let tmp = tempfile::tempdir().unwrap();
+    let output = run_in_dir(tmp.path(), &["init", "--with-codex"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(tmp.path().join("AGENTS.md").is_file());
+    assert!(tmp.path().join(".codex/hooks.json").is_file());
+    assert!(
+        !tmp.path().join(".mcp.json").exists(),
+        "codex-only init must not write MCP config"
+    );
+}
+
+#[test]
+fn init_with_mcp_leaves_codex_hooks_untouched() {
+    let tmp = tempfile::tempdir().unwrap();
+    let output = run_in_dir(tmp.path(), &["init", "--with-mcp"]);
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    assert!(tmp.path().join(".mcp.json").is_file());
+    assert!(
+        !tmp.path().join(".codex/hooks.json").exists(),
+        "mcp-only init must not write codex hooks"
+    );
+}
