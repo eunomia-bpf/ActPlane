@@ -707,6 +707,127 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// Every `actplane <subcommand...> --flag` spelling cited in the top-level docs
+// must resolve to a real flag, so a renamed or removed CLI option fails CI
+// instead of silently rotting the documentation.
+#[test]
+fn documented_actplane_flags_exist() {
+    let docs_dir = format!("{}/../../docs", env!("CARGO_MANIFEST_DIR"));
+    const DOCS: &[&str] = &[
+        "agent-integrations.md",
+        "cookbook.md",
+        "rule-language.md",
+        "security_model.md",
+        "support-matrix.md",
+        "compare.md",
+    ];
+    let commands = discover_subcommands(&[]);
+    let mut checked = 0usize;
+    for doc in DOCS {
+        let text = match fs::read_to_string(format!("{docs_dir}/{doc}")) {
+            Ok(text) => text,
+            Err(_) => continue,
+        };
+        for (path, flags) in documented_invocations(&text, &commands) {
+            let mut help_args: Vec<&str> = path.split_whitespace().collect();
+            help_args.push("--help");
+            let help = stdout(&run(&help_args));
+            for flag in flags {
+                assert!(
+                    help.contains(&format!("--{flag}")),
+                    "docs/{doc} cites `actplane {path} --{flag}` but that flag is absent:\n{help}"
+                );
+                checked += 1;
+            }
+        }
+    }
+    assert!(
+        checked >= 10,
+        "expected to verify documented flags, only checked {checked}"
+    );
+}
+
+/// Names of the subcommands listed under `Commands:` in `actplane <path> --help`.
+fn discover_subcommands(path: &[&str]) -> Vec<String> {
+    let mut args: Vec<&str> = path.to_vec();
+    args.push("--help");
+    let help = stdout(&run(&args));
+    let mut names = Vec::new();
+    let mut in_commands = false;
+    for line in help.lines() {
+        if line == "Commands:" {
+            in_commands = true;
+            continue;
+        }
+        if !in_commands {
+            continue;
+        }
+        if line.trim().is_empty() {
+            break;
+        }
+        if let Some(token) = line.split_whitespace().next() {
+            names.push(token.to_string());
+        }
+    }
+    names
+}
+
+/// Collect `actplane <subcommand...> --flag...` invocations from a doc string.
+/// The subcommand path is the leading lowercase words that resolve to real
+/// command names, so prose like `--json/--explain reports` does not invent a
+/// command.
+fn documented_invocations(text: &str, commands: &[String]) -> Vec<(String, Vec<String>)> {
+    let bytes = text.as_bytes();
+    let mut found = Vec::new();
+    let mut cursor = 0;
+    while let Some(offset) = text[cursor..].find("actplane ") {
+        let start = cursor + offset + "actplane ".len();
+        let mut end = start;
+        while end < bytes.len() {
+            let c = bytes[end] as char;
+            if c.is_ascii_alphanumeric() || c == '-' || c == ' ' {
+                end += 1;
+            } else {
+                break;
+            }
+        }
+        let words: Vec<&str> = text[start..end].split_whitespace().collect();
+        if let Some(first) = words.first() {
+            if first.chars().all(|c| c.is_ascii_lowercase() || c == '-') {
+                let mut path: Vec<String> = Vec::new();
+                let mut flags: Vec<String> = Vec::new();
+                let mut valid = true;
+                for word in &words {
+                    if let Some(flag) = word.strip_prefix("--") {
+                        flags.push(flag.to_string());
+                    } else if flags.is_empty() {
+                        let resolved = if path.is_empty() {
+                            commands.iter().any(|c| c == word)
+                        } else {
+                            let parent: Vec<&str> = path.iter().map(String::as_str).collect();
+                            discover_subcommands(&parent).iter().any(|c| c == word)
+                        };
+                        if resolved {
+                            path.push(word.to_string());
+                        } else {
+                            valid = false;
+                            break;
+                        }
+                    } else {
+                        valid = false;
+                        break;
+                    }
+                }
+                if valid && !path.is_empty() && !flags.is_empty() {
+                    found.push((path.join(" "), flags));
+                }
+            }
+        }
+        cursor = end;
+    }
+    found
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
