@@ -2591,4 +2591,36 @@ mod tests {
             "BOOT_IMAGE=/vmlinuz lsm=landlock,lockdown,yama,bpfish"
         ));
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn executable_detection_respects_the_execute_bit() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let exe = tmp.path().join("tool");
+        std::fs::write(&exe, b"#!/bin/sh\n").expect("write");
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        assert!(is_executable(&exe));
+
+        let data = tmp.path().join("data.txt");
+        std::fs::write(&data, b"data").expect("write");
+        std::fs::set_permissions(&data, std::fs::Permissions::from_mode(0o644)).expect("mode");
+        assert!(!is_executable(&data));
+
+        assert!(!is_executable(&tmp.path().join("missing")));
+
+        let dir = tmp.path().to_str().expect("utf8 path");
+        let old = std::env::var_os("PATH");
+        // SAFETY: single-threaded bin test; no concurrent env readers.
+        unsafe { std::env::set_var("PATH", dir) };
+        assert_eq!(find_executable_on_path("tool"), Some(exe.clone()));
+        assert_eq!(find_executable_on_path("data.txt"), None);
+        match old {
+            // SAFETY: see above.
+            Some(value) => unsafe { std::env::set_var("PATH", value) },
+            // SAFETY: see above.
+            None => unsafe { std::env::remove_var("PATH") },
+        }
+    }
 }
