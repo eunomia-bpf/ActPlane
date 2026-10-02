@@ -767,4 +767,30 @@ rule secret:
             Some("              notify exec \"git\" if B")
         );
     }
+    #[test]
+    fn gate_exit_codes_outside_byte_range_are_rejected() {
+        let over = compile_str(
+            "source A = exec \"**\"\nrule r:\n  block exec \"git\" if A unless after exec \"make\" exits 300\n  because \"x\"\n",
+        )
+        .err()
+        .expect("exit code 300 must be rejected");
+        assert_eq!(over, "expected exit code 0..255, got '300'");
+
+        let negative = compile_str(
+            "source A = exec \"**\"\nrule r:\n  block exec \"git\" if A unless after exec \"make\" exits 256\n  because \"x\"\n",
+        )
+        .err()
+        .expect("exit code 256 must be rejected");
+        assert_eq!(negative, "expected exit code 0..255, got '256'");
+    }
+
+    #[test]
+    fn exit_codes_are_rejected_on_non_exec_gates() {
+        let err = compile_str(
+            "source A = exec \"**\"\nrule r:\n  block exec \"git\" if A unless after write \"x\" exits 0\n  because \"x\"\n",
+        )
+        .err()
+        .expect("exits on a write gate must be rejected");
+        assert_eq!(err, "`exits` is only valid on `after exec` gates");
+    }
 }
