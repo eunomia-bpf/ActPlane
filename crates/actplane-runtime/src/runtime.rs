@@ -2108,4 +2108,30 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn attach_guard_drop_signals_and_joins_its_thread() {
+        let stop = Arc::new(AtomicBool::new(false));
+        let observed = stop.clone();
+        let thread_stop = stop.clone();
+        let thread = std::thread::spawn(move || {
+            for _ in 0..1000 {
+                if thread_stop.load(Ordering::SeqCst) {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+        });
+        let guard = AttachGuard {
+            stop,
+            thread: Some(thread),
+            control: None,
+        };
+        assert!(guard.engine_control().is_none());
+        drop(guard);
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "dropping the guard must request the auto-attach watcher to stop"
+        );
+    }
 }
