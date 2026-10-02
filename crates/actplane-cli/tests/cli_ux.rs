@@ -707,6 +707,57 @@ policy: |
     handle.join().expect("control server thread");
 }
 
+// `compile --json` exposes per-rule lowering provenance: rule id, effect,
+// kernel op, resolved target pattern and positional argument, mutability, and
+// the source/clause hash references.
+#[test]
+fn compile_json_reports_per_rule_lowering_provenance() {
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("actplane.yaml"),
+        "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule no-git-push:\n    kill exec \"git\" \"push\" if COMMAND\n    because \"no push\"\n",
+    )
+    .unwrap();
+
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["compile", "--json"])
+        .output()
+        .expect("run compile --json");
+    assert!(output.status.success(), "stderr: {}", stderr(&output));
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("compile --json stdout");
+
+    assert_eq!(value["schema"], "actplane.compile.v1");
+    assert_eq!(value["ok"], true);
+    assert_eq!(value["rule_count"], 1);
+    assert_eq!(
+        value["policy_ref"],
+        tmp.path().join("actplane.yaml").to_str().unwrap()
+    );
+    assert!(
+        value["domain"].is_null(),
+        "flat policy has no domain: {}",
+        value["domain"]
+    );
+
+    let rule = &value["rules"][0];
+    assert_eq!(rule["name"], "no-git-push");
+    assert_eq!(rule["rule_id"], 0);
+    assert_eq!(rule["effect"], "kill");
+    assert_eq!(rule["kernel_op"], "exec");
+    assert_eq!(rule["target_kind"], "exec");
+    assert_eq!(rule["target_pattern"], "**/git");
+    assert_eq!(rule["target_arg"], "push");
+    assert_eq!(rule["immutable"], false);
+    assert_eq!(rule["source_ref"], "rule:no-git-push");
+    assert_eq!(rule["clause_op"], "exec");
+    assert_eq!(
+        rule["clause_text"],
+        "  kill exec \"git\" \"push\" if COMMAND"
+    );
+}
+
 fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
 }
