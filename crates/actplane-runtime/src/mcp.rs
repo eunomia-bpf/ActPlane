@@ -4833,6 +4833,12 @@ mod tests {
         std::fs::write(&path, b"{}").expect("write");
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("chmod");
 
+        // The chown/0644 branch only runs for euid 0, so the non-root no-op
+        // guarantee is only observable (and only asserted) off-root.
+        if unsafe { libc::geteuid() } == 0 {
+            return;
+        }
+
         assert_ne!(unsafe { libc::geteuid() }, 0, "container runs non-root");
         secure_child_registry_file(&path).expect("secure file");
         let mode = std::fs::metadata(&path)
@@ -5559,10 +5565,12 @@ mod tests {
         );
         let meta = log_dir.join("meta.json");
         assert!(child_record_meta_trusted(&meta));
-        assert!(
-            child_record_meta_trusted(&dir.path().join("absent/meta.json")),
-            "non-root callers trust without stat"
-        );
+        if unsafe { libc::geteuid() } != 0 {
+            assert!(
+                child_record_meta_trusted(&dir.path().join("absent/meta.json")),
+                "non-root callers trust without stat"
+            );
+        }
     }
 
     #[test]

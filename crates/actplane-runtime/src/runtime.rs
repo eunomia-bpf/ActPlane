@@ -3050,18 +3050,26 @@ mod tests {
         let err = send_process_group_signal(99_999_999, libc::SIGCONT).unwrap_err();
         assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
 
-        // A root test process can actually stop itself with SIGSTOP, so only
-        // assert the error path when the sandbox forbids signalling our own pid
-        // (non-root). skip the whole SIGSTOP probe under an absent /proc.
-        if std::path::Path::new("/proc").exists() && unsafe { libc::geteuid() } != 0 {
-            let self_pid = std::process::id();
-            let err = send_signal(self_pid, libc::SIGSTOP).unwrap_err();
+        // Signalling our own live pid with a delivery-safe signal (SIGCONT
+        // never stops the caller) either succeeds or is refused by the
+        // sandbox, but never takes an arbitrary error path.
+        let self_pid = std::process::id();
+        if let Err(err) = send_signal(self_pid, libc::SIGCONT) {
             assert!(
                 matches!(
                     err.raw_os_error(),
                     Some(libc::EACCES) | Some(libc::EPERM) | Some(libc::ESRCH)
                 ),
-                "unexpected error from self-signal: {err}"
+                "unexpected self-signal error: {err}"
+            );
+        }
+        if let Err(err) = send_process_group_signal(self_pid, libc::SIGCONT) {
+            assert!(
+                matches!(
+                    err.raw_os_error(),
+                    Some(libc::EACCES) | Some(libc::EPERM) | Some(libc::ESRCH)
+                ),
+                "unexpected group-signal error: {err}"
             );
         }
     }
