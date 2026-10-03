@@ -204,4 +204,59 @@ mod tests {
         assert!(s.contains("acquired label SECRET"));
         assert!(s.contains("current `connect` `1.2.3.4` operation"));
     }
+    #[test]
+    fn json_str_quotes_and_escapes_like_json_string() {
+        // `json_str` renders a `&str` as a JSON string literal (quoted, with
+        // control characters and backslashes escaped) for embedding into
+        // feedback payloads. No base or branch test pins the quoting/escape
+        // behavior directly.
+        assert_eq!(json_str("hello"), "\"hello\"");
+        assert_eq!(json_str(""), "\"\"");
+        assert_eq!(json_str("a\"b"), "\"a\\\"b\"");
+        assert_eq!(json_str("a\nb"), "\"a\\nb\"");
+        assert_eq!(json_str("a\\b"), "\"a\\\\b\"");
+    }
+    #[test]
+    fn provenance_line_renders_the_provenance_or_empty_when_absent() {
+        // `provenance_line` renders the "acquired label … at kernel timestamp"
+        // provenance line for a feedback payload, or an empty string when the
+        // violation carries no provenance. No base or branch test pins either
+        // branch directly.
+        let p = Provenance {
+            label: "SECRET".to_string(),
+            origin_pid: 1234,
+            origin_op: "open".to_string(),
+            origin_target: "/etc/secrets".to_string(),
+            origin_timestamp_ns: 999,
+        };
+
+        // A `Some` provenance renders the full line with a trailing newline.
+        assert_eq!(
+            provenance_line(Some(&p), "connect", "1.2.3.4"),
+            "- Provenance: PID 1234 acquired label SECRET at kernel timestamp 999 ns via `open` `/etc/secrets`; that label propagated through process state to the current `connect` `1.2.3.4` operation.\n"
+        );
+
+        // An absent provenance renders nothing.
+        assert_eq!(provenance_line(None, "connect", "1.2.3.4"), "");
+    }
+
+    #[test]
+    fn trailing_tag_is_machine_readable_json() {
+        let s = format_payload(PayloadInput {
+            name: "no-git",
+            op: "exec",
+            target: "git",
+            reason: "no git allowed",
+            effect: Effect::Block,
+            blocked: true,
+            killed: false,
+            provenance: None,
+        });
+        let tag = s.lines().last().expect("tag line");
+        let value: serde_json::Value = serde_json::from_str(tag).expect("tag is JSON");
+        assert_eq!(value["actplane_rule"], "no-git");
+        assert_eq!(value["effect"], "block");
+        assert_eq!(value["action"], "block");
+        assert_eq!(value["retry_useful"], false);
+    }
 }
