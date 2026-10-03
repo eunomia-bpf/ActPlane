@@ -5429,6 +5429,19 @@ mod tests {
             let run_dir = runs.join(run);
             std::fs::create_dir_all(&run_dir).expect("run dir");
             std::fs::write(run_dir.join("feedback.txt"), run).expect("feedback");
+            // Filesystems with coarse mtime granularity (e.g. tmpfs) can assign
+            // both feedback files the same second, so pin an explicit ordering.
+            let stamp = if run == "run-old" {
+                1_600_000_000
+            } else {
+                1_700_000_000
+            };
+            std::fs::File::options()
+                .write(true)
+                .open(run_dir.join("feedback.txt"))
+                .expect("open")
+                .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(stamp))
+                .expect("set mtime");
         }
 
         let found = latest_run_feedback(dir.path()).expect("feedback");
