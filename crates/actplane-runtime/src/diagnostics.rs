@@ -1,10 +1,9 @@
 //! Startup-time enforcement diagnostics.
 //!
-//! At `run`/`watch`/MCP-attach startup, a requested `block` clause only pre-deny
-//! an operation when the BPF-LSM pre-operation hooks are attached. When they are
-//! not, the operation proceeds and the rule reports after the fact. These
-//! diagnostics make that effective behavior prominent at startup rather than
-//! waiting for the first violation (see `feedback.rs`).
+//! At `run`/`watch`/MCP-attach startup, a requested `block` clause only pre-denies
+//! an operation when the BPF-LSM pre-operation hooks are attached. Without those
+//! hooks, `block` is unsupported and the rule does not fire in tracepoint mode.
+//! These diagnostics make that effective behavior prominent before the target runs.
 //!
 //! The capability gate reuses the engine's authoritative [`ebpf_ifc_engine::bpf_lsm_active`]
 //! so tracepoint-forced runs and non-BPF-LSM hosts are treated identically to the
@@ -21,8 +20,8 @@ use crate::dsl::ast::Effect;
 /// One warning per `block` clause that cannot pre-deny:
 /// - an argv-token `block exec` never pre-denies (argv is only available after
 ///   exec), regardless of BPF-LSM; and
-/// - any other `block` clause degrades to post-operation reporting while BPF-LSM
-///   is not active.
+/// - any other `block` clause is unsupported and does not fire while BPF-LSM is
+///   not active.
 ///
 /// Deterministic and deduplicated by message so it is safe to unit-test without
 /// touching the host.
@@ -41,17 +40,17 @@ pub fn block_degradation_messages(compiled: &Compiled, lsm_active: bool) -> Vec<
             // Most specific: degrades even with BPF-LSM active.
             format!(
                 "ActPlane: rule `{}` requests `block exec` with an argv token, but argv is only \
-                 available after exec, so it cannot block before exec; the operation proceeds and \
-                 the rule reports after the fact. Use `kill exec` if terminating the process is \
-                 acceptable, or `notify`.",
+                 available after exec, so this `block` clause cannot enforce that argv-sensitive \
+                 operation. Use `kill exec` if terminating the process is acceptable, or `notify` \
+                 for report-only handling.",
                 meta.name
             )
         } else if !lsm_active {
             format!(
                 "ActPlane: rule `{}` requests `block` on {} but BPF-LSM is not active on this \
-                 host, so the pre-operation block hook is not attached; the operation will \
-                 proceed and the rule reports after the fact. Enable BPF-LSM to pre-deny, or use \
-                 `notify`/`kill` if post-operation handling is acceptable.",
+                 host, so the pre-operation block hook is not attached and this rule will not fire \
+                 in tracepoint mode. Enable BPF-LSM to pre-deny, or use `notify`/`kill` for \
+                 tracepoint-backed post-operation handling.",
                 meta.name, ops
             )
         } else {
@@ -125,7 +124,7 @@ mod tests {
         assert_eq!(msgs.len(), 1);
         assert!(msgs[0].contains("rule `r1`"), "{:?}", msgs);
         assert!(msgs[0].contains("BPF-LSM is not active"));
-        assert!(msgs[0].contains("proceed"));
+        assert!(msgs[0].contains("will not fire"));
     }
 
     #[test]
