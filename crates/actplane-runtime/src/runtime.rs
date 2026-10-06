@@ -758,6 +758,7 @@ impl EngineControl {
             .cloned()
             .unwrap_or_default();
         let compiled = dsl::compile_str_with_labels(dsl_src, &existing_labels)?;
+        crate::diagnostics::print_block_degradation_warnings(&compiled);
         let rule_id_base = inner.rules.len();
         let rule_count = compiled.meta.len();
         let rule_provenance = rule_provenance_json(&compiled.meta, rule_id_base);
