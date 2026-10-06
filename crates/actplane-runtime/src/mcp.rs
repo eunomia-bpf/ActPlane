@@ -2693,7 +2693,7 @@ mod tests {
     /// the stopped-child path and the test skips. An inconclusive probe
     /// (child still alive at the deadline) falls through so the helper's
     /// own stopped-state wait makes the final call.
-    fn host_can_stop_children() -> bool {
+    fn host_can_stop_children() -> std::io::Result<bool> {
         let mut probe = match Command::new("/bin/sh")
             .arg("-c")
             .arg("kill -STOP $$; exec \"$@\"")
@@ -2705,31 +2705,31 @@ mod tests {
             .spawn()
         {
             Ok(p) => p,
-            Err(_) => return false,
+            Err(error) => return Err(error),
         };
         let pid = probe.id() as i32;
         let deadline = Instant::now() + Duration::from_secs(5);
         loop {
             match proc_state_code(pid) {
                 Ok(state) if matches!(state, 'T' | 't') => {
-                    let _ = send_signal(pid, libc::SIGKILL);
-                    let _ = probe.wait();
-                    return true;
+                    send_signal(pid, libc::SIGKILL)?;
+                    probe.wait()?;
+                    return Ok(true);
                 }
                 // The child exited: the `exec` path ran because the self
                 // `SIGSTOP` was not honored, so this host cannot exercise
                 // the stopped-child path.
                 Ok(state) if matches!(state, 'Z' | 'z') => {
-                    let _ = probe.wait();
-                    return false;
+                    probe.wait()?;
+                    return Ok(false);
                 }
                 Ok(_) => {}
-                Err(_) => return false,
+                Err(error) => return Err(error),
             }
             if Instant::now() >= deadline {
-                let _ = send_signal(pid, libc::SIGKILL);
-                let _ = probe.wait();
-                return true;
+                send_signal(pid, libc::SIGKILL)?;
+                probe.wait()?;
+                return Ok(true);
             }
             std::thread::sleep(Duration::from_millis(5));
         }
@@ -2737,11 +2737,15 @@ mod tests {
 
     #[test]
     fn spawn_stopped_child_can_be_killed_without_stdio_inheritance() {
-        if !host_can_stop_children() {
-            eprintln!(
-                "skip: host does not honor SIGSTOP self-stop (restricted sandbox); cannot exercise the stopped-child path"
-            );
-            return;
+        match host_can_stop_children() {
+            Ok(true) => {}
+            Ok(false) => {
+                eprintln!(
+                    "skip: host does not honor SIGSTOP self-stop (restricted sandbox); cannot exercise the stopped-child path"
+                );
+                return;
+            }
+            Err(error) => panic!("SIGSTOP capability probe failed: {error}"),
         }
         let cmd = vec!["/bin/true".to_string()];
         let log_dir = std::env::temp_dir().join(child_launch_id());
