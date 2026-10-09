@@ -1,0 +1,8 @@
+case	expected	observed
+child_declassify	reject	reject
+child_parent_mutation	reject	reject
+child_tighten	accept	accept
+frozen_parent_enforcement	notify	notify
+child_tightening	notify	notify
+trusted_parent_missing_metadata	reject	reject
+allowlisted_metadata	accept	accept
