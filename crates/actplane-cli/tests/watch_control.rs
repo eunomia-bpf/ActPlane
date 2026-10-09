@@ -394,3 +394,37 @@ fn poll_child_logs(
         std::thread::sleep(Duration::from_millis(100));
     }
 }
+
+/// `watch` without a discoverable policy must fail before touching eBPF.
+#[test]
+fn watch_reports_a_missing_policy_before_loading_the_engine() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let output = Command::new(actplane())
+        .current_dir(tmp.path())
+        .arg("watch")
+        .stdin(Stdio::null())
+        .output()
+        .expect("run actplane watch");
+    assert!(!output.status.success(), "watch unexpectedly succeeded");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("no actplane.yaml found; pass --policy <file> or --rule <dsl>"),
+        "{stderr}"
+    );
+
+    let err = Command::new(actplane())
+        .current_dir(tmp.path())
+        .args(["--policy", "missing.yaml", "watch"])
+        .stdin(Stdio::null())
+        .output()
+        .expect("run actplane watch with a missing policy");
+    assert!(!err.status.success());
+    let stderr = String::from_utf8_lossy(&err.stderr);
+    assert!(stderr.contains("missing.yaml"), "{stderr}");
+    // The policy is resolved before the engine loads, so the failure reports
+    // the missing file rather than a privilege or BPF error.
+    assert!(
+        !stderr.contains("CAP_BPF") && !stderr.contains("operation not permitted"),
+        "{stderr}"
+    );
+}
