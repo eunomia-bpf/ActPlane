@@ -7884,4 +7884,344 @@ finally:
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
+    #[test]
+    fn config_has_file_write_detects_write_operations() {
+        // `config_has_file_write` reports whether an enabled update or rule
+        // carries the WRITE op (a file mutation edge). No base or branch test
+        // pins this helper directly.
+        // An enabled update with a WRITE op is detected.
+        let mut write_update: CConfig = unsafe { std::mem::zeroed() };
+        write_update.n_updates = 1;
+        write_update.updates[0].op = OP_WRITE;
+        assert!(config_has_file_write(&write_update));
+
+        // An enabled rule with a WRITE op is detected.
+        let mut write_rule: CConfig = unsafe { std::mem::zeroed() };
+        write_rule.n_rules = 1;
+        write_rule.rules[0].op = OP_WRITE;
+        assert!(config_has_file_write(&write_rule));
+
+        // Non-write ops are not counted: a non-zero `n_updates` whose entries
+        // are exec/open/connect is not a file write.
+        let mut no_write: CConfig = unsafe { std::mem::zeroed() };
+        no_write.n_updates = 2;
+        no_write.updates[0].op = OP_EXEC;
+        no_write.updates[1].op = OP_OPEN;
+        no_write.n_rules = 1;
+        no_write.rules[0].op = OP_CONNECT;
+        assert!(!config_has_file_write(&no_write));
+
+        // A zero-sized config has no enabled edges, so no file write.
+        let empty: CConfig = unsafe { std::mem::zeroed() };
+        assert!(!config_has_file_write(&empty));
+    }
+    #[test]
+    fn decode_maps_event_fields_and_targets() {
+        // `decode` turns a raw `Event` into a `Violation`, formatting the
+        // connect target as a dotted IPv4 quad when `conn_ip` is set (falling
+        // back to the filename otherwise) and attaching a provenance record
+        // only when `prov_label` is non-zero. No base or branch test pins
+        // this helper directly.
+        fn fill(buf: &mut [u8], s: &str) {
+            let bytes = s.as_bytes();
+            buf[..bytes.len()].copy_from_slice(bytes);
+        }
+
+        // A filename target and a filename provenance target.
+        let mut e: Event = unsafe { std::mem::zeroed() };
+        fill(&mut e.comm, "sh");
+        fill(&mut e.filename, "/bin/sh");
+        fill(&mut e.prov_target, "/etc/passwd");
+        e.pid = 42;
+        e.ppid = 7;
+        e.blocked = 1;
+        e.killed = 0;
+        e.effect = 1;
+        e.op = 3;
+        e.domain_id = 1;
+        e.session_root = 9;
+        e.taint_rule_id = 5;
+        e.taint_label = 8;
+        e.matched_label = 2;
+        e.matched_labels = 10;
+        e.prov_label = 1;
+        e.prov_pid = 11;
+        e.prov_op = 2;
+        e.timestamp_ns = 100;
+        let v = decode(&e);
+        assert_eq!(v.target, "/bin/sh");
+        assert_eq!(v.comm, "sh");
+        assert!(v.blocked);
+        assert!(!v.killed);
+        assert_eq!(v.pid, 42);
+        assert_eq!(v.ppid, 7);
+        assert_eq!(v.rule_id, 5);
+        assert_eq!(v.effect, 1);
+        let prov = v.provenance.expect("provenance present");
+        assert_eq!(prov.label, 1);
+        assert_eq!(prov.pid, 11);
+        assert_eq!(prov.op, 2);
+        assert_eq!(prov.target, "/etc/passwd");
+
+        // A connect target is formatted as a dotted IPv4 quad, and the
+        // provenance target is too when `prov_ip` is set.
+        let mut c: Event = unsafe { std::mem::zeroed() };
+        c.conn_ip = 0x01020304;
+        c.prov_label = 1;
+        c.prov_ip = 0x0A000001;
+        let cv = decode(&c);
+        assert_eq!(cv.target, "4.3.2.1");
+        assert_eq!(cv.provenance.as_ref().unwrap().target, "1.0.0.10");
+
+        // No provenance record when `prov_label` is zero.
+        let mut plain: Event = unsafe { std::mem::zeroed() };
+        plain.conn_ip = 0x01020304;
+        let pv = decode(&plain);
+        assert_eq!(pv.target, "4.3.2.1");
+        assert!(pv.provenance.is_none());
+    }
+    #[test]
+    fn feature_gate_error_names_missing_features_and_hints() {
+        // `feature_gate_error` renders the features a delta needs that the
+        // loaded engine lacks: each missing feature is named, relevant
+        // remediation hints are appended, and the raw `needed`/`supported`/
+        // `missing` masks are echoed in hex. No base or branch test pins this
+        // helper directly.
+        // A single missing network feature names it and carries its hex tail.
+        let connect = feature_gate_error("delta", FEAT_CONNECT, 0, FEAT_CONNECT);
+        assert!(connect
+            .starts_with("delta requires features not enabled when the eBPF engine was loaded: "));
+        assert!(connect.contains("connect rules or sources"));
+        assert!(connect.ends_with("needed=0x10, supported=0x0, missing=0x10"));
+
+        // Multiple missing matcher features are named in a stable order.
+        let matchers = feature_gate_error(
+            "delta",
+            FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX,
+            0,
+            FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX,
+        );
+        assert!(matchers.contains("path contains matches, path suffix matches"));
+
+        // An empty `missing` mask names nothing but still carries the base
+        // hint and echoes the zero masks.
+        let none = feature_gate_error("delta", 0, 0, 0);
+        assert!(none.contains("loaded: . "));
+        assert!(none.ends_with("needed=0x0, supported=0x0, missing=0x0"));
+    }
+    #[test]
+    fn group_legacy_config_counts_file_and_net_classes() {
+        // `group_legacy_config` buckets a legacy config's enabled edges by op
+        // class: file edges (open/write), network edges (connect/recv), and
+        // everything else. It sorts the enabled slices by class (mutating the
+        // config) and returns the per-slice class-0 and class-1 counts as
+        // `[updates_c0, updates_c1, rules_c0, rules_c1]`. No base or branch
+        // test pins this helper directly.
+        let mut cfg: CConfig = unsafe { std::mem::zeroed() };
+        cfg.n_updates = 4;
+        cfg.updates[0].op = OP_WRITE;
+        cfg.updates[1].op = OP_OPEN;
+        cfg.updates[2].op = OP_CONNECT;
+        cfg.updates[3].op = OP_RECV;
+        cfg.n_rules = 2;
+        cfg.rules[0].op = OP_WRITE;
+        cfg.rules[1].op = OP_CONNECT;
+        let groups = group_legacy_config(&mut cfg);
+        // Two file updates, two network updates, one file rule, one network rule.
+        assert_eq!(groups, [2, 2, 1, 1]);
+
+        // A zero-sized config has no enabled edges to group.
+        let mut empty: CConfig = unsafe { std::mem::zeroed() };
+        assert_eq!(group_legacy_config(&mut empty), [0, 0, 0, 0]);
+    }
+    #[test]
+    fn merge_cap_state_combines_masks_and_fills_zero_ids() {
+        // `merge_cap_state` folds an update into a base capability state:
+        // the parent/scope ids are taken from the update only when the base
+        // leaves them unset, while every mask and the label set are ORed.
+        // No base or branch test pins this fold directly.
+        let base = CapState {
+            scope_id: 7,
+            labels: 0b0001,
+            authority_mask: 0b0001,
+            target_mask: 0b0010,
+            restrict_mask: 0b0100,
+            gate_mask: 0b1000,
+            label_mask: 0b0001,
+            ..CapState::default()
+        };
+        let update = CapState {
+            parent: 9,
+            scope_id: 11,
+            labels: 0b0010,
+            authority_mask: 0b1000,
+            target_mask: 0b0001,
+            restrict_mask: 0b0010,
+            gate_mask: 0b0100,
+            label_mask: 0b1000,
+            ..CapState::default()
+        };
+
+        let merged = merge_cap_state(base, update);
+
+        // The update's parent/scope fill in only where the base left them 0.
+        assert_eq!(merged.parent, 9);
+        assert_eq!(merged.scope_id, 7); // base scope already set, kept
+
+        // Masks and labels combine with OR.
+        assert_eq!(merged.labels, 0b0011);
+        assert_eq!(merged.authority_mask, 0b1001);
+        assert_eq!(merged.target_mask, 0b0011);
+        assert_eq!(merged.restrict_mask, 0b0110);
+        assert_eq!(merged.gate_mask, 0b1100);
+        assert_eq!(merged.label_mask, 0b1001);
+
+        // A base with no scope lets the update's scope through.
+        let base_no_scope = CapState {
+            scope_id: 0,
+            ..CapState::default()
+        };
+        assert_eq!(merge_cap_state(base_no_scope, update).scope_id, 11);
+    }
+    #[test]
+    fn path_match_features_maps_match_modes_to_feature_bits() {
+        // `path_match_features` flags which path-match capabilities a config
+        // needs: suffix and contains matches map to their feature bits, and
+        // any other match mode needs none. No base or branch test pins this
+        // helper directly.
+        assert_eq!(path_match_features(M_SUFFIX), FEAT_PATH_SUFFIX);
+        assert_eq!(path_match_features(M_CONTAINS), FEAT_PATH_CONTAINS);
+
+        // Non-path-match modes fall to the no-feature arm. `0` is the
+        // EXACT/absence discriminant; PREFIX (`1`) does likewise.
+        assert_eq!(path_match_features(0), 0);
+        assert_eq!(path_match_features(1), 0);
+    }
+    #[test]
+    fn scope_subset_accepts_zero_or_widening_scopes() {
+        // `scope_subset` checks that a new domain scope is within the
+        // parent's: a zero scope (meaning "no scope" on either side) is
+        // always allowed, and otherwise the new scope must be a value >= the
+        // old one. No base or branch test pins this helper directly.
+        // A zero new or old scope is always a subset.
+        assert!(scope_subset(0, 5));
+        assert!(scope_subset(7, 0));
+        assert!(scope_subset(0, 0));
+
+        // Equal and widening scopes are subsets; narrowing is not.
+        assert!(scope_subset(3, 3));
+        assert!(scope_subset(5, 2));
+        assert!(!scope_subset(1, 4));
+        assert!(!scope_subset(2, 5));
+    }
+    #[test]
+    fn validate_config_rejects_overcount_and_suffix_exec_mismatches() {
+        // `validate_config` checks a config's shape before load: the
+        // update/rule counts must stay within their maxima, and exec edges
+        // may not use the SUFFIX match mode (in the update, the rule, or an
+        // exec-target condition). No base or branch test pins this helper
+        // directly.
+        let mut ok_cfg: CConfig = unsafe { std::mem::zeroed() };
+        ok_cfg.n_updates = 1;
+        ok_cfg.updates[0].op = OP_WRITE;
+        ok_cfg.n_rules = 1;
+        ok_cfg.rules[0].op = OP_EXEC;
+        assert!(validate_config(&ok_cfg).is_ok());
+
+        // More updates than the engine can hold is rejected.
+        let mut over_updates: CConfig = unsafe { std::mem::zeroed() };
+        over_updates.n_updates = MAX_UPDATES as u32 + 1;
+        let err = validate_config(&over_updates).expect_err("over count");
+        assert!(err.to_string().contains("updates"));
+
+        // More rules than the engine can hold is rejected.
+        let mut over_rules: CConfig = unsafe { std::mem::zeroed() };
+        over_rules.n_rules = MAX_RULES as u32 + 1;
+        let err = validate_config(&over_rules).expect_err("over count");
+        assert!(err.to_string().contains("rules"));
+
+        // A SUFFIX exec update is unsupported.
+        let mut suffix_update: CConfig = unsafe { std::mem::zeroed() };
+        suffix_update.n_updates = 1;
+        suffix_update.updates[0].op = OP_EXEC;
+        suffix_update.updates[0].m = M_SUFFIX;
+        let err = validate_config(&suffix_update).expect_err("suffix update");
+        assert!(err.to_string().contains("update["));
+
+        // A SUFFIX exec rule is unsupported.
+        let mut suffix_rule: CConfig = unsafe { std::mem::zeroed() };
+        suffix_rule.n_rules = 1;
+        suffix_rule.rules[0].op = OP_EXEC;
+        suffix_rule.rules[0].m = M_SUFFIX;
+        let err = validate_config(&suffix_rule).expect_err("suffix rule");
+        assert!(err.to_string().contains("rule["));
+
+        // A SUFFIX exec-target condition is unsupported.
+        let mut suffix_cond: CConfig = unsafe { std::mem::zeroed() };
+        suffix_cond.n_rules = 1;
+        suffix_cond.rules[0].op = OP_EXEC;
+        suffix_cond.rules[0].cond_kind = C_TARGET;
+        suffix_cond.rules[0].cond_match = M_SUFFIX;
+        let err = validate_config(&suffix_cond).expect_err("suffix cond");
+        assert!(err.to_string().contains("rule["));
+    }
+    #[test]
+    fn validate_legacy_config_enforces_linux_5_10_limits() {
+        // `validate_legacy_config` enforces the Linux 5.10 compatibility
+        // limits on a legacy config: the update/rule counts stay within the
+        // legacy maxima, sources may not use `@arg`/domains (or unsupported
+        // match modes), and rules may not use `@arg`, recv/file-block effects,
+        // or contains/long-suffix match modes. No base or branch test pins this
+        // helper directly.
+        // A small config of a plain open source and a plain open rule passes.
+        let mut ok_cfg: CConfig = unsafe { std::mem::zeroed() };
+        ok_cfg.n_updates = 1;
+        ok_cfg.updates[0].op = OP_OPEN;
+        ok_cfg.n_rules = 1;
+        ok_cfg.rules[0].op = OP_OPEN;
+        assert!(validate_legacy_config(&ok_cfg).is_ok());
+
+        // More updates than Linux 5.10 can hold is rejected up front.
+        let mut over: CConfig = unsafe { std::mem::zeroed() };
+        over.n_updates = LEGACY_MAX_UPDATES as u32 + 1;
+        let err = validate_legacy_config(&over).expect_err("over count");
+        assert!(err.to_string().contains("at most 64 updates"));
+
+        // A source using a domain exceeds the compatibility limits.
+        let mut domain_src: CConfig = unsafe { std::mem::zeroed() };
+        domain_src.n_updates = 1;
+        domain_src.updates[0].op = OP_OPEN;
+        domain_src.updates[0].domain_id = 1;
+        let err = validate_legacy_config(&domain_src).expect_err("domain source");
+        assert!(err.to_string().contains("source matches"));
+
+        // A blocking open rule exceeds the 5.10 rule compatibility limits.
+        let mut block_rule: CConfig = unsafe { std::mem::zeroed() };
+        block_rule.n_rules = 1;
+        block_rule.rules[0].op = OP_OPEN;
+        block_rule.rules[0].effect = EFFECT_BLOCK;
+        let err = validate_legacy_config(&block_rule).expect_err("block rule");
+        assert!(err.to_string().contains("rules exclude"));
+    }
+
+    #[test]
+    fn pinned_engine_paths_compose_map_and_link_paths() {
+        let paths = PinnedEnginePaths::new("/tmp/actplane-pin-root");
+        assert_eq!(
+            paths.maps_dir(),
+            PathBuf::from("/tmp/actplane-pin-root/maps")
+        );
+        assert_eq!(
+            paths.links_dir(),
+            PathBuf::from("/tmp/actplane-pin-root/links")
+        );
+        assert_eq!(
+            paths.map("ts_proc"),
+            PathBuf::from("/tmp/actplane-pin-root/maps/ts_proc")
+        );
+        assert_eq!(
+            paths.link("ts_proc"),
+            PathBuf::from("/tmp/actplane-pin-root/links/ts_proc")
+        );
+    }
 }
