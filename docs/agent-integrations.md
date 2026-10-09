@@ -40,7 +40,9 @@ actplane feedback-hook
 
 When a rule has matched since the last hook invocation, the hook returns an
 `additionalContext` payload to the next model turn. That context contains the
-rule name, effect, target process, and `because` reason from the policy.
+rule name, the target operation, and the `because` reason from the policy. The
+effect appears in the trailing machine-readable tag rather than as a named
+field in the prose.
 
 Verify:
 
@@ -121,8 +123,33 @@ This writes `.mcp.json`:
 
 When the agent starts the MCP server, `--auto-attach-parent` tries to load the
 eBPF engine and seed the parent agent process. The MCP server exposes resources
-for the active policy and latest feedback, and it can accept controlled child
-domain operations when the engine is running.
+for the active policy, the latest feedback, the runtime status (attached engine,
+parent domain, child-domain count), and the run audit log, and it can accept
+controlled child domain operations when the engine is running.
+
+The runtime status reports the engine's effective policy: an
+`effective_policy.effective_hash` over the merged kernel config the engine
+loaded, plus `effective_policy.layers`, one entry per policy layer with its
+`kind` (`base` or `delta`), `domain_id`, and source `policy_hash`. The base
+layer is the launched policy and each delta is a `control delta add` append, so
+the layer stack names exactly which text produced the enforced matchers.
+
+Each `append_policy_delta` audit record now carries the same layer stack. An
+accepted delta writes `effective_policy` (the stack after the append), and a
+rejected one writes `engine_effective_policy` (the stack still in force), so a
+reader can tell what a `control delta add` changed, or what it left alone, and
+whether the delta it names is the one that moved the effective hash.
+
+The same audit log is readable outside MCP: `actplane audit show` prints a
+one-line summary per record and `actplane audit export --jsonl` re-emits the raw
+records, both resolving the log the same way the `actplane:///audit` resource
+does. Add `--path <file>` to read a specific log.
+
+`actplane replay` reads the same log and prints an ordered timeline of the run:
+one step per record, tagged `attach`, `delta`, `child`, `violation`, or `other`,
+in the order the engine appended them. `actplane replay --json` emits the steps
+with their classification and the underlying record. Add `--path <file>` to read
+a specific log.
 
 Verify:
 
@@ -155,18 +182,23 @@ session. `actplane doctor` warns when it sees both.
 For a new repository:
 
 ```bash
-actplane init --template no-git-branch --out actplane.yaml
-actplane init --all
+actplane init --template no-git-branch --out actplane.yaml --all
 actplane compile --explain --report-out docs/actplane-review.txt
 actplane doctor
 ```
 
-`--all` writes project policy integration files:
+`init` writes the policy file (default `actplane.yaml`) and then runs the
+integration setup, so `--all` must be passed on the same `init` invocation that
+writes the policy. A separate `actplane init --all` afterwards fails with
+`actplane.yaml already exists` unless `--force` is also given. `--all` writes
+project policy integration files:
 
 - `.codex/hooks.json` for `actplane feedback-hook`.
 - `.mcp.json` for `actplane mcp --auto-attach-parent`.
 - `AGENTS.md` guidance telling agents to treat ActPlane feedback as
-  authoritative.
+  authoritative. When `AGENTS.md` or `CLAUDE.md` already exists, the existing
+  file is kept (`AGENTS.md` becomes a symlink to `CLAUDE.md`), and the stub is
+  written only when neither is present.
 
 Use `--force` only when replacing ActPlane-managed setup files is intentional.
 
@@ -179,9 +211,10 @@ During enforced runs, ActPlane writes:
 .actplane/feedback-hook.state.json
 ```
 
-`last-violation.txt` is human-readable. It records the latest rule match and
-the corrective reason that hooks forward to the agent. The hook state file
-tracks offsets so the agent receives only new feedback.
+`last-violation.txt` is human-readable. It is truncated at the start of each
+run, then appended to on every rule match, so it holds all matches from the
+current run. The hook forwards only the final block to the agent, and the hook
+state file tracks offsets so the agent receives only new feedback.
 
 Useful environment overrides:
 
@@ -189,6 +222,49 @@ Useful environment overrides:
 ACTPLANE_FEEDBACK_FILE=/tmp/actplane-feedback.txt
 ACTPLANE_HOOK_STATE=/tmp/actplane-hook-state.json
 ```
+
+`actplane explain last` reads the newest run's feedback file and prints the rule,
+effect, and remedy of the most recent match, so a supervisor can recover the
+last corrective payload without parsing the file by hand. Add `--path <file>` to
+read a specific feedback file.
+
+## Control-Plane Self-Protection
+
+Every enforced launch (`actplane run`, `actplane watch`, and the MCP auto-attach
+path) prepends a built-in rule to the policy source, so the subject cannot edit
+the state the supervisor enforces with:
+
+```text
+rule actplane-control-plane:
+  block write file "/repo/.actplane/*"
+  unless target "/repo/.actplane/runs/*"
+  block write file "/repo/actplane.yaml"
+  because "ActPlane control state belongs to the supervisor; use `actplane control` ..."
+```
+
+The runtime resolves the project's absolute root (the directory holding the
+loaded policy) and substitutes it for the rule's path prefix. A subject that
+rewrites `.actplane/control.json` or the audit log moves the supervisor's own
+record. The one exception is `.actplane/runs/*`, because the subject writes its
+own run record there: the agent domain appends to `feedback.txt`, `audit.jsonl`
+and `events.jsonl`, and the feedback hook rewrites `hook-state.json` and its
+lock and temp files around every tool call. Blocking that directory would take
+the corrective feedback away from the agent that needs it.
+
+One `block write file` clause covers deletion as well: `write` and `unlink` both
+lower to the kernel's write access, so the runtime does not spend a second rule
+slot restating the pair (`docs/rule-language.md` makes the same point).
+
+The runtime's own pid is exempt from the file sinks at the kernel level, so the
+supervisor still writes the feedback, audit, and run files the carve-out names.
+Only pids the runtime explicitly protected qualify, and the exemption is not
+inherited across `fork`, so no subject process can use it to escape.
+
+Like any `block` clause, the guard pre-denies the operation only when BPF-LSM is
+active. In tracepoint-only mode the match is still recorded and reported, but the
+write commits. `actplane compile` emits the policy as written and omits the
+built-in rule, while `run`, `watch`, and MCP enforce it.
+
 
 ## Attach an Already-Started Agent
 
@@ -257,6 +333,9 @@ Run:
 actplane doctor
 actplane compile --explain --report-out docs/actplane-review.txt
 ```
+
+`--report-out` refuses to overwrite an existing file, so add `--force` when
+regenerating a report that is already on disk.
 
 Common findings:
 

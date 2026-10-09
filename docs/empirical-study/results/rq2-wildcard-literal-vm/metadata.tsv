@@ -1,0 +1,15 @@
+timestamp_utc	2026-09-24T02:14:15Z
+git_commit	658fe3d22d0d845c9a4a61459c1d2c630f190c64
+host_kernel	7.3.0-070300rc3-generic
+guest_kernel	vmlinuz-6.8.0-138-generic
+guest_kernel_sha256	0456840aedbceaaa119c6e4eb460873cce48bd355b767a387d97a8a626171571
+acceleration	tcg
+qemu_timeout_s	900
+pre_fix_binary_sha256	773335e6b3ca353db1a6579049bcf3a524ca0ec0c8689221ec4fba998871221c
+post_fix_binary_sha256	dac83ce985841c4006dfed5302fbe3bdd77be50cf4337f6322194fbf5f07b13d
+pre_fix_blob_sha256	fd789d5cb49735182d3fad510f8a9d502e82dc056ea0f870f9cd5029581f9fdf
+post_fix_blob_sha256	35c48d79f628d660a0ffa8eb515f386580493056ebc56db5ffc76c050ec0c08b
+post_fix_blob_equals_star_form	yes
+policy	rule catch_all: notify exec "**" because "..." (identical source both arms)
+pre_fix_violations	0
+post_fix_violations	1

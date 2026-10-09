@@ -548,6 +548,11 @@ mod tests {
         let value: serde_json::Value = serde_json::from_str(text.trim()).expect("json line");
         assert_eq!(value["schema"], "actplane.violation.v1");
         assert_eq!(value["event"], "taint_violation");
+        // docs/design/feedback-design.md: the violating process's comm and pid
+        // ride the event record (this file), not the feedback payload's tag.
+        assert_eq!(value["pid"], 10);
+        assert_eq!(value["ppid"], 1);
+        assert_eq!(value["comm"], "git");
         assert_eq!(value["rule"]["name"], "local-rule");
         assert_eq!(value["rule"]["reason"], "local reason");
         assert_eq!(value["rule"]["clause_op"], "exec");

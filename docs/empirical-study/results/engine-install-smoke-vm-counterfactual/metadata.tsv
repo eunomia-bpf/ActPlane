@@ -1,0 +1,23 @@
+timestamp_utc	2026-09-27T21:51:25Z..2026-09-27T22:29:21Z
+git_commit	421de72b3f720b1827179a34c4a983e2d4a6cb02
+host_kernel	7.3.0-070300rc3-generic
+guest_kernel	6.8.0-138-generic
+acceleration	tcg
+qemu_status	0
+qemu_timeout_s	900
+runner	docs/empirical-study/run_engine_install_smoke_vm.sh
+branch_binary_sha256	3baf715585c9e5467b45da7c703caa8867f337b530c9119a705c6f50c61cb9bf
+branch_object_sha256	c738cb80fc81a63f41294fbe6d31494124a3d81eab5b05407a332f40cc16d475
+branch_result	pass ActPlane: running pid 99 exit 0
+prefix_binary_sha256	647a256064496e8fa986a258f53eebf416075a11b05c18472cc19f3bc5dd993e
+prefix_object_sha256	c5d030684306912113d83677c0b6fe6ed274c68de11c70329d2e48fa8be6bd88
+prefix_object_equals_committed_eb45ed17	yes
+prefix_result	fail combined stack size of 6 calls is 576. Too large
+noinline_binary_sha256	41965479d667302416a3c8fd6ff999e09a1ef70764389a44fb7422f9f0ce8726
+noinline_object_sha256	8547e03e0503baaf4fe87408e0147f4e4e052612ad7c5947705280c5bf5b4664
+noinline_result	fail combined stack size of 7 calls is 640. Too large
+master_binary_sha256	24b07d702463fee0e75c3a2b13e80102c19496fc05ec2d78f63fdcfa05b1687f
+master_object_sha256	f0eb04e64ae82bd6a8041042952200e67bc789de595172c86e9f7dde8788727b
+master_object_source_commit	89895c8120a860aaea4634384293c7fbc3886a81
+master_source_equals_eb45ed17	yes
+master_result	fail combined stack size of 6 calls is 608. Too large

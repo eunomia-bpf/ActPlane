@@ -17,13 +17,11 @@ import hashlib
 import json
 import re
 import subprocess
-import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
 
 ACTION_RE = re.compile(r"^\s+(?:kill|notify)\s+(exec|open|read|write|unlink|connect)\b")
-COMPILE_RE = re.compile(r"compiled (\d+) rule\(s\)")
 SERVICE_MARKERS = ("gitlab", "owncloud", "plane")
 
 
@@ -145,16 +143,31 @@ def lowered_rule_sum(rows: list[dict[str, object]]) -> int:
     return sum(row["lowered_rules"] for row in rows if isinstance(row["lowered_rules"], int))
 
 
-def compile_policy(compiler: Path, policy: Path, output: Path) -> tuple[int, int | None, str]:
+def compile_policy(compiler: Path, policy: Path) -> tuple[int, int | None, str]:
+    """Compile one policy and read the lowered matcher count from ``--json``.
+
+    The count is read from ``backend_support.clauses`` rather than scraped
+    from the CLI's human message, because that message's wording and its
+    second number changed meaning across releases (the message once carried
+    the clause count and now carries the lowered-matcher count).  A scrape
+    of the reworded message yields no match and silently reports zero, so the
+    count must come from the stable structured surface.
+    """
     completed = subprocess.run(
-        [str(compiler), "--policy", str(policy), "compile", "--out", str(output), "--force"],
+        [str(compiler), "--policy", str(policy), "compile", "--json"],
         check=False,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stderr=subprocess.PIPE,
         text=True,
     )
-    match = COMPILE_RE.search(completed.stdout)
-    return completed.returncode, int(match.group(1)) if match else None, completed.stdout.strip()
+    if completed.returncode != 0:
+        detail = completed.stdout.strip() or completed.stderr.strip()
+        return completed.returncode, None, detail
+    try:
+        clauses = json.loads(completed.stdout)["backend_support"]["clauses"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        return 1, None, f"compile --json omitted backend_support.clauses: {exc}"
+    return 0, len(clauses), ""
 
 
 def main() -> int:
@@ -279,39 +292,43 @@ def main() -> int:
         )
 
     rows: list[dict[str, object]] = []
-    with tempfile.TemporaryDirectory(prefix="actplane-oas-audit-") as temp_dir:
-        output = Path(temp_dir) / "policy.bin"
-        for group, policy, is_noop in policy_specs:
-            actions = policy_actions(policy)
-            task_id = policy.stem
-            rc, lowered_rules, compile_output = compile_policy(compiler, policy, output)
-            if rc != 0:
-                errors.append(f"compile failed for {task_id}: {compile_output}")
-            task_path = (
-                args.official_task_root / f"{task_id}.md"
-                if args.official_task_root
-                else None
+    for group, policy, is_noop in policy_specs:
+        actions = policy_actions(policy)
+        task_id = policy.stem
+        rc, lowered_rules, compile_output = compile_policy(compiler, policy)
+        if rc != 0:
+            errors.append(f"compile failed for {task_id}: {compile_output}")
+        elif lowered_rules != sum(actions.values()):
+            errors.append(
+                f"clause count for {task_id} ({lowered_rules}) does not match its "
+                f"{sum(actions.values())} kill/notify action line(s); the emitted "
+                "clauses no longer mirror the written actions"
             )
-            rows.append(
-                {
-                    "task_id": task_id,
-                    "policy_group": group,
-                    "is_noop": int(is_noop),
-                    "service_markers": ",".join(sorted(services.get(task_id, set()))),
-                    "official_task_available": int(bool(task_path and task_path.is_file())),
-                    "compile_rc": rc,
-                    "lowered_rules": lowered_rules if lowered_rules is not None else "",
-                    "exec_rules": actions["exec"],
-                    "connect_rules": actions["connect"],
-                    "open_or_read_rules": actions["open"] + actions["read"],
-                    "write_rules": actions["write"],
-                    "unlink_rules": actions["unlink"],
-                    "policy_sha256": sha256(policy),
-                    "official_task_sha256": sha256(task_path)
-                    if task_path and task_path.is_file()
-                    else "",
-                }
-            )
+        task_path = (
+            args.official_task_root / f"{task_id}.md"
+            if args.official_task_root
+            else None
+        )
+        rows.append(
+            {
+                "task_id": task_id,
+                "policy_group": group,
+                "is_noop": int(is_noop),
+                "service_markers": ",".join(sorted(services.get(task_id, set()))),
+                "official_task_available": int(bool(task_path and task_path.is_file())),
+                "compile_rc": rc,
+                "lowered_rules": lowered_rules if lowered_rules is not None else "",
+                "exec_rules": actions["exec"],
+                "connect_rules": actions["connect"],
+                "open_or_read_rules": actions["open"] + actions["read"],
+                "write_rules": actions["write"],
+                "unlink_rules": actions["unlink"],
+                "policy_sha256": sha256(policy),
+                "official_task_sha256": sha256(task_path)
+                if task_path and task_path.is_file()
+                else "",
+            }
+        )
 
     service_rows = [row for row in rows if row["service_markers"]]
     description_rows = [row for row in rows if row["policy_group"] == "description311"]

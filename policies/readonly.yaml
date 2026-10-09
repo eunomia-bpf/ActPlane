@@ -7,6 +7,6 @@ policy: |
   source AGENT = exec "**"
 
   rule readonly-subagent:
-    kill write file "/home/yunwei37/workspace/ActPlane/**" if AGENT
+    kill write file "/**" if AGENT
     kill connect endpoint "*" if AGENT
-    because "This subagent policy is read-only for the ActPlane workspace and does not allow network access. Return findings only; ask the parent agent to make edits or run networked commands."
+    because "This subagent policy is read-only for the working tree and does not allow network access. Return findings only; ask the parent agent to make edits or run networked commands."

@@ -1,0 +1,14 @@
+program	load_error	reason
+trace_creat_exit	-7	BPF program is too large (1M complexity)
+trace_open_exit	-7	BPF program is too large (1M complexity)
+trace_openat2_exit	-7	BPF program is too large (1M complexity)
+trace_openat_exit	-7	BPF program is too large (1M complexity)
+trace_recvfrom_exit	-13	combined stack size of 6 calls is 576
+trace_recvmsg_exit	-13	combined stack size of 6 calls is 576
+trace_rename_exit	-7	BPF program is too large (1M complexity)
+trace_rename_exit_flow	-7	BPF program is too large (1M complexity)
+trace_renameat2_exit	-7	BPF program is too large (1M complexity)
+trace_renameat2_exit_flow	-7	BPF program is too large (1M complexity)
+trace_renameat_exit	-7	BPF program is too large (1M complexity)
+trace_renameat_exit_flow	-7	BPF program is too large (1M complexity)
+trace_truncate_exit	-7	BPF program is too large (1M complexity)

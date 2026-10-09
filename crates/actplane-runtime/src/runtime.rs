@@ -77,13 +77,16 @@ pub async fn watch_policy_for_pid(
     )?;
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let policy = format!("{}{policy}", control_plane_guard_rules(&loaded)?);
     let compiled = dsl::compile_str(&policy)?;
+    warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
     let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x5741_5443);
     let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
         &compiled,
         parent_domain_id,
+        &policy,
     ));
     let feedback = feedback_paths(&loaded);
     let target_owner = target_user(cli.run_as_root);
@@ -260,12 +263,46 @@ struct RuntimePolicyCatalog {
 struct RuntimePolicyCatalogInner {
     rules: Vec<report::RuleFeedbackContext>,
     domain_labels: HashMap<u32, HashMap<String, u64>>,
+    layers: Vec<PolicyLayer>,
+    /// Running FNV-1a state over the lowered kernel config bytes the engine has
+    /// loaded: the base policy blob followed by each appended delta's blob, in
+    /// append order. This is the merge the kernel enforces, so its final digest
+    /// is the effective policy hash.
+    effective_fnv: u64,
+}
+
+/// One compiled policy layer as the runtime holds it: the base file the process
+/// was launched with, or a delta `control delta add` appended to a domain.
+/// `hash` is over the layer's DSL source, so it names the exact text a reader
+/// can find on disk or in the audit log, while the effective hash is over the
+/// merged kernel config the engine enforces.
+struct PolicyLayer {
+    kind: &'static str,
+    domain_id: u32,
+    hash: String,
+}
+
+/// The engine's effective policy: a hash of the lowered kernel config it loaded
+/// plus the layers that produced it. A process's effective policy is the merge
+/// of the base layer and every monotonic delta appended to its domain, and the
+/// kernel applies that merge in its rodata, so hashing that blob is the one
+/// identity every surface (status, audit, MCP) can agree on without
+/// re-deriving the merge.
+#[derive(Clone, Debug)]
+pub struct EffectivePolicySummary {
+    pub effective_hash: String,
+    pub layers: Vec<serde_json::Value>,
 }
 
 struct PolicyDeltaOutcome {
     rule_id_base: usize,
     rule_count: usize,
     rule_provenance: Vec<serde_json::Value>,
+    /// The layer stack once this delta is recorded, so the accepted path can
+    /// write it into the audit record rather than re-read it later. A rejected
+    /// attempt reports `EngineControl::effective_policy` instead, which is the
+    /// unchanged stack the rejection left in force.
+    effective_policy: EffectivePolicySummary,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
@@ -400,15 +437,34 @@ fn string_missing(value: Option<&str>) -> bool {
 }
 
 impl RuntimePolicyCatalog {
-    fn from_compiled(compiled: &dsl::Compiled, domain_id: u32) -> Self {
+    /// `base_source` is the base layer's DSL text. The catalog derives only the
+    /// lowerer's blob from it to run, but the layer record names the exact
+    /// policy text a reader can find on disk, so every caller passes it.
+    fn from_compiled(compiled: &dsl::Compiled, domain_id: u32, base_source: &str) -> Self {
         let mut domain_labels = HashMap::new();
         domain_labels.insert(domain_id, compiled.labels.clone());
         Self {
             inner: RwLock::new(RuntimePolicyCatalogInner {
                 rules: report::contexts_from_compiled(compiled),
                 domain_labels,
+                layers: vec![PolicyLayer {
+                    kind: "base",
+                    domain_id,
+                    hash: audit::policy_hash(base_source),
+                }],
+                effective_fnv: fold_fnv(FNV_OFFSET, &compiled.bytes),
             }),
         }
+    }
+
+    /// Effective policy of the engine: the hash of the merged kernel config and
+    /// the layer stack that produced it, base first then deltas in append order.
+    pub fn effective_policy(&self) -> Result<EffectivePolicySummary> {
+        let inner = self
+            .inner
+            .read()
+            .map_err(|e| format!("policy metadata lock poisoned: {e}"))?;
+        Ok(effective_policy_of(&inner))
     }
 
     fn register_domain(&self, domain_id: u32) -> Result<()> {
@@ -482,6 +538,12 @@ impl EngineControl {
 
     pub fn submitter_pid(&self) -> i32 {
         self.submitter_pid
+    }
+
+    /// The engine's effective policy: hash of the merged kernel config the
+    /// engine loaded and the base+delta layer stack behind it.
+    pub fn effective_policy(&self) -> Result<EffectivePolicySummary> {
+        self.catalog.effective_policy()
     }
 
     pub fn parent_domain_allows_runtime_mutation(&self) -> bool {
@@ -585,6 +647,7 @@ impl EngineControl {
                     "rule_count": delta.rule_count,
                     "policy_hash": audit::policy_hash(dsl_src),
                     "rule_provenance": delta.rule_provenance,
+                    "effective_policy": effective_policy_json(&delta.effective_policy),
                 });
                 if let Some(identity) = &actor_identity {
                     record["caller_identity"] = identity.to_json();
@@ -595,6 +658,14 @@ impl EngineControl {
             }
             Err(e) => {
                 let msg = e.to_string();
+                // A rejection must still say what was enforced when it failed,
+                // so the stack is read back from the control rather than left
+                // out. A snapshot error here is swallowed: the rejection reason
+                // is the record's point, and this field is advisory.
+                let engine_policy = self
+                    .effective_policy()
+                    .ok()
+                    .map(|policy| effective_policy_json(&policy));
                 let mut record = json!({
                     "event": "append_policy_delta",
                     "status": "rejected",
@@ -602,6 +673,7 @@ impl EngineControl {
                     "caller_pid": actor_pid,
                     "target_id": target_id,
                     "policy_hash": audit::policy_hash(dsl_src),
+                    "engine_effective_policy": engine_policy,
                     "error": msg,
                 });
                 if let Some(identity) = &actor_identity {
@@ -757,6 +829,7 @@ impl EngineControl {
             .cloned()
             .unwrap_or_default();
         let compiled = dsl::compile_str_with_labels(dsl_src, &existing_labels)?;
+        warn_pattern_lowering(&compiled);
         let rule_id_base = inner.rules.len();
         let rule_count = compiled.meta.len();
         let rule_provenance = rule_provenance_json(&compiled.meta, rule_id_base);
@@ -766,18 +839,76 @@ impl EngineControl {
             rule_id_base as u32,
             &compiled.bytes,
         )?;
-        inner
-            .domain_labels
-            .insert(target_id, compiled.labels.clone());
-        inner
-            .rules
-            .extend(report::contexts_from_compiled(&compiled));
+        inner.record_delta_layer(target_id, dsl_src, &compiled);
+        let effective_policy = effective_policy_of(&inner);
         Ok(PolicyDeltaOutcome {
             rule_id_base,
             rule_count,
             rule_provenance,
+            effective_policy,
         })
     }
+}
+
+impl RuntimePolicyCatalogInner {
+    /// Apply one delta to the catalog's view: append its matchers, record it as
+    /// a layer, and fold its lowered config into the effective hash. The kernel
+    /// append happens in `append_policy_delta_dsl_inner`; keeping the metadata
+    /// mutation here lets a test drive the same bookkeeping without an engine.
+    fn record_delta_layer(&mut self, target_id: u32, dsl_src: &str, compiled: &dsl::Compiled) {
+        self.domain_labels
+            .insert(target_id, compiled.labels.clone());
+        self.rules.extend(report::contexts_from_compiled(compiled));
+        self.layers.push(PolicyLayer {
+            kind: "delta",
+            domain_id: target_id,
+            hash: audit::policy_hash(dsl_src),
+        });
+        self.effective_fnv = fold_fnv(self.effective_fnv, &compiled.bytes);
+    }
+}
+
+const FNV_OFFSET: u64 = 0xcbf29ce484222325;
+const FNV_PRIME: u64 = 0x100000001b3;
+
+/// Continue an FNV-1a stream over `bytes`. Chaining blobs with one running state
+/// instead of concatenating them keeps the effective hash allocation-free and
+/// order-sensitive, so appending a delta always changes the digest.
+fn fold_fnv(mut state: u64, bytes: &[u8]) -> u64 {
+    for b in bytes {
+        state ^= u64::from(*b);
+        state = state.wrapping_mul(FNV_PRIME);
+    }
+    state
+}
+
+/// Assemble the summary from a catalog inner the caller already holds, so the
+/// delta path can report the stack it just produced without re-taking the lock.
+fn effective_policy_of(inner: &RuntimePolicyCatalogInner) -> EffectivePolicySummary {
+    EffectivePolicySummary {
+        effective_hash: format!("fnv1a64:{:016x}", inner.effective_fnv),
+        layers: inner
+            .layers
+            .iter()
+            .map(|layer| {
+                json!({
+                    "kind": layer.kind,
+                    "domain_id": layer.domain_id,
+                    "policy_hash": layer.hash,
+                })
+            })
+            .collect(),
+    }
+}
+
+/// The summary as a JSON object. `local_control_status` and the delta audit
+/// records both serialize it, so both go through one shape rather than two
+/// hand-built copies that could drift.
+pub(crate) fn effective_policy_json(summary: &EffectivePolicySummary) -> serde_json::Value {
+    json!({
+        "effective_hash": summary.effective_hash,
+        "layers": summary.layers,
+    })
 }
 
 fn audit_context_id(path: &Path, submitter_pid: i32) -> String {
@@ -941,13 +1072,16 @@ pub fn start_mcp_auto_attach(cli: &PolicyInput) -> Result<AttachGuard> {
 
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let policy = format!("{}{policy}", control_plane_guard_rules(&loaded)?);
     let compiled = dsl::compile_str(&policy)?;
+    warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
     let submitter_pid = std::process::id() as i32;
     let parent_domain_id = fresh_runtime_domain_id(attach_pid, 0x4d43_5041);
     let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
         &compiled,
         parent_domain_id,
+        &policy,
     ));
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "mcp");
     prepare_feedback_files(&feedback, target_user(cli.run_as_root))?;
@@ -1102,6 +1236,87 @@ fn watch_project_dir(loaded: &crate::config::LoadedPolicy) -> PathBuf {
         .and_then(Path::parent)
         .map(Path::to_path_buf)
         .unwrap_or_else(|| loaded.root.clone())
+}
+
+/// Name of the built-in rule that guards ActPlane's own control state.
+pub const CONTROL_PLANE_RULE_NAME: &str = "actplane-control-plane";
+
+/// The one `.actplane/` subdirectory a subject may still write.
+///
+/// Everything else under `.actplane/` belongs to the supervisor. The exception is
+/// the run scope, because the subject itself writes the files that record its own
+/// run: the agent domain appends to `feedback.txt`, `audit.jsonl` and
+/// `events.jsonl`, and the feedback hook (a CLI descendant of the agent, so in
+/// the agent domain and not a protected pid) rewrites `hook-state.json` and its
+/// `.tmp` and lock files around every tool call. A subject that cannot write its
+/// own run directory loses the feedback that tells it why it was blocked.
+///
+/// The MCP child logs under `children/` are written by the runtime, which is a
+/// protected pid and skips the file sinks, so a subject needs no exception there.
+/// The pattern carries the `.actplane/` prefix and a `/*` rather than one
+/// `{root}/.actplane/runs/**` literal, because every literal the rule emits is
+/// truncated to the kernel's 63-byte pattern window. For the same reason the
+/// *policy* file is a second, explicit target: a subject that can rewrite
+/// `actplane.yaml` reloads its own next child under a policy of its choosing.
+const CONTROL_PLANE_AGENT_WRITABLE_DIRS: &[&str] = &["/.actplane/runs/"];
+
+/// The built-in rule text that every runtime-compiled policy is prefixed with.
+fn control_plane_guard_rules(loaded: &LoadedPolicy) -> Result<String> {
+    guard_rule_text(&watch_project_dir(loaded))
+}
+
+fn guard_rule_text(root: &Path) -> Result<String> {
+    let root = root.to_str().ok_or_else(|| {
+        format!(
+            "project root {} is not valid UTF-8, so the built-in {} rule cannot name it",
+            root.display(),
+            CONTROL_PLANE_RULE_NAME
+        )
+    })?;
+    if root.contains('"') {
+        return Err(format!(
+            "project root {root} contains a double quote, which the policy lexer cannot escape"
+        )
+        .into());
+    }
+    // The kernel's pattern field (TAINT_PAT_LEN) is 64 bytes and the lowering
+    // truncates at 63. A truncated literal matches a *shorter* prefix than the
+    // operator named: for the two sinks that guards the wrong directory, and for
+    // an exemption it silently widens what the subject may write. Check every
+    // literal the rule emits, including the longest exemption, and refuse the
+    // project path instead of shipping a shifted guard.
+    let mut literals = vec![
+        format!("{root}/.actplane/"),
+        format!("{root}/actplane.yaml"),
+    ];
+    for dir in CONTROL_PLANE_AGENT_WRITABLE_DIRS {
+        literals.push(format!("{root}{dir}"));
+    }
+    if let Some(longest) = literals.iter().max_by_key(|l| l.len()) {
+        if longest.len() > 63 {
+            return Err(format!(
+                "guard literal {longest} is {} bytes, over the kernel's 63-byte pattern window; \
+                 move the project to a shorter path",
+                longest.len()
+            )
+            .into());
+        }
+    }
+    let reason = "ActPlane control state belongs to the supervisor; use `actplane control` \
+                  to submit a delta instead of editing these files";
+    // `write` and `unlink` both lower to the kernel's write access, so this one
+    // clause already covers deletion (docs/rule-language.md notes that stating
+    // both verbs is redundant), and the guard costs the policy two kernel rule
+    // slots rather than four.
+    let mut text =
+        format!("rule {CONTROL_PLANE_RULE_NAME}:\n  block write file \"{root}/.actplane/*\"");
+    for dir in CONTROL_PLANE_AGENT_WRITABLE_DIRS {
+        text.push_str(&format!("\n  unless target \"{root}{dir}*\""));
+    }
+    text.push_str(&format!(
+        "\n  block write file \"{root}/actplane.yaml\"\n  because \"{reason}\"\n"
+    ));
+    Ok(text)
 }
 
 /// Check whether we have BPF capabilities (root or CAP_BPF + CAP_SYS_ADMIN).
@@ -1274,7 +1489,9 @@ pub async fn run_command(cli: &PolicyInput, cmd: &[String], parent_domain: bool)
     require_bpf_caps_or_elevate(cli.internal_elevated)?;
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let policy = format!("{}{policy}", control_plane_guard_rules(&loaded)?);
     let compiled = dsl::compile_str(&policy)?;
+    warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "run");
     let target_owner = target_user(cli.run_as_root);
@@ -1447,7 +1664,9 @@ pub async fn run_child_command(
 
     let loaded = load_policy(cli)?;
     let policy = policy_source(&loaded, cli.domain.as_deref())?;
+    let policy = format!("{}{policy}", control_plane_guard_rules(&loaded)?);
     let compiled = dsl::compile_str(&policy)?;
+    warn_pattern_lowering(&compiled);
     let agent_label = runner_label(&compiled)?;
     let deltas = load_child_policy_deltas(delta_paths, delta_texts)?;
     let feedback = scoped_feedback_paths(&feedback_paths(&loaded), "run-child");
@@ -1478,6 +1697,7 @@ pub async fn run_child_command(
     let catalog = Arc::new(RuntimePolicyCatalog::from_compiled(
         &compiled,
         parent_domain_id,
+        &policy,
     ));
     let stop = Arc::new(AtomicBool::new(false));
     type ReadyResult = std::result::Result<(ReloadHandle, DomainHandle), String>;
@@ -1665,6 +1885,22 @@ fn runner_label(compiled: &dsl::Compiled) -> Result<u64> {
              (or AGENT for backward compatibility)"
                 .into()
         })
+}
+
+/// Print the pattern-lowering warnings the compiler recorded for a policy the
+/// runtime is about to apply.
+///
+/// `actplane compile` prints these for the same policy, but enforcement does not
+/// go through that command: `run`, `watch`, and MCP auto-attach compile the
+/// policy here and load it directly. Without this the engine enforces a matcher
+/// the policy did not write and the operator sees no warning at the moment the
+/// divergence starts to matter. The codes already mean "the compiled matcher
+/// differs from the pattern you wrote", and the message names the pattern, so no
+/// re-derivation is needed.
+fn warn_pattern_lowering(compiled: &dsl::Compiled) {
+    for warning in &compiled.pattern_warnings {
+        eprintln!("ActPlane: warning [{}]: {}", warning.code, warning.message);
+    }
 }
 
 fn control_plane_cap_state(label: u64) -> CapState {
@@ -1956,6 +2192,242 @@ fn exit_code(status: std::process::ExitStatus) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn effective_policy_reports_base_layer_and_config_hash() {
+        // The base layer hash names the exact DSL text an operator can find,
+        // while the effective hash is over the lowered kernel config the engine
+        // loaded, so the two diverge when only whitespace differs.
+        let src = "rule no-git-branch:\n  block exec \"git branch\"\n  because \"branch via host\"";
+        let compiled = dsl::compile_str(src).expect("compile");
+        let catalog = RuntimePolicyCatalog::from_compiled(&compiled, 7, src);
+        let summary = catalog.effective_policy().expect("effective policy");
+        assert_eq!(summary.layers.len(), 1);
+        assert_eq!(summary.layers[0]["kind"], "base");
+        assert_eq!(summary.layers[0]["domain_id"], 7);
+        assert_eq!(
+            summary.layers[0]["policy_hash"],
+            audit::policy_hash(src),
+            "base layer names the source text"
+        );
+        assert!(summary.effective_hash.starts_with("fnv1a64:"));
+        assert_ne!(
+            summary.effective_hash, summary.layers[0]["policy_hash"],
+            "effective hash covers the lowered config, not the source"
+        );
+    }
+
+    fn compile_guarded(src: &str, root: &Path) -> dsl::Compiled {
+        let policy = format!("{}{src}", guard_rule_text(root).expect("guard text"));
+        dsl::compile_str(&policy).expect("compile guarded policy")
+    }
+
+    fn guard_text(root: &str) -> String {
+        guard_rule_text(Path::new(root)).expect("guard text")
+    }
+
+    fn guard_err(root: &str) -> String {
+        guard_rule_text(Path::new(root))
+            .expect_err("guard root must be rejected")
+            .to_string()
+    }
+
+    /// The built-in guard is the only thing standing between an in-domain
+    /// subject and the supervisor's own control files, so pin the whole rule
+    /// shape: a rewrite that drops the `unless target` exceptions forces the
+    /// subject through its own run directory (which the delta spool and the
+    /// feedback hook need), one that drops the `unlink` clauses lets the subject
+    /// delete the policy file the guard protects, and one that widens the target
+    /// stops guarding the directory the operator named. None of those fail any
+    /// other test.
+    #[test]
+    fn control_plane_guard_lowers_to_expected_matchers() {
+        let root = "/repo";
+        let parsed = dsl::parse::parse(&guard_text(root)).expect("parse guard");
+        assert_eq!(parsed.rules.len(), 1, "the guard is one DSL rule");
+        let rule = &parsed.rules[0];
+        assert_eq!(rule.name, CONTROL_PLANE_RULE_NAME);
+        let shape: Vec<(dsl::ast::Op, &str, Option<&str>)> = rule
+            .clauses
+            .iter()
+            .map(|c| {
+                let exempt = c.unless.as_ref().map(|u| match u {
+                    dsl::ast::Cond::Target { negate, pattern } => {
+                        assert!(!negate, "`unless target` is a positive exception");
+                        pattern.as_str()
+                    }
+                    other => panic!("expected `unless target`, got {other:?}"),
+                });
+                (c.op, c.target.pattern.as_str(), exempt)
+            })
+            .collect();
+        assert_eq!(
+            shape,
+            vec![
+                (
+                    dsl::ast::Op::Write,
+                    "/repo/.actplane/*",
+                    Some("/repo/.actplane/runs/*")
+                ),
+                (dsl::ast::Op::Write, "/repo/actplane.yaml", None),
+            ],
+            "the guard blocks writing and deleting its own control state, and lets the \
+             subject write only its own run directory"
+        );
+        assert!(
+            rule.reason.contains("actplane control"),
+            "the reason must name the corrective action, got {}",
+            rule.reason
+        );
+        // The root is passed through unescaped, so a byte the lexer would eat
+        // has to be rejected up front rather than silently changing the target.
+        assert!(
+            dsl::parse::parse(&format!(
+                "rule {CONTROL_PLANE_RULE_NAME}:\n  block write file \"/re\"po/.actplane/*\"\n  \
+             because \"x\"\n"
+            ))
+            .is_err()
+        );
+        // The lowering keeps the guard reachable: every clause lowers to a
+        // positive matcher term, so the kernel sees two more rules, not zero.
+        let compiled = compile_guarded("", Path::new(root));
+        assert_eq!(compiled.dsl_rule_count, 1);
+        let guard_meta = compiled
+            .meta
+            .iter()
+            .filter(|m| {
+                m.source
+                    .as_ref()
+                    .is_some_and(|s| s.source_ref == format!("rule:{CONTROL_PLANE_RULE_NAME}"))
+            })
+            .count();
+        assert_eq!(
+            guard_meta, 2,
+            "each clause lowers to one kernel matcher for an absolute target"
+        );
+    }
+
+    /// The guard's root is derived exactly like the watch directory, so `run`,
+    /// `watch`, and the MCP auto-attach all name the same tree the supervisor
+    /// scopes its state under.
+    #[test]
+    fn control_plane_guard_root_follows_the_loaded_policy() {
+        let explicit = LoadedPolicy {
+            config: crate::config::FileConfig::default(),
+            path: Some(PathBuf::from("/proj/actplane.yaml")),
+            root: PathBuf::from("/elsewhere"),
+        };
+        assert!(control_plane_guard_root(&explicit).contains("\"/proj/.actplane/*\""));
+        let rule_input = LoadedPolicy {
+            config: crate::config::FileConfig::default(),
+            path: None,
+            root: PathBuf::from("/proj"),
+        };
+        assert!(control_plane_guard_root(&rule_input).contains("\"/proj/.actplane/*\""));
+    }
+
+    fn control_plane_guard_root(loaded: &LoadedPolicy) -> String {
+        let compiled = compile_guarded("", &watch_project_dir(loaded));
+        assert_eq!(compiled.dsl_rule_count, 1);
+        control_plane_guard_rules(&loaded).expect("guard text")
+    }
+
+    /// Every literal the guard emits shares the kernel's 63-byte pattern window,
+    /// and the lowering truncates at 63 instead of erroring. A truncated literal
+    /// matches a *shorter* prefix than the operator named, so a project path that
+    /// does not fit must be rejected up front: at 63 bytes the guard still
+    /// compiles, at 64 bytes it must not.
+    #[test]
+    fn control_plane_guard_rejects_patterns_over_the_kernel_window() {
+        let compiled = compile_guarded("", Path::new("/repo"));
+        assert_eq!(
+            compiled.meta[0].target_pattern, "/repo/.actplane/*",
+            "the guard keeps the operator-visible pattern"
+        );
+        assert!(
+            !compiled
+                .pattern_warnings
+                .iter()
+                .any(|w| w.code == dsl::dsl::PATTERN_TRUNCATED),
+            "a normal project path must not truncate the guard"
+        );
+        // `{root}/.actplane/runs/` is the longest literal, so it sets the bound.
+        let longest = "/.actplane/runs/";
+        let fits = format!("/{}", "a".repeat(63 - longest.len() - 1));
+        assert_eq!(format!("{fits}{longest}").len(), 63);
+        compile_guarded("", Path::new(&fits));
+        let over = format!("{fits}a");
+        assert_eq!(format!("{over}{longest}").len(), 64);
+        let err = guard_err(&over);
+        assert!(err.contains("63-byte"), "got {err}");
+        let err = guard_err("/re\"po");
+        assert!(err.contains("double quote"), "got {err}");
+    }
+
+    /// The guard consumes kernel rule slots like any other rule, so a policy that
+    /// fills the budget on its own must fail once the guard is prepended. The
+    /// count is derived from the guard's own lowering rather than hard-coded, so
+    /// adding a clause to the guard keeps this honest instead of shifting the
+    /// boundary silently.
+    #[test]
+    fn control_plane_guard_fits_the_rule_budget() {
+        let guard_rules = compile_guarded("", Path::new("/repo")).meta.len();
+        let clause = "  block exec \"git branch\"\n";
+        let fit = |n: usize| {
+            let mut src = String::from("rule big:\n");
+            for _ in 0..n {
+                src.push_str(clause);
+            }
+            dsl::compile_str(&format!("{}{src}", guard_text("/repo")))
+        };
+        let budget = 128 - guard_rules;
+        fit(budget).expect("a policy exactly at the budget still compiles");
+        let err = match fit(budget + 1) {
+            Err(e) => e,
+            Ok(_) => panic!("a policy over the rule budget must not compile"),
+        };
+        assert!(err.contains("too many compiled rules"), "got {err}");
+    }
+
+    #[test]
+    fn effective_policy_hash_changes_when_a_delta_is_appended() {
+        let base = "rule base:\n  block exec \"git branch\"\n  because \"branch\"";
+        let compiled = dsl::compile_str(base).expect("compile base");
+        let mut inner = RuntimePolicyCatalogInner {
+            rules: report::contexts_from_compiled(&compiled),
+            domain_labels: HashMap::new(),
+            layers: vec![PolicyLayer {
+                kind: "base",
+                domain_id: 3,
+                hash: audit::policy_hash(base),
+            }],
+            effective_fnv: fold_fnv(FNV_OFFSET, &compiled.bytes),
+        };
+        let before = format!("fnv1a64:{:016x}", inner.effective_fnv);
+
+        let delta = "rule tighter:\n  block connect endpoint \"10.0.0.1\"\n  because \"no egress\"";
+        let delta_compiled = dsl::compile_str_with_labels(delta, &std::collections::HashMap::new())
+            .expect("compile delta");
+        inner.record_delta_layer(3, delta, &delta_compiled);
+
+        let after = format!("fnv1a64:{:016x}", inner.effective_fnv);
+        assert_ne!(before, after, "appending a delta must move the hash");
+        assert_eq!(inner.layers.len(), 2);
+        assert_eq!(inner.layers[1].kind, "delta");
+        assert_eq!(inner.layers[1].domain_id, 3);
+        assert_eq!(inner.layers[1].hash, audit::policy_hash(delta));
+        // The audit record and the status resource share this shape, so the
+        // helper the delta path uses must agree with what status reports.
+        let summary = effective_policy_of(&inner);
+        assert_eq!(effective_policy_json(&summary)["effective_hash"], after);
+        assert_eq!(
+            effective_policy_json(&summary)["layers"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+    }
 
     #[test]
     fn audit_context_id_uses_run_dir_when_available() {

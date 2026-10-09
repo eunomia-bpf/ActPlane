@@ -20,7 +20,7 @@ use std::sync::Mutex;
 use aya::maps::{Array, HashMap, Map, MapData, MapError, ProgramArray, RingBuf};
 use aya::programs::links::FdLink;
 use aya::programs::{Lsm, ProgramFd, TracePoint};
-use aya::{Btf, Ebpf, EbpfLoader};
+use aya::{Btf, Ebpf, EbpfLoader, VerifierLogLevel};
 
 pub mod capability;
 use capability::{
@@ -1178,7 +1178,19 @@ const ALL_HOOK_FEATURES: u32 = FEAT_CONNECT
 #[cfg(test)]
 const ALL_POLICY_FEATURES: u32 =
     FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX | FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
-const PINNED_POLICY_FEATURES: u32 = ALL_HOOK_FEATURES;
+// The pinned singleton reserves the cheap rule-class bits (open/write sink
+// rules), the path-suffix matcher, and every hook bit, so a runtime delta that
+// adds an absolute/repo-relative file sink or a `**/.env`-style suffix sink
+// installs without a reload. `FEAT_PATH_SUFFIX` fits because `te_nbyte_eq`
+// replaced `taint_suffix`'s 16-iteration byte loop with two masked `u64`
+// compares, which keeps `trace_rename_exit` under the verifier's
+// 1,000,000-instruction limit. `FEAT_PATH_CONTAINS` stays out: its callback is
+// not inlined into the rule scan, so reserving it pushes `trace_rename_exit` (not
+// `trace_openat_exit`) past the cap: measured `processed 1000001 insn` on Linux
+// 6.17, which fails the whole pinned install. A class that still needs an engine
+// loaded with the matching profile is the fallback whenever a matcher cannot fit.
+const PINNED_POLICY_FEATURES: u32 =
+    FEAT_PATH_SUFFIX | FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum HookProfile {
@@ -1336,6 +1348,38 @@ fn lsm_needed(
     }
 }
 
+/// Extra guidance for a program-load failure that the kernel's verifier caused.
+///
+/// A verifier rejection is reported by libbpf as a permission error whose text
+/// names the reason, and the reason is the actionable part: a `Too large`
+/// rejection for the summed stack looks like a privilege problem and sends the
+/// reader to check capabilities. Recognize the cases that need a specific hint
+/// and leave everything else untouched.
+fn verifier_load_hint(program: &str, error: &str) -> String {
+    let mut hint = String::new();
+    if error.contains("Too large") && error.contains("combined stack size") {
+        // The verifier sums the maximum stack depth along a call chain against a
+        // 512-byte limit (an old rule, but Linux 6.8's per-frame accounting is
+        // what made it bite here), so a chain that loads on other kernels can be
+        // rejected here. The program name is the useful datum: it says which
+        // handler grew.
+        hint.push_str(&format!(
+            "\n  hint: `{program}` was rejected by the kernel verifier's summed-stack \
+             limit (the verifier sums the maximum stack depth along a call chain, 512 bytes \
+             total). This is a stack budget in the BPF program, not a privilege problem. \
+             Rebuild bpf/prebuilt/process.bpf.o so the deep helpers keep their `bpf_loop` \
+             contexts off the stack, and re-check in a guest boot of the kernel you target; \
+             the limit is enforced per kernel version."
+        ));
+    } else if error.contains("invalid mem access") {
+        hint.push_str(&format!(
+            "\n  hint: `{program}` failed the verifier on a memory access; check bound \
+             guards on map lookups and pattern buffers rather than raising privileges."
+        ));
+    }
+    hint
+}
+
 fn load_exec_tail_programs(bpf: &mut Ebpf) -> io::Result<()> {
     let mut fds: Vec<(u32, ProgramFd)> = Vec::new();
 
@@ -1345,7 +1389,13 @@ fn load_exec_tail_programs(bpf: &mut Ebpf) -> io::Result<()> {
             .ok_or_else(|| err(format!("program {name} missing")))?
             .try_into()
             .map_err(|e| err(format!("{name} not a tracepoint: {e}")))?;
-        p.load().map_err(|e| err(format!("{name}.load: {e}")))?;
+        p.load().map_err(|e| {
+            let msg = e.to_string();
+            err(format!(
+                "{name}.load: {msg}{}",
+                verifier_load_hint(name, &msg)
+            ))
+        })?;
         let fd = p
             .fd()
             .map_err(|e| err(format!("{name}.fd: {e}")))?
@@ -1595,7 +1645,7 @@ fn feature_gate_error(context: &str, needed: u32, supported: u32, missing: u32) 
     }
     if missing & (FEAT_OPEN_RULES | FEAT_WRITE_RULES | FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX) != 0 {
         hints.push(
-            "file sink rule classes and path contains/suffix matcher classes require the engine to be loaded with those policy features; the pinned singleton reserves hooks for future deltas but not expensive file sink matcher classes",
+            "file sink rule classes and path contains/suffix matcher classes require the engine to be loaded with those policy features; the pinned singleton reserves the cheap file sink rule classes and the path-suffix matcher for future deltas, but not the path-contains matcher",
         );
     }
     if missing & (FEAT_BLOCK_EXEC | FEAT_BLOCK_FILE | FEAT_BLOCK_CONNECT) != 0 {
@@ -1895,8 +1945,10 @@ impl Loader {
     }
 
     /// Load the engine with an explicit hook profile for later runtime deltas.
-    /// This does not enable file sink rule matching or expensive path matchers
-    /// unless the policy used to load the engine requires them.
+    /// The reserve carries the profile's hook bits plus, for the pinned
+    /// singleton, the cheap file sink rule classes and the path-suffix matcher.
+    /// The path-contains matcher still requires the policy used to load the
+    /// engine to demand it.
     pub fn load_with_hook_reserve(
         config_blob: &[u8],
         hook_reserve: HookReserve,
@@ -1954,6 +2006,17 @@ impl Loader {
         }
 
         let mut loader = EbpfLoader::new();
+        // `ACTPLANE_BPF_VERIFIER_LOG=stats|verbose` asks the verifier for a log
+        // so a rejected program names itself and reports `processed N insns`,
+        // `peak_states`, and `stack depth` instead of only "the skeleton
+        // failed". `verbose` is per-instruction and huge; `stats` is the
+        // summary line and is what the budget work wants by default.
+        if let Ok(level) = std::env::var("ACTPLANE_BPF_VERIFIER_LOG") {
+            loader.verifier_log_level(match level.as_str() {
+                "verbose" | "1" => VerifierLogLevel::VERBOSE | VerifierLogLevel::STATS,
+                _ => VerifierLogLevel::STATS,
+            });
+        }
         loader
             .allow_unsupported_maps()
             .override_global("enforce_mode", &enforce_mode, true)
@@ -2014,8 +2077,14 @@ impl Loader {
                 .ok_or_else(|| err(format!("program {} missing", spec.name)))?
                 .try_into()
                 .map_err(|e| err(format!("{} not a tracepoint: {e}", spec.name)))?;
-            p.load()
-                .map_err(|e| err(format!("{}.load: {e}", spec.name)))?;
+            p.load().map_err(|e| {
+                let msg = e.to_string();
+                err(format!(
+                    "{}.load: {msg}{}",
+                    spec.name,
+                    verifier_load_hint(spec.name, &msg)
+                ))
+            })?;
             let link_id = p
                 .attach(spec.category, spec.event)
                 .map_err(|e| err(format!("{}.attach: {e}", spec.name)))?;
@@ -2050,8 +2119,13 @@ impl Loader {
                     .ok_or_else(|| err(format!("program {name} missing")))?
                     .try_into()
                     .map_err(|e| err(format!("{name} not an lsm: {e}")))?;
-                p.load(hook, &btf)
-                    .map_err(|e| err(format!("{name}.load: {e}")))?;
+                p.load(hook, &btf).map_err(|e| {
+                    let msg = e.to_string();
+                    err(format!(
+                        "{name}.load: {msg}{}",
+                        verifier_load_hint(name, &msg)
+                    ))
+                })?;
                 let link_id = p.attach().map_err(|e| err(format!("{name}.attach: {e}")))?;
                 if pin_paths.is_some() {
                     let link = p
@@ -2939,6 +3013,29 @@ mod tests {
     const EFFECT_NOTIFY: u8 = 0;
     const EFFECT_KILL: u8 = 2;
 
+    // The summed-stack rejection arrives as a permission error whose text is the
+    // only clue; the hint must key on the verifier's wording and name the program.
+    #[test]
+    fn verifier_hint_names_the_summed_stack_cause() {
+        let real = "the BPF_PROG_LOAD syscall returned Permission denied (os error 13). \
+                    Verifier output: combined stack size of 6 calls is 576. Too large";
+        let hint = verifier_load_hint("trace_recvfrom_exit", real);
+        assert!(hint.contains("trace_recvfrom_exit"), "{hint}");
+        assert!(hint.contains("summed-stack"), "{hint}");
+        assert!(hint.contains("not a privilege problem"), "{hint}");
+
+        // A bound-guard rejection is a different fix, so it gets its own hint.
+        let mem = "Verifier output: invalid mem access 'inv'";
+        let hint = verifier_load_hint("trace_recvfrom_exit", mem);
+        assert!(hint.contains("bound guards"), "{hint}");
+        assert!(!hint.contains("summed-stack"), "{hint}");
+
+        // Anything else stays untouched: no hint may be invented for it.
+        assert_eq!(
+            verifier_load_hint("trace_recvfrom_exit", "some other error"),
+            ""
+        );
+    }
     // The Rust ABI mirror must match the C struct sizes the object was built
     // with. These are the documented sizes from bpf/taint.h.
     #[test]
@@ -3236,13 +3333,57 @@ mod tests {
             .expect_err("path contains should require initial matcher support");
         let text = err.to_string();
         assert!(text.contains("path contains matches"), "{text}");
-        assert!(
-            text.contains("not expensive file sink matcher classes"),
-            "{text}"
-        );
+        assert!(text.contains("but not the path-contains matcher"), "{text}");
         assert!(text.contains("missing=0x"), "{text}");
         validate_supported_features(&cfg, ALL_POLICY_FEATURES, "runtime policy delta")
             .expect("full policy feature budget admits path matcher rule");
+    }
+
+    #[test]
+    fn pinned_reserve_admits_suffix_file_sinks_but_still_gates_contains() {
+        // `actplane run` on kernel >= 6.1 always installs the pinned singleton,
+        // so a policy whose file sink uses an absolute or repo-relative pattern
+        // (prefix/exact/any) must validate against the pinned reserve as a
+        // runtime delta. Before the reserve carried the rule-class bits, every
+        // such delta failed with missing=0x8.
+        let mut sink: CConfig = unsafe { std::mem::zeroed() };
+        sink.n_rules = 1;
+        sink.rules[0].op = OP_WRITE;
+        sink.rules[0].m = 1; // TAINT_MATCH_PREFIX, e.g. "/repo/**"
+        validate_supported_features(&sink, PINNED_POLICY_FEATURES, "runtime policy delta")
+            .expect("the pinned reserve admits a cheap write sink delta");
+        assert_ne!(
+            config_features(&sink) & FEAT_WRITE_RULES,
+            0,
+            "the write sink delta must exercise the reserved rule class"
+        );
+
+        // The path-suffix matcher is part of the reserve: the word-wise compare
+        // in `te_nbyte_eq` cut `taint_suffix` under the instruction cap, so a
+        // `**/.env` suffix sink installs as a delta.
+        let mut suffix: CConfig = unsafe { std::mem::zeroed() };
+        suffix.n_rules = 1;
+        suffix.rules[0].op = OP_WRITE;
+        suffix.rules[0].m = M_SUFFIX;
+        validate_supported_features(&suffix, PINNED_POLICY_FEATURES, "runtime policy delta")
+            .expect("the pinned reserve admits a suffix file sink delta");
+        assert_ne!(
+            config_features(&suffix) & FEAT_PATH_SUFFIX,
+            0,
+            "the suffix delta must exercise the reserved path-suffix class"
+        );
+
+        // `contains` stays gated: reserving it pushes `trace_rename_exit` over
+        // the cap (`processed 1000001 insn` on Linux 6.17), which fails the
+        // whole pinned install, so it needs an engine loaded with its profile.
+        let mut contains: CConfig = unsafe { std::mem::zeroed() };
+        contains.n_rules = 1;
+        contains.rules[0].op = OP_WRITE;
+        contains.rules[0].m = M_CONTAINS;
+        let err =
+            validate_supported_features(&contains, PINNED_POLICY_FEATURES, "runtime policy delta")
+                .expect_err("the pinned reserve still gates contains matchers");
+        assert!(err.to_string().contains("missing=0x1"), "{err}");
     }
 
     #[test]

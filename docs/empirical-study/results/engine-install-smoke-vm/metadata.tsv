@@ -1,0 +1,8 @@
+timestamp_utc	2026-09-28T13:27:42Z
+git_commit	da7c705eedabff9c00e16ecc77d1ae81790ef7f3
+host_kernel	7.3.0-070300rc3-generic
+guest_kernel	6.8.0-138-generic
+acceleration	tcg
+qemu_status	0
+qemu_timeout_s	900
+actplane_bin_sha256	d212f2b4f5811869306e408b3bf65843b11ba3a488ac18a43dd1c8fc0ef0572d

@@ -3,7 +3,10 @@ use std::path::{Path, PathBuf};
 
 use crate::{PolicyInput, Result};
 
-const DEFAULT_POLICY_FILES: &[&str] = &["actplane.yaml", ".actplane/policy.yaml"];
+/// The file names `discover_policy` walks for, in search order. Public so a
+/// caller that reports "no policy file" names the same candidates it searched
+/// rather than restating them.
+pub const DEFAULT_POLICY_FILES: &[&str] = &["actplane.yaml", ".actplane/policy.yaml"];
 pub const DEFAULT_FEEDBACK_FILE: &str = ".actplane/last-violation.txt";
 pub const DEFAULT_HOOK_STATE_FILE: &str = ".actplane/feedback-hook.state.json";
 pub const DEFAULT_AUDIT_FILE: &str = ".actplane/audit.jsonl";
@@ -808,8 +811,11 @@ domains:
             .filter(|path| path.extension().is_some_and(|ext| ext == "yaml"))
             .collect();
         paths.sort();
-        assert!(
-            paths.len() >= 7,
+        // Exact: a file dropped from the corpus (or added without a matching
+        // entry) should fail here rather than silently resize the set.
+        assert_eq!(
+            paths.len(),
+            7,
             "expected invalid policy corpus files in {}",
             dir.display()
         );

@@ -4,7 +4,7 @@ policy: |
   source UNTRUST = file "**/downloads/**"
 
   rule no-injected-priv:
-    block exec "git" "push" if UNTRUST and not REVIEWED
+    kill exec "git" "push" if UNTRUST and not REVIEWED
     block exec "**/deploy*" if UNTRUST and not REVIEWED
     because "untrusted input must not drive privileged actions"
 
