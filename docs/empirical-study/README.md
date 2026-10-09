@@ -46,6 +46,18 @@ compiler.
 - `candidate_rules_144.tsv`: aggregate candidate-line extraction with repo,
   file family, line number, category guess, and source text.
 - `figures/`: generated summary figures for the empirical study.
+- `results/oas-firing-audit-vm-k68d/`: the passing OpenAgentSafety firing audit
+  on the 6.8 guest (`counts.tsv` is the per-case table, `verdicts.ndjson` the raw
+  matches, `expectations.tsv` the pre-registered expectations, `guest-console.txt`
+  the cleaned guest console tracked under that name because `*.log` is
+  gitignored, and `metadata.tsv` the reproducibility coordinates).
+- `results/oas-firing-audit-vm-k68b/`: the pre-fix run kept as negative
+  engineering evidence, with `console-rejection-excerpt.txt` quoting the Ubuntu
+  6.8 combined-stack rejection that made every case fail before the engine fix.
+- `results/oas-verifier-stats-vm-k68/`: the 6.8 per-program verifier
+  measurement (`verifier-stats.tsv` is the instruction table and
+  `verifier-console.txt` the summarized verifier lines), a precondition for the
+  firing audit rather than a result of its own.
 
 The raw corpus, raw traces, intermediate coding notes, old evaluation drafts,
 and exploratory scripts are intentionally not kept in the product branch.

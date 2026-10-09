@@ -33,8 +33,17 @@ endif
 
 APPS = process test_taint
 
+# Diagnostic-only binaries: built on demand (e.g. `make -C bpf vvload`), not
+# pulled in by `all`. vvload reuses the process skeleton to dump per-program
+# verifier stats.
+DIAG_APPS = vvload
+
 # All test programs (no BPF skeleton needed)
 TEST_APPS = test_taint
+
+# Everything built from a libbpf skeleton.
+BUILD_APPS = $(APPS) $(DIAG_APPS)
+
 
 CARGO ?= $(shell which cargo)
 ifeq ($(strip $(CARGO)),)
@@ -88,13 +97,14 @@ debug:
 .PHONY: clean
 clean:
 	$(call msg,CLEAN)
-	$(Q)rm -rf $(OUTPUT) $(APPS)
+	$(Q)rm -rf $(OUTPUT) $(APPS) $(DIAG_APPS)
 
 .PHONY: help
 help:
 	@echo "Available targets:"
 	@echo "  all          - Build all applications"
 	@echo "  process      - Build process tracer only"
+	@echo "  vvload       - Build the verifier diagnostic loader"
 	@echo "  test         - Build and run tests"
 	@echo "  debug        - Build all applications with AddressSanitizer"
 	@echo "  clean        - Clean build artifacts"
@@ -156,7 +166,10 @@ $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT) $(BPFTOOL)
 	$(Q)$(BPFTOOL) gen skeleton $< > $@
 
 # Build user-space code (exclude all test programs from the skel.h requirement)
-$(patsubst %,$(OUTPUT)/%.o,$(filter-out $(TEST_APPS),$(APPS))): %.o: %.skel.h
+$(patsubst %,$(OUTPUT)/%.o,$(filter-out $(TEST_APPS) $(DIAG_APPS),$(BUILD_APPS))): %.o: %.skel.h
+
+# vvload reuses the process skeleton rather than generating its own.
+$(OUTPUT)/vvload.o: $(OUTPUT)/process.skel.h
 
 # Special rule for test programs (no BPF skeleton needed)
 $(OUTPUT)/test_taint.o: test_taint.c $(wildcard *.h) | $(OUTPUT)
@@ -172,7 +185,7 @@ $(patsubst %,$(OUTPUT)/%.o,$(BZS_APPS)): $(LIBBLAZESYM_HEADER)
 $(BZS_APPS): $(LIBBLAZESYM_OBJ)
 
 # Build application binary (exclude all test programs)
-$(filter-out $(TEST_APPS),$(APPS)): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
+$(filter-out $(TEST_APPS),$(BUILD_APPS)): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,BINARY,$@)
 	$(Q)$(CC) $(CFLAGS) $^ $(ALL_LDFLAGS) -lelf -lz -o $@
 
