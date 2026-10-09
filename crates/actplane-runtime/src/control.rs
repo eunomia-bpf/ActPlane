@@ -380,4 +380,278 @@ mod tests {
         let err = send_request(dir.path(), json!({ "op": "status" })).unwrap_err();
         assert!(err.to_string().contains("stale ActPlane control state"));
     }
+
+    #[test]
+    fn chown_and_set_mode_apply_filesystem_changes() {
+        // `chown_path` and `set_mode` prepare the control socket/state files for
+        // the invoking user; no base or branch test calls them.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("control.json");
+        std::fs::write(&file, "{}").unwrap();
+
+        // set_mode tightens permissions.
+        set_mode(&file, 0o600).expect("set mode");
+        assert_eq!(
+            std::fs::metadata(&file).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+
+        // chown_path to the current owner is a no-op success.
+        let uid = unsafe { libc::geteuid() };
+        let gid = unsafe { libc::getegid() };
+        chown_path(&file, uid, gid).expect("chown self");
+
+        // A missing path surfaces the underlying OS error.
+        let missing = dir.path().join("nope.json");
+        assert!(chown_path(&missing, uid, gid).is_err());
+        assert!(set_mode(&missing, 0o600).is_err());
+    }
+
+    #[test]
+    fn handle_stream_dispatches_and_reports_bad_request() {
+        // `handle_stream` reads one request line, hands it to the handler with
+        // the peer credentials, and replies with the encoded JSON plus newline;
+        // a blank request becomes an {ok:false,error} response. No base or
+        // branch test calls it directly.
+        use std::io::{BufRead, BufReader, Write};
+        use std::sync::Mutex;
+
+        let (client, server) = std::os::unix::net::UnixStream::pair().expect("pair");
+        let seen = Arc::new(Mutex::new(None));
+        let seen_cb = seen.clone();
+        let handler = Arc::new(move |request: Value, peer: Option<PeerCred>| {
+            let response = json!({ "op": request["op"], "peer_pid": peer.as_ref().map(|p| p.pid) });
+            *seen_cb.lock().expect("lock") = Some((request, peer));
+            response
+        });
+        let server_thread = std::thread::spawn(move || handle_stream(server, handler));
+
+        let mut client = client;
+        client.write_all(b"{\"op\":\"status\"}\n").unwrap();
+        let mut line = String::new();
+        BufReader::new(&client).read_line(&mut line).unwrap();
+        let value: Value = serde_json::from_str(&line).expect("response json");
+        assert_eq!(value["op"], "status");
+        assert_eq!(value["peer_pid"], std::process::id() as i64);
+        server_thread.join().expect("handle_stream");
+        let (request, peer) = seen.lock().expect("lock").clone().expect("observed");
+        assert_eq!(request["op"], "status");
+        assert_eq!(peer.expect("peer creds").pid, std::process::id() as i32);
+
+        // Bad request -> error envelope, handler never invoked.
+        let (client2, server2) = std::os::unix::net::UnixStream::pair().expect("pair");
+        let handler2 = Arc::new(|_r: Value, _p: Option<PeerCred>| json!({ "ok": true }));
+        let t2 = std::thread::spawn(move || handle_stream(server2, handler2));
+        let mut client2 = client2;
+        client2.write_all(b"\n").unwrap();
+        let mut line2 = String::new();
+        BufReader::new(&client2).read_line(&mut line2).unwrap();
+        let value2: Value = serde_json::from_str(&line2).expect("response json");
+        assert_eq!(value2["ok"], false);
+        assert!(
+            value2["error"]
+                .as_str()
+                .unwrap()
+                .contains("empty control request")
+        );
+        t2.join().expect("handle_stream");
+    }
+
+    #[test]
+    fn peer_credentials_reports_connected_peer() {
+        // `peer_credentials` reads SO_PEERCRED from a connected socket; no base
+        // or branch test calls it.
+        let (server, client) = std::os::unix::net::UnixStream::pair().expect("socketpair");
+        let cred = peer_credentials(&server).expect("peer credentials");
+        let me = std::process::id() as i32;
+        assert_eq!(cred.pid, me);
+        assert_eq!(cred.uid, unsafe { libc::geteuid() });
+        assert_eq!(cred.gid, unsafe { libc::getegid() });
+        assert_eq!(cred.identity.pid, me);
+        assert_eq!(cred.identity.uid, Some(unsafe { libc::geteuid() }));
+        // The client end sees the same peer.
+        assert_eq!(peer_credentials(&client).unwrap().pid, me);
+    }
+
+    fn control_state(pid: i32, proc_start_time: Option<u64>) -> ControlState {
+        ControlState {
+            schema: "actplane.control.v1".to_string(),
+            pid,
+            proc_start_time,
+            socket_path: PathBuf::from("/tmp/actplane-test.sock"),
+            project_dir: PathBuf::new(),
+            parent_pid: 1,
+            parent_domain_id: 1,
+        }
+    }
+
+    #[test]
+    fn control_process_matches_guards_pid_and_start_time() {
+        // `control_process_matches` decides whether a recorded control state
+        // still refers to the live process; no base or branch test calls it.
+        let me = std::process::id() as i32;
+        assert!(!control_process_matches(&control_state(0, None)));
+        assert!(!control_process_matches(&control_state(-1, None)));
+
+        // Live pid with no recorded start time -> exists check.
+        assert!(control_process_matches(&control_state(me, None)));
+        assert!(!control_process_matches(&control_state(i32::MAX, None)));
+
+        // Recorded start time must match the live process.
+        let live_start = proc_start_time(me).expect("live start time");
+        assert!(control_process_matches(&control_state(
+            me,
+            Some(live_start)
+        )));
+        assert!(!control_process_matches(&control_state(
+            me,
+            Some(live_start + 1)
+        )));
+        // A recorded start time with no live process is never a match.
+        assert!(!control_process_matches(&control_state(i32::MAX, Some(1))));
+    }
+
+    #[test]
+    fn read_request_parses_line_and_temp_socket_path_is_unique() {
+        // `read_request` reads one JSON line from a connected unix stream and
+        // rejects blank input; `temp_socket_path` embeds the euid and pid in a
+        // per-call-unique socket name. No base or branch test calls either.
+        use std::io::Write;
+
+        let (mut client, server) = std::os::unix::net::UnixStream::pair().expect("pair");
+        client.write_all(b"{\"op\":\"status\"}\n").unwrap();
+        let value = read_request(&server).expect("request");
+        assert_eq!(value["op"], "status");
+
+        let (mut blank, server2) = std::os::unix::net::UnixStream::pair().expect("pair");
+        blank.write_all(b"\n").unwrap();
+        let err = read_request(&server2).unwrap_err().to_string();
+        assert!(err.contains("empty control request"), "{err}");
+
+        let a = temp_socket_path(4242);
+        let b = temp_socket_path(4242);
+        let euid = unsafe { libc::geteuid() };
+        let name = a.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(name.starts_with(&format!("actplane-control-{euid}-4242-")));
+        assert!(name.ends_with(".sock"));
+        assert_ne!(a, b, "each call uses a fresh timestamp");
+    }
+
+    #[test]
+    fn read_state_parses_control_json_and_reports_errors() {
+        // `read_state` reads and parses the project control state file; no base
+        // or branch test calls it directly.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = read_state(dir.path()).unwrap_err().to_string();
+        assert!(missing.contains("read"), "{missing}");
+        assert!(missing.contains("control.json"), "{missing}");
+
+        let path = state_path(dir.path());
+        std::fs::create_dir_all(path.parent().expect("parent")).unwrap();
+        let state = ControlState {
+            schema: "actplane.control.v1".to_string(),
+            pid: 4242,
+            proc_start_time: Some(99),
+            socket_path: PathBuf::from("/tmp/actplane-test.sock"),
+            project_dir: dir.path().to_path_buf(),
+            parent_pid: 7,
+            parent_domain_id: 3,
+        };
+        std::fs::write(&path, serde_json::to_string(&state).unwrap()).unwrap();
+
+        let parsed = read_state(dir.path()).expect("state");
+        assert_eq!(parsed.pid, 4242);
+        assert_eq!(parsed.parent_domain_id, 3);
+        assert_eq!(parsed.socket_path, PathBuf::from("/tmp/actplane-test.sock"));
+
+        // Malformed JSON surfaces a parse error naming the path.
+        std::fs::write(&path, "{ not json").unwrap();
+        let bad = read_state(dir.path()).unwrap_err().to_string();
+        assert!(bad.contains("parse"), "{bad}");
+    }
+
+    #[test]
+    fn set_mode_updates_file_permissions() {
+        // `set_mode` rewrites a path's permission bits; no base or branch test
+        // calls it.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("mode.txt");
+        std::fs::write(&path, b"x").unwrap();
+        set_mode(&path, 0o600).expect("set 0600");
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        set_mode(&path, 0o755).expect("set 0755");
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o755
+        );
+    }
+
+    #[test]
+    fn process_exists_distinguishes_live_from_missing() {
+        // `process_exists` probes liveness via signal 0; no base or branch test
+        // calls it.
+        let me = std::process::id() as i32;
+        assert!(process_exists(me));
+        assert!(process_exists(1));
+        assert!(!process_exists(i32::MAX));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn sudo_target_user_needs_root_with_sudo_ids() {
+        if unsafe { libc::geteuid() } != 0 {
+            assert_eq!(sudo_target_user(), None);
+            return;
+        }
+        let saved = (
+            std::env::var("SUDO_UID").ok(),
+            std::env::var("SUDO_GID").ok(),
+        );
+        unsafe {
+            std::env::remove_var("SUDO_UID");
+            std::env::remove_var("SUDO_GID");
+        }
+        assert_eq!(sudo_target_user(), None);
+        unsafe {
+            std::env::set_var("SUDO_UID", "12345");
+            std::env::set_var("SUDO_GID", "678");
+        }
+        assert_eq!(sudo_target_user(), Some((12345, 678)));
+        unsafe {
+            std::env::set_var("SUDO_UID", "not-a-number");
+        }
+        assert_eq!(sudo_target_user(), None);
+        unsafe {
+            match saved.0 {
+                Some(v) => std::env::set_var("SUDO_UID", v),
+                None => std::env::remove_var("SUDO_UID"),
+            }
+            match saved.1 {
+                Some(v) => std::env::set_var("SUDO_GID", v),
+                None => std::env::remove_var("SUDO_GID"),
+            }
+        }
+    }
+
+    #[test]
+    fn read_state_reports_missing_and_malformed_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+
+        let err = read_state(dir.path()).unwrap_err().to_string();
+        assert!(
+            err.starts_with(&format!("read {}: ", state_path(dir.path()).display())),
+            "unexpected: {err}"
+        );
+
+        std::fs::create_dir_all(state_path(dir.path()).parent().unwrap()).expect("mkdir");
+        std::fs::write(state_path(dir.path()), "{not json").expect("write");
+        let err = read_state(dir.path()).unwrap_err().to_string();
+        assert!(
+            err.starts_with(&format!("parse {}: ", state_path(dir.path()).display())),
+            "unexpected: {err}"
+        );
+    }
 }

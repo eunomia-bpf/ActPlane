@@ -851,4 +851,664 @@ domains:
             );
         }
     }
+    #[test]
+    fn absolutize_keeps_absolute_paths_and_joins_relative_paths_to_base() {
+        // `absolutize` resolves a policy-referenced path against a base dir:
+        // absolute paths pass through unchanged, relative paths join to the
+        // base. No base or branch test pins both branches directly.
+        let base = Path::new("/srv/actplane");
+
+        // An absolute path is returned verbatim.
+        assert_eq!(
+            absolutize(Path::new("/etc/actplane/policy.dsl"), base),
+            Path::new("/etc/actplane/policy.dsl").to_path_buf()
+        );
+
+        // A relative path joins to the base.
+        assert_eq!(
+            absolutize(Path::new("policies/local.dsl"), base),
+            Path::new("/srv/actplane/policies/local.dsl").to_path_buf()
+        );
+    }
+
+    #[test]
+    fn discover_policy_walks_up_to_nearest_policy_file() {
+        // `discover_policy` climbs from a start directory to the filesystem
+        // root, returning the first DEFAULT_POLICY_FILES hit. No base or branch
+        // test calls it.
+        let root = std::env::temp_dir().join(format!(
+            "actplane-discover-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let deep = root.join("a").join("b");
+        fs::create_dir_all(&deep).unwrap();
+
+        // No policy anywhere under the tree: the walk escapes to the root.
+        assert_eq!(discover_policy(&deep), None);
+
+        // Nearest ancestor wins: a policy two levels up.
+        let top_policy = root.join("actplane.yaml");
+        fs::write(&top_policy, "policy: |\n").unwrap();
+        assert_eq!(
+            discover_policy(&deep).as_deref(),
+            Some(top_policy.as_path())
+        );
+
+        // A policy in the start directory shadows the ancestor.
+        let near_policy = deep.join(".actplane").join("policy.yaml");
+        fs::create_dir_all(near_policy.parent().unwrap()).unwrap();
+        fs::write(&near_policy, "policy: |\n").unwrap();
+        assert_eq!(
+            discover_policy(&deep).as_deref(),
+            Some(near_policy.as_path())
+        );
+
+        // DEFAULT_POLICY_FILES order: actplane.yaml beats .actplane/policy.yaml
+        // within the same directory.
+        let same_plain = root.join("a").join("actplane.yaml");
+        let same_nested = root.join("a").join(".actplane").join("policy.yaml");
+        fs::create_dir_all(same_nested.parent().unwrap()).unwrap();
+        fs::write(&same_plain, "policy: |\n").unwrap();
+        fs::write(&same_nested, "policy: |\n").unwrap();
+        let sub = root.join("a").join("c").join("d");
+        fs::create_dir_all(&sub).unwrap();
+        assert_eq!(discover_policy(&sub).as_deref(), Some(same_plain.as_path()));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn resolve_domain_inner_and_summary_map_fields() {
+        // `resolve_domain_inner` accumulates inherited locked rules and
+        // `summary_for_domain` projects them (plus parent/disabled) into a
+        // DomainSummary; both report unknown domains. Neither has a direct
+        // caller in the base or branch tests.
+        let config: FileConfig = serde_yaml::from_str(
+            r#"
+default_domain: review
+rules:
+  locked:
+    ifc: |
+      rule locked:
+        kill exec "git"
+        because "locked"
+  extra:
+    ifc: |
+      rule extra:
+        kill exec "curl"
+        because "extra"
+domains:
+  base:
+    bind:
+      - rule: locked
+        mode: locked
+  review:
+    parent: base
+    bind:
+      - rule: extra
+        mode: locked
+"#,
+        )
+        .expect("config");
+
+        assert!(
+            resolve_domain_inner(&config, "nope", &mut BTreeSet::new())
+                .unwrap_err()
+                .to_string()
+                .contains("unknown domain")
+        );
+
+        let bound = vec!["extra".to_string(), "locked".to_string()];
+        let resolved =
+            resolve_domain_inner(&config, "review", &mut BTreeSet::new()).expect("resolved");
+        assert_eq!(resolved.locked.iter().cloned().collect::<Vec<_>>(), bound);
+        assert!(resolved.defaults.is_empty());
+
+        let summary = summary_for_domain(&config, "review", resolved.clone()).expect("summary");
+        assert_eq!(summary.name, "review");
+        assert_eq!(summary.parent.as_deref(), Some("base"));
+        assert_eq!(summary.locked, bound);
+        assert!(summary.defaults.is_empty());
+        assert!(summary.disabled.is_empty());
+        assert!(
+            summary_for_domain(&config, "nope", resolved)
+                .unwrap_err()
+                .to_string()
+                .contains("unknown domain")
+        );
+    }
+    #[test]
+    fn domain_names_joins_sorted_keys_and_reports_none_when_empty() {
+        // `domain_names` renders the domain names for a config: the
+        // `BTreeMap` keys joined by ", ", or "none" when there are no
+        // domains. No base or branch test pins either branch directly.
+
+        // Empty config -> "none".
+        let empty: FileConfig = serde_yaml::from_str("").unwrap();
+        assert_eq!(domain_names(&empty), "none");
+
+        // Populated domains -> sorted keys joined by ", ".
+        let cfg: FileConfig =
+            serde_yaml::from_str("domains:\n  beta: {}\n  alpha: {}\n  gamma: {}\n").unwrap();
+        assert_eq!(domain_names(&cfg), "alpha, beta, gamma");
+    }
+
+    #[test]
+    fn ifc_source_accepts_one_non_empty_body_only() {
+        // `RuleEntry::ifc_source` picks the rule body from `ifc:` or legacy
+        // `policy:`, rejecting both-at-once and empty bodies; no base or branch
+        // test calls it.
+        let entry = |ifc: Option<&str>, policy: Option<&str>| RuleEntry {
+            ifc: ifc.map(ToString::to_string),
+            policy: policy.map(ToString::to_string),
+        };
+
+        assert_eq!(
+            entry(Some("rule r:\n  block exec \"git\"\n"), None)
+                .ifc_source("r")
+                .unwrap(),
+            "rule r:\n  block exec \"git\"\n"
+        );
+        assert_eq!(
+            entry(None, Some("legacy body")).ifc_source("r").unwrap(),
+            "legacy body"
+        );
+
+        let err = entry(Some("a"), Some("b"))
+            .ifc_source("r")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("cannot contain both `ifc` and `policy`"),
+            "{err}"
+        );
+
+        for empty in [
+            entry(None, None),
+            entry(Some("  "), None),
+            entry(None, Some("")),
+        ] {
+            let err = empty.ifc_source("r").unwrap_err().to_string();
+            assert!(err.contains("must contain non-empty `ifc: |`"), "{err}");
+        }
+    }
+
+    #[test]
+    fn load_policy_path_guards_shape_extension_and_root() {
+        // `load_policy_path` reads a YAML policy file, validates its shape, and
+        // picks the root; no base or branch test calls it.
+        let dir = std::env::temp_dir().join(format!("actplane-lpp-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+
+        // A `.dsl` path is rejected before any read.
+        let dsl = dir.join("policy.dsl");
+        let err = load_policy_path(&dsl, false, &dir)
+            .err()
+            .expect("dsl rejected")
+            .to_string();
+        assert!(err.contains("raw DSL file"), "{err}");
+
+        // A missing file reports a read error.
+        let missing = dir.join("missing.yaml");
+        let err = load_policy_path(&missing, false, &dir)
+            .err()
+            .expect("missing rejected")
+            .to_string();
+        assert!(err.contains("reading"), "{err}");
+
+        // Mixing legacy `policy: |` with `rules:`/`domains:` is rejected.
+        let mixed = dir.join("mixed.yaml");
+        fs::write(
+            &mixed,
+            "policy: |\n  rule r:\n    block exec \"git\"\nrules:\n  r:\n    ifc: |\n      rule r:\n        block exec \"git\"\ndomains:\n  session: {}\n",
+        )
+        .unwrap();
+        let err = load_policy_path(&mixed, false, &dir)
+            .err()
+            .expect("mixed rejected")
+            .to_string();
+        assert!(err.contains("cannot mix legacy"), "{err}");
+
+        // Neither a legacy block nor both `rules:`+`domains:` is rejected.
+        let neither = dir.join("neither.yaml");
+        fs::write(
+            &neither,
+            "rules:\n  r:\n    ifc: |\n      rule r:\n        block exec \"git\"\n",
+        )
+        .unwrap();
+        let err = load_policy_path(&neither, false, &dir)
+            .err()
+            .expect("neither rejected")
+            .to_string();
+        assert!(err.contains("must contain either"), "{err}");
+
+        // A valid file loads; the root is the file's parent, or cwd when the
+        // policy was named explicitly.
+        let good = dir.join("good.yaml");
+        fs::write(&good, "policy: |\n  rule r:\n    block exec \"git\"\n").unwrap();
+        let loaded = load_policy_path(&good, false, &dir).unwrap();
+        assert_eq!(loaded.root, dir);
+        assert_eq!(loaded.path.as_deref(), Some(good.as_path()));
+        let explicit = load_policy_path(&good, true, Path::new("/cwd-root")).unwrap();
+        assert_eq!(explicit.root, PathBuf::from("/cwd-root"));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_policy_path_gates_suffix_shape_and_root() {
+        // `load_policy_path` rejects raw DSL, enforces the legacy/rules shape,
+        // and picks the policy root (cwd for an explicit policy, else the file's
+        // parent); no base or branch test calls it directly.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let cwd = dir.path();
+        let policy_dir = cwd.join("nested");
+        std::fs::create_dir_all(&policy_dir).unwrap();
+
+        // Raw DSL file -> rejected before parsing.
+        let dsl = cwd.join("rules.dsl");
+        std::fs::write(&dsl, "rule r:\n  notify exec \"ls\"\n  because \"x\"\n").unwrap();
+        let err = load_policy_path(&dsl, false, cwd)
+            .err()
+            .expect("dsl")
+            .to_string();
+        assert!(err.contains("raw DSL file"), "{err}");
+
+        // Legacy policy root: implicit path uses the file's parent, explicit uses cwd.
+        let legacy = policy_dir.join("actplane.yaml");
+        std::fs::write(
+            &legacy,
+            "policy: \"rule r:\\n  notify exec \\\"ls\\\"\\n  because \\\"x\\\"\\n\"\n",
+        )
+        .unwrap();
+        let implicit = load_policy_path(&legacy, false, cwd).expect("implicit");
+        assert_eq!(implicit.root, policy_dir);
+        assert_eq!(implicit.path.as_deref(), Some(legacy.as_path()));
+        let explicit = load_policy_path(&legacy, true, cwd).expect("explicit");
+        assert_eq!(explicit.root, cwd);
+
+        // Mixing legacy policy with rules/domains is rejected.
+        let mixed = cwd.join("mixed.yaml");
+        std::fs::write(
+            &mixed,
+            "policy: \"rule r:\\n  notify exec \\\"ls\\\"\\n  because \\\"x\\\"\\n\"\nrules:\n  r:\n    ifc: \"rule r:\\n  notify exec \\\"ls\\\"\\n  because \\\"x\\\"\\n\"\ndomains:\n  d:\n    bind: []\n",
+        )
+        .unwrap();
+        let err = load_policy_path(&mixed, false, cwd)
+            .err()
+            .expect("mixed")
+            .to_string();
+        assert!(err.contains("cannot mix legacy"), "{err}");
+    }
+
+    #[test]
+    fn load_policy_handles_rule_and_discovery() {
+        // `load_policy` short-circuits an inline `--rule` into a rootless
+        // config, falls back to `discover_policy` when no `--policy` is given,
+        // surfaces the missing-policy error shape, and rejects an explicit
+        // path. No base or branch test calls it.
+        let rule = PolicyInput {
+            rule: Some("rule r:\n  block exec \"x\" if A\n  because \"z\"\n".to_string()),
+            ..Default::default()
+        };
+        let loaded = load_policy(&rule).expect("inline rule loads");
+        assert!(loaded.path.is_none());
+        assert_eq!(
+            loaded.config.policy.as_deref(),
+            Some("rule r:\n  block exec \"x\" if A\n  because \"z\"\n")
+        );
+
+        // Repository root has an `actplane.yaml`, so running from here exercises
+        // the discovery fallback (result is not asserted, only that it is taken).
+        let discovered = PolicyInput::default();
+        if discover_policy(&std::env::current_dir().expect("cwd")).is_some() {
+            assert!(load_policy(&discovered).is_ok());
+        }
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = PolicyInput {
+            policy: Some(dir.path().join("nope.yaml")),
+            ..Default::default()
+        };
+        let err = load_policy(&missing).err().expect("missing policy");
+        assert!(err.to_string().contains("nope.yaml"), "{err}");
+
+        let raw_dsl = dir.path().join("rule.dsl");
+        std::fs::write(&raw_dsl, "rule r:\n  block exec \"x\"\n").unwrap();
+        let explicit = PolicyInput {
+            policy: Some(raw_dsl),
+            ..Default::default()
+        };
+        let err = load_policy(&explicit).err().expect("raw dsl rejected");
+        assert!(err.to_string().contains("raw DSL file"), "{err}");
+    }
+
+    fn domain_config(src: &str) -> FileConfig {
+        serde_yaml::from_str(src).unwrap()
+    }
+
+    #[test]
+    fn resolve_domain_merges_inherited_bindings() {
+        // `resolve_domain` resolves a domain's effective locked/default rule
+        // sets through its parent chain; no base or branch test calls it.
+        let config = domain_config(
+            r#"
+rules:
+  locked-rule:
+    ifc: |
+      rule locked-rule:
+        kill exec "git"
+        because "locked"
+  default-rule:
+    ifc: |
+      rule default-rule:
+        notify exec "ls"
+        because "default"
+domains:
+  session:
+    bind:
+      - rule: locked-rule
+        mode: locked
+      - rule: default-rule
+        mode: default
+  review:
+    parent: session
+    disable:
+      - default-rule
+"#,
+        );
+
+        let session = resolve_domain(&config, "session").unwrap();
+        assert_eq!(session.locked, BTreeSet::from(["locked-rule".to_string()]));
+        assert_eq!(
+            session.defaults,
+            BTreeSet::from(["default-rule".to_string()])
+        );
+
+        let review = resolve_domain(&config, "review").unwrap();
+        assert!(review.locked.contains("locked-rule"));
+        assert!(!review.defaults.contains("default-rule"));
+
+        let unknown = resolve_domain(&config, "missing").unwrap_err().to_string();
+        assert!(unknown.contains("unknown domain `missing`"), "{unknown}");
+    }
+    #[test]
+    fn select_domain_resolves_explicit_default_and_single_domain() {
+        // `select_domain` picks the domain a policy run targets. No base or
+        // branch test pins its branch precedence directly.
+        fn cfg(y: &str) -> FileConfig {
+            serde_yaml::from_str(y).unwrap()
+        }
+
+        // Two domains, no default: an explicit request that exists resolves.
+        let multi = cfg("domains:\n  alpha: {}\n  beta: {}\n");
+        assert_eq!(select_domain(&multi, Some("beta")).unwrap(), "beta");
+
+        // An explicit request that does not exist fails, listing the options.
+        let err = select_domain(&multi, Some("gamma"))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("unknown domain `gamma`"));
+
+        // With two domains and no `default_domain` / `session`, no domain can
+        // be auto-selected.
+        let err = select_domain(&multi, None).unwrap_err().to_string();
+        assert!(err.contains("policy defines multiple domains"));
+
+        // `default_domain` that is defined resolves to it.
+        let def_ok = cfg("default_domain: alpha\ndomains:\n  alpha: {}\n  beta: {}\n");
+        assert_eq!(select_domain(&def_ok, None).unwrap(), "alpha");
+
+        // `default_domain` that is not a real domain fails.
+        let def_bad = cfg("default_domain: gamma\ndomains:\n  alpha: {}\n  beta: {}\n");
+        let err = select_domain(&def_bad, None).unwrap_err().to_string();
+        assert!(err.contains("default_domain `gamma` is not defined"));
+
+        // A `session` domain is the preferred auto-selection when present.
+        let sess = cfg("domains:\n  session: {}\n  alpha: {}\n");
+        assert_eq!(select_domain(&sess, None).unwrap(), "session");
+
+        // A single domain auto-selects even without `default_domain`.
+        let single = cfg("domains:\n  alpha: {}\n");
+        assert_eq!(select_domain(&single, None).unwrap(), "alpha");
+
+        // An explicit request wins over the auto-selection.
+        let explicit = cfg("domains:\n  alpha: {}\n  beta: {}\n");
+        assert_eq!(select_domain(&explicit, Some("alpha")).unwrap(), "alpha");
+    }
+    #[test]
+    fn validate_runtime_config_rejects_empty_approver_entries() {
+        // `validate_runtime_config` rejects a runtime config whose
+        // `allowed_approvers` list contains an empty (or whitespace) entry;
+        // a config with only well-formed approvers (or none) validates. No
+        // base or branch test pins both branches directly.
+        let path = Path::new("/repo/actplane.yaml");
+
+        // A whitespace-only approver is rejected, naming the offending path.
+        let bad: FileConfig = serde_yaml::from_str(
+            "runtime:\n  approval:\n    append_delta:\n      allowed_approvers:\n        - repo-supervisor\n        - \"   \"\n",
+        )
+        .unwrap();
+        let err = validate_runtime_config(&bad, path).unwrap_err().to_string();
+        assert!(err.contains("must not contain empty entries"));
+        assert!(err.contains("/repo/actplane.yaml"));
+
+        // Well-formed approvers validate.
+        let good: FileConfig = serde_yaml::from_str(
+            "runtime:\n  approval:\n    append_delta:\n      allowed_approvers:\n        - repo-supervisor\n        - owner\n",
+        )
+        .unwrap();
+        assert!(validate_runtime_config(&good, path).is_ok());
+
+        // No approvers configured validates trivially.
+        let empty: FileConfig = serde_yaml::from_str("").unwrap();
+        assert!(validate_runtime_config(&empty, path).is_ok());
+    }
+    #[test]
+    fn policy_shape_errors_name_the_conflict() {
+        let mixed = serde_yaml::from_str::<FileConfig>(
+            r#"
+policy: |
+  rule r:
+    block exec "git"
+    because "x"
+rules:
+  r:
+    ifc: |
+      rule r:
+        block exec "git"
+        because "x"
+domains:
+  session: {}
+"#,
+        )
+        .unwrap();
+        let err = validate_policy_shape(&mixed, Path::new("actplane.yaml")).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("cannot mix legacy `policy: |` with `rules:`/`domains:`"),
+            "err: {err}"
+        );
+
+        let domainless = serde_yaml::from_str::<FileConfig>(
+            r#"
+rules:
+  r:
+    ifc: |
+      rule r:
+        block exec "git"
+        because "x"
+"#,
+        )
+        .unwrap();
+        let err = validate_policy_shape(&domainless, Path::new("actplane.yaml")).unwrap_err();
+        assert!(
+            err.to_string().contains(
+                "must contain either a non-empty `policy: |` block or both `rules:` and `domains:`"
+            ),
+            "err: {err}"
+        );
+    }
+
+    #[test]
+    fn empty_policy_block_is_rejected_at_resolve_time() {
+        let loaded = load("policy: |\n");
+        let err = policy_source(&loaded, None).unwrap_err();
+        assert_eq!(err.to_string(), "`policy: |` block must not be empty");
+
+        let err = policy_source(&loaded, Some("session")).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "`--domain` requires a policy file with `rules:` and `domains:`"
+        );
+    }
+
+    fn domain_load(rules: &str, domains: &str) -> LoadedPolicy {
+        load(&format!("rules:\n{rules}domains:\n{domains}"))
+    }
+
+    const ONE_RULE: &str =
+        "  r:\n    ifc: |\n      rule r:\n        notify exec \"git\"\n        because \"x\"\n";
+
+    #[test]
+    fn select_domain_reports_unknown_and_undefined_defaults() {
+        let loaded = domain_load(ONE_RULE, "  d: {}\n");
+        assert_eq!(
+            policy_source(&loaded, Some("zzz")).unwrap_err().to_string(),
+            "unknown domain `zzz` (available: d)"
+        );
+
+        let loaded = load(&format!(
+            "rules:\n{ONE_RULE}domains:\n  a: {{}}\ndefault_domain: zzz\n"
+        ));
+        assert_eq!(
+            policy_source(&loaded, None).unwrap_err().to_string(),
+            "default_domain `zzz` is not defined (available: a)"
+        );
+    }
+
+    #[test]
+    fn resolve_domain_reports_empty_cycles_and_bad_bindings() {
+        let empty = domain_load(ONE_RULE, "  d: {}\n");
+        assert_eq!(
+            policy_source(&empty, Some("d")).unwrap_err().to_string(),
+            "domain `d` has no effective rules"
+        );
+
+        let cycle = domain_load(ONE_RULE, "  a:\n    parent: b\n  b:\n    parent: a\n");
+        assert_eq!(
+            policy_source(&cycle, Some("a")).unwrap_err().to_string(),
+            "domain parent cycle includes `a`"
+        );
+
+        let bind = domain_load(
+            ONE_RULE,
+            "  d:\n    bind:\n      - rule: nope\n        mode: locked\n",
+        );
+        assert_eq!(
+            policy_source(&bind, Some("d")).unwrap_err().to_string(),
+            "domain `d` binds unknown rule `nope`"
+        );
+
+        let disable = domain_load(ONE_RULE, "  d:\n    disable: [r]\n");
+        assert_eq!(
+            policy_source(&disable, Some("d")).unwrap_err().to_string(),
+            "domain `d` disables `r`, but it is not an inherited default rule"
+        );
+    }
+    #[test]
+    fn load_policy_path_reports_raw_dsl_and_read_failures() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let dsl = dir.path().join("policy.dsl");
+        fs::write(&dsl, "rule r:\n  block exec \"git\"\n  because \"x\"\n").unwrap();
+        let err = match load_policy_path(&dsl, true, dir.path()) {
+            Ok(_) => panic!("raw DSL file must be rejected"),
+            Err(err) => err,
+        };
+        assert!(err.to_string().contains("is a raw DSL file"), "err: {err}");
+
+        let missing = dir.path().join("absent.yaml");
+        let err = match load_policy_path(&missing, true, dir.path()) {
+            Ok(_) => panic!("missing policy file must be rejected"),
+            Err(err) => err,
+        };
+        assert!(
+            err.to_string()
+                .starts_with(&format!("reading {}:", missing.display())),
+            "err: {err}"
+        );
+    }
+
+    const READY_POLICY: &str = "version: 1\npolicy: |\n  source COMMAND = exec \"**\"\n  rule noop:\n    notify exec \"__never__\" if COMMAND\n    because \"b\"\n";
+
+    #[test]
+    fn discover_policy_walks_up_and_prefers_actplane_yaml() {
+        let dir = tempfile::tempdir().unwrap();
+        let nested = dir.path().join("a").join("b");
+        fs::create_dir_all(&nested).unwrap();
+        assert_eq!(discover_policy(&nested), None);
+
+        let yaml = dir.path().join("actplane.yaml");
+        fs::write(&yaml, READY_POLICY).unwrap();
+        assert_eq!(discover_policy(&nested).as_deref(), Some(yaml.as_path()));
+        assert_eq!(discover_policy(dir.path()).as_deref(), Some(yaml.as_path()));
+
+        // The dotdir candidate is found when no actplane.yaml exists.
+        fs::remove_file(&yaml).unwrap();
+        let dotdir = dir.path().join(".actplane").join("policy.yaml");
+        fs::create_dir_all(dotdir.parent().unwrap()).unwrap();
+        fs::write(&dotdir, READY_POLICY).unwrap();
+        assert_eq!(discover_policy(&nested).as_deref(), Some(dotdir.as_path()));
+    }
+
+    #[test]
+    fn load_policy_path_sets_root_from_explicit_flag() {
+        let dir = tempfile::tempdir().unwrap();
+        let policy = dir.path().join("actplane.yaml");
+        fs::write(&policy, READY_POLICY).unwrap();
+        let elsewhere = dir.path().join("elsewhere");
+        fs::create_dir_all(&elsewhere).unwrap();
+
+        // Explicit --policy keeps the invocation cwd as the project root.
+        let loaded = load_policy_path(&policy, true, &elsewhere).unwrap();
+        assert_eq!(loaded.root, elsewhere);
+        assert_eq!(loaded.path.as_deref(), Some(policy.as_path()));
+
+        // A discovered policy uses its own directory as the root.
+        let loaded = load_policy_path(&policy, false, &elsewhere).unwrap();
+        assert_eq!(loaded.root, dir.path());
+    }
+
+    #[test]
+    fn load_policy_path_rejects_raw_dsl() {
+        let dir = tempfile::tempdir().unwrap();
+        let dsl = dir.path().join("child.dsl");
+        fs::write(&dsl, "rule r:\n").unwrap();
+        let err = load_policy_path(&dsl, true, dir.path())
+            .err()
+            .expect("raw DSL rejected")
+            .to_string();
+        assert_eq!(
+            err,
+            format!(
+                "{} is a raw DSL file; policy files must be YAML with `policy: |`. Use `--rule` for one-off inline DSL.",
+                dsl.display()
+            )
+        );
+    }
+
+    #[test]
+    fn absolutize_joins_relative_paths_only() {
+        let base = Path::new("/base/dir");
+        assert_eq!(
+            absolutize(Path::new("actplane.yaml"), base),
+            base.join("actplane.yaml")
+        );
+        assert_eq!(absolutize(base, base), base);
+    }
 }
