@@ -39,6 +39,14 @@ static void test_streq(void)
 	check(p_streq("git", "ssh") == 0, "streq: different");
 	check(p_streq("git", "gitk") == 0, "streq: prefix is not equal");
 	check(p_streq("", "") == 1, "streq: both empty");
+	// taint_streq compares every byte of the padded TAINT_PAT_LEN buffer, so a
+	// difference anywhere up to the last byte must be detected.
+	char a[TAINT_PAT_LEN], b[TAINT_PAT_LEN];
+	memset(a, 'x', TAINT_PAT_LEN);
+	memset(b, 'x', TAINT_PAT_LEN);
+	check(taint_streq(a, b) == 1, "streq: full-length buffers equal");
+	b[TAINT_PAT_LEN - 1] = 'y';
+	check(taint_streq(a, b) == 0, "streq: last-byte difference detected");
 }
 
 static void test_prefix(void)
@@ -58,6 +66,10 @@ static void test_match(void)
 	check(p_match(TAINT_MATCH_PREFIX, "/a/b", "/a") == 1, "match: prefix hit");
 	check(p_match(TAINT_MATCH_SUFFIX, "/home/u/.env", ".env") == 1, "match: suffix hit");
 	check(p_match(TAINT_MATCH_SUFFIX, "/home/u/app.py", ".env") == 0, "match: suffix miss");
+	check(p_match(TAINT_MATCH_SUFFIX, ".env", ".env") == 1, "match: suffix whole string hit");
+	check(p_match(TAINT_MATCH_SUFFIX, "env", ".env") == 0, "match: suffix longer than text rejected");
+	check(p_match(TAINT_MATCH_SUFFIX, "/f", "abcdefghijklmnopq") == 0, "match: suffix over-length literal rejected");
+	check(p_match(TAINT_MATCH_SUFFIX, "abcdefghijklmnop", "abcdefghijklmnop") == 1, "match: suffix at max length hit");
 	check(p_match(TAINT_MATCH_SUFFIX, "api.internal", ".internal") == 1, "match: host suffix");
 	check(p_match(TAINT_MATCH_ANY, "literally anything", "") == 1, "match: any");
 	check(p_match(TAINT_MATCH_CONTAINS, "/home/u/server/app/f", "/server/") == 1, "match: contains hit");
@@ -65,9 +77,22 @@ static void test_match(void)
 	check(p_match(TAINT_MATCH_CONTAINS, "/server/start", "/server/") == 1, "match: contains at start");
 	check(p_match(TAINT_MATCH_CONTAINS, "/x/server/", "/server/") == 1, "match: contains at end");
 	check(p_match(TAINT_MATCH_CONTAINS, "server", "/server/") == 0, "match: contains no slashes");
+	check(p_match(TAINT_MATCH_CONTAINS, "anything", "") == 0, "match: contains empty pattern miss");
+	check(p_match(TAINT_MATCH_CONTAINS, "abc", "abcd") == 0, "match: contains pattern longer than text");
+	check(p_match(TAINT_MATCH_CONTAINS, "abc", "abc") == 1, "match: contains whole-string hit");
+	check(p_match(TAINT_MATCH_CONTAINS, "xabcx", "abc") == 1, "match: contains interior hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "git", "git") == 1, "exec match: comm exact hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "redact", "redact") == 1, "exec match: argv0 exact hit");
 	check(p_exec_match(TAINT_MATCH_EXACT, "/tmp/ape/git", "git") == 0, "exec match: full path is not exact");
+	check(p_exec_match(TAINT_MATCH_PREFIX, "/usr/bin/python3", "/usr/bin/") == 1, "exec match: prefix hit");
+	check(p_exec_match(TAINT_MATCH_PREFIX, "/usr/local/bin/python3", "/usr/bin/") == 0, "exec match: prefix miss");
+	check(p_exec_match(TAINT_MATCH_ANY, "anything", "/usr/bin/") == 1, "exec match: any hit");
+	check(p_exec_match(TAINT_MATCH_ANY, "", "") == 1, "exec match: any empty");
+	// Unrecognized kind values fall through to the EXACT hit, not a silent match.
+	check(p_match(99u, "git", "git") == 1, "match: unknown kind -> exact hit");
+	check(p_match(99u, "git", "ssh") == 0, "match: unknown kind -> exact miss");
+	check(p_exec_match(99u, "/tmp/ape/git", "git") == 0, "exec match: unknown kind -> exact miss");
+	check(p_exec_match(99u, "git", "git") == 1, "exec match: unknown kind -> exact hit");
 }
 
 static void test_mask(void)
@@ -107,6 +132,32 @@ static void test_arg(void)
 	te_tokenize_args(blob2, 3 + 1 + 6, slots2);
 	check(arg_m(slots2, "commit") == 1, "arg: commit present");
 	check(arg_m(slots2, "push") == 0, "arg: push absent");
+	// 18 single-char tokens; only the first MAX_ARG_SLOTS are kept.
+	char blob3[TAINT_ARGV_CAP] = {0}, slots3[TAINT_ARG_SLOTS_BUF] = {0};
+	memcpy(blob3, "a\0b\0c\0d\0e\0f\0g\0h\0i\0j\0k\0l\0m\0n\0o\0p\0q\0r", 35);
+	te_tokenize_args(blob3, 35, slots3);
+	check(arg_m(slots3, "p") == 1, "arg: last kept slot present");
+	check(arg_m(slots3, "q") == 0, "arg: overflow slot dropped");
+	check(arg_m(slots3, "r") == 0, "arg: further overflow slot dropped");
+	// A 30-char first token is truncated to TAINT_ARG_LEN - 1.
+	char blob4[TAINT_ARGV_CAP] = {0}, slots4[TAINT_ARG_SLOTS_BUF] = {0};
+	memcpy(blob4, "abcdefghijklmnopqrstuvwxyz0123\0tail", 30 + 1 + 4);
+	te_tokenize_args(blob4, 30 + 1 + 4, slots4);
+	check(slots4[0] == 'a' && slots4[22] == 'w' && slots4[23] == '\0',
+	      "arg: token truncated at slot width minus one");
+	check(arg_m(slots4, "tail") == 1, "arg: token after truncation still tokenized");
+}
+
+/* te_nzmask / te_iszero64 are the branchless primitives every matcher builds on
+ * (suffix/prefix lengths, @arg equality, "" detection). Pin their exact masks. */
+static void test_branchless_helpers(void)
+{
+	check(te_nzmask(0) == 0, "nzmask: zero -> 0");
+	check(te_nzmask(1) == -1, "nzmask: nonzero -> all ones");
+	check(te_nzmask(0xff) == -1, "nzmask: high byte -> all ones");
+	check(te_iszero64(0) == -1, "iszero64: zero -> all ones");
+	check(te_iszero64(1) == 0, "iszero64: one -> 0");
+	check(te_iszero64(0x8000000000000000UL) == 0, "iszero64: high bit -> 0");
 }
 
 int main(void)
@@ -117,6 +168,7 @@ int main(void)
 	test_match();
 	test_mask();
 	test_arg();
+	test_branchless_helpers();
 	printf("\n%d passed, %d failed\n", passed, failed);
 	return failed == 0 ? 0 : 1;
 }
