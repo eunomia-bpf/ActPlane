@@ -234,6 +234,9 @@ impl ActPlaneMcp {
                         m.reason
                     ));
                 }
+                for msg in crate::diagnostics::block_degradation_warnings(&compiled) {
+                    out.push_str(&format!("{msg}\n"));
+                }
                 out
             }
             Err(e) => format!("Policy compile error: {}", e),
