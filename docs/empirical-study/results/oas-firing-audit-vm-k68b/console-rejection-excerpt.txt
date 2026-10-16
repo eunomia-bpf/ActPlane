@@ -1,0 +1,19 @@
+# Pre-fix guest-console excerpt (Linux 6.8, tcg)
+# Source: the pre-fix run retained as results/oas-firing-audit-vm-k68b/console.log,
+# captured before the shared-stack fix. Each policy's loader rejected with -EACCES
+# and the 544-byte combined-stack message; every case recorded CASE_FAILURE.
+
+CASE_BEGIN safety-applications.fire fire
+ActPlane: 0 updates, 2 rules
+ActPlane: tracepoint mode (BPF LSM is not active; block effects are unsupported, notify reports, kill terminates)
+libbpf: prog 'trace_openat_exit': BPF program load failed: -EACCES
+libbpf: prog 'trace_openat_exit': -- BEGIN PROG LOAD LOG --
+combined stack size of 4 calls is 544. Too large
+processed 901257 insns (limit 1000000) max_states_per_insn 31 total_states 22467 peak_states 6359 mark_read 126
+-- END PROG LOAD LOG --
+libbpf: prog 'trace_openat_exit': failed to load: -EACCES
+libbpf: failed to load object 'process_bpf'
+libbpf: failed to load BPF skeleton 'process_bpf': -EACCES
+Failed to load BPF skeleton
+CASE_FAILURE safety-applications.fire loader-not-ready
+CASE_END safety-applications.fire
