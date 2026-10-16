@@ -6,6 +6,6 @@ policy: |
 
   rule parent-defines-child-policy:
     block write file "**/actplane.yaml" if CHILD
-    block exec "actplane" "setup" if CHILD
+    kill exec "actplane" "setup" if CHILD
     notify read file "**/actplane.yaml" if PARENT and POLICY
     because "parent can define policy, child can read but not mutate it"

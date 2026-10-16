@@ -8,9 +8,9 @@ policy: |
   source AGENT = exec "**/codex"
 
   # No auto-commit — agent must not commit without explicit user approval.
-  # Gate: write .actplane/commit-approved to signal user approval; re-arms after each commit.
+  # Gate: write a file named commit-approved to signal user approval; re-arms after each commit.
   rule no-auto-commit:
-    block exec "git" "commit"
-      if AGENT unless after write ".actplane/commit-approved"
+    kill exec "git" "commit"
+      if AGENT unless after write "**/commit-approved"
         since exec "git" "commit"
-    because "Write to .actplane/commit-approved after user says 'commit', then run git commit."
+    because "Write a file named commit-approved after user says 'commit', then run git commit."

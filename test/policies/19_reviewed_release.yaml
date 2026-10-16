@@ -4,7 +4,7 @@ policy: |
   source RELEASE = file "dist/**"
 
   rule release-needs-review:
-    block exec "gh" "release" if AGENT and RELEASE and not REVIEWED
+    kill exec "gh" "release" if AGENT and RELEASE and not REVIEWED
     block connect endpoint "*" if AGENT and RELEASE and not REVIEWED
     because "release artifacts need human review before publishing"
 

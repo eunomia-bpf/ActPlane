@@ -27,13 +27,15 @@ use serde_json::Value;
 
 use crate::control as local_control;
 use crate::runtime::{EngineControl, PolicyAuditMeta, mark_non_stdio_fds_cloexec};
-use crate::{audit, dsl};
+use crate::{audit, config, dsl, feedback};
 use ebpf_ifc_engine::ChildDomainSpec;
 use ebpf_ifc_engine::capability::{AUTH_BIND_RULE, TARGET_SELF};
 
 const POLICY_RESOURCE_URI: &str = "actplane:///policy";
 const FEEDBACK_RESOURCE_URI: &str = "actplane:///feedback";
-const DEFAULT_FEEDBACK_FILE: &str = ".actplane/last-violation.txt";
+const STATUS_RESOURCE_URI: &str = "actplane:///status";
+const AUDIT_RESOURCE_URI: &str = "actplane:///audit";
+const POLICY_NOT_FOUND_PREFIX: &str = "No policy file found";
 const WATCH_INTERVAL: Duration = Duration::from_secs(2);
 const SUPERVISOR_INTERVAL: Duration = Duration::from_millis(500);
 const DEFAULT_RESTART_LIMIT: u32 = 3;
@@ -180,24 +182,22 @@ impl ActPlaneMcp {
     }
 
     fn discover_policy_file(&self) -> Option<PathBuf> {
-        let candidates = ["actplane.yaml", ".actplane/policy.yaml"];
-        let mut dir = Some(self.project_dir.as_path());
-        while let Some(d) = dir {
-            for name in &candidates {
-                let p = d.join(name);
-                if p.is_file() {
-                    return Some(p);
-                }
-            }
-            dir = d.parent();
-        }
-        None
+        // Delegate to the single authority for the policy-file walk, so the MCP
+        // server and the CLI cannot disagree on which file a project uses.
+        config::discover_policy(&self.project_dir)
     }
 
     fn load_and_validate(&self) -> String {
         let path = match self.discover_policy_file() {
             Some(p) => p,
-            None => return "No actplane.yaml found.".into(),
+            None => {
+                return format!(
+                    "{} ({}), searched upward from {}.",
+                    POLICY_NOT_FOUND_PREFIX,
+                    config::DEFAULT_POLICY_FILES.join(" or "),
+                    self.project_dir.display()
+                );
+            }
         };
         let src = match std::fs::read_to_string(&path) {
             Ok(s) => s,
@@ -214,8 +214,9 @@ impl ActPlaneMcp {
         match dsl::compile_str(dsl_src) {
             Ok(compiled) => {
                 let mut out = format!(
-                    "Policy valid ({}, {} rules):\n",
+                    "Policy valid ({}, {} DSL rule(s), {} lowered kernel matcher(s)):\n",
                     path.display(),
+                    compiled.dsl_rule_count,
                     compiled.meta.len()
                 );
                 for (i, m) in compiled.meta.iter().enumerate() {
@@ -234,6 +235,12 @@ impl ActPlaneMcp {
                         m.reason
                     ));
                 }
+                for warning in &compiled.pattern_warnings {
+                    out.push_str(&format!(
+                        "warning [{}]: {}\n",
+                        warning.code, warning.message
+                    ));
+                }
                 out
             }
             Err(e) => format!("Policy compile error: {}", e),
@@ -241,32 +248,7 @@ impl ActPlaneMcp {
     }
 
     fn feedback_file(&self) -> PathBuf {
-        if let Ok(path) = std::env::var("ACTPLANE_FEEDBACK_FILE") {
-            return PathBuf::from(path);
-        }
-        let Some(policy) = self.discover_policy_file() else {
-            return self.project_dir.join(DEFAULT_FEEDBACK_FILE);
-        };
-        let root = policy
-            .parent()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| self.project_dir.clone());
-        let Ok(src) = std::fs::read_to_string(&policy) else {
-            return root.join(DEFAULT_FEEDBACK_FILE);
-        };
-        let Ok(config) = serde_yaml::from_str::<serde_yaml::Value>(&src) else {
-            return root.join(DEFAULT_FEEDBACK_FILE);
-        };
-        if let Some(path) = latest_run_feedback(&root) {
-            return path;
-        }
-        config
-            .get("feedback")
-            .and_then(|v| v.get("path"))
-            .and_then(|v| v.as_str())
-            .map(PathBuf::from)
-            .map(|p| if p.is_absolute() { p } else { root.join(p) })
-            .unwrap_or_else(|| root.join(DEFAULT_FEEDBACK_FILE))
+        feedback::resolve_file_path(&self.project_dir)
     }
 
     fn load_feedback(&self) -> String {
@@ -284,6 +266,30 @@ impl ActPlaneMcp {
             }
             Err(e) => format!("Cannot read {}: {}", path.display(), e),
         }
+    }
+
+    /// Rendered `actplane:///audit` body: the path the runtime would write, the
+    /// record count, and the records as a JSON array. It resolves the log and
+    /// reads its records through `audit::resolve_log_path`/`audit::read_records`,
+    /// the same helpers the `actplane audit` CLI uses, so the resource and the
+    /// command report one timeline. A malformed line is kept verbatim so the
+    /// count stays honest; a missing log reads as a message rather than an empty
+    /// array a client would mistake for a clean session.
+    fn load_audit(&self) -> String {
+        let path = audit::resolve_log_path(&self.project_dir);
+        let records = match audit::read_records(&path) {
+            Ok(records) => records,
+            Err(e) => return format!("Cannot read {}: {}", path.display(), e),
+        };
+        if records.is_empty() && !path.exists() {
+            return format!("No ActPlane audit log yet ({}).", path.display());
+        }
+        let body = serde_json::json!({
+            "path": path.display().to_string(),
+            "record_count": records.len(),
+            "records": records,
+        });
+        serde_json::to_string_pretty(&body).unwrap_or_else(|_| body.to_string())
     }
 
     fn policy_mtime(&self) -> Option<SystemTime> {
@@ -1167,6 +1173,11 @@ impl ActPlaneMcp {
                 "parent_domain_id": c.parent_domain_id,
             })
         });
+        let effective_policy = self
+            .control
+            .as_ref()
+            .and_then(|c| c.effective_policy().ok())
+            .map(|policy| crate::runtime::effective_policy_json(&policy));
         serde_json::json!({
             "ok": true,
             "result": {
@@ -1174,8 +1185,20 @@ impl ActPlaneMcp {
                 "project_dir": self.project_dir.display().to_string(),
                 "control": control,
                 "child_count": child_count,
+                "effective_policy": effective_policy,
             }
         })
+    }
+
+    /// Rendered `actplane:///status` body. It shares `local_control_status`'s
+    /// `result` object with the `status` control op and the read-only
+    /// `actplane_control` MCP tool, so a client reading the resource, calling
+    /// `control status`, or calling that tool sees the same fields rather than
+    /// three descriptions of one runtime. Serialization of that `Value` cannot
+    /// fail, so the fallback only guards against an impossible case.
+    fn status_resource_text(&self) -> String {
+        let status = self.local_control_status();
+        serde_json::to_string_pretty(&status["result"]).unwrap_or_else(|_| status.to_string())
     }
 }
 
@@ -1367,18 +1390,6 @@ fn child_id_arg(args: &serde_json::Map<String, Value>) -> Result<u32, rmcp::Erro
         None => json_optional_u32(args, "domain_id")?
             .ok_or_else(|| invalid_params("missing `child_id`")),
     }
-}
-
-fn latest_run_feedback(root: &std::path::Path) -> Option<PathBuf> {
-    let runs = root.join(".actplane").join("runs");
-    let mut candidates = Vec::new();
-    for entry in std::fs::read_dir(runs).ok()?.flatten() {
-        let path = entry.path().join("feedback.txt");
-        let modified = std::fs::metadata(&path).ok()?.modified().ok()?;
-        candidates.push((modified, path));
-    }
-    candidates.sort_by_key(|(modified, _)| *modified);
-    candidates.pop().map(|(_, path)| path)
 }
 
 fn child_launch_id() -> String {
@@ -2428,12 +2439,35 @@ impl ServerHandler for ActPlaneMcp {
         let resources = vec![
             Resource::new(POLICY_RESOURCE_URI, "actplane-policy")
                 .with_title("ActPlane Policy Status")
-                .with_description("Current policy validation result from actplane.yaml")
+                .with_description(
+                    "Current policy validation result, resolved by searching for \
+                     actplane.yaml or .actplane/policy.yaml up from the project directory",
+                )
                 .with_mime_type("text/plain"),
             Resource::new(FEEDBACK_RESOURCE_URI, "actplane-feedback")
                 .with_title("ActPlane Feedback")
-                .with_description("Latest corrective feedback from .actplane/last-violation.txt")
+                .with_description(
+                    "Latest corrective feedback, from ACTPLANE_FEEDBACK_FILE, the \
+                     latest .actplane/runs/*/feedback.txt, or the configured or \
+                     default feedback path",
+                )
                 .with_mime_type("text/plain"),
+            Resource::new(STATUS_RESOURCE_URI, "actplane-status")
+                .with_title("ActPlane Runtime Status")
+                .with_description(
+                    "Runtime status: whether the eBPF engine is attached, the \
+                     parent process and runtime domain it seeded, the project \
+                     directory, and the number of controlled child domains",
+                )
+                .with_mime_type("application/json"),
+            Resource::new(AUDIT_RESOURCE_URI, "actplane-audit")
+                .with_title("ActPlane Audit Log")
+                .with_description(
+                    "Session audit timeline: the resolved audit log path and \
+                     every record the runtime appended, as JSON, for the \
+                     policy, process, domain, and delegation events of a run",
+                )
+                .with_mime_type("application/json"),
         ];
         std::future::ready(Ok(ListResourcesResult {
             resources,
@@ -2463,6 +2497,26 @@ impl ServerHandler for ActPlaneMcp {
                 ResourceContents::TextResourceContents {
                     uri: FEEDBACK_RESOURCE_URI.into(),
                     mime_type: Some("text/plain".into()),
+                    text,
+                    meta: None,
+                },
+            ]))
+        } else if request.uri == STATUS_RESOURCE_URI {
+            let text = self.status_resource_text();
+            Ok(ReadResourceResult::new(vec![
+                ResourceContents::TextResourceContents {
+                    uri: STATUS_RESOURCE_URI.into(),
+                    mime_type: Some("application/json".into()),
+                    text,
+                    meta: None,
+                },
+            ]))
+        } else if request.uri == AUDIT_RESOURCE_URI {
+            let text = self.load_audit();
+            Ok(ReadResourceResult::new(vec![
+                ResourceContents::TextResourceContents {
+                    uri: AUDIT_RESOURCE_URI.into(),
+                    mime_type: Some("application/json".into()),
                     text,
                     meta: None,
                 },
@@ -2502,7 +2556,7 @@ async fn watch_policy_file(server: Arc<ActPlaneMcp>, peer: Peer<RoleServer>) {
             last_policy_mtime = current_policy_mtime;
 
             let result = server.load_and_validate();
-            let level = if result.contains("error") || result.contains("No actplane") {
+            let level = if result.contains("error") || result.contains(POLICY_NOT_FOUND_PREFIX) {
                 LoggingLevel::Error
             } else {
                 LoggingLevel::Info
@@ -2990,6 +3044,174 @@ mod tests {
             *loaded_record.status.lock().expect("status"),
             ChildStatus::Running
         ));
+        let _ = std::fs::remove_dir_all(project_dir);
+    }
+
+    #[test]
+    fn validate_resource_reports_pattern_lowering_warnings() {
+        let project_dir = std::env::temp_dir().join(format!(
+            "actplane-mcp-validate-warn-test-{}-{}",
+            std::process::id(),
+            child_launch_id()
+        ));
+        std::fs::create_dir_all(&project_dir).expect("project dir");
+        std::fs::write(
+            project_dir.join("actplane.yaml"),
+            r#"
+version: 1
+policy: |
+  source COMMAND = file "**/src/lib/**"
+  rule noop:
+    notify exec "__actplane_never__" if COMMAND
+    because "noop"
+"#,
+        )
+        .expect("write policy");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project_dir.clone()));
+
+        let clean = server.load_and_validate();
+        assert!(clean.contains("Policy valid"), "{clean}");
+        assert!(!clean.contains("warning ["), "unexpected warning: {clean}");
+
+        // A `contains` literal longer than the kernel's 16-byte window is
+        // shortened, which widens the matcher, so validate must say so.
+        std::fs::write(
+            project_dir.join("actplane.yaml"),
+            r#"
+version: 1
+policy: |
+  source COMMAND = file "**/alpha/beta/gamma/delta/**"
+  rule noop:
+    notify exec "__actplane_never__" if COMMAND
+    because "noop"
+"#,
+        )
+        .expect("rewrite policy");
+        let warned = server.load_and_validate();
+        assert!(warned.contains("pattern_contains_capped"), "{warned}");
+        assert!(
+            warned.contains("**/alpha/beta/gamma/delta/**"),
+            "warning did not name the widened pattern: {warned}"
+        );
+
+        let _ = std::fs::remove_dir_all(project_dir);
+    }
+
+    #[test]
+    fn validate_resource_names_every_policy_candidate_when_none_is_found() {
+        // The watcher upgrades a not-found result to `LoggingLevel::Error` by
+        // matching `POLICY_NOT_FOUND_PREFIX` (mcp.rs:2516), and an MCP client
+        // reading `actplane:///policy` learns which files the server searched
+        // from the same message. A message that named only `actplane.yaml`
+        // would hide the `.actplane/policy.yaml` candidate the walker also
+        // accepts.
+        let project_dir = std::env::temp_dir().join(format!(
+            "actplane-mcp-not-found-test-{}-{}",
+            std::process::id(),
+            child_launch_id()
+        ));
+        std::fs::create_dir_all(&project_dir).expect("project dir");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project_dir.clone()));
+
+        let text = server.load_and_validate();
+        assert!(
+            text.starts_with(POLICY_NOT_FOUND_PREFIX),
+            "watcher would not classify this as not-found: {text}"
+        );
+        for candidate in config::DEFAULT_POLICY_FILES {
+            assert!(
+                text.contains(candidate),
+                "message did not name candidate {candidate}: {text}"
+            );
+        }
+
+        let _ = std::fs::remove_dir_all(project_dir);
+    }
+
+    #[test]
+    fn status_resource_reports_attachment_and_child_count() {
+        // `actplane:///status` is the resource-first counterpart to
+        // `actplane control status`; the arch plan lists it as a target
+        // (docs/design/arch_plan.md). A client reading it must learn whether the
+        // engine is attached and how to reach it, so the body is the same
+        // `result` object the control op returns: `attached`, the resolved
+        // project directory, the parent domain when attached, and the child
+        // count.
+        let project_dir = std::env::temp_dir().join(format!(
+            "actplane-mcp-status-test-{}-{}",
+            std::process::id(),
+            child_launch_id()
+        ));
+        std::fs::create_dir_all(&project_dir).expect("project dir");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project_dir.clone()));
+
+        let body: Value =
+            serde_json::from_str(&server.status_resource_text()).expect("status json");
+        assert_eq!(body["attached"], Value::Bool(false));
+        assert_eq!(
+            body["project_dir"].as_str(),
+            Some(project_dir.display().to_string().as_str())
+        );
+        assert_eq!(body["child_count"], Value::from(0));
+        // No engine attached, so there is no merged policy to hash; the field is
+        // present but null rather than absent, so a client can distinguish
+        // "not attached" from "attached but the status predates the field".
+        assert!(body["effective_policy"].is_null(), "{body}");
+        assert!(body["control"].is_null(), "{body}");
+        // The same body backs the control `status` op; there the fields sit
+        // under `result`, so a client sees one description of the runtime.
+        assert_eq!(server.local_control_status()["result"], body);
+
+        let _ = std::fs::remove_dir_all(project_dir);
+    }
+
+    #[test]
+    fn audit_resource_reports_counts_and_records_from_latest_run() {
+        // `actplane:///audit` is the resource the arch plan names for the
+        // session timeline (docs/design/arch_plan.md). It must count and return
+        // the records the runtime appends to `.actplane/runs/*/audit.jsonl`,
+        // resolving the latest run the way the feedback resource does, and it
+        // must report a missing log as a message rather than an empty array
+        // that a client would read as "attached with no events".
+        let project_dir = std::env::temp_dir().join(format!(
+            "actplane-mcp-audit-test-{}-{}",
+            std::process::id(),
+            child_launch_id()
+        ));
+        let run_dir = project_dir.join(".actplane").join("runs").join("run-1");
+        std::fs::create_dir_all(&run_dir).expect("run dir");
+        // A policy file makes the resolver use the policy root, matching the
+        // runtime's scoped path rather than the bare project dir.
+        std::fs::write(
+            project_dir.join("actplane.yaml"),
+            "version: 1\npolicy: |\n  rule noop:\n    notify exec \"__never__\"\n    because \"noop\"\n",
+        )
+        .expect("policy");
+        let audit_path = run_dir.join("audit.jsonl");
+        std::fs::write(
+            &audit_path,
+            concat!(
+                "{\"event\":\"engine_attach\",\"schema\":\"actplane.audit.v1\"}\n",
+                "{\"event\":\"child_launch\",\"schema\":\"actplane.audit.v1\"}\n",
+                "\n",
+            ),
+        )
+        .expect("audit log");
+        let server = ActPlaneMcp::new_with_control_and_project_dir(None, Some(project_dir.clone()));
+
+        let body: Value = serde_json::from_str(&server.load_audit()).expect("audit json");
+        assert_eq!(body["record_count"], Value::from(2), "{body}");
+        assert_eq!(body["records"][0]["event"], Value::from("engine_attach"));
+        assert_eq!(body["records"][1]["event"], Value::from("child_launch"));
+        assert_eq!(
+            body["path"].as_str(),
+            Some(audit_path.display().to_string().as_str())
+        );
+
+        std::fs::remove_file(&audit_path).expect("remove audit log");
+        let missing = server.load_audit();
+        assert!(missing.contains("No ActPlane audit log yet"), "{missing}");
+
         let _ = std::fs::remove_dir_all(project_dir);
     }
 }

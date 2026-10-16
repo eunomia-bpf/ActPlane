@@ -40,8 +40,10 @@ A binding attaches a rule to a domain:
 binding = domain + rule
 ```
 
-All bindings are mandatory and monotonic: once a rule is bound to a domain, it
-cannot be removed or disabled by the domain or its children.
+A `locked` binding is mandatory and monotonic: once such a rule is bound to a
+domain, it cannot be removed or disabled by the domain or its children. A
+`default` binding is inherited by children but a child may explicitly `disable`
+it, which removes it from that child's effective policy.
 
 ## Two Logical YAMLs
 
@@ -63,13 +65,13 @@ rules:
   no-network:
     ifc: |
       rule no-network:
-        block connect any
+        block connect endpoint "*"
         because "network is disabled by default"
 
   readonly:
     ifc: |
       rule readonly:
-        block write file any
+        block write file "/**"
         because "this domain is read-only"
 ```
 
@@ -81,8 +83,10 @@ version: 1
 domains:
   session:
     bind:
-      - no-git-branch
-      - no-network
+      - rule: no-git-branch
+        mode: locked
+      - rule: no-network
+        mode: default
 ```
 
 The same rule can be bound by different domains:
@@ -92,12 +96,14 @@ domains:
   review:
     parent: session
     bind:
-      - readonly
+      - rule: readonly
+        mode: locked
 
   build:
     parent: session
     bind:
-      - readonly
+      - rule: readonly
+        mode: locked
 ```
 
 ## Effective Policy
@@ -115,8 +121,10 @@ policy(child) >= policy(parent)
 ```
 
 Here `>=` means "at least as restrictive". A child domain inherits all parent
-rules and may only add more rules. It cannot remove, disable, or weaken any
-inherited rule.
+rules and may only add more rules at runtime. It cannot remove or weaken a
+`locked` inherited rule. A `default` inherited rule is different: a child may
+list it under its own `disable` in the static YAML, which drops it from that
+child's effective policy.
 
 ## Child Updates
 
@@ -135,11 +143,11 @@ create child domains with no more authority than delegated
 Rejected updates:
 
 ```text
-remove inherited bindings
+remove inherited `locked` bindings (an inherited `default` binding can be disabled in the static YAML)
 modify parent domain state
 modify sibling domain state
 widen scope
-remove labels or gates
+remove gates (labels may be removed only through a `declassify` update, which requires `AUTH_DECLASSIFY`)
 increase delegated authority
 mutate an existing rule definition
 enable hook classes or path-matcher classes that were not reserved when the engine loaded
@@ -156,7 +164,8 @@ domains:
   review:
     parent: session
     bind:
-      - readonly
+      - rule: readonly
+        mode: locked
 ```
 
 Grandchild domain:
@@ -197,14 +206,16 @@ kernel checks caller authority, target domain, loaded engine profile, and monoto
 kernel installs accepted entries into the target domain's effective policy mask
 ```
 
-MCP exposes the same path as `bind_child_domain`, `launch_child`, and
+MCP exposes the same path as `bind_child_domain`, `launch_child_domain`, and
 `append_policy_delta`. The kernel does not parse YAML or DSL.
 
 ## Runtime Delta Admission
 
 User space does not directly mutate effective policy state. It submits deltas.
 
-Delta classes:
+Delta classes (conceptual: the kernel admits them through three request
+shapes, `cap_delta_request` carrying the bind/label/gate/scope fields plus
+`cap_append_update` and `cap_append_rule`):
 
 ```text
 create_domain

@@ -130,17 +130,10 @@ static long __taint_contains_cb(__u32 idx, void *_ctx)
 		return 1;
 
 	char window[TAINT_SUF_MAX] = {};
+	char pbuf[TAINT_SUF_MAX] = {};
 	TE_COPY(window, TAINT_SUF_MAX, c->text + idx);
-
-	long diff = 0;
-	TAINT_UNROLL
-	for (int j = 0; j < TAINT_SUF_MAX; j++) {
-		unsigned char pc = 0;
-		TE_COPY(&pc, 1, c->pat + j);
-		long jm = -(long)(j < c->pn);
-		diff |= jm & (unsigned char)(window[j] ^ pc);
-	}
-	if (diff == 0)
+	TE_COPY(pbuf, TAINT_SUF_MAX, c->pat);
+	if (te_nbyte_eq(window, pbuf, c->pn))
 		c->found = 1;
 	return 0;
 }

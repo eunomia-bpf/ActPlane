@@ -1,0 +1,2 @@
+qemu_status_pre-fix=0
+qemu_status_post-fix=0

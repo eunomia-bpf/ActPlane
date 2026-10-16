@@ -1,12 +1,13 @@
 #!/bin/bash
-# Linter PoC: called by ActPlane when a write violation is detected.
-# Checks whether the written file passes a simple lint rule.
+# Standalone linter used by test/demo-linter-enforcement.sh.
+# Checks whether a file passes four simple lint rules.
 #
 # Usage: linter-check.sh <filepath>
 # Exit 0 = pass, Exit 1 = fail (violation)
 #
-# This demonstrates that ActPlane can trigger userspace linters
-# on every write, making linter enforcement un-bypassable.
+# ActPlane does not invoke this script; nothing in the repo calls it except
+# the demo. It is the userspace half of a write-then-lint loop, the step an
+# agent takes once ActPlane reports a write match.
 
 FILE="$1"
 if [ -z "$FILE" ]; then

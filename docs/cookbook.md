@@ -17,6 +17,13 @@ Then enforce around a command:
 sudo -E actplane --policy test/policies/01_secret_no_exfil.yaml run -- <agent-or-command>
 ```
 
+`run` seeds the protected process with the runner label before the command
+starts, so the policy must declare or reference `COMMAND` (or `AGENT`), and
+`run` refuses the policy otherwise. The examples here that are meant to be
+enforced around a command declare `source COMMAND = exec "**"` for that reason;
+a policy that only labels files, endpoints, or other exec names still compiles
+and works under `compile`/`watch`, but not under `run`.
+
 Use `notify` policies or `actplane compile --explain` first when adapting a
 policy to a real repository. Rules that use `block` need BPF-LSM support for
 pre-operation denial; see [support-matrix.md](support-matrix.md).
@@ -30,7 +37,7 @@ pre-operation denial; see [support-matrix.md](support-matrix.md).
 | Production database access must pass through a tool | `test/policies/03_mediation_lineage.yaml` | lineage mediation |
 | Agent writes stay inside the workspace | `test/policies/04_workspace_confinement.yaml` | lineage-scoped write block |
 | Tests must run before commit | `test/policies/06_test_before_commit_since.yaml` | temporal gate + staleness |
-| Review or audit subagent is read-only | `actplane init --template readonly-review` | subtree capability scope |
+| Review or audit subagent is read-only | `actplane init --template readonly-review` | file write/delete block |
 | Local secrets can be released only after redaction | `test/policies/08_secret_declassify.yaml` | declassification |
 | Agent cannot bypass git policy through shell/Python | `test/policies/09_cross_tool_git.yaml` | process tree coverage |
 | Release artifacts need human review | `test/policies/19_reviewed_release.yaml` | file source + endorsement |
@@ -44,6 +51,7 @@ tries to connect to the network or write into a shared export path.
 ```yaml
 version: 1
 policy: |
+  source COMMAND = exec "**"
   source SECRET = file "**/.env"
   source SECRET = file "/etc/secrets/**"
 
@@ -75,7 +83,7 @@ policy: |
   source UNTRUST = file "**/downloads/**"
 
   rule no-injected-priv:
-    block exec "git" "push" if UNTRUST and not REVIEWED
+    kill  exec "git" "push" if UNTRUST and not REVIEWED
     block exec "**/deploy*" if UNTRUST and not REVIEWED
     because "untrusted input must not drive privileged actions"
 
@@ -88,8 +96,10 @@ Review:
 actplane compile --policy test/policies/02_prompt_injection_review.yaml --explain
 ```
 
-Expected violation: privileged actions derived from untrusted input are blocked
-until an approved review command adds the `REVIEWED` label.
+Expected violation: privileged actions derived from untrusted input are stopped
+until an approved review command adds the `REVIEWED` label. `git push` carries
+an argv token, so it is a post-exec `kill`; the basename-only `deploy*` clause
+is a pre-op `block`.
 
 ## Production Database Through Migration Tool
 
@@ -149,7 +159,7 @@ policy: |
   source AGENT = exec "**/codex"
 
   rule test-before-commit:
-    block exec "git" "commit" if AGENT unless after exec "**/pytest" since write "src/**" or write "tests/**"
+    kill exec "git" "commit" if AGENT unless after exec "**/pytest" since write "src/**" or write "tests/**"
     because "tests are stale after source edits"
 ```
 
@@ -159,24 +169,23 @@ Review:
 actplane compile --policy test/policies/06_test_before_commit_since.yaml --explain
 ```
 
-Expected violation: `git commit` from the agent tree is denied unless `pytest`
-has run after the latest write to `src/**` or `tests/**`.
+Expected violation: `git commit` from the agent tree is terminated unless
+`pytest` has run after the latest write to `src/**` or `tests/**`.
 
 ## Read-Only Review or Audit Subagent
 
 Problem: a review or audit subagent should inspect evidence only. It should not
-write files, delete files, or make repository changes.
+write or delete files.
 
 ```yaml
 version: 1
 policy: |
-  source REVIEWER = exec "**/review-agent"
+  source AGENT = exec "**"
 
   rule readonly-review:
-    block write file "/**" if REVIEWER
-    block unlink file "/**" if REVIEWER
-    block exec "git" if REVIEWER
-    because "review domain is read-only"
+    block write file "/**" if AGENT
+    block unlink file "/**" if AGENT
+    because "This review domain is read-only. Ask the user before modifying files."
 ```
 
 Review:
@@ -186,8 +195,9 @@ actplane init --template readonly-review --out actplane.yaml
 actplane compile --policy actplane.yaml --explain
 ```
 
-Expected violation: any write, delete, or git execution in the review-agent
-subtree reports `readonly-review`.
+Expected violation: any write or delete in the review subtree reports
+`readonly-review`. The template ships no `exec` clause, so it does not by itself
+stop a repository command such as `git`; add one if the reviewer must not run it.
 
 ## Redaction Path for Secrets
 
@@ -251,7 +261,7 @@ policy: |
   source RELEASE = file "dist/**"
 
   rule release-needs-review:
-    block exec "gh" "release" if AGENT and RELEASE and not REVIEWED
+    kill exec "gh" "release" if AGENT and RELEASE and not REVIEWED
     block connect endpoint "*" if AGENT and RELEASE and not REVIEWED
     because "release artifacts need human review before publishing"
 
@@ -264,8 +274,8 @@ Review:
 actplane compile --policy test/policies/19_reviewed_release.yaml --explain
 ```
 
-Expected violation: release publication or external egress is blocked until a
-review command adds `REVIEWED`.
+Expected violation: release publication is terminated and external egress is
+blocked until a review command adds `REVIEWED`.
 
 ## Parent and Child Domains
 

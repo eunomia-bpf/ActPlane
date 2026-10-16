@@ -40,9 +40,12 @@ use `notify` or `kill`; they are not pre-exec `block` rules.
 When BPF-LSM is active, the loader can also mark its own control pid as
 protected. Runtime-domain subjects, including uid 0 subjects, cannot signal or
 ptrace that protected pid, and they cannot use the `bpf()` syscall to create,
-load, attach, pin, or fetch BPF programs, maps, or links. Lookup, update,
-delete, and fd-info operations on already-held map fds remain available for
-ActPlane's runtime control path.
+load, attach, or pin BPF programs, maps, or links. The read-only and
+re-open paths stay available for ActPlane's runtime control path: lookup,
+fd-info, and `BPF_OBJ_GET` on an already-pinned object all pass, and map
+update/delete are admitted for the protected pid and for domains that already
+carry runtime authority, so a runtime client can open a pinned map while it is
+already managed.
 Processes outside any ActPlane runtime domain
 remain ordinary host administrators and can still stop or unload the engine.
 
@@ -102,11 +105,175 @@ Or via cargo:
 ACTPLANE_REBUILD_BPF=1 cargo build -p ebpf-ifc-engine
 ```
 
+The committed object is what production loads: `ebpf-ifc-engine` embeds
+`prebuilt/process.bpf.o` with `include_bytes!`, so it must be regenerated (and
+committed) whenever the kernel C under `bpf/` changes. If it is not, the shipped
+engine silently runs code that lacks the current source, which is a correctness
+gap rather than a cosmetic mismatch: commit `8298d23a` added
+`te_record_file_prov_mask` to `taint_engine.bpf.h` without regenerating the
+object, so `master` shipped an engine missing that fix (and one whose
+`trace_rename_exit` fails the Linux 6.8 verifier where a fresh build loads). CI
+enforces `script/check_prebuilt_fresh.sh`, which applies two checks because no
+single portable one covers both failure modes. First, it compares a
+source-provenance digest (`prebuilt/source.sha256`, over the kernel C and the
+`Makefile` whose flags determine codegen) against the current tree, so any edit
+there, even one that only changes a function body or a compile flag, fails until
+the objects and the stamp are regenerated together. Second, it rebuilds both
+objects and requires the committed object to define every `__noinline` function
+the source defines, which names the specific missing function when an object
+predates a newly added one.
+Both checks are source-derived rather than byte-based, so they do not depend on
+the exact clang/LLVM version (nor on whether that compiler emits `LBB0_*`
+basic-block labels as local symbols).
+
+Because the objects are binary and every branch that touches the kernel C
+regenerates them from its own base, two such branches always conflict in
+`bpf/prebuilt/*.bpf.o`. Resolve by rebuilding from the merged source (`make -C
+bpf` then copy `.output/*.bpf.o` over `prebuilt/`, or `ACTPLANE_REBUILD_BPF=1
+cargo build -p ebpf-ifc-engine`, which also refreshes the stamp); do not pick a
+side of the binary conflict.
+
+## Summed-stack budget (the 512-byte verifier limit)
+
+The verifier sums the maximum stack depth across every frame in a call chain and
+rejects a program whose total exceeds 512 bytes, with `combined stack size of N
+calls is M. Too large`. The sum itself is old (the string is present since at
+least Linux 4.19), but Linux 6.8 is where each term became accurate: commit
+`6b4a64bafd10` moved the per-subprogram high-water mark into `grow_stack_state`,
+so variable-offset and direct stack writes that 6.7 had under-counted now raise
+the frame the verifier charges. A helper can therefore pass on one kernel and
+fail here even though its own frame is small, because the limit is on the chain.
+The two ways to stay under it are to inline and to keep `bpf_loop`
+contexts off the stack entirely. Inlining is the counter-intuitive one: a
+`__noinline` annotation adds a frame to every chain that reaches the helper, and
+measured on this engine marking `handle_io_exit_addr` `__noinline` moved
+`trace_recvfrom_exit` from `6 calls is 576` to `7 calls is 640`, farther over the
+limit. Reach for `__noinline` only when one helper's own frame is the problem.
+The path matcher shows the same lever against a different cap. `te_path_match` is
+`__always_inline`, so its matcher body is copied into each of the roughly four
+rule scans a path hook performs. Before the fix, reserving the path-suffix class
+made `trace_rename_exit` fail the instruction-processing cap at `processed
+1000001 insns (limit 1000000)`, `peak_states 7091`. Two cheaper levers each fix
+one cap and break another: marking `te_path_match` `__noinline` drops
+`trace_rename_exit` to `processed 712821 insns` but makes `trace_openat_exit`
+fail `the call stack of 9 frames is too deep`, and fully unrolling
+`taint_suffix`'s compare drops it to `processed 664957 insns` but makes
+`trace_openat_exit` fail `combined stack size of 7 calls is 544`. Both caps bind,
+so the win has to come from fewer instructions *inside* the matcher without any
+extra frame. `te_nbyte_eq` (`bpf/taint.h`) is that change: two masked `u64`
+compares replace `taint_suffix`'s 16-iteration unrolled byte loop over the same
+copied tail, so the constant-index reads that avoid symbolic-offset state
+explosion stay and no stack frame is added. That brings `trace_rename_exit`
+under the cap, so `PINNED_POLICY_FEATURES` reserves `FEAT_PATH_SUFFIX` and a
+`**/.env` file sink installs as a runtime delta. `taint_contains` uses the same
+helper, but its `bpf_loop` callback is not inlined into the rule scan, so
+reserving `FEAT_PATH_CONTAINS` still pushes `trace_rename_exit` over the cap
+(`processed 1000001 insn` on Linux 6.17), and that class needs an engine loaded
+with it.
+
+Scratch contexts matter for the scan collectors. A `bpf_loop` context argument is a
+stack-typed value that stays spilled for the whole program, so a context struct
+passed to `bpf_loop` raises every caller's frame. The collectors can keep their
+contexts in per-CPU scratch maps (`te_*_scratch_buf()`) and pass only a
+stack-resident handle, which keeps the exit handlers small enough to sum under
+512.
+
+The same rule applies to map values. A `struct fileptr_ref` is 160 bytes; building
+one on the stack in `te_store_fileptr_ref` just to hand it to `bpf_map_update_elem`
+added that frame to every open/rename/read exit chain. Build it in a per-CPU
+scratch map instead (`ts_fileptr_scratch`), so the function's own frame drops from
+168 bytes to 16. Measured in a 6.8 guest with the production loader, a `recv` rule
+with a file source: before, `trace_recvfrom_exit` is rejected
+
+```
+combined stack size of 6 calls is 576. Too large
+stack depth 216+16+32+56+24+16+168+8+...
+```
+
+and the skeleton fails to load; after, the same policy prints `ActPlane: ready`.
+
+This is not hypothetical, and it is not limited to policies that use `recv`. The
+committed object on `master` is rejected on 6.8 with `combined stack size of 6
+calls is 608. Too large` for `trace_recvfrom_exit`, and the verifier's own
+`stack depth` line starts `216+...`, naming that program's 216-byte frame. The
+RQ2 branch (`experiments/rq2-lowering-eval-20260915`) had the same failure at
+`576`; the `fileptr_ref` scratch fix above clears it, and its committed object now
+loads the program. The severity depends on who autoloads the program:
+
+- The C loader (`bpf/process`) gates those two programs behind `TE_POLICY_RECV`
+  (or file-flow with advanced tracepoints), so a static policy reaches the
+  failure only when it uses `recv` together with a file source or file rule.
+- The Rust pinned-engine path does not gate: `HookReserve::full_profile()` sets
+  `PINNED_POLICY_FEATURES`, a superset of `ALL_HOOK_FEATURES` (it adds the cheap
+  open/write file sink rule classes and the path-suffix matcher), so it always
+  includes recv. `actplane run`, `watch`, and MCP go through that path, so on a
+  6.8 kernel that still carries a stack-heavy frame the engine fails to install
+  *for any policy at all*, and the process reports
+  `open ActPlane singleton: trace_recvfrom_exit.load: ... Permission denied`.
+  Measured in a 6.8 guest, same binary and command, swapping only the embedded
+  object: `origin/master` fails with `608`, and an object without the stack-heavy
+  frame prints `ActPlane: running pid ...` and exits 0.
+
+Verify with a guest boot of the kernel you mean to support. A load that succeeds
+on one kernel is not evidence for another: the limit is enforced per kernel
+version, and the container this repo is developed in denies `bpf()` outright, so
+its own host can neither confirm nor refute a 6.8 rejection. Two diagnostics name
+the offending program and its verifier budget. The historical `vvload` loaded
+every program and reported `VLOAD_DONE ok=<n> fail=<n>` per config. In the
+production loader,
+`ACTPLANE_BPF_VERIFIER_LOG=stats` turns on verifier stats and `=verbose` adds the
+per-instruction log, so a rejected program reports `processed N insns`, its
+`peak_states`, and its `stack depth`, instead of only that the skeleton failed.
+Before the path-matcher fix, reserving the path-contains class made
+`trace_openat_exit` fail at `processed 1000001 insns` on 6.8; the budget section
+above records that measurement and the levers that were tried. To assert the
+whole engine installs rather than inspect one program,
+`docs/empirical-study/run_engine_install_smoke_vm.sh` boots a 6.8 guest and runs
+`actplane run` against a policy that names no `recv`, requiring it to report
+`ActPlane: running`; it fails closed on a rejection and prints the verifier text.
+With `f315e600` the smoke passes on this branch, while the same smoke against a
+binary built from `origin/master`, which embeds that branch's committed object,
+fails with `combined stack size of 6 calls is 608. Too large` and `stack depth
+216+...168+...`, which is the failure described above. That `608` is a property of
+the committed object under the clang that produced it, not of the source: the
+file `bpf/process.bpf.c` on `origin/master` is byte-identical to the one at
+`eb45ed17` and the other build inputs match, while a fresh rebuild of it
+measures `576`.
+The privileged CI job does not cover this, and its kernel is not the one the claim
+is about: it runs `6.17.0-1022-azure` (measured from the job log), which is above
+6.8 and is never exercised against the rejected program, and its recv smokes use a
+recv-only config that never sets `TE_POLICY_FILE_FLOW`. Whether that kernel would
+reject the program is unmeasured here, since only a 6.8 guest is available, so
+this smoke is the check rather than the CI job.
+
+A second coverage gap was silent rather than absent, and now has a committed
+probe. Two smokes assert `block` enforcement outright,
+`lsm_path_write_hooks_block_unlink_rename_and_truncate_smoke` (the denied
+unlink/rename/truncate return `-EPERM`) and `lsm_recv_endpoint_block_smoke` (the
+reported violation is `blocked`); five more exercise LSM-path flow. All seven
+begin with `if !bpf_lsm_active() { eprintln!("skipping ..."); return; }`, so on a
+host without BPF-LSM they return early and cargo records them as `... ok`. The
+privileged job's runner has no `bpf` in `/sys/kernel/security/lsm`, so its
+`test result: ok. 42 passed; 0 failed; 0 ignored` includes those seven as passes
+while the same log carries `skipping LSM path write hook smoke: bpf LSM is not
+active`. A green job therefore does not by itself show that `block` was ever
+enforced. To read the count honestly, grep the log for `skipping`. To enforce it,
+run the smokes on a host with BPF-LSM active, and
+`docs/empirical-study/run_lsm_block_smoke_vm.sh` is the committed probe that does:
+it boots a guest with `lsm=...bpf`, installs a `block write file` policy, and
+requires the blocked write to fail with `EPERM` (`SMOKE_BLOCK_ENFORCED`), with the
+captured console under `results/lsm-block-smoke-vm/`.
+
 ## Binary config format
 
 The compiler writes a fixed-size `taint_config` blob. The struct layout is
-defined in `taint.h` and mirrored byte-for-byte in Rust (`lower.rs`). It
-contains:
+defined in `taint.h` and mirrored byte-for-byte in Rust (`lower.rs`). Because the
+blob is read straight into BPF rodata, both sides assert the exact field offsets,
+not just the total size: `bpf/test_taint.c`'s `test_abi_layout` checks the C
+layout and `abi_layout_matches_the_c_header` in `lower.rs` checks the Rust mirror
+against the same numbers. A same-width field reorder passes a total-size check
+while reinterpreting every field, so both layouts must be updated together when
+either changes. The blob contains:
 
 - `n_updates` plus up to 320 `taint_update` entries. Updates cover sources,
   declassify/endorse transforms, temporal gates, and `since` invalidators.
@@ -119,7 +286,9 @@ object.
 
 ## Requirements
 
-- Linux kernel 5.8+ with BTF (`/sys/kernel/btf/vmlinux`)
+- Linux kernel 5.10+ with BTF (`/sys/kernel/btf/vmlinux`). The runtime rejects
+  anything older: the static compatibility engine requires 5.10, and the pinned
+  singleton engine requires 6.1.
 - Root or `CAP_BPF` + `CAP_SYS_ADMIN`
 - BPF-LSM active for `block` effect (`bpf` in `/sys/kernel/security/lsm`)
 

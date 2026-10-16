@@ -1,0 +1,59 @@
+# Prebuilt-object verifier-budget excerpt
+#
+# This is the probe run whose loader embedded the *committed* (stale)
+# prebuilt eBPF object instead of building from source, kept as committed
+# evidence for the claim in rq2-lowering-eval.md that the shipped object had
+# the larger verifier footprint: it fails trace_openat_exit AND
+# trace_rename_exit with -E2BIG, skipping 9 of 14 rows, where a from-source
+# build fails only trace_openat_exit, skipping 6.
+#
+# Coordinates (from the run's metadata.tsv below). Loader SHA-256
+# 0803d51c... is 'bpf/process' linked against bpf/prebuilt/process.bpf.o
+# (bytes f0eb04e6...); rebuilding from source gives ea2d9d11... and 6 skips.
+
+## Case outcomes
+CASE_BEGIN except_dist_relative
+CASE_SKIPPED except_dist_relative engine-budget
+CASE_END except_dist_relative
+CASE_BEGIN except_abs_dist
+CASE_SKIPPED except_abs_dist engine-budget
+CASE_END except_abs_dist
+CASE_BEGIN except_src_relative
+CASE_SKIPPED except_src_relative engine-budget
+CASE_END except_src_relative
+CASE_BEGIN sink_dist_relative
+CASE_SKIPPED sink_dist_relative engine-budget
+CASE_END sink_dist_relative
+CASE_BEGIN sink_abs_dist
+CASE_SKIPPED sink_abs_dist engine-budget
+CASE_END sink_abs_dist
+CASE_BEGIN sink_subdir_relative
+CASE_SKIPPED sink_subdir_relative engine-budget
+CASE_END sink_subdir_relative
+CASE_BEGIN env_bare_relative
+CASE_SKIPPED env_bare_relative engine-budget
+CASE_END env_bare_relative
+CASE_BEGIN env_nested_relative
+CASE_SKIPPED env_nested_relative engine-budget
+CASE_END env_nested_relative
+CASE_BEGIN env_suffix_control
+CASE_SKIPPED env_suffix_control engine-budget
+CASE_END env_suffix_control
+CASE_BEGIN source_rel_read
+CASE_END source_rel_read
+CASE_BEGIN source_nested_read
+CASE_END source_nested_read
+CASE_BEGIN source_abs_read
+CASE_END source_abs_read
+CASE_BEGIN frozen_fn_rel_read
+CASE_END frozen_fn_rel_read
+CASE_BEGIN frozen_fn_abs_read
+CASE_END frozen_fn_abs_read
+EXPERIMENT_DONE
+
+## Rejections (program + reason)
+9 BPF program is too large. Processed 1000001 insn
+3 libbpf: prog 'trace_openat_exit': BPF program load failed: -E2BIG
+3 libbpf: prog 'trace_openat_exit': failed to load: -E2BIG
+6 libbpf: prog 'trace_rename_exit': BPF program load failed: -E2BIG
+6 libbpf: prog 'trace_rename_exit': failed to load: -E2BIG

@@ -14,12 +14,11 @@ cross-checks the inventory against the frozen `rq5_openagentsafety_ledger.json`,
 the `remaining_attempt0_description_manifest.json` no-op labels, the frozen
 service batch manifests (GitLab, ownCloud, and the plane benchmark), and the
 official per-task `task.md` descriptions fetched from the benchmark's frozen
-Duplicate task IDs in the manifest or ledger are rejected, the
+commit. Duplicate task IDs in the manifest or ledger are rejected. The
 description manifest's no-op and status labels are compared per task
 against the ledger's row values, and the official task root's provenance
-is recorded through the
-frozen expected benchmark submodule commit. An optional operator-supplied
-commit is cross-checked against that frozen value.
+is recorded through the frozen expected benchmark submodule commit. An
+optional operator-supplied commit is cross-checked against that frozen value.
 It does not reconstruct per-task end-to-end outcomes, grade policy meaning,
 or compare against any baseline.
 
@@ -67,7 +66,8 @@ The audit script and its inputs are deterministic. The script is
 `docs/empirical-study/audit_openagentsafety_policies.py`. Inputs:
 
 - artifact tree: frozen `origin/artifact-ready` OpenAgentSafety checkout
-  (`docs/OpenAgentSafety`) plus `docs/artifact/rq5_openagentsafety_ledger.json`.
+  (`docs/OpenAgentSafety`), plus `docs/artifact/rq5_openagentsafety_ledger.json`
+  from that same ref.
 - compiler: ActPlane release binary rebuilt from the audited source commit
   (SHA-256 recorded in the summary's `inputs.compiler_sha256`).
 - official task root: flat directory of `<task-id>.md` files for the 359
@@ -85,28 +85,39 @@ row: 361/361 compiled, identical per-task lowered rule counts, identical
 policy SHA-256 digests, identical no-op classification, and 0 errors in
 both.
 
-A verification run of the repaired script against the same inputs
-(artifact tree, task root, and benchmark commit) reproduced every recorded
-number: 361/361 compiled, 195/1602/58 lowered rules for the 50 final / 253
-nontrivial / 58 no-op description policies, and 359 available / 2 missing
-task descriptions, with `provenance.benchmark_commit_consistent` true. The
-repaired script's outputs are
+A verification run against the frozen inputs (the `origin/artifact-ready`
+extract, content SHA-256
+`05cff4dd3558265cf5a8baddb43e8d23d1b06424ac5f40c85a138e1ad2c133de` over 413
+files, and the 359-file task root, content SHA-256
+`84c373e226d86376f676f40c103a960aa1c01239eabde2f20d19d234f9fc6d6f`)
+reproduced every recorded number: 361/361 compiled, 195/1602/58 lowered rules
+for the 50 final / 253 nontrivial / 58 no-op description policies, and 359
+available / 2 missing task descriptions, with
+`provenance.benchmark_commit_consistent` true. The script's outputs are
 
-- `summary.json` SHA-256 `b3972b1385102c10390d7652552c84b7db417883cd080d3b5a303b8374c3fef7`
+- `summary.json` SHA-256 `c5f2eca650ed2c422612a7c28c50dca0ad1c12753f0ce5980b5399c78daa6ce6`
 - `rows.tsv` SHA-256 `d7587b5d224ce0ee8a75e1b4abcbab293b6aa2a208df5645ea09eb5f3a89249d`
 
 A rerun on the same machine produced byte-identical outputs. The pre-repair
-verification run's digests, computed with the pre-repair script under the
-duty raw directory
+verification run's rows, computed with the pre-repair script under the duty
+raw directory
 `/workspaces/.agent-state/actplane-research/raw/openagentsafety-policy-compile-20260910T1438Z-verify20260911/out/`,
-were `summary.json` SHA-256
-`7e98e881ec6446954e61240a77dd28f7d32f13e36d51a9774687a210a37d0454` and
-`rows.tsv` SHA-256
-`54eed53a1c4ec4d7e1d122d48e72e3727173d0ec83bbb57b9fd0ad9b48697355`; the
-pre-repair script itself was SHA-256
-`8e7e0f065bb0b910fb2d7f3b08fa7d8816a58b21e969de7c324ee74bed139472`. The
-repaired script is SHA-256
+were `rows.tsv` SHA-256
+`54eed53a1c4ec4d7e1d122d48e72e3727173d0ec83bbb57b9fd0ad9b48697355` (that
+run's `summary.json`, SHA-256
+`7e98e881ec6446954e61240a77dd28f7d32f13e36d51a9774687a210a37d0454`, predates
+the content-relative-identifier schema and so does not reproduce byte for
+byte). The pre-repair script itself was SHA-256
+`8e7e0f065bb0b910fb2d7f3b08fa7d8816a58b21e969de7c324ee74bed139472`; the
+intermediate repaired script was SHA-256
 `5a362a778db20b50348e83f5f3f4501dbd5aba9f6a41f1f5f094523432bbf0eb`.
+
+The script reads each policy's lowered-matcher count from `compile --json`
+(`backend_support.clauses`), not from the CLI's human-readable message. The
+earlier scrape of that message (`compiled (\d+) rule\(s\)`) silently returned
+zero once the message was reworded, so it is replaced by the stable structured
+field. The current script is SHA-256
+`e85e031aead3aacdb1a370f67be7eb61d7cb443b7576eae4ed8b7456e364c8b9`.
 
 ## Claim boundary
 

@@ -4,7 +4,8 @@
 //
 // Set ACTPLANE_REBUILD_BPF=1 to rebuild from the kernel C via the Makefile
 // (requires the BPF toolchain + the libbpf/bpftool submodules); the freshly
-// built object is also written back to prebuilt/ so it can be committed.
+// built object and the source stamp that `script/check_prebuilt_fresh.sh` checks
+// are also written back to prebuilt/ so they can be committed together.
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
@@ -43,12 +44,20 @@ fn main() {
             .status()
             .expect("run make -C bpf process (ACTPLANE_REBUILD_BPF)");
         assert!(status.success(), "make -C bpf process failed");
-        // Refresh the committed copy so the rebuild can be committed.
+        // Refresh the committed copy, and the source stamp that records which
+        // kernel C it was built from, so both can be committed together.
         std::fs::create_dir_all(manifest.join("prebuilt")).ok();
         std::fs::copy(&built, &prebuilt)
             .unwrap_or_else(|e| panic!("copy {} -> prebuilt: {e}", built.display()));
         std::fs::copy(&legacy_built, &legacy_prebuilt)
             .unwrap_or_else(|e| panic!("copy {} -> prebuilt: {e}", legacy_built.display()));
+        let stamp_script = manifest.join("../script/check_prebuilt_fresh.sh");
+        let status = Command::new("bash")
+            .arg(&stamp_script)
+            .arg("--update")
+            .status()
+            .expect("run check_prebuilt_fresh.sh --update");
+        assert!(status.success(), "check_prebuilt_fresh.sh --update failed");
     }
 
     let src = if prebuilt.exists() { &prebuilt } else { &built };

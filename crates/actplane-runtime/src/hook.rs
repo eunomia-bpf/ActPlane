@@ -323,4 +323,38 @@ mod tests {
     fn last_block_handles_unsuffixed_feedback() {
         assert_eq!(last_feedback_block("one"), "one");
     }
+
+    /// The hook reports only feedback appended since its last call and leaves
+    /// the mailbox itself intact; `docs/agent-integrations.md` and
+    /// `script/agent-feedback.md` describe the mailbox as an append-only log.
+    #[test]
+    fn hook_reports_only_new_feedback_and_preserves_the_mailbox() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = dir.path().join("feedback.txt");
+        let state = dir.path().join("hook-state.json");
+        std::fs::write(&feedback, "one\n----\n").expect("seed mailbox");
+
+        let selection = HookSelection {
+            feedback: feedback.clone(),
+            state,
+        };
+
+        // First call with no prior state records the offset and reports nothing.
+        assert_eq!(read_new_feedback(&selection).expect("first read"), "");
+
+        std::fs::write(&feedback, "one\n----\ntwo\n----\nthree\n----\n").expect("append");
+        assert_eq!(
+            read_new_feedback(&selection).expect("second read"),
+            "three",
+            "only the block appended since the recorded offset is reported"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&feedback).expect("mailbox"),
+            "one\n----\ntwo\n----\nthree\n----\n",
+            "reporting must not delete or truncate the mailbox"
+        );
+
+        // Nothing appended: no duplicate delivery.
+        assert_eq!(read_new_feedback(&selection).expect("third read"), "");
+    }
 }

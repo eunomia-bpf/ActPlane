@@ -10,6 +10,6 @@
 pub mod dsl;
 
 pub use dsl::{
-    Compiled, RuleMeta, RuleSourceMeta, ast, compile, compile_str, compile_str_with_labels, lower,
-    parse,
+    Compiled, RuleMeta, RuleSourceMeta, ast, compile, compile_str, compile_str_with_labels,
+    is_numeric_endpoint_pattern, lower, parse, repo_relative_condition_is_partial,
 };

@@ -323,6 +323,24 @@ mod tests {
         assert!(policy.contains("no-git-branch"));
         assert!(policy.contains("no-secret-exfil"));
         assert!(policy.contains("test-before-commit"));
-        dsl::compile_str(&policy).unwrap();
+        // `actplane init` (no flags) writes this policy as the project's first
+        // `actplane.yaml`. A rule that lowers to a widened matcher (a
+        // repo-relative literal over the kernel's 16-byte contains window, a
+        // long suffix, a machine-specific absolute path) would be a starter
+        // policy that does not enforce what its `because` states, so require the
+        // same warning-free result the other shipped-policy guards require.
+        let compiled = dsl::compile_str(&policy).unwrap();
+        assert!(
+            compiled.pattern_warnings.is_empty(),
+            "starter policy compiles with pattern warnings: {:?}",
+            compiled.pattern_warnings
+        );
+        let src = STARTER_POLICY.to_string();
+        for marker in ["/home/", "/Users/"] {
+            assert!(
+                !src.contains(marker),
+                "starter policy hardcodes a user path `{marker}`"
+            );
+        }
     }
 }

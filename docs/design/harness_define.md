@@ -12,7 +12,7 @@ or feedback to the model.
 
 ## 1. 术语起源与时间线
 
-"Agent harness" 是一个**非常新**的术语，2026 年 2 月才正式被 coined。
+"Agent harness" 是一个非常新的术语。"harness" 在 agent 语境中的系统使用始于 2025-11-26,而 "harness engineering" 这一说法直到 2026-02-05 才被提出。
 
 | 时间 | 事件 | 来源 |
 |------|------|------|
