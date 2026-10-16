@@ -2108,4 +2108,1154 @@ mod tests {
             "repo-supervisor"
         );
     }
+
+    #[test]
+    fn attach_guard_drop_signals_and_joins_its_thread() {
+        let stop = Arc::new(AtomicBool::new(false));
+        let observed = stop.clone();
+        let thread_stop = stop.clone();
+        let thread = std::thread::spawn(move || {
+            for _ in 0..1000 {
+                if thread_stop.load(Ordering::SeqCst) {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+        });
+        let guard = AttachGuard {
+            stop,
+            thread: Some(thread),
+            control: None,
+        };
+        assert!(guard.engine_control().is_none());
+        drop(guard);
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "dropping the guard must request the auto-attach watcher to stop"
+        );
+    }
+
+    #[test]
+    fn append_delta_gate_from_config_maps_each_field() {
+        // `AppendDeltaApprovalGate::from_config` copies every knob out of the
+        // parsed YAML config, so the gate must accept an approver listed in
+        // `allowed_approvers` and reject an unknown one. No base or branch test
+        // calls `from_config`.
+        let config = crate::config::AppendDeltaApprovalConfig {
+            required: true,
+            require_approval_ref: true,
+            require_generated_by: false,
+            allowed_approvers: vec!["repo-supervisor".to_string()],
+        };
+        let gate = AppendDeltaApprovalGate::from_config(&config);
+
+        let accepted = gate.evaluate(&PolicyAuditMeta {
+            approved_by: Some("repo-supervisor".to_string()),
+            approval_ref: Some("ticket-7".to_string()),
+            ..PolicyAuditMeta::default()
+        });
+        assert!(accepted.accepted, "{:?}", accepted.rejection_reason);
+        assert!(accepted.enforced && accepted.required);
+        assert!(accepted.missing_fields.is_empty());
+        assert_eq!(
+            accepted.allowed_approvers,
+            vec!["repo-supervisor".to_string()]
+        );
+
+        let unknown = gate.evaluate(&PolicyAuditMeta {
+            approved_by: Some("someone-else".to_string()),
+            approval_ref: Some("ticket-7".to_string()),
+            ..PolicyAuditMeta::default()
+        });
+        assert!(!unknown.accepted);
+        assert!(
+            unknown.rejection_reason.as_deref().is_some_and(
+                |r| r.contains("not in runtime.approval.append_delta.allowed_approvers")
+            ),
+            "{:?}",
+            unknown.rejection_reason
+        );
+    }
+
+    #[test]
+    fn runtime_approval_policy_wires_append_delta_gate_from_config() {
+        // `RuntimeApprovalPolicy::from_loaded_policy` (via the
+        // `AppendDeltaApprovalGate::from_config` copy) wires the configured
+        // append-delta gate; none had any call in the base or branch suite.
+        let mut loaded = LoadedPolicy {
+            config: crate::config::FileConfig::default(),
+            root: PathBuf::new(),
+            path: None,
+        };
+        loaded.config.runtime.approval.append_delta = AppendDeltaApprovalConfig {
+            required: true,
+            require_approval_ref: true,
+            require_generated_by: false,
+            allowed_approvers: vec!["repo-supervisor".to_string()],
+        };
+
+        let policy = RuntimeApprovalPolicy::from_loaded_policy(&loaded);
+        let accepted = policy.evaluate_append_delta(&PolicyAuditMeta {
+            approved_by: Some("repo-supervisor".to_string()),
+            approval_ref: Some("ticket-7".to_string()),
+            ..PolicyAuditMeta::default()
+        });
+        assert!(accepted.enforced);
+        assert!(accepted.accepted);
+
+        let rejected = policy.evaluate_append_delta(&PolicyAuditMeta::default());
+        assert!(!rejected.accepted);
+        assert_eq!(rejected.missing_fields, vec!["approved_by", "approval_ref"]);
+
+        // A default config yields an unenforced gate.
+        let relaxed = RuntimeApprovalPolicy::from_loaded_policy(&LoadedPolicy {
+            config: crate::config::FileConfig::default(),
+            root: PathBuf::new(),
+            path: None,
+        });
+        let unenforced = relaxed.evaluate_append_delta(&PolicyAuditMeta::default());
+        assert!(!unenforced.enforced);
+        assert!(unenforced.accepted);
+    }
+    #[test]
+    fn internal_rejection_builds_a_static_rejected_evaluation() {
+        // `ApprovalEvaluation::internal_rejection` builds a deterministically
+        // rejected evaluation: nothing is enforced/required/accepted, the
+        // workflow is the static approval one, and the supplied reason is
+        // carried in `rejection_reason`. No base or branch test pins this
+        // constructor directly.
+        let ev = ApprovalEvaluation::internal_rejection("policy requires an approver".to_string());
+        assert!(!ev.enforced);
+        assert!(!ev.required);
+        assert!(!ev.accepted);
+        assert_eq!(ev.workflow, "append_delta_static_approval");
+        assert!(ev.missing_fields.is_empty());
+        assert!(ev.allowed_approvers.is_empty());
+        assert_eq!(
+            ev.rejection_reason.as_deref(),
+            Some("policy requires an approver")
+        );
+
+        // The constructor is total: an empty reason is also carried through.
+        let empty = ApprovalEvaluation::internal_rejection(String::new());
+        assert_eq!(empty.rejection_reason.as_deref(), Some(""));
+        assert!(!empty.accepted);
+    }
+
+    #[test]
+    fn approval_rejection_records_reason_without_enforcement() {
+        let gate = AppendDeltaApprovalGate {
+            required: true,
+            require_approval_ref: false,
+            require_generated_by: false,
+            allowed_approvers: Vec::new(),
+        };
+        let meta = PolicyAuditMeta {
+            policy_ref: None,
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        let approval = gate.evaluate(&meta);
+        assert_eq!(approval.workflow, "append_delta_static_approval");
+        assert_eq!(approval.missing_fields, vec!["approved_by"]);
+        assert_eq!(
+            approval.rejection_reason.as_deref(),
+            Some("append policy delta requires approval metadata: missing approved_by")
+        );
+
+        let mut record = json!({});
+        apply_policy_audit_meta(&mut record, &meta, Some(&approval));
+        assert_eq!(record["approval_chain"]["enforced"], true);
+        assert_eq!(record["approval_chain"]["required"], true);
+        assert_eq!(record["approval_chain"]["decision"], "rejected");
+        assert_eq!(record["approval_chain"]["missing_fields"][0], "approved_by");
+        assert_eq!(
+            record["approval_chain"]["rejection_reason"],
+            "append policy delta requires approval metadata: missing approved_by"
+        );
+    }
+
+    #[test]
+    fn approval_chain_omitted_without_metadata_or_enforcement() {
+        let meta = PolicyAuditMeta {
+            policy_ref: Some("policy-delta.dsl".to_string()),
+            approved_by: None,
+            approval_ref: None,
+            generated_by: None,
+        };
+        let mut record = json!({});
+        apply_policy_audit_meta(&mut record, &meta, None);
+        assert_eq!(record["policy_ref"], "policy-delta.dsl");
+        assert!(record.get("approval_chain").is_none());
+    }
+
+    #[test]
+    fn have_bpf_caps_is_true_for_root_and_tracks_cap_eff_bits() {
+        if unsafe { libc::geteuid() } == 0 {
+            assert!(have_bpf_caps(), "root always has BPF caps");
+            return;
+        }
+        let eff = std::fs::read_to_string("/proc/self/status")
+            .ok()
+            .and_then(|s| {
+                s.lines()
+                    .find_map(|l| l.strip_prefix("CapEff:"))
+                    .and_then(|h| u64::from_str_radix(h.trim(), 16).ok())
+            })
+            .unwrap_or(0);
+        let expected = eff & (1u64 << 39) != 0 && eff & (1u64 << 21) != 0;
+        assert_eq!(have_bpf_caps(), expected, "CapEff {eff:#x} must decide");
+    }
+
+    #[test]
+    fn bpf_cap_gate_is_a_noop_once_caps_are_present() {
+        // Only probe the pass-through arm: without caps the gate either re-execs
+        // through sudo or exits the process, so it cannot be observed in-process.
+        if !have_bpf_caps() {
+            return;
+        }
+        let extra = [("ACT_PLANE_PROBE", "1".to_string())];
+        let result = require_bpf_caps_or_elevate_with_env(false, &extra);
+        assert!(
+            result.is_ok(),
+            "caps present means no elevation: {result:?}"
+        );
+    }
+
+    #[test]
+    fn catalog_from_compiled_gates_and_appends_outputs() {
+        // `RuntimePolicyCatalog::from_compiled` seeds rules + labels for one
+        // domain and `append_outputs` gates on domain/rule then writes the
+        // feedback and event files; none had any call.
+        let compiled = dsl::Compiled {
+            bytes: vec![],
+            reasons: vec!["why".to_string()],
+            meta: vec![dsl::RuleMeta {
+                name: "r".to_string(),
+                reason: "why".to_string(),
+                effect: dsl::ast::Effect::Kill,
+                ops: vec!["exec".to_string()],
+                clause_op: "exec".to_string(),
+                clause_source_index: 0,
+                kernel_op: "exec".to_string(),
+                target_kind: dsl::ast::Kind::Exec,
+                target_pattern: "git".to_string(),
+                target_arg: None,
+                source: None,
+            }],
+            labels: HashMap::from([("LOCAL_SECRET".to_string(), 1u64)]),
+            endpoint_resolutions: HashMap::new(),
+        };
+        let domain_id = 9u32;
+        let catalog = RuntimePolicyCatalog::from_compiled(&compiled, domain_id);
+
+        let dir = std::env::temp_dir().join(format!("actplane-catalog-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let feedback = dir.join("feedback.txt");
+        let events = dir.join("events.jsonl");
+
+        let violation = |rule_id: usize, domain_id: Option<u32>| {
+            let mut value = json!({
+                "pid": 10,
+                "ppid": 1,
+                "comm": "git",
+                "target": "git",
+                "rule_id": rule_id,
+                "op": 0,
+                "session_root": 10,
+                "effect": "kill",
+                "blocked": false,
+                "killed": true,
+                "taint_label": 1u64,
+                "matched_label": 1u64,
+            });
+            value["domain_id"] = match domain_id {
+                Some(id) => json!(id),
+                None => serde_json::Value::Null,
+            };
+            // Provenance label exercises the compiled label table (bit 1 ->
+            // LOCAL_SECRET) in the feedback payload.
+            value["provenance"] = json!({
+                "label": 1u64,
+                "timestamp_ns": 42u64,
+                "pid": 9,
+                "op": 0,
+                "target": "git",
+            });
+            serde_json::from_value::<report::Violation>(value).unwrap()
+        };
+
+        // Matching rule + registered domain writes both outputs.
+        catalog.append_outputs(&violation(0, Some(domain_id)), &feedback, &events);
+        assert!(feedback.is_file());
+        assert!(events.is_file());
+        assert!(
+            std::fs::read_to_string(&feedback)
+                .unwrap()
+                .contains("LOCAL_SECRET")
+        );
+
+        // Unregistered domain is dropped.
+        let _ = std::fs::remove_file(&feedback);
+        catalog.append_outputs(&violation(0, Some(domain_id + 1)), &feedback, &events);
+        assert!(!feedback.exists());
+
+        // Out-of-range rule id has no feedback context, so no feedback is
+        // written (only the event file still records the violation).
+        catalog.append_outputs(&violation(99, Some(domain_id)), &feedback, &events);
+        assert!(!feedback.exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn catalog_register_domain_tracks_labels_and_gates_outputs() {
+        // `RuntimePolicyCatalog::register_domain` registers a domain's label
+        // set only when absent, while `append_outputs` drops violations whose
+        // domain was never registered. `register_domain` has no direct caller
+        // in the base or branch tests.
+        let compiled = dsl::compile_str("rule r:\n  block exec \"x\"\n").expect("compile");
+        let catalog = RuntimePolicyCatalog::from_compiled(&compiled, 7);
+        let inner = || catalog.inner.read().expect("lock");
+        assert_eq!(inner().domain_labels.get(&7).map(HashMap::len), Some(0));
+        assert!(!inner().domain_labels.contains_key(&9));
+
+        catalog.register_domain(9).expect("register");
+        assert!(inner().domain_labels.contains_key(&9));
+        assert_eq!(inner().domain_labels.get(&9).map(HashMap::len), Some(0));
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = dir.path().join("feedback.txt");
+        let events = dir.path().join("events.jsonl");
+        let engine_violation = |domain_id: u32| ebpf_ifc_engine::Violation {
+            effect: 0,
+            blocked: false,
+            killed: false,
+            comm: "git".to_string(),
+            pid: 10,
+            ppid: 1,
+            target: "git".to_string(),
+            rule_id: 0,
+            op: 0,
+            domain_id,
+            session_root: 10,
+            label: 1,
+            matched_label: 1,
+            matched_labels: 1,
+            provenance: None,
+            timestamp_ns: 0,
+        };
+        let violation = to_violation(&engine_violation(9));
+        catalog.append_outputs(&violation, &feedback, &events);
+        assert!(feedback.exists(), "registered domain emits feedback");
+
+        let before = std::fs::read_to_string(&feedback).unwrap();
+        let unregistered = to_violation(&engine_violation(1234));
+        catalog.append_outputs(&unregistered, &feedback, &events);
+        assert_eq!(
+            std::fs::read_to_string(&feedback).unwrap(),
+            before,
+            "unregistered domain is dropped"
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn chown_path_reports_missing_paths_and_accepts_existing_ones() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let file = tmp.path().join("owned.txt");
+        std::fs::write(&file, b"x").expect("write");
+        let uid = unsafe { libc::getuid() };
+        let gid = unsafe { libc::getgid() };
+        chown_path(&file, uid, gid).expect("chown existing file");
+
+        let missing = tmp.path().join("missing.txt");
+        let err = chown_path(&missing, uid, gid).unwrap_err();
+        assert_eq!(err.raw_os_error(), Some(libc::ENOENT));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn target_user_needs_root_with_sudo_ids() {
+        assert_eq!(target_user(true), None);
+        if unsafe { libc::geteuid() } != 0 {
+            assert_eq!(target_user(false), None);
+            return;
+        }
+        // Root without SUDO_UID/SUDO_GID falls back to the real ids.
+        let saved = (
+            std::env::var("SUDO_UID").ok(),
+            std::env::var("SUDO_GID").ok(),
+        );
+        unsafe {
+            std::env::remove_var("SUDO_UID");
+            std::env::remove_var("SUDO_GID");
+        }
+        assert_eq!(target_user(false), None);
+        unsafe {
+            std::env::set_var("SUDO_UID", "12345");
+            std::env::set_var("SUDO_GID", "678");
+        }
+        assert_eq!(target_user(false), Some((12345, 678)));
+        unsafe {
+            match saved.0 {
+                Some(v) => std::env::set_var("SUDO_UID", v),
+                None => std::env::remove_var("SUDO_UID"),
+            }
+            match saved.1 {
+                Some(v) => std::env::set_var("SUDO_GID", v),
+                None => std::env::remove_var("SUDO_GID"),
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn mark_non_stdio_fds_cloexec_flags_open_descriptors() {
+        use std::os::fd::AsRawFd;
+
+        let file = tempfile::tempfile().expect("tempfile");
+        let fd = file.as_raw_fd();
+        // Rust opens files with O_CLOEXEC, so clear it to observe the sweep.
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+        assert!(unsafe { libc::fcntl(fd, libc::F_SETFD, flags & !libc::FD_CLOEXEC) } >= 0);
+        assert_eq!(
+            unsafe { libc::fcntl(fd, libc::F_GETFD) } & libc::FD_CLOEXEC,
+            0
+        );
+
+        mark_non_stdio_fds_cloexec().expect("mark cloexec");
+        assert!(unsafe { libc::fcntl(fd, libc::F_GETFD) } & libc::FD_CLOEXEC != 0);
+        for stdio in [libc::STDIN_FILENO, libc::STDOUT_FILENO, libc::STDERR_FILENO] {
+            assert_eq!(
+                unsafe { libc::fcntl(stdio, libc::F_GETFD) } & libc::FD_CLOEXEC,
+                0
+            );
+        }
+    }
+    #[test]
+    fn control_plane_cap_state_grants_the_control_plane_authority_set() {
+        // `control_plane_cap_state` builds the capability state the control
+        // plane runs with, from a caller's label. It grants a fixed
+        // authority set, restricts targets to self + child, and widens the
+        // gate/label masks. No base or branch test pins this mapping directly.
+        let label = 0b101u64;
+        let caps = control_plane_cap_state(label);
+
+        // The caller label is carried through verbatim.
+        assert_eq!(caps.labels, label);
+
+        // The control plane always runs in scope 1, from the root.
+        assert_eq!(caps.scope_id, 1);
+        assert_eq!(caps.parent, 0);
+
+        // The granted authority set: bind/narrow/add-label/require-gate/
+        // declassify/delegate, and no other authority.
+        let granted = AUTH_BIND_RULE
+            | AUTH_NARROW_SCOPE
+            | AUTH_ADD_LABEL
+            | AUTH_REQUIRE_GATE
+            | AUTH_DECLASSIFY
+            | AUTH_DELEGATE;
+        assert_eq!(caps.authority_mask, granted);
+        // Restriction authority is deliberately not granted to the control plane.
+        assert_eq!(
+            caps.authority_mask & ebpf_ifc_engine::capability::AUTH_ADD_RESTRICTION,
+            0
+        );
+
+        // Targets are limited to self and children; gate/label masks are wide.
+        assert_eq!(caps.target_mask, TARGET_SELF | TARGET_CHILD);
+        assert_eq!(caps.gate_mask, u64::MAX);
+        assert_eq!(caps.label_mask, u64::MAX);
+        // The restrict mask is not touched.
+        assert_eq!(caps.restrict_mask, 0);
+    }
+
+    #[test]
+    fn fresh_runtime_domain_id_is_even_nonzero_and_varies() {
+        // `fresh_runtime_domain_id` hashes time/pid/salt into a domain id that
+        // avoids the reserved global id and stays non-zero; no base or branch
+        // test calls it directly.
+        let id = fresh_runtime_domain_id(4242, 7);
+        assert!(id != 0 && id != GLOBAL_ACTIVE_DOMAIN_ID);
+        assert_eq!(id & 1, 0, "low bit is cleared");
+        // The fallback branch (triggered by a zero or reserved id) forces the
+        // odd `salt | 1` marker, so it can never collide with the reserved id.
+        assert_ne!(fresh_runtime_domain_id(0, 0), GLOBAL_ACTIVE_DOMAIN_ID);
+        let a = fresh_runtime_domain_id(100, 1);
+        let b = fresh_runtime_domain_id(200, 2);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn target_user_requires_root_euid_and_sudo_env() {
+        // `target_user` only consults SUDO_UID/SUDO_GID when running as root;
+        // `run_as_root` short-circuits to None immediately. No base or branch
+        // test calls it.
+        assert_eq!(target_user(true), None);
+        let euid = unsafe { libc::geteuid() };
+        let saved = (
+            std::env::var("SUDO_UID").ok(),
+            std::env::var("SUDO_GID").ok(),
+        );
+        if euid == 0 {
+            unsafe { std::env::set_var("SUDO_UID", "1234") };
+            unsafe { std::env::set_var("SUDO_GID", "5678") };
+            assert_eq!(target_user(false), Some((1234, 5678)));
+            unsafe { std::env::set_var("SUDO_UID", "not-a-number") };
+            assert_eq!(target_user(false), None);
+        } else {
+            // Non-root euid short-circuits regardless of the env vars.
+            unsafe { std::env::set_var("SUDO_UID", "1234") };
+            unsafe { std::env::set_var("SUDO_GID", "5678") };
+            assert_eq!(target_user(false), None);
+        }
+        match saved.0 {
+            Some(v) => unsafe { std::env::set_var("SUDO_UID", v) },
+            None => unsafe { std::env::remove_var("SUDO_UID") },
+        }
+        match saved.1 {
+            Some(v) => unsafe { std::env::set_var("SUDO_GID", v) },
+            None => unsafe { std::env::remove_var("SUDO_GID") },
+        }
+    }
+    #[test]
+    fn effect_name_maps_each_effect_to_its_feedback_verb() {
+        // `effect_name` maps each `dsl::ast::Effect` to the feedback verb the
+        // audit metadata reports for it. No base or branch test pins this
+        // mapping directly.
+        assert_eq!(effect_name(dsl::ast::Effect::Notify), "notify");
+        assert_eq!(effect_name(dsl::ast::Effect::Block), "block");
+        assert_eq!(effect_name(dsl::ast::Effect::Kill), "kill");
+    }
+
+    #[test]
+    fn exit_code_reports_normal_and_signal_termination() {
+        // `exit_code` normalizes a process ExitStatus; no base or branch test
+        // calls it.
+        use std::os::unix::process::ExitStatusExt;
+        assert_eq!(exit_code(std::process::ExitStatus::from_raw(0)), 0);
+        assert_eq!(exit_code(std::process::ExitStatus::from_raw(7 << 8)), 7);
+        assert_eq!(exit_code(std::process::ExitStatus::from_raw(9)), 137);
+    }
+
+    #[test]
+    fn scoped_feedback_paths_rebase_under_run_dir() {
+        // `scoped_feedback_paths` moves feedback artifacts into a per-run dir;
+        // no base or branch test calls it.
+        let base = FeedbackPaths {
+            feedback: PathBuf::from("/tmp/proj/.actplane/feedback.txt"),
+            state: PathBuf::from("/tmp/proj/.actplane/hook-state.json"),
+            audit: PathBuf::from("/tmp/proj/.actplane/audit.jsonl"),
+            events: PathBuf::from("/tmp/proj/.actplane/events.jsonl"),
+        };
+        let scoped = scoped_feedback_paths(&base, "mcp");
+        let run_dir = PathBuf::from("/tmp/proj/.actplane/runs");
+        let child_dir = scoped.feedback.parent().unwrap();
+        assert_eq!(child_dir.parent().unwrap(), run_dir);
+        assert!(
+            child_dir
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("mcp-")
+        );
+        assert_eq!(scoped.feedback.file_name().unwrap(), "feedback.txt");
+        assert_eq!(scoped.state.file_name().unwrap(), "hook-state.json");
+        assert_eq!(scoped.audit.file_name().unwrap(), "audit.jsonl");
+        assert_eq!(scoped.events.file_name().unwrap(), "events.jsonl");
+    }
+
+    #[test]
+    fn have_bpf_caps_reflects_euid_and_capeff_bits() {
+        // `have_bpf_caps` is root-short-circuited and otherwise requires both
+        // CAP_BPF (39) and CAP_SYS_ADMIN (21) to be effective. This recomputes
+        // the same predicate from /proc/self/status independently. No base or
+        // branch test calls `have_bpf_caps`.
+        let euid = unsafe { libc::geteuid() };
+        let eff = std::fs::read_to_string("/proc/self/status")
+            .ok()
+            .and_then(|s| {
+                s.lines()
+                    .find_map(|l| l.strip_prefix("CapEff:"))
+                    .and_then(|h| u64::from_str_radix(h.trim(), 16).ok())
+            })
+            .unwrap_or(0);
+        let has = |bit: u32| eff & (1u64 << bit) != 0;
+        let expected = euid == 0 || (has(39) && has(21));
+        assert_eq!(have_bpf_caps(), expected);
+    }
+
+    #[test]
+    fn runner_label_prefers_command_then_agent() {
+        let command = dsl::compile_str("source COMMAND = exec \"**\"\n").expect("compile");
+        assert_eq!(
+            runner_label(&command).expect("COMMAND label"),
+            command.labels["COMMAND"]
+        );
+
+        let both =
+            dsl::compile_str("source AGENT = exec \"**/a\"\nsource COMMAND = exec \"**/c\"\n")
+                .expect("compile");
+        assert_eq!(
+            runner_label(&both).expect("COMMAND wins"),
+            both.labels["COMMAND"]
+        );
+
+        let agent = dsl::compile_str("source AGENT = exec \"**/claude\"\n").expect("compile");
+        assert_eq!(
+            runner_label(&agent).expect("AGENT fallback"),
+            agent.labels["AGENT"]
+        );
+
+        let bare = dsl::compile_str("rule r:\n  notify exec \"git\" if true\n  because \"x\"\n")
+            .expect("compile");
+        let err = runner_label(&bare).err().expect("no runner label");
+        assert!(
+            err.to_string().contains("label COMMAND"),
+            "unexpected: {err}"
+        );
+    }
+
+    #[test]
+    fn load_child_policy_deltas_reads_files_and_labels_inline() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("d.dsl");
+        std::fs::write(
+            &file,
+            "rule d:\n  notify exec \"x\" if true\n  because \"y\"\n",
+        )
+        .expect("write");
+        let deltas =
+            load_child_policy_deltas(std::slice::from_ref(&file), &["inline-dsl".to_string()])
+                .expect("deltas");
+        assert_eq!(deltas.len(), 2);
+        assert_eq!(deltas[0].0, file.display().to_string());
+        assert!(deltas[0].1.contains("rule d:"));
+        assert_eq!(deltas[1].0, "--delta-text[0]");
+        assert_eq!(deltas[1].1, "inline-dsl");
+
+        let missing = dir.path().join("missing.dsl");
+        let err = load_child_policy_deltas(std::slice::from_ref(&missing), &[])
+            .err()
+            .expect("missing delta");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("cannot read child policy delta"),
+            "unexpected: {msg}"
+        );
+        assert!(
+            msg.contains(&missing.display().to_string()),
+            "unexpected: {msg}"
+        );
+    }
+
+    #[test]
+    fn json_i32_accepts_only_in_range_integers() {
+        assert_eq!(json_i32(&json!(42)), Some(42));
+        assert_eq!(json_i32(&json!(-1)), Some(-1));
+        assert_eq!(json_i32(&json!(2147483648i64)), None);
+        assert_eq!(json_i32(&json!("42")), None);
+        assert_eq!(json_i32(&json!(null)), None);
+    }
+
+    #[test]
+    fn scoped_feedback_paths_scope_under_a_run_directory() {
+        let base = FeedbackPaths {
+            feedback: PathBuf::from("/repo/run/feedback.txt"),
+            state: PathBuf::from("/repo/run/hook-state.json"),
+            audit: PathBuf::from("/repo/run/audit.jsonl"),
+            events: PathBuf::from("/repo/run/events.jsonl"),
+        };
+        let scoped = scoped_feedback_paths(&base, "mcp");
+        assert!(
+            scoped
+                .feedback
+                .display()
+                .to_string()
+                .starts_with("/repo/run/runs/mcp-")
+        );
+        assert_eq!(scoped.feedback.file_name().unwrap(), "feedback.txt");
+        assert_eq!(scoped.audit.file_name().unwrap(), "audit.jsonl");
+        assert_eq!(scoped.state.file_name().unwrap(), "hook-state.json");
+        assert_eq!(scoped.events.file_name().unwrap(), "events.jsonl");
+        assert_ne!(scoped.feedback, base.feedback);
+    }
+    #[test]
+    fn json_i32_reads_in_range_integers_and_rejects_the_rest() {
+        // `json_i32` narrows a JSON integer to `i32`: an in-range i64 value
+        // yields `Some(n)`, an out-of-range i64 yields `None`, and any
+        // non-integer JSON value yields `None`. No base or branch test pins
+        // this helper directly.
+        use serde_json::Value;
+
+        assert_eq!(json_i32(&Value::from(42i64)), Some(42));
+        assert_eq!(json_i32(&Value::from(0i64)), Some(0));
+        assert_eq!(json_i32(&Value::from(-7i64)), Some(-7));
+        // Boundaries: `i32::MAX` and `i32::MIN` fit.
+        assert_eq!(json_i32(&Value::from(i32::MAX as i64)), Some(i32::MAX));
+        assert_eq!(json_i32(&Value::from(i32::MIN as i64)), Some(i32::MIN));
+        // Just outside the i32 range: no fit.
+        assert_eq!(json_i32(&Value::from(i32::MAX as i64 + 1)), None);
+        assert_eq!(json_i32(&Value::from(i32::MIN as i64 - 1)), None);
+        // Non-integer JSON values are not i32.
+        assert_eq!(json_i32(&serde_json::json!("7")), None);
+        assert_eq!(json_i32(&serde_json::json!(1.5)), None);
+        assert_eq!(json_i32(&Value::Null), None);
+        assert_eq!(json_i32(&serde_json::json!(true)), None);
+    }
+
+    #[test]
+    fn kill_process_group_and_wait_reaps_group() {
+        // Some sandboxes deny signals to non-root processes (EPERM on `kill`);
+        // probe empirically on a short-lived group-led child.
+        let can_signal = {
+            let mut probe = std::process::Command::new("/bin/sh");
+            probe
+                .arg("-c")
+                .arg("sleep 5")
+                .process_group(0)
+                .stdout(std::process::Stdio::null());
+            let mut child = probe.spawn().expect("probe spawn");
+            let pid = child.id() as i32;
+            let rc = unsafe { libc::kill(-pid, libc::SIGKILL) };
+            let _ = child.wait().expect("probe wait");
+            rc == 0
+        };
+
+        // `kill_process_group_and_wait` SIGKILLs the child's whole process
+        // group and then reaps the child. No base or branch test calls it.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        rt.block_on(async {
+            let mut cmd = tokio::process::Command::new("/bin/sh");
+            cmd.arg("-c").arg("sleep 30");
+            cmd.process_group(0);
+            let mut child = cmd.spawn().expect("spawn");
+            let pid = child.id().expect("spawned child has a pid");
+            // `process_group(0)` makes the child its own group leader, so
+            // `send_process_group_signal(pid)` reaches the whole tree.
+            assert_eq!(
+                unsafe { libc::getpgid(pid as i32) },
+                pid as i32,
+                "child must lead its own process group"
+            );
+            let start = std::time::Instant::now();
+            kill_process_group_and_wait(&mut child).await;
+            assert!(child.id().is_none(), "child reaped after group SIGKILL");
+            if can_signal {
+                assert!(
+                    start.elapsed() < std::time::Duration::from_secs(20),
+                    "group SIGKILL terminated the child promptly"
+                );
+            }
+        });
+    }
+    #[test]
+    fn kind_name_maps_each_kind_to_its_feedback_verb() {
+        // `kind_name` maps each `dsl::ast::Kind` to the feedback target-kind
+        // word the audit metadata reports for it. No base or branch test pins
+        // this mapping directly.
+        assert_eq!(kind_name(dsl::ast::Kind::File), "file");
+        assert_eq!(kind_name(dsl::ast::Kind::Endpoint), "endpoint");
+        assert_eq!(kind_name(dsl::ast::Kind::Exec), "exec");
+    }
+
+    #[test]
+    fn legacy_shutdown_signals_listens_for_term_and_interrupt() {
+        // `legacy_shutdown_signals` installs SIGINT and SIGTERM listeners for
+        // the legacy command loop. No base or branch test calls it.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        rt.block_on(async {
+            let mut signals = legacy_shutdown_signals().expect("install signal listeners");
+            let ready =
+                tokio::time::timeout(std::time::Duration::from_millis(200), signals[1].recv())
+                    .await;
+            assert!(ready.is_err(), "no pending SIGTERM before one is delivered");
+
+            let target = std::process::id() as i32;
+            if unsafe { libc::kill(target, libc::SIGTERM) } == 0 {
+                let seen =
+                    tokio::time::timeout(std::time::Duration::from_secs(2), signals[1].recv())
+                        .await;
+                assert!(
+                    seen.is_ok(),
+                    "SIGTERM listener observed the delivered signal"
+                );
+                assert!(seen.unwrap().is_some(), "SIGTERM stream yielded an event");
+            }
+        });
+    }
+
+    #[test]
+    fn load_child_policy_deltas_collects_files_then_inline() {
+        // `load_child_policy_deltas` collects child policy deltas from files
+        // followed by inline sources; no base or branch test calls it.
+        let dir = std::env::temp_dir().join(format!("actplane-deltas-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let a = dir.join("a.dsl");
+        let b = dir.join("b.dsl");
+        std::fs::write(&a, "rule a:\n  block exec \"git\"\n").unwrap();
+        std::fs::write(&b, "rule b:\n  kill write file \"/**\"\n").unwrap();
+
+        let deltas = load_child_policy_deltas(
+            &[a.clone(), b.clone()],
+            &["rule c:\n  notify connect endpoint \"*\"\n".to_string()],
+        )
+        .expect("deltas");
+        assert_eq!(deltas.len(), 3);
+        assert_eq!(deltas[0].0, a.display().to_string());
+        assert!(deltas[0].1.contains("rule a"));
+        assert_eq!(deltas[1].0, b.display().to_string());
+        assert!(deltas[1].1.contains("rule b"));
+        assert_eq!(deltas[2].0, "--delta-text[0]");
+        assert!(deltas[2].1.contains("rule c"));
+
+        // A missing file surfaces a read error naming the path.
+        let missing = dir.join("missing.dsl");
+        let err = load_child_policy_deltas(&[missing], &[])
+            .expect_err("missing file")
+            .to_string();
+        assert!(err.contains("cannot read child policy delta"), "{err}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn passwordless_sudo_available_matches_direct_sudo_probe() {
+        let expected = std::process::Command::new("sudo")
+            .args(["-n", "true"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        assert_eq!(passwordless_sudo_available(), expected);
+    }
+
+    #[test]
+    fn prepare_feedback_files_creates_empty_owned_files() {
+        // `prepare_feedback_files` creates each output's parent chain and
+        // truncates the feedback/audit/events files; no base or branch test
+        // calls it.
+        let dir = std::env::temp_dir().join(format!("actplane-prepare-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let paths = FeedbackPaths {
+            feedback: dir.join("run/feedback.txt"),
+            state: dir.join("run/state.json"),
+            audit: dir.join("logs/audit.jsonl"),
+            events: dir.join("logs/events.jsonl"),
+        };
+
+        prepare_feedback_files(&paths, None).expect("prepare");
+        assert!(paths.feedback.is_file());
+        assert!(paths.audit.is_file());
+        assert!(paths.events.is_file());
+        assert_eq!(std::fs::read_to_string(&paths.feedback).unwrap(), "");
+
+        // Existing content is truncated on a second prepare.
+        std::fs::write(&paths.feedback, "stale").unwrap();
+        prepare_feedback_files(&paths, None).expect("re-prepare");
+        assert_eq!(std::fs::read_to_string(&paths.feedback).unwrap(), "");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // `run_command` rejects a parent-domain request before `require_bpf_caps_or_elevate`,
+    // which calls `process::exit(1)` and so is uncatchable. This is the engine-free
+    // branch of the launch path and no base or branch test drives it.
+    #[test]
+    fn run_command_rejects_parent_domain_before_engine() {
+        let cli = PolicyInput {
+            internal_elevated: true,
+            ..PolicyInput::default()
+        };
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let err = rt
+            .block_on(run_command(&cli, &[], true))
+            .expect_err("parent domain must be rejected");
+        assert!(err.to_string().contains("--parent-domain"));
+    }
+
+    #[test]
+    fn run_id_and_attach_pid_resolution() {
+        // `run_id` mints a per-invocation id; `parent_pid` and
+        // `attach_pid_from_env_or_parent` resolve the attach target. None had
+        // any call in the base or branch suite.
+        let me = std::process::id() as i32;
+        let run = run_id("watch");
+        let suffix = run
+            .strip_prefix(&format!("watch-{me}-"))
+            .expect("run id shaped <prefix>-<pid>-<nanos>");
+        assert!(suffix.parse::<u128>().is_ok());
+
+        assert_eq!(parent_pid(), unsafe { libc::getppid() as i32 });
+
+        unsafe { std::env::set_var(ATTACH_PID_ENV, "4321") };
+        assert_eq!(attach_pid_from_env_or_parent(), 4321);
+        unsafe { std::env::remove_var(ATTACH_PID_ENV) };
+        assert_eq!(attach_pid_from_env_or_parent(), parent_pid());
+    }
+    #[test]
+    fn runner_label_prefers_command_label_over_agent() {
+        use std::collections::HashMap;
+
+        // `runner_label` resolves the label the runner attaches: the
+        // `COMMAND` label when present, else the `AGENT` fallback, else an
+        // error. No base or branch test pins this resolution directly.
+        fn with_labels(labels: HashMap<String, u64>) -> dsl::Compiled {
+            dsl::Compiled {
+                bytes: vec![],
+                reasons: vec![],
+                meta: vec![],
+                labels,
+                endpoint_resolutions: HashMap::new(),
+            }
+        }
+
+        // `COMMAND` wins when both labels are present.
+        let mut both = HashMap::new();
+        both.insert("COMMAND".to_string(), 0b01u64);
+        both.insert("AGENT".to_string(), 0b10u64);
+        assert_eq!(runner_label(&with_labels(both)).unwrap(), 0b01u64);
+
+        // With no `COMMAND`, the `AGENT` label is the fallback.
+        let mut agent_only = HashMap::new();
+        agent_only.insert("AGENT".to_string(), 0b10u64);
+        assert_eq!(runner_label(&with_labels(agent_only)).unwrap(), 0b10u64);
+
+        // Neither label: the runner label is unavailable.
+        let err = runner_label(&with_labels(HashMap::new())).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("COMMAND"));
+        assert!(msg.contains("AGENT"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn send_signal_reports_unknown_and_self_pids() {
+        // A pid well past the kernel's pid ceiling is never live.
+        let err = send_signal(99_999_999, libc::SIGCONT).unwrap_err();
+        assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
+        let err = send_process_group_signal(99_999_999, libc::SIGCONT).unwrap_err();
+        assert_eq!(err.raw_os_error(), Some(libc::ESRCH));
+
+        // Signalling our own live pid with a delivery-safe signal (SIGCONT
+        // never stops the caller) either succeeds or is refused by the
+        // sandbox, but never takes an arbitrary error path.
+        let self_pid = std::process::id();
+        if let Err(err) = send_signal(self_pid, libc::SIGCONT) {
+            assert!(
+                matches!(
+                    err.raw_os_error(),
+                    Some(libc::EACCES) | Some(libc::EPERM) | Some(libc::ESRCH)
+                ),
+                "unexpected self-signal error: {err}"
+            );
+        }
+        if let Err(err) = send_process_group_signal(self_pid, libc::SIGCONT) {
+            assert!(
+                matches!(
+                    err.raw_os_error(),
+                    Some(libc::EACCES) | Some(libc::EPERM) | Some(libc::ESRCH)
+                ),
+                "unexpected group-signal error: {err}"
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn proc_state_code_reads_own_process_state() {
+        let state = proc_state_code(std::process::id()).expect("own state");
+        assert!(
+            matches!(state, 'R' | 'S' | 'D' | 'T' | 't'),
+            "unexpected state {state:?}"
+        );
+        let err = proc_state_code(99_999_999).unwrap_err();
+        assert_eq!(err.raw_os_error(), Some(libc::ENOENT));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn wait_for_stopped_process_times_out_on_own_pid() {
+        let err =
+            wait_for_stopped_process(std::process::id(), Duration::from_millis(1)).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::TimedOut);
+        assert!(err.to_string().contains("last observed process state was"));
+    }
+
+    #[test]
+    fn spawn_stopped_target_rejects_empty_command() {
+        // `spawn_stopped_target` is the launch primitive every child domain
+        // goes through; an empty command must fail before any process is
+        // spawned. No base or branch test calls it.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = FeedbackPaths {
+            feedback: dir.path().join("feedback.json"),
+            state: dir.path().join("state.json"),
+            audit: dir.path().join("audit.ndjson"),
+            events: dir.path().join("events.ndjson"),
+        };
+        let err = spawn_stopped_target(&[], &feedback, None, false, false).unwrap_err();
+        assert!(err.to_string().contains("run requires a command"));
+    }
+
+    #[test]
+    fn spawn_stopped_target_stops_child_before_returning() {
+        // The helper must not return until the child has entered a stopped
+        // state, so the caller can bind the domain before it runs.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let feedback = FeedbackPaths {
+            feedback: dir.path().join("feedback.json"),
+            state: dir.path().join("state.json"),
+            audit: dir.path().join("audit.ndjson"),
+            events: dir.path().join("events.ndjson"),
+        };
+        let cmd = vec!["true".to_string()];
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        rt.block_on(async {
+            match spawn_stopped_target(&cmd, &feedback, None, false, false) {
+                Ok(mut child) => {
+                    let pid = child.id().expect("child has a pid");
+                    assert!(
+                        matches!(proc_state_code(pid), Ok('T') | Ok('t')),
+                        "child must be stopped on return"
+                    );
+                    // The CONT that resumes the child is denied to non-root in
+                    // some sandboxes (EPERM); tolerate it and SIGKILL as `true`
+                    // exits immediately anyway.
+                    let _ = send_signal(pid, libc::SIGCONT);
+                    let _ = send_signal(pid, libc::SIGKILL);
+                    let _ = child.wait();
+                }
+                Err(e) => {
+                    // With signals denied, the child can never be resumed; the
+                    // helper must have observed the stop within its timeout
+                    // rather than hang.
+                    assert!(
+                        e.to_string().contains("did not enter stopped state"),
+                        "unexpected spawn error: {e}"
+                    );
+                }
+            }
+        });
+    }
+    #[test]
+    fn string_missing_treats_none_empty_and_whitespace_as_missing() {
+        // `string_missing` reports whether an optional string field is
+        // effectively absent: `None`, an empty string, or a
+        // whitespace-only string all read as missing; a non-empty value does
+        // not. No base or branch test pins this helper directly.
+        assert!(string_missing(None));
+        assert!(string_missing(Some("")));
+        assert!(string_missing(Some("   ")));
+        assert!(string_missing(Some("\t\n")));
+        assert!(!string_missing(Some("x")));
+        assert!(!string_missing(Some("repo-supervisor")));
+        // Leading/trailing whitespace does not make a value present.
+        assert!(!string_missing(Some(" repo-supervisor ")));
+    }
+
+    #[test]
+    fn watch_project_dir_prefers_policy_parent_else_root() {
+        // `watch_project_dir` picks the policy file's directory, or the loaded
+        // root when no explicit path is set; no base or branch test calls it.
+        let with_path = crate::config::LoadedPolicy {
+            config: Default::default(),
+            root: PathBuf::from("/repo"),
+            path: Some(PathBuf::from("/repo/.actplane/actplane.yaml")),
+        };
+        assert_eq!(
+            watch_project_dir(&with_path),
+            PathBuf::from("/repo/.actplane")
+        );
+
+        let without_path = crate::config::LoadedPolicy {
+            config: Default::default(),
+            root: PathBuf::from("/repo"),
+            path: None,
+        };
+        assert_eq!(watch_project_dir(&without_path), PathBuf::from("/repo"));
+    }
+
+    #[test]
+    fn watch_policy_rejects_parent_domain_before_loading_any_policy() {
+        let cli = PolicyInput::default();
+        let err = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+            .block_on(watch_policy_for_pid(&cli, true, std::process::id() as i32))
+            .expect_err("parent-domain watch is rejected");
+        assert!(err.to_string().contains("--parent-domain is not supported"));
+    }
+
+    #[test]
+    fn watch_policy_rejects_an_invalid_attach_pid_without_sudo() {
+        let cli = PolicyInput::default();
+        // pid 0 and the init pid cannot host a watch attach.
+        for attach_pid in [0, 1] {
+            let err = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime")
+                .block_on(watch_policy_for_pid(&cli, false, attach_pid))
+                .expect_err("invalid attach pid is rejected");
+            assert!(
+                err.to_string().contains(&format!(
+                    "invalid parent pid for watch attach: {attach_pid}"
+                )),
+                "unexpected error: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn watch_policy_rejects_parent_domain_and_bad_attach_pid() {
+        // `watch_policy` forwards to `watch_policy_for_pid`, whose argument
+        // gates reject unsupported `--parent-domain` and an attach pid <= 1
+        // before any engine or capability work. No base or branch test calls
+        // either entry point.
+        let cli = PolicyInput {
+            rule: Some("sink exec \"x\"".to_string()),
+            ..Default::default()
+        };
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+
+        let err = rt
+            .block_on(watch_policy(&cli, true))
+            .expect_err("parent-domain unsupported");
+        assert!(
+            err.to_string().contains("--parent-domain is not supported"),
+            "{err}"
+        );
+
+        let err = rt
+            .block_on(watch_policy_for_pid(&cli, false, 1))
+            .expect_err("attach pid must exceed 1");
+        assert!(err.to_string().contains("invalid parent pid"), "{err}");
+
+        let err = rt
+            .block_on(watch_policy_for_pid(&cli, false, 0))
+            .expect_err("attach pid must exceed 1");
+        assert!(err.to_string().contains("invalid parent pid"), "{err}");
+    }
 }

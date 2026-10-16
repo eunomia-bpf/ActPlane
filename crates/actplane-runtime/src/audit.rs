@@ -181,4 +181,113 @@ mod tests {
         assert_eq!(status_numeric_field(status, "Gid:"), Some(1001));
         assert_eq!(status_numeric_field(status, "Nope:"), None);
     }
+
+    #[test]
+    fn append_with_schema_injects_defaults_and_rejects_non_objects() {
+        // `append_with_schema` stamps the timestamp/schema defaults only when
+        // absent, creates parent dirs, and rejects non-object records; no base
+        // or branch test calls it directly.
+        let dir =
+            std::env::temp_dir().join(format!("actplane-audit-schema-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = dir.join("logs/audit.jsonl");
+
+        let mut record = json!({ "event": "custom" });
+        append_with_schema(&path, "actplane.custom.v2", &mut record).expect("append");
+        let text = std::fs::read_to_string(&path).expect("read");
+        let value: Value = serde_json::from_str(text.trim()).unwrap();
+        assert_eq!(value["schema"], "actplane.custom.v2");
+        assert_eq!(value["event"], "custom");
+        assert!(value.get("timestamp_unix_ns").is_some());
+
+        // Pre-existing fields are preserved, not overwritten.
+        let mut preset = json!({ "schema": "keep.me", "timestamp_unix_ns": "1" });
+        append_with_schema(&path, "actplane.custom.v2", &mut preset).expect("append preset");
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.contains("\"schema\":\"keep.me\""));
+        assert!(text.contains("\"timestamp_unix_ns\":\"1\""));
+
+        // A non-object record errors without writing.
+        let mut array = json!([1, 2]);
+        let err = append_with_schema(&path, "s", &mut array)
+            .expect_err("array")
+            .to_string();
+        assert!(err.contains("must be a JSON object"), "{err}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn policy_hash_matches_fnv1a64_vectors() {
+        assert_eq!(policy_hash(""), "fnv1a64:cbf29ce484222325");
+        assert_eq!(policy_hash("a"), "fnv1a64:af63dc4c8601ec8c");
+        assert_eq!(policy_hash("abc"), "fnv1a64:e71fa2190541574b");
+    }
+
+    #[test]
+    fn policy_hash_handles_leading_whitespace_and_nul_bytes() {
+        assert_eq!(policy_hash(" a"), "fnv1a64:07c56707b48e65fa");
+        // NUL bytes exercise the `0x00 ^ 0x00` no-op XOR then multiply path.
+        assert_eq!(policy_hash("\0"), "fnv1a64:af63bd4c8601b7df");
+        assert_eq!(policy_hash("\0\0\0\0\0\0\0\0"), "fnv1a64:a8c7f832281a39c5");
+        assert_eq!(policy_hash("é"), "fnv1a64:0ac21707b7181e01");
+    }
+
+    #[test]
+    fn proc_readers_and_identity_to_json_use_live_process() {
+        // The existing identity tests only exercise the explicit uid/gid
+        // override; these pin the direct /proc readers and ProcessIdentity::to_json.
+        let pid = std::process::id() as i32;
+        assert!(proc_start_time_for_pid(pid).is_some());
+        assert_eq!(
+            proc_status_uid_gid(pid),
+            (
+                Some(unsafe { libc::geteuid() }),
+                Some(unsafe { libc::getegid() }),
+            )
+        );
+        assert!(proc_comm(pid).is_some());
+        assert!(proc_exe(pid).is_some());
+
+        let identity = ProcessIdentity::capture(pid, None, None);
+        let value = identity.to_json();
+        assert_eq!(value["pid"], pid);
+        assert!(value["stable_id"].as_str().unwrap().starts_with("pid:"));
+        assert_eq!(
+            value["uid"].as_u64(),
+            Some(u64::from(unsafe { libc::geteuid() }))
+        );
+    }
+    #[test]
+    fn process_stable_id_formats_known_and_unknown_start_time() {
+        // `process_stable_id` builds the stable identifier that anchors
+        // per-process audit records to a single process incarnation. No base
+        // or branch test pins the `Some`/`None` formatting directly.
+        assert_eq!(
+            process_stable_id(42, Some(1234567890)),
+            "pid:42:start:1234567890"
+        );
+        assert_eq!(process_stable_id(42, None), "pid:42:start:unknown");
+    }
+
+    #[test]
+    fn non_object_audit_records_are_rejected() {
+        let path = tempfile::tempdir().unwrap().path().join("audit.jsonl");
+        let err = append_with_schema(&path, "actplane.audit.v1", &mut json!(5)).unwrap_err();
+        assert_eq!(err.to_string(), "JSONL record must be a JSON object");
+        assert!(!path.exists(), "rejected record must not create the file");
+    }
+
+    #[test]
+    fn audit_schema_is_overridable_and_object_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("nested/audit.jsonl");
+        let mut record = json!({"schema": "custom.v2", "timestamp_unix_ns": "1", "k": "v"});
+        append_with_schema(&path, "actplane.audit.v1", &mut record).expect("append");
+        let text = std::fs::read_to_string(&path).expect("read audit");
+        let value: Value = serde_json::from_str(text.trim()).expect("json line");
+        assert_eq!(value["schema"], "custom.v2");
+        assert_eq!(value["timestamp_unix_ns"], "1");
+        assert_eq!(value["k"], "v");
+    }
 }
