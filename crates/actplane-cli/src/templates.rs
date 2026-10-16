@@ -698,4 +698,130 @@ mod tests {
             .to_string();
         assert!(err.contains("unsupported by the current DSL string syntax"));
     }
+
+    #[test]
+    fn mediation_template_renders_override_and_compiles() {
+        let template = get("prod-db-via-migrate").unwrap();
+        let rendered = render_dsl(
+            template,
+            &[
+                "database_path=db/prod.sqlite".into(),
+                "mediator_exec=**/migrate-tool".into(),
+            ],
+        )
+        .unwrap();
+        assert!(rendered.contains("rule prod-db-via-migrate:"));
+        assert!(rendered.contains("block open file \"db/prod.sqlite\" if true"));
+        assert!(rendered.contains("unless lineage-includes exec \"**/migrate-tool\""));
+        assert!(
+            rendered.contains("because \"Access db/prod.sqlite only through **/migrate-tool.\"")
+        );
+        dsl::compile_str(&rendered).unwrap();
+    }
+    #[test]
+    fn split_list_splits_and_rejects_empty_items() {
+        // `split_list` splits on commas and trims each item. A trailing or
+        // doubled comma leaves an empty item, which is rejected. No base or
+        // branch test pins this helper directly.
+        // The `crate::Result` error type is a boxed dyn error (not
+        // `PartialEq`), so compare the unwrapped `Ok` value.
+        assert_eq!(
+            split_list("a, b ,c").expect("a, b ,c should parse"),
+            vec!["a", "b", "c"]
+        );
+        assert_eq!(
+            split_list("single").expect("single should parse"),
+            vec!["single"]
+        );
+
+        // A trailing comma, a doubled comma, and empty input all yield an
+        // empty item and are rejected.
+        assert!(split_list("a,b,").is_err());
+        assert!(split_list("a,,b").is_err());
+        assert!(split_list("").is_err());
+    }
+
+    #[test]
+    fn validate_value_rejects_empty_and_dsl_metacharacters() {
+        assert!(validate_value("k", "ok").is_ok());
+        for bad in ["", "a\"b", "a\nb", "a\rb", "a{b", "a}b"] {
+            let err = validate_value("k", bad).unwrap_err().to_string();
+            assert!(
+                err.contains("parameter `k`"),
+                "unexpected message for {bad:?}: {err}"
+            );
+        }
+        assert_eq!(
+            validate_value("k", "").unwrap_err().to_string(),
+            "parameter `k` must not be empty"
+        );
+        assert_eq!(
+            validate_value("k", "a{b").unwrap_err().to_string(),
+            "parameter `k` contains characters unsupported by the current DSL string syntax"
+        );
+    }
+
+    #[test]
+    fn split_list_trims_items_and_rejects_empties() {
+        assert_eq!(split_list("a,b,c").unwrap(), vec!["a", "b", "c"]);
+        assert_eq!(split_list(" a , b ").unwrap(), vec!["a", "b"]);
+        assert_eq!(split_list("a").unwrap(), vec!["a"]);
+        assert_eq!(
+            split_list("a,,b").unwrap_err().to_string(),
+            "comma-separated template parameters must not contain empty items"
+        );
+        assert_eq!(
+            split_list("").unwrap_err().to_string(),
+            "comma-separated template parameters must not contain empty items"
+        );
+        assert_eq!(
+            split_list(" ").unwrap_err().to_string(),
+            "comma-separated template parameters must not contain empty items"
+        );
+    }
+    #[test]
+    fn validate_value_rejects_unsupported_characters() {
+        // `validate_value` accepts a non-empty template parameter value and
+        // rejects empty values plus any character the current DSL string
+        // syntax cannot carry. No base or branch test pins this validator
+        // directly.
+        assert!(validate_value("agent_exec", "codex").is_ok());
+        assert!(validate_value("agent_exec", "a/b c-9").is_ok());
+
+        // Empty value is rejected.
+        assert!(validate_value("agent_exec", "").is_err());
+
+        // Each unsupported character is rejected.
+        for bad in ["a\"b", "a\nb", "a\rb", "a{b", "a}b"] {
+            assert!(
+                validate_value("agent_exec", bad).is_err(),
+                "{bad:?} should be rejected"
+            );
+        }
+    }
+    #[test]
+    fn template_values_fills_defaults_and_applies_overrides() {
+        let template = get("test-before-commit").unwrap();
+        let values = template_values(template, &[]).unwrap();
+        assert_eq!(
+            values,
+            BTreeMap::from([
+                ("agent_exec".to_string(), "**".to_string()),
+                ("test_exec".to_string(), "**/pytest".to_string()),
+                ("changed_paths".to_string(), "src/**,tests/**".to_string()),
+            ])
+        );
+
+        let values = template_values(
+            template,
+            &[
+                "agent_exec=codex".to_string(),
+                "test_exec=**/pnpm".to_string(),
+            ],
+        )
+        .unwrap();
+        assert_eq!(values["agent_exec"], "codex");
+        assert_eq!(values["test_exec"], "**/pnpm");
+        assert_eq!(values["changed_paths"], "src/**,tests/**");
+    }
 }

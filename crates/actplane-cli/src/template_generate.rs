@@ -952,4 +952,616 @@ mod tests {
                 .any(|selection| selection.id == "no-git-branch")
         );
     }
+    #[test]
+    fn append_comment_block_renders_one_line_per_source_line() {
+        let mut out = String::new();
+        append_comment_block(&mut out, "task", "first\nsecond");
+        assert_eq!(out, "# task: first\n# task: second\n");
+
+        let mut out2 = String::new();
+        append_comment_block(&mut out2, "task", "a\nb\n");
+        assert_eq!(out2, "# task: a\n# task: b\n");
+
+        let mut out3 = String::new();
+        append_comment_block(&mut out3, "task", "");
+        assert_eq!(out3, "# task: \n");
+    }
+
+    #[test]
+    fn dependency_scan_finds_manifests_and_skips_vendor_dirs() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        std::fs::write(root.join("Cargo.toml"), "[package]").unwrap();
+        std::fs::write(root.join("package-lock.json"), "{}").unwrap();
+        std::fs::create_dir(root.join("crates")).unwrap();
+        std::fs::create_dir(root.join("crates/app")).unwrap();
+        std::fs::write(root.join("crates/app/go.mod"), "module app").unwrap();
+
+        std::fs::create_dir(root.join("node_modules")).unwrap();
+        std::fs::write(root.join("node_modules/package.json"), "{}").unwrap();
+        std::fs::create_dir(root.join("target")).unwrap();
+        std::fs::write(root.join("target/Cargo.toml"), "[package]").unwrap();
+
+        let found = infer_dependency_paths(root);
+        let items = found.split(',').collect::<Vec<_>>();
+        assert!(items.contains(&"Cargo.toml"), "{found}");
+        assert!(items.contains(&"package-lock.json"), "{found}");
+        assert!(items.contains(&"crates/app/go.mod"), "{found}");
+        assert!(!items.iter().any(|p| p.contains("node_modules")), "{found}");
+        assert!(!items.iter().any(|p| p.starts_with("target/")), "{found}");
+    }
+
+    #[test]
+    fn dependency_scan_falls_back_to_default_globs_when_empty() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let found = infer_dependency_paths(tmp.path());
+        assert!(found.starts_with("Cargo.lock,package-lock.json"), "{found}");
+
+        assert!(is_dependency_manifest_name("Cargo.lock"));
+        assert!(is_dependency_manifest_name("pyproject.toml"));
+        assert!(!is_dependency_manifest_name("README.md"));
+        assert!(skip_dependency_scan_dir(".git"));
+        assert!(skip_dependency_scan_dir("node_modules"));
+        assert!(!skip_dependency_scan_dir("src"));
+    }
+
+    #[test]
+    fn infer_agent_exec_only_names_an_agent_when_one_is_mentioned() {
+        assert_eq!(infer_agent_exec("run codex before editing"), "codex");
+        assert_eq!(infer_agent_exec("use claude code"), "claude");
+        assert_eq!(infer_agent_exec("codex and claude both"), "**");
+        assert_eq!(infer_agent_exec("no agent named"), "**");
+    }
+
+    #[test]
+    fn infer_test_exec_prefers_explicit_phrase_then_marker_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert_eq!(infer_test_exec(tmp.path(), "run pytest first"), "**/pytest");
+        assert_eq!(infer_test_exec(tmp.path(), "then pnpm test"), "**/pnpm");
+        assert_eq!(infer_test_exec(tmp.path(), "use npm test"), "**/npm");
+        assert_eq!(infer_test_exec(tmp.path(), "run cargo test"), "**/cargo");
+        assert_eq!(infer_test_exec(tmp.path(), "go test ./..."), "**/go");
+        assert_eq!(infer_test_exec(tmp.path(), "run the suite"), "**/pytest");
+        std::fs::write(tmp.path().join("pytest.ini"), "").unwrap();
+        assert_eq!(
+            infer_test_exec(tmp.path(), "cargo test is also fine"),
+            "**/pytest"
+        );
+    }
+
+    #[test]
+    fn infer_changed_paths_uses_present_source_roots_or_a_default() {
+        let empty = tempfile::tempdir().unwrap();
+        assert_eq!(infer_changed_paths(empty.path()), "src/**,tests/**");
+
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+        std::fs::create_dir_all(tmp.path().join("tests")).unwrap();
+        std::fs::create_dir_all(tmp.path().join("cmd")).unwrap();
+        let paths = infer_changed_paths(tmp.path());
+        assert!(paths.contains("src/**"));
+        assert!(paths.contains("tests/**"));
+        assert!(paths.contains("cmd/**"));
+        assert!(!paths.contains("pkg/**"));
+    }
+
+    #[test]
+    fn infer_secret_paths_includes_secrets_dir_only_when_present() {
+        let tmp = tempfile::tempdir().unwrap();
+        let base = infer_secret_paths(tmp.path());
+        assert_eq!(base, "**/.env,**/.npmrc,**/.pypirc");
+        std::fs::create_dir(tmp.path().join("secrets")).unwrap();
+        assert!(infer_secret_paths(tmp.path()).contains("**/secrets/**"));
+    }
+
+    #[test]
+    fn mentions_push_approval_exception_needs_push_and_approval() {
+        assert!(mentions_push_approval_exception(
+            "do not git push without approval"
+        ));
+        assert!(mentions_push_approval_exception(
+            "push to main requires approval"
+        ));
+        assert!(!mentions_push_approval_exception("git push the branch"));
+        assert!(!mentions_push_approval_exception(
+            "needs approval for the change"
+        ));
+    }
+
+    #[test]
+    fn mentions_push_approval_context_accepts_short_forms() {
+        assert!(mentions_push_approval_context("push approval needed"));
+        assert!(mentions_push_approval_context("approve-push required"));
+        assert!(mentions_push_approval_context(
+            "do not git push without approval"
+        ));
+        assert!(!mentions_push_approval_context("push the branch"));
+    }
+
+    #[test]
+    fn mentions_release_protected_push_context_matches_protected_wording() {
+        assert!(mentions_release_protected_push_context(
+            "a protected branch"
+        ));
+        assert!(mentions_release_protected_push_context("push to main"));
+        assert!(mentions_release_protected_push_context(
+            "release branch rules"
+        ));
+        assert!(!mentions_release_protected_push_context(
+            "push to a feature branch"
+        ));
+    }
+
+    #[test]
+    fn mentions_protected_push_approval_combines_context_and_target() {
+        assert!(mentions_protected_push_approval(
+            "git push to main requires approval"
+        ));
+        assert!(mentions_protected_push_approval(
+            "push approval for the release branch"
+        ));
+        // Approval context from "protected push" only, which is absent from the
+        // secondary target list and is not a protected/release scope phrase.
+        assert!(!mentions_protected_push_approval(
+            "protected push needs approval"
+        ));
+        assert!(!mentions_protected_push_approval("git push the branch"));
+    }
+
+    #[test]
+    fn dependency_manifest_names_include_known_files_and_requirements_globs() {
+        assert!(is_dependency_manifest_name("Cargo.toml"));
+        assert!(is_dependency_manifest_name("go.mod"));
+        assert!(is_dependency_manifest_name("requirements.txt"));
+        assert!(is_dependency_manifest_name("requirements-dev.txt"));
+        assert!(!is_dependency_manifest_name("Cargo.lock.md"));
+        assert!(!is_dependency_manifest_name("requirements.txt.bak"));
+        assert!(!is_dependency_manifest_name("README.md"));
+    }
+
+    #[test]
+    fn skip_dependency_scan_dir_skips_only_vendored_dirs() {
+        for dir in [
+            ".git",
+            "target",
+            "node_modules",
+            ".venv",
+            "venv",
+            "__pycache__",
+        ] {
+            assert!(skip_dependency_scan_dir(dir), "{dir} should be skipped");
+        }
+        assert!(!skip_dependency_scan_dir("src"));
+        assert!(!skip_dependency_scan_dir("crates"));
+    }
+
+    #[test]
+    fn collect_dependency_paths_walks_nested_manifests_and_skips_vendored() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("Cargo.toml"), "").unwrap();
+        std::fs::create_dir_all(tmp.path().join("crates/inner")).unwrap();
+        std::fs::write(tmp.path().join("crates/inner/Cargo.lock"), "").unwrap();
+        std::fs::create_dir_all(tmp.path().join("node_modules/pkg")).unwrap();
+        std::fs::write(tmp.path().join("node_modules/pkg/package.json"), "").unwrap();
+
+        let mut out = BTreeSet::new();
+        collect_dependency_paths(tmp.path(), tmp.path(), 0, &mut out);
+        assert!(out.contains("Cargo.toml"));
+        assert!(out.contains("crates/inner/Cargo.lock"));
+        assert!(!out.iter().any(|p| p.contains("node_modules")));
+    }
+
+    #[test]
+    fn infer_protected_ref_prefers_instructions_then_head_then_main() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert_eq!(
+            infer_protected_ref(tmp.path(), "never push to main"),
+            "main"
+        );
+        assert_eq!(
+            infer_protected_ref(tmp.path(), "protect the release branch"),
+            "release"
+        );
+        assert_eq!(infer_protected_ref(tmp.path(), "no ref named"), "main");
+
+        std::fs::create_dir_all(tmp.path().join(".git")).unwrap();
+        std::fs::write(tmp.path().join(".git/HEAD"), "ref: refs/heads/develop\n").unwrap();
+        assert_eq!(infer_protected_ref(tmp.path(), "no ref named"), "develop");
+    }
+
+    #[test]
+    fn has_source_tree_detects_any_known_source_root() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(!has_source_tree(tmp.path()));
+        std::fs::create_dir(tmp.path().join("crates")).unwrap();
+        assert!(has_source_tree(tmp.path()));
+    }
+
+    #[test]
+    fn discover_instruction_files_returns_only_existing_candidates() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(discover_instruction_files(tmp.path()).is_empty());
+        std::fs::write(tmp.path().join("CLAUDE.md"), "x").unwrap();
+        std::fs::create_dir_all(tmp.path().join(".agents")).unwrap();
+        std::fs::write(tmp.path().join(".agents/AGENTS.md"), "x").unwrap();
+        let found = discover_instruction_files(tmp.path());
+        assert_eq!(found.len(), 2);
+        assert!(found.iter().any(|p| p.ends_with("CLAUDE.md")));
+        assert!(found.iter().any(|p| p.ends_with("AGENTS.md")));
+    }
+
+    #[test]
+    fn truncate_to_char_boundary_never_splits_a_codepoint() {
+        let mut ascii = "abcdef".to_string();
+        assert!(truncate_to_char_boundary(&mut ascii, 3));
+        assert_eq!(ascii, "abc");
+
+        let mut short = "abc".to_string();
+        assert!(!truncate_to_char_boundary(&mut short, 3));
+        assert_eq!(short, "abc");
+
+        // "é" is two bytes, so a byte limit landing inside it backs up one byte.
+        let mut unicode = "aé".to_string();
+        assert!(truncate_to_char_boundary(&mut unicode, 2));
+        assert_eq!(unicode, "a");
+        assert!(unicode.len() <= 2);
+    }
+
+    #[test]
+    fn mentions_helpers_match_any_listed_phrase() {
+        assert!(!mentions_any("run the tests", &["pytest", "cargo test"]));
+        assert!(mentions_any(
+            "run cargo test now",
+            &["pytest", "cargo test"]
+        ));
+    }
+
+    #[test]
+    fn mentions_no_git_push_matches_ban_phrasings() {
+        assert!(mentions_no_git_push("do not push to main"));
+        assert!(mentions_no_git_push("never push directly"));
+        assert!(mentions_no_git_push("no git push allowed"));
+        assert!(!mentions_no_git_push("push the branch when ready"));
+    }
+
+    #[test]
+    fn mentions_test_before_commit_requires_both_phrases() {
+        assert!(mentions_test_before_commit("run pytest before committing"));
+        assert!(mentions_test_before_commit("test-before-commit applies"));
+        assert!(!mentions_test_before_commit("run pytest"));
+        assert!(!mentions_test_before_commit("commit the change"));
+    }
+
+    #[test]
+    fn mentions_dependency_update_gate_needs_dependency_and_validation() {
+        assert!(mentions_dependency_update_gate("dependency-update-gate"));
+        assert!(mentions_dependency_update_gate(
+            "a lockfile change must be validated with cargo test"
+        ));
+        assert!(!mentions_dependency_update_gate(
+            "a lockfile change happens"
+        ));
+        assert!(!mentions_dependency_update_gate("run cargo test"));
+    }
+
+    #[test]
+    fn append_comment_block_prefixes_every_line_under_the_label() {
+        let mut out = String::new();
+        append_comment_block(&mut out, "why", "first\nsecond");
+        assert_eq!(out, "# why: first\n# why: second\n");
+
+        let mut empty = String::new();
+        append_comment_block(&mut empty, "why", "");
+        assert_eq!(empty, "# why: \n");
+    }
+
+    #[test]
+    fn summary_reports_id_and_first_reason() {
+        let generated = GeneratedPolicy {
+            root: PathBuf::from("."),
+            instruction_files: Vec::new(),
+            task: None,
+            templates: vec![
+                GeneratedTemplate {
+                    id: "no-git-branch",
+                    params: Vec::new(),
+                    reasons: vec!["workflow mentions branches".into(), "other".into()],
+                },
+                GeneratedTemplate {
+                    id: "dependency-gate",
+                    params: Vec::new(),
+                    reasons: Vec::new(),
+                },
+            ],
+            notes: Vec::new(),
+        };
+        assert_eq!(
+            summary(&generated),
+            vec![
+                "no-git-branch (workflow mentions branches)".to_string(),
+                "dependency-gate (selected)".to_string(),
+            ]
+        );
+        let empty = GeneratedPolicy {
+            templates: Vec::new(),
+            ..generated
+        };
+        assert!(summary(&empty).is_empty());
+    }
+    #[test]
+    fn mentions_dependency_update_gate_requires_both_contexts() {
+        // `mentions_dependency_update_gate` reports whether the lowercased
+        // task text carries a dependency-update gate: either the literal
+        // tag, or both a dependency context AND a validation context. No
+        // base or branch test pins this predicate directly.
+        // The explicit tag short-circuits the two-context requirement.
+        assert!(mentions_dependency_update_gate(
+            "use the dependency-update-gate policy"
+        ));
+
+        // Both a dependency context and a validation context present.
+        assert!(mentions_dependency_update_gate(
+            "validate the lockfile before commit"
+        ));
+        assert!(mentions_dependency_update_gate(
+            "run cargo test after the dependency update"
+        ));
+
+        // Dependency context alone, with no validation context, is not a
+        // gate.
+        assert!(!mentions_dependency_update_gate("update the dependencies"));
+        // Validation context alone, with no dependency context, is not a
+        // gate.
+        assert!(!mentions_dependency_update_gate(
+            "run the test suite before commit"
+        ));
+        assert!(!mentions_dependency_update_gate(""));
+    }
+    #[test]
+    fn dependency_manifest_name_recognizes_lockfiles_and_requirements_txt() {
+        // `is_dependency_manifest_name` matches an explicit lockfile whitelist
+        // plus any `requirements*.txt` file. No base or branch test pins this
+        // classifier directly; it is only reached through the dependency-path
+        // inference.
+        let manifest = [
+            "Cargo.lock",
+            "Cargo.toml",
+            "package-lock.json",
+            "pnpm-lock.yaml",
+            "yarn.lock",
+            "bun.lockb",
+            "package.json",
+            "go.sum",
+            "go.mod",
+            "requirements.txt",
+            "requirements-dev.txt",
+            "pyproject.toml",
+            "poetry.lock",
+            "uv.lock",
+        ];
+        for name in manifest {
+            assert!(
+                is_dependency_manifest_name(name),
+                "{name} should be a manifest"
+            );
+        }
+
+        // The `requirements*.txt` suffix rule covers arbitrary variants.
+        assert!(is_dependency_manifest_name("requirements-prod.txt"));
+        assert!(is_dependency_manifest_name("requirements-test.txt"));
+
+        // Not a manifest: wrong extension, missing suffix, or not a lockfile.
+        assert!(!is_dependency_manifest_name("Makefile"));
+        assert!(!is_dependency_manifest_name("cargo.toml")); // case-sensitive
+        assert!(!is_dependency_manifest_name("requirements")); // no .txt
+        assert!(!is_dependency_manifest_name("requirements.md"));
+        assert!(!is_dependency_manifest_name("lock.json"));
+    }
+    #[test]
+    fn infer_agent_exec_maps_task_text_to_agent_identity() {
+        // `infer_agent_exec` reads the lowercased task text and maps a
+        // codex-only mention to "codex", a claude-only mention to "claude",
+        // and anything else (no mention, or both mentioned) to the wildcard
+        // "**". No base or branch test pins this classifier directly.
+        assert_eq!(infer_agent_exec("run the codex plan"), "codex");
+        assert_eq!(infer_agent_exec("use claude to review"), "claude");
+
+        // No agent mention falls back to the wildcard.
+        assert_eq!(infer_agent_exec("apply the patch"), "**");
+
+        // Ambiguous (both named) falls back to the wildcard too.
+        assert_eq!(infer_agent_exec("codex and claude together"), "**");
+    }
+    #[test]
+    fn mentions_any_reports_first_matched_needle() {
+        // `mentions_any` reports whether any needle is a substring of the
+        // haystack; it is the primitive every `mentions_*` template predicate
+        // builds on. No base or branch test pins this helper directly.
+        assert!(mentions_any(
+            "the release branch must stay clean",
+            &["main", "release branch", "push"]
+        ));
+        // An empty needle list never matches.
+        assert!(!mentions_any("any text", &[]));
+        // An empty haystack never matches a non-empty needle list.
+        assert!(!mentions_any("", &["release"]));
+        // A partial substring match counts as a hit.
+        assert!(mentions_any("push to main", &["main"]));
+    }
+    #[test]
+    fn mentions_no_git_push_flags_push_ban_phrasings() {
+        // `mentions_no_git_push` reports whether the lowercased task text
+        // carries an absolute no-push instruction, matching a fixed set of
+        // phrasings. No base or branch test pins this predicate directly.
+        assert!(mentions_no_git_push("do not push to origin"));
+        assert!(mentions_no_git_push("never push these commits"));
+        assert!(mentions_no_git_push("forbid git push"));
+        // The backtick-wrapped phrasing is a distinct needle.
+        assert!(mentions_no_git_push("do not run `git push`"));
+
+        // A plain instruction that is not a push ban is not flagged.
+        assert!(!mentions_no_git_push(
+            "run the test suite before committing"
+        ));
+        assert!(!mentions_no_git_push(""));
+    }
+    #[test]
+    fn mentions_protected_push_approval_requires_context_and_push_or_protected() {
+        // `mentions_protected_push_approval` reports whether the lowercased
+        // task text asks for a protected-push approval: a push-approval
+        // context, AND either an explicit git-push / push-approval needle or
+        // a protected-branch / release-branch context. No base or branch
+        // test pins this predicate directly.
+        assert!(mentions_protected_push_approval(
+            "git push requires approval"
+        ));
+        assert!(mentions_protected_push_approval("approval for git push"));
+        // Push-approval context plus a protected-branch context.
+        assert!(mentions_protected_push_approval(
+            "push to master with push approval"
+        ));
+
+        // A git-push context without any push-approval context is not a
+        // match.
+        assert!(!mentions_protected_push_approval("git push the branch"));
+        assert!(!mentions_protected_push_approval(
+            "run the test suite before commit"
+        ));
+        assert!(!mentions_protected_push_approval(""));
+    }
+    #[test]
+    fn mentions_push_approval_context_matches_exception_or_approval_needles() {
+        // `mentions_push_approval_context` reports whether the lowercased
+        // task text carries a push-approval context: either a push-approval
+        // exception (push context AND approval context) or a direct
+        // approval needle. No base or branch test pins this predicate
+        // directly.
+        // The exception path (push + approval context).
+        assert!(mentions_push_approval_context("git push requires approval"));
+        // The direct-needle path.
+        assert!(mentions_push_approval_context("require push approval"));
+        assert!(mentions_push_approval_context("approval for git push"));
+
+        // A bare git-push with no approval context is not a match.
+        assert!(!mentions_push_approval_context("git push the branch"));
+        assert!(!mentions_push_approval_context(
+            "run the test suite before commit"
+        ));
+        assert!(!mentions_push_approval_context(""));
+    }
+    #[test]
+    fn mentions_push_approval_exception_requires_push_and_approval_contexts() {
+        // `mentions_push_approval_exception` reports whether the lowercased
+        // task text asks for a push-approval exception: a push context AND
+        // an approval context. No base or branch test pins this predicate
+        // directly.
+        // A push context alone, with no approval context, is not a match.
+        assert!(!mentions_push_approval_exception("git push the branch"));
+        // An approval context alone, with no push context, is not a match.
+        assert!(!mentions_push_approval_exception(
+            "approval is required for the change"
+        ));
+
+        // Both a push context and an approval context present.
+        assert!(mentions_push_approval_exception(
+            "git push requires approval"
+        ));
+        assert!(mentions_push_approval_exception("approval before git push"));
+        assert!(!mentions_push_approval_exception(""));
+    }
+    #[test]
+    fn mentions_release_protected_push_context_flags_protected_push_phrasings() {
+        // `mentions_release_protected_push_context` reports whether the
+        // lowercased task text mentions a protected-branch / release-branch
+        // push context, matching a fixed set of phrasings. No base or branch
+        // test pins this predicate directly.
+        assert!(mentions_release_protected_push_context(
+            "push to main only after review"
+        ));
+        assert!(mentions_release_protected_push_context(
+            "protect the release branch"
+        ));
+        assert!(mentions_release_protected_push_context(
+            "the protected ref must stay clean"
+        ));
+
+        // Text without a protected-push context is not flagged.
+        assert!(!mentions_release_protected_push_context(
+            "run the test suite before committing"
+        ));
+        assert!(!mentions_release_protected_push_context(""));
+    }
+    #[test]
+    fn skip_dependency_scan_dir_flags_vcs_build_and_interpreter_dirs() {
+        // `skip_dependency_scan_dir` reports whether a directory name is a
+        // VCS, build-output, or interpreter cache directory that the
+        // dependency scan must skip. No base or branch test pins this
+        // predicate directly.
+        assert!(skip_dependency_scan_dir(".git"));
+        assert!(skip_dependency_scan_dir("target"));
+        assert!(skip_dependency_scan_dir("node_modules"));
+        assert!(skip_dependency_scan_dir(".venv"));
+        assert!(skip_dependency_scan_dir("venv"));
+        assert!(skip_dependency_scan_dir("__pycache__"));
+
+        // A source directory is not skipped.
+        assert!(!skip_dependency_scan_dir("src"));
+        assert!(!skip_dependency_scan_dir("deps"));
+        assert!(!skip_dependency_scan_dir(""));
+    }
+    #[test]
+    fn mentions_test_before_commit_requires_test_and_commit_contexts() {
+        // `mentions_test_before_commit` reports whether the lowercased task
+        // text asks for a test before a commit: either the literal
+        // `test-before-commit` tag, or both a commit context and a test
+        // context. No base or branch test pins this predicate directly.
+        // The explicit tag short-circuits the two-context requirement.
+        assert!(mentions_test_before_commit(
+            "use the test-before-commit policy"
+        ));
+
+        // Both a commit context and a test context present.
+        assert!(mentions_test_before_commit(
+            "run cargo test before committing"
+        ));
+        assert!(mentions_test_before_commit("pytest before git commit"));
+
+        // A commit context alone, with no test context, is not a match.
+        assert!(!mentions_test_before_commit("run the build before commit"));
+        // A test context alone, with no commit context, is not a match.
+        assert!(!mentions_test_before_commit("run the test suite"));
+        assert!(!mentions_test_before_commit(""));
+    }
+    #[test]
+    fn truncate_to_char_boundary_backs_off_across_multi_byte_chars() {
+        // `truncate_to_char_boundary` shortens a `String` to at most
+        // `max_bytes`, stepping back off a byte that falls inside a
+        // multi-byte char so the result stays a valid string. It reports
+        // whether it changed anything. No base or branch test pins this
+        // helper directly.
+        let mut ascii = String::from("abcdefghij");
+        assert!(truncate_to_char_boundary(&mut ascii, 5));
+        assert_eq!(ascii, "abcde");
+
+        // Already within the limit: no change, reports false.
+        let mut short = String::from("abc");
+        assert!(!truncate_to_char_boundary(&mut short, 5));
+        assert_eq!(short, "abc");
+
+        // Exactly at the limit is also a no-op.
+        let mut exact = String::from("abcde");
+        assert!(!truncate_to_char_boundary(&mut exact, 5));
+        assert_eq!(exact, "abcde");
+
+        // A 2-byte char (`é`): the cut point lands mid-char, so the
+        // truncation backs off to the start of the char.
+        let mut two_byte = String::from("abé"); // 4 bytes: a b é(2)
+        assert!(truncate_to_char_boundary(&mut two_byte, 3));
+        assert_eq!(two_byte, "ab");
+
+        // A 3-byte char: backing off to a boundary can empty the string.
+        let mut three_byte = String::from("あ"); // 3 bytes
+        assert!(truncate_to_char_boundary(&mut three_byte, 2));
+        assert_eq!(three_byte, "");
+    }
 }
