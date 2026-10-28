@@ -202,7 +202,11 @@ These are incomplete accounting values when requests time out.
 
 `replay.py` starts a fresh kernel engine and independent repository copy per
 trace. Tool effects follow the artifact's passive replay implementations for
-Read, Write, Edit, and Bash. Effects become notify so the complete trace can run.
+Read, Write, Edit, and Bash. Write/Edit reuse the frozen helper body via
+`python -c`. The original runner materialized a temporary helper script per
+call. This replayer omits those preparation writes, so helper argv and setup I/O
+differ and can affect exec or broad-write policies. Bash commands are verbatim.
+Effects become notify so the complete trace can run.
 Predicates, labels, conditions, and reasons remain fixed. The root receives the
 same AGENT/COMMAND label convention as the CLI. Each worker has private network
 and mount namespaces, a short `/tmp/repo` bind mount, artifact safety shims, and
@@ -249,7 +253,8 @@ Interrupted requests with unknown usage are preserved in `interrupted-requests.c
 Kernel smoke failures are retained separately as diagnostics. Failed engine loads
 are never counted as true negatives. The behavioral sample is small, constructed,
 and selected for OS observability. It is not a held-out natural policy population.
-Prior paper translators can have corpus familiarity. Recovered fixtures, notify
+Prior paper translators can have corpus familiarity. Reusing the original
+compilation corpus does not establish generalization to unseen policy classes. Recovered fixtures, notify
 effects, compiler approximations, syscall visibility, wrapper behavior, and model
 serving defaults limit causal claims about translation quality alone. Compilation
 success does not establish faithful semantics or DSL expressivity.

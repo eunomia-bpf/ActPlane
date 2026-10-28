@@ -19,13 +19,13 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 0 / 0 of 0 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
-| zai/glm-5.3 | 34 / 38 of 38 | 0 / 0 of 0 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
-| zai/glm-5.3-flash | 33 / 38 of 38 | 0 / 0 of 0 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 10 / 13 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 25 / 0 | $0.0000 |
-| zai/glm-4.5-air | 33 / 38 of 38 | 0 / 0 of 0 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
-| gpt-6-astra | 27 / 38 of 38 | 0 / 0 of 0 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
-| claude-opus-4-6 | 30 / 38 of 38 | 0 / 0 of 0 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 6 / 8 of 8 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
+| zai/glm-5.3 | 34 / 38 of 38 | 11 / 19 of 19 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 6 / 11 of 11 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
+| zai/glm-4.7-flash | 10 / 13 of 38 | 1 / 3 of 24 | unavailable | unavailable | unavailable | 25 / 21 | $0.0000 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 3 / 8 of 8 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
+| gpt-6-astra | 27 / 38 of 38 | 30 / 55 of 60 | 43.0% | 18.4% | 0.554 | 0 / 2 | $0.3112 |
+| claude-opus-4-6 | 30 / 38 of 38 | 16 / 33 of 33 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
 | --- | --- | --- | --- | --- | --- |
@@ -145,7 +145,11 @@ These are incomplete accounting values when requests time out.
 
 `replay.py` starts a fresh kernel engine and independent repository copy per
 trace. Tool effects follow the artifact's passive replay implementations for
-Read, Write, Edit, and Bash. Effects become notify so the complete trace can run.
+Read, Write, Edit, and Bash. Write/Edit reuse the frozen helper body via
+`python -c`. The original runner materialized a temporary helper script per
+call. This replayer omits those preparation writes, so helper argv and setup I/O
+differ and can affect exec or broad-write policies. Bash commands are verbatim.
+Effects become notify so the complete trace can run.
 Predicates, labels, conditions, and reasons remain fixed. The root receives the
 same AGENT/COMMAND label convention as the CLI. Each worker has private network
 and mount namespaces, a short `/tmp/repo` bind mount, artifact safety shims, and
@@ -196,7 +200,8 @@ Interrupted requests with unknown usage are preserved in `interrupted-requests.c
 Kernel smoke failures are retained separately as diagnostics. Failed engine loads
 are never counted as true negatives. The behavioral sample is small, constructed,
 and selected for OS observability. It is not a held-out natural policy population.
-Prior paper translators can have corpus familiarity. Recovered fixtures, notify
+Prior paper translators can have corpus familiarity. Reusing the original
+compilation corpus does not establish generalization to unseen policy classes. Recovered fixtures, notify
 effects, compiler approximations, syscall visibility, wrapper behavior, and model
 serving defaults limit causal claims about translation quality alone. Compilation
 success does not establish faithful semantics or DSL expressivity.
