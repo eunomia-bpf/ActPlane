@@ -72,7 +72,11 @@ There is no language, creation-year, file-size minimum, directive-density, or su
 
 All requested families are inspected in recursive commit-pinned trees: CLAUDE.md, AGENTS.md, GEMINI.md, .github/copilot-instructions.md, .cursor/rules/*, .cursorrules, .windsurfrules, and SKILL.md. To bound very large skill/rule collections, at most 1 path per family per repository is analyzed, preferring fewer path components, shorter paths, then lexical order. Files above 128,000 bytes are excluded. All discovered paths, including capped paths and download failures, remain in the manifest. A truncated GitHub tree is flagged, so absence of a family in such a tree is not proof of absence.
 
+The Cursor family recognizer includes `.md` and `.mdc` files immediately inside a `.cursor/rules/` directory. Other extensions and nested rule directories are outside this operational definition.
+
 Qwen proposes semantic statement starts in source chunks targeting 160 lines. The script derives half-open ranges and copies source text exactly. Coverage, hashes, and range continuity are checked, while extraction failures remain recorded. Earlier range-pair attempts that failed validation remain in the raw logs. This validates source fidelity, not the semantic correctness of boundaries. Chunking may separate context, and the new extraction has no human boundary audit. Calibration holds historical boundaries fixed and therefore does not validate new extraction quality.
+
+The historical reference contains coding-repository CLAUDE.md and AGENTS.md statements. Its calibration does not establish equivalent accuracy on the additional file families or noncoding tasks. The new family and task-scope breakdowns therefore remain descriptive automated estimates, even for axes that pass the historical agreement gate.
 
 Overall analysis counts each byte-identical file once within a repository. Family analysis attributes shared text to each family in which it appears, so family counts are not additive. Repository categories come from a separate metadata classifier and are explicitly marked as model judgments. A noncoding-agent repository can still contain coding instructions. The category breakdown must not be described as a noncoding-policy slice without inspecting file scope.
 
