@@ -28,6 +28,7 @@ class ProtocolTests(unittest.TestCase):
     def test_seed_bit_matches_sorted_compiler_label_allocation(self):
         self.assertEqual(runner_label('source Z = file "**/AGENT"\nsource AGENT = exec "python"\nrule x:\n notify exec "x" if Z and AGENT\n because "x"'), 1)
         self.assertEqual(runner_label('source A = file "a"\nsource AGENT = exec "**"\nrule x:\n notify exec "x" if A and AGENT\n because "x"'), 2)
+        self.assertEqual(runner_label('source AGENT = exec "**" rule x: notify exec "x" if(A or AGENT) because "x"'), 2)
 
     def test_input_scope_and_prompt_has_no_reference_answer(self):
         self.assertEqual(len(inputs(DEFAULT_RAW, 'rq1')), 607)

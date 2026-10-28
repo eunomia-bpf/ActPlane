@@ -115,7 +115,7 @@ def runner_label(text):
     # lines or share a line. Ignore quoted patterns, comments, and conditions.
     clean = re.sub(r'"(?:\\.|[^"\\])*"|#[^\n]*', '""', text)
     names = set(re.findall(r'\b(?:source|declassify|endorse)\s+(\w+)', clean))
-    for match in re.finditer(r'\bif\s+', clean):
+    for match in re.finditer(r'\bif(?=\s|\()', clean):
         tokens = re.findall(r'[A-Za-z_]\w*|[^\s]', clean[match.end():])
         index = 0
         def atom():
