@@ -84,9 +84,7 @@ rq2,zai/glm-4.7-flash,OpenPipe__ART__2,compiler_failure,syntax_or_lowering
 rq1,zai/glm-4.7-flash,AlexsJones__llmfit::28,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,AlexsJones__llmfit::29,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,AlexsJones__llmfit::31,compiler_failure,generation_output_limit
-rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::24,access_failure,transport_timeout
-rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::25,access_failure,rate_limited
-rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::3,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::24,compiler_failure,syntax_or_lowering
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::31,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::4,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::7,access_failure,provider_capacity
