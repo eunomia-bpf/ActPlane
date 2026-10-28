@@ -67,6 +67,14 @@ def main():
     for r in rows:
         cf1 = f"{float(r['compiled_rule_f1']):.3f}" if r['compiled_rule_f1'] != '' else 'unavailable'
         coverage.append(f"| {NAMES.get(r['model'], r['model'])} | {r['replay_valid']} / {len(traces)} | {r['compiled_rule_traces']} | {pct(r['compiled_rule_detection_rate'])} | {pct(r['compiled_rule_false_trigger_rate'])} | {cf1} |")
+    accounting = ['| Model | Corpus policies | Mean input tokens | Mean output tokens | Mean active wall seconds | Known USD/policy | Transports missing usage |',
+                  '| --- | --- | --- | --- | --- | --- | --- |']
+    for r in rows:
+        if r['model'] == 'reference' or not int(r['rq1_completed']):
+            continue
+        mean = lambda key: f"{float(r['rq1_' + key]):.1f}"
+        cost = f"${float(r['rq1_uncached_list_usd_mean']):.4f}" if r['rq1_uncached_list_usd_mean'] != '' else 'unmeasured'
+        accounting.append(f"| {r['model']} | {r['rq1_completed']} | {mean('input_tokens_mean')} | {mean('output_tokens_mean')} | {mean('wall_s_mean')} | {cost} | {r['rq1_usage_missing_transports']} |")
     artifact_summary = read('artifact-reference-summary.csv')[0]
     reference_audit = read('reference-validation-summary.csv')
     reference_audit = reference_audit[0] if reference_audit else dict(matching_trace_snapshots=0, traces=0, script_disagreements_old_nonzero_new_zero=0)
@@ -109,6 +117,13 @@ model-generation trial. The behavioral sample covers
 held-out sets, and no semantic deduplication is claimed.
 
 {chr(10).join(table)}
+
+Corpus accounting means include completed trials and known transport usage.
+Active wall time includes provider waits and compiler revisions. It excludes
+time queued for a worker and gaps between interrupted sessions. Per-policy costs,
+tokens, and time are retained for both corpora in the translation CSVs.
+
+{chr(10).join(accounting)}
 
 {chr(10).join(families)}
 

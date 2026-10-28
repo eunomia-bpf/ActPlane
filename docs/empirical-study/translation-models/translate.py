@@ -316,6 +316,9 @@ def translate_one(raw, corpus, model, item):
 
 def export_trials(raw, corpus, model):
     paths = sorted((raw / 'translations' / corpus / model.replace('/', '__')).glob('*/result.json'))
+    price_path = HERE / 'prices.csv'
+    prices = {r['model']: r for r in csv.DictReader(price_path.open())} if price_path.exists() else {}
+    price = prices.get(model, {})
     rows = []
     for path in paths:
         r = json.loads(path.read_text())
@@ -336,6 +339,9 @@ def export_trials(raw, corpus, model):
         r['transport_backoff_s'] = sum(sum(t.get('backoff_before_s', 15 * i) for i, t in enumerate(response.get('transport_attempts', []) + [response])) for response in responses)
         r['wall_s'] = round(max(float(r['wall_s']), float(r['api_wall_s']) + float(r['compile_wall_s']) + r['transport_backoff_s']), 4)
         r['usage_missing_transports'] = sum(not usage_reported(t, model) for t in calls)
+        r['uncached_list_usd'] = ((r['input_tokens'] * float(price['input_usd_per_million'])
+                                  + r['output_tokens'] * float(price['output_usd_per_million'])) / 1e6
+                                 if price.get('input_usd_per_million') != '' and price else '')
         r['retry_errors'] = json.dumps(r['retry_errors'], ensure_ascii=False)
         p = path.parent / f"attempt-{r['attempts']}" / 'compile-report.json'
         report = json.loads(p.read_text()) if p.exists() and p.read_text().startswith('{') else {}
