@@ -88,6 +88,7 @@ def main():
     ap.add_argument('--from-phase', choices=['reference', 'corpus'], default='reference')
     ap.add_argument('--adopt-corpus-pid', type=int, default=0)
     ap.add_argument('--adopt-recovery-pid', type=int, default=0)
+    ap.add_argument('--adopt-provider-pid', type=int, default=0)
     args = ap.parse_args()
     lock = (DEFAULT_RAW / 'study-driver.lock').open('w')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -109,6 +110,7 @@ def main():
     logs.mkdir(exist_ok=True)
     wait_adopted(args.adopt_corpus_pid, 'translate.py', 'corpus translations (adopted)')
     wait_adopted(args.adopt_recovery_pid, 'recover_cli.py', 'provider session-limit recovery')
+    wait_adopted(args.adopt_provider_pid, 'recover_provider.py', 'serial provider recovery')
     for phase, argv, log_name in (
         ('sample model replay', command('guest.py', '--log', 'model-replays', '--', *command('replay_batch.py')), 'model-replay.log'),
         ('corpus translations', command('translate.py', '--corpus', 'rq1'), 'rq1.log'),
@@ -133,12 +135,15 @@ def main():
     checkpoint('experiments: finalize model comparison, figure, and paper snippets')
     commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     rows = list(csv.DictReader((HERE / 'summary.csv').open()))
+    reference = next(r for r in rows if r['model'] == 'reference')
+    qwen = next(r for r in rows if r['model'] == 'qwen3.8-27b-nvfp4')
     table = ['| Model | Sample compile@3 | Corpus compile@3 | Detection | FTR | F1 |', '| --- | --- | --- | --- | --- | --- |']
     for r in rows:
         if r['access_status'] not in ('ok', 'reference'):
             continue
         def pct(x): return f'{float(x)*100:.1f}%' if x != '' else 'unavailable'
-        table.append(f"| {r['model']} | {r['rq2_compiled_at_3']}/{r['rq2_completed']} | {r['rq1_compiled_at_3']}/{r['rq1_completed']} | {pct(r['detection_rate'])} | {pct(r['false_trigger_rate'])} | {r['f1'] or 'unavailable'} |")
+        corpus = 'n/a' if r['model'] == 'reference' else f"{r['rq1_compiled_at_3']}/{r['rq1_completed']}"
+        table.append(f"| {r['model']} | {r['rq2_compiled_at_3']}/{r['rq2_completed']} | {corpus} | {pct(r['detection_rate'])} | {pct(r['false_trigger_rate'])} | {r['f1'] or 'unavailable'} |")
     (STATE / 'SUMMARY.md').write_text(f'''# Translation-model lane
 
 Branch: `{BRANCH}`
@@ -158,6 +163,10 @@ breakdowns, access failures, failed kernel loads, and excluded preliminary calls
 The kernel engine uses documented experimental verifier changes and recovered
 source fixtures. Compilation is not semantic accuracy. Provider and CLI defaults
 differ. Missing scores remain unavailable rather than becoming true negatives.
+Reference replay agrees with {reference['agreements']}/{reference['agreement_traces']}
+original detection outcomes. The Qwen sample has {qwen['rq2_output_limit_failures']}
+terminal failures with provider-reported output truncation. Overload and session
+limits use documented transport recovery, including a serial provider pass.
 No PR was opened or modified. The operator consolidates lane branches.
 ''')
     write_status('complete')

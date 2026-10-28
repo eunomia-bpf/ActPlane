@@ -243,6 +243,11 @@ waits for the original model queue to finish before reopening its bounded access
 failures. This avoids duplicate requests. Permanent access errors remain access
 failures. Every completed transport
 is checkpointed before retrying, and returned model answers are never resampled.
+The overloaded free endpoint receives a serial access-recovery pass after its
+original corpus queue finishes. Its larger transport budget and cutoff for new
+policy starts are recorded in `recovery-protocol.csv`. Already elapsed backoff
+intervals are credited on resume. Only previously unavailable sample outcomes are
+replayed after recovery, using the same archived fixtures and kernel build.
 API calls use parallel workers per model,
 with local endpoint concurrency within the operator limit. Latency is observed
 under shared serving load and the recorded scripts' worker limits, rather than
@@ -367,7 +372,7 @@ derived outputs. No script opens or updates a pull request.
     (HERE / 'table.tex').write_text('\n'.join(latex) + '\n')
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
     plotted = []
-    markers = ['*', 'o', 's', '^', 'D', 'v', 'P']
+    markers = ['*', 'o', 's', '^', 'D', 'v', 'P', 'X']
     for i, r in enumerate(rows):
         if r['detection_rate'] == '' or r['false_trigger_rate'] == '':
             continue

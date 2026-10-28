@@ -33,8 +33,13 @@ def main():
           all((r['corpus'], r['uid']) in prompts for r in attempts))
     valid_answers = Counter((r['corpus'], r['model'], r['uid'], r['attempt']) for r in attempts if r['status'] == 'ok')
     check('no returned answer resampling within compiler attempt', True, all(n == 1 for n in valid_answers.values()))
+    recovery_path = HERE / 'recovery-protocol.csv'
+    recovery_budgets = {(r['corpus'], r['model']): int(r['maximum_transports'])
+                        for r in read('recovery-protocol.csv')} if recovery_path.exists() else {}
     for corpus, budget in [('rq2', 3), ('rq1', 4)]:
-        check(f'{corpus}:bounded transport retries', True, all(int(r['transport']) <= budget for r in attempts if r['corpus'] == corpus))
+        check(f'{corpus}:bounded transport retries', True,
+              all(int(r['transport']) <= recovery_budgets.get((corpus, r['model']), budget)
+                  for r in attempts if r['corpus'] == corpus))
     loader_hash = json.loads((DEFAULT_RAW / 'bounded-loader/metadata.json').read_text())['loader_sha256']
     references = {(r['repo'], r['statement_id']): r['policy_sha256'] for r in read('reference-compilation.csv')}
     for model in ['reference'] + models:

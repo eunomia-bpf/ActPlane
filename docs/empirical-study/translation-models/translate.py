@@ -8,10 +8,13 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import threading
 import time
 
 from models import MODELS, SYSTEM, api_call, cli_call
 from prepare import HERE, ROOT, DEFAULT_RAW, csv_write, sha, json_write
+
+COOLDOWN_LOCK = threading.Lock()
 
 INSTRUCTIONS = '''Translate the directive below into one complete ActPlane DSL policy.
 Use only the supplied DSL reference. Translate the strongest syscall-observable
@@ -202,8 +205,11 @@ def record_cooldown(raw, model, response):
     reset = reset_time(response)
     if reset:
         response['retry_after_unix'] = reset
-        json_write(cooldown_path(raw, model), dict(retry_after_unix=reset,
-                   reason=access_category(response)))
+        path = cooldown_path(raw, model)
+        with COOLDOWN_LOCK:
+            if path.exists():
+                reset = max(reset, json.loads(path.read_text())['retry_after_unix'])
+            json_write(path, dict(retry_after_unix=reset, reason=access_category(response)))
 
 
 def wait_transport(raw, model, delay):
