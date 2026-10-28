@@ -3,11 +3,13 @@
 import json
 
 from prepare import DEFAULT_RAW, HERE, csv_write
-from translate import usage_of, usage_reported, finish_reason, export_trials, access_category
+from translate import usage_of, usage_reported, finish_reason, export_trials, access_category, inputs
 from models import MODELS
 
 
 def main():
+    uids = {corpus: {r['uid'].replace('::', '__').replace('/', '__'): r['uid']
+                     for r in inputs(DEFAULT_RAW, corpus)} for corpus in ('rq1', 'rq2')}
     for corpus in ('rq2', 'rq1'):
         for model in MODELS:
             export_trials(DEFAULT_RAW, corpus, model)
@@ -15,9 +17,11 @@ def main():
     for path in sorted((DEFAULT_RAW / 'translations').glob('*/*/*/attempt-*/response.json')):
         final = json.loads(path.read_text())
         model = path.parents[2].name.replace('__', '/')
+        corpus = path.parents[3].name
+        directory = path.parents[1].name
         transports = final.get('transport_attempts', []) + [final]
         for number, response in enumerate(transports, 1):
-            rows.append(dict(corpus=path.parents[3].name, model=model, uid=path.parents[1].name,
+            rows.append(dict(corpus=corpus, model=model, uid=uids[corpus][directory], trial_directory=directory,
                              attempt=path.parent.name, transport=number, status=response['status'],
                              access_category=access_category(response) if response['status'] != 'ok' else '',
                              backoff_before_s=response.get('backoff_before_s', 15 * (number - 1)),

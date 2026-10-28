@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Check trial coverage, identity, retries, trace labels, and PDF embedding."""
 import csv
+from collections import Counter
 import json
 
 from prepare import DEFAULT_RAW, HERE, csv_write
@@ -27,6 +28,13 @@ def main():
             check(f'{corpus}:{model}:shared_prompt', True, all(r['prompt_sha256'] == prompts[corpus, r['uid']] for r in rows))
             check(f'{corpus}:{model}:retry_limit', True, all(1 <= int(r['attempts']) <= 3 for r in rows))
             check(f'{corpus}:{model}:compiled_identity', True, all(r['identity_verified'] == '1' for r in rows if r['status'] == 'compiled'))
+    attempts = read('attempts.csv')
+    check('transport records join canonical policy IDs', True,
+          all((r['corpus'], r['uid']) in prompts for r in attempts))
+    valid_answers = Counter((r['corpus'], r['model'], r['uid'], r['attempt']) for r in attempts if r['status'] == 'ok')
+    check('no returned answer resampling within compiler attempt', True, all(n == 1 for n in valid_answers.values()))
+    for corpus, budget in [('rq2', 3), ('rq1', 4)]:
+        check(f'{corpus}:bounded transport retries', True, all(int(r['transport']) <= budget for r in attempts if r['corpus'] == corpus))
     loader_hash = json.loads((DEFAULT_RAW / 'bounded-loader/metadata.json').read_text())['loader_sha256']
     for model in ['reference'] + models:
         rows = read('replay-' + model.replace('/', '__') + '.csv')
