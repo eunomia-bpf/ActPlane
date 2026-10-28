@@ -77,8 +77,14 @@ def main(a):
                 record('scaled_label_unique_ids', len(labels), len({r['statement_id'] for r in labels}))
                 unknown = {r['statement_id'] for r in labels} - {r['statement_id'] for r in rows}
                 record('unknown_scaled_label_ids', 0, len(unknown))
-                invalid = sum(r.get(d, '') not in ALLOWED[d] for r in labels if r['status'] == 'ok' for d in DIMS)
+                enabled = {r['dimension'] for r in read_csv(HERE / 'calibration_gates.csv') if r['passed'] == 'True'}
+                format_path = HERE / 'format_calibration_gates.csv'
+                if format_path.exists():
+                    enabled &= {r['dimension'] for r in read_csv(format_path) if r['passed'] == 'True'}
+                invalid = sum(r.get(d, '') not in ALLOWED[d] for r in labels if r['status'] == 'ok' for d in enabled)
                 record('invalid_scaled_label_values', 0, invalid)
+                record('values_in_withheld_dimensions', 0,
+                       sum(bool(r.get(d, '')) for r in labels if r['status'] == 'ok' for d in set(DIMS) - enabled))
                 if a.require_complete:
                     record('scaled_successful_rows', len(rows), sum(r['status'] == 'ok' for r in labels))
     write_csv(HERE / 'validation.csv', checks)

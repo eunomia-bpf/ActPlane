@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render the README using committed CSVs rather than hand-entered results."""
 from collections import Counter
+import math
 
 from analyze import BOOTSTRAPS, MIN_COVERAGE, MIN_KAPPA, MIN_PRIMARY_KAPPA, SEED
 from collect import QUOTAS
@@ -10,6 +11,14 @@ NAMES = {'policy_fraction': 'Policy / all statements', 'system_state_fraction': 
          'context_required_fraction': 'Context needed / system-observable',
          'cross_event_project_share': 'Repositories with cross-event policies',
          'os_enforceable_count': 'OS-tier policy candidates (count)'}
+
+
+def stat(value):
+    try:
+        x = float(value)
+    except (ValueError, TypeError):
+        return 'undefined'
+    return f'{x:.3f}' if math.isfinite(x) else 'undefined'
 
 
 def fmt(r, field='value'):
@@ -78,7 +87,7 @@ def main():
     for r in cal:
         if r['scope'] != 'applicable_gold':
             continue
-        lines.append(f'| {r["model"]} | {r["dimension"]} | {r["expected"]} | {r["evaluated"]} | {float(r["agreement"]):.3f} | {float(r["kappa"]):.3f} |')
+        lines.append(f'| {r["model"]} | {r["dimension"]} | {r["expected"]} | {r["evaluated"]} | {stat(r["agreement"])} | {stat(r["kappa"])} |')
     lines += ['', '`calibration_summary.csv` also reports end-to-end agreement including inapplicable labels. The applicable-gold evaluation counts a predicted inapplicable value as disagreement. `calibration_confusion.csv` retains every confusion cell and missing predictions are reported explicitly.', '',
         f'Before inspecting the complete calibration, the scaling gate was fixed at final kappa ≥{MIN_KAPPA:.2f}, each primary-model kappa ≥{MIN_PRIMARY_KAPPA:.2f}, and coverage ≥{100*MIN_COVERAGE:.0f}%. '
         'Type must pass for any dependent result. Enforcement must pass before context may scale. These are study decisions rather than universal reliability standards. The same historical set is used for calibration and evaluation, so agreement is not a held-out generalization estimate.', '',
@@ -90,7 +99,7 @@ def main():
                   '| Reduced-schema model | Dimension | Evaluated N | Cohen’s kappa |', '|---|---|---:|---:|']
         for r in read_csv(format_path):
             if r['scope'] == 'applicable_gold':
-                lines.append(f'| {r["model"]} | {r["dimension"]} | {r["evaluated"]} | {float(r["kappa"]):.3f} |')
+                lines.append(f'| {r["model"]} | {r["dimension"]} | {r["evaluated"]} | {stat(r["kappa"])} |')
     poor = [r for r in cal if r['scope'] == 'applicable_gold' and r['model'] != 'inter_model'
             and float(r.get('coverage', 0)) >= MIN_COVERAGE and float(r['kappa']) < MIN_PRIMARY_KAPPA]
     if poor:

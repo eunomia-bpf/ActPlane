@@ -31,6 +31,13 @@ def main():
     p.add_argument('--wait-pids', type=int, nargs='*', default=[])
     p.add_argument('--commit-checkpoints', action='store_true')
     a = p.parse_args()
+    # Resume only missing/failed rows. Completed model outputs are unchanged.
+    run('label.py', '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
+        '--output', str(HERE / 'calibration_qwen.csv'))
+    run('label.py', '--model', 'zai/glm-5.3', '--workers', '2', '--batch-size', '12',
+        '--output', str(HERE / 'calibration_glm.csv'))
+    # The remote calibration can overlap local source extraction. Wait before
+    # starting local adjudication so endpoint concurrency remains bounded.
     remaining = set(a.wait_pids)
     while remaining:
         for pid in list(remaining):
@@ -40,11 +47,6 @@ def main():
                 remaining.remove(pid)
         if remaining:
             time.sleep(15)
-    # Resume only missing/failed rows. Completed model outputs are unchanged.
-    run('label.py', '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
-        '--output', str(HERE / 'calibration_qwen.csv'))
-    run('label.py', '--model', 'zai/glm-5.3', '--workers', '2', '--batch-size', '12',
-        '--output', str(HERE / 'calibration_glm.csv'))
     run('label.py', '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
         '--primary', str(HERE / 'calibration_qwen.csv'), '--other', str(HERE / 'calibration_glm.csv'),
         '--output', str(HERE / 'calibration_adjudicated.csv'))

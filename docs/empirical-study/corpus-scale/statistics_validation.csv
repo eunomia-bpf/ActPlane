@@ -1,0 +1,10 @@
+check,expected,actual,passed
+policy_fraction,0.5,0.5,True
+system_state_fraction,0.6666666666666666,0.6666666666666666,True
+context_required_fraction,0.5,0.5,True
+cross_event_project_share,0.3333333333333333,0.3333333333333333,True
+os_enforceable_count,1,1.0,True
+kappa_known_contingency_table,0.5,0.5,True
+identical_projects_value,0.5,0.5,True
+identical_projects_ci_low,0.5,0.5,True
+identical_projects_ci_high,0.5,0.5,True

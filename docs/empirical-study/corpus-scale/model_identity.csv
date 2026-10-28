@@ -1,3 +1,4 @@
 requested_model,returned_model,successful_requests
-qwen3.8-27b-nvfp4,qwen3.8-27b-nvfp4,1714
-zai/glm-5.3,zai/glm-5.3,63
+qwen3.8-27b-nvfp4,qwen3.8-27b-nvfp4,1750
+zai/glm-5.3,zai/glm-5.3,67
+zai/glm-5.3-flash,zai/glm-5.3-flash,2
