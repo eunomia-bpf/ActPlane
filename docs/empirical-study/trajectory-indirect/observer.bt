@@ -1,0 +1,154 @@
+// Successful synchronous regular-file writes and successful execs, by replay call.
+// Seed by the unique PR_SET_NAME tag installed by launch.c before its first exec.
+// No PID-namespace assumption is needed: kernel thread IDs propagate at fork.
+BEGIN { printf("OBSERVER_READY\n"); }
+
+tracepoint:syscalls:sys_enter_execve
+{
+    if (strncmp(comm, "apti6e", 6) == 0 && @owner[curtask->pid] == "") {
+        @owner[curtask->pid] = comm;
+        @dispatcher[curtask->pid] = 1;
+    }
+    if (@owner[curtask->pid] != "") { @execname[curtask->pid] = str(args.filename); }
+}
+
+tracepoint:syscalls:sys_enter_execveat
+/@owner[curtask->pid] != ""/
+{ @execname[curtask->pid] = str(args.filename); }
+
+tracepoint:syscalls:sys_exit_execve,
+tracepoint:syscalls:sys_exit_execveat
+/@owner[curtask->pid] != ""/
+{
+    if (args.ret == 0) {
+        if (@dispatcher[curtask->pid]) {
+            @counts[@owner[curtask->pid], 9, @execname[curtask->pid]] = count();
+            delete(@dispatcher[curtask->pid]);
+        } else {
+            @counts[@owner[curtask->pid], 2, @execname[curtask->pid]] = count();
+        }
+    } else {
+        @counts[@owner[curtask->pid], 8, @execname[curtask->pid]] = count();
+    }
+    if (@execname[curtask->pid] != "") { delete(@execname[curtask->pid]); }
+}
+
+tracepoint:sched:sched_process_fork
+/@owner[curtask->pid] != ""/
+{ @owner[args.child_pid] = @owner[curtask->pid]; }
+
+// bpf_d_path is allowed at security_file_permission, rather than at vfs_write.
+fentry:security_file_permission
+/@owner[curtask->pid] != "" && (args.mask & 2)/
+{
+    if ((args.file->f_inode->i_mode & 0170000) == 0100000) {
+        @writepath[curtask->pid] = path(args.file->f_path);
+    }
+}
+
+fexit:vfs_write
+/@owner[curtask->pid] != ""/
+{
+    if (@writepath[curtask->pid] != "") {
+        if (retval > 0) {
+            @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
+            @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
+        }
+        delete(@writepath[curtask->pid]);
+    }
+}
+
+fexit:vfs_iter_write
+/@owner[curtask->pid] != ""/
+{
+    if (@writepath[curtask->pid] != "") {
+        if (retval > 0) {
+            @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
+            @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
+        }
+        delete(@writepath[curtask->pid]);
+    }
+}
+
+
+fexit:vfs_writev
+/@owner[curtask->pid] != ""/
+{
+    if (@writepath[curtask->pid] != "") {
+        if (retval > 0) {
+            @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
+            @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
+        }
+        delete(@writepath[curtask->pid]);
+    }
+}
+
+
+fexit:vfs_copy_file_range
+/@owner[curtask->pid] != ""/
+{
+    if (@writepath[curtask->pid] != "") {
+        if (retval > 0) {
+            @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
+            @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
+        }
+        delete(@writepath[curtask->pid]);
+    }
+}
+
+
+fexit:do_sendfile
+/@owner[curtask->pid] != ""/
+{
+    if (@writepath[curtask->pid] != "") {
+        if (retval > 0) {
+            @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
+            @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
+        }
+        delete(@writepath[curtask->pid]);
+    }
+}
+
+
+fexit:vfs_clone_file_range
+/@owner[curtask->pid] != ""/
+{
+    if (@writepath[curtask->pid] != "") {
+        if (retval > 0) {
+            @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
+            @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
+        }
+        delete(@writepath[curtask->pid]);
+    }
+}
+
+// Successful truncations include open(O_TRUNC) if it reaches vfs_truncate.
+fentry:vfs_truncate
+/@owner[curtask->pid] != ""/
+{ @truncpath[curtask->pid] = path(args.path); }
+fexit:vfs_truncate
+/@owner[curtask->pid] != ""/
+{
+    if (retval == 0 && @truncpath[curtask->pid] != "") {
+        @counts[@owner[curtask->pid], 3, @truncpath[curtask->pid]] = count();
+    }
+    if (@truncpath[curtask->pid] != "") { delete(@truncpath[curtask->pid]); }
+}
+
+tracepoint:sched:sched_process_exit
+/@owner[curtask->pid] != ""/
+{
+    delete(@owner[curtask->pid]);
+    if (@dispatcher[curtask->pid]) { delete(@dispatcher[curtask->pid]); }
+    if (@execname[curtask->pid] != "") { delete(@execname[curtask->pid]); }
+    if (@writepath[curtask->pid] != "") { delete(@writepath[curtask->pid]); }
+    if (@truncpath[curtask->pid] != "") { delete(@truncpath[curtask->pid]); }
+}
+
+END
+{
+    print(@counts); print(@bytes);
+    clear(@counts); clear(@bytes);
+    clear(@owner); clear(@dispatcher); clear(@execname);
+    clear(@writepath); clear(@truncpath);
+}
