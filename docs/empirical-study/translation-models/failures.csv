@@ -24,8 +24,10 @@ rq1,qwen3.8-27b-nvfp4,earendil-works__pi::29,compiler_failure,generation_output_
 rq1,qwen3.8-27b-nvfp4,earendil-works__pi::34,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,earendil-works__pi::54,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,heygen-com__hyperframes::5,compiler_failure,generation_output_limit
+rq1,qwen3.8-27b-nvfp4,multica-ai__multica::7,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,nanocoai__nanoclaw::19,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,nearai__ironclaw::29,compiler_failure,generation_output_limit
+rq1,qwen3.8-27b-nvfp4,openai__codex::17,compiler_failure,syntax_or_lowering
 rq1,qwen3.8-27b-nvfp4,vxcontrol__pentagi::15,compiler_failure,generation_output_limit
 rq2,zai/glm-4.7-flash,NVIDIA__NemoClaw__s01_private_vulnerability_reporting,access_failure,rate_limited
 rq2,zai/glm-4.7-flash,NVIDIA__NemoClaw__s02_no_new_javascript_sources,access_failure,rate_limited
@@ -77,6 +79,8 @@ rq1,zai/glm-4.7-flash,CoplayDev__unity-mcp::24,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,CoplayDev__unity-mcp::27,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,CoplayDev__unity-mcp::8,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,CoplayDev__unity-mcp::9,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,Donchitos__Claude-Code-Game-Studios::10,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,Donchitos__Claude-Code-Game-Studios::11,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,HKUDS__nanobot::3,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,InsForge__InsForge::10,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,InsForge__InsForge::3,access_failure,provider_capacity
@@ -134,6 +138,11 @@ rq1,zai/glm-4.7-flash,charmbracelet__crush::20,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,charmbracelet__crush::22,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,charmbracelet__crush::23,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,charmbracelet__crush::39,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,colbymchenry__codegraph::30,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,colbymchenry__codegraph::40,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,colbymchenry__codegraph::42,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,colbymchenry__codegraph::5,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,colbymchenry__codegraph::52,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::2,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::21,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::25,access_failure,rate_limited
@@ -317,6 +326,7 @@ rq1,zai/glm-4.7-flash,rowboatlabs__rowboat::18,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,rowboatlabs__rowboat::19,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,rowboatlabs__rowboat::2,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,rowboatlabs__rowboat::21,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,rowboatlabs__rowboat::22,compiler_failure,syntax_or_lowering
 rq1,zai/glm-4.7-flash,rtk-ai__rtk::29,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,rtk-ai__rtk::30,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,rtk-ai__rtk::31,access_failure,provider_capacity
@@ -337,11 +347,15 @@ rq1,zai/glm-4.7-flash,ryoppippi__ccusage::2,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,ryoppippi__ccusage::5,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,ryoppippi__ccusage::7,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,vxcontrol__pentagi::15,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,xpzouying__xiaohongshu-mcp::3,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,xpzouying__xiaohongshu-mcp::4,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,xpzouying__xiaohongshu-mcp::5,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,yusufkaraaslan__Skill_Seekers::57,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,yusufkaraaslan__Skill_Seekers::58,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,yusufkaraaslan__Skill_Seekers::68,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,yusufkaraaslan__Skill_Seekers::7,access_failure,rate_limited
 rq1,zai/glm-4.5-air,NousResearch__hermes-agent::53,compiler_failure,generation_output_limit
+rq1,zai/glm-4.5-air,manaflow-ai__cmux::16,compiler_failure,syntax_or_lowering
 rq1,zai/glm-4.5-air,ruvnet__ruflo::54,compiler_failure,syntax_or_lowering
 rq1,gpt-6-astra,AlexsJones__llmfit::34,compiler_failure,model_declared_unobservable
 rq1,gpt-6-astra,Hmbown__DeepSeek-TUI::31,compiler_failure,model_declared_unobservable
