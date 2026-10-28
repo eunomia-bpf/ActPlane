@@ -57,7 +57,7 @@ def complete(a, system, payload, budget=4096):
         started = time.monotonic()
         try:
             r = requests.post(base.rstrip('/') + '/chat/completions', json=request,
-                              headers=headers, timeout=240)
+                              headers=headers, timeout=600 if local else 240)
             elapsed = round(time.monotonic() - started, 3)
             event = dict(at=now(), model=a.model, key=key, attempt=attempt,
                          elapsed_s=elapsed, http_status=r.status_code)
