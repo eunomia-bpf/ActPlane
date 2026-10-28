@@ -261,6 +261,8 @@ def analyze():
             breakdown.append(dict(dimension=group_type, label=group, statements=len(subset),
                                   directives=sum(s['type'] == 'directive' for s in subset)))
     write_csv(HERE / 'label_breakdown.csv', breakdown)
+    from agreement import main as model_agreement
+    model_agreement()
 
 
 def main():

@@ -1,0 +1,16 @@
+group_type,group,dimension,eligible_statements,paired_statements,missing_pairs,disagreements,agreement,kappa
+category,agent_frameworks,topic,120,120,0,45,0.625,0.4905179733937165
+category,agent_frameworks,type,120,120,0,19,0.8416666666666667,0.6227663798808736
+category,agent_frameworks,any_scaled_axis,120,120,0,49,0.5916666666666667,
+category,applications,topic,58,58,0,13,0.7758620689655172,0.7423983600956611
+category,applications,type,58,58,0,2,0.9655172413793104,0.9302884615384616
+category,applications,any_scaled_axis,58,58,0,15,0.7413793103448276,
+family,AGENTS.md,topic,58,58,0,13,0.7758620689655172,0.7423983600956611
+family,AGENTS.md,type,58,58,0,2,0.9655172413793104,0.9302884615384616
+family,AGENTS.md,any_scaled_axis,58,58,0,15,0.7413793103448276,
+family,SKILL.md,topic,120,120,0,45,0.625,0.4905179733937165
+family,SKILL.md,type,120,120,0,19,0.8416666666666667,0.6227663798808736
+family,SKILL.md,any_scaled_axis,120,120,0,49,0.5916666666666667,
+overall,all,topic,178,178,0,58,0.6741573033707865,0.6085984001213178
+overall,all,type,178,178,0,21,0.8820224719101124,0.7503673033257646
+overall,all,any_scaled_axis,178,178,0,64,0.6404494382022472,

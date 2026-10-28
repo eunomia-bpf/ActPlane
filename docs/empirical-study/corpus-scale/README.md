@@ -83,6 +83,14 @@ When some axes fail, a focused prompt containing only the requested coding-guide
 
 **Poor agreement:** qwen on context_required (κ=0.147); glm on context_required (κ=0.205); adjudicated on context_required (κ=0.191). These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.
 
+Agreement between the primary models on the analyzed new spans is reported separately below. These figures describe annotator consistency, and do not measure accuracy against a new human reference. `scaled_model_agreement.csv` also reports family and repository-category breakdowns and missing pairs.
+
+| New-corpus intermodel dimension | Paired statements | Disagreements | Raw agreement | Kappa |
+|---|---:|---:|---:|---:|
+| topic | 178 | 58 | 0.674 | 0.609 |
+| type | 178 | 21 | 0.882 | 0.750 |
+| any_scaled_axis | 178 | 64 | 0.640 | undefined |
+
 ## Selection and measurement
 
 The eligibility floor is 100 stars with a push on or after 2025-01-01. Forks and archived repositories are excluded by the search. `collect.py` takes the top 100 results of each fixed query, unions within a discovery stratum, and visits candidates by descending stars with repository name breaking ties. Quotas are 200 general-software repositories, 75 additional agent-ecosystem repositories, and 50 additional repositories from noncoding discovery queries. Earlier strata own overlaps. A quota can remain unfilled if the fixed candidate set is exhausted. Discovery strata do not establish repository categories.

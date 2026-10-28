@@ -130,6 +130,14 @@ def main():
     if poor:
         lines += ['', '**Poor agreement:** ' + '; '.join(f'{r["model"]} on {r["dimension"]} (κ={float(r["kappa"]):.3f})' for r in poor) +
                   '. These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.']
+    agreement_path = HERE / 'scaled_model_agreement.csv'
+    if agreement_path.exists():
+        agreement_rows = read_csv(agreement_path)
+        lines += ['', 'Agreement between the primary models on the analyzed new spans is reported separately below. These figures describe annotator consistency, and do not measure accuracy against a new human reference. `scaled_model_agreement.csv` also reports family and repository-category breakdowns and missing pairs.', '',
+                  '| New-corpus intermodel dimension | Paired statements | Disagreements | Raw agreement | Kappa |',
+                  '|---|---:|---:|---:|---:|']
+        lines.extend(f'| {r["dimension"]} | {r["paired_statements"]} | {r["disagreements"]} | {stat(r["agreement"])} | {stat(r["kappa"])} |'
+                     for r in agreement_rows if r['group_type'] == 'overall')
     lines += ['', '## Selection and measurement', '',
         f'The eligibility floor is {cfg["stars_min"]} stars with a push on or after {cfg["pushed_since"]}. Forks and archived repositories are excluded by the search. '
         f'`collect.py` takes the top {cfg["search_results_per_query"]} results of each fixed query, unions within a discovery stratum, and visits candidates by descending stars with repository name breaking ties. '
