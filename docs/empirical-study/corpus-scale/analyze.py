@@ -255,6 +255,16 @@ def analyze():
             if rs:
                 ss, _ = summarize(subset, rs, gates)
                 summaries.extend(dict(r, group_type='file_scope', group=scope) for r in ss)
+        noncoding = [s for s in joined if scopes.get((s['repo'], s['content_sha256'])) == 'noncoding_assistance']
+        export_fields = [*statements[0].keys(), *DIMS, 'scope', 'model', 'adjudicated', 'retry_protocol']
+        write_csv(HERE / 'noncoding_statements.csv', [dict(s, scope='noncoding_assistance',
+            **{key: labels[s['statement_id']].get(key, '') for key in ['model', 'adjudicated', 'retry_protocol']})
+            for s in noncoding], export_fields)
+        pairs = {(s['repo'], s['content_sha256']) for s in noncoding}
+        write_csv(HERE / 'noncoding_manifest.csv',
+            [dict(f, scope='noncoding_assistance') for f in manifest
+             if f['status'] == 'included' and (f['repo'], f['content_sha256']) in pairs],
+            [*manifest[0].keys(), 'scope'])
     write_csv(HERE / 'summary.csv', summaries)
     write_csv(HERE / 'analysis_statements.csv', [{k: v for k, v in s.items() if k != 'text'} for s in joined])
     write_csv(HERE / 'analysis_coverage.csv', [dict(
