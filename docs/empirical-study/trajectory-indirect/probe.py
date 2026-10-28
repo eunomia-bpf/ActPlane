@@ -48,7 +48,11 @@ def main(raw):
         except Exception as e:
             record(repo,'probe_failed',type(e).__name__)
     record('required_oss_change_workflow_skill','unavailable','Not listed in available skills and filesystem search found no oss-change-workflow/SKILL.md. Followed scope, validation, docs synchronization, and branch handoff guidance from AGENTS.md and the operator update.')
-    record('dynamic_replay','not_run','No reachable local Docker daemon or pre-provisioned replay environments. No service/deployment changes made. Used prespecified two-LLM call annotation fallback.')
+    receipts=list((raw/'dynamic/runs').glob('*/done.json'))
+    record('dynamic_replay','receipts_available' if receipts else 'not_run',
+           f'{len(receipts)} replay receipts. See dynamic_replays.csv and dynamic_preflight.csv. '
+           'Local bpftrace and isolated checkouts replace the initial Docker feasibility limitation. '
+           'The independent two-LLM annotation remains a static-label check.')
     write_csv(HERE/'availability.csv',rows)
     usage=shutil.disk_usage(raw)
     size=sum(p.stat().st_size for p in raw.rglob('*') if p.is_file())

@@ -1,0 +1,4 @@
+dynamic_id,framework,model,instance_id,recorded_calls,executed_calls,write_events,unnamed_write_events,unnamed_write_events_pct,write_objects,unnamed_write_objects,unnamed_write_objects_pct,exec_events,unnamed_exec_events,unnamed_exec_events_pct,exec_objects,unnamed_exec_objects,unnamed_exec_objects_pct
+t00,Claude Code,fable-5,harbor-framework__harbor-1764,21,21,110582,110575,99.99366985585357,101050,101043,99.99307273626917,175,147,84.0,37,19,51.351351351351354
+t01,Claude Code,fable-5,ivov__lisette-491,34,34,3,0,0.0,3,0,0.0,18,0,0.0,15,0,0.0
+t02,Claude Code,fable-5,langchain4j__langchain4j-5315,39,39,16691,16684,99.95806123060332,696,689,98.99425287356321,153,96,62.745098039215684,104,60,57.69230769230769

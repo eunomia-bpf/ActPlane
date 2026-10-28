@@ -43,6 +43,7 @@ fentry:security_file_permission
 {
     if ((args.file->f_inode->i_mode & 0170000) == 0100000) {
         @writepath[curtask->pid] = path(args.file->f_path);
+        @writefile[curtask->pid] = (uint64)args.file;
     }
 }
 
@@ -50,24 +51,26 @@ fexit:vfs_write
 /@owner[curtask->pid] != ""/
 {
     if (@writepath[curtask->pid] != "") {
-        if (retval > 0) {
+        if (retval > 0 && @writefile[curtask->pid] == (uint64)args.file) {
             @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
             @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
         }
         delete(@writepath[curtask->pid]);
     }
+    if (@writefile[curtask->pid]) { delete(@writefile[curtask->pid]); }
 }
 
 fexit:vfs_iter_write
 /@owner[curtask->pid] != ""/
 {
     if (@writepath[curtask->pid] != "") {
-        if (retval > 0) {
+        if (retval > 0 && @writefile[curtask->pid] == (uint64)args.file) {
             @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
             @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
         }
         delete(@writepath[curtask->pid]);
     }
+    if (@writefile[curtask->pid]) { delete(@writefile[curtask->pid]); }
 }
 
 
@@ -75,12 +78,13 @@ fexit:vfs_writev
 /@owner[curtask->pid] != ""/
 {
     if (@writepath[curtask->pid] != "") {
-        if (retval > 0) {
+        if (retval > 0 && @writefile[curtask->pid] == (uint64)args.file) {
             @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
             @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
         }
         delete(@writepath[curtask->pid]);
     }
+    if (@writefile[curtask->pid]) { delete(@writefile[curtask->pid]); }
 }
 
 
@@ -88,14 +92,22 @@ fexit:vfs_copy_file_range
 /@owner[curtask->pid] != ""/
 {
     if (@writepath[curtask->pid] != "") {
-        if (retval > 0) {
+        if (retval > 0 && @writefile[curtask->pid] == (uint64)args.file_out) {
             @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
             @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
         }
         delete(@writepath[curtask->pid]);
     }
+    if (@writefile[curtask->pid]) { delete(@writefile[curtask->pid]); }
 }
 
+
+fentry:do_sendfile
+/@owner[curtask->pid] != ""/
+{
+    if (@writepath[curtask->pid] != "") { delete(@writepath[curtask->pid]); }
+    if (@writefile[curtask->pid]) { delete(@writefile[curtask->pid]); }
+}
 
 fexit:do_sendfile
 /@owner[curtask->pid] != ""/
@@ -114,12 +126,13 @@ fexit:vfs_clone_file_range
 /@owner[curtask->pid] != ""/
 {
     if (@writepath[curtask->pid] != "") {
-        if (retval > 0) {
+        if (retval > 0 && @writefile[curtask->pid] == (uint64)args.file_out) {
             @counts[@owner[curtask->pid], 1, @writepath[curtask->pid]] = count();
             @bytes[@owner[curtask->pid], 1, @writepath[curtask->pid]] = sum(retval);
         }
         delete(@writepath[curtask->pid]);
     }
+    if (@writefile[curtask->pid]) { delete(@writefile[curtask->pid]); }
 }
 
 // Successful truncations include open(O_TRUNC) if it reaches vfs_truncate.
@@ -139,6 +152,7 @@ tracepoint:sched:sched_process_exit
 /@owner[curtask->pid] != ""/
 {
     delete(@owner[curtask->pid]);
+    if (@writefile[curtask->pid]) { delete(@writefile[curtask->pid]); }
     if (@dispatcher[curtask->pid]) { delete(@dispatcher[curtask->pid]); }
     if (@execname[curtask->pid] != "") { delete(@execname[curtask->pid]); }
     if (@writepath[curtask->pid] != "") { delete(@writepath[curtask->pid]); }
@@ -150,5 +164,5 @@ END
     print(@counts); print(@bytes);
     clear(@counts); clear(@bytes);
     clear(@owner); clear(@dispatcher); clear(@execname);
-    clear(@writepath); clear(@truncpath);
+    clear(@writepath); clear(@writefile); clear(@truncpath);
 }

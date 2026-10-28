@@ -25,6 +25,6 @@ annotation_attempt_limit,3
 figure_pdf_fonttype,42
 paragraph_limit_words,150
 validation_confidence_pct,95
-paper_paragraph_words,121
+paper_paragraph_words,109
 annotation_attempts,200
 annotation_failed_attempts,0

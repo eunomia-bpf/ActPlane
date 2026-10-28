@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from analyze import HERE, CLASSES, write_csv
+from dynamic_report import render as render_dynamic
 
 
 def read(name):
@@ -125,6 +126,12 @@ def main():
 The raters agreed on the full label for {100*vals['seven_way_agreement']:.1f}% of calls (Cohen's kappa {vals['seven_way_kappa']:.3f}) and on indirect versus other for {100*vals['binary_agreement']:.1f}% (kappa {vals['binary_kappa']:.3f}). For predicted-indirect calls, population-stratum-weighted agreement with each rater was {100*vals['predicted_indirect_weighted_rater_a_indirect']:.1f}% and {100*vals['predicted_indirect_weighted_rater_b_indirect']:.1f}%. The two-rater consensus envelope for this operational precision is {100*lo:.1f}% to {100*hi:.1f}%. Allowing stratified sampling uncertainty gives a conservative simultaneous confidence envelope of {100*max(0,lo-radius):.1f}% to {100*min(1,hi+radius):.1f}% at the {95}% level using stratified Hoeffding bounds. This is agreement with model judgments, not a bound on physical side-effect visibility or shared model errors. [validation_confusion.csv](validation_confusion.csv) retains all disagreements. The run used {len(attempts)} attempts, including {failed_attempts} unsuccessful attempts, all retained in [annotation_attempts.csv](annotation_attempts.csv). No majority adjudication or heuristic tuning to these answers was performed.
 """
     validation+='The reviewed disagreements include read-only grep pipelines dispatched by xargs and a malformed nested-shell command whose intended Java compilation/execution was recognizable to both raters. The conservative xargs rule can therefore count read-only dispatch as indirect, while strict shell parsing can miss intended project execution. The spot check does not validate the separate write-history/authorship metric.\n'
+    dynamic_section,dynamic_paragraph=render_dynamic()
+    if dynamic_paragraph:
+        paragraph=dynamic_paragraph
+        for metric in methods:
+            if metric['metric']=='paper_paragraph_words':metric['value']=len(paragraph.split())
+        write_csv(HERE/'method_metrics.csv',methods)
     origin_table='| Framework / recorded model | Any project/module/runner entrypoint | Any script with no recovered earlier write |\n|---|---:|---:|\n'
     for r in summaries:
         origin_table+=f"| {r['framework']} / {r['model']} | {float(r['any_project_runner_pct']):.1f}% | {float(r['any_no_prior_write_script_pct']):.1f}% |\n"
@@ -227,6 +234,33 @@ The requested `oss-change-workflow` skill was absent from the available catalog 
 
 {paragraph}
 """
+    if dynamic_section:
+        text=text.replace('**Not measured:** the fraction of actual file mutations or process executions whose targets are missing from tool arguments. There was no dynamic replay, so this study cannot supply that OS-event denominator.',
+                          '**Dynamic follow-up:** the replay section below measures captured OS write/exec effects against the initiating call arguments. These are best-effort replays, rather than original deployment telemetry.')
+        text=text.replace('## Results\n',''+dynamic_section+'## Static results\n',1)
+        text=text.replace('[probe.py](probe.py) records that the installed Docker client cannot reach a daemon, and that bpftrace is unavailable. No replay environment was provisioned and no service or deployment was changed. Without task images and a replay sandbox, an OS-effect fraction cannot be measured here. The ActPlane policy engine\'s match-only event stream would also require extra instrumentation for an all-writes/all-execs denominator. We used the requested model-annotation fallback instead.',
+                          'The initial static pass used the model-annotation fallback while replay infrastructure was unavailable. The follow-up installed bpftrace and local toolchains and used isolated local namespaces, without Docker or changes to cluster services, the gateway, Coder, or model deployments. An all-match ActPlane notify policy is another observer option. This study uses successful-operation eBPF probes for its dynamic denominator.')
+        text=text.replace('The indirect class is a **potential execution surface**, not a finding that a mutation occurred, that a specific object was unnamed, or that a real guardrail missed it.',
+                          'The static indirect class is a **potential execution surface**. The dynamic section separately identifies captured unnamed effects. Neither identifies a real deployed guardrail miss or a policy violation.')
+        text=text.replace('python3 report.py\npython3 -m pytest -q test_analyze.py',
+                          'python3 report.py\npython3 -m pytest -q test_analyze.py test_dynamic.py')
+        text=text.replace('## Paper-ready motivation paragraph\n',
+                          '''## Dynamic replay reproduction
+
+The replay requires Linux tracing privileges, BTF, bpftrace, bubblewrap, a C compiler, Git, and relevant language toolchains. This run installed bpftrace, OpenJDK, Maven, Go, pnpm, and yarn locally. Host/package versions and per-trajectory setup receipts are retained. Python interpreter versions are pinned in [dynamic_config.json](dynamic_config.json).
+
+```bash
+python3 dynamic_prepare.py --raw "$RAW"
+UV_PYTHON_INSTALL_DIR="$RAW/dynamic/toolchains" UV_PYTHON_BIN_DIR="$RAW/dynamic/toolbin" uv python install 3.9.25 3.12.16
+python3 dynamic_run.py --raw "$RAW"
+python3 dynamic_effects.py --raw "$RAW"
+python3 report.py
+```
+
+The committed sample plan and task metadata hashes identify exact repository base commits. Environment setup runs outside the observed lineage and its failures are recorded. Shell calls use their recorded text, with only a coordinator exit trap to recover cwd and status. Dedicated read/search tools use bounded in-process substitutes. Edit-tool behavior is the committed substitute implementation, so proprietary tool internals are not reconstructed. Recreated source checkouts, dependency trees, and caches are disposable after final diffs, version/freeze receipts, source commits, logs, and observer maps are retained. Raw evidence stays in the external raw directory. Resource snapshots are in [dynamic_resource_samples.csv](dynamic_resource_samples.csv), which samples disk use rather than claiming a continuous maximum.
+
+## Paper-ready motivation paragraph
+''')
     (HERE/'README.md').write_text(text)
     (HERE/'paper_paragraph.txt').write_text(paragraph+'\n')
     print(f"Generated report for {total_traj} trajectories, {total_calls} calls")

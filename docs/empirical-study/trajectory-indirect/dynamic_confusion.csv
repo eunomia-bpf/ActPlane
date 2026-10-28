@@ -1,0 +1,5 @@
+scope,calls,true_positive,false_positive,false_negative,true_negative,precision,recall,unresolved_predicted,unresolved_other,precision_upper,recall_lower,recall_upper
+all_recorded_calls,94,12,5,0,77,0.7058823529411765,1.0,0,0,0.7058823529411765,1.0,1.0
+executed_calls,94,12,5,0,77,0.7058823529411765,1.0,0,0,0.7058823529411765,1.0,1.0
+effectful_calls,50,12,5,0,33,0.7058823529411765,1.0,0,0,0.7058823529411765,1.0,1.0
+indirect_vs_direct,33,12,5,0,16,0.7058823529411765,1.0,0,0,0.7058823529411765,1.0,1.0

@@ -15,6 +15,7 @@ import selectors
 import shutil
 import signal
 import subprocess
+import sys
 import time
 
 from analyze import HERE
@@ -26,7 +27,12 @@ def disk_guard(raw):
     usage=shutil.disk_usage(raw)
     if 100*usage.used/usage.total>=CFG['workspace_limit_pct']:
         raise RuntimeError('workspace disk limit reached')
-    size=int(subprocess.check_output(['du','-sb',str(raw)],text=True).split()[0])
+    measured=subprocess.run(['du','-sb',str(raw)],capture_output=True,text=True)
+    if not measured.stdout.split():raise RuntimeError('raw storage measurement failed')
+    size=int(measured.stdout.split()[0])
+    if measured.returncode:
+        with (raw/'dynamic'/'resource_scan_errors.jsonl').open('a') as f:
+            f.write(json.dumps(dict(utc=time.time(),exit=measured.returncode,detail=measured.stderr))+'\n')
     if size>=CFG['raw_limit_bytes']:
         raise RuntimeError('raw storage limit reached')
     return size,round(100*usage.used/usage.total,3)
@@ -66,7 +72,7 @@ def materialize(raw,plan,run):
 
 def sandbox(raw,plan,run,repo):
     root=raw/'dynamic'
-    shared=root/'shared-cache';shared.mkdir(exist_ok=True)
+    shared=run/'cache';shared.mkdir(exist_ok=True)
     for name in ('venv','home','tmp','replay','replay/requests','replay/logs'):
         (run/name).mkdir(parents=True,exist_ok=True)
     for name in ('replay_worker.py','replay_tools.py'):
@@ -76,7 +82,7 @@ def sandbox(raw,plan,run,repo):
     patch=run/'replay'/'bin'/'apply_patch'
     patch.write_text('#!/bin/sh\nexec /usr/bin/python3 /replay/replay_tools.py --patch-stdin\n')
     patch.chmod(0o755)
-    uv=shutil.which('uv') or '/workspaces/.agent-state/actplane-trajectory-indirect/venv/bin/uv'
+    uv=shutil.which('uv') or str(Path(sys.executable).with_name('uv'))
     if Path(uv).exists():shutil.copy2(uv,run/'replay'/'bin'/'uv')
     command=['bwrap','--unshare-all','--share-net','--die-with-parent','--new-session','--cap-drop','ALL',
              '--ro-bind','/usr','/usr','--ro-bind','/etc','/etc',
@@ -96,6 +102,7 @@ def sandbox(raw,plan,run,repo):
                    MAKEFLAGS='-j2',NPY_NUM_BUILD_JOBS='2',npm_config_cache='/cache/npm',
                    GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_GLOBAL='/dev/null',GIT_TERMINAL_PROMPT='0',
                    JAVA_HOME='/usr/lib/jvm/java-21-openjdk-amd64',VIRTUAL_ENV='/venv')
+    variables['MAVEN_OPTS']='-Dmaven.repo.local=/cache/maven'
     for key,value in variables.items():command.extend(['--setenv',key,value])
     command.extend(['--chdir',plan['sandbox_workdir'],'/usr/bin/python3','-u','/replay/replay_worker.py'])
     allowed=sorted(os.sched_getaffinity(0))[:2]
@@ -148,10 +155,14 @@ def setup(worker,raw,plan,run):
 
 
 def observer_start(run):
+    frozen=run/'observer.bt'
+    shutil.copy2(HERE/'observer.bt',frozen)
+    (run/'observer_metadata.json').write_text(json.dumps(dict(observer_sha256=hashlib.sha256(frozen.read_bytes()).hexdigest(),
+                                                            host_kernel=os.uname().release,config=CFG),indent=2))
     stdout=open(run/'observer.jsonl','w')
     stderr=open(run/'observer.stderr','w')
     env=os.environ.copy();env.update(BPFTRACE_MAX_STRLEN=str(CFG['observer_string_bytes']),BPFTRACE_MAX_MAP_KEYS=str(CFG['observer_max_map_keys']))
-    proc=subprocess.Popen(['bpftrace','-f','json',str(HERE/'observer.bt')],stdout=stdout,stderr=stderr,env=env)
+    proc=subprocess.Popen(['bpftrace','-f','json',str(frozen)],stdout=stdout,stderr=stderr,env=env)
     start=time.monotonic()
     while time.monotonic()-start<30:
         if 'OBSERVER_READY' in (run/'observer.jsonl').read_text():return proc,stdout,stderr
@@ -209,6 +220,9 @@ def replay(raw,plan,calls,cleanup=True):
                 if plan['framework']=='Claude Code' and shell:cwd=result['cwd_after']
                 print(plan['dynamic_id'],f"{len(completed)}/{len(calls)}",call['classification'],result.get('exit_code'),flush=True)
         save_final(worker,run,plan)
+    except KeyboardInterrupt:
+        fatal='KeyboardInterrupt: replay coordinator interrupted'
+        raise
     except Exception as exc:
         fatal=type(exc).__name__+': '+str(exc)
         (run/'fatal.txt').write_text(fatal)
@@ -224,7 +238,7 @@ def replay(raw,plan,calls,cleanup=True):
             try:observer.wait(timeout=30)
             except subprocess.TimeoutExpired:observer.kill();observer.wait();fatal+='; observer shutdown timeout'
             observer_stdout.close();observer_stderr.close()
-        done=dict(dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],recorded_calls=len(calls),executed_calls=len(completed),
+        done=dict(dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],run_phase=CFG['run_phase'],recorded_calls=len(calls),executed_calls=len(completed),
                   fatal=fatal,setup_steps=len(setup_results),setup_failed_steps=sum(r.get('exit_code')!=0 for r in setup_results),
                   elapsed_s=round(time.time()-started,3),observer_exit=observer.returncode if observer else None,
                   started_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(started)),finished_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()))
@@ -232,7 +246,7 @@ def replay(raw,plan,calls,cleanup=True):
         # The frozen inputs, base Git objects, environment receipts, final diff,
         # logs, and observer counts are retained. Build/dependency trees are disposable.
         if cleanup:
-            for directory in ('repo','venv','tmp','home'):
+            for directory in ('repo','venv','tmp','home','cache'):
                 shutil.rmtree(run/directory,ignore_errors=True)
     print('DONE',plan['dynamic_id'],json.dumps(done),flush=True)
 

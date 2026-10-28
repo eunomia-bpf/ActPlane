@@ -1,5 +1,6 @@
 {
   "seed": "actplane-dynamic-20261028-v1",
+  "toolchain_versions": ["3.9.25", "3.12.16"],
   "groups": [
     ["Claude Code", "fable-5"],
     ["Codex", "gpt-5.6-sol"],
@@ -15,7 +16,9 @@
   "raw_limit_bytes": 25000000000,
   "workspace_limit_pct": 85,
   "observer_string_bytes": 256,
-  "observer_max_map_keys": 65536,
+  "observer_max_map_keys": 262144,
   "replay_concurrency": 1,
-  "initial_scope": "successful regular-file vfs_write/vfs_iter_write, vfs_truncate and successful execve/execveat; excludes first harness dispatcher exec, pipes and sockets"
+  "run_phase": "main-v2-private-cache-file-identity",
+  "package_cache_policy": "private per trajectory, populated by setup and deleted after receipts are retained; no prior-trajectory cache reuse",
+  "initial_scope": "successful regular-file vfs_write/vfs_iter_write/vfs_writev, copy_file_range/sendfile/clone, vfs_truncate and successful execve/execveat; excludes first harness dispatcher exec, pipes and sockets"
 }

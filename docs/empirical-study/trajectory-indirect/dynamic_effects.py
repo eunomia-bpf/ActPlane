@@ -22,6 +22,8 @@ import bashlex
 
 from analyze import HERE,write_csv,walk
 
+SHELL_WORD_CACHE={}
+
 
 def strings(value):
     if isinstance(value,str):yield value
@@ -34,6 +36,7 @@ def strings(value):
 def visibility(path,args,cwd,effect):
     if not path or path.endswith('..') or len(path.encode())>=255:
         return dict(named=-1,strict_named=-1,match='unresolved_or_truncated_path')
+    path=path.removesuffix(' (deleted)')
     values=list(strings(args))
     name=posixpath.basename(path)
     boundary=r'[A-Za-z0-9_.-]'
@@ -63,7 +66,9 @@ def visibility(path,args,cwd,effect):
                         break
         return words
     if command:
-        for token in shell_words(command):
+        if command not in SHELL_WORD_CACHE:
+            SHELL_WORD_CACHE[command]=shell_words(command)
+        for token in SHELL_WORD_CACHE[command]:
             if not re.fullmatch(r'[A-Za-z0-9_./~*?\[\]@+:-]+',token):continue
             if not any(c in token for c in '*?['):continue
             pattern=posixpath.basename(token)
@@ -131,14 +136,34 @@ def analyze(raw):
                      replay_executed=int(bool(receipt)),exit_code=receipt.get('exit_code',''),timed_out=receipt.get('timed_out',0),
                      original_status=call['status'],trace_valid=int(not errors),elapsed_s=receipt.get('elapsed_s',0))
             totals=Counter()
-            for kind,path,n,byte_count in effects_by_tag.get(tag,[]):
+            tagged_effects=effects_by_tag.get(tag,[])
+            shim_execs=sum(n for kind,path,n,b in tagged_effects if kind==2 and path=='/replay/bin/apply_patch')
+            for kind,path,n,byte_count in tagged_effects:
                 if kind in (8,9):
                     totals['failed_exec_attempts' if kind==8 else 'dispatcher_execs']+=n
                     continue
+                # The supplied apply_patch shim has one injected Python exec per
+                # invocation. Remove it conservatively, while retaining the
+                # named shim exec and any additional project Python execs.
+                if kind==2 and path=='/usr/bin/python3' and shim_execs:
+                    excluded=min(n,shim_execs)
+                    totals['shim_helper_execs']+=excluded
+                    n-=excluded;shim_execs-=excluded
+                    if not n:continue
                 effect={1:'write',2:'exec',3:'truncate'}.get(kind,'unknown')
                 decision=visibility(path,call['args'],receipt.get('cwd_before',plan['sandbox_workdir']),effect)
                 effects=dict(dynamic_id=plan['dynamic_id'],call_id=call['call_id'],framework=plan['framework'],model=plan['model'],
                              classification=call['classification'],effect=effect,path=path,events=n,bytes=byte_count,**decision)
+                project=plan['sandbox_workdir'].rstrip('/')+'/'
+                if path.startswith(project):
+                    relative=path[len(project):]
+                    generated=any(part in relative.split('/') for part in ('.git','__pycache__','.pytest_cache','node_modules','target','build','dist','.mypy_cache','.ruff_cache','.tox','.venv','venv'))
+                    effects['path_scope']='project_generated' if generated else 'project_other'
+                elif path.startswith('/cache/'):effects['path_scope']='package_cache'
+                elif path.startswith('/venv/'):effects['path_scope']='environment'
+                elif path.startswith('/tmp/'):effects['path_scope']='temporary'
+                elif path.startswith('/root/'):effects['path_scope']='home'
+                else:effects['path_scope']='system_or_other'
                 all_effects.append(effects)
                 totals[effect+'_events']+=n;totals[effect+'_objects']+=1
                 if decision['named']==0:
@@ -147,14 +172,16 @@ def analyze(raw):
                     totals['strict_unnamed_'+effect+'_events']+=n
                 if decision['named']==-1:
                     totals['unknown_'+effect+'_events']+=n
+                    totals['unknown_'+effect+'_objects']+=1
             for effect in ('write','exec','truncate'):
                 for prefix in ('','unnamed_','strict_unnamed_','unknown_'):
                     row[prefix+effect+'_events']=totals[prefix+effect+'_events']
-                for prefix in ('','unnamed_'):
+                for prefix in ('','unnamed_','unknown_'):
                     row[prefix+effect+'_objects']=totals[prefix+effect+'_objects']
-            row.update(dispatcher_execs=totals['dispatcher_execs'],failed_exec_attempts=totals['failed_exec_attempts'])
+            row.update(dispatcher_execs=totals['dispatcher_execs'],shim_helper_execs=totals['shim_helper_execs'],failed_exec_attempts=totals['failed_exec_attempts'])
             row['any_unnamed_effect']=int(totals['unnamed_write_events']+totals['unnamed_exec_events']>0)
             row['any_effect']=int(totals['write_events']+totals['exec_events']>0)
+            row['truth_unresolved']=int(not row['any_unnamed_effect'] and (not row['replay_executed'] or not row['trace_valid'] or totals['unknown_write_events']+totals['unknown_exec_events']>0))
             all_calls.append(row)
     if not replays:
         print('No completed replay receipts yet');return
@@ -173,15 +200,47 @@ def analyze(raw):
                   executed_calls=sum(c['replay_executed'] for c in calls),successful_calls=sum(c['exit_code']==0 for c in calls),
                   failed_calls=sum(c['exit_code'] not in ('',0) for c in calls),
                   timed_out_calls=sum(c['timed_out'] for c in calls),
+                  invalid_trace_calls=sum(not c['trace_valid'] for c in calls),
                   any_unnamed_effect_calls=sum(c['any_unnamed_effect'] for c in calls))
         for effect in ('write','exec','truncate'):
-            for name in (effect+'_events','unnamed_'+effect+'_events','strict_unnamed_'+effect+'_events','unknown_'+effect+'_events',effect+'_objects','unnamed_'+effect+'_objects'):
+            for name in (effect+'_events','unnamed_'+effect+'_events','strict_unnamed_'+effect+'_events','unknown_'+effect+'_events',effect+'_objects','unnamed_'+effect+'_objects','unknown_'+effect+'_objects'):
                 item[name]=sum(c[name] for c in calls)
             n=item[effect+'_events'];objects=item[effect+'_objects']
             item['unnamed_'+effect+'_pct']=100*item['unnamed_'+effect+'_events']/n if n else ''
             item['unnamed_'+effect+'_object_pct']=100*item['unnamed_'+effect+'_objects']/objects if objects else ''
         summaries.append(item)
     write_csv(HERE/'dynamic_summary.csv',summaries)
+    trajectory_summaries=[]
+    for replay in replays:
+        calls=[c for c in all_calls if c['dynamic_id']==replay['dynamic_id']]
+        item={key:replay[key] for key in ('dynamic_id','framework','model','instance_id')}
+        item['recorded_calls']=len(calls)
+        item['executed_calls']=sum(c['replay_executed'] for c in calls)
+        for effect in ('write','exec'):
+            for suffix in ('events','objects'):
+                total=sum(c[effect+'_'+suffix] for c in calls)
+                unnamed=sum(c['unnamed_'+effect+'_'+suffix] for c in calls)
+                item[effect+'_'+suffix]=total
+                item['unnamed_'+effect+'_'+suffix]=unnamed
+                item['unnamed_'+effect+'_'+suffix+'_pct']=100*unnamed/total if total else ''
+        trajectory_summaries.append(item)
+    write_csv(HERE/'dynamic_trajectory_summary.csv',trajectory_summaries)
+    scope_groups=defaultdict(list)
+    for effect in all_effects:
+        if effect['effect'] not in ('write','exec'):continue
+        for key in [('ALL','ALL',effect['path_scope'],effect['effect']),
+                    (effect['framework'],effect['model'],effect['path_scope'],effect['effect'])]:
+            scope_groups[key].append(effect)
+    scope_rows=[]
+    for key,effects in sorted(scope_groups.items()):
+        total=sum(e['events'] for e in effects)
+        unnamed=sum(e['events'] for e in effects if e['named']==0)
+        scope_rows.append(dict(framework=key[0],model=key[1],path_scope=key[2],effect=key[3],events=total,
+                               unnamed_events=unnamed,unknown_events=sum(e['events'] for e in effects if e['named']==-1),
+                               unnamed_pct=100*unnamed/total,call_object_pairs=len(effects),
+                               unnamed_call_object_pairs=sum(e['named']==0 for e in effects),
+                               unnamed_call_object_pct=100*sum(e['named']==0 for e in effects)/len(effects)))
+    write_csv(HERE/'dynamic_scope_summary.csv',scope_rows)
     confusion=[]
     for scope in ('all_recorded_calls','executed_calls','effectful_calls','indirect_vs_direct'):
         calls=[c for c in all_calls if scope=='all_recorded_calls' or (scope=='executed_calls' and c['replay_executed'])
@@ -190,8 +249,14 @@ def analyze(raw):
         fp=sum(c['classification']=='indirect' and not c['any_unnamed_effect'] for c in calls)
         fn=sum(c['classification']!='indirect' and c['any_unnamed_effect'] for c in calls)
         tn=len(calls)-tp-fp-fn
+        unknown_p=sum(c['classification']=='indirect' and c['truth_unresolved'] for c in calls)
+        unknown_n=sum(c['classification']!='indirect' and c['truth_unresolved'] for c in calls)
         confusion.append(dict(scope=scope,calls=len(calls),true_positive=tp,false_positive=fp,false_negative=fn,true_negative=tn,
-                              precision=tp/(tp+fp) if tp+fp else '',recall=tp/(tp+fn) if tp+fn else ''))
+                              precision=tp/(tp+fp) if tp+fp else '',recall=tp/(tp+fn) if tp+fn else '',
+                              unresolved_predicted=unknown_p,unresolved_other=unknown_n,
+                              precision_upper=(tp+unknown_p)/(tp+fp) if tp+fp else '',
+                              recall_lower=tp/(tp+fn+unknown_n) if tp+fn+unknown_n else '',
+                              recall_upper=(tp+unknown_p)/(tp+unknown_p+fn) if tp+unknown_p+fn else ''))
     write_csv(HERE/'dynamic_confusion.csv',confusion)
     sample=sorted(all_effects,key=lambda r:hashlib.sha256((r['call_id']+r['effect']+r['path']).encode()).hexdigest())[:200]
     if sample:write_csv(HERE/'dynamic_effect_sample.csv',sample)

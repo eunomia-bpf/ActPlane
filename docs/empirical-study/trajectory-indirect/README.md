@@ -1,8 +1,71 @@
 # Indirect execution in public coding-agent trajectories
 
-**Measured:** static execution patterns in 3,156 trajectories and 89,176 recorded tool calls/action slots from 5 frameworks and 8 recorded model groups. **Not measured:** the fraction of actual file mutations or process executions whose targets are missing from tool arguments. There was no dynamic replay, so this study cannot supply that OS-event denominator.
+**Measured:** static execution patterns in 3,156 trajectories and 89,176 recorded tool calls/action slots from 5 frameworks and 8 recorded model groups. **Dynamic follow-up:** the replay section below measures captured OS write/exec effects against the initiating call arguments. These are best-effort replays, rather than original deployment telemetry.
 
-## Results
+## Dynamic replay validation
+
+**Interim: 3 of 40 planned replay receipts are available.** The [fixed plan](dynamic_plan.csv) was selected by a committed hash ranking, paired by task within each source. It includes exact base commits recovered from pinned task metadata. No task was replaced based on replay success. Recorded calls are replayed in order against a fresh checkout in a private local PID/mount namespace. Shell command strings remain as recorded. Dedicated edits are implemented as direct file writes by the committed adapter. The coordinator, environment setup, and injected dispatchers are excluded from observed effects. No oracle or verifier patches are applied.
+
+Across the available receipts, the observer recorded **127,276 successful regular-file write operations**, of which **99.99% were unnamed**, and **346 successful execs**, of which **70.23% were unnamed**. These pooled event totals are affected by large installations. Counting each distinct `(call, object)` pair once gives **99.98% unnamed write pairs** and **50.64% unnamed exec pairs**. Unresolved/truncated object paths are kept in the denominator and separately counted: 0 write events and 0 exec events. The reported unnamed fractions therefore use the lower endpoint for unresolved names.
+
+An object in these tables is a resolved path, not an inode or a unique process. To avoid weighting trajectories by installation volume, the following medians give each trajectory with the relevant captured effects equal weight. Trajectories with no captured effect of that kind have an undefined fraction and remain in the call/fidelity denominators. [dynamic_trajectory_summary.csv](dynamic_trajectory_summary.csv) contains every replay receipt.
+
+| Effect | Weighting within trajectory | Trajectories with effects | Median unnamed fraction |
+|---|---|---:|---:|
+| write | events | 3 | 99.96% |
+| write | objects | 3 | 98.99% |
+| exec | events | 3 | 62.75% |
+| exec | objects | 3 | 51.35% |
+
+
+| Replayed framework / recorded model | Traj. | Recorded calls | Executed | Exit zero | Unnamed write events | Unnamed exec events |
+|---|---:|---:|---:|---:|---:|---:|
+| Claude Code / fable-5 | 3 | 94 | 94 | 89 | 99.99% | 70.23% |
+
+These are effects observed during replays of recorded trajectories, not original OS telemetry. 5 calls exited nonzero and 0 timed out. All recorded calls in completed receipts remain in denominators, including unexecuted calls after a fatal replay error. There are 0 fatal replay receipts and 1 failed setup steps. Nonzero commands can still produce effects, which are counted. The source of each failure and original/replayed call statuses are retained in [dynamic_calls.csv](dynamic_calls.csv), [dynamic_replays.csv](dynamic_replays.csv), and external command logs. The observer error count is 0. A nonzero observer error count invalidates complete-census claims and must be resolved before treating a final sample as complete.
+
+### Visibility definition and measured operations
+
+A write targets a named object if its literal basename occurs as a standalone token anywhere in the original argument values, or if a visible shell-style glob matches it. Executable basenames permit PATH resolution. Inline source and editor content count as argument values. This deliberately liberal rule can match a same-named object in another directory, so it is conservative about declaring effects unnamed. A directory name alone does not enumerate descendants. [dynamic_effects.py](dynamic_effects.py) also retains strict full/relative-path matching as a sensitivity result. String truncation is classified as unresolved, rather than unnamed. An `exec` is a successful execve/execveat, not a fork. The injected dispatcher is tracked separately, and the supplied patch shim's injected Python exec is removed one-for-one from its observed helper exec count.
+
+The eBPF observer follows tagged thread lineages using initial-namespace kernel thread IDs and resolves regular-file paths at `security_file_permission`. It counts successful VFS scalar, vectored, positioned, copied, sendfile, and clone writes. It separately records explicit VFS truncations. It excludes pipes/sockets and does not claim a census of every filesystem mutation: empty-file creation, namespace operations, memory-mapped dirtying, and some asynchronous/offloaded paths can be missed. The primary percentages concern the captured positive-byte regular-file write operations and successful execs. The first harness exec is excluded. [dynamic_calibration.csv](dynamic_calibration.csv) checks observed scalar/vector/positioned/copy/truncate/descendant behavior inside an isolated namespace. [dynamic_preflight.csv](dynamic_preflight.csv) and the `dynamic_pilot_*` CSVs retain development failures, including map overflow and a shared-cache pilot. Those pilot observations are excluded from the fixed private-cache sample.
+
+### Calls labeled indirect versus direct
+
+| Static primary class | Calls | Write events | Unnamed writes | Exec events | Unnamed execs |
+|---|---:|---:|---:|---:|---:|
+| direct_edit | 15 | 15 | 0.00% | 0 | n/a |
+| direct_shell | 1 | 0 | n/a | 3 | 0.00% |
+| indirect | 17 | 127,261 | >99.99% | 309 | 78.64% |
+| read_only | 61 | 0 | n/a | 34 | 0.00% |
+
+The physical validation target is a call with at least one observed unnamed write or exec. `indirect` is the positive prediction. All other primary classes are negative, including the separately reported inline-code class. The tables distinguish all recorded calls, executed calls, effects-producing calls, and the subset labeled indirect or a direct mutation. Thus command failures are visible in the main denominator, rather than being silently discarded. Precision and recall are descriptive for this replay and visibility definition.
+
+| Call denominator | Calls | TP | FP | FN | TN | Precision | Recall |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| all_recorded_calls | 94 | 12 | 5 | 0 | 77 | 70.6% | 100.0% |
+| executed_calls | 94 | 12 | 5 | 0 | 77 | 70.6% | 100.0% |
+| effectful_calls | 50 | 12 | 5 | 0 | 33 | 70.6% | 100.0% |
+| indirect_vs_direct | 33 | 12 | 5 | 0 | 16 | 70.6% | 100.0% |
+
+[dynamic_confusion.csv](dynamic_confusion.csv) also reports unresolved truth counts and corresponding precision/recall bounds. A failed or unexecuted call is not evidence that the original deployment had no indirect effect. Unsupported tool substitution, dependency failures, malformed normalized commands, different runtime versions, time limits, and initial environment differences limit transfer to original executions.
+
+### Working-tree and cache effects
+
+| Observed file-write location | Write operations | Unnamed operations | Distinct (call, file) pairs | Unnamed pairs |
+|---|---:|---:|---:|---:|
+| home | 98 | 100.00% | 98 | 100.00% |
+| package_cache | 55,078 | 100.00% | 45,376 | 100.00% |
+| project_generated | 64,482 | >99.99% | 51,147 | >99.99% |
+| project_other | 232 | 93.53% | 224 | 93.30% |
+| system_or_other | 36 | 100.00% | 18 | 100.00% |
+| temporary | 7,350 | 100.00% | 4,886 | 100.00% |
+
+`project_generated` identifies conventional generated/build/cache components, including Git metadata, bytecode, virtual environments, node_modules, target, build, and dist. `project_other` covers remaining files below the project root. These are path conventions, not an intent or security judgment. Both rows are included in the project-tree fraction. Package-cache and environment writes are genuine replay effects but can dominate pooled counts. Private per-trajectory caches prevent a preceding model's replay from warming a later one. Setup effects are excluded. Disposable runtime trees are removed after source commits, command receipts, freeze records, final diffs, and observer data are saved. Full per-call object records are in the external `dynamic/effects.jsonl.gz`; [dynamic_effect_sample.csv](dynamic_effect_sample.csv) gives a committed sample.
+
+[dynamic_effects.pdf](dynamic_effects.pdf) compares distinct call-object fractions by model group and static class, with embedded TrueType fonts. [dynamic_report_metrics.csv](dynamic_report_metrics.csv) records report totals. The cohort is a paired, descriptive sample with best-effort environments, not a causal comparison of models or frameworks.
+
+## Static results
 
 | Framework / recorded model | Traj. | Calls | Indirect calls | Any indirect | Write then execute | Explicit create then execute |
 |---|---:|---:|---:|---:|---:|---:|
@@ -85,7 +148,7 @@ For comparison, the following shares require success evidence for an indirect ca
 
 ## Validation and dynamic-replay feasibility
 
-[probe.py](probe.py) records that the installed Docker client cannot reach a daemon, and that bpftrace is unavailable. No replay environment was provisioned and no service or deployment was changed. Without task images and a replay sandbox, an OS-effect fraction cannot be measured here. The ActPlane policy engine's match-only event stream would also require extra instrumentation for an all-writes/all-execs denominator. We used the requested model-annotation fallback instead.
+The initial static pass used the model-annotation fallback while replay infrastructure was unavailable. The follow-up installed bpftrace and local toolchains and used isolated local namespaces, without Docker or changes to cluster services, the gateway, Coder, or model deployments. An all-match ActPlane notify policy is another observer option. This study uses successful-operation eBPF probes for its dynamic denominator.
 
 [validation_labels.csv](validation_labels.csv) contains independent labels from `qwen3.8-27b-nvfp4` and `zai/glm-5.3-flash`, using the exact prompt in [validation_prompt.txt](validation_prompt.txt). Model identities were verified by model listing and response fields. Each rater saw the full tool arguments and working-directory/editor context, without heuristic labels, heuristic reasons, feedback, or the other rater's output. We froze a deterministic sample of 100 calls: equal samples of 50 predicted-indirect calls and 50 other calls, with 10 calls in each framework-by-prediction stratum. The classifier's primary labels were frozen before annotations, and subsequent author-history changes did not alter that sample or its class predictions.
 
@@ -96,7 +159,7 @@ The reviewed disagreements include read-only grep pipelines dispatched by xargs 
 
 This is a descriptive sample of public benchmark and training trajectories. Models, harness versions, languages, prompts, budgets, and success selection differ, so the rows do not identify causal framework/model effects. The OpenHands and SWE-agent prompts encourage reproduction scripts, which can increase write-then-execute frequency. Native transcripts are publisher-normalized, and the older text-action format can contain proposals that the environment rejected. Multiple calls may be retries of the same action. No call weighting reconstructs real-world deployment prevalence.
 
-The indirect class is a **potential execution surface**, not a finding that a mutation occurred, that a specific object was unnamed, or that a real guardrail missed it. Inline programs are excluded from the headline indirect fraction because their literal arguments can contain target names. Unknown calls and indirect effects hidden behind apparently direct operations, such as Git hooks or editor internals, mean the class shares do not bound actual OS effects. The model spot check evaluates the stated static categories and can share systematic errors. The write-history analysis is incomplete and does not establish authorship of an entire script.
+The static indirect class is a **potential execution surface**. The dynamic section separately identifies captured unnamed effects. Neither identifies a real deployed guardrail miss or a policy violation. Inline programs are excluded from the headline indirect fraction because their literal arguments can contain target names. Unknown calls and indirect effects hidden behind apparently direct operations, such as Git hooks or editor internals, mean the class shares do not bound actual OS effects. The model spot check evaluates the stated static categories and can share systematic errors. The write-history analysis is incomplete and does not establish authorship of an entire script.
 
 ## Reproduction and outputs
 
@@ -110,7 +173,7 @@ python3 probe.py --raw "$RAW"
 python3 validate.py --raw "$RAW"
 python3 verify.py --raw "$RAW"
 python3 report.py
-python3 -m pytest -q test_analyze.py
+python3 -m pytest -q test_analyze.py test_dynamic.py
 ```
 
 The annotation command requires `LITELLM_BASE_URL` and `LITELLM_API_KEY` for the named GLM model, plus access to the named direct Qwen endpoint. It keeps at most 4 requests concurrent and never writes credentials. Completed annotations are cached. Transport/format failures get up to 3 attempts and are retained. Full arguments, feedback excerpts, model responses, normalized sampled trajectories, and logs remain under the external raw directory. The committed call sample contains source locators and hashes to recover full arguments without redistributing whole trajectories.
@@ -119,6 +182,20 @@ At the last [resource measurement](resources.csv), raw files occupied 0.362 GB, 
 
 The requested `oss-change-workflow` skill was absent from the available catalog and filesystem search. We followed the scope, validation, synchronized docs/results, and branch workflow stated in AGENTS.md and the operator update. Results are handed off on the experiment branch. This study changes only this output directory and does not edit the paper.
 
+## Dynamic replay reproduction
+
+The replay requires Linux tracing privileges, BTF, bpftrace, bubblewrap, a C compiler, Git, and relevant language toolchains. This run installed bpftrace, OpenJDK, Maven, Go, pnpm, and yarn locally. Host/package versions and per-trajectory setup receipts are retained. Python interpreter versions are pinned in [dynamic_config.json](dynamic_config.json).
+
+```bash
+python3 dynamic_prepare.py --raw "$RAW"
+UV_PYTHON_INSTALL_DIR="$RAW/dynamic/toolchains" UV_PYTHON_BIN_DIR="$RAW/dynamic/toolbin" uv python install 3.9.25 3.12.16
+python3 dynamic_run.py --raw "$RAW"
+python3 dynamic_effects.py --raw "$RAW"
+python3 report.py
+```
+
+The committed sample plan and task metadata hashes identify exact repository base commits. Environment setup runs outside the observed lineage and its failures are recorded. Shell calls use their recorded text, with only a coordinator exit trap to recover cwd and status. Dedicated read/search tools use bounded in-process substitutes. Edit-tool behavior is the committed substitute implementation, so proprietary tool internals are not reconstructed. Recreated source checkouts, dependency trees, and caches are disposable after final diffs, version/freeze receipts, source commits, logs, and observer maps are retained. Raw evidence stays in the external raw directory. Resource snapshots are in [dynamic_resource_samples.csv](dynamic_resource_samples.csv), which samples disk use rather than claiming a continuous maximum.
+
 ## Paper-ready motivation paragraph
 
-Indirect execution is common in public coding-agent trajectories. In a reproducible sample of 3,156 trajectories from 5 frameworks covering 8 recorded model groups, static analysis identified script, module, build, test, or package execution in 71.5% to 100.0% of trajectories per group. These calls account for 11.8% to 33.9% of recorded calls within a group, excluding inline programs from the indirect category. We also observed agents executing files they had written earlier, including within a combined shell call. Such calls expose an entrypoint without enumerating the objects that its execution may affect, motivating enforcement at the operating-system boundary. These measurements characterize recorded execution patterns, rather than the fraction of actual file writes or process creations whose targets are absent from tool arguments.
+Preliminary results. Tool-call arguments do not enumerate every effect of coding-agent execution. We statically analyzed 89,176 recorded calls and replayed 3 public trajectories under eBPF observation. In these best-effort replays, 99.99% of observed regular-file write operations and 70.23% of successful execs had no matching literal object basename or explicit glob in the initiating call's arguments. Restricting writes to project trees, 99.97% of distinct call-file pairs were unnamed. The replay attempted 94 of 94 calls, with 94.7% exiting successfully. These observations motivate enforcement where effects occur, while measuring visibility rather than policy violations. The replays use minimal environments and substitute edit tools, so they do not reconstruct the original deployments.

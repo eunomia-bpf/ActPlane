@@ -1,0 +1,7 @@
+framework,model,classification,trajectories,recorded_calls,executed_calls,successful_calls,failed_calls,timed_out_calls,invalid_trace_calls,any_unnamed_effect_calls,write_events,unnamed_write_events,strict_unnamed_write_events,unknown_write_events,write_objects,unnamed_write_objects,unknown_write_objects,unnamed_write_pct,unnamed_write_object_pct,exec_events,unnamed_exec_events,strict_unnamed_exec_events,unknown_exec_events,exec_objects,unnamed_exec_objects,unknown_exec_objects,unnamed_exec_pct,unnamed_exec_object_pct,truncate_events,unnamed_truncate_events,strict_unnamed_truncate_events,unknown_truncate_events,truncate_objects,unnamed_truncate_objects,unknown_truncate_objects,unnamed_truncate_pct,unnamed_truncate_object_pct
+ALL,ALL,ALL,3,94,94,89,5,0,0,12,127276,127259,127261,0,101749,101732,0,99.98664320060341,99.98329221908814,346,243,243,0,156,79,0,70.23121387283237,50.64102564102564,0,0,0,0,0,0,0,,
+ALL,ALL,direct_edit,3,15,15,15,0,0,0,0,15,0,0,0,15,0,0,0.0,0.0,0,0,0,0,0,0,0,,,0,0,0,0,0,0,0,,
+ALL,ALL,direct_shell,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,,,3,0,0,0,2,0,0,0.0,0.0,0,0,0,0,0,0,0,,
+ALL,ALL,indirect,3,17,17,17,0,0,0,12,127261,127259,127261,0,101734,101732,0,99.99842842661931,99.9980340888985,309,243,243,0,127,79,0,78.64077669902913,62.20472440944882,0,0,0,0,0,0,0,,
+ALL,ALL,read_only,3,61,61,56,5,0,0,0,0,0,0,0,0,0,0,,,34,0,0,0,27,0,0,0.0,0.0,0,0,0,0,0,0,0,,
+Claude Code,fable-5,ALL,3,94,94,89,5,0,0,12,127276,127259,127261,0,101749,101732,0,99.98664320060341,99.98329221908814,346,243,243,0,156,79,0,70.23121387283237,50.64102564102564,0,0,0,0,0,0,0,,
