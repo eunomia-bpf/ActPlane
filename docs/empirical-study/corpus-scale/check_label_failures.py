@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Fault-injection checks that failed model batches never lose source IDs."""
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from common import HERE, write_csv
+from label import classify
+
+
+def main():
+    batch = [dict(statement_id=str(i), text='A source statement.') for i in range(3)]
+    checks = []
+    with TemporaryDirectory() as temp:
+        args = SimpleNamespace(raw=Path(temp), model='qwen3.8-27b-nvfp4')
+        with patch('label.complete', side_effect=RuntimeError('model_request_failed')) as request:
+            result = classify(args, batch, 'coding guide', ['type'], None)
+            checks.append(dict(check='transport_failure_retains_all_ids',
+                passed={r['statement_id'] for r in result} == {'0', '1', '2'}))
+            checks.append(dict(check='transport_failure_status_is_explicit',
+                passed=all(r['status'] == 'failed' for r in result)))
+            checks.append(dict(check='transport_failure_does_not_multiply_requests',
+                passed=request.call_count == 1))
+
+        def malformed_batch_then_valid_singleton(_args, _system, payload, budget):
+            content = ('not JSON' if len(payload['statements']) > 1 else
+                       '{"labels": [[0, "description"]]}')
+            return dict(model='test', choices=[dict(message=dict(content=content))])
+
+        with patch('label.complete', side_effect=malformed_batch_then_valid_singleton):
+            result = classify(args, batch, 'coding guide', ['type'], None)
+            checks.append(dict(check='malformed_batch_split_retains_all_ids',
+                passed=[r['statement_id'] for r in result] == ['0', '1', '2']))
+            checks.append(dict(check='successful_split_accepts_every_source',
+                passed=all(r['status'] == 'ok' for r in result)))
+    write_csv(HERE / 'label_failure_validation.csv', checks)
+    if not all(r['passed'] for r in checks):
+        raise SystemExit('Label failure validation failed')
+    print(checks)
+
+
+if __name__ == '__main__':
+    main()

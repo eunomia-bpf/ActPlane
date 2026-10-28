@@ -1,0 +1,6 @@
+check,passed
+transport_failure_retains_all_ids,True
+transport_failure_status_is_explicit,True
+transport_failure_does_not_multiply_requests,True
+malformed_batch_split_retains_all_ids,True
+successful_split_accepts_every_source,True
