@@ -939,6 +939,7 @@ description: >-
 
 ",1,156
 02a7e2989a6b9109c082:1:2,02a7e2989a6b9109c082,ultralytics/ultralytics,bb3e1550dbb819bd9846d4c99f368aebe8792a0e,CLAUDE.md,CLAUDE.md,a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9,1,2,AGENTS.md,1,2
+02b29d6f6bee0a12e6cb:1:2,02b29d6f6bee0a12e6cb,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,CLAUDE.md,CLAUDE.md,a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9,1,2,AGENTS.md,1,2
 03337957e80f0b458c2d:101:112,03337957e80f0b458c2d,QwenLM/qwen-code,0ecdf0342dd5fba5ebd08ce8c774e53e655fc4b3,AGENTS.md,AGENTS.md,e69084e39585a8bcdca546c72cd7635980b20936670fe8897101737e71a9c7e7,101,112,"**Installing dependencies:** CI, release and every workflow install with the
 pnpm version pinned in `packageManager` (`corepack pnpm install
 --frozen-lockfile`); scripts still run through `npm run`. An additional Git
@@ -14889,6 +14890,138 @@ This mode now merges two sources — tracker rows (Step 2.1) and ranked postings
 | Low | ... | ... | ... |
 
 ",1,161
+19eca098c09946df201b:11:13,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,11,13,"## Map
+
+",1,85
+19eca098c09946df201b:13:14,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,13,14,"- **[ARCHITECTURE.md](ARCHITECTURE.md)** — top-level architectural overview (adapter framework, source-of-truth invariant, capability matrix summary)
+",1,85
+19eca098c09946df201b:14:15,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,14,15,"- **[docs/architecture.md](docs/architecture.md)** — detailed design principles
+",1,85
+19eca098c09946df201b:15:16,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,15,16,"- **[docs/plugins.md](docs/plugins.md)** — full plugin catalog (94 plugins by category)
+",1,85
+19eca098c09946df201b:16:17,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,16,17,"- **[docs/agents.md](docs/agents.md)** — agent reference (202 agents, model tiers)
+",1,85
+19eca098c09946df201b:17:18,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,17,18,"- **[docs/agent-skills.md](docs/agent-skills.md)** — skill reference (progressive disclosure model)
+",1,85
+19eca098c09946df201b:18:19,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,18,19,"- **[docs/usage.md](docs/usage.md)** — commands, workflows, examples
+",1,85
+19eca098c09946df201b:19:20,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,19,20,"- **[docs/authoring.md](docs/authoring.md)** — portable-content style guide (read before adding plugins)
+",1,85
+19eca098c09946df201b:1:5,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,1,5,"# Agents, skills, and commands for seven coding tools
+
+<a id=""claude-agents--multi-harness-agentic-plugin-marketplace""></a>
+
+",1,85
+19eca098c09946df201b:20:21,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,20,21,"- **[docs/harnesses.md](docs/harnesses.md)** — per-harness capability matrix
+",1,85
+19eca098c09946df201b:21:22,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,21,22,"- **[docs/plugin-eval.md](docs/plugin-eval.md)** — three-layer quality evaluation framework
+",1,85
+19eca098c09946df201b:22:23,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,22,23,"- **[docs/round-trip-results.md](docs/round-trip-results.md)** — real-CLI verification recipes
+",1,85
+19eca098c09946df201b:23:24,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,23,24,"- **[docs/mlops.md](docs/mlops.md)** — MLOps lab pipeline (W&B, Hugging Face, model release)
+",1,85
+19eca098c09946df201b:24:26,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,24,26,"- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to contribute
+
+",1,85
+19eca098c09946df201b:26:28,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,26,28,"## Working in this repo
+
+",1,85
+19eca098c09946df201b:28:29,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,28,29,"- Python tooling: **uv** (package manager), **ruff** (lint/format), **ty** (type check). Do not use pip / mypy / black.
+",1,85
+19eca098c09946df201b:29:30,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,29,30,"- Plugins live under `plugins/<name>/` with auto-discovery — see `docs/authoring.md` for frontmatter shapes.
+",1,85
+19eca098c09946df201b:30:31,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,30,31,"- Plugin names: lowercase, hyphen-separated. Never use `__` (it's the adapter namespace separator).
+",1,85
+19eca098c09946df201b:31:33,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,31,33,"- Never commit secrets. Never run destructive git (force-push, `reset --hard`, branch -D) without explicit ask.
+
+",1,85
+19eca098c09946df201b:33:35,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,33,35,"## Quality gates (run these before pushing)
+
+",1,85
+19eca098c09946df201b:35:42,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,35,42,"```bash
+make validate STRICT=1     # structural validation across all harness outputs
+make garden                # drift detection (dead links, stale artifacts, oversize skills)
+make test                  # full pytest suite (plugin-eval + tools/tests/)
+make smoke-test            # real-CLI subprocess tests against generated artifacts
+```
+
+",1,85
+19eca098c09946df201b:42:44,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,42,44,"CI (`.github/workflows/validate.yml`) runs all four on every PR plus installs OpenCode + Antigravity CLI + Pi for live verification.
+
+",1,85
+19eca098c09946df201b:44:46,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,44,46,"## Regenerating per-harness artifacts
+
+",1,85
+19eca098c09946df201b:46:56,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,46,56,"```bash
+make generate HARNESS=codex        # .codex/skills, .codex/agents, .codex/plugins/<p>/, .agents/plugins/marketplace.json
+make generate HARNESS=cursor       # .cursor-plugin/{marketplace,plugin}.json, .cursor/rules/
+make generate HARNESS=opencode     # .opencode/{skills,agents,commands,plugins}/, opencode.json
+make generate HARNESS=antigravity  # .antigravity/plugins/<p>/
+make generate HARNESS=copilot      # .copilot/{skills,agents,commands}/
+make generate HARNESS=pi           # .pi/{skills,prompts,agents}/
+make generate-all                  # every harness
+```
+
+",1,85
+19eca098c09946df201b:56:58,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,56,58,"Small native-install registries are committed for tools that support that route. See the installation commands in [docs/harnesses.md](docs/harnesses.md). The transformed skill and agent trees under `.codex/`, `.opencode/`, `.copilot/`, `.antigravity/` and `.pi/` stay gitignored and are rebuilt locally. Under `.pi/` the generator owns only `skills/`, `prompts/` and `agents/`, because Pi reads its own project config from the same directory. Run `make generate-all` before committing source changes. It also prunes artifacts whose source was removed, and CI fails on drift. Source files live only under `plugins/`. Never hand-edit generated files.
+
+",1,85
+19eca098c09946df201b:58:60,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,58,60,"## Skills (cross-harness)
+
+",1,85
+19eca098c09946df201b:5:7,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,5,7,"The repository provides 94 plugins (92 local + 2 external), 202 agents, 185 skills, and 105 commands for seven coding tools: Claude Code, OpenAI Codex CLI, Cursor, OpenCode, Google Antigravity CLI (`agy`), GitHub Copilot, and Pi. Shared source files use the Claude Code format, and adapters provide the formats used by other tools. External entries have their own tool support.
+
+",1,85
+19eca098c09946df201b:60:62,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,60,62,"185 skills under `plugins/*/skills/<n>/SKILL.md` — discoverable by every harness:
+
+",1,85
+19eca098c09946df201b:62:63,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,62,63,"- **Claude Code**: auto-discovery via Anthropic's SKILL.md spec
+",1,85
+19eca098c09946df201b:63:64,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,63,64,"- **Codex CLI**: mirrored to `.codex/skills/<plugin>__<skill>/` (8 KB body cap; detail in `references/details.md`)
+",1,85
+19eca098c09946df201b:64:65,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,64,65,"- **OpenCode**: mirrored to `.opencode/skills/<plugin>-<skill>/` using hyphenated names for global install
+",1,85
+19eca098c09946df201b:65:66,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,65,66,"- **Cursor**: reads `.claude/skills/` directly (no re-emit)
+",1,85
+19eca098c09946df201b:66:67,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,66,67,"- **Antigravity CLI**: native plugins at `.antigravity/plugins/<p>/` — bare `skills/<skill>/SKILL.md` (no `<plugin>__` namespacing; the plugin dir already scopes it)
+",1,85
+19eca098c09946df201b:67:68,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,67,68,"- **GitHub Copilot**: mirrored to `.copilot/skills/<plugin>__<skill>/`. Commands also become user-invocable skills.
+",1,85
+19eca098c09946df201b:68:69,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,68,69,"- **Pi**: mirrored to `.pi/skills/<plugin>/<skill>/`; discovery is recursive so names stay bare
+",1,85
+19eca098c09946df201b:69:71,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,69,71,"- **Skills-only installers**: `gh skill install wshobson/agents` and `npx skills add wshobson/agents` read `plugins/*/skills/` from GitHub directly (see `docs/harnesses.md`); `make smoke-test` runs both plus the agentskills.io spec check
+
+",1,85
+19eca098c09946df201b:71:73,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,71,73,"## Subagents (cross-harness)
+
+",1,85
+19eca098c09946df201b:73:75,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,73,75,"202 subagents under `plugins/*/agents/<name>.md`. Per-harness transpilation:
+
+",1,85
+19eca098c09946df201b:75:76,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,75,76,"- **Codex**: `.codex/agents/<plugin>__<agent>.toml` (drop `tools:`, map model alias to the GPT-5.x family, infer `sandbox_mode`)
+",1,85
+19eca098c09946df201b:76:77,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,76,77,"- **OpenCode**: `.opencode/agents/<plugin>__<agent>.md` with `mode: subagent` + `permission:` block (locked agents — those with source `tools: []` — get deny-everything except base `skill`/`task`)
+",1,85
+19eca098c09946df201b:77:78,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,77,78,"- **Antigravity CLI**: `.antigravity/plugins/<p>/agents/<agent>.md` (Markdown + YAML frontmatter, `model:` is a tier alias — `inherit`/`flash`/`pro`); TOML commands at `commands/<p>/<cmd>.toml` (agy reports these as ""converted to skills""); global install via `make install-antigravity` symlinks each plugin into `~/.gemini/config/plugins/`
+",1,85
+19eca098c09946df201b:78:79,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,78,79,"- **GitHub Copilot**: `.copilot/agents/<plugin>__<agent>.agent.md` profiles with translated tool names and Claude model IDs.
+",1,85
+19eca098c09946df201b:79:80,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,79,80,"- **Pi**: `.pi/agents/<plugin>__<agent>.md` in the reference `subagent` extension's format (name, description, tools, model); commands become prompt templates at `.pi/prompts/<plugin>__<cmd>.md`
+",1,85
+19eca098c09946df201b:7:9,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,7,9,"AGENTS.md is the canonical context file. Codex, Cursor, OpenCode, Antigravity CLI, GitHub Copilot, and Pi read it directly. Claude Code reads it via `CLAUDE.md`, a symlink to this file.
+
+",1,85
+19eca098c09946df201b:80:82,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,80,82,"- **Cursor**: reads `.claude/agents/` directly
+
+",1,85
+19eca098c09946df201b:82:84,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,82,84,"## Why this file is short
+
+",1,85
+19eca098c09946df201b:84:85,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,84,85,"Per OpenAI's harness-engineering practice: this file is a **map**, not an encyclopedia. Procedural detail lives in skills (loaded on demand by agents). Reference material lives in `docs/` (loaded when an agent navigates). A single bloated AGENTS.md crowds out the task, rots quickly, and is hard to verify mechanically. Keep it lean; push detail elsewhere.
+",1,85
+19eca098c09946df201b:9:11,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,9,11,"> **Read this file like a table of contents.** Detail lives in `docs/`. Authoring conventions live in `docs/authoring.md`. Per-harness setup and capability deltas live in [`docs/harnesses.md`](docs/harnesses.md). This file should never grow beyond ~150 lines (per OpenAI's [harness-engineering](https://openai.com/index/harness-engineering/) practice).
+
+",1,85
 1b02b4b5cea0f151b6df:1:2,1b02b4b5cea0f151b6df,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,CLAUDE.md,CLAUDE.md,a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9,1,2,AGENTS.md,1,2
 1bfce5eff82d9588e881:10:12,1bfce5eff82d9588e881,kubesphere/kubesphere,04a29b5c601470fa6bc2f2e92358dcb802a0d414,skills/vector/SKILL.md,SKILL.md,3f53c5f710046fbf21c3037467213199c089629ee663b50f699ca4befe226f2c,10,12,"WizTelemetry Data Pipeline is an extension based on vector (https://vector.dev/) that provides the ability to collect, transform, and route observability data. It is a core dependency for other WizTelemetry extensions like Logging, Auditing, Events, and Notification.
 
@@ -51305,6 +51438,30 @@ Follow these guidelines when contributing:
 ",1,46
 5c495599c125bd57307e:9:10,5c495599c125bd57307e,crewAIInc/crewAI,a1be1275dee4ad824ca1fe300785ae82a1552a6f,AGENTS.md,AGENTS.md,03a3efb0ebb1fbaffdbeb8d29f3c8d996bb8184e0b389f05cd306539dbaadf35,9,10,"2. Maintain existing code structure and organization.
 ",1,46
+5c77f8fb8e60c542c94f:10:11,5c77f8fb8e60c542c94f,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,.cursor/rules/010-python-tooling.mdc,.cursor/rules/*,3571a78350ed68bedcc938b316cb46b861cb1b44626c4760a0bbbea0327e072b,10,11,"- **uv** for package management. Run `uv run <cmd>` to execute inside the venv, `uv add <pkg>` to install.
+",1,17
+5c77f8fb8e60c542c94f:11:12,5c77f8fb8e60c542c94f,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,.cursor/rules/010-python-tooling.mdc,.cursor/rules/*,3571a78350ed68bedcc938b316cb46b861cb1b44626c4760a0bbbea0327e072b,11,12,"- **ruff** for linting and formatting. `uv run ruff check .` / `uv run ruff format .`.
+",1,17
+5c77f8fb8e60c542c94f:12:14,5c77f8fb8e60c542c94f,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,.cursor/rules/010-python-tooling.mdc,.cursor/rules/*,3571a78350ed68bedcc938b316cb46b861cb1b44626c4760a0bbbea0327e072b,12,14,"- **ty** for type checking. `uv run ty check .`.
+
+",1,17
+5c77f8fb8e60c542c94f:14:16,5c77f8fb8e60c542c94f,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,.cursor/rules/010-python-tooling.mdc,.cursor/rules/*,3571a78350ed68bedcc938b316cb46b861cb1b44626c4760a0bbbea0327e072b,14,16,"Do not use `pip`, `mypy`, or `black`. Do not edit `requirements.txt` for Python deps — those belong in `pyproject.toml`.
+
+",1,17
+5c77f8fb8e60c542c94f:16:17,5c77f8fb8e60c542c94f,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,.cursor/rules/010-python-tooling.mdc,.cursor/rules/*,3571a78350ed68bedcc938b316cb46b861cb1b44626c4760a0bbbea0327e072b,16,17,"Python ≥ 3.12 is required. Use modern syntax (`X | Y`, `list[T]`, structural pattern matching).
+",1,17
+5c77f8fb8e60c542c94f:1:6,5c77f8fb8e60c542c94f,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,.cursor/rules/010-python-tooling.mdc,.cursor/rules/*,3571a78350ed68bedcc938b316cb46b861cb1b44626c4760a0bbbea0327e072b,1,6,"---
+description: Python tooling and dependency conventions for plugin-eval and tools/
+globs: [""**/*.py"", ""**/pyproject.toml"", ""**/uv.lock""]
+---
+
+",1,17
+5c77f8fb8e60c542c94f:6:8,5c77f8fb8e60c542c94f,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,.cursor/rules/010-python-tooling.mdc,.cursor/rules/*,3571a78350ed68bedcc938b316cb46b861cb1b44626c4760a0bbbea0327e072b,6,8,"# Python tooling
+
+",1,17
+5c77f8fb8e60c542c94f:8:10,5c77f8fb8e60c542c94f,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,.cursor/rules/010-python-tooling.mdc,.cursor/rules/*,3571a78350ed68bedcc938b316cb46b861cb1b44626c4760a0bbbea0327e072b,8,10,"This project uses the Astral Rust toolchain:
+
+",1,17
 5c9f0aff320c75f7134c:10:12,5c9f0aff320c75f7134c,cheaper-inference/OmniRoute,8a8c64ee33b83803df74628a83f8372f7a1432c7,CLAUDE.md,CLAUDE.md,ea967b3459ac5e9728aad14261c702996fc7653d43e64195e2dcca516409cccc,10,12,"## Worktree isolation — Claude Code specifics
 
 ",1,72
@@ -84129,6 +84286,304 @@ Rules:
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
 - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
 ",1,9
+a5e53a8661f8edb443b2:102:104,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,102,104,"Pick the path that fits the project:
+
+",83,176
+a5e53a8661f8edb443b2:104:105,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,104,105,"- **Standalone HTML, a static SVG, a blog post or any non-React site.** Write a Node build script like `examples/dial-indicator/build.mjs`. It imports `kit/iso-kit.mjs`, assembles strings with `solidSvg`, `lineSvg`, `dotsSvg`, `wireSvg` and `faceTextSvg`, wraps them with `figureSvg` and `plateHtml`, and writes the page with `pageHtml({ script: kitScript() + live })`, or `kitScript() + glScript() + live` when it has a shader. For a lone `.svg` file use `figureSvg({ standalone: ""dark"" | ""light"" })`, which embeds the styles.
+",83,176
+a5e53a8661f8edb443b2:105:107,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,105,107,"- **React or Next.js.** Copy `kit/` into the project (for example `components/iso/`). Keep geometry in plain `.ts` modules, build the static art in a server component with the `draw.tsx` components, and pass it as element props to one `""use client""` live component that moves things. `references/react.md` explains the split and a trap with large pages.
+
+",83,176
+a5e53a8661f8edb443b2:107:109,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,107,109,"## Craft rules (short form)
+
+",83,176
+a5e53a8661f8edb443b2:109:111,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,109,111,"These are the rules that separate a crafted figure from a diagram. `references/craft.md` gives the full reasoning and recipes.
+
+",83,176
+a5e53a8661f8edb443b2:10:12,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,10,12,"# Anatomy
+
+",1,83
+a5e53a8661f8edb443b2:111:112,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,111,112,"- **Solids, not wireframes.** Every part is filled in paper colour and painted in order, so things in front hide things behind. No see-through edges and no dashed hidden lines.
+",83,176
+a5e53a8661f8edb443b2:112:113,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,112,113,"- **Let the kit shade.** `extrude` returns four side tones by facing plus a lighter top. Keep it for anything with height, and use `flat` only for floors and inlays thinner than 1 unit.
+",83,176
+a5e53a8661f8edb443b2:113:114,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,113,114,"- **Tone hierarchy.** Base and feet are `lo`, structure is `mid` and the subject is `hi`. Exactly one accent is `lit` (white in dark, black in light): the part the reader should watch. Grooves are `faint`, minor ticks `lo`, major ticks `mid` and the zero mark `hi`. Use colour only when colour is the subject, such as red, green and blue channels.
+",83,176
+a5e53a8661f8edb443b2:114:115,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,114,115,"- **Small precise detail, never noise.** Use bevels of 0.4–1.6, grooves inset 3–5 from an edge, screws as 0.4–0.55 dots with a ring at the corners of plates, knurls on knobs, ruler ticks every 4–5 units with a major every 5th, and a label plate with three rule lines. Each detail belongs to a part.
+",83,176
+a5e53a8661f8edb443b2:115:116,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,115,116,"- **Lines resolve.** Every line ends on something: a face, another line or a terminal dot. Connectors are `Wire`s whose terminal dots land on objects. There are no leader lines, balloons, dimension arrows or labels floating in the air.
+",83,176
+a5e53a8661f8edb443b2:116:117,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,116,117,"- **No pipe or cable passes through anything.** Not through another pipe, cable or solid, at rest, apart or in any frame of the explode. Keep about 1.5 radii of clearance to everything but a line's own connection, run lines beside the structure rather than across the subject's face, and gap a pipe wherever a flange, band, bellows, clamp or valve wraps it. Parts meet flush, tangent or rim-on-surface, never sunk in: a flange's back face lands on its port (on a saddle pad, `G.saddleOf`, when the port is curved), a branch leaves from a ball tee, and every end, apart too, finishes on a flange, coupling, connector shell or terminal dot.
+",83,176
+a5e53a8661f8edb443b2:117:118,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,117,118,"- **Every crossing is drawn in true depth order.** Where two items overlap on screen, the nearer is drawn on top, proved by `A.settle` and the audit, not tuned by eye. Lines cross on straights, well apart in depth: a bend, end or clamp that lands on another line's outline reads as a joint (a rod, tie rod, post or rail counts as a line: a pipe's last leg never runs along one on screen), a leg that points at the viewer and then turns pinches to a V (leave such a port through an elbow ball), and a route never doubles back on screen. A pair that can't be ordered interlocks, and the fix is a cut or a tangent contact, never a bias.
+",83,176
+a5e53a8661f8edb443b2:118:119,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,118,119,"- **Curved surfaces shade smoothly, never in a staircase.** Mark curved knots smooth (`[s, r, 1]`) and `lathe` shades them from one monotone curve that also draws the outline; give any curved body larger than a fitting an analytic profile with `smooth: { slope }`, cut long bodies with `G.bandsOf`, and use `G.sphereOf` for balls. Tone bands taper to nothing instead of ending on a straight cut, and seams go under the outline (`inner`).
+",83,176
+a5e53a8661f8edb443b2:119:120,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,119,120,"- **A texture ends on a real edge or fades.** Ribs, bolt circles, rule lines, seams and grooves never stop in the middle of a surface, flat or curved: `ribsOf` and `dotsOf` take `fade` (draw faded ribs with `fadedSvg`), a rib row ends on its seams (`ribsOf(…, { seams: true })`), a seam or weld on a box wraps its corners (`k.sideSeam`, as the slab's `inner`), a line on one face runs edge to edge, vents are closed slots, ticks hang from a ruler strip's edge, a single line that must stop ramps out with `fadeLineSvg`, and a row whose features face up (holes on top of a ring) is seen all round (`all: true`). A texture on a pipe (braid, corrugation, wrap) follows its cross-section and runs through every chunk joint: `tubePieces(…, { rings })`, never a dashed stroke down the centreline. A pipe's shine and shade run onto its end caps and through every chunk joint. Only rule lines that stand for printed text, a needle's tail and a pointer's tip may stop on a bare face, marked `free`.
+",83,176
+a5e53a8661f8edb443b2:120:121,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,120,121,"- **Shaders never pop or cut off.** Every uniform rides an envelope with an attack and a decay, phase changes are crossfades driven by the physical quantity, every term reaches zero before any bound or canvas edge, and the effect lives in world space in the figure's own camera (see below).
+",83,176
+a5e53a8661f8edb443b2:121:122,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,121,122,"- **Things on faces fit them.** Text a machine displays fits its window at its widest string and is clipped to it; content seen through an opening is clipped by the opening as well as by its own plane, with the recess walls drawn.
+",83,176
+a5e53a8661f8edb443b2:122:123,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,122,123,"- **Volume.** Give things real thickness, make them stand on other things, and put a soft halo under the base and under anything lifted.
+",83,176
+a5e53a8661f8edb443b2:123:125,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,123,125,"- **Composition.** Centre the figure and let it fill about 55–65% of the card. Keep a consistent scale across a set of figures, and make sure it still reads at 390 px wide.
+
+",83,176
+a5e53a8661f8edb443b2:125:127,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,125,127,"## WebGL inside the drawing
+
+",83,176
+a5e53a8661f8edb443b2:127:129,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,127,129,"Use a shader only for what lines can't draw: fire and exhaust, water and caustics, real lamp light, glow, steam. The parts stay SVG. The core rules come from the first shader figure, whose colour change between phases looked cut rather than crossfaded:
+
+",83,176
+a5e53a8661f8edb443b2:129:130,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,129,130,"- **Three layers.** A back SVG holds what the effect covers, the canvas holds the effect (`pointer-events: none`), and a front SVG holds what covers it. Split a part, or the effect, when it is on both sides.
+",83,176
+a5e53a8661f8edb443b2:12:14,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,12,14,"This skill makes figures like a small instrument on a bench: a heavy base on feet, rails with tick rulers, a carriage on bushings, knurled knobs, coil springs, a dial gauge whose needle moves, screws as tiny dots. The reader understands the idea because they recognise the machine. Every number the figure shows comes from the same model that moves its parts.
+
+",1,83
+a5e53a8661f8edb443b2:130:131,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,130,131,"- **World space, same camera.** Build every shader point from `onFloor`, `onWallX` and `onWallY`, or march the pixel's ray `rayOf(vb) + t·towardViewer()`. Size everything in world units times `uK`. Anything lying on a plane registers exactly with that plane's SVG lines.
+",83,176
+a5e53a8661f8edb443b2:131:132,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,131,132,"- **Nothing pops.** Every uniform follows an envelope with an attack and a decay (the kit's `burst` for events, `settle` for levels). Phase changes are crossfades where colour shifts continuously with the physical quantity, and a fade-out only gets darker.
+",83,176
+a5e53a8661f8edb443b2:132:133,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,132,133,"- **No hard cut-offs.** Every term reaches zero before any `if`, bound or canvas edge, and before any cell edge of a cell noise.
+",83,176
+a5e53a8661f8edb443b2:133:134,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,133,134,"- **Seen through an opening, masked twice.** Content behind a window or a recess is masked in its own plane and by the opening in the face plane, multiplied (`references/webgl.md`, section 5).
+",83,176
+a5e53a8661f8edb443b2:134:136,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,134,136,"- **Blending.** Use `tonemap()` and dither. In dark, a canvas that only adds light uses premultiplied output with `mix-blend-mode: screen`, and one that must also darken (the ripple tank's water) stays normal-blended.
+- **Light theme ships, and its shaders are designed for paper.** Use normal premultiplied alpha, never screen. Write the colour the paper should show and solve for the ink. A glow is a saturated body with a pale core, a coloured rim and an alpha floor, never a darkened dark-theme colour: that gave the Raptor's ""red ink smoke"".
+",83,176
+a5e53a8661f8edb443b2:136:137,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,136,137,"  - What the light falls on takes a tint, and the cavity that holds it gets a darker physical ground (soot, refractory, water depth).
+",83,176
+a5e53a8661f8edb443b2:137:138,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,137,138,"  - Hot bodies follow one blackbody ink table shared with the fallback.
+",83,176
+a5e53a8661f8edb443b2:138:139,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,138,139,"  - Ink only grows with light: fade the finished ink once, never one term at a time.
+",83,176
+a5e53a8661f8edb443b2:139:140,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,139,140,"  - Ink ends at each stroke's inner edge.
+",83,176
+a5e53a8661f8edb443b2:140:141,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,140,141,"  - Measure ink per frame. `references/webgl.md`, section 8, has the recipes and the faults reviewers found.
+",83,176
+a5e53a8661f8edb443b2:141:143,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,141,143,"- **Restraint.** Cap the device ratio at 1.5 and render only while the effect is active and onscreen. Reduced motion gets one still frame, and the SVG must still read without WebGL.
+
+",83,176
+a5e53a8661f8edb443b2:143:145,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,143,145,"Read `references/webgl.md` before writing any shader.
+
+",83,176
+a5e53a8661f8edb443b2:145:147,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,145,147,"## 3D: figures that turn (beta)
+
+",83,176
+a5e53a8661f8edb443b2:147:149,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,147,149,"3D is an option like WebGL. Use it when a part moving in depth is the idea: a dial or turntable that turns, fingers that flex, a piece that breaks off and falls. The rest of the figure stays static kit art.
+
+",83,176
+a5e53a8661f8edb443b2:149:151,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,149,151,"It is in beta: the engine is proved on its example and one test figure, not yet on a production figure. Turn one subject at a time and keep the clutter around it static. A small figure runs at 60 fps; a dense 380-part flexing hand measured about 20 fps at 1440 and 13–15 fps on a phone profile (390 px, 4× CPU throttle) on a heavily loaded machine.
+
+",83,176
+a5e53a8661f8edb443b2:14:16,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,14,16,"Eight complete examples ship with the skill. Open the closest one before you start. Each framework-free example is built with `node examples/<name>/build.mjs`, which writes a standalone HTML page next to the script; add `--light` for the light theme.
+
+",1,83
+a5e53a8661f8edb443b2:151:152,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,151,152,"- **Live parts are the kit's own picture.** Each frame, convex kit primitives (prisms, rounds, domes, balls with flats, lathes, tubes) are re-projected and re-shaded by the kit's rules. A turn by θ is the kit drawing at azimuth `a − θ`.
+",83,176
+a5e53a8661f8edb443b2:152:153,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,152,153,"- **Order comes from separating planes.** Same-group pairs get a plane fixed in the group, pairs on different links get one fixed in their common frame, and the rest are solved each frame. The audit proves there are no cycles at any angle or in any clip frame.
+",83,176
+a5e53a8661f8edb443b2:153:154,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,153,154,"- **Contacts are flush, tangent or rim-on-flat.** Joints are coaxial knuckle discs on the child group that touch the parent's link, or the audit calls the whole child group loose. No live line spans two moving groups: a cable crosses a joint through a clip on each side, or reaches the turntable through a slip ring at the hub.
+",83,176
+a5e53a8661f8edb443b2:154:155,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,154,155,"- **Live tubes bend in near-horizontal planes or inside fittings, and never point along the view.** A bend needs R ≥ 2r / sin²(e − θmax), where θmax includes the pitch range of every hinge it rides: 8r is the bound when flat, and on a ±12° hinge it is 21r. Each route runs from mount surface to mount surface, with its ports in `gaps`. That holds at every angle and in every pose.
+",83,176
+a5e53a8661f8edb443b2:155:156,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,155,156,"- **Materials remap the ramp.** Gold, chrome, steel, gunmetal, rubber, brass and copper each have a light and a dark set; tones still come from facing.
+",83,176
+a5e53a8661f8edb443b2:156:157,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,156,157,"- **Free groups break off without a jump.** Coaxial parts are fixed pictures with turning textures.
+",83,176
+a5e53a8661f8edb443b2:157:158,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,157,158,"- **Shaders follow the motion.** Anchor them to a group with `controller.anchor` or `toGroup`, occlude a front canvas with `coverOf`, and keep world effects (smoke, falling sparks, oil on the bench) out of group space.
+",83,176
+a5e53a8661f8edb443b2:158:160,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,158,160,"- **Verify with `--audit`** (`turn audit passed`) and `scripts/turn-check.mjs` (`--fidelity`, `--order`, `--pops`, `--lines`, `--perf`). Iterate with `--quick --only=…`. Only a full run proves the figure, and it takes 15–20 minutes for 30 parts, so run it in the background.
+
+",83,176
+a5e53a8661f8edb443b2:160:162,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,160,162,"Read `references/3d.md` first.
+
+",83,176
+a5e53a8661f8edb443b2:162:164,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,162,164,"## Printable sheets (A4)
+
+",83,176
+a5e53a8661f8edb443b2:164:166,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,164,166,"When the user wants the figure on paper (a handout, a poster, a PDF, an A4 or Letter sheet), print it from the finished figure instead of drawing again. Write a `sheet.mjs` next to the build: the poses to capture as `drive.mjs` actions, the parts as CSS selectors over the live SVG, and the words, every one of them true to the model. Then run `node scripts/print.mjs sheet.mjs --format all --png` and read every page.
+
+",83,176
+a5e53a8661f8edb443b2:166:167,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,166,167,"- **poster** (the default): one page, the name set large, the question, big numbers, the figure with numbered pins and every part with one line.
+",83,176
+a5e53a8661f8edb443b2:167:168,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,167,168,"- **drawing**: one page, a technical drawing with a parts list, a specification, an inset and a strip of steps with the working parts lit.
+",83,176
+a5e53a8661f8edb443b2:168:170,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,168,170,"- **detailed**: 2–4 pages, scaled to the machine: an overview with pins and round close-ups; ""How it works"" with each step as a large lit still (six per page, the why in the last slot); and for complex figures an ""Assemblies"" page with up to four large close-ups of part groups (`assemblies` in the spec). A simple figure stays at 2 pages; `maxPages` caps it.
+
+",83,176
+a5e53a8661f8edb443b2:16:17,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,16,17,"- `examples/dial-indicator/` is the smallest: a dial gauge on a stand, about 300 lines in all.
+",1,83
+a5e53a8661f8edb443b2:170:172,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,170,172,"Offer all three when the user hasn't picked one. When the page shows a figure that has a PDF, put a link to it on the card with `pdfButton(href)` from `kit/pdf-button.mjs` inside the plate body (see `examples/push-button/build.mjs`); print first, then rebuild the page. `examples/raptor-engine/sheet.mjs` and `examples/arcade-cabinet/sheet.mjs` are the references. Read `references/print.md` first.
+
+",83,176
+a5e53a8661f8edb443b2:172:174,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,172,174,"## References
+
+",83,176
+a5e53a8661f8edb443b2:174:176,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,174,176,"Read these as you need them:
+
+",83,176
+a5e53a8661f8edb443b2:176:177,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,176,177,"- `references/craft.md`: the look in depth, including the parts vocabulary with code, tone tables, painter's order patterns, round parts, pipes and harnesses, exploded views, screens on faces, and the anti-patterns that got figures rejected. Read it before designing.
+",176,186
+a5e53a8661f8edb443b2:177:178,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,177,178,"- `references/kit.md`: the API, with signatures and examples.
+",176,186
+a5e53a8661f8edb443b2:178:179,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,178,179,"- `references/motion.md`: live behaviour (loops, springs, tours, pointer, keyboard, accessibility, reduced motion), plus envelopes for one-shot events, exploded views, depth re-sorting and arming, in vanilla JS and React.
+",176,186
+a5e53a8661f8edb443b2:179:180,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,179,180,"- `references/react.md`: the React/Next.js server/client split, element props and the large-payload key-warning trap.
+",176,186
+a5e53a8661f8edb443b2:17:18,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,17,18,"- `examples/desk-computer/` is framework-free SVG: a desk computer with a keyboard you can type on. The typed line appears on a CRT screen drawn in the plane of the case front, and the picture collapses to a line and a dot when you switch it off. It has about 85 solids and 850 paths.
+",1,83
+a5e53a8661f8edb443b2:180:181,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,180,181,"- `references/verify.md`: the `capture.mjs` and `drive.mjs` commands, the review checklist (including shaders) and common faults.
+",176,186
+a5e53a8661f8edb443b2:181:182,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,181,182,"- `references/webgl.md`: shaders inside the drawing: when one earns its place, the layer stack, the camera contract, ray-marching in the iso camera, the full API with a minimal page, the craft rules with the bugs that taught them, the light theme (inks on paper, per-phenomenon recipes, the reviewers' faults), and how to verify them.
+",176,186
+a5e53a8661f8edb443b2:182:183,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,182,183,"- `references/walkthrough.md`: how the test rig was designed, step by step, from concept to code.
+",176,186
+a5e53a8661f8edb443b2:183:184,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,183,184,"- `references/3d.md`: the optional 3D mode: groups and poses, live layers, convex parts and their rules, materials, free groups, hinge chains, painter's order, static clutter around a turntable, shaders that follow the turn, the orbit audit, browser checks, performance and limits.
+",176,186
+a5e53a8661f8edb443b2:184:185,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,184,185,"- `references/print.md`: printable A4 or Letter sheets from a built figure: the three formats, the `sheet.mjs` spec (poses, parts as selectors, focus, hide, crops, rasters for WebGL) and how to check the PDF.
+",176,186
+a5e53a8661f8edb443b2:185:186,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,185,186,"- `references/publish.md`: sharing a finished figure in the community gallery with `scripts/publish.mjs`, only when the user asks; nothing is pushed for them.
+",176,186
+a5e53a8661f8edb443b2:18:19,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,18,19,"- `examples/arcade-cabinet/` is an upright arcade cabinet with its side panel off, a Hero of about 240 solids and 15 cables. A quarter flies into the slot, rolls down the coin chute at the speed a rolling disc reaches on a 30° slope, trips the coin-switch wire and drops into the cash box; the switch's pulse runs chunk by chunk along its cable to the board, and the CRT warms up, self-tests and runs an attract mode drawn in the plane of the tilted monitor. The stick tilts and closes a microswitch under the panel. It shows how to place a camera so a cutaway's mechanism stays in view, a concave board drawn as a prism along any axis, moving parts rebuilt in the page from the same module the build uses, and live coins and a wire drawn in reserved slots of the settled order. `node build.mjs --audit` proves the geometry.
+",1,83
+a5e53a8661f8edb443b2:19:20,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,19,20,"- `examples/raptor-engine/` is a rocket engine hanging in a test stand. Its round parts come from `kit/lathe.mjs` and its pipes and harness from `kit/tube.mjs`. It comes apart into 11 assemblies with staggered springs and per-frame depth re-sorting. Every part records its true shape, and `node build.mjs --audit` (`kit/audit.mjs`) proves, at rest, apart and in every replayed frame of the explode, that nothing passes through anything, that every end sits on a real mount, that no bend pinches, folds or lands on another line, that no curved profile's slope wobbles, and that every overlap is drawn in depth order. A WebGL plume, shock, splash and steam render between the back and front SVG. It is the reference for dense pipework, smooth shading and fades.
+",1,83
+a5e53a8661f8edb443b2:1:10,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,1,10,"---
+name: anatomy
+description: Build crafted, highly detailed, interactive isometric SVG figures that explain a technical idea as a real physical object (a test rig, a dial gauge, a cabinet of drawers, a plotter, a lock), with many small precise solid parts, four-tone shading, correct painter's order, a framed card with title, hint and live readout, and calm eased motion. Use this whenever someone wants an isometric illustration, an explanatory diagram or figure for docs, a blog post, a landing page or an article, a ""Linear-style"" or ""premium"" technical drawing, an interactive explainer, or an SVG that shows how a system, algorithm or component works, even if they never say ""isometric"". Works framework-free (TypeScript/JS that writes SVG and HTML) and in React/Next.js, and can add realistic WebGL shaders (fire, exhaust, water, caustics, lamp light) that live inside the drawing in the same isometric perspective. Also prints a figure as an A4 PDF (poster, drawing or handout) and publishes it to the Anatomy community gallery when asked.
+license: MIT
+compatibility: Written for Claude Code; also runs in Antigravity, OpenCode, Codex and MiniMax Code. Needs Node.js 20.10+, and Chrome or Chromium for the checks.
+metadata:
+  opencode/slash: ""true""
+---
+
+",1,83
+a5e53a8661f8edb443b2:20:21,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,20,21,"- `examples/ripple-tank/` is a school ripple tank on tall legs over a paper screen, seen from 44° up. Two WebGL layers (lamp light, shadows and caustics on the paper, and the water's reflections and glass) are registered to the isometric planes and driven by a pure dispersion and optics model (`model.mjs`); a frequency change travels out from the dippers through a history texture.
+",1,83
+a5e53a8661f8edb443b2:21:22,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,21,22,"- `examples/test-rig/` is a production figure from a real site (React/Next): a glass button on a spring-mounted carriage, a finger probe on a rail that presses and pulls, and a dial gauge reading the lean. It has 53 solids and about 470 paths.
+",1,83
+a5e53a8661f8edb443b2:22:23,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,22,23,"- `examples/spot-plate/` is a second production figure from the same site: six pairs of glass drops on a spot plate, each pair drawn from one distance field, so a pair closer than `merge` runs together into one piece of glass. A fan of feeler blades sets `merge`, one blade per gap. It is the reference for shapes that morph into each other and for one control driving many parts.
+",1,83
+a5e53a8661f8edb443b2:23:25,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,23,25,"- `examples/turning-dial/` is the optional 3D mode: a combination dial that turns in true 3D with a small robot hand on it. It has about 90 live parts in metal materials, a second turn group, a hinge, a three-hinge finger that lifts and a pod that breaks off as a free body. A WebGL LED, its light pool and sparks follow the moving parts. `stress.mjs` beside it is a dense hand of about 380 parts in a cluttered workshop, used to measure performance.
+
+",1,83
+a5e53a8661f8edb443b2:25:27,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,25,27,"The test rig is the quality bar for the drawing itself. The Raptor is the bar for shader work: a WebGL effect has to reach its standard of world-space, no-pop, seamless rendering.
+
+",1,83
+a5e53a8661f8edb443b2:27:29,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,27,29,"## The one idea that matters
+
+",1,83
+a5e53a8661f8edb443b2:29:31,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,29,31,"**The object is the explanation.** Don't draw boxes, arrows and labels. Invent a real, well-made physical thing whose working *is* the concept. Here is how earlier figures mapped:
+
+",1,83
+a5e53a8661f8edb443b2:31:41,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,31,41,"| Concept | Object |
+|---|---|
+| One shared GPU context serving many canvases | A gantry plotter: one print head visiting 16 wells |
+| A cache key that skips work when nothing changed | A pin-tumbler lock: when every pin matches, the plug turns and nothing is redrawn |
+| Seven render targets with different bytes per texel | A chest of seven drawers, each as deep as its bytes |
+| A separable blur (49 × 49 taps vs 49 + 49) | A bed-of-nails stamp beside two combs on rails |
+| A spring that presses and leans | A test rig with springs, a probe and a dial gauge |
+| A height profile | A profile (contour) gauge pressed against the edge |
+| Light that depends on facing | A small photo studio: key and fill lamps around a turntable |
+
+",1,83
+a5e53a8661f8edb443b2:41:43,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,41,43,"Two ways this fails, both seen in practice:
+
+",1,83
+a5e53a8661f8edb443b2:43:44,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,43,44,"- **Too abstract.** Stacked plates, floating slabs or labelled boxes don't read as anything.
+",1,83
+a5e53a8661f8edb443b2:44:46,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,44,46,"- **Too flat and bland.** One big slab with a few lines on it has no volume, no parts and nothing to discover.
+
+",1,83
+a5e53a8661f8edb443b2:46:48,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,46,48,"The fix for both is the same: a recognisable machine, built from many small, precise, purposeful parts.
+
+",1,83
+a5e53a8661f8edb443b2:48:49,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,48,49,"**Every creation is highly detailed.** This holds for every figure, however small the idea or the request: a quick explainer is still a dense, real machine, never a few slabs. What scales with the size (workflow step 1) is how far you push it: a Figure gets the 4× sweep over its subject and mechanism, a Hero or an Epic over the whole drawing.
+",1,83
+a5e53a8661f8edb443b2:49:50,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,49,50,"- **Read the real thing.** Build it the way the real object is built: every screw, seam, bevel, bushing, label plate, cable with its connector, scale with its ticks, and the parts that hold the parts.
+",1,83
+a5e53a8661f8edb443b2:50:51,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,50,51,"- **Two looks.** At 1× it reads as one clear machine. At 4× every region still has something true to find; a bare face or an empty corner is unfinished work, not calm.
+",1,83
+a5e53a8661f8edb443b2:51:52,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,51,52,"- **Purposeful, never noise.** Detail comes from parts that belong to the mechanism. Each one sits on another part, ends on an edge, and fades rather than stops.
+",1,83
+a5e53a8661f8edb443b2:52:54,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,52,54,"- **Check it last.** Before you finish, zoom to 4× (over the subject and mechanism for a Figure, the whole drawing for a Hero or an Epic) and add the real parts that are missing wherever a region is plain.
+
+",1,83
+a5e53a8661f8edb443b2:54:56,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,54,56,"## Workflow
+
+",1,83
+a5e53a8661f8edb443b2:56:58,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,56,58,"Work in this order. Write the concept and the parts list before any geometry. Most of the quality is decided there.
+
+",1,83
+a5e53a8661f8edb443b2:58:59,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,58,59,"1. **Size it before you start.** Name the size before any other work, and tell the user roughly how long it will take when the tier below calls for an estimate.
+",1,83
+a5e53a8661f8edb443b2:59:60,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,59,60,"   - **Figure**: one mechanism, 40–80 parts, SVG with at most one WebGL layer. Name the size and build it without asking. Do not quote a time to the user, since a Figure often finishes in well under an hour. For the progress checks below, budget up to an hour.
+",1,83
+a5e53a8661f8edb443b2:60:61,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,60,61,"   - **Hero**: a dense object, several WebGL layers or one 3D subject, 80–150 parts. About 2–4 hours. Say so, then build it unless the user asked for something quick.
+",1,83
+a5e53a8661f8edb443b2:61:62,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,61,62,"   - **Epic**: a whole vehicle, building or plant with many moving systems, or the 3D mode on more than one subject. 6 hours or more. Do not start it. Give the estimate, propose a Hero version that keeps the core of the idea, and list what the full version would add. Build the Epic only when the user chooses it.
+",1,83
+a5e53a8661f8edb443b2:62:63,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,62,63,"   - Whatever the size, have a working page that opens in the browser within the first hour, and deepen it from there. Run `date` at the start and at each step, and when a step runs past twice its share of the estimate, tell the user where it stands and what is left.
+",1,83
+a5e53a8661f8edb443b2:63:64,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,63,64,"2. **Truth first.** Collect the real numbers and behaviour of the thing being explained: sizes, counts, thresholds, curves. The readout, motion and caption must all be true. If you can, write the model as a small pure module, like `rig.ts` in the test-rig example, and drive everything from it.
+",1,83
+a5e53a8661f8edb443b2:64:65,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,64,65,"3. **Invent the object.** Pick a machine, tool, instrument or piece of furniture whose mechanism maps one-to-one onto the concept. Say in one sentence what moves and what that motion means. Never copy a reference image: take its finish, not its object.
+",1,83
+a5e53a8661f8edb443b2:65:66,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,65,66,"4. **Parts list.** Write at least 40 parts (40–80 for a Figure, 80–150 for a Hero, more for an Epic), grouped: base (plate, feet, groove, corner screws, label plate, ruler strip), structure (posts, rails, frame bars, end stops), mechanism (carriage, bushings, springs, plunger, needle), controls (knurled knob, thumb screw, crown) and the subject itself, which is the one lit part. Each part sits on another part. `references/craft.md` has a vocabulary of parts with recipes.
+",1,83
+a5e53a8661f8edb443b2:66:67,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,66,67,"5. **Plan the world.** Use world units of about 1 px of the real thing: x and y on the floor, z up. Lay out plans as rounded rectangles `{x, y, w, d, r}` and circles. Choose the camera: azimuth 45° by default, 35–60° to show the long side, elevation 30° (higher, like the ripple tank's 44°, to look into something open). Then fit with `fitProjection(points, width, height, { pad, azimuth })`.
+",1,83
+a5e53a8661f8edb443b2:67:68,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,67,68,"6. **Build geometry once.** Precompute every static path in a geometry module with the kit: `slabOf`, `cylinder`, `extrude`, `planOutline`, `topTicks`, `knurl`, `coil`, `radialTicks` and so on. Round parts on any axis (bells, flanges, valves, actuators) come from `kit/lathe.mjs`, and pipes and cables from `kit/tube.mjs`. Moving parts are built once at a rest position and moved with `translateAlong`. Only parts whose shape changes are rebuilt per frame.
+",1,83
+a5e53a8661f8edb443b2:68:69,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,68,69,"7. **Paint back to front, bottom to top.** Sort repeated parts with `depthOf`. Split anything that wraps another part into a back half and a front half: the springs around a rod, the bars of a frame around a carriage. A moving part is drawn in the slot where it physically sits. See ""Painter's order"" in `references/craft.md`. Once a figure has pipes, cables and round parts, stop tuning keys by eye: record each item's shape as you put it into `A.recorder(P, { order, spring })`, let `A.settle(R, P)` measure true depth wherever two items overlap and set the keys, and end the build with `A.auditOrExit(R, P)`. Route pipes before you draw them: real ports at both ends, legs along the structure, crossings on straights, collars gapping the pipe (`references/craft.md`, section 8). Record the true shape of what you draw: a stand-in shape that silences the audit is a bug, and the audit fails one. A rod that slides out of a gland is one rod from `G.rodOut`, recorded with `A.slide`.
+",1,83
+a5e53a8661f8edb443b2:69:70,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,69,70,"8. **Frame it.** Put the figure in a card: `Fig n` at top left, a short title at top right, the interaction hint at bottom left and the live readout at bottom right. Legend keys and a true caption go under the card, and words stay out of the drawing apart from at most one tiny engraved label.
+",1,83
+a5e53a8661f8edb443b2:70:71,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,70,71,"9. **Make it live.** Use calm time-based motion: exponential follow or real springs. An idle tour loops when nobody touches it. The figure responds to pointer and keyboard, stops when offscreen, and goes still under reduced motion. Write attributes on refs and don't re-render per frame. See `references/motion.md`.
+",1,83
+a5e53a8661f8edb443b2:71:72,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,71,72,"10. **Verify like a critic.** The owner finds faults by zooming in, so you zoom in first. Read every PNG you make.
+",1,83
+a5e53a8661f8edb443b2:72:73,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,72,73,"   - Capture desktop, phone (390 wide), hover and several moments of motion with `scripts/capture.mjs`; use `scripts/drive.mjs` for sequences, the apart pose and the `--no-webgl` fallback.
+",1,83
+a5e53a8661f8edb443b2:73:74,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,73,74,"   - **Run the audit to zero.** With pipes, cables or round parts, `node build.mjs --audit` must end `audit passed`, every failing line at 0: clearance at rest, apart and in mid-flight, terminals, loose ends, folds, self-overlap, crowding (against slender solids too), stand-in shapes, support, wobble, saddles and depth order. Fix an interlock in the geometry, never with a key bias.
+",1,83
+a5e53a8661f8edb443b2:74:75,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,74,75,"   - **Run the line check to zero.** The audit never sees line markup. `node scripts/lines.mjs page.html --out shots/lines.png` (and on the `-light` page, and in every resting pose with `drive.mjs`'s `[""lines""]` action) must print `line ends: 0`: every seam, rule, rib, tick and pointer ends on a stroke, a dot or an outline. Read the ringed PNG.
+",1,83
+a5e53a8661f8edb443b2:75:76,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,75,76,"   - **4× close-ups of every junction in both themes** (build `--light` too), assembled and apart: every flange, tee, elbow, clamp, valve, bellows, band, saddle, ball joint and crossing, every curved body (no tone staircase), every place a texture ends (on an edge or fading), flat box faces with their seams, every textured hose at a chunk joint, every sliding rod at rest and at full stroke, and every window with text or shader content in it.
+",1,83
+a5e53a8661f8edb443b2:76:77,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,76,77,"   - **Shaders:** a contact sheet slowed with `[""slow"", 0.05]` across every transition; nothing pops, no colour switch, edges read 0. In light, also log ink per frame through each transition (it must follow the light monotonically) and crop where the ink meets strokes at 8–16× (`references/verify.md`, ""Light-theme shaders"").
+",1,83
+a5e53a8661f8edb443b2:77:79,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,77,79,"   - Put your PNG next to the examples and ask: is it instantly a real object, rich in small parts with volume, with every line ending on something? Is it highly detailed at 1× and still rewarding at 4×, with no bare face or empty corner? Iterate until yes. Checklist: `references/verify.md`.
+
+",1,83
+a5e53a8661f8edb443b2:79:81,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,79,81,"## Setup
+
+",1,83
+a5e53a8661f8edb443b2:81:83,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,81,83,"The kit is in `kit/`:
+
+",1,83
+a5e53a8661f8edb443b2:83:102,a5e53a8661f8edb443b2,wheresryan22/anatomy,1482e8469b0a9e0d8cc18ea2740a01423d29ae80,SKILL.md,SKILL.md,3423ada45a05033bb6e320dfc3b3ac832569969a5afb059bbfc9096c5cf0c71b,83,102,"| File | Use it for |
+|---|---|
+| `kit/iso-kit.ts` | The whole core in one file: camera, solids, a parts library, an SVG string renderer, card and page builders, and the CSS (`ISO_CSS`). Copy it into a TypeScript project. |
+| `kit/iso-kit.mjs` | The same core compiled to plain ESM, for Node scripts. Import it directly. |
+| `kit/iso.css` | `ISO_CSS` written out. Import it once and put `class=""iso""` (plus `data-theme=""light""` for light) on a wrapper or `<body>`. |
+| `kit/react/draw.tsx` | Server-safe React components: `Solid`, `Line`, `Wire`, `Dots`, `FaceText`, `IsoFigure`, `Plate`. |
+| `kit/react/live.tsx` | `""use client""` hooks: `useReadout`, `useLoop`, `useEased`, `useInView`, `useStillness`, plus `spring` and `follow`. |
+| `kit/lathe.mjs` | Round parts along any axis: `frameAlong`, `lathe` (smooth shading switches on by itself for any profile with a smooth knot), `solidOf`, `disc`, `ringBand`, `sphereOf`, `saddleOf`, `bandsOf` (one curved body cut into depth-sortable bands that share one surface, with one outline from `sidesOf`), visible arcs, ribs and bolt circles on round surfaces (`ribsOf` and `dotsOf` take `fade`, `ribsOf` takes `seams`), `rodOut` for a rod that slides out of a gland, and `fillet` for pipe routes. |
+| `kit/tube.mjs` | `tubePieces` splits a 3D pipe or cable into depth-sortable chunks (with `breaks`, `gaps` under collars and clamps, elliptical end caps, and `rings` for a braid, corrugation or wrap that follows the cross-section through every joint), and `tubeSvg` draws one; `crossingsOf` finds where a route passes through a clamp, `runsOf` the drawn runs. Its `.tb-*` fills are in `ISO_CSS`. |
+| `kit/audit.mjs` | Proves the geometry. `recorder(P, { order, spring })` collects items, shapes (turned bodies, slabs, prisms, boxes, balls, tubes, pads cut by their host) and routes as the helpers draw them; `settle(R, P)` ray-casts every overlapping pair for true depth, at rest, apart and in the replayed explode, and sets the painter's keys (`overlapsOf`, `orderKeys`); `auditOrExit(R, P)` is the `--audit` hook that runs every check (`clearances`, `solidClearances`, `terminals`, `looseEnds`, `supports`, `folds`, `selfOverlaps`, `crowding` with slender solids as lines, `coverage` for stand-in shapes, `wobble`, `seats`, `depthOrder`) and exits non-zero on any problem. `A.slide` records a rod that slides out of a gland. `references/kit.md`, section 12. |
+| `kit/gl.mjs` | The WebGL layer for shaders inside the drawing: `GLSL_ISO` (the camera in GLSL, including `rayOf` and `pixelOf`), `glCamera(P)`, `glLayer(...)`, and the JS envelopes `smooth`, `burst` and `settle`. For 3D figures, `GLSL_TURN` and `glslPose(name)` bring world points into a moving group and mask a front canvas with `coverOf`. |
+| `kit/turn.mjs`, `kit/turn-build.mjs`, `kit/turn-audit.mjs` | The optional 3D mode. `turn-build.mjs` has `turning(P, { recorder })`: groups (turn, slide, hinge, free), live layers, convex parts with materials, and `T.build`. `turn.mjs` is the runtime: `TURN.mount`, the controller, `TURN.cover`, `TURN.poseUniforms` and `TURN_CSS`. `turn-audit.mjs` has `orbitOrExit`, the orbit audit over every turn angle and motion clip. `references/3d.md`. |
+| `scripts/capture.mjs` | Headless Chrome screenshots, close-ups and console checks, with WebGL on. Run with `node`. |
+| `scripts/drive.mjs` | Scripted headless Chrome with WebGL: move, click, key, slow motion, wait-until, eval, shots and contact sheets that catch pops; `--no-webgl` and `--preload`. |
+| `scripts/lines.mjs` | The line-end check on a built page, in headless Chrome: every texture line must end on a stroke, a dot or an outline. Rings the failures with `--out`; exits 1 on any. |
+| `scripts/inline-kit.mjs` | `kitScript()`, `glScript()` and `turnScript()` return the kit, the WebGL layer and the 3D runtime as source to inline into a standalone page. |
+| `scripts/turn-check.mjs`, `scripts/turn-bench.mjs` | 3D figures: fidelity against the kit builders, a z-buffer order check, pixel pops, line ends at 24 angles and frame timing in the browser; Node CPU time per part kind. |
+| `scripts/print.mjs`, `scripts/print-sheet.mjs` | Printable sheets: freeze poses of a built page as vector stills and lay them out as an A4 or Letter PDF in three formats (poster, drawing, detailed). `references/print.md`. |
+
+",83,176
 a5e62bb99065b619061e:1:2,a5e62bb99065b619061e,onnx/onnx,6f61ff3a2e3cb2bdd90d0759ebcf65af0a7febd6,AGENTS.md,AGENTS.md,6ebdb617a8104a7756d0cf36578ab01103dc9f07e4dc6feb751296b9c402faf7,1,2,CLAUDE.md,1,2
 a65c5b51358b5d324d3c:100:102,a65c5b51358b5d324d3c,photoprism/photoprism,7a347f125bb93a44cfeff7cfd29dbad5337ea665,.github/copilot-instructions.md,copilot-instructions.md,9db032f29ab983e384cec40e7a80a8bcbb42d334f2280c672283f748fc17e65e,100,102,"- For CI/dev containers, assume a Linux/Unix shell on amd64 or arm64 by default; for Windows specifics, link https://docs.photoprism.app/developer-guide/faq/
 

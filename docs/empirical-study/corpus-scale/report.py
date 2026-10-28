@@ -98,6 +98,14 @@ def main():
         'Type must pass for any dependent result. Enforcement must pass before context may scale. These are study decisions rather than universal reliability standards. The same historical set is used for calibration and evaluation, so agreement is not a held-out generalization estimate.', '',
         '| Dimension | Scale? | Reason |', '|---|---|---|']
     lines.extend(f'| {r["dimension"]} | {r["passed"]} | {r["reason"]} |' for r in gates)
+    fidelity_path = HERE / 'paper_fidelity_summary.csv'
+    if fidelity_path.exists():
+        fidelity = {r['metric']: int(r['value']) for r in read_csv(fidelity_path)}
+        lines += ['', f'The historical primary-source audit records {fidelity["missing_lines"]} missing lines, '
+                  f'{fidelity["overlapping_lines"]} overlapping lines, and {fidelity["whitespace_normalized_mismatches"]} '
+                  'text mismatches under the original validator’s whitespace normalization. '
+                  f'{fidelity["exact_text_mismatches"]} spans differ in exact formatting. '
+                  'Calibration uses the recorded annotated text unchanged. New extracted text is copied directly from its source spans and checked for exact fidelity.']
     format_path = HERE / 'format_calibration_summary.csv'
     if format_path.exists():
         lines += ['', 'When some axes fail, a focused prompt containing only the requested coding-guide axes and examples is calibrated again before scaling. The exact focused prompt and reduced output schema are used for both this check and deployment. This avoids assuming that removing rejected axes leaves predictions unchanged. Definitions, examples, and agreement cutoffs are not tuned against individual errors.', '',

@@ -52,6 +52,8 @@ Before inspecting the complete calibration, the scaling gate was fixed at final 
 | enforceability | False | type_gate_failed |
 | context_required | False | enforcement_gate_failed |
 
+The historical primary-source audit records 0 missing lines, 0 overlapping lines, and 0 text mismatches under the original validator’s whitespace normalization. 417 spans differ in exact formatting. Calibration uses the recorded annotated text unchanged. New extracted text is copied directly from its source spans and checked for exact fidelity.
+
 **Poor agreement:** qwen on context_required (κ=0.147). These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.
 
 ## Selection and measurement

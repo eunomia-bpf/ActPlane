@@ -2,6 +2,7 @@
 """Export historical labels without checking out or modifying another branch."""
 import argparse
 import json
+import re
 import subprocess
 from collections import Counter
 from pathlib import Path
@@ -86,6 +87,29 @@ def main():
         raw_unique_contents_within_repo=sum(len({p.read_bytes() for p in
             (dest / 'docs/corpus' / r['repo'].replace('/', '__')).glob('*.md')}) for r in files))
     write_csv(HERE / 'paper_audit.csv', [audit])
+    fidelity = []
+    for repo in sorted({r['repo'] for r in rows}):
+        selected = [r for r in rows if r['repo'] == repo]
+        name = selected[0]['file_path'].rsplit('/', 1)[-1]
+        source = (dest / 'docs/corpus' / repo.replace('/', '__') / name).read_text().splitlines(keepends=True)
+        coverage = Counter()
+        exact_bad = normalized_bad = 0
+        for r in selected:
+            start, end = int(r['start_line']), int(r['end_line'])
+            coverage.update(range(start, end))
+            actual = ''.join(source[start-1:end-1])
+            exact_bad += r['text'] != actual
+            normalized_bad += re.sub(r'\s+', '', r['text']) != re.sub(r'\s+', '', actual)
+        expected = set(range(1, len(source) + 1))
+        fidelity.append(dict(repo=repo, source_file=name, source_lines=len(source),
+            covered_lines=len(expected & set(coverage)), missing_lines=len(expected - set(coverage)),
+            extra_lines=len(set(coverage) - expected), overlapping_lines=sum(n > 1 for n in coverage.values()),
+            exact_text_mismatches=exact_bad, whitespace_normalized_mismatches=normalized_bad))
+    write_csv(HERE / 'paper_fidelity.csv', fidelity)
+    numeric = ['source_lines', 'covered_lines', 'missing_lines', 'extra_lines',
+               'overlapping_lines', 'exact_text_mismatches', 'whitespace_normalized_mismatches']
+    write_csv(HERE / 'paper_fidelity_summary.csv',
+              [dict(metric=key, value=sum(r[key] for r in fidelity)) for key in numeric])
     print(dict(repositories=len(files), statements=len(rows), types=dict(Counter(r['type'] for r in rows))))
 
 

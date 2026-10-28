@@ -37,7 +37,7 @@ def main(a):
         record('repositories_below_star_floor', 0, sum(int(r['stars']) < 100 for r in repositories))
         record('repositories_inactive_since_2025', 0,
                sum(r['pushed_at'] < '2025-01-01' for r in repositories))
-        hashes_bad, missing, sources = 0, 0, {}
+        hashes_bad, missing, undecodable, sources = 0, 0, 0, {}
         for f in manifest:
             if f['status'] != 'included':
                 continue
@@ -47,9 +47,14 @@ def main(a):
                 continue
             content = path.read_bytes()
             hashes_bad += digest(content) != f['content_sha256']
+            try:
+                content.decode('utf-8')
+            except UnicodeDecodeError:
+                undecodable += 1
             sources[(f['repo'], f['content_sha256'])] = content.decode('utf-8', errors='replace').splitlines(keepends=True)
         record('missing_raw_source_files', 0, missing)
         record('source_sha256_mismatches', 0, hashes_bad)
+        record('undecodable_utf8_sources', 0, undecodable)
         path = HERE / 'statements.csv'
         if path.exists():
             rows = read_csv(path)
