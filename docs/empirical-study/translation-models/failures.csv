@@ -470,6 +470,7 @@ rq1,zai/glm-4.7-flash,superset-sh__superset::8,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,teng-lin__notebooklm-py::3,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,teng-lin__notebooklm-py::9,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,thedotmack__claude-mem::16,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,thedotmack__claude-mem::17,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,thedotmack__claude-mem::18,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,thedotmack__claude-mem::19,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,thedotmack__claude-mem::20,access_failure,rate_limited
@@ -477,6 +478,8 @@ rq1,zai/glm-4.7-flash,thedotmack__claude-mem::21,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,thedotmack__claude-mem::22,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,tirth8205__code-review-graph::10,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,tirth8205__code-review-graph::11,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,tirth8205__code-review-graph::14,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,tirth8205__code-review-graph::15,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,vxcontrol__pentagi::15,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,xpzouying__xiaohongshu-mcp::3,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,xpzouying__xiaohongshu-mcp::4,access_failure,provider_capacity
