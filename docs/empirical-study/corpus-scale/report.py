@@ -210,9 +210,9 @@ def main():
         table = ['## Figure handoff', '', '| Paper figure | PDF | Status | Unvalidated axes |', '|---|---|---|---|']
         for r in read_csv(HERE / 'figure_manifest.csv'):
             table.append(f'| {r["paper_figure"]} | [{r["file"].split("/")[-1]}]({r["file"]}) | {r["status"]} | {r["failed_dimensions"]} |')
-        table += ['', 'A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains every plotted value.', '']
+        table += ['', 'An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains every plotted value.', '']
         lines[-2:-2] = table
-    if overall:
+    if overall and coverage.get('analyzed_repositories') == coverage.get('collected_repositories'):
         valid = {k: r for k, r in overall.items() if r['status'] == 'ok'}
         paragraph = ''
         if any(r['group_type'] == 'file_scope' and r['group'] == 'noncoding_assistance' and int(r['statements']) > 0 for r in summary):
@@ -229,7 +229,7 @@ def main():
         assert len(paragraph.split()) <= 150
         lines.append(paragraph)
     else:
-        lines.append('Pending completed calibration and scaled labeling. No new prevalence claim is currently justified.')
+        lines.append('Pending complete-snapshot labeling. Interim descriptive estimates above are not paper-ready.')
     (HERE / 'README.md').write_text('\n'.join(lines) + '\n')
 
 

@@ -170,10 +170,15 @@ def main():
         (6, 'empirical-waterfall-context-horizontal'),
         (7, 'empirical_rq4_context_by_enforcement')]
     manifest = []
+    coverage_path = HERE / 'analysis_coverage.csv'
+    complete = True
+    if coverage_path.exists():
+        coverage = read_csv(coverage_path)[0]
+        complete = coverage['analyzed_repositories'] == coverage['collected_repositories']
     for number, name in names:
         failed = next((r['label'] for r in DATA if r['figure'] == name and r['group'] == 'withheld'), '')
         manifest.append(dict(paper_figure=number, file='figures/' + name + '.pdf',
-            status='withheld' if failed else 'ready', failed_dimensions=failed,
+            status='withheld' if failed else 'ready' if complete else 'interim', failed_dimensions=failed,
             matplotlib_pdf_fonttype=plt.rcParams['pdf.fonttype'],
             repositories=len(repos), statements=len(rows)))
     write_csv(HERE / 'figure_manifest.csv', manifest)

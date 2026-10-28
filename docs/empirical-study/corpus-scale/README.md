@@ -205,15 +205,15 @@ The repository-requested `oss-change-workflow` skill was unavailable in the inst
 
 | Paper figure | PDF | Status | Unvalidated axes |
 |---|---|---|---|
-| 2 | [empirical_rq1_policy_fraction.pdf](figures/empirical_rq1_policy_fraction.pdf) | ready |  |
-| 3 | [empirical_rq2_policy_ratio.pdf](figures/empirical_rq2_policy_ratio.pdf) | ready |  |
+| 2 | [empirical_rq1_policy_fraction.pdf](figures/empirical_rq1_policy_fraction.pdf) | interim |  |
+| 3 | [empirical_rq2_policy_ratio.pdf](figures/empirical_rq2_policy_ratio.pdf) | interim |  |
 | 4 | [empirical-waterfall-enforcement-horizontal.pdf](figures/empirical-waterfall-enforcement-horizontal.pdf) | withheld | enforceability |
 | 5 | [empirical_rq3_enforcement_by_topic.pdf](figures/empirical_rq3_enforcement_by_topic.pdf) | withheld | enforceability |
 | 6 | [empirical-waterfall-context-horizontal.pdf](figures/empirical-waterfall-context-horizontal.pdf) | withheld | enforceability,context_required |
 | 7 | [empirical_rq4_context_by_enforcement.pdf](figures/empirical_rq4_context_by_enforcement.pdf) | withheld | enforceability,context_required |
 
-A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains every plotted value.
+An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains every plotted value.
 
 ## Paper-ready paragraph
 
-We expanded the characterization to 3 repositories and 178 statements using a dated, commit-pinned GitHub snapshot spanning 8 instruction-file families. The automated labels mark 61.2% of statements as policies (95% repository-bootstrap interval 46.4%–67.9%). We calibrated named Qwen and GLM annotators against the recovered paper labels and withheld dimensions that failed the prespecified agreement gate. The enlarged corpus broadens repository and file-family coverage, although query selection, automated segmentation, and correlated model judgments limit generalization.
+Pending complete-snapshot labeling. Interim descriptive estimates above are not paper-ready.
