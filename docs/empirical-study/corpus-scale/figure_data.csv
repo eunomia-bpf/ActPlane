@@ -1,18 +1,23 @@
 figure,group,label,value,denominator
+empirical_rq1_policy_fraction,torvalds/linux,policy_fraction,0.0,1
+empirical_rq1_policy_fraction,semantica-agi/semantica,policy_fraction,0.14814814814814814,27
 empirical_rq1_policy_fraction,apache/apisix,policy_fraction,0.16666666666666666,6
+empirical_rq1_policy_fraction,shareAI-lab/learn-claude-code,policy_fraction,0.3333333333333333,15
+empirical_rq1_policy_fraction,kubesphere/kubesphere,policy_fraction,0.4647887323943662,71
 empirical_rq1_policy_fraction,78/xiaozhi-esp32,policy_fraction,0.4807692307692308,52
+empirical_rq1_policy_fraction,wanshuiyin/Auto-claude-code-research-in-sleep,policy_fraction,0.5306122448979592,49
 empirical_rq1_policy_fraction,Leonxlnx/taste-skill,policy_fraction,0.6916666666666667,120
-empirical_rq2_policy_ratio,Development Process,policy,9,11
-empirical_rq2_policy_ratio,Implementation Details,policy,54,61
-empirical_rq2_policy_ratio,Architecture,policy,5,15
-empirical_rq2_policy_ratio,Build and Run,policy,9,14
-empirical_rq2_policy_ratio,AI Integration,policy,2,4
+empirical_rq2_policy_ratio,Development Process,policy,11,15
+empirical_rq2_policy_ratio,Implementation Details,policy,67,82
+empirical_rq2_policy_ratio,Architecture,policy,5,20
+empirical_rq2_policy_ratio,Build and Run,policy,15,24
+empirical_rq2_policy_ratio,AI Integration,policy,24,54
 empirical_rq2_policy_ratio,Testing,policy,16,19
-empirical_rq2_policy_ratio,System Overview,policy,0,11
-empirical_rq2_policy_ratio,Documentation,policy,6,25
-empirical_rq2_policy_ratio,Configuration & Environment,policy,4,11
+empirical_rq2_policy_ratio,System Overview,policy,0,17
+empirical_rq2_policy_ratio,Documentation,policy,8,40
+empirical_rq2_policy_ratio,Configuration & Environment,policy,13,42
 empirical_rq2_policy_ratio,Security,policy,2,4
-empirical_rq2_policy_ratio,DevOps,policy,0,1
+empirical_rq2_policy_ratio,DevOps,policy,14,22
 empirical_rq2_policy_ratio,Maintenance,policy,2,2
 empirical-waterfall-enforcement-horizontal,withheld,enforceability,,
 empirical_rq3_enforcement_by_topic,withheld,enforceability,,
