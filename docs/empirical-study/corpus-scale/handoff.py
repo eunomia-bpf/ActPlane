@@ -14,9 +14,12 @@ def main():
     branch = subprocess.check_output(['git', '-C', str(HERE), 'branch', '--show-current'], text=True).strip()
     commit = subprocess.check_output(['git', '-C', str(HERE), 'rev-parse', 'HEAD'], text=True).strip()
     coverage = read_csv(HERE / 'analysis_coverage.csv')[0]
+    inventory = {r['metric']: r['value'] for r in read_csv(HERE / 'collection_summary.csv')}
     rows = [r for r in read_csv(HERE / 'summary.csv') if r['group_type'] == 'overall']
     lines = ['# Corpus-scale characterization handoff', '', f'Branch: `{branch}`', f'Final commit: `{commit}`', '',
-        f'Measured {coverage["analyzed_repositories"]} fully labeled repositories and {coverage["analyzed_statements"]} statements. '
+        f'Measured {coverage["analyzed_repositories"]} fully labeled repositories and {coverage["analyzed_statements"]} statements '
+        f'from {coverage["selected_source_files"]} distinct repository/content pairs '
+        f'({inventory["file_status_included"]} selected paths) across {inventory["represented_file_families"]} file families. '
         'Source repositories, commits, paths, stars, snapshot dates, exclusions, extraction status, model outputs, calibration and bootstrap summaries are committed.', '',
         '| Metric | Value | Interval | Status |', '|---|---:|---:|---|']
     for r in rows:
@@ -35,7 +38,8 @@ def main():
             continue
         for r in read_csv(path):
             if r['model'] == 'adjudicated' and r['scope'] == 'applicable_gold':
-                lines.append(f'| {name} | {r["dimension"]} | {r["evaluated"]} | {float(r["kappa"]):.3f} |')
+                label = 'Initial full codebook' if name == 'calibration' else 'Deployed retained axes'
+                lines.append(f'| {label} | {r["dimension"]} | {r["evaluated"]} | {float(r["kappa"]):.3f} |')
     audit = read_csv(HERE / 'paper_audit.csv')[0]
     baseline = {r['metric']: r for r in read_csv(HERE / 'paper_summary.csv')}
     claims = {r['metric']: r for r in read_csv(HERE / 'paper_claims.csv')}
