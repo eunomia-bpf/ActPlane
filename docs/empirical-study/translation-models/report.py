@@ -51,7 +51,7 @@ def main():
         cost = f"${float(r['rq2_uncached_list_usd_mean']):.4f}" if r['rq2_uncached_list_usd_mean'] != '' else 'n/a'
         f1 = f"{float(r['f1']):.3f}" if r['f1'] != '' else 'unavailable'
         table.append(f"| {NAMES.get(r['model'], r['model'])} | {sample} | {corpus} | {pct(r['detection_rate'])} | {pct(r['false_trigger_rate'])} | {f1} | {r['rq2_access_failures']} / {r['rq1_access_failures']} | {cost} |")
-    families = ['| Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |',
+    families = ['| Model | Direct detected / total | Script detected / total | Hidden detected / total | Replay errors | Tool-error traces |',
                 '| --- | --- | --- | --- | --- | --- |']
     for r in rows:
         families.append('| ' + ' | '.join([NAMES.get(r['model'], r['model'])] +
@@ -134,7 +134,7 @@ model-generation trial. The behavioral sample covers
 {overlap['behavioral_repositories']} repositories, while compilation covers
 {overlap['compilation_repositories']}. The corpora share
 {overlap['matching_repo_statement_ids']} repository/statement identifiers and
-{overlap['matching_directive_text']} exact directive texts. They are not disjoint
+{overlap['matching_directive_text']} exact directive text matches. They are not disjoint
 held-out sets, and no semantic deduplication is claimed.
 
 {chr(10).join(table)}
