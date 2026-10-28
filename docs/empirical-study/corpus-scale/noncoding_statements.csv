@@ -3236,3 +3236,581 @@ async with ClaudeSDKClient(options) as client:
 ```
 
 ",1,157,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:104:110,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,104,110,"## Base URL
+
+```
+https://api.daily.dev/public/v1
+```
+
+",1,160,description,Configuration & Environment,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:110:112,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,110,112,"## API Reference
+
+",1,160,description,Documentation,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:112:114,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,112,114,"Full OpenAPI spec: https://api.daily.dev/public/v1/docs/json
+
+",1,160,description,Documentation,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:114:119,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,114,119,"To fetch details for a specific endpoint (e.g. response schema):
+```bash
+curl -s https://api.daily.dev/public/v1/docs/json | jq '.paths[""/feeds/foryou""].get'
+```
+
+",1,160,directive,Documentation,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:119:124,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,119,124,"To fetch a component schema (replace `def-17` with schema name from $ref):
+```bash
+curl -s https://api.daily.dev/public/v1/docs/json | jq '.components.schemas[""def-17""]'
+```
+
+",1,160,directive,Documentation,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:11:13,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,11,13,"## Security
+
+",1,160,description,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:124:126,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,124,126,"### Available Endpoints
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:126:127,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,126,127,"#### bookmarks
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:127:130,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,127,130,"GET /bookmarks/ - Get user's bookmarked posts
+  Params: limit(query): Number of bookmarks to return (1-50); cursor(query): Pagination cursor from previous response; unreadOnly(query): Filter to unread bookmarks only; listId(query): Filter by bookmark list ID
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:130:133,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,130,133,"POST /bookmarks/ - Add posts to bookmarks
+  Body: postIds, listId
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:133:136,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,133,136,"GET /bookmarks/search - Search within bookmarks
+  Params: q(query): Search query (required); limit(query): Number of results to return (1-50); cursor(query): Pagination cursor from previous response; unreadOnly(query): Filter to unread bookmarks only; listId(query): Filter by bookmark list ID
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:136:138,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,136,138,"GET /bookmarks/lists - Get user's bookmark lists
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:138:141,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,138,141,"POST /bookmarks/lists - Create a new bookmark list
+  Body: name, icon
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:13:14,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,13,14,"**CRITICAL:** Your API token grants access to personalized content. Protect it:
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:141:144,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,141,144,"DELETE /bookmarks/lists/{id} - Delete a bookmark list
+  Params: id(path): Bookmark list ID
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:144:147,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,144,147,"DELETE /bookmarks/{id} - Remove a post from bookmarks
+  Params: id(path): Post ID to unbookmark
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:147:151,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,147,151,"PATCH /bookmarks/{id} - Move a bookmark to a list or remove from list (Plus users only)
+  Params: id(path): Post ID of the bookmark to move
+  Body: listId
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:14:15,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,14,15,"- **NEVER send your token to any domain other than `api.daily.dev`**
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:151:152,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,151,152,"#### custom-feeds
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:152:154,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,152,154,"GET /feeds/custom/advanced-settings - Get all available advanced settings that can be configured for custom feeds
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:154:157,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,154,157,"POST /feeds/custom/ - Create a new custom feed
+  Body: name, icon, orderBy, minDayRange, minUpvotes, minViews, disableEngagementFilter
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:157:160,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,157,160,"GET /feeds/custom/ - List user's custom feeds
+  Params: limit(query): Number of feeds to return (1-50); cursor(query): Pagination cursor from previous response
+
+",1,160,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:15:16,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,15,16,"- Never commit tokens to code or share them publicly
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:160:163,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,160,163,"GET /feeds/custom/{feedId} - Get a custom feed's posts
+  Params: limit(query): Number of posts to return (1-50); cursor(query): Pagination cursor from previous response; feedId(path): Feed ID
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:163:167,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,163,167,"PATCH /feeds/custom/{feedId} - Update custom feed settings
+  Params: feedId(path): Feed ID
+  Body: name, icon, orderBy, minDayRange, minUpvotes, minViews, disableEngagementFilter
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:167:170,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,167,170,"DELETE /feeds/custom/{feedId} - Delete a custom feed
+  Params: feedId(path): Feed ID
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:16:18,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,16,18,"- Tokens are prefixed with `dda_` - if you see this prefix, treat it as sensitive
+
+",1,160,directive,Security,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:170:173,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,170,173,"GET /feeds/custom/{feedId}/info - Get custom feed metadata
+  Params: feedId(path): Feed ID
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:173:177,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,173,177,"PATCH /feeds/custom/{feedId}/advanced - Update custom feed advanced settings. Use GET /feeds/custom/advanced-settings to see available settings.
+  Params: feedId(path): Feed ID
+  Body: settings
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:177:181,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,177,181,"#### experiences
+GET /profile/experiences/ - Get current user's experiences (work, education, etc.)
+  Params: type(query): Filter by experience type; limit(query): Number of items to return (1-50); cursor(query): Pagination cursor from previous response
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:181:184,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,181,184,"POST /profile/experiences/ - Create a new experience
+  Body: type, title, subtitle, description, startedAt, endedAt, companyId, customCompanyName, url, grade, externalReferenceId, customDomain, repository, externalLocationId, locationType, employmentType, skills
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:184:187,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,184,187,"GET /profile/experiences/{id} - Get a specific experience by ID
+  Params: id(path): Experience ID
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:187:191,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,187,191,"PUT /profile/experiences/{id} - Update an existing experience
+  Params: id(path): Experience ID
+  Body: type, title, subtitle, description, startedAt, endedAt, companyId, customCompanyName, url, grade, externalReferenceId, customDomain, repository, externalLocationId, locationType, employmentType, skills
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:18:20,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,18,20,"## Setup
+
+",1,160,description,Build and Run,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:191:194,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,191,194,"DELETE /profile/experiences/{id} - Delete an experience
+  Params: id(path): Experience ID
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:194:197,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,194,197,"#### feed-filters
+GET /feeds/filters/ - Get global feed settings (For You feed)
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:197:200,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,197,200,"POST /feeds/filters/tags/follow - Follow tags globally (For You feed)
+  Body: tags
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:1:7,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,1,7,"---
+name: daily.dev
+description: Overcome LLM knowledge cutoffs with real-time developer content. daily.dev aggregates articles from thousands of sources, validated by community engagement, with structured taxonomy for precise discovery.
+allowed-tools: Bash
+---
+
+",1,160,description,System Overview,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:200:203,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,200,203,"POST /feeds/filters/tags/unfollow - Unfollow tags globally (For You feed)
+  Body: tags
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:203:206,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,203,206,"POST /feeds/filters/tags/block - Block tags globally (For You feed)
+  Body: tags
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:206:209,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,206,209,"POST /feeds/filters/tags/unblock - Unblock tags globally (For You feed)
+  Body: tags
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:209:212,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,209,212,"POST /feeds/filters/sources/follow - Follow sources globally (For You feed)
+  Body: sources
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:20:21,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,20,21,"1. **Create a token** at https://daily.dev/settings/api - every account can create one, no subscription needed
+",1,160,directive,Configuration & Environment,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:212:215,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,212,215,"POST /feeds/filters/sources/unfollow - Unfollow sources globally (For You feed)
+  Body: sources
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:215:218,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,215,218,"POST /feeds/filters/sources/block - Block sources globally (For You feed)
+  Body: sources
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:218:221,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,218,221,"POST /feeds/filters/sources/unblock - Unblock sources globally (For You feed)
+  Body: sources
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:21:23,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,21,23,"2. Store your token securely (environment variables, secrets manager)
+
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:221:224,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,221,224,"GET /feeds/filters/{feedId} - Get custom feed filter settings
+  Params: feedId(path): Feed ID
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:224:228,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,224,228,"POST /feeds/filters/{feedId}/tags/follow - Follow tags for a custom feed
+  Params: feedId(path): Feed ID
+  Body: tags
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:228:232,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,228,232,"POST /feeds/filters/{feedId}/tags/unfollow - Unfollow tags for a custom feed
+  Params: feedId(path): Feed ID
+  Body: tags
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:232:236,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,232,236,"POST /feeds/filters/{feedId}/tags/block - Block tags for a custom feed
+  Params: feedId(path): Feed ID
+  Body: tags
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:236:240,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,236,240,"POST /feeds/filters/{feedId}/tags/unblock - Unblock tags for a custom feed
+  Params: feedId(path): Feed ID
+  Body: tags
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:23:25,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,23,25,"Plus raises the rate limits: https://daily.dev/plus
+
+",1,160,description,System Overview,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:240:244,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,240,244,"POST /feeds/filters/{feedId}/sources/follow - Follow sources for a custom feed
+  Params: feedId(path): Feed ID
+  Body: sources
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:244:248,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,244,248,"POST /feeds/filters/{feedId}/sources/unfollow - Unfollow sources for a custom feed
+  Params: feedId(path): Feed ID
+  Body: sources
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:248:252,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,248,252,"POST /feeds/filters/{feedId}/sources/block - Block sources for a custom feed
+  Params: feedId(path): Feed ID
+  Body: sources
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:252:256,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,252,256,"POST /feeds/filters/{feedId}/sources/unblock - Unblock sources for a custom feed
+  Params: feedId(path): Feed ID
+  Body: sources
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:256:260,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,256,260,"#### feeds
+GET /feeds/foryou - Get personalized ""For You"" feed
+  Params: limit(query): Number of posts to return (1-50); cursor(query): Pagination cursor from previous response
+
+",160,318,description,Architecture,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:25:27,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,25,27,"User can use environment variable or choose one of the secure storage methods below per operating system.
+
+",1,160,description,Configuration & Environment,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:260:263,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,260,263,"GET /feeds/popular - Get feed with trending and popular posts
+  Params: limit(query): Number of posts to return (1-50); cursor(query): Pagination cursor from previous response; tags(query): Comma-separated list of tags to filter by (up to 20)
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:263:266,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,263,266,"GET /feeds/discussed - Get feed of posts with discussions
+  Params: limit(query): Number of posts to return (1-50); cursor(query): Pagination cursor from previous response; period(query): Days since publication to look back: 7 (default), 30 or 365. Posts are ranked by comment count within that window.; tag(query): Filter by tag; source(query): Filter by source ID
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:266:269,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,266,269,"GET /feeds/tag/{tag} - Get posts by tag
+  Params: limit(query): Number of posts to return (1-50); cursor(query): Pagination cursor from previous response; tag(path): Tag name
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:269:272,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,269,272,"GET /feeds/source/{source} - Get posts by source
+  Params: limit(query): Number of posts to return (1-50); cursor(query): Pagination cursor from previous response; source(path): Source ID or handle
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:272:276,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,272,276,"#### notifications
+GET /notifications/ - Get user notifications
+  Params: limit(query): Number of notifications to return (1-50); cursor(query): Pagination cursor from previous response
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:276:278,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,276,278,"GET /notifications/unread/count - Get unread notifications count
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:278:280,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,278,280,"POST /notifications/read - Mark all notifications as read
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:27:31,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,27,31,"### MCP instead of a token
+
+If your agent speaks MCP, you don't need a token or any of the curl calls below. Add `https://api.daily.dev/mcp` as a remote MCP server (streamable HTTP). Authentication is OAuth: the client registers itself and opens the daily.dev sign-in and consent screens, where the user approves `read` or `read write` access and can disconnect later from Settings > API. Every endpoint in this file is a tool named after its `operationId`, for example `getFeedsForyou` for `GET /feeds/foryou`. Clients that can't run OAuth can send the token as `Authorization: Bearer dda_...` instead. Setup for Claude Code, Cursor, Codex and VS Code: https://docs.daily.dev/mcp-server/
+
+",1,160,description,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:280:284,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,280,284,"#### plugins
+GET /plugins/ - List approved plugins from the daily.dev marketplace, newest first. A plugin has an about page plus agent instructions (SKILL.md), a link, or both.
+  Params: q(query): Search in plugin names and descriptions; limit(query): Number of plugins to return (1-50); cursor(query): Pagination cursor from previous response
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:284:287,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,284,287,"POST /plugins/ - Submit a plugin to the daily.dev marketplace for review. Provide agent instructions (SKILL.md), a link, or both. The plugin is listed once the daily.dev team approves it.
+  Body: name, description, about, skillMd, url, repositoryUrl
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:287:290,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,287,290,"GET /plugins/{id} - Get an approved plugin by id, including its about page. The SKILL.md is served separately at skillMdUrl.
+  Params: id(path): Plugin id
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:290:294,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,290,294,"PUT /plugins/{id} - Submit an update to one of your approved plugins for review. Send the full plugin content, it replaces the current version once the daily.dev team approves it. The current version stays live until then, and a newer update replaces one still in review.
+  Params: id(path): Plugin id
+  Body: name, description, about, skillMd, url, repositoryUrl
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:294:298,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,294,298,"#### posts
+GET /posts/{id} - Get post details by ID
+  Params: id(path): Post ID
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:298:301,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,298,301,"GET /posts/{id}/comments - Get comments for a post
+  Params: limit(query): Number of comments to return (1-50); cursor(query): Pagination cursor from previous response; sort(query): Sort order (oldest or newest first); id(path): Post ID
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:301:304,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,301,304,"#### profile
+GET /profile/ - Get current user's profile
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:304:307,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,304,307,"PATCH /profile/ - Update user profile
+  Body: name, bio, timezone, weekStart, experienceLevel, socialLinks
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:307:311,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,307,311,"#### recommend
+GET /recommend/keyword - [EXPERIMENTAL] Recommend articles by keyword search. Best when the query contains specific technical terms (e.g. ""RAG"", ""pgvector"", ""LangChain""). Returns posts with engagement signals for LLM consumption. Natural-language questions and long phrases usually match nothing and return an empty list; use GET /search/posts with two or three keywords for those. This endpoint may be removed or changed without notice.
+  Params: q(query): Search query — keywords or technical terms (e.g. ""RAG vs fine-tuning"", ""vector database comparison""); limit(query): Number of articles to return (1-20, default 10). Kept small for LLM context efficiency.; cursor(query): Pagination cursor from previous response; time(query): Time range filter — use ""month"" or ""year"" for recent content, ""all"" for comprehensive results
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:311:314,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,311,314,"GET /recommend/semantic - [DEPRECATED] Use /recommend/keyword instead, which this endpoint now answers from. Kept for older clients and scheduled for removal.
+  Params: q(query): Natural language question or topic (e.g. ""how do I make my chatbot remember previous conversations?"", ""what is the best way to handle authentication in a Next.js app?""); limit(query): Number of articles to return (1-20, default 10). Kept small for LLM context efficiency.; time(query): Time range filter — use ""month"" or ""year"" for recent content, ""all"" for comprehensive results
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:314:318,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,314,318,"#### search
+GET /search/posts - Search posts by keyword
+  Params: q(query): Search query (required); limit(query): Number of posts to return (1-50); cursor(query): Pagination cursor from previous response; time(query): Time range filter (day, week, month, year, all)
+
+",160,318,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:318:321,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,318,321,"GET /search/tags - Search tags by name
+  Params: q(query): Search query (required). Tags are lowercase hyphenated slugs such as ""claude-code""; spaces in the query are treated as hyphens.
+
+",318,464,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:31:33,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,31,33,"### Secure Token Storage (Recommended)
+
+",1,160,description,Security,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:321:324,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,321,324,"GET /search/sources - Search sources/publishers by name
+  Params: q(query): Search query (required); limit(query): Number of sources to return (1-50)
+
+",318,464,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:324:328,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,324,328,"#### signup
+POST /signup/ - Creates a daily.dev account from an email and password. No token required — this is the endpoint to call when you do not have one yet. Personal Access Tokens for the rest of this API are issued separately from account settings.
+  Body: email, password, name, username
+
+",318,464,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:328:332,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,328,332,"#### stack
+GET /profile/stack/search - Search for tools/technologies by name
+  Params: query(query): Search query (minimum 1 character)
+
+",318,464,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:332:335,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,332,335,"GET /profile/stack/ - Get current user's tech stack
+  Params: limit(query): Number of items to return (1-100); cursor(query): Pagination cursor from previous response
+
+",318,464,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:335:338,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,335,338,"POST /profile/stack/ - Add a tool to user stack
+  Body: title, section, startedAt
+
+",318,464,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:338:342,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,338,342,"PATCH /profile/stack/{id} - Update a stack item
+  Params: id(path): Stack item ID
+  Body: section, icon, title, startedAt
+
+",318,464,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:33:46,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,33,46,"#### macOS - Keychain
+
+```bash
+# Store token
+security add-generic-password -a ""$USER"" -s ""daily-dev-api"" -w ""dda_your_token""
+
+# Retrieve token
+security find-generic-password -a ""$USER"" -s ""daily-dev-api"" -w
+
+# Auto-load in ~/.zshrc or ~/.bashrc
+export DAILY_DEV_TOKEN=$(security find-generic-password -a ""$USER"" -s ""daily-dev-api"" -w 2>/dev/null)
+```
+
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:342:345,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,342,345,"DELETE /profile/stack/{id} - Remove a tool from user stack
+  Params: id(path): Stack item ID
+
+",318,464,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:345:348,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,345,348,"PUT /profile/stack/reorder - Reorder stack items
+  Body: items
+
+",318,464,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:348:351,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,348,351,"#### tags
+GET /tags/ - Get all tags
+
+",318,464,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:351:356,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,351,356,"This list is generated from the OpenAPI spec. To regenerate it:
+```bash
+curl -s https://api.daily.dev/public/v1/docs/json | jq -r '.paths | to_entries | map(.key as $path | .value | to_entries | map(.key as $method | {tag: (.value.tags[0] // ""other""), line: (""\(.key | ascii_upcase) \($path)"" + (if .value.description then "" - \(.value.description)"" else """" end) + (if (.value.parameters | length) > 0 then ""\n  Params: "" + ([.value.parameters[] | ""\(.name)(\(.in)): \(.description // .schema.type)""] | join(""; "")) else """" end) + (if .value.requestBody then ""\n  Body: "" + (.value.requestBody.content[""application/json""].schema | if .properties then ([.properties | to_entries[] | ""\(.key)""] | join("", "")) elif .""$ref"" then (.""$ref"" | split(""/"") | last) else ""object"" end) else """" end))})) | flatten | group_by(.tag) | map(""#### \(.[0].tag)\n"" + (map(.line) | join(""\n\n""))) | join(""\n\n"")'
+```
+
+",318,464,directive,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:356:362,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,356,362,"## Agent Use Cases
+
+**Why daily.dev for agents?** LLMs have knowledge cutoffs. daily.dev provides real-time, community-validated developer content with structured taxonomy across thousands of sources. Agents can use this to stay current, get diverse perspectives, and understand what the developer community actually cares about.
+
+These examples show how AI agents can combine daily.dev APIs with external context to create powerful developer workflows.
+
+",318,464,description,AI Integration,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:362:371,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,362,371,"### 🔍 GitHub Repo → Personalized Feed
+Scan a user's GitHub repositories to detect their actual tech stack from `package.json`, `go.mod`, `Cargo.toml`, `requirements.txt`, etc. Then:
+- Fetch `/tags` to see all available tags for deterministic matching
+- Auto-follow matching tags via `/feeds/filters/tags/follow`
+- Create a custom feed tuned to their stack with `/feeds/custom/`
+- Surface trending articles about their specific dependencies
+
+**Trigger:** ""Set up daily.dev based on my GitHub projects""
+
+",318,464,directive,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:371:380,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,371,380,"### 🛠️ GitHub → Auto-fill Stack Profile
+Analyze a user's GitHub activity to build their daily.dev tech stack profile automatically:
+- Scan repositories for languages, frameworks, and tools actually used in code
+- Search `/profile/stack/search` to find matching technologies on daily.dev
+- Populate their stack via `POST /profile/stack/` organized by section (languages, frameworks, tools)
+- Update `/profile/` bio based on their primary technologies and contributions
+
+**Trigger:** ""Build my daily.dev profile from my GitHub""
+
+",318,464,directive,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:380:389,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,380,389,"### 🚀 New Project → Curated Onboarding
+When a user initializes a new project or clones a repo:
+- Analyze the tech choices from config files
+- Create a dedicated custom feed filtered to exactly those technologies
+- Build a ""Getting Started"" bookmark list with foundational articles
+- Block irrelevant tags to keep the feed focused on the project scope
+
+**Trigger:** ""Help me learn the stack for this project""
+
+",318,464,directive,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:389:398,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,389,398,"### 📊 Weekly Digest → Synthesized Briefing
+Compile a personalized weekly summary by:
+- Fetching `/feeds/foryou` and `/feeds/popular` filtered by user's followed tags
+- Cross-referencing with their GitHub activity to prioritize relevant topics
+- Summarizing key articles and trending discussions
+- Delivering as a structured briefing with links to full posts
+
+**Trigger:** Scheduled, or ""Give me my weekly dev news""
+
+",318,464,directive,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:398:408,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,398,408,"### 📚 Research Project Workspace
+When a user wants to deep-dive into a topic (e.g., ""I want to learn Kubernetes""):
+- Create a custom feed via `/feeds/custom/` filtered to that topic
+- Set up a matching bookmark list via `POST /bookmarks/lists` to collect the best finds
+- As the user reads, save articles to the list with `POST /bookmarks/`
+- Track learning progress: compare bookmarked posts vs. new feed items
+- Adjust feed filters over time as understanding deepens (beginner → advanced content)
+
+**Trigger:** ""Start a research project on [topic]""
+
+",318,464,directive,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:408:418,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,408,418,"### 🧠 Agent Self-Improvement Feed
+Agents can overcome their knowledge cutoff by maintaining their own custom feed:
+- Create a custom feed via `/feeds/custom/` for technologies the agent frequently assists with
+- Periodically fetch `/feeds/custom/{feedId}` to ingest recent articles
+- Use `/posts/{id}` to read full summaries and key points
+- Agent can now provide advice with current information: ""As of this week, the recommended approach is...""
+- Continuously adapt the feed filters based on what users are asking about
+
+**Trigger:** Agent background process, or ""What's new in [technology] since your training?""
+
+",318,464,directive,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:418:428,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,418,428,"### 🔀 Multi-Source Synthesis
+Get balanced perspectives by aggregating content across publishers:
+- Search `/search/posts` for a topic to find coverage from multiple sources
+- Use `/search/sources` to identify authoritative publishers on the topic
+- Fetch posts from different sources via `/feeds/source/{source}`
+- Synthesize diverse viewpoints into a balanced summary with citations
+- Surface where sources agree vs. disagree on best practices
+
+**Trigger:** ""What are the different perspectives on [topic]?"" or ""Compare approaches to [problem]""
+
+",318,464,directive,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:428:438,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,428,438,"### 📈 Trending Radar
+Help users stay ahead by monitoring community signals:
+- Fetch `/feeds/popular` to detect what's gaining traction right now
+- Cross-reference with user's followed tags to surface relevant trends
+- Use `/feeds/discussed` to find topics sparking active debate
+- Alert users when technologies in their stack are trending (new releases, security issues, paradigm shifts)
+- Use `/tags` to fetch the full tag catalog and `/search/tags` to explore adjacent trending topics
+
+**Trigger:** ""What should I be paying attention to?"" or ""What's trending in [area]?""
+
+",318,464,directive,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:438:442,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,438,442,"## Rate Limits
+
+Requests are rate limited per user and per IP. Free accounts have a monthly allowance; Plus raises the limits. MCP tool calls and OAuth requests count against the same per-user quota as the token.
+
+",318,464,description,Configuration & Environment,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:442:448,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,442,448,"Check response headers:
+- `X-RateLimit-Limit` - Maximum requests allowed per window
+- `X-RateLimit-Remaining` - Requests remaining in current window
+- `X-RateLimit-Reset` - Unix timestamp when the window resets
+- `Retry-After` - Seconds to wait (only when rate limited)
+
+",318,464,description,Configuration & Environment,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:448:457,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,448,457,"## Errors
+
+| Code | Meaning |
+|------|---------|
+| 401  | Invalid or missing token |
+| 403  | Plus-only feature (bookmark folders), account not confirmed, or OAuth token missing the required scope |
+| 404  | Resource not found |
+| 429  | Rate limit exceeded |
+
+",318,464,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:457:464,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,457,464,"**Error Response Format:**
+```json
+{
+  ""error"": ""error_code"",
+  ""message"": ""Human readable message""
+}
+```
+",318,464,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+a7cc4990b03e9c6ee284:46:58,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,46,58,"#### Windows - Credential Manager
+
+```powershell
+# Store token (run in PowerShell)
+$credential = New-Object System.Management.Automation.PSCredential(""daily-dev-api"", (ConvertTo-SecureString ""dda_your_token"" -AsPlainText -Force))
+$credential | Export-Clixml ""$env:USERPROFILE\.daily-dev-credential.xml""
+
+# Retrieve token - add to PowerShell profile ($PROFILE)
+$cred = Import-Clixml ""$env:USERPROFILE\.daily-dev-credential.xml""
+$env:DAILY_DEV_TOKEN = $cred.GetNetworkCredential().Password
+```
+
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:58:60,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,58,60,"Or use the Windows Credential Manager GUI: Control Panel → Credential Manager → Windows Credentials → Add a generic credential
+
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:60:77,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,60,77,"#### Linux - Secret Service (GNOME Keyring / KWallet)
+
+```bash
+# Requires libsecret-tools
+# Ubuntu/Debian: sudo apt install libsecret-tools
+# Fedora: sudo dnf install libsecret
+
+# Store token
+echo ""dda_your_token"" | secret-tool store --label=""daily.dev API Token"" service daily-dev-api username ""$USER""
+
+# Retrieve token
+secret-tool lookup service daily-dev-api username ""$USER""
+
+# Auto-load in ~/.bashrc or ~/.zshrc
+export DAILY_DEV_TOKEN=$(secret-tool lookup service daily-dev-api username ""$USER"" 2>/dev/null)
+```
+
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:77:79,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,77,79,"## Resolving the API token
+
+",1,160,description,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:79:81,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,79,81,"Check if `DAILY_DEV_TOKEN` environment variable is available. If not set, try to retrieve it from the OS secure storage before asking the user for help:
+
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:7:11,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,7,11,"# daily.dev API for AI Agents
+
+Overcome LLM knowledge cutoffs with real-time developer content. daily.dev aggregates articles from thousands of sources, validated by community engagement, with structured taxonomy for precise discovery.
+
+",1,160,description,System Overview,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:81:86,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,81,86,"**macOS:**
+```bash
+export DAILY_DEV_TOKEN=$(security find-generic-password -a ""$USER"" -s ""daily-dev-api"" -w 2>/dev/null)
+```
+
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:86:91,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,86,91,"**Linux:**
+```bash
+export DAILY_DEV_TOKEN=$(secret-tool lookup service daily-dev-api username ""$USER"" 2>/dev/null)
+```
+
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:91:96,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,91,96,"**Windows (PowerShell):**
+```powershell
+$cred = Import-Clixml ""$env:USERPROFILE\.daily-dev-credential.xml"" 2>$null; $env:DAILY_DEV_TOKEN = $cred.GetNetworkCredential().Password
+```
+
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:96:98,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,96,98,"If the token is still empty after trying secure storage, direct the user to the Setup section above.
+
+",1,160,directive,Security,,,noncoding_assistance,agreement,False,agreement
+a7cc4990b03e9c6ee284:98:104,a7cc4990b03e9c6ee284,dailydotdev/daily,f26eebc917e80d6ca6f37e0fabb04bc755c510bc,skills/daily.dev/SKILL.md,SKILL.md,c41241f9746387305350198a80b8b9caa206372c433d5dcd54ef284d16739fe8,98,104,"## Authentication
+
+```
+Authorization: Bearer $DAILY_DEV_TOKEN
+```
+
+",1,160,description,Security,,,noncoding_assistance,agreement,False,agreement
