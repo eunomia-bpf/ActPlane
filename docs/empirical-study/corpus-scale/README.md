@@ -8,11 +8,11 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 
 | Measure | Paper claim | Recovered labels | New snapshot (repository bootstrap interval) |
 |---|---:|---:|---:|
-| Policy / all statements | 64.0% | 64.3% | withheld or pending |
-| System-observable / policies | 83.0% | 82.8% | withheld or pending |
-| Context needed / system-observable | 74.0% | 73.6% | withheld or pending |
-| Repositories with cross-event policies | 81.0% | 79.7% | withheld or pending |
-| OS-tier policy candidates (count) | 607 | 607 | withheld or pending |
+| Policy / all statements | 64.0% | 64.3% | pending |
+| System-observable / policies | 83.0% | 82.8% | pending |
+| Context needed / system-observable | 74.0% | 73.6% | pending |
+| Repositories with cross-event policies | 81.0% | 79.7% | pending |
+| OS-tier policy candidates (count) | 607 | 607 | pending |
 
 The collected manifest currently covers 325 repositories. Labeling coverage is pending.
 
@@ -32,14 +32,14 @@ The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` end
 | qwen | topic | 2116 | 2116 | 0.698 | 0.656 |
 | qwen | enforceability | 1361 | 1361 | 0.700 | 0.585 |
 | qwen | context_required | 1127 | 1127 | 0.390 | 0.147 |
-| glm | type | 2116 | 908 | 0.904 | 0.795 |
-| glm | topic | 2116 | 908 | 0.718 | 0.678 |
-| glm | enforceability | 1361 | 559 | 0.673 | 0.551 |
-| glm | context_required | 1127 | 449 | 0.434 | 0.188 |
-| inter_model | type | 2116 | 908 | 0.916 | 0.822 |
-| inter_model | topic | 2116 | 908 | 0.779 | 0.747 |
-| inter_model | enforceability | 1361 | 559 | 0.766 | 0.679 |
-| inter_model | context_required | 1127 | 449 | 0.722 | 0.385 |
+| glm | type | 2116 | 1220 | 0.901 | 0.782 |
+| glm | topic | 2116 | 1220 | 0.713 | 0.673 |
+| glm | enforceability | 1361 | 774 | 0.659 | 0.538 |
+| glm | context_required | 1127 | 617 | 0.449 | 0.216 |
+| inter_model | type | 2116 | 1220 | 0.920 | 0.827 |
+| inter_model | topic | 2116 | 1220 | 0.779 | 0.748 |
+| inter_model | enforceability | 1361 | 774 | 0.751 | 0.660 |
+| inter_model | context_required | 1127 | 617 | 0.726 | 0.398 |
 
 `calibration_summary.csv` also reports end-to-end agreement including inapplicable labels. The applicable-gold evaluation counts a predicted inapplicable value as disagreement. `calibration_confusion.csv` retains every confusion cell and missing predictions are reported explicitly.
 
@@ -65,6 +65,8 @@ All requested families are inspected in recursive commit-pinned trees: CLAUDE.md
 Qwen proposes semantic statement starts in source chunks targeting 160 lines. The script derives half-open ranges and copies source text exactly. Coverage, hashes, and range continuity are checked, while extraction failures remain recorded. Earlier range-pair attempts that failed validation remain in the raw logs. This validates source fidelity, not the semantic correctness of boundaries. Chunking may separate context, and the new extraction has no human boundary audit. Calibration holds historical boundaries fixed and therefore does not validate new extraction quality.
 
 Overall analysis counts each byte-identical file once within a repository. Family analysis attributes shared text to each family in which it appears, so family counts are not additive. Repository categories come from a separate metadata classifier and are explicitly marked as model judgments. A noncoding-agent repository can still contain coding instructions. The category breakdown must not be described as a noncoding-policy slice without inspecting file scope.
+
+Repository-purpose groups are defined in `categorize.py`: agent_frameworks includes reusable agent infrastructure, coding agents, editors, and developer-agent tools; applications includes general software, libraries, services, and educational collections; noncoding_agents covers assistants primarily advertised for personal, office, research, browser, or finance tasks. Mixed systems are assigned by their primary advertised purpose. These categories have not received independent human reliability validation.
 
 A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used. The optional OpenCode routes also reject requests with the requested session header, as recorded in `gateway_probes.csv`. A named GLM flash route was used only for a throughput pilot and is not part of the primary calibration.
 
@@ -105,7 +107,7 @@ The collected repositories have a star range of 12,209–458,063, with median 40
 
 ## Reproduction and artifacts
 
-Use an isolated Python environment with `requirements.txt`. Set `GH_TOKEN`, `LITELLM_BASE_URL`, and `LITELLM_API_KEY` in the environment. Never pass secrets as command-line arguments. Raw responses, cached prompts/completions, source files, retries, and HTTP logs stay in the operator-specified raw directory.
+Use an isolated Python environment with `requirements.txt`. Set `GH_TOKEN`, `LITELLM_BASE_URL`, and `LITELLM_API_KEY` in the environment. Never pass secrets as command-line arguments. Raw responses, cached prompts/completions, source files, retries, and HTTP logs stay in the operator-specified raw directory. Set `ACTPLANE_CORPUS_RAW` to reproduce in a different raw-data location. Access to the named model endpoints is required.
 
 ```bash
 python recover.py

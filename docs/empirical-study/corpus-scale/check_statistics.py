@@ -29,6 +29,10 @@ def main():
     policy = next(r for r in result if r['metric'] == 'policy_fraction')
     checks.extend(dict(check='identical_projects_' + field, expected=.5, actual=policy[field])
                   for field in ['value', 'ci_low', 'ci_high'])
+    empty_policy, _ = summarize([rows[-1]], {'c': {}})
+    system = next(r for r in empty_policy if r['metric'] == 'system_state_fraction')
+    checks.append(dict(check='no_policies_has_no_system_fraction', expected=True,
+                       actual=system['value'] == '' and system['status'] == 'undefined_zero_denominator'))
     for r in checks:
         r['passed'] = bool(np.isclose(r['expected'], r['actual']))
     write_csv(HERE / 'statistics_validation.csv', checks)

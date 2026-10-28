@@ -25,7 +25,8 @@ def main():
         # Recheck the exact reduced output schema before deploying it at scale.
         validation = ['--input', str(HERE / 'paper_labels.csv'), '--dimensions', ','.join(dimensions)]
         commands = [[sys.executable, str(HERE / 'label.py'), *validation,
-                     '--model', model, '--workers', '4' if name == 'qwen' else '2', '--batch-size', '16',
+                     '--model', model, '--workers', '4' if name == 'qwen' else '2',
+                     '--batch-size', '48' if name == 'qwen' else '24',
                      '--output', str(HERE / f'format_calibration_{name}.csv')]
                     for model, name in [('qwen3.8-27b-nvfp4', 'qwen'), ('zai/glm-5.3', 'glm')]]
         processes = [subprocess.Popen(c) for c in commands]
@@ -33,6 +34,7 @@ def main():
         if any(results):
             raise SystemExit('Output-format calibration failed to run.')
         run('label.py', *validation, '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
+            '--batch-size', '48',
             '--primary', str(HERE / 'format_calibration_qwen.csv'),
             '--other', str(HERE / 'format_calibration_glm.csv'),
             '--output', str(HERE / 'format_calibration_adjudicated.csv'))
@@ -45,7 +47,7 @@ def main():
     shared = ['--input', str(HERE / 'statements.csv'), '--dimensions', ','.join(dimensions)]
     commands = [
         [sys.executable, str(HERE / 'label.py'), *shared, '--model', 'qwen3.8-27b-nvfp4',
-         '--workers', '4', '--batch-size', '24', '--output', str(HERE / 'labels_qwen.csv')],
+         '--workers', '4', '--batch-size', '48', '--output', str(HERE / 'labels_qwen.csv')],
         [sys.executable, str(HERE / 'label.py'), *shared, '--model', 'zai/glm-5.3',
          '--workers', '2', '--batch-size', '24', '--output', str(HERE / 'labels_glm.csv')]]
     processes = [subprocess.Popen(c) for c in commands]
@@ -57,6 +59,7 @@ def main():
         if all((HERE / f'labels_{name}.csv').exists() for name in ('qwen', 'glm')):
             workers = '3' if processes[0].poll() is None and scope_process.poll() is None else '4'
             run('label.py', *shared, '--model', 'qwen3.8-27b-nvfp4', '--workers', workers,
+                '--batch-size', '48',
                 '--primary', str(HERE / 'labels_qwen.csv'), '--other', str(HERE / 'labels_glm.csv'),
                 '--output', str(HERE / 'labels.csv'))
             run('analyze.py')
@@ -73,6 +76,7 @@ def main():
     if any(results):
         raise SystemExit('A primary labeler failed; restart after inspecting raw logs.')
     run('label.py', *shared, '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
+        '--batch-size', '48',
         '--primary', str(HERE / 'labels_qwen.csv'), '--other', str(HERE / 'labels_glm.csv'),
         '--output', str(HERE / 'labels.csv'))
     scope_process.wait()

@@ -11,7 +11,8 @@ from pathlib import Path
 import requests
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_RAW = Path('/workspaces/.agent-state/actplane-research/raw/corpus-scale-20261028')
+DEFAULT_RAW = Path(os.environ.get('ACTPLANE_CORPUS_RAW',
+    '/workspaces/.agent-state/actplane-research/raw/corpus-scale-20261028'))
 LOCK = threading.Lock()
 
 

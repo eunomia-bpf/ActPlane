@@ -2974,3 +2974,120 @@ glm,enforceability,paper:czlonkowski/n8n-mcp:21,cross_event,semantic_only,"## Me
 glm,enforceability,paper:czlonkowski/n8n-mcp:29,semantic_only,,"### Common Pitfalls
 - The MCP server needs to be reloaded in Claude Desktop after changes
 "
+glm,topic,paper:czlonkowski/n8n-mcp:38,Build and Run,Development Process,"### Development Best Practices
+- Run typecheck and lint after every code change
+"
+glm,topic,paper:czlonkowski/n8n-mcp:40,Maintenance,AI Integration,"NEVER create files unless they're absolutely necessary for achieving your goal.
+"
+glm,topic,paper:czlonkowski/n8n-mcp:41,Maintenance,AI Integration,"ALWAYS prefer editing an existing file to creating a new one.
+"
+glm,topic,paper:czlonkowski/n8n-mcp:42,Maintenance,Documentation,"NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+"
+glm,topic,paper:datawhalechina/easy-vibe:10,Configuration & Environment,Build and Run,"## Configuration & Deployment Notes
+
+- `vercel.json` is present; keep builds reproducible and avoid relying on local-only assets.
+"
+glm,topic,paper:earendil-works/pi:12,Implementation Details,Maintenance,"- Never remove or downgrade code to fix type errors from outdated deps; upgrade the dep instead.
+"
+glm,topic,paper:earendil-works/pi:17,Implementation Details,Development Process,"- Never modify `packages/ai/src/models.generated.ts` directly; update `packages/ai/scripts/generate-models.ts` instead.
+"
+glm,topic,paper:earendil-works/pi:26,Security,Maintenance,"
+## Dependency and Install Security
+
+- Treat npm dep and lockfile changes as reviewed code. Direct external deps stay pinned to exact versions.
+"
+glm,topic,paper:earendil-works/pi:27,Security,Build and Run,"- Hydrate/update locally with `npm install --ignore-scripts`; clean/CI-style with `npm ci --ignore-scripts`. Don't run lifecycle scripts unless the user asks.
+"
+glm,topic,paper:earendil-works/pi:28,Security,Build and Run,"- If dep metadata changes, refresh `package-lock.json` with `npm install --package-lock-only --ignore-scripts`.
+"
+glm,enforceability,paper:earendil-works/pi:3,content,semantic_only,"- No fluff or cheerful filler text (e.g., ""Thanks @user"" not ""Thanks so much @user!"")
+"
+glm,context_required,paper:earendil-works/pi:3,none,,"- No fluff or cheerful filler text (e.g., ""Thanks @user"" not ""Thanks so much @user!"")
+"
+glm,topic,paper:earendil-works/pi:30,Security,Development Process,"- Pre-commit blocks lockfile commits unless `PI_ALLOW_LOCKFILE_CHANGE=1`. Don't bypass unless the user wants the lockfile change committed.
+"
+glm,enforceability,paper:earendil-works/pi:31,,semantic_only,"
+## Git
+
+Multiple pi sessions may be running in this cwd at the same time, each modifying different files. Git operations that touch unstaged, staged, or untracked files outside your own changes will stomp on other sessions' work. Follow these rules:
+"
+glm,enforceability,paper:earendil-works/pi:43,content,semantic_only,"- Keep comments concise, technical, in the user's tone.
+"
+glm,context_required,paper:earendil-works/pi:43,none,,"- Keep comments concise, technical, in the user's tone.
+"
+glm,topic,paper:garrytan/gbrain:14,Build and Run,Documentation,"
+## Forks
+
+If you are a fork, regenerate `llms.txt` + `llms-full.txt` with your own URL base before
+publishing: `LLMS_REPO_BASE=https://raw.githubusercontent.com/your-org/your-fork/main bun run build:llms`.
+"
+glm,topic,paper:garrytan/gbrain:9,Maintenance,Development Process,"- **Drive the brain to a target health score (v0.36.4.0):** the one-command
+  loop. `gbrain doctor --remediation-plan --json` previews what would be
+  fixed; `gbrain doctor --remediate --yes --target-score 90 --max-usd 5`
+  walks a dependency-ordered plan (sync before extract, embed after
+  consolidate), re-checking score between every step, refusing to spend
+  past the cost cap. Empty brains (no entity pages) or unconfigured embedding
+  keys hit a `max_reachable_score` ceiling and bail with what's missing.
+  Three phase handlers (synthesize / patterns / consolidate) are
+  PROTECTED — only trusted local callers can submit them; MCP cannot.
+  Reference: [`docs/architecture/topologies.md`](./docs/architecture/topologies.md)
+  and the CHANGELOG entry for v0.36.4.0.
+"
+glm,topic,paper:gastownhall/beads:2,Documentation,Development Process,"
+## Key Sections
+
+- **Issue Tracking** - How to use bd for work management
+"
+glm,enforceability,paper:gastownhall/beads:2,semantic_only,,"
+## Key Sections
+
+- **Issue Tracking** - How to use bd for work management
+"
+glm,topic,paper:gastownhall/beads:3,Documentation,Implementation Details,"- **Development Guidelines** - Code standards and testing
+"
+glm,topic,paper:google/adk-python:4,AI Integration,Implementation Details,"- **`adk-style`**: Use this skill whenever writing code, tests, or reviewing PRs for the ADK project to ensure compliance with styling and coding conventions. Also use it for committing, bug fixing, and testing rules.
+  - Read `.agents/skills/adk-style/SKILL.md` for full instructions.
+"
+glm,topic,paper:google/adk-python:7,Architecture,System Overview,"
+## Project Overview
+
+The Agent Development Kit (ADK) is an open-source, code-first Python toolkit for building, evaluating, and deploying sophisticated AI agents.
+
+### Key Components
+
+- **Agent**: Blueprint defining identity, instructions, and tools.
+- **Runner**: Stateless execution engine that orchestrates agent execution.
+- **Tool**: Functions/capabilities agents can call.
+- **Session**: Conversation state management.
+- **Memory**: Long-term recall across sessions.
+- **Workflow** (ADK 2.0): Graph-based orchestration of complex, multi-step agent interactions.
+- **BaseNode** (ADK 2.0): Contract for all nodes, supporting output streaming and human-in-the-loop steps.
+- **Context** (ADK 2.0): Holds execution state and telemetry context mapped 1:1 to nodes.
+"
+glm,topic,paper:iOfficeAI/AionUi:25,Testing,Documentation,"
+See the `testing` skill (`.claude/skills/testing/SKILL.md`) for complete workflow, quality rules, and checklist.
+"
+glm,topic,paper:iOfficeAI/AionUi:36,DevOps,Development Process,"
+## PR 自动化流程
+
+本仓库运行 PR 自动化 agent，定期处理 open PR（review、fix、合并）。
+"
+glm,topic,paper:iOfficeAI/AionUi:37,DevOps,Build and Run,"
+- **运行方式**：`scripts/pr-automation.sh` 作为 daemon 持续运行，每轮间隔 30 秒；日志默认写入 `~/Library/Logs/AionUi/`，可通过 `LOG_DIR=...` 覆盖
+"
+glm,topic,paper:iOfficeAI/AionUi:38,DevOps,Development Process,"- **状态追踪**：通过 `bot:*` label（`bot:reviewing`、`bot:fixing`、`bot:ready-to-fix`、`bot:ci-waiting`、`bot:needs-human-review`、`bot:ready-to-merge`、`bot:done`）
+"
+glm,topic,paper:langchain-ai/open-swe:13,Configuration & Environment,Architecture,"Every run re-applies `git config --global user.name/email` for the bot identity, because reused/reconnected sandboxes can lose `--global` config and Vercel preview deploys reject commits whose author email doesn't resolve to a GitHub account.
+"
+glm,topic,paper:langchain-ai/open-swe:3,System Overview,Architecture,"A separate **reviewer** graph runs read-only code reviews on PRs, and a **review-style analyzer** graph learns per-repo review style from historical PRs.
+"
+glm,topic,paper:manaflow-ai/cmux:1,Configuration & Environment,Build and Run,"# cmux agent notes
+
+## Initial setup
+
+Run the setup script to initialize submodules and build GhosttyKit:
+
+```bash
+./scripts/setup.sh
+```
+"

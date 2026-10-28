@@ -8,3 +8,4 @@ kappa_known_contingency_table,0.5,0.5,True
 identical_projects_value,0.5,0.5,True
 identical_projects_ci_low,0.5,0.5,True
 identical_projects_ci_high,0.5,0.5,True
+no_policies_has_no_system_fraction,True,True,True

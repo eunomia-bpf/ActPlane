@@ -144,10 +144,13 @@ def summarize(rows, repos, gates=None, source='new'):
                 'context_required_fraction': 'context_required', 'cross_event_project_share': 'enforceability',
                 'os_enforceable_count': 'enforceability'}[key]
         valid = gates is None or gates.get(need, False)
+        defined = key == 'os_enforceable_count' or denominator > 0
         lo, hi = np.nanquantile(draws[:, i], [.025, .975]) if np.isfinite(draws[:, i]).any() else (float('nan'), float('nan'))
         summary.append(dict(source=source, metric=key, numerator=int(numerator) if valid else '', denominator=int(denominator) if valid else '',
-            value=value if valid else '', ci_low=lo if valid else '', ci_high=hi if valid else '',
-            status='ok' if valid else 'withheld_calibration_failed', repositories=len(repos), statements=len(rows)))
+            value=value if valid and defined else '', ci_low=lo if valid and defined else '', ci_high=hi if valid and defined else '',
+            status=('withheld_calibration_failed' if not valid else
+                    'undefined_zero_denominator' if not defined else 'ok'),
+            repositories=len(repos), statements=len(rows)))
     return summary, draws
 
 

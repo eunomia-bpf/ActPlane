@@ -23,7 +23,9 @@ def stat(value):
 
 def fmt(r, field='value'):
     if not r or r.get(field, '') == '':
-        return 'withheld or pending'
+        if r and r.get('status') == 'undefined_zero_denominator':
+            return 'undefined'
+        return 'withheld' if r and r.get('status', '').startswith('withheld') else 'pending'
     x = float(r[field])
     return f'{x:,.0f}' if r.get('metric', '').endswith('_count') else f'{100*x:.1f}%'
 
@@ -121,6 +123,7 @@ def main():
         f'Qwen proposes semantic statement starts in source chunks targeting {cfg["max_excerpt_lines_target"]} lines. The script derives half-open ranges and copies source text exactly. '
         'Coverage, hashes, and range continuity are checked, while extraction failures remain recorded. Earlier range-pair attempts that failed validation remain in the raw logs. This validates source fidelity, not the semantic correctness of boundaries. Chunking may separate context, and the new extraction has no human boundary audit. Calibration holds historical boundaries fixed and therefore does not validate new extraction quality.', '',
         'Overall analysis counts each byte-identical file once within a repository. Family analysis attributes shared text to each family in which it appears, so family counts are not additive. Repository categories come from a separate metadata classifier and are explicitly marked as model judgments. A noncoding-agent repository can still contain coding instructions. The category breakdown must not be described as a noncoding-policy slice without inspecting file scope.', '',
+        'Repository-purpose groups are defined in `categorize.py`: agent_frameworks includes reusable agent infrastructure, coding agents, editors, and developer-agent tools; applications includes general software, libraries, services, and educational collections; noncoding_agents covers assistants primarily advertised for personal, office, research, browser, or finance tasks. Mixed systems are assigned by their primary advertised purpose. These categories have not received independent human reliability validation.', '',
         'A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used. The optional OpenCode routes also reject requests with the requested session header, as recorded in `gateway_probes.csv`. A named GLM flash route was used only for a throughput pilot and is not part of the primary calibration.', '',
         f'Intervals use {BOOTSTRAPS:,} bootstrap replicates resampling repositories within discovery strata, with seed {SEED}. '
         'They describe sensitivity within this convenience sample. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.', '',
@@ -147,7 +150,7 @@ def main():
             lines.append('| ' + ' | '.join([group, first['repositories'], first['statements'],
                                           *[fmt(records.get(k)) for k in NAMES]]) + ' |')
     lines += ['', '## Reproduction and artifacts', '',
-        'Use an isolated Python environment with `requirements.txt`. Set `GH_TOKEN`, `LITELLM_BASE_URL`, and `LITELLM_API_KEY` in the environment. Never pass secrets as command-line arguments. Raw responses, cached prompts/completions, source files, retries, and HTTP logs stay in the operator-specified raw directory.', '',
+        'Use an isolated Python environment with `requirements.txt`. Set `GH_TOKEN`, `LITELLM_BASE_URL`, and `LITELLM_API_KEY` in the environment. Never pass secrets as command-line arguments. Raw responses, cached prompts/completions, source files, retries, and HTTP logs stay in the operator-specified raw directory. Set `ACTPLANE_CORPUS_RAW` to reproduce in a different raw-data location. Access to the named model endpoints is required.', '',
         '```bash',
         'python recover.py', 'python collect.py',
         'python label.py --model qwen3.8-27b-nvfp4 --output calibration_qwen.csv',

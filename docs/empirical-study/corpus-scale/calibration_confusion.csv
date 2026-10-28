@@ -288,71 +288,71 @@ qwen,context_required,all_including_na,project,task,7
 qwen,context_required,all_including_na,task,project,19
 qwen,context_required,all_including_na,task,__NA__,2
 qwen,context_required,all_including_na,none,task,2
-glm,type,applicable_gold,description,description,292
-glm,type,applicable_gold,directive,directive,529
-glm,type,applicable_gold,directive,description,30
-glm,type,applicable_gold,description,directive,57
-glm,type,all_including_na,description,description,292
-glm,type,all_including_na,directive,directive,529
-glm,type,all_including_na,directive,description,30
-glm,type,all_including_na,description,directive,57
-glm,topic,applicable_gold,System Overview,Documentation,13
-glm,topic,applicable_gold,System Overview,System Overview,18
-glm,topic,applicable_gold,Build and Run,Build and Run,59
-glm,topic,applicable_gold,Architecture,Architecture,153
-glm,topic,applicable_gold,Development Process,Development Process,71
-glm,topic,applicable_gold,Implementation Details,Implementation Details,136
-glm,topic,applicable_gold,Implementation Details,Architecture,14
-glm,topic,applicable_gold,Testing,Testing,78
-glm,topic,applicable_gold,Maintenance,Maintenance,16
+glm,type,applicable_gold,description,description,367
+glm,type,applicable_gold,directive,directive,732
+glm,type,applicable_gold,directive,description,42
+glm,type,applicable_gold,description,directive,79
+glm,type,all_including_na,description,description,367
+glm,type,all_including_na,directive,directive,732
+glm,type,all_including_na,directive,description,42
+glm,type,all_including_na,description,directive,79
+glm,topic,applicable_gold,System Overview,Documentation,18
+glm,topic,applicable_gold,System Overview,System Overview,24
+glm,topic,applicable_gold,Build and Run,Build and Run,74
+glm,topic,applicable_gold,Architecture,Architecture,192
+glm,topic,applicable_gold,Development Process,Development Process,121
+glm,topic,applicable_gold,Implementation Details,Implementation Details,180
+glm,topic,applicable_gold,Implementation Details,Architecture,15
+glm,topic,applicable_gold,Testing,Testing,92
+glm,topic,applicable_gold,Maintenance,Maintenance,17
 glm,topic,applicable_gold,Configuration & Environment,Implementation Details,2
-glm,topic,applicable_gold,Documentation,Documentation,16
-glm,topic,applicable_gold,Configuration & Environment,Configuration & Environment,25
-glm,topic,applicable_gold,Development Process,DevOps,11
-glm,topic,applicable_gold,DevOps,DevOps,14
-glm,topic,applicable_gold,AI Integration,AI Integration,57
+glm,topic,applicable_gold,Documentation,Documentation,34
+glm,topic,applicable_gold,Configuration & Environment,Configuration & Environment,30
+glm,topic,applicable_gold,Development Process,DevOps,12
+glm,topic,applicable_gold,DevOps,DevOps,16
+glm,topic,applicable_gold,AI Integration,AI Integration,75
 glm,topic,applicable_gold,Architecture,Implementation Details,4
-glm,topic,applicable_gold,Development Process,AI Integration,25
+glm,topic,applicable_gold,Development Process,AI Integration,52
 glm,topic,applicable_gold,Development Process,Testing,3
-glm,topic,applicable_gold,Development Process,Maintenance,4
+glm,topic,applicable_gold,Development Process,Maintenance,5
 glm,topic,applicable_gold,Documentation,AI Integration,3
-glm,topic,applicable_gold,Implementation Details,Build and Run,4
+glm,topic,applicable_gold,Implementation Details,Build and Run,5
 glm,topic,applicable_gold,Maintenance,Implementation Details,2
-glm,topic,applicable_gold,Implementation Details,AI Integration,12
-glm,topic,applicable_gold,Implementation Details,Maintenance,2
-glm,topic,applicable_gold,Development Process,Architecture,12
+glm,topic,applicable_gold,Implementation Details,AI Integration,13
+glm,topic,applicable_gold,Implementation Details,Maintenance,3
+glm,topic,applicable_gold,Development Process,Architecture,15
 glm,topic,applicable_gold,Configuration & Environment,AI Integration,6
-glm,topic,applicable_gold,Architecture,Documentation,3
-glm,topic,applicable_gold,Implementation Details,Documentation,3
-glm,topic,applicable_gold,Development Process,Documentation,14
-glm,topic,applicable_gold,AI Integration,Documentation,18
+glm,topic,applicable_gold,Architecture,Documentation,5
+glm,topic,applicable_gold,Implementation Details,Documentation,10
+glm,topic,applicable_gold,Development Process,Documentation,21
+glm,topic,applicable_gold,AI Integration,Documentation,24
 glm,topic,applicable_gold,Architecture,AI Integration,13
 glm,topic,applicable_gold,Architecture,Configuration & Environment,3
 glm,topic,applicable_gold,Architecture,Security,1
 glm,topic,applicable_gold,Testing,Implementation Details,1
-glm,topic,applicable_gold,Security,Security,9
+glm,topic,applicable_gold,Security,Security,15
 glm,topic,applicable_gold,Development Process,Security,2
 glm,topic,applicable_gold,AI Integration,Architecture,3
-glm,topic,applicable_gold,Build and Run,Testing,8
-glm,topic,applicable_gold,Build and Run,Implementation Details,5
-glm,topic,applicable_gold,Build and Run,Documentation,1
-glm,topic,applicable_gold,Build and Run,Development Process,2
+glm,topic,applicable_gold,Build and Run,Testing,9
+glm,topic,applicable_gold,Build and Run,Implementation Details,6
+glm,topic,applicable_gold,Build and Run,Documentation,2
+glm,topic,applicable_gold,Build and Run,Development Process,4
 glm,topic,applicable_gold,Build and Run,DevOps,5
-glm,topic,applicable_gold,Architecture,System Overview,2
-glm,topic,applicable_gold,AI Integration,Development Process,3
+glm,topic,applicable_gold,Architecture,System Overview,3
+glm,topic,applicable_gold,AI Integration,Development Process,6
 glm,topic,applicable_gold,Maintenance,System Overview,1
 glm,topic,applicable_gold,Maintenance,Configuration & Environment,1
-glm,topic,applicable_gold,Development Process,Implementation Details,7
+glm,topic,applicable_gold,Development Process,Implementation Details,8
 glm,topic,applicable_gold,Implementation Details,Configuration & Environment,3
-glm,topic,applicable_gold,Maintenance,Documentation,2
-glm,topic,applicable_gold,DevOps,Development Process,1
+glm,topic,applicable_gold,Maintenance,Documentation,3
+glm,topic,applicable_gold,DevOps,Development Process,3
 glm,topic,applicable_gold,Development Process,Configuration & Environment,2
 glm,topic,applicable_gold,Configuration & Environment,Development Process,2
 glm,topic,applicable_gold,Build and Run,Configuration & Environment,1
 glm,topic,applicable_gold,Maintenance,Architecture,1
 glm,topic,applicable_gold,DevOps,Security,1
 glm,topic,applicable_gold,Configuration & Environment,Security,2
-glm,topic,applicable_gold,Implementation Details,Development Process,1
+glm,topic,applicable_gold,Implementation Details,Development Process,2
 glm,topic,applicable_gold,Testing,Development Process,1
 glm,topic,applicable_gold,Development Process,Build and Run,6
 glm,topic,applicable_gold,AI Integration,Testing,4
@@ -361,68 +361,79 @@ glm,topic,applicable_gold,AI Integration,Configuration & Environment,2
 glm,topic,applicable_gold,Architecture,Build and Run,1
 glm,topic,applicable_gold,Build and Run,Maintenance,1
 glm,topic,applicable_gold,System Overview,Development Process,1
-glm,topic,applicable_gold,Build and Run,AI Integration,6
+glm,topic,applicable_gold,Build and Run,AI Integration,7
 glm,topic,applicable_gold,Testing,DevOps,1
-glm,topic,applicable_gold,Configuration & Environment,Build and Run,1
+glm,topic,applicable_gold,Configuration & Environment,Build and Run,3
 glm,topic,applicable_gold,Maintenance,Testing,1
-glm,topic,applicable_gold,Maintenance,AI Integration,1
-glm,topic,all_including_na,System Overview,Documentation,13
-glm,topic,all_including_na,System Overview,System Overview,18
-glm,topic,all_including_na,Build and Run,Build and Run,59
-glm,topic,all_including_na,Architecture,Architecture,153
-glm,topic,all_including_na,Development Process,Development Process,71
-glm,topic,all_including_na,Implementation Details,Implementation Details,136
-glm,topic,all_including_na,Implementation Details,Architecture,14
-glm,topic,all_including_na,Testing,Testing,78
-glm,topic,all_including_na,Maintenance,Maintenance,16
+glm,topic,applicable_gold,Maintenance,AI Integration,3
+glm,topic,applicable_gold,Security,Maintenance,1
+glm,topic,applicable_gold,Security,Build and Run,2
+glm,topic,applicable_gold,Security,Development Process,1
+glm,topic,applicable_gold,Maintenance,Development Process,1
+glm,topic,applicable_gold,Documentation,Development Process,1
+glm,topic,applicable_gold,Documentation,Implementation Details,1
+glm,topic,applicable_gold,AI Integration,Implementation Details,1
+glm,topic,applicable_gold,Testing,Documentation,1
+glm,topic,applicable_gold,DevOps,Build and Run,1
+glm,topic,applicable_gold,System Overview,Architecture,1
+glm,topic,applicable_gold,Configuration & Environment,Architecture,1
+glm,topic,all_including_na,System Overview,Documentation,18
+glm,topic,all_including_na,System Overview,System Overview,24
+glm,topic,all_including_na,Build and Run,Build and Run,74
+glm,topic,all_including_na,Architecture,Architecture,192
+glm,topic,all_including_na,Development Process,Development Process,121
+glm,topic,all_including_na,Implementation Details,Implementation Details,180
+glm,topic,all_including_na,Implementation Details,Architecture,15
+glm,topic,all_including_na,Testing,Testing,92
+glm,topic,all_including_na,Maintenance,Maintenance,17
 glm,topic,all_including_na,Configuration & Environment,Implementation Details,2
-glm,topic,all_including_na,Documentation,Documentation,16
-glm,topic,all_including_na,Configuration & Environment,Configuration & Environment,25
-glm,topic,all_including_na,Development Process,DevOps,11
-glm,topic,all_including_na,DevOps,DevOps,14
-glm,topic,all_including_na,AI Integration,AI Integration,57
+glm,topic,all_including_na,Documentation,Documentation,34
+glm,topic,all_including_na,Configuration & Environment,Configuration & Environment,30
+glm,topic,all_including_na,Development Process,DevOps,12
+glm,topic,all_including_na,DevOps,DevOps,16
+glm,topic,all_including_na,AI Integration,AI Integration,75
 glm,topic,all_including_na,Architecture,Implementation Details,4
-glm,topic,all_including_na,Development Process,AI Integration,25
+glm,topic,all_including_na,Development Process,AI Integration,52
 glm,topic,all_including_na,Development Process,Testing,3
-glm,topic,all_including_na,Development Process,Maintenance,4
+glm,topic,all_including_na,Development Process,Maintenance,5
 glm,topic,all_including_na,Documentation,AI Integration,3
-glm,topic,all_including_na,Implementation Details,Build and Run,4
+glm,topic,all_including_na,Implementation Details,Build and Run,5
 glm,topic,all_including_na,Maintenance,Implementation Details,2
-glm,topic,all_including_na,Implementation Details,AI Integration,12
-glm,topic,all_including_na,Implementation Details,Maintenance,2
-glm,topic,all_including_na,Development Process,Architecture,12
+glm,topic,all_including_na,Implementation Details,AI Integration,13
+glm,topic,all_including_na,Implementation Details,Maintenance,3
+glm,topic,all_including_na,Development Process,Architecture,15
 glm,topic,all_including_na,Configuration & Environment,AI Integration,6
-glm,topic,all_including_na,Architecture,Documentation,3
-glm,topic,all_including_na,Implementation Details,Documentation,3
-glm,topic,all_including_na,Development Process,Documentation,14
-glm,topic,all_including_na,AI Integration,Documentation,18
+glm,topic,all_including_na,Architecture,Documentation,5
+glm,topic,all_including_na,Implementation Details,Documentation,10
+glm,topic,all_including_na,Development Process,Documentation,21
+glm,topic,all_including_na,AI Integration,Documentation,24
 glm,topic,all_including_na,Architecture,AI Integration,13
 glm,topic,all_including_na,Architecture,Configuration & Environment,3
 glm,topic,all_including_na,Architecture,Security,1
 glm,topic,all_including_na,Testing,Implementation Details,1
-glm,topic,all_including_na,Security,Security,9
+glm,topic,all_including_na,Security,Security,15
 glm,topic,all_including_na,Development Process,Security,2
 glm,topic,all_including_na,AI Integration,Architecture,3
-glm,topic,all_including_na,Build and Run,Testing,8
-glm,topic,all_including_na,Build and Run,Implementation Details,5
-glm,topic,all_including_na,Build and Run,Documentation,1
-glm,topic,all_including_na,Build and Run,Development Process,2
+glm,topic,all_including_na,Build and Run,Testing,9
+glm,topic,all_including_na,Build and Run,Implementation Details,6
+glm,topic,all_including_na,Build and Run,Documentation,2
+glm,topic,all_including_na,Build and Run,Development Process,4
 glm,topic,all_including_na,Build and Run,DevOps,5
-glm,topic,all_including_na,Architecture,System Overview,2
-glm,topic,all_including_na,AI Integration,Development Process,3
+glm,topic,all_including_na,Architecture,System Overview,3
+glm,topic,all_including_na,AI Integration,Development Process,6
 glm,topic,all_including_na,Maintenance,System Overview,1
 glm,topic,all_including_na,Maintenance,Configuration & Environment,1
-glm,topic,all_including_na,Development Process,Implementation Details,7
+glm,topic,all_including_na,Development Process,Implementation Details,8
 glm,topic,all_including_na,Implementation Details,Configuration & Environment,3
-glm,topic,all_including_na,Maintenance,Documentation,2
-glm,topic,all_including_na,DevOps,Development Process,1
+glm,topic,all_including_na,Maintenance,Documentation,3
+glm,topic,all_including_na,DevOps,Development Process,3
 glm,topic,all_including_na,Development Process,Configuration & Environment,2
 glm,topic,all_including_na,Configuration & Environment,Development Process,2
 glm,topic,all_including_na,Build and Run,Configuration & Environment,1
 glm,topic,all_including_na,Maintenance,Architecture,1
 glm,topic,all_including_na,DevOps,Security,1
 glm,topic,all_including_na,Configuration & Environment,Security,2
-glm,topic,all_including_na,Implementation Details,Development Process,1
+glm,topic,all_including_na,Implementation Details,Development Process,2
 glm,topic,all_including_na,Testing,Development Process,1
 glm,topic,all_including_na,Development Process,Build and Run,6
 glm,topic,all_including_na,AI Integration,Testing,4
@@ -431,75 +442,88 @@ glm,topic,all_including_na,AI Integration,Configuration & Environment,2
 glm,topic,all_including_na,Architecture,Build and Run,1
 glm,topic,all_including_na,Build and Run,Maintenance,1
 glm,topic,all_including_na,System Overview,Development Process,1
-glm,topic,all_including_na,Build and Run,AI Integration,6
+glm,topic,all_including_na,Build and Run,AI Integration,7
 glm,topic,all_including_na,Testing,DevOps,1
-glm,topic,all_including_na,Configuration & Environment,Build and Run,1
+glm,topic,all_including_na,Configuration & Environment,Build and Run,3
 glm,topic,all_including_na,Maintenance,Testing,1
-glm,topic,all_including_na,Maintenance,AI Integration,1
-glm,enforceability,applicable_gold,per_event,per_event,87
-glm,enforceability,applicable_gold,per_event,content,15
-glm,enforceability,applicable_gold,per_event,cross_event,12
-glm,enforceability,applicable_gold,content,content,187
-glm,enforceability,applicable_gold,content,cross_event,25
+glm,topic,all_including_na,Maintenance,AI Integration,3
+glm,topic,all_including_na,Security,Maintenance,1
+glm,topic,all_including_na,Security,Build and Run,2
+glm,topic,all_including_na,Security,Development Process,1
+glm,topic,all_including_na,Maintenance,Development Process,1
+glm,topic,all_including_na,Documentation,Development Process,1
+glm,topic,all_including_na,Documentation,Implementation Details,1
+glm,topic,all_including_na,AI Integration,Implementation Details,1
+glm,topic,all_including_na,Testing,Documentation,1
+glm,topic,all_including_na,DevOps,Build and Run,1
+glm,topic,all_including_na,System Overview,Architecture,1
+glm,topic,all_including_na,Configuration & Environment,Architecture,1
+glm,enforceability,applicable_gold,per_event,per_event,131
+glm,enforceability,applicable_gold,per_event,content,21
+glm,enforceability,applicable_gold,per_event,cross_event,30
+glm,enforceability,applicable_gold,content,content,240
+glm,enforceability,applicable_gold,content,cross_event,28
 glm,enforceability,applicable_gold,content,__NA__,6
-glm,enforceability,applicable_gold,cross_event,cross_event,70
+glm,enforceability,applicable_gold,cross_event,cross_event,97
 glm,enforceability,applicable_gold,per_event,semantic_only,1
-glm,enforceability,applicable_gold,per_event,__NA__,22
-glm,enforceability,applicable_gold,semantic_only,semantic_only,32
-glm,enforceability,applicable_gold,semantic_only,content,10
+glm,enforceability,applicable_gold,per_event,__NA__,31
+glm,enforceability,applicable_gold,semantic_only,semantic_only,42
+glm,enforceability,applicable_gold,semantic_only,content,13
 glm,enforceability,applicable_gold,cross_event,content,4
-glm,enforceability,applicable_gold,semantic_only,per_event,48
-glm,enforceability,applicable_gold,cross_event,per_event,9
-glm,enforceability,applicable_gold,semantic_only,cross_event,18
-glm,enforceability,applicable_gold,content,per_event,10
-glm,enforceability,applicable_gold,semantic_only,__NA__,2
+glm,enforceability,applicable_gold,semantic_only,per_event,68
+glm,enforceability,applicable_gold,cross_event,per_event,11
+glm,enforceability,applicable_gold,semantic_only,cross_event,29
+glm,enforceability,applicable_gold,content,per_event,14
+glm,enforceability,applicable_gold,semantic_only,__NA__,5
 glm,enforceability,applicable_gold,cross_event,semantic_only,1
-glm,enforceability,all_including_na,__NA__,__NA__,292
-glm,enforceability,all_including_na,per_event,per_event,87
-glm,enforceability,all_including_na,per_event,content,15
-glm,enforceability,all_including_na,per_event,cross_event,12
-glm,enforceability,all_including_na,content,content,187
-glm,enforceability,all_including_na,content,cross_event,25
+glm,enforceability,applicable_gold,content,semantic_only,2
+glm,enforceability,all_including_na,__NA__,__NA__,367
+glm,enforceability,all_including_na,per_event,per_event,131
+glm,enforceability,all_including_na,per_event,content,21
+glm,enforceability,all_including_na,per_event,cross_event,30
+glm,enforceability,all_including_na,content,content,240
+glm,enforceability,all_including_na,content,cross_event,28
 glm,enforceability,all_including_na,content,__NA__,6
-glm,enforceability,all_including_na,cross_event,cross_event,70
+glm,enforceability,all_including_na,cross_event,cross_event,97
 glm,enforceability,all_including_na,per_event,semantic_only,1
-glm,enforceability,all_including_na,per_event,__NA__,22
-glm,enforceability,all_including_na,semantic_only,semantic_only,32
-glm,enforceability,all_including_na,semantic_only,content,10
+glm,enforceability,all_including_na,per_event,__NA__,31
+glm,enforceability,all_including_na,semantic_only,semantic_only,42
+glm,enforceability,all_including_na,semantic_only,content,13
 glm,enforceability,all_including_na,cross_event,content,4
-glm,enforceability,all_including_na,semantic_only,per_event,48
-glm,enforceability,all_including_na,cross_event,per_event,9
-glm,enforceability,all_including_na,__NA__,content,12
-glm,enforceability,all_including_na,__NA__,per_event,36
-glm,enforceability,all_including_na,semantic_only,cross_event,18
-glm,enforceability,all_including_na,content,per_event,10
-glm,enforceability,all_including_na,semantic_only,__NA__,2
-glm,enforceability,all_including_na,__NA__,cross_event,7
-glm,enforceability,all_including_na,__NA__,semantic_only,2
+glm,enforceability,all_including_na,semantic_only,per_event,68
+glm,enforceability,all_including_na,cross_event,per_event,11
+glm,enforceability,all_including_na,__NA__,content,13
+glm,enforceability,all_including_na,__NA__,per_event,55
+glm,enforceability,all_including_na,semantic_only,cross_event,29
+glm,enforceability,all_including_na,content,per_event,14
+glm,enforceability,all_including_na,semantic_only,__NA__,5
+glm,enforceability,all_including_na,__NA__,cross_event,8
+glm,enforceability,all_including_na,__NA__,semantic_only,3
 glm,enforceability,all_including_na,cross_event,semantic_only,1
-glm,context_required,applicable_gold,project,none,179
-glm,context_required,applicable_gold,none,none,123
-glm,context_required,applicable_gold,none,project,8
-glm,context_required,applicable_gold,project,__NA__,29
-glm,context_required,applicable_gold,none,__NA__,1
-glm,context_required,applicable_gold,project,project,52
-glm,context_required,applicable_gold,project,task,22
+glm,enforceability,all_including_na,content,semantic_only,2
+glm,context_required,applicable_gold,project,none,238
+glm,context_required,applicable_gold,none,none,170
+glm,context_required,applicable_gold,none,project,10
+glm,context_required,applicable_gold,project,__NA__,38
+glm,context_required,applicable_gold,none,__NA__,3
+glm,context_required,applicable_gold,project,project,65
+glm,context_required,applicable_gold,project,task,25
 glm,context_required,applicable_gold,none,task,3
-glm,context_required,applicable_gold,task,task,20
-glm,context_required,applicable_gold,task,project,3
-glm,context_required,applicable_gold,task,none,9
-glm,context_required,all_including_na,__NA__,__NA__,328
-glm,context_required,all_including_na,project,none,179
-glm,context_required,all_including_na,none,none,123
-glm,context_required,all_including_na,none,project,8
-glm,context_required,all_including_na,project,__NA__,29
-glm,context_required,all_including_na,none,__NA__,1
-glm,context_required,all_including_na,project,project,52
-glm,context_required,all_including_na,project,task,22
-glm,context_required,all_including_na,__NA__,none,91
+glm,context_required,applicable_gold,task,task,42
+glm,context_required,applicable_gold,task,project,6
+glm,context_required,applicable_gold,task,none,17
+glm,context_required,all_including_na,__NA__,__NA__,417
+glm,context_required,all_including_na,project,none,238
+glm,context_required,all_including_na,none,none,170
+glm,context_required,all_including_na,none,project,10
+glm,context_required,all_including_na,project,__NA__,38
+glm,context_required,all_including_na,none,__NA__,3
+glm,context_required,all_including_na,project,project,65
+glm,context_required,all_including_na,project,task,25
+glm,context_required,all_including_na,__NA__,none,131
 glm,context_required,all_including_na,none,task,3
-glm,context_required,all_including_na,__NA__,task,24
-glm,context_required,all_including_na,__NA__,project,16
-glm,context_required,all_including_na,task,task,20
-glm,context_required,all_including_na,task,project,3
-glm,context_required,all_including_na,task,none,9
+glm,context_required,all_including_na,__NA__,task,33
+glm,context_required,all_including_na,__NA__,project,22
+glm,context_required,all_including_na,task,task,42
+glm,context_required,all_including_na,task,project,6
+glm,context_required,all_including_na,task,none,17
