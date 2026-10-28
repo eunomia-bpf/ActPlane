@@ -245,7 +245,8 @@ next transport, with the wait retained in wall-time accounting. A recovery worke
 waits for the original model queue to finish before reopening its bounded access
 failures. This avoids duplicate requests. Permanent access errors remain access
 failures. Every completed transport
-is checkpointed before retrying, and returned model answers are never resampled.
+is checkpointed before retrying. Within the scored protocol, a returned model
+answer is cached and never resampled within the same compiler attempt.
 The overloaded free endpoint receives a serial access-recovery pass after its
 original corpus queue finishes. Its larger transport budget and cutoff for new
 policy starts are recorded in `recovery-protocol.csv`. Already elapsed backoff
