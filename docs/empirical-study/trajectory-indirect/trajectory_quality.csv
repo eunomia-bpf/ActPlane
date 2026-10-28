@@ -1,0 +1,9 @@
+framework,model,trajectories,distinct_known_instance_ids,repeated_known_instance_rows,unavailable_instance_ids,duplicate_action_sequence_rows,successful_indirect_calls,failed_indirect_calls,unknown_status_indirect_calls,any_successful_indirect_traj,any_successful_indirect_pct,successful_author_calls,any_successful_author_traj,any_successful_author_pct
+Claude Code,fable-5,111,111,0,0,0,1171,38,0,111,100.0,4,3,2.7027027027027026
+Codex,gpt-5.6-sol,111,111,0,0,0,470,279,0,109,98.1981981981982,0,0,0.0
+OpenHands,unattributed GPT-4o / Claude-3.5-Sonnet mixture,491,0,0,491,0,884,801,12,455,92.66802443991854,787,440,89.61303462321793
+SWE-agent,swe-agent-llama-405b,245,20,225,0,0,0,725,500,0,0.0,0,0,0.0
+SWE-agent,swe-agent-llama-70b,1000,414,586,0,0,0,2162,1553,0,0.0,0,0,0.0
+SWE-agent,swe-agent-llama-8b,798,95,703,0,0,0,2195,1222,0,0.0,0,0,0.0
+mini-SWE-agent,claude-opus-4-6,200,200,0,0,0,1450,189,0,182,91.0,192,102,51.0
+mini-SWE-agent,gpt-5.2-high,200,200,0,0,0,752,122,0,193,96.5,12,3,1.5

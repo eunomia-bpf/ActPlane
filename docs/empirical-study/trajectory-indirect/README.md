@@ -56,7 +56,7 @@ For existing project code, `any_project_runner` and `any_no_prior_write_script` 
 |---|---:|---:|
 | Claude Code / fable-5 | 100.0% | 17.1% |
 | Codex / gpt-5.6-sol | 100.0% | 8.1% |
-| OpenHands / unattributed GPT-4o / Claude-3.5-Sonnet mixture | 10.8% | 1.4% |
+| OpenHands / unattributed GPT-4o / Claude-3.5-Sonnet mixture | 10.8% | 1.2% |
 | SWE-agent / swe-agent-llama-405b | 10.6% | 0.8% |
 | SWE-agent / swe-agent-llama-70b | 7.7% | 1.9% |
 | SWE-agent / swe-agent-llama-8b | 9.8% | 3.9% |
@@ -65,7 +65,23 @@ For existing project code, `any_project_runner` and `any_no_prior_write_script` 
 
 Missing a prior write does not prove pre-existence, and neither metric measures side effects attributable to existing code. The flags can overlap within a trajectory. Package tools may run downloaded code, and project runners also execute dependencies.
 
-The parser retained 4,404 unknown calls/action slots, including 1,015 shell parse failures. There were 23,158 calls with failure evidence and 34,177 with unavailable/uncertain success status. These are retained in call denominators. The source feedback is not a complete success oracle. [download_failures.csv](download_failures.csv) records download failures/retries, including an explicit no-failures marker when applicable.
+The parser retained 4,404 unknown calls/action slots, including 1,015 shell parse failures. There were 23,037 calls with failure evidence and 32,430 with unavailable/uncertain success status. These are retained in call denominators. The source feedback is not a complete success oracle. [download_failures.csv](download_failures.csv) records download failures/retries, including an explicit no-failures marker when applicable.
+
+For comparison, the following shares require success evidence for an indirect call or for the execution after a recovered earlier write. They still do not establish OS side effects. SWE-agent shell feedback often lacks an exit code, so its success-conditioned rates can be lower through missing status alone. Explicit tool statuses and recorded exit codes take precedence over text heuristics.
+
+| Framework / recorded model | Distinct known task IDs | Any indirect call with success evidence | Any execution with success evidence after recovered write |
+|---|---:|---:|---:|
+| Claude Code / fable-5 | 111 | 100.0% | 2.7% |
+| Codex / gpt-5.6-sol | 111 | 98.2% | 0.0% |
+| OpenHands / unattributed GPT-4o / Claude-3.5-Sonnet mixture | unavailable | 92.7% | 89.6% |
+| SWE-agent / swe-agent-llama-405b | 20 | not recorded | not recorded |
+| SWE-agent / swe-agent-llama-70b | 414 | not recorded | not recorded |
+| SWE-agent / swe-agent-llama-8b | 95 | not recorded | not recorded |
+| mini-SWE-agent / claude-opus-4-6 | 200 | 91.0% | 51.0% |
+| mini-SWE-agent / gpt-5.2-high | 200 | 96.5% | 1.5% |
+
+[trajectory_quality.csv](trajectory_quality.csv) also records unavailable instance identities, repeated known instance IDs, and repeated recovered action sequences. These rows are retained. Identical recovered actions do not necessarily imply identical source trajectories, especially where ambiguous source actions yielded unknown arguments. Because shard sampling can concentrate repeated attempts on a small set of tasks, [task_balanced_summary.csv](task_balanced_summary.csv) provides a sensitivity analysis that gives each known task equal weight. Call shares are averaged across per-task call shares, while trajectory flags are averaged within task before averaging across tasks. Task identity is unavailable for the SFT mixture, so its task-balanced fields are blank. [verification.csv](verification.csv) records successful cross-checks of source file hashes, adapter coverage, per-call locators, trajectory and group totals, and the frozen validation predictions.
+
 
 ## Validation and dynamic-replay feasibility
 
@@ -74,6 +90,7 @@ The parser retained 4,404 unknown calls/action slots, including 1,015 shell pars
 [validation_labels.csv](validation_labels.csv) contains independent labels from `qwen3.8-27b-nvfp4` and `zai/glm-5.3-flash`, using the exact prompt in [validation_prompt.txt](validation_prompt.txt). Model identities were verified by model listing and response fields. Each rater saw the full tool arguments and working-directory/editor context, without heuristic labels, heuristic reasons, feedback, or the other rater's output. We froze a deterministic sample of 100 calls: equal samples of 50 predicted-indirect calls and 50 other calls, with 10 calls in each framework-by-prediction stratum. The classifier's primary labels were frozen before annotations, and subsequent author-history changes did not alter that sample or its class predictions.
 
 The raters agreed on the full label for 99.0% of calls (Cohen's kappa 0.984) and on indirect versus other for 99.0% (kappa 0.980). For predicted-indirect calls, population-stratum-weighted agreement with each rater was 98.7% and 99.5%. The two-rater consensus envelope for this operational precision is 98.7% to 99.5%. Allowing stratified sampling uncertainty gives a conservative simultaneous confidence envelope of 72.0% to 100.0% at the 95% level using stratified Hoeffding bounds. This is agreement with model judgments, not a bound on physical side-effect visibility or shared model errors. [validation_confusion.csv](validation_confusion.csv) retains all disagreements. The run used 200 attempts, including 0 unsuccessful attempts, all retained in [annotation_attempts.csv](annotation_attempts.csv). No majority adjudication or heuristic tuning to these answers was performed.
+The reviewed disagreements include read-only grep pipelines dispatched by xargs and a malformed nested-shell command whose intended Java compilation/execution was recognizable to both raters. The conservative xargs rule can therefore count read-only dispatch as indirect, while strict shell parsing can miss intended project execution. The spot check does not validate the separate write-history/authorship metric.
 
 ## Limitations and permitted interpretation
 
@@ -91,15 +108,16 @@ python3 collect.py --raw "$RAW"
 python3 analyze.py --raw "$RAW"
 python3 probe.py --raw "$RAW"
 python3 validate.py --raw "$RAW"
+python3 verify.py --raw "$RAW"
 python3 report.py
 python3 -m pytest -q test_analyze.py
 ```
 
 The annotation command requires `LITELLM_BASE_URL` and `LITELLM_API_KEY` for the named GLM model, plus access to the named direct Qwen endpoint. It keeps at most 4 requests concurrent and never writes credentials. Completed annotations are cached. Transport/format failures get up to 3 attempts and are retained. Full arguments, feedback excerpts, model responses, normalized sampled trajectories, and logs remain under the external raw directory. The committed call sample contains source locators and hashes to recover full arguments without redistributing whole trajectories.
 
-At the last [resource measurement](resources.csv), raw files occupied 0.361 GB, under the 25 GB limit, and workspace disk use was 33.4%, below 85%. [method_metrics.csv](method_metrics.csv) records report constants and derived totals. All quantitative claims in this README are generated by this script from committed CSVs. Source versions, licensing statements, and sampling decisions are recorded in the manifest, configuration, and availability audit.
+At the last [resource measurement](resources.csv), raw files occupied 0.362 GB, under the 25 GB limit, and workspace disk use was 36.8%, below 85%. [method_metrics.csv](method_metrics.csv) records report constants and derived totals. All quantitative claims in this README are generated by this script from committed CSVs. Source versions, licensing statements, and sampling decisions are recorded in the manifest, configuration, and availability audit.
 
-The requested `oss-change-workflow` skill was absent from the available catalog and filesystem search. We followed the scope, validation, synchronized docs/results, and draft-PR guidance stated in AGENTS.md. This study changes only this output directory and does not edit the paper.
+The requested `oss-change-workflow` skill was absent from the available catalog and filesystem search. We followed the scope, validation, synchronized docs/results, and branch workflow stated in AGENTS.md and the operator update. Results are handed off on the experiment branch. This study changes only this output directory and does not edit the paper.
 
 ## Paper-ready motivation paragraph
 

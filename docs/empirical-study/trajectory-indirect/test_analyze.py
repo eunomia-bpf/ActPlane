@@ -1,7 +1,7 @@
 """Regression cases for false visibility and trajectory extraction errors."""
 import json
 import pytest
-from analyze import shell_analysis, classify, normalize, python_literal_writes
+from analyze import shell_analysis, classify, normalize, python_literal_writes, feedback_exit_code, reported_status
 
 
 @pytest.mark.parametrize("command,category", [
@@ -93,3 +93,13 @@ def unused():
     r=shell_analysis("python - <<'PY'\n"+code+"PY",'/repo')
     assert r['classification']=='inline_code'
     assert r['writes']==['/repo/other.py','/tmp/reproduce.py']
+
+
+def test_recorded_exit_code_beats_arbitrary_error_text():
+    assert feedback_exit_code('Traceback quoted in source\n[Command finished with exit code 0]')==0
+    assert feedback_exit_code('[Command finished with exit code 2]')==2
+    assert feedback_exit_code('No recorded status') is None
+    assert reported_status({'exit_code':0},'quoted error: in a source file')=='success'
+    assert reported_status({'exit_code':1,'result_status':'success'},'')=='failed'
+    assert reported_status({'result_status':'success'},'quoted error: in a source file')=='success'
+    assert reported_status({},'No recorded status')=='unknown'

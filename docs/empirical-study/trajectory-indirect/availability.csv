@@ -1,15 +1,15 @@
 probe,status,detail,utc
-docker_daemon,0,Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?,2026-10-28T05:11:42Z
-bpftrace_binary,unavailable,binary lookup only,2026-10-28T05:11:42Z
-qwen38_without_key,200,"[""qwen3.8-27b-nvfp4""]",2026-10-28T05:11:42Z
-qwen38_with_gateway_key,200,"[""qwen3.8-27b-nvfp4""]",2026-10-28T05:11:42Z
-glm53-flash_without_key,401,[],2026-10-28T05:11:42Z
-glm53-flash_with_gateway_key,401,[],2026-10-28T05:11:42Z
-qwen38-flash-next_without_key,401,[],2026-10-28T05:11:42Z
-qwen38-flash-next_with_gateway_key,401,[],2026-10-28T05:11:42Z
-gateway_with_gateway_key,200,"[""local-large"", ""local-small"", ""zai/*"", ""opencode-go/gpt-5.6-luna"", ""opencode-go/grok-4.5"", ""opencode-go/grok-4.6"", ""opencode-go/*"", ""zai/glm-5.3-flash"", ""zai/glm-4.6"", ""zai/glm-4.5v"", ""zai/glm-4.5-x"", ""zai/glm-4.5-airx"", ""zai/glm-4-32b-0414-128k"", ""zai/glm-5.2"", ""zai/glm-5-code"", ""zai/glm-4.5"", ""zai/glm-5.1"", ""zai/glm-4.7-flash"", ""zai/glm-4.5-flash"", ""zai/glm-4.5-air"", ""zai/glm-5.3"", ""zai/glm-4.7"", ""zai/glm-5""]",2026-10-28T05:11:42Z
-SWE-bench/SWE-smith-trajectories,200,"{""revision"": ""08e109b4a59eaeebf80e4675cd125d42e7ac99a4"", ""declared_license"": ""mit"", ""decision"": ""Not sampled: SWE-agent already represented; constructed bug tasks differ from real issue trajectories.""}",2026-10-28T05:11:42Z
-SWE-Gym/MoatlessTools-Sampled-Trajectories,200,"{""revision"": ""51ba9a7f38fed087bcb1a11b3d51972ed72a8317"", ""declared_license"": null, ""decision"": ""Not sampled: no root license/card declaration found during availability check.""}",2026-10-28T05:11:42Z
-SWE-Gym/OpenHands-Sampled-Trajectories,200,"{""revision"": ""baf3a4e4bff514d48ddc08a93a2ade5c126212c7"", ""declared_license"": null, ""decision"": ""Not sampled: raw archive card has no declared license; used MIT-declared SFT release with documented success selection.""}",2026-10-28T05:11:43Z
-required_oss_change_workflow_skill,unavailable,"Not listed in available skills and filesystem search found no oss-change-workflow/SKILL.md. Followed scope, validation, docs synchronization, and draft PR guidance from AGENTS.md.",2026-10-28T05:11:43Z
-dynamic_replay,not_run,No reachable local Docker daemon or pre-provisioned replay environments. No service/deployment changes made. Used prespecified two-LLM call annotation fallback.,2026-10-28T05:11:43Z
+docker_daemon,0,Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?,2026-10-28T05:26:49Z
+bpftrace_binary,unavailable,binary lookup only,2026-10-28T05:26:49Z
+qwen38_without_key,200,"[""qwen3.8-27b-nvfp4""]",2026-10-28T05:26:49Z
+qwen38_with_gateway_key,200,"[""qwen3.8-27b-nvfp4""]",2026-10-28T05:26:49Z
+glm53-flash_without_key,401,[],2026-10-28T05:26:49Z
+glm53-flash_with_gateway_key,401,[],2026-10-28T05:26:49Z
+qwen38-flash-next_without_key,401,[],2026-10-28T05:26:49Z
+qwen38-flash-next_with_gateway_key,401,[],2026-10-28T05:26:49Z
+gateway_with_gateway_key,200,"[""local-large"", ""local-small"", ""zai/*"", ""opencode-go/gpt-5.6-luna"", ""opencode-go/grok-4.5"", ""opencode-go/grok-4.6"", ""opencode-go/*"", ""zai/glm-5.3-flash"", ""zai/glm-4.6"", ""zai/glm-4.5v"", ""zai/glm-4.5-x"", ""zai/glm-4.5-airx"", ""zai/glm-4-32b-0414-128k"", ""zai/glm-5.2"", ""zai/glm-5-code"", ""zai/glm-4.5"", ""zai/glm-5.1"", ""zai/glm-4.7-flash"", ""zai/glm-4.5-flash"", ""zai/glm-4.5-air"", ""zai/glm-5.3"", ""zai/glm-4.7"", ""zai/glm-5""]",2026-10-28T05:26:49Z
+SWE-bench/SWE-smith-trajectories,200,"{""revision"": ""08e109b4a59eaeebf80e4675cd125d42e7ac99a4"", ""declared_license"": ""mit"", ""decision"": ""Not sampled: SWE-agent already represented; constructed bug tasks differ from real issue trajectories.""}",2026-10-28T05:26:49Z
+SWE-Gym/MoatlessTools-Sampled-Trajectories,200,"{""revision"": ""51ba9a7f38fed087bcb1a11b3d51972ed72a8317"", ""declared_license"": null, ""decision"": ""Not sampled: no root license/card declaration found during availability check.""}",2026-10-28T05:26:49Z
+SWE-Gym/OpenHands-Sampled-Trajectories,200,"{""revision"": ""baf3a4e4bff514d48ddc08a93a2ade5c126212c7"", ""declared_license"": null, ""decision"": ""Not sampled: raw archive card has no declared license; used MIT-declared SFT release with documented success selection.""}",2026-10-28T05:26:49Z
+required_oss_change_workflow_skill,unavailable,"Not listed in available skills and filesystem search found no oss-change-workflow/SKILL.md. Followed scope, validation, docs synchronization, and branch handoff guidance from AGENTS.md and the operator update.",2026-10-28T05:26:49Z
+dynamic_replay,not_run,No reachable local Docker daemon or pre-provisioned replay environments. No service/deployment changes made. Used prespecified two-LLM call annotation fallback.,2026-10-28T05:26:49Z

@@ -47,7 +47,7 @@ def main(raw):
             record(repo,r.status_code,json.dumps(dict(revision=j.get('sha'),declared_license=j.get('cardData',{}).get('license'),decision=reason)))
         except Exception as e:
             record(repo,'probe_failed',type(e).__name__)
-    record('required_oss_change_workflow_skill','unavailable','Not listed in available skills and filesystem search found no oss-change-workflow/SKILL.md. Followed scope, validation, docs synchronization, and draft PR guidance from AGENTS.md.')
+    record('required_oss_change_workflow_skill','unavailable','Not listed in available skills and filesystem search found no oss-change-workflow/SKILL.md. Followed scope, validation, docs synchronization, and branch handoff guidance from AGENTS.md and the operator update.')
     record('dynamic_replay','not_run','No reachable local Docker daemon or pre-provisioned replay environments. No service/deployment changes made. Used prespecified two-LLM call annotation fallback.')
     write_csv(HERE/'availability.csv',rows)
     usage=shutil.disk_usage(raw)

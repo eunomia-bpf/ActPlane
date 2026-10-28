@@ -124,9 +124,22 @@ def main():
 
 The raters agreed on the full label for {100*vals['seven_way_agreement']:.1f}% of calls (Cohen's kappa {vals['seven_way_kappa']:.3f}) and on indirect versus other for {100*vals['binary_agreement']:.1f}% (kappa {vals['binary_kappa']:.3f}). For predicted-indirect calls, population-stratum-weighted agreement with each rater was {100*vals['predicted_indirect_weighted_rater_a_indirect']:.1f}% and {100*vals['predicted_indirect_weighted_rater_b_indirect']:.1f}%. The two-rater consensus envelope for this operational precision is {100*lo:.1f}% to {100*hi:.1f}%. Allowing stratified sampling uncertainty gives a conservative simultaneous confidence envelope of {100*max(0,lo-radius):.1f}% to {100*min(1,hi+radius):.1f}% at the {95}% level using stratified Hoeffding bounds. This is agreement with model judgments, not a bound on physical side-effect visibility or shared model errors. [validation_confusion.csv](validation_confusion.csv) retains all disagreements. The run used {len(attempts)} attempts, including {failed_attempts} unsuccessful attempts, all retained in [annotation_attempts.csv](annotation_attempts.csv). No majority adjudication or heuristic tuning to these answers was performed.
 """
+    validation+='The reviewed disagreements include read-only grep pipelines dispatched by xargs and a malformed nested-shell command whose intended Java compilation/execution was recognizable to both raters. The conservative xargs rule can therefore count read-only dispatch as indirect, while strict shell parsing can miss intended project execution. The spot check does not validate the separate write-history/authorship metric.\n'
     origin_table='| Framework / recorded model | Any project/module/runner entrypoint | Any script with no recovered earlier write |\n|---|---:|---:|\n'
     for r in summaries:
         origin_table+=f"| {r['framework']} / {r['model']} | {float(r['any_project_runner_pct']):.1f}% | {float(r['any_no_prior_write_script_pct']):.1f}% |\n"
+    quality_text=''
+    if (HERE/'trajectory_quality.csv').exists():
+        quality=read('trajectory_quality.csv')
+        quality_text='For comparison, the following shares require success evidence for an indirect call or for the execution after a recovered earlier write. They still do not establish OS side effects. SWE-agent shell feedback often lacks an exit code, so its success-conditioned rates can be lower through missing status alone. Explicit tool statuses and recorded exit codes take precedence over text heuristics.\n\n'
+        quality_text+='| Framework / recorded model | Distinct known task IDs | Any indirect call with success evidence | Any execution with success evidence after recovered write |\n|---|---:|---:|---:|\n'
+        for r in quality:
+            no_success=int(r['successful_indirect_calls'])==0 and int(r['unknown_status_indirect_calls'])>0
+            success='not recorded' if no_success else f"{float(r['any_successful_indirect_pct']):.1f}%"
+            author='not recorded' if no_success else f"{float(r['any_successful_author_pct']):.1f}%"
+            known=r['distinct_known_instance_ids'] if int(r['distinct_known_instance_ids']) else 'unavailable'
+            quality_text+=f"| {r['framework']} / {r['model']} | {known} | {success} | {author} |\n"
+        quality_text+='\n[trajectory_quality.csv](trajectory_quality.csv) also records unavailable instance identities, repeated known instance IDs, and repeated recovered action sequences. These rows are retained. Identical recovered actions do not necessarily imply identical source trajectories, especially where ambiguous source actions yielded unknown arguments. Because shard sampling can concentrate repeated attempts on a small set of tasks, [task_balanced_summary.csv](task_balanced_summary.csv) provides a sensitivity analysis that gives each known task equal weight. Call shares are averaged across per-task call shares, while trajectory flags are averaged within task before averaging across tasks. Task identity is unavailable for the SFT mixture, so its task-balanced fields are blank. [verification.csv](verification.csv) records successful cross-checks of source file hashes, adapter coverage, per-call locators, trajectory and group totals, and the frozen validation predictions.\n'
     text=f"""# Indirect execution in public coding-agent trajectories
 
 **Measured:** static execution patterns in {total_traj:,} trajectories and {total_calls:,} recorded tool calls/action slots from {len(frameworks)} frameworks and {len(summaries)} recorded model groups. **Not measured:** the fraction of actual file mutations or process executions whose targets are missing from tool arguments. There was no dynamic replay, so this study cannot supply that OS-event denominator.
@@ -176,6 +189,8 @@ Missing a prior write does not prove pre-existence, and neither metric measures 
 
 The parser retained {unknown:,} unknown calls/action slots, including {parser_errors:,} shell parse failures. There were {failures:,} calls with failure evidence and {missing_status:,} with unavailable/uncertain success status. These are retained in call denominators. The source feedback is not a complete success oracle. [download_failures.csv](download_failures.csv) records download failures/retries, including an explicit no-failures marker when applicable.
 
+{quality_text}
+
 ## Validation and dynamic-replay feasibility
 
 [probe.py](probe.py) records that the installed Docker client cannot reach a daemon, and that bpftrace is unavailable. No replay environment was provisioned and no service or deployment was changed. Without task images and a replay sandbox, an OS-effect fraction cannot be measured here. The ActPlane policy engine's match-only event stream would also require extra instrumentation for an all-writes/all-execs denominator. We used the requested model-annotation fallback instead.
@@ -197,6 +212,7 @@ python3 collect.py --raw "$RAW"
 python3 analyze.py --raw "$RAW"
 python3 probe.py --raw "$RAW"
 python3 validate.py --raw "$RAW"
+python3 verify.py --raw "$RAW"
 python3 report.py
 python3 -m pytest -q test_analyze.py
 ```
@@ -205,7 +221,7 @@ The annotation command requires `LITELLM_BASE_URL` and `LITELLM_API_KEY` for the
 
 At the last [resource measurement](resources.csv), raw files occupied {int(resources['raw_bytes'])/1e9:.3f} GB, under the {int(resources['raw_limit_bytes'])/1e9:g} GB limit, and workspace disk use was {float(resources['workspace_used_pct']):.1f}%, below {resources['workspace_limit_pct']}%. [method_metrics.csv](method_metrics.csv) records report constants and derived totals. All quantitative claims in this README are generated by this script from committed CSVs. Source versions, licensing statements, and sampling decisions are recorded in the manifest, configuration, and availability audit.
 
-The requested `oss-change-workflow` skill was absent from the available catalog and filesystem search. We followed the scope, validation, synchronized docs/results, and draft-PR guidance stated in AGENTS.md. This study changes only this output directory and does not edit the paper.
+The requested `oss-change-workflow` skill was absent from the available catalog and filesystem search. We followed the scope, validation, synchronized docs/results, and branch workflow stated in AGENTS.md and the operator update. Results are handed off on the experiment branch. This study changes only this output directory and does not edit the paper.
 
 ## Paper-ready motivation paragraph
 

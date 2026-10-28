@@ -7,8 +7,8 @@ indirect_calls,14525
 unknown_calls,4404
 shell_parser_errors,1015
 zero_call_trajectories,1
-failed_calls,23158
-unknown_status_calls,34177
+failed_calls,23037
+unknown_status_calls,32430
 nebius_sample_pool,13339
 nebius_shards,2
 nebius_per_model_cap,1000

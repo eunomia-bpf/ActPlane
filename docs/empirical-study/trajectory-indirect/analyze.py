@@ -40,6 +40,24 @@ def parse_args(value):
     return {}
 
 
+def feedback_exit_code(feedback):
+    match=re.search(r"\[Command finished with exit code (-?\d+)\]",str(feedback))
+    return int(match[1]) if match else None
+
+
+def reported_status(call,feedback):
+    code=call.get("exit_code")
+    if code is not None:
+        return "success" if code==0 else "failed"
+    if call.get("result_status")=="success":
+        return "success"
+    if call.get("result_status") in ("error","failed"):
+        return "failed"
+    if re.search(r"(?i)(syntax error|error:|does not exist|no such file|command not found|failed to|not found in file)",feedback[:1500]):
+        return "failed"
+    return "unknown"
+
+
 def normalize(row):
     """Yield calls with source sequence and feedback. Keep extraction failures visible."""
     source = row["source"]
@@ -98,13 +116,13 @@ def normalize(row):
                 fn = call.get("function", {})
                 result = results.get(call.get("id"), {})
                 yield dict(seq=f"{i}.{j}", tool=fn.get("name", "unknown"), args=parse_args(fn.get("arguments")),
-                           feedback=result.get("content", ""), extraction="structured_tool_call")
+                           feedback=result.get("content", ""), exit_code=feedback_exit_code(result.get("content", "")), extraction="structured_tool_call")
             continue
         text = m.get("content") or ""
         for j, (tool, body) in enumerate(re.findall(r"<function=([^>]+)>(.*?)</function>", text, re.S)):
             args = dict(re.findall(r"<parameter=([^>]+)>(.*?)</parameter>", body, re.S))
             feedback = messages[i + 1].get("content", "") if i + 1 < len(messages) else ""
-            yield dict(seq=f"{i}.{j}", tool=tool, args=args, feedback=feedback or "", extraction="xml_function")
+            yield dict(seq=f"{i}.{j}", tool=tool, args=args, feedback=feedback or "", exit_code=feedback_exit_code(feedback), extraction="xml_function")
 
 
 def walk(node):
@@ -412,7 +430,7 @@ def classify(call, cwd, active):
 
 def write_csv(path, rows):
     with open(path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w = csv.DictWriter(f, fieldnames=list(rows[0]), lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
 
@@ -441,11 +459,8 @@ def analyze(raw):
                 call_cwd = args.get("workdir", args.get("cwd", cwd))
                 # A path on an editor call gives no evidence about the shell's cwd.
                 result = classify(call, call_cwd, active)
-                code = call.get("exit_code")
-                status = "success" if code == 0 or call.get("result_status") == "success" else "failed" if code is not None or call.get("result_status") in ("error", "failed") else "unknown"
                 feedback = str(call.get("feedback") or "")
-                if re.search(r"(?i)(syntax error|error:|does not exist|no such file|command not found|failed to|not found in file)", feedback[:1500]):
-                    status = "failed" if code is None else status
+                status=reported_status(call,feedback)
                 if call["tool"] == "swe_shell" and result["classification"] in ("direct_edit", "context_edit") and status != "failed" and "(Open file:" in feedback:
                     status = "success"
                 if call["tool"] == "str_replace_editor" and re.search(r"(?i)(created successfully|has been edited|has been updated|successfully)", feedback[:500]):
