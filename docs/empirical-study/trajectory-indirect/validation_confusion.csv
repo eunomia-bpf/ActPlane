@@ -1,0 +1,10 @@
+heuristic,label_a,label_b,calls
+context_edit,context_edit,context_edit,2
+direct_edit,direct_edit,direct_edit,7
+direct_shell,direct_shell,direct_shell,3
+indirect,indirect,indirect,48
+indirect,read_only,indirect,1
+indirect,read_only,read_only,1
+inline_code,inline_code,inline_code,2
+read_only,read_only,read_only,35
+unknown,indirect,indirect,1
