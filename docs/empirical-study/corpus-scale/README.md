@@ -6,7 +6,7 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 
 ## Comparison with the submitted paper
 
-| Measure | Paper claim | Recovered labels | New snapshot (repository bootstrap interval) |
+| Measure | Paper claim | Recovered labels | New automated labels (repository bootstrap interval) |
 |---|---:|---:|---:|
 | Policy / all statements | 64.0% | 64.3% | pending |
 | System-observable / policies | 83.0% | 82.8% | pending |
