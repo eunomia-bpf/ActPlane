@@ -19,13 +19,13 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 15 / 21 of 23 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
-| zai/glm-5.3 | 34 / 38 of 38 | 28 / 37 of 37 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
-| zai/glm-5.3-flash | 33 / 38 of 38 | 14 / 26 of 26 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 10 / 13 of 38 | 4 / 8 of 52 | unavailable | unavailable | unavailable | 25 / 44 | $0.0000 |
-| zai/glm-4.5-air | 33 / 38 of 38 | 15 / 26 of 26 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
-| gpt-6-astra | 27 / 38 of 38 | 55 / 121 of 128 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
-| claude-opus-4-6 | 30 / 38 of 38 | 49 / 76 of 76 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 17 / 28 of 30 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
+| zai/glm-5.3 | 34 / 38 of 38 | 35 / 45 of 45 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 18 / 32 of 32 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
+| zai/glm-4.7-flash | 10 / 13 of 38 | 6 / 10 of 52 | unavailable | unavailable | unavailable | 25 / 42 | $0.0000 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 22 / 33 of 33 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
+| gpt-6-astra | 27 / 38 of 38 | 59 / 125 of 132 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
+| claude-opus-4-6 | 30 / 38 of 38 | 65 / 99 of 99 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
 | --- | --- | --- | --- | --- | --- |
@@ -51,10 +51,10 @@ held-out sets, and no semantic deduplication is claimed.
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 22 | 4 | 12 | 2 |
-| zai/glm-5.3 | 0 | 0 | 0 | 0 |
+| qwen3.8-27b-nvfp4 | 22 | 8 | 12 | 2 |
+| zai/glm-5.3 | 0 | 1 | 0 | 0 |
 | zai/glm-5.3-flash | 2 | 1 | 0 | 0 |
-| zai/glm-4.7-flash | 1 | 0 | 0 | 0 |
+| zai/glm-4.7-flash | 1 | 1 | 0 | 0 |
 | zai/glm-4.5-air | 2 | 1 | 0 | 0 |
 | gpt-6-astra | 0 | 0 | 0 | 0 |
 | claude-opus-4-6 | 0 | 0 | 0 | 0 |
