@@ -1,4 +1,4 @@
 version,retry_policy,reference_commit,raw_backup,status,schema_repair_mode
 v1,batch,baf65998,retry-protocol-v1,retired_after_recording_complete_calibration_and_partial_source_labels,none
 v2,invalid,197fcdd8,,accepted_annotations_retained,singleton
-v3,invalid,,retry-protocol-v2,reference_recheck_before_deployment,batch
+v3,invalid,d8c8e8bc332cd4e211de2908ef2646a30a450ec0,retry-protocol-v2,validated_and_deployed_for_type_topic,batch

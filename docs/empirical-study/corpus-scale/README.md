@@ -70,6 +70,19 @@ Before inspecting the complete calibration, the scaling gate was fixed at final 
 
 The historical primary-source audit records 0 missing lines, 0 overlapping lines, and 0 text mismatches under the original validator’s whitespace normalization. 417 spans differ in exact formatting. Calibration uses the recorded annotated text unchanged. New extracted text is copied directly from its source spans and checked for exact fidelity.
 
+When some axes fail, a focused prompt containing only the requested coding-guide axes and examples is calibrated again before scaling. The exact focused prompt and reduced output schema are used for both this check and deployment. This avoids assuming that removing rejected axes leaves predictions unchanged. Definitions, examples, and agreement cutoffs are not tuned against individual errors.
+
+| Reduced-schema model | Dimension | Evaluated N | Cohen’s kappa |
+|---|---|---:|---:|
+| qwen | type | 2116 | 0.815 |
+| qwen | topic | 2116 | 0.693 |
+| glm | type | 2116 | 0.803 |
+| glm | topic | 2116 | 0.661 |
+| adjudicated | type | 2116 | 0.831 |
+| adjudicated | topic | 2116 | 0.680 |
+| inter_model | type | 2116 | 0.792 |
+| inter_model | topic | 2116 | 0.766 |
+
 **Poor agreement:** qwen on context_required (κ=0.147); glm on context_required (κ=0.205); adjudicated on context_required (κ=0.191). These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.
 
 Agreement between the primary models on the analyzed new spans is reported separately below. These figures describe annotator consistency, and do not measure accuracy against a new human reference. `scaled_model_agreement.csv` also reports family and repository-category breakdowns and missing pairs.
