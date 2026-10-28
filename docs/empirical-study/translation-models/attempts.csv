@@ -2789,11 +2789,19 @@ rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::83,openclaw__openclaw__83,attempt-1,2,
 rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::84,openclaw__openclaw__84,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,343.86277683312073,1,16433,5499,256,0,0
 rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::95,openclaw__openclaw__95,attempt-1,1,transport_error,transport_timeout,0,,,,,0,,360.1132420990616,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::95,openclaw__openclaw__95,attempt-1,2,ok,,15,,,qwen3.8-27b-nvfp4,length,1,,334.4999335350003,1,16432,8192,256,0,0
+rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::95,openclaw__openclaw__95,attempt-2,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,341.90132884681225,1,16479,7206,256,0,0
 rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::96,openclaw__openclaw__96,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,357.19170300103724,1,16411,8192,256,0,0
+rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::96,openclaw__openclaw__96,attempt-2,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,356.0335805430077,1,16458,8192,256,0,0
+rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::96,openclaw__openclaw__96,attempt-3,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,314.7773330109194,1,16542,1732,256,0,0
 rq1,qwen3.8-27b-nvfp4,rowboatlabs__rowboat::14,rowboatlabs__rowboat__14,attempt-1,1,transport_error,transport_timeout,0,,,,,0,,360.066513548838,0,0,0,0,0,0
+rq1,qwen3.8-27b-nvfp4,rowboatlabs__rowboat::14,rowboatlabs__rowboat__14,attempt-1,2,transport_error,transport_timeout,15,,,,,0,,360.12061506300233,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,rowboatlabs__rowboat::18,rowboatlabs__rowboat__18,attempt-1,1,transport_error,transport_timeout,0,,,,,0,,360.14291810500436,0,0,0,0,0,0
+rq1,qwen3.8-27b-nvfp4,rowboatlabs__rowboat::18,rowboatlabs__rowboat__18,attempt-1,2,transport_error,transport_timeout,15,,,,,0,,360.15611146204174,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,rowboatlabs__rowboat::19,rowboatlabs__rowboat__19,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,343.14748873910867,1,9049,4256,256,0,0
 rq1,qwen3.8-27b-nvfp4,rowboatlabs__rowboat::2,rowboatlabs__rowboat__2,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,355.3073217079509,1,9136,6236,256,0,0
+rq1,qwen3.8-27b-nvfp4,rowboatlabs__rowboat::20,rowboatlabs__rowboat__20,attempt-1,1,transport_error,transport_timeout,0,,,,,0,,360.1133650660049,0,0,0,0,0,0
+rq1,qwen3.8-27b-nvfp4,rowboatlabs__rowboat::21,rowboatlabs__rowboat__21,attempt-1,1,transport_error,transport_timeout,0,,,,,0,,360.12293295399286,0,0,0,0,0,0
+rq1,qwen3.8-27b-nvfp4,rowboatlabs__rowboat::22,rowboatlabs__rowboat__22,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,346.0287201979663,1,9041,5324,256,0,0
 rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::29,rtk-ai__rtk__29,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,329.8315831879154,1,9386,8192,256,0,0
 rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::29,rtk-ai__rtk__29,attempt-2,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,349.8572454031091,1,9433,8192,0,0,0
 rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::29,rtk-ai__rtk__29,attempt-3,1,transport_error,transport_timeout,0,,,,,0,,360.03383671701886,0,0,0,0,0,0
@@ -2882,6 +2890,7 @@ rq1,qwen3.8-27b-nvfp4,vxcontrol__pentagi::15,vxcontrol__pentagi__15,attempt-1,1,
 rq1,qwen3.8-27b-nvfp4,vxcontrol__pentagi::15,vxcontrol__pentagi__15,attempt-1,2,ok,,15,,,qwen3.8-27b-nvfp4,length,1,,288.94411460799165,1,9475,8192,256,0,0
 rq1,qwen3.8-27b-nvfp4,vxcontrol__pentagi::15,vxcontrol__pentagi__15,attempt-2,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,300.80752717494033,1,9522,8192,256,0,0
 rq1,qwen3.8-27b-nvfp4,vxcontrol__pentagi::15,vxcontrol__pentagi__15,attempt-3,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,341.72374468506314,1,9569,8192,256,0,0
+rq1,qwen3.8-27b-nvfp4,xpzouying__xiaohongshu-mcp::3,xpzouying__xiaohongshu-mcp__3,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,355.10345178004354,1,7723,8192,256,0,0
 rq1,qwen3.8-27b-nvfp4,yusufkaraaslan__Skill_Seekers::57,yusufkaraaslan__Skill_Seekers__57,attempt-1,1,transport_error,transport_timeout,0,,,,,0,,360.06438247696497,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,yusufkaraaslan__Skill_Seekers::57,yusufkaraaslan__Skill_Seekers__57,attempt-1,2,transport_error,transport_timeout,15,,,,,0,,360.1128598439973,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,yusufkaraaslan__Skill_Seekers::57,yusufkaraaslan__Skill_Seekers__57,attempt-1,3,transport_error,transport_timeout,30,,,,,0,,360.1048722250853,0,0,0,0,0,0
@@ -4443,6 +4452,7 @@ rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::30,alibaba__OpenSandbox__30,attempt-
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::30,alibaba__OpenSandbox__30,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.277297856053337,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::30,alibaba__OpenSandbox__30,attempt-1,4,http_error,provider_capacity,60,1793177043.6927094,,,,0,429,11.209177395096049,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::30,alibaba__OpenSandbox__30,attempt-1,5,ok,,0,1793211972.0694249,,zai/glm-4.7-flash,length,1,,141.4527418531943,1,8948,8192,3,0,8192
+rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::30,alibaba__OpenSandbox__30,attempt-2,1,ok,,0,1793212270.8728082,,zai/glm-4.7-flash,stop,1,,298.78323353198357,1,8986,3396,3,0,3360
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::31,alibaba__OpenSandbox__31,attempt-1,1,http_error,rate_limited,0,,,,,0,429,10.268512523034588,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::31,alibaba__OpenSandbox__31,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,11.148882356006652,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::31,alibaba__OpenSandbox__31,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.556270467117429,0,0,0,0,0,0
@@ -7738,7 +7748,9 @@ rq1,zai/glm-5.3-flash,zeroclaw-labs__zeroclaw::3,zeroclaw-labs__zeroclaw__3,atte
 rq1,zai/glm-5.3-flash,zeroclaw-labs__zeroclaw::34,zeroclaw-labs__zeroclaw__34,attempt-1,1,ok,,0,,,zai/glm-5.3-flash,stop,1,,81.80076101096347,1,10794,3695,10752,0,3493
 rq1,zai/glm-5.3-flash,zeroclaw-labs__zeroclaw::4,zeroclaw-labs__zeroclaw__4,attempt-1,1,ok,,0,,,zai/glm-5.3-flash,stop,1,,30.3144783671014,1,10781,1301,0,0,1122
 rq1,zai/glm-5.3-flash,zeroclaw-labs__zeroclaw::4,zeroclaw-labs__zeroclaw__4,attempt-2,1,ok,,0,,,zai/glm-5.3-flash,stop,1,,34.29877592693083,1,10994,1296,192,0,1187
+rq1,zai/glm-5.3-flash,zeroclaw-labs__zeroclaw::7,zeroclaw-labs__zeroclaw__7,attempt-1,1,ok,,0,,,zai/glm-5.3-flash,stop,1,,271.7209564540535,1,10618,6414,10560,0,6319
 rq1,zai/glm-5.3-flash,zeroclaw-labs__zeroclaw::8,zeroclaw-labs__zeroclaw__8,attempt-1,1,ok,,0,,,zai/glm-5.3-flash,stop,1,,153.9409789571073,1,10605,7001,192,0,6891
+rq1,zai/glm-5.3-flash,zeroclaw-labs__zeroclaw::9,zeroclaw-labs__zeroclaw__9,attempt-1,1,ok,,0,,,zai/glm-5.3-flash,stop,1,,126.30360644310713,1,10609,5625,10560,0,5568
 rq2,claude-opus-4-6,Alishahryar1__free-claude-code__6,Alishahryar1__free-claude-code__6,attempt-1,1,ok,,0,,,claude-opus-4-6,end_turn,1,,12.163403211859986,1,9950,443,9947,0,367
 rq2,claude-opus-4-6,Alishahryar1__free-claude-code__s01_use_uv_run,Alishahryar1__free-claude-code__s01_use_uv_run,attempt-1,1,ok,,0,,,claude-opus-4-6,end_turn,1,,26.764968377072364,1,9985,854,9982,0,761
 rq2,claude-opus-4-6,NVIDIA__NemoClaw__19,NVIDIA__NemoClaw__19,attempt-1,1,ok,,0,,,claude-opus-4-6,end_turn,1,,41.71192335197702,1,14275,1657,14272,0,1578
