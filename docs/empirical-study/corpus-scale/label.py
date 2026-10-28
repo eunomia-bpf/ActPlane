@@ -65,6 +65,14 @@ def complete(a, system, payload, budget=4096):
                 # Error bodies can reveal provider configuration, so remain raw.
                 (path.parent / f'{key}.attempt{attempt}.error.txt').write_text(r.text)
                 log(a.raw / 'model-requests.jsonl', event)
+                if r.status_code == 429:
+                    delay = max(60, float(r.headers.get('Retry-After', 60)))
+                    log(a.raw / 'model-requests.jsonl', dict(at=now(), model=a.model,
+                        key=key, attempt=attempt, backoff_seconds=delay))
+                    while delay > 0:
+                        time.sleep(min(30, delay))
+                        delay -= min(30, delay)
+                    continue
                 r.raise_for_status()
             response = r.json()
             event.update(returned_model=response.get('model'), usage=response.get('usage'),
@@ -120,7 +128,7 @@ def classify(a, batch, guide, dims, other):
         log(a.raw / 'label-failures.jsonl', dict(at=now(), model=a.model,
             ids=[r['statement_id'] for r in batch], error=str(e)[:160]))
         # Split malformed/truncated batches once down to individual statements.
-        if len(batch) > 1:
+        if len(batch) > 1 and str(e) != 'model_request_failed':
             mid = len(batch) // 2
             return classify(a, batch[:mid], guide, dims, other) + classify(a, batch[mid:], guide, dims, other)
         return [dict(statement_id=batch[0]['statement_id'], model=a.model, status='failed', error=str(e)[:160])]

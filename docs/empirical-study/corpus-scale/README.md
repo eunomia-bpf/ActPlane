@@ -32,14 +32,14 @@ The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` end
 | qwen | topic | 2116 | 2116 | 0.698 | 0.656 |
 | qwen | enforceability | 1361 | 1361 | 0.700 | 0.585 |
 | qwen | context_required | 1127 | 1127 | 0.390 | 0.147 |
-| glm | type | 2116 | 380 | 0.905 | 0.783 |
-| glm | topic | 2116 | 380 | 0.708 | 0.669 |
-| glm | enforceability | 1361 | 257 | 0.584 | 0.437 |
-| glm | context_required | 1127 | 202 | 0.401 | 0.139 |
-| inter_model | type | 2116 | 380 | 0.895 | 0.769 |
-| inter_model | topic | 2116 | 380 | 0.747 | 0.713 |
-| inter_model | enforceability | 1361 | 257 | 0.728 | 0.630 |
-| inter_model | context_required | 1127 | 202 | 0.663 | 0.268 |
+| glm | type | 2116 | 488 | 0.895 | 0.763 |
+| glm | topic | 2116 | 488 | 0.693 | 0.653 |
+| glm | enforceability | 1361 | 323 | 0.622 | 0.490 |
+| glm | context_required | 1127 | 258 | 0.384 | 0.142 |
+| inter_model | type | 2116 | 488 | 0.895 | 0.769 |
+| inter_model | topic | 2116 | 488 | 0.764 | 0.734 |
+| inter_model | enforceability | 1361 | 323 | 0.749 | 0.659 |
+| inter_model | context_required | 1127 | 258 | 0.678 | 0.314 |
 
 `calibration_summary.csv` also reports end-to-end agreement including inapplicable labels. The applicable-gold evaluation counts a predicted inapplicable value as disagreement. `calibration_confusion.csv` retains every confusion cell and missing predictions are reported explicitly.
 
@@ -111,7 +111,7 @@ Use an isolated Python environment with `requirements.txt`. Set `GH_TOKEN`, `LIT
 python recover.py
 python collect.py
 python label.py --model qwen3.8-27b-nvfp4 --output calibration_qwen.csv
-python label.py --model zai/glm-5.3 --workers 4 --batch-size 24 --output calibration_glm.csv
+python label.py --model zai/glm-5.3 --workers 2 --batch-size 12 --output calibration_glm.csv
 python label.py --model qwen3.8-27b-nvfp4 --primary calibration_qwen.csv --other calibration_glm.csv --output calibration_adjudicated.csv
 python analyze.py --calibration-only
 # Scale only the dimensions that passed. See run_scale.py for the gate-controlled pipeline.

@@ -137,7 +137,7 @@ def main():
         '```bash',
         'python recover.py', 'python collect.py',
         'python label.py --model qwen3.8-27b-nvfp4 --output calibration_qwen.csv',
-        'python label.py --model zai/glm-5.3 --workers 4 --batch-size 24 --output calibration_glm.csv',
+        'python label.py --model zai/glm-5.3 --workers 2 --batch-size 12 --output calibration_glm.csv',
         'python label.py --model qwen3.8-27b-nvfp4 --primary calibration_qwen.csv --other calibration_glm.csv --output calibration_adjudicated.csv',
         'python analyze.py --calibration-only',
         '# Scale only the dimensions that passed. See run_scale.py for the gate-controlled pipeline.',

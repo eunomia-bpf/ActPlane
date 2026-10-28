@@ -20,7 +20,7 @@ def main():
         # Recheck the exact reduced output schema before deploying it at scale.
         validation = ['--input', str(HERE / 'paper_labels.csv'), '--dimensions', ','.join(dimensions)]
         commands = [[sys.executable, str(HERE / 'label.py'), *validation,
-                     '--model', model, '--workers', '4', '--batch-size', '16',
+                     '--model', model, '--workers', '4' if name == 'qwen' else '2', '--batch-size', '16',
                      '--output', str(HERE / f'format_calibration_{name}.csv')]
                     for model, name in [('qwen3.8-27b-nvfp4', 'qwen'), ('zai/glm-5.3', 'glm')]]
         processes = [subprocess.Popen(c) for c in commands]
@@ -42,7 +42,7 @@ def main():
         [sys.executable, str(HERE / 'label.py'), *shared, '--model', 'qwen3.8-27b-nvfp4',
          '--workers', '4', '--batch-size', '24', '--output', str(HERE / 'labels_qwen.csv')],
         [sys.executable, str(HERE / 'label.py'), *shared, '--model', 'zai/glm-5.3',
-         '--workers', '4', '--batch-size', '24', '--output', str(HERE / 'labels_glm.csv')]]
+         '--workers', '2', '--batch-size', '24', '--output', str(HERE / 'labels_glm.csv')]]
     processes = [subprocess.Popen(c) for c in commands]
     results = [p.wait() for p in processes]
     if any(results):

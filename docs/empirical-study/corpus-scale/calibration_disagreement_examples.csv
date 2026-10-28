@@ -2710,3 +2710,121 @@ After a fix ships, comment on the issue or PR:
 - If they are now in CONTRIBUTORS.md, say so.
 - Run through /humanizer before posting.
 "
+glm,topic,paper:OthmanAdi/planning-with-files:19,DevOps,Security,"- SSL cert on clawhub.io may be expired — proceed through the browser warning.
+"
+glm,topic,paper:Panniantong/Agent-Reach:13,Development Process,Maintenance,"- Version in THREE places must match: `pyproject.toml`, `__init__.py`, `tests/test_cli.py`
+"
+glm,topic,paper:Panniantong/Agent-Reach:16,Configuration & Environment,Security,"- Cookie-based auth (Twitter, XHS): use Cookie-Editor export method only, no QR scan
+"
+glm,topic,paper:Panniantong/Agent-Reach:17,Configuration & Environment,Security,"- XHS login: Cookie-Editor browser export only (QR will hang)
+"
+glm,enforceability,paper:QwenLM/qwen-code:11,,cross_event,"### Integration Testing
+
+Build the bundle first: `npm run build && npm run bundle`
+
+Run from the project root using the dedicated npm scripts:
+
+```bash
+npm run test:integration:cli:sandbox:none
+npm run test:integration:interactive:sandbox:none
+```
+
+Or combined in one command:
+
+```bash
+cd integration-tests && \
+  cross-env QWEN_SANDBOX=false npx vitest run cli interactive
+```
+"
+glm,topic,paper:QwenLM/qwen-code:19,Implementation Details,Development Process,"- **Commits**: Conventional Commits (e.g., `feat(cli): Add --json flag`)
+"
+glm,topic,paper:QwenLM/qwen-code:22,AI Integration,Development Process,"### Feature development
+
+Use the `/feat-dev` skill for the full workflow: investigate, design, test plan,
+dry-run, implement, verify, code review, and iterate.
+"
+glm,topic,paper:QwenLM/qwen-code:23,AI Integration,Development Process,"### Bugfix
+
+Use the `/bugfix` skill for the reproduce-first workflow: reproduce, fix,
+verify, test, and code review.
+"
+glm,topic,paper:QwenLM/qwen-code:24,Build and Run,Development Process,"## GitHub Operations
+
+Use the `gh` CLI for all GitHub-related operations — issues, pull requests,
+comments, CI checks, releases, and API calls. Prefer `gh issue view`,
+`gh pr view`, `gh pr checks`, `gh run view`, `gh api`, etc. over web fetches
+or manual REST calls.
+"
+glm,topic,paper:QwenLM/qwen-code:26,Testing,Development Process,"- **Hard bugs**: use the `structured-debugging` skill when debugging requires
+  more than a quick glance — especially when the first attempt at a fix didn't
+  work or the behavior seems impossible.
+"
+glm,topic,paper:RightNow-AI/openfang:10,Architecture,Implementation Details,"- Dashboard is Alpine.js SPA in `static/index_body.html` — new tabs need both HTML and JS data/methods
+"
+glm,topic,paper:RightNow-AI/openfang:11,Architecture,Configuration & Environment,"- Config fields need: struct field + `#[serde(default)]` + Default impl entry + Serialize/Deserialize derives
+"
+glm,topic,paper:RightNow-AI/openfang:12,Development Process,Build and Run,"
+## Common Gotchas
+- `openfang.exe` may be locked if daemon is running — use `--lib` flag or kill daemon first
+"
+glm,topic,paper:RightNow-AI/openfang:14,Architecture,Implementation Details,"- Config fields added to `KernelConfig` struct MUST also be added to the `Default` impl or build fails
+"
+glm,topic,paper:RightNow-AI/openfang:16,Development Process,Build and Run,"- CLI command to start daemon is `start` not `daemon`
+"
+glm,topic,paper:RightNow-AI/openfang:17,Development Process,Build and Run,"- On Windows: use `taskkill //PID <pid> //F` (double slashes in MSYS2/Git Bash)
+"
+glm,context_required,paper:RightNow-AI/openfang:6,task,none,"
+## Architecture Notes
+- **Don't touch `openfang-cli`** — user is actively building the interactive CLI
+"
+glm,enforceability,paper:Yeachan-Heo/oh-my-claudecode:1,,semantic_only,"<!-- OMC:START -->
+<!-- OMC:VERSION:4.9.1 -->
+
+# oh-my-claudecode - Intelligent Multi-Agent Orchestration
+
+You are running with oh-my-claudecode (OMC), a multi-agent orchestration layer for Claude Code.
+Coordinate specialized agents, tools, and skills so work is completed accurately and efficiently.
+"
+glm,topic,paper:Yeachan-Heo/oh-my-claudecode:16,AI Integration,Testing,"Before concluding: zero pending tasks, tests passing, verifier evidence collected.
+</execution_protocols>
+"
+glm,topic,paper:Yeachan-Heo/oh-my-claudecode:21,AI Integration,Build and Run,"## Setup
+
+Say ""setup omc"" or run `/oh-my-claudecode:omc-setup`.
+
+<!-- OMC:END -->
+"
+glm,topic,paper:abhigyanpatwari/GitNexus:10,AI Integration,Configuration & Environment,"- **Cursor:** `.cursor/index.mdc` (always-on); `.cursor/rules/*.mdc` (glob-scoped). Legacy `.cursorrules` deprecated.
+"
+glm,topic,paper:abhigyanpatwari/GitNexus:12,Maintenance,Documentation,"
+## Changelog
+
+| Date | Version | Change |
+|------|---------|--------|
+| 2026-05-22 | 1.8.0 | Kotlin added to `MIGRATED_LANGUAGES` (registry-primary call resolution by default). Closes #1756 (companion-vs-instance dispatch) and #1757 (lambda scopes); refs #1746. RFC §6.4 corpus criterion waived (corpus-mode wiring is #927-scope); fixture criterion met. |
+| 2026-04-23 | 1.7.0 | TypeScript added to `MIGRATED_LANGUAGES` (registry-primary call resolution by default). |
+| 2026-04-20 | 1.6.0 | Added scope-resolution pipeline pointer (RFC #909 Ring 3); Python migrated to registry-primary. |
+| 2026-04-19 | 1.5.0 | Cross-repo impact (#794): `impact`/`query`/`context` accept `repo: ""@<group>""` + `service`. Removed `group_query`/`group_contracts`/`group_status` MCP tools; added `gitnexus://group/{name}/contracts` and `gitnexus://group/{name}/status` resources. |
+| 2026-04-16 | 1.4.0 | Fixed: web UI description, pre-commit behavior, MCP tools (7->16), added gitnexus-shared, removed stale vite-plugin-wasm gotcha. |
+| 2026-04-13 | 1.3.0 | Updated GitNexus index stats after DAG refactor. |
+| 2026-03-24 | 1.2.0 | Fixed gitnexus:start block duplication. |
+| 2026-03-23 | 1.1.0 | Updated agent instructions, references, Cursor layout. |
+| 2026-03-22 | 1.0.0 | Initial structured header and changelog. |
+"
+glm,context_required,paper:abhigyanpatwari/GitNexus:15,task,none,"- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+"
+glm,topic,paper:abhigyanpatwari/GitNexus:2,Configuration & Environment,Development Process,"
+## Scope
+
+| Boundary | Rule |
+|----------|------|
+| **Reads** | `gitnexus/`, `gitnexus-web/`, `eval/`, plugin packages, `.github/`, `.gitnexus/`, docs. |
+| **Writes** | Only paths required for the change; keep diffs minimal. Update lockfiles when deps change. |
+| **Executes** | `npm`, `npx`, `node` under `gitnexus/` and `gitnexus-web/`; `uv run` for Python under `eval/`; documented CI/dev workflows. |
+| **Off-limits** | Real `.env` / secrets, production credentials, unrelated repos, destructive git ops without confirmation. |
+"
+glm,topic,paper:abhigyanpatwari/GitNexus:5,AI Integration,Testing,"
+## Claude Code hooks
+
+**PreToolUse** hooks can block tools (e.g. `git_commit`) until checks pass. Adapt to this repo: `cd gitnexus && npm test` before commit.
+"
