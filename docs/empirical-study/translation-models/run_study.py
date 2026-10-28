@@ -89,6 +89,7 @@ def main():
     ap.add_argument('--adopt-corpus-pid', type=int, default=0)
     ap.add_argument('--adopt-recovery-pid', type=int, default=0)
     ap.add_argument('--adopt-provider-pid', type=int, default=0)
+    ap.add_argument('--adopt-local-recovery-pid', type=int, default=0)
     args = ap.parse_args()
     lock = (DEFAULT_RAW / 'study-driver.lock').open('w')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -111,6 +112,7 @@ def main():
     wait_adopted(args.adopt_corpus_pid, 'translate.py', 'corpus translations (adopted)')
     wait_adopted(args.adopt_recovery_pid, 'recover_cli.py', 'provider session-limit recovery')
     wait_adopted(args.adopt_provider_pid, 'recover_provider.py', 'serial provider recovery')
+    wait_adopted(args.adopt_local_recovery_pid, 'recover_provider.py', 'local transport recovery')
     for phase, argv, log_name in (
         ('sample model replay', command('guest.py', '--log', 'model-replays', '--', *command('replay_batch.py')), 'model-replay.log'),
         ('corpus translations', command('translate.py', '--corpus', 'rq1'), 'rq1.log'),

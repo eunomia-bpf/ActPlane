@@ -19,11 +19,11 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 111 / 213 of 240 | 40.4% | 10.5% | 0.548 | 0 / 4 | n/a |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 115 / 220 of 248 | 40.4% | 10.5% | 0.548 | 0 / 5 | n/a |
 | zai/glm-5.3 | 34 / 38 of 38 | 469 / 605 of 607 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
-| zai/glm-5.3-flash | 33 / 38 of 38 | 252 / 370 of 370 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 10 / 13 of 38 | 52 / 86 of 560 | unavailable | unavailable | unavailable | 25 / 465 | $0.0000 |
-| zai/glm-4.5-air | 33 / 38 of 38 | 244 / 365 of 368 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 257 / 381 of 381 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
+| zai/glm-4.7-flash | 10 / 13 of 38 | 53 / 87 of 573 | unavailable | unavailable | unavailable | 25 / 476 | $0.0000 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 247 / 370 of 373 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
 | gpt-6-astra | 27 / 38 of 38 | 273 / 572 of 607 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
 | claude-opus-4-6 | 30 / 38 of 38 | 187 / 279 of 607 | 47.4% | 11.8% | 0.610 | 0 / 328 | $0.1384 |
 
@@ -36,8 +36,8 @@ trajectories. Individual transport records are in `attempts.csv`.
 
 | Model with access failures | Sample completed trajectories | Sample conditional compile@1 / @3 | Corpus completed trajectories | Corpus conditional compile@1 / @3 |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 38 / 38 | 39.5% / 68.4% | 236 / 240 | 47.0% / 90.3% |
-| zai/glm-4.7-flash | 13 / 38 | 76.9% / 100.0% | 95 / 560 | 54.7% / 90.5% |
+| qwen3.8-27b-nvfp4 | 38 / 38 | 39.5% / 68.4% | 243 / 248 | 47.3% / 90.5% |
+| zai/glm-4.7-flash | 13 / 38 | 76.9% / 100.0% | 97 / 573 | 54.6% / 89.7% |
 | claude-opus-4-6 | 38 / 38 | 78.9% / 100.0% | 279 / 607 | 67.0% / 100.0% |
 
 Corpus accounting means include completed trials and known transport usage.
@@ -47,11 +47,11 @@ tokens, and time are retained for both corpora in the translation CSVs.
 
 | Model | Corpus policies | Mean input tokens | Mean output tokens | Mean active wall seconds | Known USD/policy | Transports missing usage |
 | --- | --- | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 240 | 24526.9 | 10346.3 | 773.7 | unmeasured | 141 |
+| qwen3.8-27b-nvfp4 | 248 | 24626.3 | 10329.2 | 786.3 | unmeasured | 155 |
 | zai/glm-5.3 | 607 | 15399.9 | 3766.4 | 71.6 | $0.0381 | 0 |
-| zai/glm-5.3-flash | 370 | 18329.7 | 4324.7 | 129.1 | $0.0049 | 4 |
-| zai/glm-4.7-flash | 560 | 4463.6 | 1641.6 | 173.2 | $0.0000 | 1971 |
-| zai/glm-4.5-air | 368 | 19354.4 | 4566.9 | 131.7 | $0.0089 | 2 |
+| zai/glm-5.3-flash | 381 | 18270.4 | 4350.0 | 130.4 | $0.0049 | 5 |
+| zai/glm-4.7-flash | 573 | 4432.8 | 1644.6 | 173.4 | $0.0000 | 2018 |
+| zai/glm-4.5-air | 373 | 19334.7 | 4608.7 | 132.9 | $0.0089 | 2 |
 | gpt-6-astra | 607 | 38384.5 | 223.7 | 41.8 | $0.3950 | 20 |
 | claude-opus-4-6 | 607 | 9757.8 | 812.2 | 45.0 | $0.0691 | 0 |
 
@@ -84,11 +84,11 @@ alongside both detection and false-trigger rates for this constructed class bala
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 22 | 93 | 12 | 22 |
+| qwen3.8-27b-nvfp4 | 22 | 97 | 12 | 22 |
 | zai/glm-5.3 | 0 | 24 | 0 | 1 |
-| zai/glm-5.3-flash | 2 | 21 | 0 | 0 |
-| zai/glm-4.7-flash | 1 | 21 | 0 | 2 |
-| zai/glm-4.5-air | 2 | 30 | 0 | 1 |
+| zai/glm-5.3-flash | 2 | 23 | 0 | 0 |
+| zai/glm-4.7-flash | 1 | 22 | 0 | 2 |
+| zai/glm-4.5-air | 2 | 31 | 0 | 1 |
 | gpt-6-astra | 0 | 0 | 0 | 0 |
 | claude-opus-4-6 | 0 | 0 | 0 | 0 |
 
@@ -178,6 +178,10 @@ original corpus queue finishes. Its larger transport budget and cutoff for new
 policy starts are recorded in `recovery-protocol.csv`. Already elapsed backoff
 intervals are credited on resume. Only previously unavailable sample outcomes are
 replayed after recovery, using the same archived fixtures and kernel build.
+Local corpus access failures receive a separate recovery queue with reduced
+concurrency after their original queue finishes and a quiet interval. Its settings
+are also recorded in `recovery-protocol.csv`. Generation parameters and returned
+answers remain fixed across these transport-only recoveries.
 API calls use parallel workers per model,
 with local endpoint concurrency within the operator limit. Latency is observed
 under shared serving load and the recorded scripts' worker limits, rather than

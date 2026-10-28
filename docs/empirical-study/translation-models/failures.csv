@@ -33,6 +33,7 @@ rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::38,compiler_failure,generation_output_l
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::7,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::74,access_failure,transport_timeout
+rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::76,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,multica-ai__multica::7,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,nanocoai__nanoclaw::19,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,nearai__ironclaw::29,compiler_failure,generation_output_limit
@@ -184,6 +185,14 @@ rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::19,access_failure,provider_capa
 rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::2,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::21,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::22,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,aden-hive__hive::10,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,aden-hive__hive::11,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,aden-hive__hive::13,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,aden-hive__hive::14,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,aden-hive__hive::17,compiler_failure,model_declared_unobservable
+rq1,zai/glm-4.7-flash,aden-hive__hive::18,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,aden-hive__hive::5,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,aden-hive__hive::8,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,ag-ui-protocol__ag-ui::1,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,ag-ui-protocol__ag-ui::3,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,ag-ui-protocol__ag-ui::4,access_failure,provider_capacity
@@ -211,6 +220,10 @@ rq1,zai/glm-4.7-flash,charmbracelet__crush::20,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,charmbracelet__crush::22,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,charmbracelet__crush::23,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,charmbracelet__crush::39,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,chenhg5__cc-connect::27,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,chenhg5__cc-connect::28,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,chenhg5__cc-connect::29,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,chenhg5__cc-connect::38,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,colbymchenry__codegraph::30,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,colbymchenry__codegraph::40,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,colbymchenry__codegraph::42,access_failure,provider_capacity

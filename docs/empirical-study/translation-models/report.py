@@ -252,6 +252,10 @@ original corpus queue finishes. Its larger transport budget and cutoff for new
 policy starts are recorded in `recovery-protocol.csv`. Already elapsed backoff
 intervals are credited on resume. Only previously unavailable sample outcomes are
 replayed after recovery, using the same archived fixtures and kernel build.
+Local corpus access failures receive a separate recovery queue with reduced
+concurrency after their original queue finishes and a quiet interval. Its settings
+are also recorded in `recovery-protocol.csv`. Generation parameters and returned
+answers remain fixed across these transport-only recoveries.
 API calls use parallel workers per model,
 with local endpoint concurrency within the operator limit. Latency is observed
 under shared serving load and the recorded scripts' worker limits, rather than

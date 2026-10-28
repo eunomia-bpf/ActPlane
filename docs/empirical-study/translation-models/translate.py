@@ -228,19 +228,29 @@ def backoff_remaining(response, transports):
     return max(0, 15 * 2 ** (transports - 1) - elapsed)
 
 
-def translate_one(raw, corpus, model, item, transport_limit=None):
+def result_path(raw, corpus, model, item):
     key = item['uid'].replace('::', '__').replace('/', '__')
-    out = raw / 'translations' / corpus / model.replace('/', '__') / key
+    return raw / 'translations' / corpus / model.replace('/', '__') / key / 'result.json'
+
+
+def cache_is_terminal(cached, budget):
+    if not cached.exists():
+        return False
+    previous = json.loads(cached.read_text())
+    if previous['status'] != 'access_failure':
+        return True
+    response = json.loads((cached.parent / f"attempt-{previous['attempts']}" / 'response.json').read_text())
+    return not (retryable(response) and len(response.get('transport_attempts', [])) + 1 < budget)
+
+
+def translate_one(raw, corpus, model, item, transport_limit=None):
+    cached = result_path(raw, corpus, model, item)
+    out = cached.parent
     out.mkdir(parents=True, exist_ok=True)
     budget = transport_limit or transport_budget(corpus)
-    cached = out / 'result.json'
     if cached.exists():
         previous = json.loads(cached.read_text())
-        terminal = out / f"attempt-{previous['attempts']}" / 'response.json'
-        response = json.loads(terminal.read_text())
-        retry_access = (previous['status'] == 'access_failure' and retryable(response)
-                        and len(response.get('transport_attempts', [])) + 1 < budget)
-        if not retry_access:
+        if cache_is_terminal(cached, budget):
             return previous
         json_write(out / 'prior-access-result.json', previous)
     prompt = make_prompt(raw, item)
@@ -374,6 +384,10 @@ def run_model(raw, corpus, model, limit=None):
     items = inputs(raw, corpus)
     if limit:
         items = items[:limit]
+    items = [item for item in items if not cache_is_terminal(result_path(raw, corpus, model, item), transport_budget(corpus))]
+    # A fully cached resume regenerates its CSV once instead of rereading every
+    # response for every cached policy. This also avoids unnecessary RPC work.
+    export_trials(raw, corpus, model)
     workers = request_workers(corpus, model)
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(translate_one, raw, corpus, model, item) for item in items]
