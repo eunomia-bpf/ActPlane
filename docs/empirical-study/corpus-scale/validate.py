@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Audit provenance, source fidelity, complete partitions, and label coverage."""
 import argparse
+import hashlib
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -37,7 +38,7 @@ def main(a):
         record('repositories_below_star_floor', 0, sum(int(r['stars']) < 100 for r in repositories))
         record('repositories_inactive_since_2025', 0,
                sum(r['pushed_at'] < '2025-01-01' for r in repositories))
-        hashes_bad, missing, undecodable, sources = 0, 0, 0, {}
+        hashes_bad, blob_hashes_bad, missing, undecodable, sources = 0, 0, 0, 0, {}
         for f in manifest:
             if f['status'] != 'included':
                 continue
@@ -47,6 +48,8 @@ def main(a):
                 continue
             content = path.read_bytes()
             hashes_bad += digest(content) != f['content_sha256']
+            git_blob = b'blob ' + str(len(content)).encode() + b'\0' + content
+            blob_hashes_bad += hashlib.sha1(git_blob).hexdigest() != f['blob_sha']
             try:
                 content.decode('utf-8')
             except UnicodeDecodeError:
@@ -54,6 +57,7 @@ def main(a):
             sources[(f['repo'], f['content_sha256'])] = content.decode('utf-8', errors='replace').splitlines(keepends=True)
         record('missing_raw_source_files', 0, missing)
         record('source_sha256_mismatches', 0, hashes_bad)
+        record('pinned_git_blob_sha1_mismatches', 0, blob_hashes_bad)
         record('undecodable_utf8_sources', 0, undecodable)
         path = HERE / 'statements.csv'
         if path.exists():
