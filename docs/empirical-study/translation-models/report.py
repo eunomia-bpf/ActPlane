@@ -338,6 +338,9 @@ serving defaults limit causal claims about translation quality alone. Compilatio
 success does not establish faithful semantics or DSL expressivity.
 Each model has a single generation trajectory per policy. Repeated-generation
 variance and statistically significant model rankings are not established.
+Client I/O and CLI wall-time limits are recorded in `model-settings.csv`. A
+timeout leaves the translation outcome unknown, so serving delays can reduce
+coverage without establishing a compiler incompatibility.
 
 ## Reproduction and artifacts
 

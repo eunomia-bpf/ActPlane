@@ -30,6 +30,7 @@ MODELS = {
     'claude-opus-4-6': (None, 'claude'),
 }
 SYSTEM = 'You translate natural-language repository policies into ActPlane DSL. Return only the requested policy. Do not use tools.'
+REQUEST_TIMEOUT_S = 360
 
 
 def identity_ok(requested, returned):
@@ -51,7 +52,7 @@ def api_call(model, messages, max_tokens=8192, session=None, header_mode='both')
     req = urllib.request.Request(base.rstrip('/') + '/chat/completions', data=json.dumps(body).encode(), headers=headers)
     start = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=360) as r:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_S) as r:
             data = json.load(r)
         return dict(status='ok', elapsed_s=time.monotonic() - start, response=data,
                     response_model=data.get('model', ''), identity_verified=identity_ok(model, data.get('model', '')))
@@ -99,7 +100,7 @@ def cli_call(model, prompt, out):
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                  text=True, start_new_session=True)
         try:
-            stdout, stderr = child.communicate(prompt, timeout=360)
+            stdout, stderr = child.communicate(prompt, timeout=REQUEST_TIMEOUT_S)
         except subprocess.TimeoutExpired:
             os.killpg(child.pid, signal.SIGKILL)
             child.communicate()

@@ -1,5 +1,5 @@
 corpus,model,status,failure_category,policies
-rq1,claude-opus-4-6,access_failure,provider_session_limit,266
+rq1,claude-opus-4-6,access_failure,provider_session_limit,245
 rq1,gpt-6-astra,compiler_failure,empty_response,4
 rq1,gpt-6-astra,compiler_failure,model_declared_unobservable,29
 rq1,gpt-6-astra,compiler_failure,syntax_or_lowering,2
@@ -17,7 +17,7 @@ rq1,zai/glm-4.7-flash,compiler_failure,syntax_or_lowering,4
 rq1,zai/glm-5.3,compiler_failure,generation_output_limit,1
 rq1,zai/glm-5.3,compiler_failure,syntax_or_lowering,1
 rq2,qwen3.8-27b-nvfp4,compiler_failure,generation_output_limit,12
-rq2,zai/glm-4.7-flash,access_failure,ok,1
-rq2,zai/glm-4.7-flash,access_failure,provider_capacity,17
-rq2,zai/glm-4.7-flash,access_failure,rate_limited,3
-rq2,zai/glm-4.7-flash,access_failure,transport_timeout,2
+rq2,zai/glm-4.7-flash,access_failure,provider_capacity,16
+rq2,zai/glm-4.7-flash,access_failure,rate_limited,2
+rq2,zai/glm-4.7-flash,access_failure,transport_timeout,1
+rq2,zai/glm-4.7-flash,compiler_failure,syntax_or_lowering,1

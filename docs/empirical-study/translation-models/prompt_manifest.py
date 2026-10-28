@@ -2,7 +2,7 @@
 """Audit shared model-independent inputs without committing prompt text."""
 from prepare import DEFAULT_RAW, HERE, csv_write, sha
 import inspect
-from models import MODELS, api_call
+from models import MODELS, api_call, REQUEST_TIMEOUT_S
 from translate import inputs, make_prompt, request_workers, transport_budget
 
 
@@ -36,6 +36,8 @@ def main():
     for model, (_, kind) in MODELS.items():
         cli = kind in ('claude', 'codex')
         settings.append(dict(model=model, adapter=kind, api_max_output_tokens='' if cli else cap,
+                             api_io_timeout_s='' if cli else REQUEST_TIMEOUT_S,
+                             cli_wall_timeout_s=REQUEST_TIMEOUT_S if cli else '',
                              temperature='CLI default' if cli else '0',
                              reasoning='medium' if kind == 'codex' else 'provider default',
                              sample_transport_budget=transport_budget('rq2'),
