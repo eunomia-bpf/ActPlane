@@ -39,7 +39,7 @@ def alive(pid, needle):
 
 
 def derive():
-    for script in ('compile_references.py', 'prices.py', 'export_attempts.py', 'summarize.py', 'report.py'):
+    for script in ('prompt_manifest.py', 'compile_references.py', 'prices.py', 'export_attempts.py', 'summarize.py', 'report.py'):
         run(command(script))
 
 

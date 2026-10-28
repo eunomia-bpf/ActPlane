@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Require kernel positive controls before interpreting any negative replay."""
 import argparse
+import concurrent.futures
 import json
 from pathlib import Path
 
@@ -13,6 +14,7 @@ def main():
     ap.add_argument('--raw', type=Path, default=DEFAULT_RAW)
     ap.add_argument('--loader', type=Path)
     ap.add_argument('--tag', default='host19')
+    ap.add_argument('--jobs', type=int, default=1, choices=(1, 2))
     args = ap.parse_args()
     statement = args.raw / 'control-input/fixture/rule'
     statement.mkdir(parents=True, exist_ok=True)
@@ -34,7 +36,8 @@ def main():
          [{'type': 'tool_use', 'name': 'Read', 'input': {'file_path': 'secret.env'}},
           {'type': 'tool_use', 'name': 'Write', 'input': {'file_path': 'out.txt', 'content': 'canary'}}]),
     ]
-    for name, clause, tool, inp in cases:
+    def run_case(case):
+        name, clause, tool, inp = case
         trace = statement / (name + '.jsonl')
         expected = name not in ('write_negative', 'read_gate_compliant', 'bookkeeping_negative')
         effects = inp if tool == 'Sequence' else [{'type': 'tool_use', 'name': tool, 'input': inp}]
@@ -46,8 +49,11 @@ def main():
         row = replay_one(args.raw, statement, trace, 'control', policy, out, loader_bin=args.loader)
         row['expected_fired'] = int(expected)
         row['control_passed'] = int(row['status'] == 'ok' and row['fired'] == row['expected_fired'])
-        rows.append(row)
+        row['control_jobs'] = args.jobs
         print(name, row['status'], row['fired'], row['control_passed'], flush=True)
+        return row
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        rows = list(pool.map(run_case, cases))
     fields = sorted(set().union(*(r.keys() for r in rows)))
     csv_write(HERE / ('controls-' + args.tag + '.csv'), [{k: r.get(k, '') for k in fields} for r in rows])
     raise SystemExit(0 if all(r['control_passed'] for r in rows) else 1)

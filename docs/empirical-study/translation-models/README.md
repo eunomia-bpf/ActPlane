@@ -14,11 +14,11 @@ model-generation trial.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | pending | pending | pending | n/a |
-| Qwen3.8-27B NVFP4 | 9 / 15 of 20 | 0 / 0 of 0 | pending | pending | pending | n/a |
-| GLM-5.3 | 29 / 33 of 33 | 0 / 0 of 0 | pending | pending | pending | $0.0321 |
-| GLM-5.3-Flash | 18 / 20 of 20 | 0 / 0 of 0 | pending | pending | pending | $0.0038 |
-| GLM-4.7-Flash | 1 / 3 of 8 | 0 / 0 of 0 | pending | pending | pending | $0.0000 |
-| GLM-4.5-Air | 16 / 19 of 19 | 0 / 0 of 0 | pending | pending | pending | $0.0069 |
+| Qwen3.8-27B NVFP4 | 11 / 17 of 25 | 0 / 0 of 0 | pending | pending | pending | n/a |
+| GLM-5.3 | 34 / 38 of 38 | 0 / 0 of 0 | pending | pending | pending | $0.0327 |
+| GLM-5.3-Flash | 19 / 22 of 22 | 0 / 0 of 0 | pending | pending | pending | $0.0039 |
+| GLM-4.7-Flash | 1 / 3 of 9 | 0 / 0 of 0 | pending | pending | pending | $0.0000 |
+| GLM-4.5-Air | 18 / 22 of 22 | 0 / 0 of 0 | pending | pending | pending | $0.0071 |
 | Claude Opus 4.6 | 30 / 37 of 38 | 0 / 0 of 0 | pending | pending | pending | $0.1292 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
@@ -31,11 +31,32 @@ model-generation trial.
 | GLM-4.5-Air | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 | Claude Opus 4.6 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 
+| Model | Usable traces / planned | Conditional detection | Conditional false trigger | Conditional F1 |
+| --- | --- | --- | --- | --- |
+| Paper reference | 0 / 190 | pending | pending | pending |
+| Qwen3.8-27B NVFP4 | 0 / 190 | pending | pending | pending |
+| GLM-5.3 | 0 / 190 | pending | pending | pending |
+| GLM-5.3-Flash | 0 / 190 | pending | pending | pending |
+| GLM-4.7-Flash | 0 / 190 | pending | pending | pending |
+| GLM-4.5-Air | 0 / 190 | pending | pending | pending |
+| Claude Opus 4.6 | 0 / 190 | pending | pending | pending |
+
+Conditional scores use only usable traces and may be biased by unavailable
+translations or replay errors. Headline scores require complete coverage.
+A final compiler failure supplies no policy and is an end-to-end nondetection.
+An API/identity failure or failed kernel load has an unknown behavioral outcome.
+
 The reference replay currently has 0 usable outcomes
 and 0 engine/replay errors. Among comparable artifact
 outcomes, 0 of 0 agree with
 the original RQ2 artifact's `setup_fired`. This comparison uses kernel detections,
-not the artifact's recovery scores or trajectory judges.
+not the artifact's recovery scores or trajectory judges. The original artifact's
+reference detections were themselves imperfect against the trace labels:
+66 of 114
+violations detected, 17 of
+76 compliant traces triggered, and
+F1 0.670. Those preserved outcomes appear in
+`artifact-reference-detections.csv` and are not a new model-comparison row.
 
 ## Method
 
@@ -67,7 +88,9 @@ the [ZAI list prices](https://docs.z.ai/guides/overview/pricing) and
 [Claude list prices](https://platform.claude.com/docs/en/about-claude/pricing).
 Dollar values are uncached API equivalents, including for the subscription CLI,
 not bills. Local infrastructure cost is unmeasured. Transport failures without
-usage cannot be assigned an inferred token charge.
+usage cannot be assigned an inferred token charge. Reported token and dollar
+means cover recorded usage only, with missing-usage transport counts in the CSV.
+These are incomplete accounting values when requests time out.
 
 `replay.py` starts a fresh kernel engine and independent repository copy per
 trace. Tool effects follow the artifact's passive replay implementations for

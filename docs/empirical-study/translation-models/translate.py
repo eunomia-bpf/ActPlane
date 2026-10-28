@@ -105,7 +105,7 @@ def usage_of(response, model):
                     output_tokens=u.get('output_tokens', 0),
                     cached_input_tokens=u.get('cache_read_input_tokens', 0),
                     cache_write_tokens=u.get('cache_creation_input_tokens', 0),
-                    reasoning_tokens=u.get('output_tokens_details', {}).get('thinking_tokens', 0))
+                    reasoning_tokens=(u.get('output_tokens_details') or {}).get('thinking_tokens', 0))
     u = response.get('response', {}).get('usage') or {}
     return dict(input_tokens=u.get('prompt_tokens', 0), output_tokens=u.get('completion_tokens', 0),
                 cached_input_tokens=(u.get('prompt_tokens_details') or {}).get('cached_tokens', 0), cache_write_tokens=0,
@@ -237,6 +237,9 @@ def export_trials(raw, corpus, model):
     for path in paths:
         r = json.loads(path.read_text())
         r.pop('policy', None)
+        responses = [json.loads(p.read_text()) for p in path.parent.glob('attempt-*/response.json')]
+        calls = [t for response in responses for t in response.get('transport_attempts', []) + [response]]
+        r['usage_missing_transports'] = sum(not bool(t.get('response', {}).get('usage')) for t in calls)
         r['retry_errors'] = json.dumps(r['retry_errors'], ensure_ascii=False)
         p = path.parent / f"attempt-{r['attempts']}" / 'compile-report.json'
         report = json.loads(p.read_text()) if p.exists() and p.read_text().startswith('{') else {}

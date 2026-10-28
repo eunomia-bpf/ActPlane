@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Derive tables from trial CSVs. Missing/invalid kernel runs never become TNs."""
 import csv
+from collections import Counter
 import json
 from pathlib import Path
 import statistics
 
 from prepare import HERE, DEFAULT_RAW, csv_write
 from translate import inputs
+from replay import artifact_outcomes
 
 
 def read(name):
@@ -20,8 +22,8 @@ def detection(rows):
     fp = sum(r['violation'] == '0' and r['fired'] == '1' for r in valid)
     pos = sum(r['violation'] == '1' for r in valid)
     neg = len(valid) - pos
-    # Scores require all planned trace outcomes, including unavailable-policy
-    # nondetections. Failed engine loads are a separate coverage failure.
+    # Headline scores require all planned outcomes. Compiler failures yield an
+    # absent policy. Access failures and engine errors remain coverage failures.
     complete = len(valid) == 190
     result = dict(replay_rows=len(rows), replay_valid=len(valid), replay_errors=sum(r['status'] == 'error' for r in rows),
                   violation_traces=pos, compliant_traces=neg, true_positives=tp, false_positives=fp,
@@ -30,7 +32,11 @@ def detection(rows):
                   f1=2*tp/(2*tp+fp+pos-tp) if complete and pos else '',
                   agreement_traces=sum(r.get('agreement') != '' for r in valid),
                   agreements=sum(r.get('agreement') == '1' for r in valid),
-                  tool_error_traces=sum(int(r.get('tool_errors') or 0) > 0 for r in valid))
+                  tool_error_traces=sum(int(r.get('tool_errors') or 0) > 0 for r in valid),
+                  replay_coverage=len(valid)/190,
+                  conditional_detection_rate=tp/pos if pos else '',
+                  conditional_false_trigger_rate=fp/neg if neg else '',
+                  conditional_f1=2*tp/(tp+fp+pos) if pos else '')
     for name, family in [('direct', 'visible_violation'), ('script', 'script_visible_violation'), ('hidden', 'opaque_fixture_violation')]:
         part = [r for r in valid if r['family'] == family]
         result[name + '_n'] = len(part)
@@ -48,12 +54,21 @@ def main():
         records = inputs(DEFAULT_RAW, corpus)
         corpus_rows.append(dict(corpus=corpus, policies=len(records)))
     trace_rows = []
+    original = artifact_outcomes(DEFAULT_RAW)
+    artifact_rows = []
     for p in sorted((DEFAULT_RAW / 'artifact/docs/corpus-test').glob('*/*/statement.json')):
         for trace in json.loads(p.read_text())['trace_files']:
             gt = json.loads((p.parent / trace).read_text().splitlines()[0])
             trace_rows.append(dict(repo=p.parent.parent.name, statement_id=p.parent.name, trace=trace, violation=int(gt['violation'])))
+            artifact_rows.append(dict(repo=p.parent.parent.name, statement_id=p.parent.name, trace=trace,
+                                      family=Path(trace).stem.replace('trace_', ''),
+                                      violation=int(gt['violation']), status='ok',
+                                      fired=original[p.parent.parent.name, p.parent.name, trace], tool_errors=''))
     csv_write(HERE / 'corpus-counts.csv', corpus_rows)
     csv_write(HERE / 'trace-manifest.csv', trace_rows)
+    csv_write(HERE / 'artifact-reference-detections.csv', artifact_rows)
+    artifact_csv_rows = [{k: str(v) for k,v in r.items()} for r in artifact_rows]
+    csv_write(HERE / 'artifact-reference-summary.csv', [detection(artifact_csv_rows)])
     all_access = [dict(model='reference', status='reference', identity_verified='1', error='')] + access
     for a in all_access:
         model = a['model']
@@ -70,7 +85,8 @@ def main():
                       corpus + '_output_tokens_mean': statistics.mean(int(t['output_tokens']) for t in trials) if n else '',
                       corpus + '_wall_s_mean': statistics.mean(float(t['wall_s']) for t in trials) if n else '',
                       corpus + '_retries': sum(max(0,int(t['attempts'])-1) for t in trials),
-                      corpus + '_access_failures': sum(t['status']=='access_failure' for t in trials)})
+                      corpus + '_access_failures': sum(t['status']=='access_failure' for t in trials),
+                      corpus + '_usage_missing_transports': sum(int(t.get('usage_missing_transports') or 0) for t in trials)})
             price = prices.get(model)
             usd = ''
             if n and price and price['input_usd_per_million'] != '':
@@ -90,6 +106,8 @@ def main():
     csv_write(HERE / 'summary.csv', summary)
     if failures:
         csv_write(HERE / 'failures.csv', failures)
+        categories = Counter((r['corpus'], r['model'], r['status'], r['failure_category']) for r in failures)
+        csv_write(HERE / 'failure-counts.csv', [dict(corpus=k[0], model=k[1], status=k[2], failure_category=k[3], policies=n) for k,n in sorted(categories.items())])
     for r in summary:
         if r['access_status'] in ('ok', 'reference'):
             print(r['model'], 'rq2',r['rq2_completed'],r['rq2_compiled_at_1'],r['rq2_compiled_at_3'],

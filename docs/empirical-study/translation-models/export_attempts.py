@@ -18,6 +18,7 @@ def main():
                              response_model=response.get('response_model', ''),
                              identity_verified=int(response.get('identity_verified', False)),
                              http_status=response.get('http_status', ''), elapsed_s=response['elapsed_s'],
+                             usage_reported=int(bool(response.get('response', {}).get('usage'))),
                              **usage_of(response, model)))
     if rows:
         csv_write(HERE / 'attempts.csv', rows)

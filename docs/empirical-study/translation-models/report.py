@@ -53,6 +53,12 @@ def main():
         families.append('| ' + ' | '.join([NAMES.get(r['model'], r['model'])] +
                          [f"{r[f + '_detected']} / {r[f + '_n']}" for f in ('direct', 'script', 'hidden')] +
                          [r['replay_errors'], r['tool_error_traces']]) + ' |')
+    coverage = ['| Model | Usable traces / planned | Conditional detection | Conditional false trigger | Conditional F1 |',
+                '| --- | --- | --- | --- | --- |']
+    for r in rows:
+        cf1 = f"{float(r['conditional_f1']):.3f}" if r['conditional_f1'] != '' else 'pending'
+        coverage.append(f"| {NAMES.get(r['model'], r['model'])} | {r['replay_valid']} / {len(traces)} | {pct(r['conditional_detection_rate'])} | {pct(r['conditional_false_trigger_rate'])} | {cf1} |")
+    artifact_summary = read('artifact-reference-summary.csv')[0]
     reference = next(r for r in rows if r['model'] == 'reference')
     p_rows = [r for r in rows if r['model'] != 'reference' and r['f1'] != '']
     if p_rows:
@@ -90,11 +96,24 @@ model-generation trial.
 
 {chr(10).join(families)}
 
+{chr(10).join(coverage)}
+
+Conditional scores use only usable traces and may be biased by unavailable
+translations or replay errors. Headline scores require complete coverage.
+A final compiler failure supplies no policy and is an end-to-end nondetection.
+An API/identity failure or failed kernel load has an unknown behavioral outcome.
+
 The reference replay currently has {reference['replay_valid']} usable outcomes
 and {reference['replay_errors']} engine/replay errors. Among comparable artifact
 outcomes, {reference['agreements']} of {reference['agreement_traces']} agree with
 the original RQ2 artifact's `setup_fired`. This comparison uses kernel detections,
-not the artifact's recovery scores or trajectory judges.
+not the artifact's recovery scores or trajectory judges. The original artifact's
+reference detections were themselves imperfect against the trace labels:
+{artifact_summary['true_positives']} of {artifact_summary['violation_traces']}
+violations detected, {artifact_summary['false_positives']} of
+{artifact_summary['compliant_traces']} compliant traces triggered, and
+F1 {float(artifact_summary['f1']):.3f}. Those preserved outcomes appear in
+`artifact-reference-detections.csv` and are not a new model-comparison row.
 
 ## Method
 
@@ -126,7 +145,9 @@ the [ZAI list prices](https://docs.z.ai/guides/overview/pricing) and
 [Claude list prices](https://platform.claude.com/docs/en/about-claude/pricing).
 Dollar values are uncached API equivalents, including for the subscription CLI,
 not bills. Local infrastructure cost is unmeasured. Transport failures without
-usage cannot be assigned an inferred token charge.
+usage cannot be assigned an inferred token charge. Reported token and dollar
+means cover recorded usage only, with missing-usage transport counts in the CSV.
+These are incomplete accounting values when requests time out.
 
 `replay.py` starts a fresh kernel engine and independent repository copy per
 trace. Tool effects follow the artifact's passive replay implementations for
@@ -232,7 +253,7 @@ derived outputs. No script opens or updates a pull request.
     ax.set(xlabel='False-trigger rate (%)', ylabel='Violation detection rate (%)', xlim=(-2, 102), ylim=(-2, 102))
     ax.grid(alpha=.2)
     fig.tight_layout()
-    fig.savefig(HERE / 'comparison.pdf', bbox_inches='tight')
+    fig.savefig(HERE / 'comparison.pdf', bbox_inches='tight', metadata={'CreationDate': None, 'ModDate': None})
     plt.close(fig)
 
 
