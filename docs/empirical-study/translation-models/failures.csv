@@ -38,6 +38,7 @@ rq1,qwen3.8-27b-nvfp4,multica-ai__multica::7,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,nanocoai__nanoclaw::19,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,nearai__ironclaw::29,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,openai__codex::17,compiler_failure,syntax_or_lowering
+rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::32,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,vxcontrol__pentagi::15,compiler_failure,generation_output_limit
 rq1,zai/glm-5.3,NVIDIA__NemoClaw::19,compiler_failure,syntax_or_lowering
 rq1,zai/glm-5.3,zeroclaw-labs__zeroclaw::22,compiler_failure,generation_output_limit
@@ -307,6 +308,10 @@ rq1,zai/glm-4.7-flash,gastownhall__beads::45,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,gastownhall__beads::46,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,gastownhall__beads::6,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,gastownhall__beads::7,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,google__adk-python::3,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,google__adk-python::4,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,google__adk-python::5,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,google__adk-python::6,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::2,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::4,compiler_failure,generation_output_limit
@@ -566,6 +571,14 @@ rq1,zai/glm-4.7-flash,yusufkaraaslan__Skill_Seekers::57,access_failure,provider_
 rq1,zai/glm-4.7-flash,yusufkaraaslan__Skill_Seekers::58,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,yusufkaraaslan__Skill_Seekers::68,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,yusufkaraaslan__Skill_Seekers::7,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,zeroclaw-labs__zeroclaw::14,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,zeroclaw-labs__zeroclaw::15,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,zeroclaw-labs__zeroclaw::19,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,zeroclaw-labs__zeroclaw::2,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,zeroclaw-labs__zeroclaw::20,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,zeroclaw-labs__zeroclaw::23,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,zeroclaw-labs__zeroclaw::24,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,zeroclaw-labs__zeroclaw::28,access_failure,provider_capacity
 rq1,zai/glm-4.5-air,NousResearch__hermes-agent::53,compiler_failure,generation_output_limit
 rq1,zai/glm-4.5-air,manaflow-ai__cmux::16,compiler_failure,syntax_or_lowering
 rq1,zai/glm-4.5-air,ruvnet__ruflo::54,compiler_failure,syntax_or_lowering
