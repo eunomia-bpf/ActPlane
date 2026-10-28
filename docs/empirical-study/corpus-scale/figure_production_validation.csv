@@ -1,7 +1,7 @@
 mode,check,expected,actual,passed
 interim,paper_figure_numbers,"[2, 3, 4, 5, 6, 7]","[2, 3, 4, 5, 6, 7]",True
 interim,figure_2_exists,True,True,True
-interim,figure_2_failed_axes,set(),set(),True
+interim,figure_2_failed_axes,[],[],True
 interim,figure_2_status,interim,interim,True
 interim,figure_2_repository_count,23,23,True
 interim,figure_2_statement_count,1416,1416,True
@@ -9,7 +9,7 @@ interim,figure_2_fonttype_setting,42,42,True
 interim,figure_2_type3_fonts,0,0,True
 interim,figure_2_embedded_truetype,True,True,True
 interim,figure_3_exists,True,True,True
-interim,figure_3_failed_axes,set(),set(),True
+interim,figure_3_failed_axes,[],[],True
 interim,figure_3_status,interim,interim,True
 interim,figure_3_repository_count,23,23,True
 interim,figure_3_statement_count,1416,1416,True
@@ -17,7 +17,7 @@ interim,figure_3_fonttype_setting,42,42,True
 interim,figure_3_type3_fonts,0,0,True
 interim,figure_3_embedded_truetype,True,True,True
 interim,figure_4_exists,True,True,True
-interim,figure_4_failed_axes,{'enforceability'},{'enforceability'},True
+interim,figure_4_failed_axes,['enforceability'],['enforceability'],True
 interim,figure_4_status,withheld,withheld,True
 interim,figure_4_repository_count,23,23,True
 interim,figure_4_statement_count,1416,1416,True
@@ -25,7 +25,7 @@ interim,figure_4_fonttype_setting,42,42,True
 interim,figure_4_type3_fonts,0,0,True
 interim,figure_4_embedded_truetype,True,True,True
 interim,figure_5_exists,True,True,True
-interim,figure_5_failed_axes,{'enforceability'},{'enforceability'},True
+interim,figure_5_failed_axes,['enforceability'],['enforceability'],True
 interim,figure_5_status,withheld,withheld,True
 interim,figure_5_repository_count,23,23,True
 interim,figure_5_statement_count,1416,1416,True
@@ -33,7 +33,7 @@ interim,figure_5_fonttype_setting,42,42,True
 interim,figure_5_type3_fonts,0,0,True
 interim,figure_5_embedded_truetype,True,True,True
 interim,figure_6_exists,True,True,True
-interim,figure_6_failed_axes,"{'context_required', 'enforceability'}","{'context_required', 'enforceability'}",True
+interim,figure_6_failed_axes,"['context_required', 'enforceability']","['context_required', 'enforceability']",True
 interim,figure_6_status,withheld,withheld,True
 interim,figure_6_repository_count,23,23,True
 interim,figure_6_statement_count,1416,1416,True
@@ -41,7 +41,7 @@ interim,figure_6_fonttype_setting,42,42,True
 interim,figure_6_type3_fonts,0,0,True
 interim,figure_6_embedded_truetype,True,True,True
 interim,figure_7_exists,True,True,True
-interim,figure_7_failed_axes,"{'context_required', 'enforceability'}","{'context_required', 'enforceability'}",True
+interim,figure_7_failed_axes,"['context_required', 'enforceability']","['context_required', 'enforceability']",True
 interim,figure_7_status,withheld,withheld,True
 interim,figure_7_repository_count,23,23,True
 interim,figure_7_statement_count,1416,1416,True

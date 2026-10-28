@@ -51,6 +51,7 @@ def main():
               ('min_final_kappa', MIN_KAPPA), ('min_primary_kappa', MIN_PRIMARY_KAPPA),
               ('min_coverage', MIN_COVERAGE), ('max_excerpt_lines_target', 160)]
     config += [('historical_retry_policy', 'batch'), ('scaling_retry_policy', 'invalid'),
+               ('historical_local_batch_size', 16), ('historical_remote_batch_size', 12),
                ('historical_and_focused_local_workers', 4), ('remote_workers', 2),
                ('scale_primary_local_workers', 6), ('scale_interim_adjudication_workers', 2),
                ('scale_final_adjudication_workers', 4), ('deferred_optional_scope_workers', 3),
@@ -155,7 +156,7 @@ def main():
         f'`collect.py` takes the top {cfg["search_results_per_query"]} results of each fixed query, unions within a discovery stratum, and visits candidates by descending stars with repository name breaking ties. '
         f'Quotas are {cfg["quota_general"]} general-software repositories, {cfg["quota_agent"]} additional agent-ecosystem repositories, and {cfg["quota_noncoding_discovery"]} additional repositories from noncoding discovery queries. '
         'Earlier strata own overlaps. A quota can remain unfilled if the fixed candidate set is exhausted. Discovery strata do not establish repository categories.', '',
-        'There is no language, creation-year, file-size minimum, directive-density, or subjective fake-star filter. This broadens the original study’s eligibility and avoids outcome-based filtering, but admits low-information files, collections, and potentially inflated stars. `collection_attempts.csv` retains unsuccessful probes and `searches.csv` retains queries and truncation indicators. GitHub’s ranking and search cap prevent an exhaustive population sample.', '',
+        'There is no language, creation-year, file-size minimum, directive-density, or subjective fake-star filter beyond rejecting empty or binary files. This broadens the original study’s eligibility and avoids outcome-based filtering, but admits low-information files, collections, and potentially inflated stars. `collection_attempts.csv` retains unsuccessful probes and `searches.csv` retains queries and truncation indicators. GitHub’s ranking and search cap prevent an exhaustive population sample.', '',
         f'All requested families are inspected in recursive commit-pinned trees: CLAUDE.md, AGENTS.md, GEMINI.md, .github/copilot-instructions.md, .cursor/rules/*, .cursorrules, .windsurfrules, and SKILL.md. '
         f'To bound very large skill/rule collections, at most {cfg["paths_per_family"]} path per family per repository is analyzed, preferring fewer path components, shorter paths, then lexical order. '
         f'Files above {cfg["max_file_bytes"]:,} bytes are excluded. All discovered paths, including capped paths and download failures, remain in the manifest. '

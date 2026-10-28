@@ -37,7 +37,7 @@ def main():
         path = HERE / row['file']
         record(prefix + 'exists', True, path.is_file())
         failed = {d for d in dependencies[number] if not gates.get(d, False)}
-        record(prefix + 'failed_axes', failed, set(filter(None, row['failed_dimensions'].split(','))))
+        record(prefix + 'failed_axes', sorted(failed), sorted(filter(None, row['failed_dimensions'].split(','))))
         record(prefix + 'status', 'withheld' if failed else 'ready' if complete else 'interim', row['status'])
         record(prefix + 'repository_count', coverage['analyzed_repositories'], row['repositories'])
         record(prefix + 'statement_count', coverage['analyzed_statements'], row['statements'])

@@ -5,14 +5,15 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from common import HERE, write_csv
+from common import DEFAULT_RAW, HERE, write_csv
 from label import classify
 
 
 def main():
     batch = [dict(statement_id=str(i), text='A source statement.') for i in range(3)]
     checks = []
-    with TemporaryDirectory() as temp:
+    DEFAULT_RAW.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=DEFAULT_RAW) as temp:
         args = SimpleNamespace(raw=Path(temp), model='qwen3.8-27b-nvfp4')
         with patch('label.complete', side_effect=RuntimeError('model_request_failed')) as request:
             result = classify(args, batch, 'coding guide', ['type'], None)
