@@ -75,6 +75,7 @@ rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::4,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::8,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,superset-sh__superset::11,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,superset-sh__superset::15,compiler_failure,generation_output_limit
+rq1,qwen3.8-27b-nvfp4,thedotmack__claude-mem::21,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,vxcontrol__pentagi::15,compiler_failure,generation_output_limit
 rq1,zai/glm-5.3,NVIDIA__NemoClaw::19,compiler_failure,syntax_or_lowering
 rq1,zai/glm-5.3,zeroclaw-labs__zeroclaw::22,compiler_failure,generation_output_limit
@@ -83,7 +84,7 @@ rq2,zai/glm-4.7-flash,OpenPipe__ART__2,compiler_failure,syntax_or_lowering
 rq1,zai/glm-4.7-flash,AlexsJones__llmfit::28,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,AlexsJones__llmfit::29,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,AlexsJones__llmfit::31,compiler_failure,generation_output_limit
-rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::24,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::24,access_failure,transport_timeout
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::25,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::3,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::31,access_failure,rate_limited
@@ -584,7 +585,6 @@ rq1,gpt-6-astra,tirth8205__code-review-graph::24,compiler_failure,model_declared
 rq1,gpt-6-astra,tirth8205__code-review-graph::27,compiler_failure,syntax_or_lowering
 rq1,gpt-6-astra,zeroclaw-labs__zeroclaw::22,compiler_failure,model_declared_unobservable
 rq1,gpt-6-astra,zeroclaw-labs__zeroclaw::28,compiler_failure,model_declared_unobservable
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::20,access_failure,provider_session_limit
 rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::22,access_failure,provider_session_limit
 rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::23,access_failure,provider_session_limit
 rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::24,access_failure,provider_session_limit
