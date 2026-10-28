@@ -12,7 +12,8 @@ def main(a):
     rows = []
     identities = Counter()
     for filename in ['github-requests.jsonl', 'model-requests.jsonl', 'label-failures.jsonl',
-                     'extraction-chunks.jsonl', 'downloads.jsonl', 'optional-processes.jsonl']:
+                     'extraction-chunks.jsonl', 'downloads.jsonl', 'optional-processes.jsonl',
+                     'label-schema-errors.jsonl']:
         path = a.raw / filename
         counts = Counter()
         if not path.exists():
@@ -34,6 +35,14 @@ def main(a):
         for (model, status, attempt), count in sorted(counts.items()):
             rows.append(dict(source=filename, model=model, status=status, attempt=attempt, count=count))
     write_csv(HERE / 'run_audit.csv', rows)
+    schema_path = a.raw / 'label-schema-errors.jsonl'
+    if schema_path.exists():
+        schema_rows = []
+        for line in schema_path.read_text().splitlines():
+            r = json.loads(line)
+            schema_rows.append(dict(at=r['at'], model=r['model'], statement_id=r['statement_id'],
+                                   error=r['error'], **r['previous_prediction']))
+        write_csv(HERE / 'calibration_schema_errors.csv', schema_rows)
     write_csv(HERE / 'model_identity.csv', [dict(requested_model=k[0], returned_model=k[1],
         successful_requests=v) for k, v in sorted(identities.items())])
     scope_path = HERE / 'file_scopes.csv'

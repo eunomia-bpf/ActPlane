@@ -86,6 +86,7 @@ def main():
         f'However, annotation spans cover {int(audit["labeled_span_lines"]):,} lines in the primary referenced sources, so the recovered labels do not establish statement coverage of every additional instruction file. '
         'The cross-event repository share differs from the rounded paper claim and remains visible in the comparison table.', '',
         '`taxonomy.txt` reconstructs the coding guide and examples in `origin/artifact-ready:docs/empirical.md` and the current motivation section. The exact historical invocation prompts and the human review sample were not located. This is a reconstructed prompt, not a claim of exact prompt replication. Gold labels are never sent to either model or to adjudication.', '',
+        'Equivalent JSON wrappers are normalized without changing labels or source boundaries. Invalid values, missing IDs, and inconsistent cross-axis applicability are rejected and retried, with earlier responses retained in the raw cache. `calibration_schema_errors.csv` records predictions rejected during schema validation. The reported agreement measures the accepted automated labeling pipeline rather than strict first-response JSON compliance.', '',
         'The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` endpoint and the gateway’s named `zai/glm-5.3` route. The gateway-reported model identity is recorded but its provider weights cannot be independently audited. GLM uses low reasoning effort because its reasoning cannot be disabled. Disagreements are reread by Qwen with anonymized primary labels whose order is deterministically permuted by statement-ID hash. Adjudication remains correlated with a primary model and has no independent human reference.', '',
         '| Model vs paper | Dimension | Applicable gold N | Evaluated N | Raw agreement | Cohen’s kappa |',
         '|---|---|---:|---:|---:|---:|']
@@ -171,6 +172,12 @@ def main():
         'Committed artifacts include immutable historical provenance, historical labels, model labels, calibration confusion tables, search queries, corpus/file manifests, extraction status, repository categories, summary tables, and the figures corresponding to the paper’s plots. GitHub requests are sequential, cached, and honor retry/reset feedback. Model concurrency stays within the operator’s endpoint limits.', '',
         'The repository-requested `oss-change-workflow` skill was unavailable in the installed skill catalog and filesystem search. Work follows the explicit repository scope, validation, and documentation instructions. The operator’s updated handoff rule is to commit and push only to `experiments/corpus-scale-20261028`, with no further PR activity. No paper source, kernel code, cluster deployment, or other lane is changed.', '',
         '## Paper-ready paragraph', '']
+    if (HERE / 'figure_manifest.csv').exists():
+        table = ['## Figure handoff', '', '| Paper figure | PDF | Status | Unvalidated axes |', '|---|---|---|---|']
+        for r in read_csv(HERE / 'figure_manifest.csv'):
+            table.append(f'| {r["paper_figure"]} | [{r["file"].split("/")[-1]}]({r["file"]}) | {r["status"]} | {r["failed_dimensions"]} |')
+        table += ['', 'A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains every plotted value.', '']
+        lines[-2:-2] = table
     if overall:
         valid = {k: r for k, r in overall.items() if r['status'] == 'ok'}
         paragraph = ''

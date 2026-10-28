@@ -90,6 +90,13 @@ def main(a):
                 record('invalid_scaled_label_values', 0, invalid)
                 record('values_in_withheld_dimensions', 0,
                        sum(bool(r.get(d, '')) for r in labels if r['status'] == 'ok' for d in set(DIMS) - enabled))
+                if 'enforceability' in enabled:
+                    record('enforcement_applicability_errors', 0, sum(
+                        bool(r['enforceability']) != (r['type'] == 'directive') for r in labels if r['status'] == 'ok'))
+                if 'context_required' in enabled:
+                    record('context_applicability_errors', 0, sum(
+                        bool(r['context_required']) != (r['type'] == 'directive' and r['enforceability'] in ('content', 'per_event', 'cross_event'))
+                        for r in labels if r['status'] == 'ok'))
                 if a.require_complete:
                     record('scaled_successful_rows', len(rows), sum(r['status'] == 'ok' for r in labels))
     write_csv(HERE / 'validation.csv', checks)

@@ -1017,29 +1017,13 @@ Rules:
 - Contributor line: first name or @handle, one sentence, issue/PR reference.
 - Run any prose through /humanizer before publishing anywhere public.
 "
-qwen,topic,paper:OthmanAdi/planning-with-files:13,Development Process,AI Integration,"---
-
-## Issue/PR comment style
-
-After a fix ships, comment on the issue or PR:
-
-- Address by `@handle`.
-- One sentence: fix confirmed in vX.Y.Z.
-- Specific: what the root cause was, what mechanism changed.
-- If they are now in CONTRIBUTORS.md, say so.
-- Run through /humanizer before posting.
-"
-qwen,enforceability,paper:OthmanAdi/planning-with-files:13,content,semantic_only,"---
-
-## Issue/PR comment style
-
-After a fix ships, comment on the issue or PR:
-
-- Address by `@handle`.
-- One sentence: fix confirmed in vX.Y.Z.
-- Specific: what the root cause was, what mechanism changed.
-- If they are now in CONTRIBUTORS.md, say so.
-- Run through /humanizer before posting.
+qwen,topic,paper:OthmanAdi/planning-with-files:14,Development Process,AI Integration,"
+NOT acceptable in any public comment:
+- ""Great report!""
+- ""Thank you so much!""
+- Em-dashes (do not use — this style)
+- ""I'd like to""
+- Performative warmth of any kind
 "
 qwen,type,paper:OthmanAdi/planning-with-files:19,description,directive,"- SSL cert on clawhub.io may be expired — proceed through the browser warning.
 "
@@ -1158,6 +1142,10 @@ qwen,topic,paper:alibaba/OpenSandbox:15,Development Process,Testing,"- Goal-driv
 qwen,context_required,paper:alibaba/OpenSandbox:15,project,task,"- Goal-driven execution: translate non-trivial work into verifiable success criteria, add or update focused tests when behavior changes, and loop until checks pass or blockers are clear.
 "
 qwen,topic,paper:alibaba/OpenSandbox:8,AI Integration,Architecture,"- For runtime component changes under `components/**`, read the nearest `README.md` or `DEVELOPMENT.md`; keep component APIs aligned with `specs/` and SDK consumers.
+"
+qwen,enforceability,paper:anomalyco/opencode:26,content,semantic_only,"## Testing
+
+- Avoid mocks as much as possible
 "
 qwen,topic,paper:charmbracelet/crush:16,Architecture,Build and Run,"- **CGO disabled**: builds with `CGO_ENABLED=0` and
   `GOEXPERIMENT=greenteagc`.
@@ -3159,6 +3147,23 @@ glm,topic,paper:nanocoai/nanoclaw:26,Security,Build and Run,"- **`pnpm install -
 "
 glm,topic,paper:nanocoai/nanoclaw:31,Build and Run,Maintenance,"- **Bumping `@anthropic-ai/claude-agent-sdk`, `@modelcontextprotocol/sdk`, or any agent-runner runtime dep** → no `minimumReleaseAge` policy applies to this tree. Check the release date on npm, pin deliberately, never `bun update` blindly.
 "
+glm,topic,paper:nanocoai/nanoclaw:37,Build and Run,Configuration & Environment,"
+## CJK font support
+
+Agent containers ship without CJK fonts by default (~200MB saved). If you notice signals the user works with Chinese/Japanese/Korean content — conversing in CJK, CJK timezone (e.g., `Asia/Tokyo`, `Asia/Shanghai`, `Asia/Seoul`, `Asia/Taipei`, `Asia/Hong_Kong`), system locale hint, or mentions of needing to render CJK in screenshots/PDFs/scraped pages — offer to enable it:
+
+```bash
+# Ensure .env has INSTALL_CJK_FONTS=true (overwrite or append)
+grep -q '^INSTALL_CJK_FONTS=' .env && sed -i.bak 's/^INSTALL_CJK_FONTS=.*/INSTALL_CJK_FONTS=true/' .env && rm -f .env.bak || echo 'INSTALL_CJK_FONTS=true' >> .env
+
+# Rebuild and restart so new sessions pick up the new image
+./container/build.sh
+launchctl kickstart -k gui/$(id -u)/com.nanoclaw   # macOS
+# systemctl --user restart nanoclaw                # Linux
+```
+
+`container/build.sh` reads `INSTALL_CJK_FONTS` from `.env` and passes it through as a Docker build-arg. Without CJK fonts, Chromium-rendered screenshots and PDFs containing CJK text show tofu (empty rectangles) instead of characters.
+"
 glm,topic,paper:nanocoai/nanoclaw:8,Build and Run,Architecture,"
 ## Admin CLI (`ncl`)
 
@@ -3185,4 +3190,67 @@ ncl help
 | approvals | list, get | Pending approval requests (read-only) |
 
 Key files: `src/cli/dispatch.ts` (dispatcher + approval handler), `src/cli/crud.ts` (generic CRUD registration), `src/cli/resources/` (per-resource definitions).
+"
+glm,topic,paper:nearai/ironclaw:22,Configuration & Environment,Architecture,"## Database, Setup, and Config Rules
+
+- New persistence behavior must support both PostgreSQL and libSQL.
+"
+glm,topic,paper:nearai/ironclaw:23,Configuration & Environment,Architecture,"- Add new DB operations to the shared DB trait first, then implement both backends.
+"
+glm,topic,paper:nearai/ironclaw:25,Configuration & Environment,Documentation,"- If onboarding or setup behavior changes, update `src/setup/README.md` in the same branch.
+"
+glm,enforceability,paper:nearai/ironclaw:27,content,semantic_only,"## Security and Runtime Invariants
+
+- Review any change touching listeners, routes, auth, secrets, sandboxing, approvals, or outbound HTTP with a security mindset.
+"
+glm,enforceability,paper:nearai/ironclaw:29,per_event,semantic_only,"- Treat Docker containers and external services as untrusted.
+"
+glm,topic,paper:nearai/ironclaw:31,Security,AI Integration,"- Skills are selected deterministically. Tool approval and auth flows are special paths and must not be mixed into normal chat history carelessly.
+"
+glm,topic,paper:nearai/ironclaw:39,Documentation,Development Process,"- Do not open a PR that changes feature behavior without checking `FEATURE_PARITY.md` for needed status updates (`❌`, `🚧`, `✅`, notes, and priorities).
+"
+glm,topic,paper:nearai/ironclaw:44,Development Process,Configuration & Environment,"- Preserve existing defaults unless the task explicitly changes them.
+"
+glm,topic,paper:openai/codex:12,Documentation,Implementation Details,"- Newly added traits should include doc comments that explain their role and how implementations are expected to use them.
+"
+glm,topic,paper:openai/codex:17,Build and Run,Configuration & Environment,"- If you change `ConfigToml` or nested config types, run `just write-config-schema` to update `codex-rs/core/config.schema.json`.
+"
+glm,topic,paper:openai/codex:20,Build and Run,Maintenance,"- If you change Rust dependencies (`Cargo.toml` or `Cargo.lock`), run `just bazel-lock-update` from the
+  repo root to refresh `MODULE.bazel.lock`, and include that lockfile update in the same change.
+"
+glm,topic,paper:openai/codex:30,Architecture,Development Process,"
+Likewise, when reviewing code, do not hesitate to push back on PRs that would unnecessarily add code to `codex-core`.
+"
+glm,topic,paper:openai/openai-agents-python:11,Architecture,Maintenance,"- If reordering is unavoidable, add an explicit compatibility layer and regression tests that exercise the old positional call pattern.
+"
+glm,topic,paper:openai/openai-agents-python:16,Security,Documentation,"- When documenting sandbox or security grants, verify the actual implementation path enforces the grant or boundary. Do not claim a grant applies to `LocalDir`, `LocalFile`, archive extraction, or other materialization paths unless those paths actually consult it.
+"
+glm,topic,paper:openai/openai-agents-python:19,System Overview,Build and Run,"
+## Project Structure Guide
+
+### Overview
+
+The OpenAI Agents Python repository provides the Python Agents SDK, examples, and documentation built with MkDocs. Use `uv run python ...` for Python commands to ensure a consistent environment.
+"
+glm,topic,paper:openai/openai-agents-python:36,Testing,Implementation Details,"- Type hints must pass `make typecheck`.
+"
+glm,topic,paper:openai/openai-agents-python:8,Architecture,Maintenance,"
+### Public API Positional Compatibility
+
+Treat the parameter and dataclass field order of exported runtime APIs as a compatibility contract.
+"
+glm,topic,paper:openai/openai-agents-python:9,Architecture,Maintenance,"- For public constructors (for example `RunConfig`, `FunctionTool`, `AgentHookContext`), preserve existing positional argument meaning. Do not insert new constructor parameters or dataclass fields in the middle of existing public order.
+"
+glm,topic,paper:openclaw/openclaw:110,Testing,Documentation,"- Guide: `docs/reference/test.md`.
+"
+glm,topic,paper:openclaw/openclaw:115,Documentation,Development Process,"- Contributor PR authors should not edit `CHANGELOG.md`; maintainer/AI adds entries during landing/merge.
+"
+glm,topic,paper:openclaw/openclaw:13,System Overview,Architecture,"
+## Map
+
+- Core TS: `src/`, `ui/`, `packages/`; plugins: `extensions/`; SDK: `src/plugin-sdk/*`; channels: `src/channels/*`; loader: `src/plugins/*`; protocol: `src/gateway/protocol/*`; docs/apps: `docs/`, `apps/`.
+"
+glm,topic,paper:openclaw/openclaw:14,System Overview,Architecture,"- Installers: sibling `../openclaw.ai`.
+"
+glm,enforceability,paper:openclaw/openclaw:5,cross_event,semantic_only,"- Fix/triage answers need source, tests, current/shipped behavior, and dependency contract proof.
 "

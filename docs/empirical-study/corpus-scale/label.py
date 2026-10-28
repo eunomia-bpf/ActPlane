@@ -64,6 +64,19 @@ def parse_json(content):
         return json.loads(text[start:end + 1])
 
 
+def schema_error(pred, dims):
+    for d in dims:
+        if pred.get(d, '') not in ALLOWED[d]:
+            return 'invalid_label:' + d
+    if 'enforceability' in dims and bool(pred.get('enforceability')) != (pred.get('type') == 'directive'):
+        return 'inconsistent_enforcement_applicability'
+    if 'context_required' in dims:
+        expected = pred.get('type') == 'directive' and pred.get('enforceability') in ('content', 'per_event', 'cross_event')
+        if bool(pred.get('context_required')) != expected:
+            return 'inconsistent_context_applicability'
+    return ''
+
+
 def complete(a, system, payload, budget=4096):
     local = a.model == 'qwen3.8-27b-nvfp4'
     base = 'http://qwen38-vllm.models.svc.cluster.local:8000/v1' if local else os.environ['LITELLM_BASE_URL']
@@ -136,7 +149,10 @@ def classify(a, batch, guide, dims, other):
         response = complete(a, system, dict(statements=entries),
                             budget=max(2048, len(batch) * 100) if a.model == 'qwen3.8-27b-nvfp4' else 12000)
         message = response['choices'][0]['message']['content']
-        parsed = parse_json(message)['labels']
+        obj = parse_json(message)
+        if isinstance(obj, list) and len(obj) == 1 and isinstance(obj[0], dict) and 'labels' in obj[0]:
+            obj = obj[0]
+        parsed = obj['labels'] if isinstance(obj, dict) and 'labels' in obj else [obj] if isinstance(obj, dict) and 'id' in obj else obj
         result = {}
         for values in parsed:
             if isinstance(values, dict):
@@ -147,9 +163,9 @@ def classify(a, batch, guide, dims, other):
             if not isinstance(i, int) or i < 0 or i >= len(batch) or i in result or len(labels) != len(dims):
                 raise ValueError('invalid_id_or_label_length')
             pred = dict(zip(dims, labels))
-            for d, value in pred.items():
-                if value not in ALLOWED[d]:
-                    raise ValueError('invalid_label:' + d + ':' + str(value))
+            error = schema_error(pred, dims)
+            if error:
+                raise ValueError(error)
             result[i] = dict(statement_id=batch[i]['statement_id'], **pred,
                 model=a.model, returned_model=response.get('model', ''), status='ok',
                 adjudicated=bool(other is not None))
@@ -189,6 +205,13 @@ def run(a):
                 retained.append(dict(statement_id=sid, model='incomplete_pair', status='failed'))
         rows = pending
     done = {r['statement_id']: r for r in read_csv(a.output)} if a.output.exists() else {}
+    for r in done.values():
+        error = schema_error(r, dims) if r.get('status') == 'ok' else ''
+        if error:
+            log(a.raw / 'label-schema-errors.jsonl', dict(at=now(), model=a.model,
+                statement_id=r['statement_id'], error=error,
+                previous_prediction={d: r.get(d, '') for d in dims}))
+            r.update(status='failed', error=error)
     # A failed row remains visible and is retried on explicit resumption.
     rows = [r for r in rows if done.get(r['statement_id'], {}).get('status') != 'ok']
     done.update({r['statement_id']: r for r in retained})
