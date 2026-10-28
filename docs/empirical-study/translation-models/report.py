@@ -75,7 +75,7 @@ def main():
         mean = lambda key: f"{float(r['rq1_' + key]):.1f}"
         cost = f"${float(r['rq1_uncached_list_usd_mean']):.4f}" if r['rq1_uncached_list_usd_mean'] != '' else 'unmeasured'
         accounting.append(f"| {r['model']} | {r['rq1_completed']} | {mean('input_tokens_mean')} | {mean('output_tokens_mean')} | {mean('wall_s_mean')} | {cost} | {r['rq1_usage_missing_transports']} |")
-    response_rates = ['| Model with access failures | Sample responses | Sample response-only compile@1 / @3 | Corpus responses | Corpus response-only compile@1 / @3 |',
+    response_rates = ['| Model with access failures | Sample completed trajectories | Sample conditional compile@1 / @3 | Corpus completed trajectories | Corpus conditional compile@1 / @3 |',
                       '| --- | --- | --- | --- | --- |']
     for r in rows:
         if not (int(r['rq1_access_failures']) + int(r['rq2_access_failures'])):
@@ -139,9 +139,12 @@ held-out sets, and no semantic deduplication is claimed.
 
 {chr(10).join(table)}
 
-For rows with access failures, response-only compiler acceptance is shown below.
-These conditional rates describe returned answers and cannot estimate the
-unanswered policies. Overall yield above retains every attempted policy.
+For rows with access failures, the table below conditions on policy trajectories
+that end with a compiler result. An access failure during revisions leaves a
+trajectory incomplete, even when earlier answers were observed. These conditional
+rates cannot estimate the unanswered policies. Overall yield above retains every
+attempted policy. The CSV's `*_responses` fields count completed compiler
+trajectories. Individual transport records are in `attempts.csv`.
 
 {chr(10).join(response_rates)}
 

@@ -133,6 +133,33 @@ class ProtocolTests(unittest.TestCase):
             self.assertEqual(backoff_remaining(dict(observed_at_unix=100), 4), 0)
             self.assertEqual(backoff_remaining(dict(observed_at_unix=299), 1), 14)
 
+    def test_serial_recovery_extends_transport_budget_only(self):
+        import os
+        import time
+        good = 'source AGENT = exec "**"\nrule test:\n notify exec "git" if AGENT\n because "test"'
+        failed = dict(status='http_error', http_status=429, elapsed_s=.01, error='service overloaded')
+        success = dict(status='ok', elapsed_s=.01, identity_verified=True, response_model='glm-4.7-flash',
+                       response={'choices': [{'message': {'content': good}}],
+                                 'usage': {'prompt_tokens': 10, 'completion_tokens': 10}})
+        with tempfile.TemporaryDirectory(dir=DEFAULT_RAW) as temp:
+            raw = Path(temp)
+            (raw / 'dsl-reference.md').write_text('frozen test reference')
+            out = raw / 'translations/rq1/zai__glm-4.7-flash/test'
+            (out / 'attempt-1').mkdir(parents=True)
+            (out / 'result.json').write_text(json.dumps(dict(status='access_failure', attempts=1)))
+            saved = out / 'attempt-1/response.json'
+            saved.write_text(json.dumps({**failed, 'transport_attempts': [dict(failed) for _ in range(3)]}))
+            os.utime(saved, (time.time() - 3600, time.time() - 3600))
+            item = dict(uid='test', repo_dir='test', statement_id='test', directive='No git', source_evidence=[])
+            with patch('translate.api_call', return_value=success) as call, patch('translate.time.sleep') as sleep:
+                result = translate_one(raw, 'rq1', 'zai/glm-4.7-flash', item, transport_limit=6)
+                self.assertEqual(result['compile_at_1'], 1)
+                self.assertEqual(result['attempts'], 1)
+                self.assertEqual(result['transport_retries'], 4)
+                sleep.assert_not_called()
+                translate_one(raw, 'rq1', 'zai/glm-4.7-flash', item, transport_limit=6)
+                self.assertEqual(call.call_count, 1)
+
     def test_codex_identity_comes_from_incoming_server_response(self):
         outgoing = 'Sending message ' + json.dumps({'type': 'response.completed', 'response': {'model': 'requested'}})
         warmup = dict(type='response.completed', response=dict(id='warmup', model='gpt-6-astra', generate=False, output=[]))
