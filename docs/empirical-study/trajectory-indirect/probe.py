@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Record replay feasibility, access probes, disk usage, and considered exclusions."""
 import argparse
+import csv
 import json
 import os
 from pathlib import Path
@@ -54,6 +55,10 @@ def main(raw):
            'Local bpftrace and isolated checkouts replace the initial Docker feasibility limitation. '
            'The independent two-LLM annotation remains a static-label check.')
     write_csv(HERE/'availability.csv',rows)
+    measure_resources(raw)
+
+
+def measure_resources(raw):
     usage=shutil.disk_usage(raw)
     size=sum(p.stat().st_size for p in raw.rglob('*') if p.is_file())
     write_csv(HERE/'resources.csv',[dict(raw_bytes=size,workspace_total_bytes=usage.total,workspace_used_bytes=usage.used,
@@ -61,7 +66,24 @@ def main(raw):
                                        workspace_limit_pct=85,utc=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()))])
 
 
+def local_refresh(raw):
+    """Refresh changed local feasibility without repeating remote access probes."""
+    rows=list(csv.DictReader((HERE/'availability.csv').open()))
+    receipts=list((raw/'dynamic/runs').glob('*/done.json'))
+    replacements={
+        'bpftrace_binary':('available' if shutil.which('bpftrace') else 'unavailable','Local binary lookup. Actual load/calibration evidence is in dynamic_preflight.csv.'),
+        'dynamic_replay':('receipts_available' if receipts else 'not_run',f'{len(receipts)} primary replay receipts. See dynamic_replays.csv and dynamic_attempts.csv. Local bpftrace/namespaces replaced the initial Docker limitation.')}
+    utc=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())
+    for row in rows:
+        if row['probe'] in replacements:
+            row['status'],row['detail']=replacements[row['probe']];row['utc']=utc
+    write_csv(HERE/'availability.csv',rows)
+    measure_resources(raw)
+
+
 if __name__=='__main__':
     p=argparse.ArgumentParser()
     p.add_argument('--raw',type=Path,required=True)
-    main(p.parse_args().raw)
+    p.add_argument('--local-only',action='store_true')
+    args=p.parse_args()
+    (local_refresh if args.local_only else main)(args.raw)

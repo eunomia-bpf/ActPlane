@@ -247,7 +247,7 @@ The requested `oss-change-workflow` skill was absent from the available catalog 
         text=text.replace('## Paper-ready motivation paragraph\n',
                           '''## Dynamic replay reproduction
 
-The replay requires Linux tracing privileges, BTF, bpftrace, bubblewrap, a C compiler, Git, and relevant language toolchains. This run installed bpftrace, OpenJDK, Maven, Go, pnpm, and yarn locally. Host/package versions and per-trajectory setup receipts are retained. Python interpreter versions are pinned in [dynamic_config.json](dynamic_config.json).
+The replay requires Linux tracing privileges, BTF, bpftrace, bubblewrap, a C compiler, Git, and relevant language toolchains. This run installed bpftrace, OpenJDK, Maven, Go, pnpm, yarn, and legacy GCC/G++ locally. Host/package versions and per-trajectory setup receipts are retained. Python interpreter versions are pinned in [dynamic_config.json](dynamic_config.json).
 
 ```bash
 python3 dynamic_prepare.py --raw "$RAW"
@@ -259,6 +259,7 @@ python3 dynamic_effects.py --raw "$RAW"
 python3 dynamic_attempts.py --raw "$RAW"
 python3 dynamic_verify.py --raw "$RAW" --require-complete
 python3 dynamic_provenance.py --raw "$RAW"
+python3 probe.py --raw "$RAW" --local-only
 python3 report.py
 ```
 

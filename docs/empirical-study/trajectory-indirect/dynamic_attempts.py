@@ -12,7 +12,7 @@ from dynamic_effects import parse_observer
 def summarize(raw):
     plans={p['dynamic_id']:p for p in csv.DictReader((HERE/'dynamic_plan.csv').open())}
     rows=[]
-    for scope in ('pilot-runs','diagnostic-runs-v1','instrumentation-attempts','runs'):
+    for scope in ('pilot-runs','diagnostic-runs-v1','environment-attempts','instrumentation-attempts','runs'):
         for receipt in sorted((raw/'dynamic'/scope).glob('*/done.json')):
             run=receipt.parent;done=json.loads(receipt.read_text())
             plan=plans[done['dynamic_id']]
@@ -23,7 +23,9 @@ def summarize(raw):
             rows.append(dict(scope=scope,primary=int(scope=='runs'),dynamic_id=done['dynamic_id'],
                 trajectory_id=done['trajectory_id'],framework=plan['framework'],model=plan['model'],
                 receipt=str(receipt.relative_to(raw)),recorded_calls=done['recorded_calls'],executed_calls=done['executed_calls'],
+                completed_call_receipts=len(records),observed_dispatcher_tags=len({tag for tag,kind,path in counts if kind==9}),
                 exit_zero_calls=sum(r.get('exit_code')==0 for r in records),fatal=done['fatal'],
+                setup_steps=done['setup_steps'],setup_failed_steps=done['setup_failed_steps'],
                 observer_exit=done['observer_exit'],observer_errors=len(errors),observer_error_detail='; '.join(errors[:10]),
                 observer_string_bytes=metadata.get('config',{}).get('observer_string_bytes',''),
                 observer_sha256=metadata.get('observer_sha256',''),

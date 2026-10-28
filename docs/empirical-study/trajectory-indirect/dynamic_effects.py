@@ -23,6 +23,7 @@ import bashlex
 from analyze import HERE,write_csv,walk
 
 SHELL_WORD_CACHE={}
+PROFILE_HELPER_BASENAMES={'id','run-parts'}
 
 
 def strings(value):
@@ -44,9 +45,10 @@ def visibility(path,args,cwd,effect,string_bytes=256):
     literal=any(name in s and re.search(expression,s) for s in values) if name else False
     absolute=path if path.startswith('/') else posixpath.normpath(posixpath.join(cwd,path))
     relative=posixpath.relpath(absolute,cwd) if cwd else absolute
+    candidates=(absolute,relative,'./'+relative) if not relative.startswith('../') else (absolute,relative)
     path_boundary=r'[A-Za-z0-9_./-]'
     strict=any(p in value and re.search(r'(?<!'+path_boundary+')'+re.escape(p)+r'(?!'+path_boundary+')',value)
-               for value in values for p in (absolute,relative) if p not in ('.','..'))
+               for value in values for p in candidates if p not in ('.','..'))
     glob=False
     command=args.get('command',args.get('cmd','')) if isinstance(args,dict) else ''
     def shell_words(command):
@@ -157,6 +159,11 @@ def analyze(raw):
                 decision=visibility(path,call['args'],receipt.get('cwd_before',plan['sandbox_workdir']),effect,string_bytes)
                 effects=dict(dynamic_id=plan['dynamic_id'],call_id=call['call_id'],framework=plan['framework'],model=plan['model'],
                              classification=call['classification'],effect=effect,path=path,events=n,bytes=byte_count,**decision)
+                effects['profile_helper_name_proxy']=int(effect=='exec' and posixpath.basename(path) in PROFILE_HELPER_BASENAMES)
+                if effects['profile_helper_name_proxy']:
+                    totals['profile_helper_exec_events']+=n;totals['profile_helper_exec_objects']+=1
+                    if decision['named']==0:
+                        totals['unnamed_profile_helper_exec_events']+=n;totals['unnamed_profile_helper_exec_objects']+=1
                 project=plan['sandbox_workdir'].rstrip('/')+'/'
                 if path.startswith(project):
                     relative=path[len(project):]
@@ -182,7 +189,10 @@ def analyze(raw):
                 for prefix in ('','unnamed_','unknown_'):
                     row[prefix+effect+'_objects']=totals[prefix+effect+'_objects']
             row.update(dispatcher_execs=totals['dispatcher_execs'],shim_helper_execs=totals['shim_helper_execs'],failed_exec_attempts=totals['failed_exec_attempts'])
+            for name in ('profile_helper_exec_events','profile_helper_exec_objects','unnamed_profile_helper_exec_events','unnamed_profile_helper_exec_objects'):
+                row[name]=totals[name]
             row['any_unnamed_effect']=int(totals['unnamed_write_events']+totals['unnamed_exec_events']>0)
+            row['any_unnamed_effect_no_profile_helpers']=int(totals['unnamed_write_events']+totals['unnamed_exec_events']-totals['unnamed_profile_helper_exec_events']>0)
             row['any_effect']=int(totals['write_events']+totals['exec_events']>0)
             row['truth_unresolved']=int(not row['any_unnamed_effect'] and (not row['replay_executed'] or not row['trace_valid'] or totals['unknown_write_events']+totals['unknown_exec_events']>0))
             all_calls.append(row)
@@ -215,6 +225,7 @@ def analyze(raw):
                   invalid_trace_calls=sum(not c['trace_valid'] for c in calls),
                   any_unnamed_effect_calls=sum(c['any_unnamed_effect'] for c in calls),
                   any_observed_effect_calls=sum(c['any_effect'] for c in calls),
+                  any_unnamed_effect_trajectories=len({c['dynamic_id'] for c in calls if c['any_unnamed_effect']}),
                   any_unnamed_effect_calls_pct=100*sum(c['any_unnamed_effect'] for c in calls)/len(calls))
         for effect in ('write','exec','truncate'):
             for name in (effect+'_events','unnamed_'+effect+'_events','strict_unnamed_'+effect+'_events','unknown_'+effect+'_events',effect+'_objects','unnamed_'+effect+'_objects','unknown_'+effect+'_objects'):
@@ -224,12 +235,31 @@ def analyze(raw):
             item['unnamed_'+effect+'_object_pct']=100*item['unnamed_'+effect+'_objects']/objects if objects else ''
         summaries.append(item)
     write_csv(HERE/'dynamic_summary.csv',summaries)
+    sensitivity=[]
+    for (framework,model,classification),calls in sorted(groups.items()):
+        row=dict(scenario='exclude_exec_basenames_id_and_run-parts',framework=framework,model=model,
+                 classification=classification,recorded_calls=len(calls))
+        for unit in ('events','objects'):
+            removed=sum(c['profile_helper_exec_'+unit] for c in calls)
+            total=sum(c['exec_'+unit] for c in calls)-removed
+            unnamed=sum(c['unnamed_exec_'+unit]-c['unnamed_profile_helper_exec_'+unit] for c in calls)
+            row['excluded_exec_'+unit]=removed;row['exec_'+unit]=total;row['unnamed_exec_'+unit]=unnamed
+            row['unnamed_exec_'+unit+'_pct']=100*unnamed/total if total else ''
+        tp=sum(c['classification']=='indirect' and c['any_unnamed_effect_no_profile_helpers'] for c in calls)
+        fp=sum(c['classification']=='indirect' and not c['any_unnamed_effect_no_profile_helpers'] for c in calls)
+        fn=sum(c['classification']!='indirect' and c['any_unnamed_effect_no_profile_helpers'] for c in calls)
+        row.update(any_unnamed_effect_calls=sum(c['any_unnamed_effect_no_profile_helpers'] for c in calls),
+                   true_positive=tp,false_positive=fp,false_negative=fn,true_negative=len(calls)-tp-fp-fn,
+                   precision=tp/(tp+fp) if tp+fp else '',recall=tp/(tp+fn) if tp+fn else '')
+        sensitivity.append(row)
+    write_csv(HERE/'dynamic_sensitivity.csv',sensitivity)
     trajectory_summaries=[]
     for replay in replays:
         calls=[c for c in all_calls if c['dynamic_id']==replay['dynamic_id']]
         item={key:replay[key] for key in ('dynamic_id','framework','model','instance_id')}
         item['recorded_calls']=len(calls)
         item['executed_calls']=sum(c['replay_executed'] for c in calls)
+        item['any_unnamed_effect_calls']=sum(c['any_unnamed_effect'] for c in calls)
         for effect in ('write','exec'):
             for suffix in ('events','objects'):
                 total=sum(c[effect+'_'+suffix] for c in calls)

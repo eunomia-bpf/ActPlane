@@ -4,6 +4,7 @@ import argparse
 import csv
 import hashlib
 from pathlib import Path
+import re
 import subprocess
 import requests
 
@@ -14,19 +15,22 @@ def snapshot(raw):
     root=raw/'dynamic';rows=[]
     # Include completed cases only. Partial observer files are actively changing.
     selected=[]
-    for done in sorted((root/'runs').glob('*/done.json')):
+    receipts=[done for scope in ('runs','instrumentation-attempts','environment-attempts','pilot-runs','diagnostic-runs-v1')
+              for done in sorted((root/scope).glob('*/done.json'))]
+    for done in receipts:
         run=done.parent
         for name in ('done.json','calls.jsonl','observer.bt','observer.jsonl','observer.stderr','observer_metadata.json',
-                     'environment.json','setup.json','clone.log','worker.stderr','replay/replay_worker.py','replay/replay_tools.py'):
+                     'environment.json','setup.json','clone.log','worker.stderr','retry_reason.json','replay/replay_worker.py','replay/replay_tools.py'):
             if (run/name).is_file():selected.append(run/name)
         selected.extend(sorted((run/'replay/requests').glob('*.json')))
         selected.extend(sorted((run/'replay/logs').glob('*.log')))
-    for name in ('selected_trajectories.jsonl','task_metadata.jsonl','swebench_verified.parquet','launch',
+    for name in ('selected_trajectories.jsonl','task_metadata.jsonl','swebench_verified.parquet','launch','effects.jsonl.gz',
                  'harbor_pinned_version.json','harbor_pinned_tasks.json',
                  'calibration/observer-identity.jsonl','calibration/observer-identity.stderr'):
         if (root/name).is_file():selected.append(root/name)
     selected.extend(sorted((root/'task_archives').glob('*')))
     selected.extend(sorted(root.glob('calibration-repeat-*/*.*')))
+    selected.extend(raw/name for name in ('classified_calls.jsonl.gz','sampled_trajectories.jsonl.gz') if (raw/name).exists())
     for path in selected:
         if not path.is_file():continue
         digest=hashlib.sha256()
@@ -60,7 +64,8 @@ def snapshot(raw):
                              use='tests/config.json repository and base-commit metadata only. No task archive is redistributed.'))
     write_csv(HERE/'dynamic_metadata_manifest.csv',metadata)
     tools=[('host_kernel',['uname','-srvmo']),('bpftrace',['bpftrace','--version']),
-           ('bubblewrap',['bwrap','--version']),('gcc',['gcc','-dumpfullversion']),('git',['git','--version']),
+           ('bubblewrap',['bwrap','--version']),('gcc',['gcc','-dumpfullversion']),
+           ('legacy_python_gcc',['gcc-12','-dumpfullversion']),('legacy_python_gxx',['g++-12','-dumpfullversion']),('git',['git','--version']),
            ('system_python',['python3','--version']),('node',['node','--version']),('npm',['npm','--version']),
            ('java',['java','-version']),('maven',['mvn','-version']),('go',['go','version']),
            ('rustc',['rustc','--version']),('cargo',['cargo','--version'])]
@@ -74,9 +79,17 @@ def snapshot(raw):
             versions.append(dict(component=name,exit_code='unavailable',value=type(exc).__name__))
     # Source-code hashes are a provenance snapshot, not a claim that later
     # aggregation changes were loaded by an already running coordinator.
-    for path in sorted(HERE.glob('*.py')):
+    for path in sorted(p for p in HERE.iterdir() if p.suffix in ('.py','.c','.bt','.json')):
         versions.append(dict(component='source_sha256:'+path.name,exit_code=0,value=hashlib.sha256(path.read_bytes()).hexdigest()))
     write_csv(HERE/'dynamic_host_environment.csv',versions)
+    profiles=[]
+    for path in [Path('/etc/profile'),Path('/etc/bash.bashrc'),*sorted(Path('/etc/profile.d').glob('*.sh'))]:
+        if not path.is_file():continue
+        data=path.read_bytes()
+        for helper,expression in [('id',r'\bid\s+-u\b'),('run-parts',r'\brun-parts\b')]:
+            lines=[str(i) for i,line in enumerate(data.decode(errors='replace').splitlines(),1) if re.search(expression,line)]
+            if lines:profiles.append(dict(file=str(path),sha256=hashlib.sha256(data).hexdigest(),helper=helper,matching_lines=';'.join(lines)))
+    if profiles:write_csv(HERE/'dynamic_profile_audit.csv',profiles)
     print(f'Hashed {len(rows)} retained evidence files')
 
 

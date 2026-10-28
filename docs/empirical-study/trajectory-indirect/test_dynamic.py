@@ -9,6 +9,7 @@ def test_basename_visibility_is_deliberately_liberal():
     assert visibility('/repo/nested/result.json',{'command':'cat result.json'},'/repo','write')['strict_named']==0
     assert visibility('/repo/a.py',{'command':'cat a.py.bak'},'/repo','write')['named']==0
     assert visibility('/repo/a.py',{'command':'cat a.py.bak'},'/repo','write')['strict_named']==0
+    assert visibility('/repo/a.py',{'command':'echo x > ./a.py'},'/repo','write')['strict_named']==1
 
 
 def test_entrypoint_does_not_name_descendant_effect():

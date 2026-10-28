@@ -103,6 +103,8 @@ def sandbox(raw,plan,run,repo):
                    GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_GLOBAL='/dev/null',GIT_TERMINAL_PROMPT='0',
                    JAVA_HOME='/usr/lib/jvm/java-21-openjdk-amd64',VIRTUAL_ENV='/venv')
     variables['MAVEN_OPTS']='-Dmaven.repo.local=/cache/maven'
+    if plan['source']=='mini':
+        variables.update(CC='/usr/bin/gcc-12',CXX='/usr/bin/g++-12')
     for key,value in variables.items():command.extend(['--setenv',key,value])
     command.extend(['--chdir',plan['sandbox_workdir'],'/usr/bin/python3','-u','/replay/replay_worker.py'])
     allowed=sorted(os.sched_getaffinity(0))[:2]
@@ -136,7 +138,7 @@ def setup(worker,raw,plan,run):
     language=plan['language']
     if language=='python':
         if plan['source']=='mini':
-            commands.append('/venv/bin/python -m pip install --disable-pip-version-check "numpy<1.24" "scipy<1.11" "Cython<3" mock pillow requests')
+            commands.append('/venv/bin/python -m pip install --disable-pip-version-check "numpy<1.24" "scipy<1.11" "Cython<3" "setuptools_scm<8" extension-helpers mock pillow requests')
         commands.append('/venv/bin/python -m pip install --disable-pip-version-check -e .')
     elif language in ('typescript','javascript'):
         commands.append('if [ -f package.json ]; then npm install --no-audit --no-fund; fi')
@@ -146,6 +148,16 @@ def setup(worker,raw,plan,run):
     for i,command in enumerate(commands):
         result=request(worker,dict(command=command,shell=True,cwd=plan['sandbox_workdir'],timeout_s=CFG['environment_setup_timeout_s'],
                                    log_path=f'/replay/logs/setup-{i}.log',log_limit=CFG['stdout_log_limit_bytes']))
+        meta.append(dict(command=command,**result))
+        (run/'setup.json').write_text(json.dumps(meta,indent=2))
+        disk_guard(raw)
+    # Legacy Python projects can be incompatible with the latest setuptools
+    # selected inside pip's isolated build environment. Keep the failed first
+    # attempt, then use the explicitly installed legacy build dependencies.
+    if plan['source']=='mini' and meta[-1].get('exit_code')!=0:
+        command='/venv/bin/python -m pip install --disable-pip-version-check --no-build-isolation -e .'
+        result=request(worker,dict(command=command,shell=True,cwd=plan['sandbox_workdir'],timeout_s=CFG['environment_setup_timeout_s'],
+                                   log_path='/replay/logs/setup-build-fallback.log',log_limit=CFG['stdout_log_limit_bytes']))
         meta.append(dict(command=command,**result))
         (run/'setup.json').write_text(json.dumps(meta,indent=2))
         disk_guard(raw)

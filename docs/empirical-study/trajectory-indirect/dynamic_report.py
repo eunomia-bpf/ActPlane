@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from analyze import HERE,write_csv
+from dynamic_effects import PROFILE_HELPER_BASENAMES
 
 
 def read(name):return list(csv.DictReader((HERE/name).open()))
@@ -27,7 +28,10 @@ def render():
     summaries=read('dynamic_summary.csv');replays=read('dynamic_replays.csv');plans=read('dynamic_plan.csv')
     overall=next(r for r in summaries if (r['framework'],r['model'],r['classification'])==('ALL','ALL','ALL'))
     overall.setdefault('any_unnamed_effect_calls_pct',100*int(overall['any_unnamed_effect_calls'])/int(overall['recorded_calls']))
+    overall.setdefault('any_unnamed_effect_trajectories','pending')
     model_rows=[r for r in summaries if r['framework']!='ALL' and r['classification']=='ALL']
+    sensitivities=read('dynamic_sensitivity.csv')
+    filtered=next(r for r in sensitivities if (r['framework'],r['model'],r['classification'])==('ALL','ALL','ALL'))
     n=len(replays);planned=len(plans);interim=n<planned
     observer_errors=sum(int(r['observer_errors']) for r in replays)
     metrics=[dict(metric='completed_replay_receipts',value=n),dict(metric='planned_replays',value=planned),
@@ -40,6 +44,9 @@ def render():
              dict(metric='call_executed_pct',value=100*int(overall['executed_calls'])/int(overall['recorded_calls'])),
              dict(metric='strict_path_unnamed_write_pct',value=100*int(overall['strict_unnamed_write_events'])/int(overall['write_events']) if int(overall['write_events']) else ''),
              dict(metric='strict_path_unnamed_exec_pct',value=100*int(overall['strict_unnamed_exec_events'])/int(overall['exec_events']) if int(overall['exec_events']) else '')]
+    metrics.extend([dict(metric='profile_helper_basename_count',value=len(PROFILE_HELPER_BASENAMES)),
+                    dict(metric='profile_helper_excluded_exec_events',value=filtered['excluded_exec_events']),
+                    dict(metric='without_profile_helpers_unnamed_exec_pct',value=filtered['unnamed_exec_events_pct'])])
     call_rows=read('dynamic_calls.csv')
     metrics.extend([dict(metric='excluded_dispatcher_execs',value=sum(int(r['dispatcher_execs']) for r in call_rows)),
                     dict(metric='excluded_patch_helper_execs',value=sum(int(r.get('shim_helper_execs',0)) for r in call_rows)),
@@ -57,9 +64,16 @@ def render():
     project_objects=sum(int(r['call_object_pairs']) for r in project)
     project_unnamed=sum(int(r['unnamed_call_object_pairs']) for r in project)
     project_pct=100*project_unnamed/project_objects if project_objects else 0
+    nongenerated=[r for r in project if r['path_scope']=='project_other']
+    nongenerated_objects=sum(int(r['call_object_pairs']) for r in nongenerated)
+    nongenerated_unnamed=sum(int(r['unnamed_call_object_pairs']) for r in nongenerated)
+    nongenerated_pct=100*nongenerated_unnamed/nongenerated_objects if nongenerated_objects else ''
     metrics.extend([dict(metric='project_write_call_object_pairs',value=project_objects),
                     dict(metric='project_unnamed_write_call_object_pairs',value=project_unnamed),
-                    dict(metric='project_unnamed_write_call_object_pct',value=project_pct)])
+                    dict(metric='project_unnamed_write_call_object_pct',value=project_pct),
+                    dict(metric='nongenerated_project_write_call_object_pairs',value=nongenerated_objects),
+                    dict(metric='nongenerated_project_unnamed_write_call_object_pairs',value=nongenerated_unnamed),
+                    dict(metric='nongenerated_project_unnamed_write_call_object_pct',value=nongenerated_pct)])
     balanced=[]
     if (HERE/'dynamic_trajectory_summary.csv').exists():
         per_trajectory=read('dynamic_trajectory_summary.csv')
@@ -103,6 +117,11 @@ def render():
     table='| Replayed framework / recorded model | Traj. | Recorded calls | Executed | Exit zero | Unnamed write events | Unnamed exec events |\n|---|---:|---:|---:|---:|---:|---:|\n'
     for r in model_rows:
         table+=f"| {r['framework']} / {r['model']} | {r['trajectories']} | {r['recorded_calls']} | {r['executed_calls']} | {r['successful_calls']} | {pct(r['unnamed_write_pct'])} | {pct(r['unnamed_exec_pct'])} |\n"
+    sensitivity_table='| Cohort | Excluded execs | Remaining execs | Remaining unnamed execs | Unnamed exec fraction | Call-level precision | Call-level recall |\n|---|---:|---:|---:|---:|---:|---:|\n'
+    for r in sensitivities:
+        if r['classification']!='ALL':continue
+        label='Overall' if r['framework']=='ALL' else r['framework']+' / '+r['model']
+        sensitivity_table+=f"| {label} | {r['excluded_exec_events']} | {r['exec_events']} | {r['unnamed_exec_events']} | {pct(r['unnamed_exec_events_pct'])} | {100*number(r['precision']):.1f}% | {100*number(r['recall']):.1f}% |\n"
     class_table='| Static primary class | Calls | Write events | Unnamed writes | Exec events | Unnamed execs |\n|---|---:|---:|---:|---:|---:|\n'
     for r in summaries:
         if r['framework']!='ALL' or r['classification']=='ALL':continue
@@ -123,12 +142,13 @@ def render():
         balanced_table+=f'| {effect} | {unit} | {count} | {pct(median)} |\n'
     status=f'**Interim: {n} of {planned} planned replay receipts are available.**' if interim else f'**Final fixed sample: {n} replayed trajectories across {len(model_rows)} recorded model groups and {len(set(r["framework"] for r in model_rows))} frameworks.**'
     if observer_errors:status+=' **Observer errors remain. Effect tables are diagnostics pending instrumentation retries.**'
-    paragraph=(f"Tool-call arguments do not enumerate every effect of coding-agent execution. We statically analyzed {sum(int(r['calls']) for r in read('summary.csv')):,} recorded calls "
-               f"and replayed {n} public trajectories under eBPF observation. In these best-effort replays, {pct(overall['unnamed_write_pct'])} of observed regular-file write operations "
-               f"and {pct(overall['unnamed_exec_pct'])} of successful execs had no matching literal object basename or explicit glob in the initiating call's arguments. "
-               f"Restricting writes to project trees, {pct(project_pct)} of distinct call-file pairs were unnamed. "
-               f"The replay attempted {int(overall['executed_calls']):,} of {int(overall['recorded_calls']):,} calls, with {100*int(overall['successful_calls'])/int(overall['recorded_calls']):.1f}% exiting successfully. "
-               "These observations motivate enforcement where effects occur, while measuring visibility rather than policy violations. The replays use minimal environments and substitute edit tools, so they do not reconstruct the original deployments.")
+    paragraph=(f"Tool-call arguments do not enumerate every effect of coding-agent execution. We analyzed {sum(int(r['calls']) for r in read('summary.csv')):,} public tool calls "
+               f"and replayed {n} trajectories under eBPF observation. In these best-effort replays, {pct(overall['unnamed_write_pct'])} of captured regular-file write operations "
+               f"and {pct(overall['unnamed_exec_pct'])} of successful execs lacked a matching literal basename or explicit glob in the initiating arguments. "
+               f"Excluding known replay shell-profile helper names leaves {pct(filtered['unnamed_exec_events_pct'])} unnamed execs. "
+               f"Outside conventional generated/build/cache paths, {pct(nongenerated_pct)} of distinct project call-file pairs were unnamed. "
+               f"The replay attempted {int(overall['executed_calls']):,} calls, with {100*int(overall['successful_calls'])/int(overall['recorded_calls']):.1f}% exiting zero. "
+               "These observations motivate enforcement where effects occur. Minimal environments and substitute edit tools limit transfer to original deployments, and unnamed effects do not imply policy violations.")
     if interim:paragraph='Preliminary results. '+paragraph
     if observer_errors:
         paragraph=(f'Dynamic validation is in progress. The current {n} replay receipts contain {observer_errors} observer errors. '
@@ -139,14 +159,14 @@ def render():
 
 {status} The [fixed plan](dynamic_plan.csv) was selected by a committed hash ranking, paired by task within each source. It includes exact base commits recovered from pinned task metadata. No task was replaced based on replay success. Recorded calls are replayed in order against a fresh checkout in a private local PID/mount namespace. Shell command strings remain as recorded. Dedicated edits are implemented as direct file writes by the committed adapter. The coordinator, environment setup, and injected dispatchers are excluded from observed effects. No oracle or verifier patches are applied. [dynamic_metadata_manifest.csv](dynamic_metadata_manifest.csv) records pinned metadata versions, task-archive hashes, and license caveats. The pinned SWE-bench Verified card does not state a dataset license, and no separate native task-data license was verified. Derived tables, brief call previews, and source locators are committed, while full task archives and transcripts stay external and third-party source terms remain applicable.
 
-Across the available receipts, the observer recorded **{int(overall['write_events']):,} successful regular-file write operations**, of which **{pct(overall['unnamed_write_pct'])} were unnamed**, and **{int(overall['exec_events']):,} successful execs**, of which **{pct(overall['unnamed_exec_pct'])} were unnamed**. At least one unnamed write or exec was observed for **{overall["any_unnamed_effect_calls"]} of {overall["recorded_calls"]} recorded calls ({pct(overall["any_unnamed_effect_calls_pct"])})**. These pooled event totals are affected by large installations. Counting each distinct `(call, object)` pair once gives **{pct(overall['unnamed_write_object_pct'])} unnamed write pairs** and **{pct(overall['unnamed_exec_object_pct'])} unnamed exec pairs**. Unresolved/truncated object paths are kept in the denominator and separately counted: {overall['unknown_write_events']} write events and {overall['unknown_exec_events']} exec events. The reported unnamed fractions therefore use the lower endpoint for unresolved names.
+Across the available receipts, the observer recorded **{int(overall['write_events']):,} successful regular-file write operations**, of which **{pct(overall['unnamed_write_pct'])} were unnamed**, and **{int(overall['exec_events']):,} successful execs**, of which **{pct(overall['unnamed_exec_pct'])} were unnamed**. At least one unnamed write or exec was observed for **{overall["any_unnamed_effect_calls"]} of {overall["recorded_calls"]} recorded calls ({pct(overall["any_unnamed_effect_calls_pct"])})**. The count of trajectories with an observed unnamed effect is **{overall["any_unnamed_effect_trajectories"]}**. These pooled event totals are affected by large installations. Counting each distinct `(call, object)` pair once gives **{pct(overall['unnamed_write_object_pct'])} unnamed write pairs** and **{pct(overall['unnamed_exec_object_pct'])} unnamed exec pairs**. Unresolved/truncated object paths are kept in the denominator and separately counted: {overall['unknown_write_events']} write events and {overall['unknown_exec_events']} exec events. The reported unnamed fractions therefore use the lower endpoint for unresolved names.
 
 An object in these tables is a kernel-resolved regular-file path for writes or the requested executable pathname of a successful exec syscall. It is not an inode or a unique process. Executable aliases, symlinks, and interpreter loading are not expanded into additional exec effects. To avoid weighting trajectories by installation volume, the following medians give each trajectory with the relevant captured effects equal weight. Trajectories with no captured effect of that kind have an undefined fraction and remain in the call/fidelity denominators. [dynamic_trajectory_summary.csv](dynamic_trajectory_summary.csv) contains every replay receipt.
 
 {balanced_table}
 
 {table}
-These are effects observed during replays of recorded trajectories, not original OS telemetry. {overall['failed_calls']} calls exited nonzero and {overall['timed_out_calls']} timed out. All recorded calls in completed receipts remain in denominators, including unexecuted calls after a fatal replay error. There are {vals['fatal_replays']} fatal replay receipts and {vals['setup_failed_steps']} failed setup steps. Nonzero commands can still produce effects, which are counted. Exit zero means command completion, not agreement with original test outcomes or task resolution. [dynamic_fidelity.csv](dynamic_fidelity.csv) cross-tabulates source-reported status and replay outcome, retaining unavailable source statuses. The source of each failure and original/replayed call statuses are retained in [dynamic_calls.csv](dynamic_calls.csv), [dynamic_replays.csv](dynamic_replays.csv), and external command logs. The observer error count is {vals['observer_errors']}. A nonzero observer error count invalidates complete-census claims and must be resolved before treating a final sample as complete.
+These are effects observed during replays of recorded trajectories, not original OS telemetry. {overall['failed_calls']} calls exited nonzero and {overall['timed_out_calls']} timed out. All recorded calls in completed receipts remain in denominators, including unexecuted calls after a fatal replay error. There are {vals['fatal_replays']} fatal replay receipts and {vals['setup_failed_steps']} failed setup steps, including failed initial steps later recovered by a fallback. Nonzero commands can still produce effects, which are counted. Exit zero means command completion, not agreement with original test outcomes or task resolution. [dynamic_fidelity.csv](dynamic_fidelity.csv) cross-tabulates source-reported status and replay outcome, retaining unavailable source statuses. The source of each failure and original/replayed call statuses are retained in [dynamic_calls.csv](dynamic_calls.csv), [dynamic_replays.csv](dynamic_replays.csv), and external command logs. The observer error count is {vals['observer_errors']}. A nonzero observer error count invalidates complete-census claims and must be resolved before treating a final sample as complete.
 
 ### Visibility definition and measured operations
 
@@ -162,12 +182,18 @@ The physical validation target is a call with at least one observed unnamed writ
 {confusion_table}
 
 {model_confusion_table}
-[dynamic_confusion.csv](dynamic_confusion.csv) also reports unresolved truth counts and corresponding precision/recall bounds. A failed or unexecuted call is not evidence that the original deployment had no indirect effect. Unsupported tool substitution, dependency failures, malformed normalized commands, different runtime versions, time limits, and initial environment differences limit transfer to original executions.
+
+### Shell-profile sensitivity
+
+The preserved recorded login-shell wrappers source this replay host's profile. Its `/etc/profile` executes `id` and `run-parts` ([dynamic_profile_audit.csv](dynamic_profile_audit.csv) records source hashes and matching line locations), which explains observed unnamed execs even for some read-only command bodies. These are real effects of the replayed wrapper, while the original deployment's profile is unavailable. The post-hoc filename-filter sensitivity below removes every exec whose basename is `id` or `run-parts`, whether named or unnamed. It can therefore also remove genuine project/helper executions and is not a causal origin classifier. Primary write counts are unchanged, primary exec counts retain these effects, and primary static predictions are never retuned. [dynamic_sensitivity.csv](dynamic_sensitivity.csv) and per-call helper counters retain the filter accounting.
+
+{sensitivity_table}
+[dynamic_confusion.csv](dynamic_confusion.csv) also reports unresolved truth counts and corresponding precision/recall bounds. A failed or unexecuted call is not evidence that the original deployment had no indirect effect. Unsupported tool substitution, dependency failures, malformed normalized commands, different runtime versions, SCM-derived version labels from shallow history, time limits, and initial environment differences limit transfer to original executions.
 
 ### Working-tree and cache effects
 
 {scope_table}
-`project_generated` identifies conventional generated/build/cache components, including Git metadata, bytecode, virtual environments, node_modules, target, build, and dist. `project_other` covers remaining files below the project root. These are path conventions, not an intent or security judgment. Both rows are included in the project-tree fraction. Package-cache and environment writes are genuine replay effects but can dominate pooled counts. Private per-trajectory caches prevent a preceding model's replay from warming a later one. Instrumentation failures, including long-path buffer errors, trigger a retained full-sequence retry of the same task with a larger buffer. Command or setup failures alone do not trigger this procedure. [dynamic_attempts.csv](dynamic_attempts.csv) accounts for primary and excluded attempts, while [dynamic_replays.csv](dynamic_replays.csv) records the actual path-buffer size of each primary attempt. Setup effects are excluded. Disposable runtime trees are removed after source commits, command receipts, freeze records, final diffs, and observer data are saved. Full per-call object records are in the external `dynamic/effects.jsonl.gz`; [dynamic_effect_sample.csv](dynamic_effect_sample.csv) gives hash-ranked examples balanced across static class, effect kind, and path scope.
+`project_generated` identifies conventional generated/build/cache components, including Git metadata, bytecode, virtual environments, node_modules, target, build, and dist. `project_other` covers remaining files below the project root. These are path conventions, not an intent or security judgment. Both rows are included in the project-tree fraction. Package-cache and environment writes are genuine replay effects but can dominate pooled counts. Private per-trajectory caches prevent a preceding model's replay from warming a later one. Instrumentation failures, including long-path buffer errors, trigger a retained full-sequence retry of the same task with a larger buffer. Command or setup failures alone do not trigger this instrumentation procedure. Separately, initial Astropy environment trials exposed isolated-build setuptools incompatibility and GCC 14 rejecting legacy C signatures. The primary mini cohort uses the same recorded legacy build dependencies, a no-build-isolation fallback, and GCC/G++ 12. Earlier completed or interrupted environment trials remain in `environment-attempts/` and the attempt ledger. Setup changes never apply oracle patches. [dynamic_attempts.csv](dynamic_attempts.csv) accounts for primary and excluded attempts, while [dynamic_replays.csv](dynamic_replays.csv) records the actual path-buffer size of each primary attempt. Setup effects are excluded. Disposable runtime trees are removed after source commits, command receipts, freeze records, final diffs, and observer data are saved. Full per-call object records are in the external `dynamic/effects.jsonl.gz`; [dynamic_effect_sample.csv](dynamic_effect_sample.csv) gives hash-ranked examples balanced across static class, effect kind, and path scope.
 
 [dynamic_effects.pdf](dynamic_effects.pdf) compares distinct call-object fractions by model group and static class, with embedded TrueType fonts. [dynamic_report_metrics.csv](dynamic_report_metrics.csv) records report totals. The cohort is a paired, descriptive sample with best-effort environments, not a causal comparison of models or frameworks. [dynamic_evidence_manifest.csv](dynamic_evidence_manifest.csv) hashes retained metadata, call receipts, command logs, and observer evidence. [dynamic_host_environment.csv](dynamic_host_environment.csv) records local tool versions and analysis-source hashes.
 

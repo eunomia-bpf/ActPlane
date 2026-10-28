@@ -33,10 +33,17 @@ def verify(raw,require_complete=False):
         check(framework+'_'+model+'_planned_count',sum((p['framework'],p['model'])==(framework,model) for p in plans),cfg['per_group'])
     check('unique_call_ids',len(set(c['call_id'] for c in calls)),len(calls))
     known_tags=set()
+    metadata_hashes={}
     for plan in plans:
         ident=plan['dynamic_id']
         if ident not in indexed:continue
+        metadata_file=(raw/'dynamic/swebench_verified.parquet' if plan['source']=='mini'
+                       else raw/'dynamic/task_archives'/(plan['instance_id']+'.tar.gz'))
+        if metadata_file not in metadata_hashes:
+            metadata_hashes[metadata_file]=hashlib.sha256(metadata_file.read_bytes()).hexdigest()
+        check(ident+'_task_metadata_hash',metadata_hashes[metadata_file],plan['metadata_file_sha256'])
         run=raw/'dynamic/runs'/ident
+        check(ident+'_base_checkout_command',json.dumps(['git','checkout','--detach',plan['base_commit']]) in (run/'clone.log').read_text(),True)
         done=json.loads((run/'done.json').read_text())
         metadata=json.loads((run/'observer_metadata.json').read_text())
         check(ident+'_observer_hash',metadata['observer_sha256'],expected_hash)
@@ -77,6 +84,12 @@ def verify(raw,require_complete=False):
                 key=prefix+kind+'_'+suffix
                 check('raw_'+key,effect_totals[key],int(overall[key]))
                 check('calls_'+key,sum(int(c[key]) for c in calls),int(overall[key]))
+    filtered=next(r for r in read('dynamic_sensitivity.csv') if (r['framework'],r['model'],r['classification'])==('ALL','ALL','ALL'))
+    for unit in ('events','objects'):
+        removed=sum(int(c['profile_helper_exec_'+unit]) for c in calls)
+        unnamed_removed=sum(int(c['unnamed_profile_helper_exec_'+unit]) for c in calls)
+        check('filtered_exec_'+unit,int(filtered['exec_'+unit]),int(overall['exec_'+unit])-removed)
+        check('filtered_unnamed_exec_'+unit,int(filtered['unnamed_exec_'+unit]),int(overall['unnamed_exec_'+unit])-unnamed_removed)
     write_csv(HERE/'dynamic_verification.csv',checks)
     failed=[c['check'] for c in checks if not c['passed']]
     if failed:raise SystemExit('Verification failed: '+', '.join(failed))

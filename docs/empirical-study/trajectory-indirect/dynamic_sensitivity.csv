@@ -1,0 +1,31 @@
+scenario,framework,model,classification,recorded_calls,excluded_exec_events,exec_events,unnamed_exec_events,unnamed_exec_events_pct,excluded_exec_objects,exec_objects,unnamed_exec_objects,unnamed_exec_objects_pct,any_unnamed_effect_calls,true_positive,false_positive,false_negative,true_negative,precision,recall
+exclude_exec_basenames_id_and_run-parts,ALL,ALL,ALL,992,360,8971,6329,70.54954854531267,360,2664,950,35.66066066066066,253,184,94,69,645,0.6618705035971223,0.7272727272727273
+exclude_exec_basenames_id_and_run-parts,ALL,ALL,direct_edit,61,0,0,0,,0,0,0,,0,0,0,0,61,,
+exclude_exec_basenames_id_and_run-parts,ALL,ALL,direct_shell,27,0,41,0,0.0,0,35,0,0.0,7,0,0,7,20,,0.0
+exclude_exec_basenames_id_and_run-parts,ALL,ALL,indirect,278,100,7223,6074,84.09248234805483,100,1578,874,55.38656527249683,184,184,94,0,0,0.6618705035971223,1.0
+exclude_exec_basenames_id_and_run-parts,ALL,ALL,inline_code,98,4,324,175,54.01234567901235,4,165,41,24.848484848484848,39,0,0,39,59,,0.0
+exclude_exec_basenames_id_and_run-parts,ALL,ALL,read_only,502,224,974,0,0.0,224,750,0,0.0,9,0,0,9,493,,0.0
+exclude_exec_basenames_id_and_run-parts,ALL,ALL,unknown,26,32,409,80,19.559902200489,32,136,35,25.735294117647058,14,0,0,14,12,,0.0
+exclude_exec_basenames_id_and_run-parts,Claude Code,fable-5,ALL,410,0,3551,2560,72.09236834694453,0,835,329,39.40119760479042,63,57,38,6,309,0.6,0.9047619047619048
+exclude_exec_basenames_id_and_run-parts,Claude Code,fable-5,direct_edit,61,0,0,0,,0,0,0,,0,0,0,0,61,,
+exclude_exec_basenames_id_and_run-parts,Claude Code,fable-5,direct_shell,5,0,16,0,0.0,0,11,0,0.0,0,0,0,0,5,,
+exclude_exec_basenames_id_and_run-parts,Claude Code,fable-5,indirect,95,0,3235,2535,78.36166924265842,0,610,314,51.47540983606557,57,57,38,0,0,0.6,1.0
+exclude_exec_basenames_id_and_run-parts,Claude Code,fable-5,inline_code,10,0,25,0,0.0,0,21,0,0.0,0,0,0,0,10,,
+exclude_exec_basenames_id_and_run-parts,Claude Code,fable-5,read_only,231,0,197,0,0.0,0,161,0,0.0,0,0,0,0,231,,
+exclude_exec_basenames_id_and_run-parts,Claude Code,fable-5,unknown,8,0,78,25,32.05128205128205,0,32,15,46.875,6,0,0,6,2,,0.0
+exclude_exec_basenames_id_and_run-parts,Codex,gpt-5.6-sol,ALL,180,360,1867,973,52.11569362613819,360,796,167,20.979899497487438,42,25,25,17,113,0.5,0.5952380952380952
+exclude_exec_basenames_id_and_run-parts,Codex,gpt-5.6-sol,indirect,50,100,1101,918,83.37874659400545,100,297,147,49.494949494949495,25,25,25,0,0,0.5,1.0
+exclude_exec_basenames_id_and_run-parts,Codex,gpt-5.6-sol,inline_code,2,4,6,0,0.0,4,6,0,0.0,0,0,0,0,2,,
+exclude_exec_basenames_id_and_run-parts,Codex,gpt-5.6-sol,read_only,112,224,584,0,0.0,224,397,0,0.0,9,0,0,9,103,,0.0
+exclude_exec_basenames_id_and_run-parts,Codex,gpt-5.6-sol,unknown,16,32,176,55,31.25,32,96,20,20.833333333333332,8,0,0,8,8,,0.0
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,claude-opus-4-6,ALL,377,0,3438,2718,79.05759162303664,0,979,431,44.024514811031665,142,100,31,42,204,0.7633587786259542,0.704225352112676
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,claude-opus-4-6,direct_shell,21,0,24,0,0.0,0,23,0,0.0,7,0,0,7,14,,0.0
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,claude-opus-4-6,indirect,131,0,2873,2609,90.81099895579534,0,662,406,61.329305135951664,100,100,31,0,0,0.7633587786259542,1.0
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,claude-opus-4-6,inline_code,80,0,214,109,50.93457943925234,0,115,25,21.73913043478261,35,0,0,35,45,,0.0
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,claude-opus-4-6,read_only,143,0,172,0,0.0,0,171,0,0.0,0,0,0,0,143,,
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,claude-opus-4-6,unknown,2,0,155,0,0.0,0,8,0,0.0,0,0,0,0,2,,
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,gpt-5.2-high,ALL,25,0,115,78,67.82608695652173,0,54,23,42.592592592592595,6,2,0,4,19,1.0,0.3333333333333333
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,gpt-5.2-high,direct_shell,1,0,1,0,0.0,0,1,0,0.0,0,0,0,0,1,,
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,gpt-5.2-high,indirect,2,0,14,12,85.71428571428571,0,9,7,77.77777777777777,2,2,0,0,0,1.0,1.0
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,gpt-5.2-high,inline_code,6,0,79,66,83.54430379746836,0,23,16,69.56521739130434,4,0,0,4,2,,0.0
+exclude_exec_basenames_id_and_run-parts,mini-SWE-agent,gpt-5.2-high,read_only,16,0,21,0,0.0,0,21,0,0.0,0,0,0,0,16,,
