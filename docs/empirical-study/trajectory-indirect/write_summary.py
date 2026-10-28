@@ -25,7 +25,11 @@ def summarize(state,raw):
     attempts=read('dynamic_attempts.csv')
     resource=read('resources.csv')[0]
     tracked=next(r for r in read('dynamic_tracked_scope_summary.csv') if r['framework']=='ALL' and r['path_scope']=='base_tracked_project')
-    def pct(v):return f'{float(v):.2f}%'
+    def pct(v):
+        value=float(v)
+        if 99.99<value<100:return '>99.99%'
+        if 0<value<.01:return '<0.01%'
+        return f'{value:.2f}%'
     table='| Framework / recorded model | Traj. | Recorded calls | Attempted | Exit zero | Unnamed writes | Unnamed execs |\n|---|---:|---:|---:|---:|---:|---:|\n'
     for r in summaries:
         if r['framework']=='ALL' or r['classification']!='ALL':continue
