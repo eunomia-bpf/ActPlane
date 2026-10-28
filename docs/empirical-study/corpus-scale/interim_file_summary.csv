@@ -1,6 +1,6 @@
 source,metric,numerator,denominator,value,ci_low,ci_high,status,repositories,statements
-interim_complete_files,policy_fraction,6249,11585,0.5394044022442814,0.5056115845991587,0.5732863683646843,ok,209,11585
-interim_complete_files,system_state_fraction,,,,,,withheld_calibration_failed,209,11585
-interim_complete_files,context_required_fraction,,,,,,withheld_calibration_failed,209,11585
-interim_complete_files,cross_event_project_share,,,,,,withheld_calibration_failed,209,11585
-interim_complete_files,os_enforceable_count,,,,,,withheld_calibration_failed,209,11585
+interim_complete_files,policy_fraction,6369,11862,0.5369246332827516,0.5037644251561517,0.5725471342248623,ok,211,11862
+interim_complete_files,system_state_fraction,,,,,,withheld_calibration_failed,211,11862
+interim_complete_files,context_required_fraction,,,,,,withheld_calibration_failed,211,11862
+interim_complete_files,cross_event_project_share,,,,,,withheld_calibration_failed,211,11862
+interim_complete_files,os_enforceable_count,,,,,,withheld_calibration_failed,211,11862
