@@ -23,7 +23,7 @@ def read(name):
 
 
 def pct(value):
-    return f'{100*float(value):.1f}%' if value != '' else 'pending'
+    return f'{100*float(value):.1f}%' if value != '' else 'unavailable'
 
 
 def main():
@@ -41,14 +41,14 @@ def main():
     parallel_controls = read('controls-guest68-parallel-v3.csv')
     parallel_passes = sum(r['control_passed'] == '1' for r in parallel_controls)
     control_passes = sum(r['control_passed'] == '1' for r in controls)
-    table = ['| Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Sample USD/policy |',
-             '| --- | --- | --- | --- | --- | --- | --- |']
+    table = ['| Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |',
+             '| --- | --- | --- | --- | --- | --- | --- | --- |']
     for r in rows:
         sample = f"{r['rq2_compiled_at_1']} / {r['rq2_compiled_at_3']} of {r['rq2_completed']}"
         corpus = f"{r['rq1_compiled_at_1']} / {r['rq1_compiled_at_3']} of {r['rq1_completed']}" if r['model'] != 'reference' else 'not generated'
         cost = f"${float(r['rq2_uncached_list_usd_mean']):.4f}" if r['rq2_uncached_list_usd_mean'] != '' else 'n/a'
-        f1 = f"{float(r['f1']):.3f}" if r['f1'] != '' else 'pending'
-        table.append(f"| {NAMES.get(r['model'], r['model'])} | {sample} | {corpus} | {pct(r['detection_rate'])} | {pct(r['false_trigger_rate'])} | {f1} | {cost} |")
+        f1 = f"{float(r['f1']):.3f}" if r['f1'] != '' else 'unavailable'
+        table.append(f"| {NAMES.get(r['model'], r['model'])} | {sample} | {corpus} | {pct(r['detection_rate'])} | {pct(r['false_trigger_rate'])} | {f1} | {r['rq2_access_failures']} / {r['rq1_access_failures']} | {cost} |")
     families = ['| Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |',
                 '| --- | --- | --- | --- | --- | --- |']
     for r in rows:
@@ -58,7 +58,7 @@ def main():
     coverage = ['| Model | Usable traces / planned | Conditional detection | Conditional false trigger | Conditional F1 |',
                 '| --- | --- | --- | --- | --- |']
     for r in rows:
-        cf1 = f"{float(r['conditional_f1']):.3f}" if r['conditional_f1'] != '' else 'pending'
+        cf1 = f"{float(r['conditional_f1']):.3f}" if r['conditional_f1'] != '' else 'unavailable'
         coverage.append(f"| {NAMES.get(r['model'], r['model'])} | {r['replay_valid']} / {len(traces)} | {pct(r['conditional_detection_rate'])} | {pct(r['conditional_false_trigger_rate'])} | {cf1} |")
     artifact_summary = read('artifact-reference-summary.csv')[0]
     reference = next(r for r in rows if r['model'] == 'reference')
@@ -90,7 +90,7 @@ The planned scope is {available} accessible model configurations, {counts['rq2']
 behavioral policies with {len(traces)} traces ({positive} violation, {negative}
 compliant), and a separate {counts['rq1']}-policy compilation corpus. Counts in
 the table are completed trials, so partial rows must not be read as full-corpus
-rates. Detection, false-trigger rate, and F1 remain pending unless every planned
+rates. Detection, false-trigger rate, and F1 remain unavailable unless every planned
 trace has an outcome. The reference row is a supplied translation, not a new
 model-generation trial.
 
@@ -109,7 +109,11 @@ The reference replay currently has {reference['replay_valid']} usable outcomes
 and {reference['replay_errors']} engine/replay errors. Among comparable artifact
 outcomes, {reference['agreements']} of {reference['agreement_traces']} agree with
 the original RQ2 artifact's `setup_fired`. This comparison uses kernel detections,
-not the artifact's recovery scores or trajectory judges. The original artifact's
+not the artifact's recovery scores or trajectory judges. Per-policy agreement and
+every disagreement appear in `reference-validation-policies.csv` and
+`reference-disagreements.csv`. Differences can arise from recovered fixtures, the
+current compiler, and the experimental backend, so replay does not perfectly
+isolate backend fidelity. The original artifact's
 reference detections were themselves imperfect against the trace labels:
 {artifact_summary['true_positives']} of {artifact_summary['violation_traces']}
 violations detected, {artifact_summary['false_positives']} of
@@ -128,7 +132,7 @@ are in `provenance.csv`.
 
 `translate.py` supplies the directive, source evidence, complete root instruction
 files available in the artifact, and DSL reference. It never supplies reference
-rules, traces, labels, or judge outputs. Each policy gets one initial response
+rules, traces, labels, or judge outputs. Each policy gets one initial returned translation response
 and up to two compiler-feedback revisions. Only a surrounding Markdown fence is
 removed. There is no syntax repair, policy tuning against traces, agent recovery,
 or LLM judge. Every response must identify the requested model. Gateway identifiers
@@ -144,15 +148,20 @@ protocol-only tracing. Warmup responses with `generate=false` are excluded from
 inference counts. A scored call must contain exactly one inference and no tool
 outputs. Raw transport frames are discarded to avoid retaining session state.
 
-Compiler acceptance requires an emitted blob and a nonempty rule set. Terminal
+Compiler acceptance requires an emitted blob and a nonempty rule set. Compile
+yield uses all attempted policies as its denominator, including access failures.
+Response-only acceptance rates and identity failures are separate CSV fields,
+so provider availability is not presented as a syntax failure. Terminal
 failure categories in `failure-counts.csv` use explicit model-declared
-unobservability or compiler-message heuristics. They are not semantic judgments. The CLI's
+unobservability, provider-reported output truncation, or compiler-message heuristics.
+Output truncation counts are also retained per attempt and per policy. They are not semantic judgments. The CLI's
 blob and JSON-report modes are called separately. Provider overload retries are
 recorded separately from compiler revisions. Each model has a bounded transport
 retry budget for missing responses. API calls use parallel workers per model,
 with local endpoint concurrency within the operator limit. Latency is observed
 under shared serving load and the recorded scripts' worker limits, rather than
-an isolated model-speed benchmark. Token counts include all completed
+an isolated model-speed benchmark. Per-policy wall time includes observed
+attempts and scheduled transport backoff, excluding interruption gaps. Token counts include all completed
 model responses, including reasoning and compiler revisions. `prices.csv` records
 the [ZAI list prices](https://docs.z.ai/guides/overview/pricing) and
 [Claude list prices](https://platform.claude.com/docs/en/about-claude/pricing), and
@@ -248,13 +257,13 @@ derived outputs. No script opens or updates a pull request.
 {paragraph}
 '''
     (HERE / 'README.md').write_text(text)
-    latex = ['\\begin{tabular}{lrrrrr}', '\\toprule',
-             'Model & Compile@1 & Compile@3 & Detect. & FTR & F1 \\\\', '\\midrule']
+    latex = ['\\begin{tabular}{lrrrrrr}', '\\toprule',
+             'Model & Compile@1 & Compile@3 & Detect. & FTR & F1 & Traces \\\\', '\\midrule']
     for r in rows:
-        comp = [r['rq1_compiled_at_1'], r['rq1_compiled_at_3']] if r['model'] != 'reference' else ['n/a', 'n/a']
-        scores = [pct(r['detection_rate']), pct(r['false_trigger_rate']), f"{float(r['f1']):.3f}" if r['f1'] != '' else 'pending']
-        latex.append(' & '.join([NAMES[r['model']]] + comp + scores).replace('%', '\\%') + ' \\\\')
-    latex += ['\\bottomrule', '\\end{tabular}', '% Counts use completed trials; see README for denominators and exclusions.']
+        comp = [pct(r['rq1_compile_at_1_rate']), pct(r['rq1_compile_at_3_rate'])] if r['model'] != 'reference' else ['n/a', 'n/a']
+        scores = [pct(r['detection_rate']), pct(r['false_trigger_rate']), f"{float(r['f1']):.3f}" if r['f1'] != '' else 'unavailable']
+        latex.append(' & '.join([NAMES[r['model']]] + comp + scores + [r['replay_valid'] + '/' + str(len(traces))]).replace('%', '\\%') + ' \\\\')
+    latex += ['\\bottomrule', '\\end{tabular}', '% Compilation yield includes access failures. Traces gives usable replay coverage. See README for exclusions.']
     (HERE / 'table.tex').write_text('\n'.join(latex) + '\n')
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
     plotted = []

@@ -99,17 +99,39 @@ def worker(payload):
 
 
 def notify_policy(text):
-    return re.sub(r'(?m)^(\s*)(?:block|kill)(\s+(?:exec|open|read|write|unlink|connect|recv)\b)', r'\1notify\2', text)
+    # Quoted reasons and comments are untouched, including words such as "kill".
+    pattern = r'"(?:\\.|[^"\\])*"|#[^\n]*|\b(block|kill)(\s+(?:exec|open|read|write|unlink|connect|recv)\b)'
+    return re.sub(pattern, lambda m: 'notify' + m[2] if m[1] else m[0], text)
 
 
 def runner_label(text):
     # Mirror collect_label_names / runner_label in the pinned Rust source.
-    # Remove strings/comments before extracting source/xform/condition labels.
+    # DSL whitespace is free, so declarations and Boolean expressions may span
+    # lines or share a line. Ignore quoted patterns, comments, and conditions.
     clean = re.sub(r'"(?:\\.|[^"\\])*"|#[^\n]*', '""', text)
-    names = set(re.findall(r'(?m)^\s*(?:source|declassify|endorse)\s+(\w+)', clean))
-    for expr in re.findall(r'\bif\s+([^\n]+)', clean):
-        expr = re.split(r'\bunless\b', expr)[0]
-        names.update(x for x in re.findall(r'\b[A-Za-z_]\w*\b', expr) if x not in ('and', 'or', 'not', 'true'))
+    names = set(re.findall(r'\b(?:source|declassify|endorse)\s+(\w+)', clean))
+    for match in re.finditer(r'\bif\s+', clean):
+        tokens = re.findall(r'[A-Za-z_]\w*|[^\s]', clean[match.end():])
+        index = 0
+        def atom():
+            nonlocal index
+            token = tokens[index]
+            index += 1
+            if token == 'not':
+                atom()
+            elif token == '(':
+                expr()
+                assert tokens[index] == ')'
+                index += 1
+            elif token != 'true':
+                names.add(token)
+        def expr():
+            nonlocal index
+            atom()
+            while index < len(tokens) and tokens[index] in ('and', 'or'):
+                index += 1
+                atom()
+        expr()
     label = 'COMMAND' if 'COMMAND' in names else 'AGENT' if 'AGENT' in names else None
     return 1 << sorted(names).index(label) if label else 0
 

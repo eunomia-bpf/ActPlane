@@ -7,24 +7,24 @@ The planned scope is 7 accessible model configurations, 38
 behavioral policies with 190 traces (114 violation, 76
 compliant), and a separate 607-policy compilation corpus. Counts in
 the table are completed trials, so partial rows must not be read as full-corpus
-rates. Detection, false-trigger rate, and F1 remain pending unless every planned
+rates. Detection, false-trigger rate, and F1 remain unavailable unless every planned
 trace has an outcome. The reference row is a supplied translation, not a new
 model-generation trial.
 
-| Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Sample USD/policy |
-| --- | --- | --- | --- | --- | --- | --- |
-| Paper reference | 38 / 38 of 38 | not generated | pending | pending | pending | n/a |
-| Qwen3.8-27B NVFP4 | 13 / 23 of 33 | 0 / 0 of 0 | pending | pending | pending | n/a |
-| GLM-5.3 | 34 / 38 of 38 | 0 / 0 of 0 | pending | pending | pending | $0.0327 |
-| GLM-5.3-Flash | 33 / 37 of 37 | 0 / 0 of 0 | pending | pending | pending | $0.0038 |
-| GLM-4.7-Flash | 7 / 10 of 25 | 0 / 0 of 0 | pending | pending | pending | $0.0000 |
-| GLM-4.5-Air | 32 / 37 of 37 | 0 / 0 of 0 | pending | pending | pending | $0.0065 |
-| GPT-6 Astra | 4 / 7 of 7 | 0 / 0 of 0 | pending | pending | pending | $0.3507 |
-| Claude Opus 4.6 | 30 / 38 of 38 | 0 / 0 of 0 | pending | pending | pending | $0.1384 |
+| Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
+| Qwen3.8-27B NVFP4 | 15 / 26 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | n/a |
+| GLM-5.3 | 34 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0327 |
+| GLM-5.3-Flash | 33 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0040 |
+| GLM-4.7-Flash | 10 / 13 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 25 / 0 | $0.0000 |
+| GLM-4.5-Air | 33 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0066 |
+| GPT-6 Astra | 27 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.3112 |
+| Claude Opus 4.6 | 30 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.1384 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
 | --- | --- | --- | --- | --- | --- |
-| Paper reference | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| Paper reference | 27 / 38 | 27 / 38 | 26 / 38 | 0 | 2 |
 | Qwen3.8-27B NVFP4 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 | GLM-5.3 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 | GLM-5.3-Flash | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
@@ -35,25 +35,29 @@ model-generation trial.
 
 | Model | Usable traces / planned | Conditional detection | Conditional false trigger | Conditional F1 |
 | --- | --- | --- | --- | --- |
-| Paper reference | 0 / 190 | pending | pending | pending |
-| Qwen3.8-27B NVFP4 | 0 / 190 | pending | pending | pending |
-| GLM-5.3 | 0 / 190 | pending | pending | pending |
-| GLM-5.3-Flash | 0 / 190 | pending | pending | pending |
-| GLM-4.7-Flash | 0 / 190 | pending | pending | pending |
-| GLM-4.5-Air | 0 / 190 | pending | pending | pending |
-| GPT-6 Astra | 0 / 190 | pending | pending | pending |
-| Claude Opus 4.6 | 0 / 190 | pending | pending | pending |
+| Paper reference | 190 / 190 | 70.2% | 17.1% | 0.773 |
+| Qwen3.8-27B NVFP4 | 0 / 190 | unavailable | unavailable | unavailable |
+| GLM-5.3 | 0 / 190 | unavailable | unavailable | unavailable |
+| GLM-5.3-Flash | 0 / 190 | unavailable | unavailable | unavailable |
+| GLM-4.7-Flash | 0 / 190 | unavailable | unavailable | unavailable |
+| GLM-4.5-Air | 0 / 190 | unavailable | unavailable | unavailable |
+| GPT-6 Astra | 0 / 190 | unavailable | unavailable | unavailable |
+| Claude Opus 4.6 | 0 / 190 | unavailable | unavailable | unavailable |
 
 Conditional scores use only usable traces and may be biased by unavailable
 translations or replay errors. Headline scores require complete coverage.
 A final compiler failure supplies no policy and is an end-to-end nondetection.
 An API/identity failure or failed kernel load has an unknown behavioral outcome.
 
-The reference replay currently has 0 usable outcomes
+The reference replay currently has 190 usable outcomes
 and 0 engine/replay errors. Among comparable artifact
-outcomes, 0 of 0 agree with
+outcomes, 156 of 190 agree with
 the original RQ2 artifact's `setup_fired`. This comparison uses kernel detections,
-not the artifact's recovery scores or trajectory judges. The original artifact's
+not the artifact's recovery scores or trajectory judges. Per-policy agreement and
+every disagreement appear in `reference-validation-policies.csv` and
+`reference-disagreements.csv`. Differences can arise from recovered fixtures, the
+current compiler, and the experimental backend, so replay does not perfectly
+isolate backend fidelity. The original artifact's
 reference detections were themselves imperfect against the trace labels:
 66 of 114
 violations detected, 17 of
@@ -72,7 +76,7 @@ are in `provenance.csv`.
 
 `translate.py` supplies the directive, source evidence, complete root instruction
 files available in the artifact, and DSL reference. It never supplies reference
-rules, traces, labels, or judge outputs. Each policy gets one initial response
+rules, traces, labels, or judge outputs. Each policy gets one initial returned translation response
 and up to two compiler-feedback revisions. Only a surrounding Markdown fence is
 removed. There is no syntax repair, policy tuning against traces, agent recovery,
 or LLM judge. Every response must identify the requested model. Gateway identifiers
@@ -88,15 +92,20 @@ protocol-only tracing. Warmup responses with `generate=false` are excluded from
 inference counts. A scored call must contain exactly one inference and no tool
 outputs. Raw transport frames are discarded to avoid retaining session state.
 
-Compiler acceptance requires an emitted blob and a nonempty rule set. Terminal
+Compiler acceptance requires an emitted blob and a nonempty rule set. Compile
+yield uses all attempted policies as its denominator, including access failures.
+Response-only acceptance rates and identity failures are separate CSV fields,
+so provider availability is not presented as a syntax failure. Terminal
 failure categories in `failure-counts.csv` use explicit model-declared
-unobservability or compiler-message heuristics. They are not semantic judgments. The CLI's
+unobservability, provider-reported output truncation, or compiler-message heuristics.
+Output truncation counts are also retained per attempt and per policy. They are not semantic judgments. The CLI's
 blob and JSON-report modes are called separately. Provider overload retries are
 recorded separately from compiler revisions. Each model has a bounded transport
 retry budget for missing responses. API calls use parallel workers per model,
 with local endpoint concurrency within the operator limit. Latency is observed
 under shared serving load and the recorded scripts' worker limits, rather than
-an isolated model-speed benchmark. Token counts include all completed
+an isolated model-speed benchmark. Per-policy wall time includes observed
+attempts and scheduled transport backoff, excluding interruption gaps. Token counts include all completed
 model responses, including reasoning and compiler revisions. `prices.csv` records
 the [ZAI list prices](https://docs.z.ai/guides/overview/pricing) and
 [Claude list prices](https://platform.claude.com/docs/en/about-claude/pricing), and

@@ -122,6 +122,14 @@ def usage_reported(response, model):
     return bool(response.get('usage')) if MODELS[model][1] == 'codex' else bool(response.get('response', {}).get('usage'))
 
 
+def finish_reason(response, model):
+    if MODELS[model][1] in ('claude', 'codex'):
+        data = response.get('response', {})
+        return data.get('stop_reason') or 'not_reported' if isinstance(data, dict) else 'not_reported'
+    choices = response.get('response', {}).get('choices', [])
+    return choices[0].get('finish_reason', '') if choices else ''
+
+
 def failure_category(text):
     t = text.lower()
     if 'unsupported:' in t:
@@ -249,6 +257,11 @@ def export_trials(raw, corpus, model):
         r.pop('policy', None)
         responses = [json.loads(p.read_text()) for p in path.parent.glob('attempt-*/response.json')]
         calls = [t for response in responses for t in response.get('transport_attempts', []) + [response]]
+        r['output_truncated_responses'] = sum(finish_reason(t, model) in ('length', 'max_tokens') for t in calls)
+        if r['status'] == 'compiler_failure' and responses and finish_reason(responses[-1], model) in ('length', 'max_tokens'):
+            r['failure_category'] = 'generation_output_limit'
+        r['transport_backoff_s'] = sum(15 * len(response.get('transport_attempts', [])) * (len(response.get('transport_attempts', [])) + 1) / 2 for response in responses)
+        r['wall_s'] = round(max(float(r['wall_s']), float(r['api_wall_s']) + float(r['compile_wall_s']) + r['transport_backoff_s']), 4)
         r['usage_missing_transports'] = sum(not usage_reported(t, model) for t in calls)
         r['retry_errors'] = json.dumps(r['retry_errors'], ensure_ascii=False)
         p = path.parent / f"attempt-{r['attempts']}" / 'compile-report.json'

@@ -21,6 +21,9 @@ class ProtocolTests(unittest.TestCase):
     def test_effect_conversion_preserves_reasons_and_conditions(self):
         text = 'rule r:\n  kill exec "git" "push" if AGENT unless after exec "pytest"\n  because "kill exec is prohibited"'
         self.assertEqual(notify_policy(text), text.replace('  kill exec', '  notify exec'))
+        inline = 'source AGENT = exec "**" rule x: block exec "git" if AGENT because "kill exec"'
+        self.assertIn('rule x: notify exec', notify_policy(inline))
+        self.assertEqual(runner_label('source Z = exec "x" source A = file "a" source AGENT = exec "**" rule x: notify exec "x" if AGENT and\nnot Z because "source B = exec x"'), 2)
 
     def test_seed_bit_matches_sorted_compiler_label_allocation(self):
         self.assertEqual(runner_label('source Z = file "**/AGENT"\nsource AGENT = exec "python"\nrule x:\n notify exec "x" if Z and AGENT\n because "x"'), 1)

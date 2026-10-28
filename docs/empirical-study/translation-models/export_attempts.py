@@ -3,7 +3,7 @@
 import json
 
 from prepare import DEFAULT_RAW, HERE, csv_write
-from translate import usage_of, usage_reported
+from translate import usage_of, usage_reported, finish_reason
 
 
 def main():
@@ -16,6 +16,7 @@ def main():
             rows.append(dict(corpus=path.parents[3].name, model=model, uid=path.parents[1].name,
                              attempt=path.parent.name, transport=number, status=response['status'],
                              response_model=response.get('response_model', ''),
+                             finish_reason=finish_reason(response, model),
                              identity_verified=int(response.get('identity_verified', False)),
                              http_status=response.get('http_status', ''), elapsed_s=response['elapsed_s'],
                              usage_reported=int(usage_reported(response, model)),

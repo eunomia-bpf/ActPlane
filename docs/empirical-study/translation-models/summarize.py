@@ -9,6 +9,7 @@ import statistics
 from prepare import HERE, DEFAULT_RAW, csv_write
 from translate import inputs
 from replay import artifact_outcomes
+from reference_validation import main as validate_reference
 
 
 def read(name):
@@ -46,6 +47,7 @@ def detection(rows):
 
 
 def main():
+    validate_reference()
     access = read('model-access.csv')
     prices = {r['model']: r for r in read('prices.csv')}
     summary, failures = [], []
@@ -78,7 +80,13 @@ def main():
             n = len(trials)
             c1 = sum(int(t['compile_at_1']) for t in trials)
             c3 = sum(int(t['compile_at_3']) for t in trials)
-            r.update({corpus + '_planned': expected, corpus + '_completed': n,
+            responses = sum(t['status'] not in ('access_failure', 'identity_failure') for t in trials)
+            r.update({corpus + '_responses': responses,
+                      corpus + '_conditional_compile_at_1_rate': c1/responses if responses else '',
+                      corpus + '_conditional_compile_at_3_rate': c3/responses if responses else '',
+                      corpus + '_truncated_policies': sum(int(t.get('output_truncated_responses') or 0) > 0 for t in trials),
+                      corpus + '_identity_failures': sum(t['status']=='identity_failure' for t in trials),
+                      corpus + '_planned': expected, corpus + '_completed': n,
                       corpus + '_compiled_at_1': c1, corpus + '_compiled_at_3': c3,
                       corpus + '_compile_at_1_rate': c1/n if n else '', corpus + '_compile_at_3_rate': c3/n if n else '',
                       corpus + '_input_tokens_mean': statistics.mean(int(t['input_tokens']) for t in trials) if n else '',
