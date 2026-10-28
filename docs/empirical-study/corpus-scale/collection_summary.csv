@@ -1,4 +1,5 @@
 metric,value
 collected_repositories,325
+represented_file_families,8
 file_status_included,771
 file_status_path_sampling_cap,19718

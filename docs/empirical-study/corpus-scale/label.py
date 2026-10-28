@@ -26,6 +26,35 @@ ALLOWED = {'type': ['description', 'directive'], 'topic': TOPICS,
            'context_required': ['', 'none', 'project', 'task']}
 
 
+def guide_for_dimensions(full, dimensions):
+    """Keep the original full calibration prompt, focus reduced deployments.
+
+    Reduced guides are independently calibrated before use. Removing unused
+    axes avoids paying for reasoning about labels that will be withheld.
+    """
+    if set(dimensions) == set(DIMS):
+        return full
+    examples_at = full.index('\nExamples (')
+    sections = {}
+    first = full.index('\ntype:')
+    for i, dim in enumerate(DIMS):
+        start = full.index('\n' + dim + ':')
+        end = full.index('\n' + DIMS[i + 1] + ':') if i + 1 < len(DIMS) else examples_at
+        sections[dim] = full[start:end]
+    guide = full[:first].replace('The four dimensions below', 'The requested dimensions below')
+    guide += ''.join(sections[d] for d in dimensions)
+    guide += '\nExamples (' + ', '.join(dimensions) + '):\n'
+    for line in full[examples_at:].splitlines():
+        if ' => ' not in line:
+            continue
+        text, values = line.split(' => ', 1)
+        labels = values.split(', ')
+        if len(labels) == len(DIMS):
+            guide += text + ' => ' + ', '.join(labels[DIMS.index(d)] for d in dimensions) + '\n'
+    guide += '\nApply only the requested dimensions. Keep deliberation brief. Do not repeat the statements or the coding guide.\n'
+    return guide
+
+
 def parse_json(content):
     text = re.sub(r'^```(?:json)?\s*|\s*```$', '', content.strip())
     try:
@@ -139,7 +168,7 @@ def run(a):
     if a.limit:
         rows = rows[:a.limit]
     dims = a.dimensions.split(',')
-    guide = (HERE / 'taxonomy.txt').read_text()
+    guide = guide_for_dimensions((HERE / 'taxonomy.txt').read_text(), dims)
     other = None
     retained = []
     if a.other:

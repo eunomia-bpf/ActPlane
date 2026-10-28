@@ -8602,6 +8602,71 @@ jq 'group_by(.status) | map({status: .[0].status, count: length})'
 ```
 
 ",1,160
+1066b1bf61e8421b46d3:13:15,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,13,15,"# Orca CLI
+
+",1,48
+1066b1bf61e8421b46d3:15:17,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,15,17,"This discovery stub loads the version-matched guide from the Orca executable used for this session.
+
+",1,48
+1066b1bf61e8421b46d3:17:19,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,17,19,"## Resolve the CLI for this session
+
+",1,48
+1066b1bf61e8421b46d3:19:21,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,19,21,"Choose the executable once and reuse it for every later command:
+
+",1,48
+1066b1bf61e8421b46d3:1:13,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,1,13,"---
+name: orca-cli
+description: >-
+  Operate Orca-managed worktrees, folder contexts, terminals, repos, automations, worktree
+  comments, and Orca's embedded browser through the `orca` CLI. Use when the user says
+  ""$orca-cli"", ""Orca worktree"", ""child worktree"", ""spawn codex/claude in a worktree"",
+  ""read/wait/send Orca terminal"", ""handoff"" / ""handover"" / ""give this to another agent"", or
+  ""Orca browser"". Prefer it over raw git worktree, ad hoc PTYs, or Computer Use when Orca
+  state is involved. Use Computer Use only when a visible window needs GUI control that a
+  CLI, filesystem, or API cannot do.
+---
+
+",1,48
+1066b1bf61e8421b46d3:21:23,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,21,23,"- If the `ORCA_CLI_COMMAND` environment variable is set, use its value. Orca exports this
+  for managed WSL sessions.
+",1,48
+1066b1bf61e8421b46d3:23:24,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,23,24,"- Otherwise, in a dev checkout whose session exposes `ORCA_DEV_REPO_ROOT`, use `orca-dev`.
+",1,48
+1066b1bf61e8421b46d3:24:27,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,24,27,"- Otherwise, on Linux outside an Orca-managed terminal, use `orca-ide`. Never run bare
+  `orca` there — outside Orca's terminals it normally resolves to the
+  GNOME Orca screen reader (`/usr/bin/orca`) and starts speech on the user's machine.
+",1,48
+1066b1bf61e8421b46d3:27:29,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,27,29,"- Otherwise, use `orca`.
+
+",1,48
+1066b1bf61e8421b46d3:29:33,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,29,33,"Below, `ORCA` is a placeholder for the executable you resolved. Substitute it before
+running anything; do not create a shell variable or run `ORCA` literally. This works the
+same way in POSIX shells, PowerShell, and cmd.exe.
+
+",1,48
+1066b1bf61e8421b46d3:33:36,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,33,36,"If the selected executable cannot run, report its exact error and stop. Do not fall through
+to another executable, which could silently target a different Orca build.
+
+",1,48
+1066b1bf61e8421b46d3:36:38,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,36,38,"## Load the version-matched guide before running Orca commands
+
+",1,48
+1066b1bf61e8421b46d3:38:42,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,38,42,"```text
+ORCA skills get orca-cli
+```
+
+",1,48
+1066b1bf61e8421b46d3:42:43,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,42,43,"Prefer `--json`. Use the selected executable's `--help` for commands or flags the guide does
+",1,48
+1066b1bf61e8421b46d3:43:44,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,43,44,"not cover. If a command reports that Orca is not running, start it with `ORCA open --json`
+",1,48
+1066b1bf61e8421b46d3:44:45,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,44,45,"and retry. If it fails with `runtime_access_denied`, your sandbox blocked the connection:
+",1,48
+1066b1bf61e8421b46d3:45:46,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,45,46,"re-run it with escalated permissions, and do not run `ORCA open` or restart Orca. If
+",1,48
+1066b1bf61e8421b46d3:46:48,1066b1bf61e8421b46d3,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,skills/orca-cli/SKILL.md,SKILL.md,e9759aea664f54561946eeb40a6328031330860cda0817f2c2aa2cf529d5c1b3,46,48,"`skills get` is unknown, explain that updating Orca restores the guide; use `--help` for
+read-only discovery and do not guess unsupported commands.
+",1,48
 10775d45b97cc0ee127a:1:3,10775d45b97cc0ee127a,shadcn-ui/ui,96da9cc7f1aa10580a3741664e2a77c721206c00,apps/v4/AGENTS.md,AGENTS.md,63f2c50380ed6303237cce215ce27af1d620d094c215e28d1b1538a3c070e3bb,1,3,"<!-- BEGIN:nextjs-agent-rules -->
 
 ",1,10
@@ -9013,6 +9078,133 @@ contributor can push one coherent update.
 standard for correctness, reliability, testing, clarity, and maintainability.**
 
 ",1,102
+11446efac23e0095db9f:107:109,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,107,109,"## Best Practices
+
+",1,113
+11446efac23e0095db9f:109:110,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,109,110,"1. **Always check if tools are installed** before using them
+",1,113
+11446efac23e0095db9f:10:27,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,10,27,"## Reading PDFs
+
+**Option 1: Quick text extraction (preferred)**
+```bash
+# Using pdftotext (poppler-utils)
+pdftotext input.pdf -  # Output to stdout
+pdftotext input.pdf output.txt  # Output to file
+
+# If pdftotext not available, try:
+python3 -c ""
+import fitz  # PyMuPDF
+doc = fitz.open('input.pdf')
+for page in doc:
+    print(page.get_text())
+""
+```
+
+",1,113
+11446efac23e0095db9f:110:111,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,110,111,"2. **Handle encoding issues** - PDFs may contain various character encodings
+",1,113
+11446efac23e0095db9f:111:112,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,111,112,"3. **Large PDFs**: Process page by page to avoid memory issues
+",1,113
+11446efac23e0095db9f:112:113,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,112,113,"4. **OCR for scanned PDFs**: Use `pytesseract` if text extraction returns empty
+",1,113
+11446efac23e0095db9f:1:6,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,1,6,"---
+name: pdf
+description: Process PDF files - extract text, create PDFs, merge documents. Use when user asks to read PDF, create PDF, or work with PDF files.
+---
+
+",1,113
+11446efac23e0095db9f:27:41,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,27,41,"**Option 2: Page-by-page with metadata**
+```python
+import fitz  # pip install pymupdf
+
+doc = fitz.open(""input.pdf"")
+print(f""Pages: {len(doc)}"")
+print(f""Metadata: {doc.metadata}"")
+
+for i, page in enumerate(doc):
+    text = page.get_text()
+    print(f""--- Page {i+1} ---"")
+    print(text)
+```
+
+",1,113
+11446efac23e0095db9f:41:52,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,41,52,"## Creating PDFs
+
+**Option 1: From Markdown (recommended)**
+```bash
+# Using pandoc
+pandoc input.md -o output.pdf
+
+# With custom styling
+pandoc input.md -o output.pdf --pdf-engine=xelatex -V geometry:margin=1in
+```
+
+",1,113
+11446efac23e0095db9f:52:62,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,52,62,"**Option 2: Programmatically**
+```python
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+
+c = canvas.Canvas(""output.pdf"", pagesize=letter)
+c.drawString(100, 750, ""Hello, PDF!"")
+c.save()
+```
+
+",1,113
+11446efac23e0095db9f:62:74,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,62,74,"**Option 3: From HTML**
+```bash
+# Using wkhtmltopdf
+wkhtmltopdf input.html output.pdf
+
+# Or with Python
+python3 -c ""
+import pdfkit
+pdfkit.from_file('input.html', 'output.pdf')
+""
+```
+
+",1,113
+11446efac23e0095db9f:6:10,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,6,10,"# PDF Processing Skill
+
+You now have expertise in PDF manipulation. Follow these workflows:
+
+",1,113
+11446efac23e0095db9f:74:86,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,74,86,"## Merging PDFs
+
+```python
+import fitz
+
+result = fitz.open()
+for pdf_path in [""file1.pdf"", ""file2.pdf"", ""file3.pdf""]:
+    doc = fitz.open(pdf_path)
+    result.insert_pdf(doc)
+result.save(""merged.pdf"")
+```
+
+",1,113
+11446efac23e0095db9f:86:98,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,86,98,"## Splitting PDFs
+
+```python
+import fitz
+
+doc = fitz.open(""input.pdf"")
+for i in range(len(doc)):
+    single = fitz.open()
+    single.insert_pdf(doc, from_page=i, to_page=i)
+    single.save(f""page_{i+1}.pdf"")
+```
+
+",1,113
+11446efac23e0095db9f:98:107,11446efac23e0095db9f,shareAI-lab/learn-claude-code,7226f555d48900076eba126acf37c9ed5f002b5d,skills/pdf/SKILL.md,SKILL.md,b143723126a9951c556063edbdf15fce252a505e11c85a3fdbaa221f1116d178,98,107,"## Key Libraries
+
+| Task | Library | Install |
+|------|---------|---------|
+| Read/Write/Merge | PyMuPDF | `pip install pymupdf` |
+| Create from scratch | ReportLab | `pip install reportlab` |
+| HTML to PDF | pdfkit | `pip install pdfkit` + wkhtmltopdf |
+| Text extraction | pdftotext | `brew install poppler` / `apt install poppler-utils` |
+
+",1,113
 116d0ff1b7bff6cd7c9f:101:110,116d0ff1b7bff6cd7c9f,OrchestratorInc/agent-orchestrator,70e92a80c67a16e0dcfac6716177b362d718152f,.agents/skills/bug-triage/SKILL.md,SKILL.md,e40950e80f530214b6d98894070a624506acc07f46b53d3e7b122e54a0135a30,101,110,"Use the daemon API/CLI for state first. If database evidence is needed, discover the
 actual database location and schema, open it read-only, and select only relevant rows
 and columns. Never attach an entire database, broad log dump, or Electron profile
@@ -13420,6 +13612,7 @@ This mode now merges two sources — tracker rows (Step 2.1) and ranked postings
 | Low | ... | ... | ... |
 
 ",1,161
+1b02b4b5cea0f151b6df:1:2,1b02b4b5cea0f151b6df,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,CLAUDE.md,CLAUDE.md,a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9,1,2,AGENTS.md,1,2
 1bfce5eff82d9588e881:10:12,1bfce5eff82d9588e881,kubesphere/kubesphere,04a29b5c601470fa6bc2f2e92358dcb802a0d414,skills/vector/SKILL.md,SKILL.md,3f53c5f710046fbf21c3037467213199c089629ee663b50f699ca4befe226f2c,10,12,"WizTelemetry Data Pipeline is an extension based on vector (https://vector.dev/) that provides the ability to collect, transform, and route observability data. It is a core dependency for other WizTelemetry extensions like Logging, Auditing, Events, and Notification.
 
 ",1,147
@@ -32845,6 +33038,182 @@ including ones using third-party packages (`reflex-local-auth`, `reflex-global-h
 3. Do one cold run (`rm -rf .web`) to check the fresh-install path converges to the same state.
 
 ",1,158
+40736c89487b22ddf52e:101:110,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,101,110,"**Available Widgets** (highlights — the full, current list lives in `src/utils/widget-manifest.ts`):
+- Model, Version, OutputStyle, VoiceStatus, ClaudeStatus - Claude Code metadata and service-health display
+- GitBranch, GitChanges, GitInsertions, GitDeletions, GitWorktree - Git repository status
+- TokensInput, TokensOutput, TokensCached, TokensTotal - Token usage metrics
+- ContextLength, ContextPercentage, ContextPercentageUsable - Context window metrics (uses dynamic model-based context windows: 1M for Sonnet 4.5 with [1m] suffix, 200k for all other models)
+- BlockTimer, SessionClock, SessionCost - Time and cost tracking
+- CurrentWorkingDir, TerminalWidth - Environment info
+- CustomText, CustomCommand - User-defined widgets
+
+",1,152
+40736c89487b22ddf52e:110:121,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,110,121,"## Key Implementation Details
+
+- **Cross-platform stdin reading**: Detects Bun vs Node.js environment and uses appropriate stdin API
+- **Token metrics**: Parses Claude Code transcript files (JSONL format) to calculate token usage
+- **Git integration**: Uses child_process.execSync to get current branch and changes
+- **Terminal width management**: Three modes for handling width (full, full-minus-40, full-until-compact)
+- **Flex separators**: Special separator type that expands to fill available space
+- **Powerline mode**: Optional Powerline-style rendering with arrow separators
+- **Custom commands**: Execute shell commands and display output in status line
+- **Mergeable items**: Items can be merged together with or without padding
+
+",1,152
+40736c89487b22ddf52e:11:13,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,11,13,"## Development Commands
+
+",1,152
+40736c89487b22ddf52e:121:130,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,121,130,"## Bun Usage Preferences
+
+Default to using Bun instead of Node.js:
+- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
+- Use `bun install` instead of `npm install`
+- Use `bun run <script>` instead of `npm run <script>`
+- Use `bun build` with appropriate options for building
+- Bun automatically loads .env, so don't use dotenv
+
+",1,152
+40736c89487b22ddf52e:130:132,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,130,132,"## Important Notes
+
+",1,152
+40736c89487b22ddf52e:132:137,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,132,137,"- **ink@6.2.0 patch**: The project uses a patch for ink@6.2.0 to fix backspace key handling on macOS
+  - Issue: ink treats `\x7f` (backspace on macOS) as delete key instead of backspace
+  - Fix: Patches `build/parse-keypress.js` to correctly map `\x7f` to backspace
+  - Applied automatically during `bun install` via `patchedDependencies` in package.json
+  - Patch file: `patches/ink@6.2.0.patch`
+",1,152
+40736c89487b22ddf52e:137:140,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,137,140,"- **Build process**: Two-step build using `bun run build`
+  1. `bun build`: Bundles src/ccstatusline.ts into dist/ccstatusline.js targeting Node.js 14+
+  2. `postbuild`: Runs scripts/replace-version.ts to replace `__PACKAGE_VERSION__` placeholder with actual version from package.json
+",1,152
+40736c89487b22ddf52e:13:42,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,13,42,"```bash
+# Install dependencies
+bun install
+
+# Run in interactive TUI mode
+bun run start
+
+# Test with piped input (use [1m] suffix for 1M context models)
+echo '{""model"":{""id"":""claude-sonnet-4-5-20250929[1m]""},""transcript_path"":""test.jsonl""}' | bun run src/ccstatusline.ts
+
+# Or use example payload
+bun run example
+
+# Build for npm distribution
+bun run build   # Creates dist/ccstatusline.js with Node.js 14+ compatibility
+
+# Run tests
+bun test
+
+# Run tests in watch mode
+bun test --watch
+
+# Lint and type check
+bun run lint      # Runs TypeScript type checking and ESLint without modifying files
+
+# Apply ESLint auto-fixes intentionally
+bun run lint:fix
+```
+
+",1,152
+40736c89487b22ddf52e:140:141,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,140,141,"- **ESLint configuration**: Uses flat config format (eslint.config.js) with TypeScript and React plugins
+",1,152
+40736c89487b22ddf52e:141:142,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,141,142,"- **Dependencies**: All runtime dependencies are bundled using `--packages=external` for npm package
+",1,152
+40736c89487b22ddf52e:142:143,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,142,143,"- **Type checking and linting**: Run checks via `bun run lint` and use `bun run lint:fix` only when you intentionally want ESLint auto-fixes. Never use `npx eslint`, `eslint`, `tsx`, `bun tsc`, or any other variation directly
+",1,152
+40736c89487b22ddf52e:143:144,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,143,144,"- **Lint rules**: Never disable a lint rule via a comment, no matter how benign the lint warning or error may seem
+",1,152
+40736c89487b22ddf52e:144:152,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,144,152,"- **Testing**: Uses Vitest (via Bun); tests live in `__tests__/` directories alongside the code they cover, including:
+  - Model context detection and token calculation (src/utils/__tests__/model-context.test.ts)
+  - Context percentage calculations (src/utils/__tests__/context-percentage.test.ts)
+  - JSONL transcript parsing (src/utils/__tests__/jsonl.test.ts)
+  - Widget rendering (src/widgets/__tests__/*.test.ts)
+  - Run tests with `bun test` or `bun test --watch` for watch mode
+  - Test configuration: vitest.config.ts
+  - Manual testing also available via piped input and TUI interaction
+",1,152
+40736c89487b22ddf52e:1:3,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,1,3,"# CLAUDE.md
+
+",1,152
+40736c89487b22ddf52e:3:5,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,3,5,"This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+",1,152
+40736c89487b22ddf52e:42:44,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,42,44,"## Architecture
+
+",1,152
+40736c89487b22ddf52e:44:46,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,44,46,"The project has dual runtime compatibility - works with both Bun and Node.js:
+
+",1,152
+40736c89487b22ddf52e:46:51,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,46,51,"### Core Structure
+- **src/ccstatusline.ts**: Main entry point that detects piped vs interactive mode
+  - Piped mode: Parses JSON from stdin and renders formatted status line
+  - Interactive mode: Launches React/Ink TUI for configuration
+
+",1,152
+40736c89487b22ddf52e:51:58,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,51,58,"### TUI Components (src/tui/)
+- **index.tsx**: Main TUI entry point that handles React/Ink initialization
+- **App.tsx**: Root component managing navigation and state
+- **components/**: Modular UI components for different configuration screens
+  - MainMenu, LineSelector, ItemsEditor, ColorMenu, GlobalOverridesMenu
+  - PowerlineSetup, TerminalOptionsMenu, StatusLinePreview
+
+",1,152
+40736c89487b22ddf52e:58:80,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,58,80,"### Utilities (src/utils/)
+- **config.ts**: Settings management
+  - Loads from `~/.config/ccstatusline/settings.json`
+  - Handles migration from old settings format
+  - Default configuration if no settings exist
+- **renderer.ts**: Core rendering logic for status lines
+  - Handles terminal width detection and truncation
+  - Applies colors, padding, and separators
+  - Manages flex separator expansion
+- **powerline.ts**: Powerline font detection and installation
+- **claude-settings.ts**: Integration with Claude Code settings.json
+  - Respects `CLAUDE_CONFIG_DIR` environment variable with fallback to `~/.claude`
+  - Provides installation command constants (NPM, BUNX, self-managed)
+  - Detects installation status and manages settings.json updates
+  - Validates config directory paths with proper error handling
+- **colors.ts**: Color definitions and ANSI code mapping
+- **model-context.ts**: Model-to-context-window mapping
+  - Maps model IDs to their context window sizes based on [1m] suffix
+  - Sonnet 4.5 WITH [1m] suffix: 1M tokens (800k usable at 80%) - requires long context beta access
+  - Sonnet 4.5 WITHOUT [1m] suffix: 200k tokens (160k usable at 80%)
+  - Legacy models: 200k tokens (160k usable at 80%)
+
+",1,152
+40736c89487b22ddf52e:5:7,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,5,7,"## Project Overview
+
+",1,152
+40736c89487b22ddf52e:7:11,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,7,11,"ccstatusline is a customizable status line formatter for Claude Code CLI that displays model info, git branch, token usage, and other metrics. It functions as both:
+1. A piped command processor for Claude Code status lines
+2. An interactive TUI configuration tool when run without input
+
+",1,152
+40736c89487b22ddf52e:80:83,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,80,83,"### Widgets (src/widgets/)
+Custom widgets implementing the Widget interface defined in src/types/Widget.ts:
+
+",1,152
+40736c89487b22ddf52e:83:94,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,83,94,"**Widget Interface:**
+All widgets must implement:
+- `getDefaultColor()`: Default color for the widget
+- `getDescription()`: Description shown in TUI
+- `getDisplayName()`: Display name shown in TUI
+- `getEditorDisplay()`: How the widget appears in the editor
+- `render()`: Core rendering logic that produces the widget output
+- `supportsRawValue()`: Whether widget supports raw value mode
+- `supportsColors()`: Whether widget supports color customization
+- Optional: `renderEditor()`, `getCustomKeybinds()`, `getHideableStates()`, `supportsNumberFormat()`, `handleEditorAction()`
+
+",1,152
+40736c89487b22ddf52e:94:101,40736c89487b22ddf52e,sirmalloc/ccstatusline,59ada518a1a7238e15da2cdfbffd9bbedefe8db5,AGENTS.md,AGENTS.md,a80f6fab212d1653b1d02335690b95ccddb1ad38957f7d72e0e48132829f6543,94,101,"**Widget Registry Pattern:**
+- Located in src/utils/widgets.ts
+- Uses a Map-based registry (`widgetRegistry`) that maps widget type strings to widget instances
+- `getWidget(type)`: Retrieves widget instance by type
+- `getAllWidgetTypes()`: Returns all available widget types
+- `isKnownWidgetType()`: Validates if a type is registered
+
+",1,152
 409dbcb513f7a1ceffde:1:3,409dbcb513f7a1ceffde,react/react-native,eaf4c261101889c46f0efd44931e6738e7d535b8,AGENTS.md,AGENTS.md,c988d6a2d60f1d1c6c7c1003c2e045183a2983ead1e2874f0f116416abc6d1d4,1,3,"# React Native
 
 ",1,74
@@ -37073,6 +37442,49 @@ orchestration.
 `python3 scripts/validate-node-readme.py <node-dir>`.
 
 ",1,114
+4885d9ebebe8ec2ebefd:11:15,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,11,15,"## Task
+
+Display the current date and time in Pakistan Standard Time (UTC+5).
+
+",1,33
+4885d9ebebe8ec2ebefd:15:17,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,15,17,"## Instructions
+
+",1,33
+4885d9ebebe8ec2ebefd:17:22,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,17,22,"1. **Get Current Time**: Run the following bash command:
+   ```
+   TZ='Asia/Karachi' date '+%Y-%m-%d %H:%M:%S %Z'
+   ```
+
+",1,33
+4885d9ebebe8ec2ebefd:1:7,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,1,7,"---
+name: time-skill
+description: Display the current time in Pakistan Standard Time (PKT, UTC+5). Use when the user asks for the current time, Pakistan time, or PKT.
+user-invocable: true
+---
+
+",1,33
+4885d9ebebe8ec2ebefd:22:27,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,22,27,"2. **Display Result**: Show the time in this format:
+   ```
+   Current Time in Pakistan (PKT): YYYY-MM-DD HH:MM:SS PKT
+   ```
+
+",1,33
+4885d9ebebe8ec2ebefd:27:29,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,27,29,"## Requirements
+
+",1,33
+4885d9ebebe8ec2ebefd:29:30,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,29,30,"- Always use the `Asia/Karachi` timezone (UTC+5)
+",1,33
+4885d9ebebe8ec2ebefd:30:31,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,30,31,"- Use 24-hour format
+",1,33
+4885d9ebebe8ec2ebefd:31:32,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,31,32,"- Include the date alongside the time
+",1,33
+4885d9ebebe8ec2ebefd:32:33,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,32,33,"- Keep the output concise — no extra commentary
+",1,33
+4885d9ebebe8ec2ebefd:7:11,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,7,11,"# Time Skill
+
+This skill displays the current date and time in Pakistan Standard Time (PKT).
+
+",1,33
 48a81bf6fa0b9058d942:102:104,48a81bf6fa0b9058d942,herdrdev/herdr,2713feb56e9c9db33992db0a262c68f7426d46dd,AGENTS.md,AGENTS.md,0a95710c61ace7bf57043a0bf3c2514f509403daf8a86ff8833fe86c903a13b1,102,104,"### Multi-agent isolation
 
 ",1,159
@@ -50608,6 +51020,795 @@ Do not use timeouts or sleeps to synchronize tests. Wait for explicit signals or
 
 @AGENTS.md
 ",1,4
+6489c3d3232a5cce8f9f:102:111,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,102,111,"## 🚨 CRITICAL: CODEX DOES THE WORK, CLAUDE-FLOW ORCHESTRATES
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CLAUDE-FLOW = ORCHESTRATOR (tracks state, coordinates)     │
+│  CODEX = WORKER (writes code, runs commands, implements)    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+",1,161
+6489c3d3232a5cce8f9f:10:21,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,10,21,"```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║  1. claude-flow = LEDGER (tracks state, stores memory, coordinates)       ║
+║  2. Codex = EXECUTOR (writes code, runs commands, creates files)          ║
+║  3. NEVER stop after calling claude-flow - IMMEDIATELY continue working   ║
+║  4. If you need something BUILT/EXECUTED, YOU do it, not claude-flow      ║
+║  5. ALWAYS search memory BEFORE starting: memory search --query ""task""    ║
+║  6. ALWAYS store patterns AFTER success: memory store --namespace patterns║
+╚═══════════════════════════════════════════════════════════════════════════╝
+```
+
+",1,161
+6489c3d3232a5cce8f9f:111:118,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,111,118,"### ❌ WRONG: Expecting claude-flow to execute tasks
+```bash
+npx claude-flow swarm start --objective ""Build API""
+# WRONG: Waiting for claude-flow to build the API
+# Claude-flow does NOT execute code!
+```
+
+",1,161
+6489c3d3232a5cce8f9f:118:134,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,118,134,"### ✅ CORRECT: Codex executes, claude-flow tracks
+```bash
+# 1. Tell claude-flow what you're doing (optional coordination)
+npx claude-flow swarm init --topology hierarchical --max-agents 1
+npx claude-flow agent spawn --type coder --name codex-worker
+
+# 2. YOU (CODEX) DO THE ACTUAL WORK:
+mkdir -p src
+cat > src/api.ts << 'EOF'
+export function hello() { return ""Hello World""; }
+EOF
+
+# 3. Report to claude-flow what you did (optional)
+npx claude-flow memory store --key ""api-created"" --value ""src/api.ts"" --namespace results
+```
+
+",1,161
+6489c3d3232a5cce8f9f:134:143,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,134,143,"### The Division of Labor
+
+| Component | Role | Examples |
+|-----------|------|----------|
+| **CODEX** | EXECUTES | Write files, run tests, create code, shell commands |
+| **claude-flow** | ORCHESTRATES | Track agents, store memory, coordinate tasks |
+
+---
+
+",1,161
+6489c3d3232a5cce8f9f:143:152,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,143,152,"## ⛔ DON'T STOP AFTER CALLING CLAUDE-FLOW
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ❌ WRONG: Call claude-flow → STOP → Wait for results                   │
+│  ✅ RIGHT: Call claude-flow → IMMEDIATELY continue → YOU do the work    │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+",1,161
+6489c3d3232a5cce8f9f:152:161,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,152,161,"### ❌ WRONG Pattern (Stopping)
+```bash
+npx claude-flow swarm init --topology hierarchical
+npx claude-flow agent spawn --type coder --name worker-1
+npx claude-flow swarm start --objective ""Build hello world""
+# WRONG: Codex stops here and waits for something to happen
+# Nothing will happen! Claude-flow doesn't execute code!
+```
+
+",1,161
+6489c3d3232a5cce8f9f:161:175,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,161,175,"### ✅ CORRECT Pattern (Continue Immediately)
+```bash
+# Step 1: Coordination (optional)
+npx claude-flow swarm init --topology hierarchical
+npx claude-flow agent spawn --type coder --name worker-1
+
+# Step 2: IMMEDIATELY DO THE WORK YOURSELF - DON'T WAIT!
+echo 'console.log(""Hello World!"");' > hello.js
+node hello.js
+
+# Step 3: Report what you did
+npx claude-flow memory store --key ""result"" --value ""Hello World printed"" --namespace results
+```
+
+",161,310
+6489c3d3232a5cce8f9f:175:178,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,175,178,"### The Rule
+**After ANY claude-flow command, IMMEDIATELY continue with your own work.**
+
+",161,310
+6489c3d3232a5cce8f9f:178:181,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,178,181,"Claude-flow commands return instantly. They create coordination RECORDS only.
+You must ALWAYS follow up with YOUR OWN execution.
+
+",161,310
+6489c3d3232a5cce8f9f:181:190,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,181,190,"| After This... | IMMEDIATELY Do This... |
+|---------------|----------------------|
+| `swarm init` | Start writing code |
+| `agent spawn` | Continue implementation |
+| `task create` | Execute the task yourself |
+| `swarm start` | Begin actual work |
+
+---
+
+",161,310
+6489c3d3232a5cce8f9f:190:199,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,190,199,"### When to Use Claude-Flow Commands
+
+| Use Case | Claude-Flow Command | Then Codex Does |
+|----------|---------------------|-----------------|
+| Track progress | `memory store --key ""step1"" --value ""done""` | Continue to next step |
+| Multi-step tasks | `task create --description ""step 2""` | Execute step 2 |
+| Store results | `memory store --key ""output"" --value ""...""` | Move on |
+| Coordinate | `swarm init` | Start working |
+
+",161,310
+6489c3d3232a5cce8f9f:199:213,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,199,213,"### Hello World - Correct Pattern
+
+```bash
+# STEP 1: Optional - register with orchestrator
+npx claude-flow swarm init --topology mesh --max-agents 1
+
+# STEP 2: CODEX DOES THE WORK
+echo 'console.log(""Hello World!"");' > hello.js
+node hello.js
+
+# STEP 3: Optional - report completion
+npx claude-flow memory store --key ""hello-result"" --value ""printed Hello World"" --namespace results
+```
+
+",161,310
+6489c3d3232a5cce8f9f:1:8,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,1,8,"# Claude Flow V3 - Agent Guide
+
+> **For OpenAI Codex CLI** - Agentic AI Foundation standard
+> Skills: `$skill-name` | Config: `.agents/config.toml`
+
+---
+
+",1,161
+6489c3d3232a5cce8f9f:213:217,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,213,217,"**REMEMBER: If you need something DONE, YOU do it. Claude-flow just tracks.**
+
+---
+
+",161,310
+6489c3d3232a5cce8f9f:217:219,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,217,219,"## ⚡ QUICK COMMANDS (NO DISCOVERY NEEDED)
+
+",161,310
+6489c3d3232a5cce8f9f:219:232,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,219,232,"### Spawn N-Agent Swarm (Copy-Paste Ready)
+
+```bash
+# 5-AGENT SWARM - Run these commands in sequence:
+npx claude-flow swarm init --topology hierarchical --max-agents 8
+npx claude-flow agent spawn --type coordinator --name coord-1
+npx claude-flow agent spawn --type coder --name coder-1
+npx claude-flow agent spawn --type coder --name coder-2
+npx claude-flow agent spawn --type tester --name tester-1
+npx claude-flow agent spawn --type reviewer --name reviewer-1
+npx claude-flow swarm start --objective ""Your task here"" --strategy development
+```
+
+",161,310
+6489c3d3232a5cce8f9f:21:29,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,21,29,"**Workflow (Use MCP Tools):**
+1. `memory_search(query=""task keywords"")` → LEARN from past patterns (score > 0.7 = use it)
+2. `swarm_init(topology=""hierarchical"")` → coordination record (instant)
+3. **YOU write the code / run the commands** ← THIS IS WHERE WORK HAPPENS
+4. `memory_store(key=""pattern-x"", value=""what worked"", namespace=""patterns"")` → REMEMBER for next time
+
+---
+
+",1,161
+6489c3d3232a5cce8f9f:232:250,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,232,250,"### Common Swarm Patterns
+
+| Task | Exact Command |
+|------|---------------|
+| Init hierarchical swarm | `npx claude-flow swarm init --topology hierarchical --max-agents 8` |
+| Init mesh swarm | `npx claude-flow swarm init --topology mesh --max-agents 5` |
+| Init V3 mode (15 agents) | `npx claude-flow swarm init --v3-mode` |
+| Spawn coder | `npx claude-flow agent spawn --type coder --name coder-1` |
+| Spawn tester | `npx claude-flow agent spawn --type tester --name tester-1` |
+| Spawn coordinator | `npx claude-flow agent spawn --type coordinator --name coord-1` |
+| Spawn architect | `npx claude-flow agent spawn --type architect --name arch-1` |
+| Spawn reviewer | `npx claude-flow agent spawn --type reviewer --name rev-1` |
+| Spawn researcher | `npx claude-flow agent spawn --type researcher --name res-1` |
+| Start swarm | `npx claude-flow swarm start --objective ""task"" --strategy development` |
+| Check swarm status | `npx claude-flow swarm status` |
+| List agents | `npx claude-flow agent list` |
+| Stop swarm | `npx claude-flow swarm stop` |
+
+",161,310
+6489c3d3232a5cce8f9f:250:263,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,250,263,"### Agent Types (Use with `--type`)
+
+| Type | Purpose |
+|------|---------|
+| `coordinator` | Orchestrates other agents |
+| `coder` | Writes code |
+| `tester` | Writes tests |
+| `reviewer` | Reviews code |
+| `architect` | Designs systems |
+| `researcher` | Analyzes requirements |
+| `security-architect` | Security design |
+| `performance-engineer` | Optimization |
+
+",161,310
+6489c3d3232a5cce8f9f:263:273,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,263,273,"### Task Commands
+
+| Action | Command |
+|--------|---------|
+| Create task | `npx claude-flow task create --type implementation --description ""desc""` |
+| List tasks | `npx claude-flow task list` |
+| Assign task | `npx claude-flow task assign TASK_ID --agent AGENT_NAME` |
+| Task status | `npx claude-flow task status TASK_ID` |
+| Cancel task | `npx claude-flow task cancel TASK_ID` |
+
+",161,310
+6489c3d3232a5cce8f9f:273:284,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,273,284,"### Memory Commands
+
+| Action | Command |
+|--------|---------|
+| Store | `npx claude-flow memory store --key ""key"" --value ""value"" --namespace patterns` |
+| Search | `npx claude-flow memory search --query ""search terms""` |
+| List | `npx claude-flow memory list --namespace patterns` |
+| Retrieve | `npx claude-flow memory retrieve --key ""key""` |
+
+---
+
+",161,310
+6489c3d3232a5cce8f9f:284:286,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,284,286,"## 🚀 SWARM RECIPES
+
+",161,310
+6489c3d3232a5cce8f9f:286:295,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,286,295,"### Recipe 1: Hello World Test (COMPLETE EXAMPLE)
+
+**Step 1: Setup coordination** (returns instantly - don't stop!)
+```bash
+npx claude-flow swarm init --topology mesh --max-agents 5
+npx claude-flow agent spawn --type coder --name hello-main
+# ⚠️ DON'T STOP HERE - CONTINUE IMMEDIATELY TO STEP 2
+```
+
+",161,310
+6489c3d3232a5cce8f9f:295:305,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,295,305,"**Step 2: YOU (Codex) execute the task** (THIS IS THE REAL WORK)
+```bash
+# ✅ YOU create the file
+echo 'console.log(""Hello World from Swarm!"");' > /tmp/hello-swarm.js
+
+# ✅ YOU execute it
+node /tmp/hello-swarm.js
+# Output: Hello World from Swarm!
+```
+
+",161,310
+6489c3d3232a5cce8f9f:29:34,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,29,34,"## Ruflo Policy-Governed Concurrent Codex Workflow
+
+Ruflo is the coordination ledger and policy decision point. Codex agents are
+the executors. Coordination records do not write code or run tests.
+
+",1,161
+6489c3d3232a5cce8f9f:305:310,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,305,310,"**Step 3: Report completion** (optional - store results)
+```bash
+npx claude-flow memory store --key ""hello-world-result"" --value ""Executed: Hello World from Swarm!"" --namespace results
+```
+
+",161,310
+6489c3d3232a5cce8f9f:310:329,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,310,329,"### Recipe 1b: 5-Agent Concurrent Hello World (COMPLETE)
+```bash
+# COORDINATION (instant - creates records only)
+npx claude-flow swarm init --topology hierarchical --max-agents 5
+for i in 1 2 3 4 5; do
+  npx claude-flow agent spawn --type coder --name ""worker-$i""
+done
+
+# ⚠️ NOW YOU DO THE ACTUAL CONCURRENT WORK:
+for i in 1 2 3 4 5; do
+  (echo ""Worker $i: Hello World!"" && sleep 0.$i) &
+done
+wait
+echo ""All 5 workers completed!""
+
+# REPORT (optional)
+npx claude-flow memory store --key ""concurrent-result"" --value ""5 workers completed"" --namespace results
+```
+
+",310,461
+6489c3d3232a5cce8f9f:329:340,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,329,340,"### Recipe 1b: Hello World (Single Command Block)
+```bash
+# All-in-one execution
+npx claude-flow swarm init --topology mesh --max-agents 5 && \
+npx claude-flow agent spawn --type coder --name hello-main && \
+npx claude-flow swarm start --objective ""Print hello world"" --strategy development && \
+echo 'console.log(""Hello World from Swarm!"");' > /tmp/hello-swarm.js && \
+node /tmp/hello-swarm.js && \
+npx claude-flow memory store --key ""hello-world-result"" --value ""Success"" --namespace results
+```
+
+",310,461
+6489c3d3232a5cce8f9f:340:352,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,340,352,"### Recipe 2: Feature Implementation (6 Agents)
+```bash
+npx claude-flow swarm init --topology hierarchical --max-agents 8
+npx claude-flow agent spawn --type coordinator --name lead
+npx claude-flow agent spawn --type architect --name arch
+npx claude-flow agent spawn --type coder --name impl-1
+npx claude-flow agent spawn --type coder --name impl-2
+npx claude-flow agent spawn --type tester --name test
+npx claude-flow agent spawn --type reviewer --name review
+npx claude-flow swarm start --objective ""Implement [feature]"" --strategy development
+```
+
+",310,461
+6489c3d3232a5cce8f9f:34:39,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,34,39,"Use `guidance_brain({ mode: ""recommend"", task: ""..."" })` to select Ruflo
+capabilities from the live MCP registry. A registered tool is not necessarily
+configured, reachable, healthy, or authorized. If it is unavailable, continue
+with compatible guidance tools, CLI discovery, and repository instructions.
+
+",1,161
+6489c3d3232a5cce8f9f:352:362,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,352,362,"### Recipe 3: Bug Fix (4 Agents)
+```bash
+npx claude-flow swarm init --topology hierarchical --max-agents 4
+npx claude-flow agent spawn --type coordinator --name lead
+npx claude-flow agent spawn --type researcher --name debug
+npx claude-flow agent spawn --type coder --name fix
+npx claude-flow agent spawn --type tester --name verify
+npx claude-flow swarm start --objective ""Fix [bug]"" --strategy development
+```
+
+",310,461
+6489c3d3232a5cce8f9f:362:371,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,362,371,"### Recipe 4: Security Audit (3 Agents)
+```bash
+npx claude-flow swarm init --topology hierarchical --max-agents 4
+npx claude-flow agent spawn --type coordinator --name lead
+npx claude-flow agent spawn --type security-architect --name audit
+npx claude-flow agent spawn --type reviewer --name review
+npx claude-flow swarm start --objective ""Security audit"" --strategy development
+```
+
+",310,461
+6489c3d3232a5cce8f9f:371:379,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,371,379,"### Recipe 5: V3 Full Coordination (15 Agents)
+```bash
+npx claude-flow swarm init --v3-mode
+npx claude-flow swarm coordinate --agents 15
+```
+
+---
+
+",310,461
+6489c3d3232a5cce8f9f:379:381,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,379,381,"## 📋 BEHAVIORAL RULES
+
+",310,461
+6489c3d3232a5cce8f9f:381:382,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,381,382,"- **YOU (CODEX) execute tasks** - claude-flow only orchestrates
+",310,461
+6489c3d3232a5cce8f9f:382:383,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,382,383,"- Do what is asked; nothing more, nothing less
+",310,461
+6489c3d3232a5cce8f9f:383:384,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,383,384,"- NEVER create files unless absolutely necessary
+",310,461
+6489c3d3232a5cce8f9f:384:385,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,384,385,"- ALWAYS prefer editing existing files
+",310,461
+6489c3d3232a5cce8f9f:385:386,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,385,386,"- NEVER save to root folder
+",310,461
+6489c3d3232a5cce8f9f:386:387,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,386,387,"- NEVER commit secrets or .env files
+",310,461
+6489c3d3232a5cce8f9f:387:388,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,387,388,"- ALWAYS read a file before editing it
+",310,461
+6489c3d3232a5cce8f9f:388:389,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,388,389,"- NEVER wait for claude-flow to ""do work"" - it doesn't execute, YOU do
+",310,461
+6489c3d3232a5cce8f9f:389:391,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,389,391,"- Use claude-flow commands to TRACK progress, not to EXECUTE tasks
+
+",310,461
+6489c3d3232a5cce8f9f:391:393,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,391,393,"## 📁 FILE ORGANIZATION
+
+",310,461
+6489c3d3232a5cce8f9f:393:401,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,393,401,"| Directory | Purpose |
+|-----------|---------|
+| `/src` | Source code |
+| `/tests` | Test files |
+| `/docs` | Documentation |
+| `/config` | Configuration |
+| `/scripts` | Utility scripts |
+
+",310,461
+6489c3d3232a5cce8f9f:39:52,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,39,52,"1. Recall relevant AgentDB memory and ADRs.
+2. Inspect source, runtime, dependencies, policy, and health.
+3. Route to the smallest capable topology, agents, skills, and tools.
+4. Plan acceptance criteria, safety envelope, ownership, and validation.
+5. Execute with Codex workers in isolated scopes; Ruflo records coordination.
+6. Test focused, regression, and failure paths.
+7. Validate types, security, policy, compatibility, and artifact integrity.
+8. Benchmark a source-bound candidate against a source-bound baseline.
+9. Optimize only measured bottlenecks without weakening safety.
+10. Bind claims and evidence into exact source/build receipts.
+11. Reconcile handoffs and disclose unresolved limitations.
+12. Publish only through a separately authorized release gate.
+
+",1,161
+6489c3d3232a5cce8f9f:401:403,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,401,403,"## 🎯 WHEN TO USE SWARMS
+
+",310,461
+6489c3d3232a5cce8f9f:403:411,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,403,411,"**USE SWARM:**
+- Multiple files (3+)
+- New feature implementation
+- Cross-module refactoring
+- API changes with tests
+- Security-related changes
+- Performance optimization
+
+",310,461
+6489c3d3232a5cce8f9f:411:419,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,411,419,"**SKIP SWARM:**
+- Single file edits
+- Simple bug fixes (1-2 lines)
+- Documentation updates
+- Configuration changes
+
+---
+
+",310,461
+6489c3d3232a5cce8f9f:419:421,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,419,421,"## 🔧 CLI REFERENCE
+
+",310,461
+6489c3d3232a5cce8f9f:421:431,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,421,431,"### Swarm Commands
+```bash
+npx claude-flow swarm init [--topology TYPE] [--max-agents N] [--v3-mode]
+npx claude-flow swarm start --objective ""task"" --strategy [development|research]
+npx claude-flow swarm status [SWARM_ID]
+npx claude-flow swarm stop [SWARM_ID]
+npx claude-flow swarm scale --count N
+npx claude-flow swarm coordinate --agents N
+```
+
+",310,461
+6489c3d3232a5cce8f9f:431:442,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,431,442,"### Agent Commands
+```bash
+npx claude-flow agent spawn --type TYPE --name NAME
+npx claude-flow agent list [--filter active|idle|busy]
+npx claude-flow agent status AGENT_ID
+npx claude-flow agent stop AGENT_ID
+npx claude-flow agent metrics [AGENT_ID]
+npx claude-flow agent health
+npx claude-flow agent logs AGENT_ID
+```
+
+",310,461
+6489c3d3232a5cce8f9f:442:452,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,442,452,"### Task Commands
+```bash
+npx claude-flow task create --type TYPE --description ""desc""
+npx claude-flow task list [--all]
+npx claude-flow task status TASK_ID
+npx claude-flow task assign TASK_ID --agent AGENT_NAME
+npx claude-flow task cancel TASK_ID
+npx claude-flow task retry TASK_ID
+```
+
+",310,461
+6489c3d3232a5cce8f9f:452:461,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,452,461,"### Memory Commands
+```bash
+npx claude-flow memory store --key KEY --value VALUE [--namespace NS]
+npx claude-flow memory search --query ""terms"" [--namespace NS]
+npx claude-flow memory list [--namespace NS]
+npx claude-flow memory retrieve --key KEY [--namespace NS]
+npx claude-flow memory init [--force]
+```
+
+",310,461
+6489c3d3232a5cce8f9f:461:472,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,461,472,"### Hooks Commands
+```bash
+npx claude-flow hooks pre-task --description ""task""
+npx claude-flow hooks post-task --task-id ID --success true
+npx claude-flow hooks route --task ""task""
+npx claude-flow hooks session-start --session-id ID
+npx claude-flow hooks session-end --export-metrics true
+npx claude-flow hooks worker list
+npx claude-flow hooks worker dispatch --trigger audit
+```
+
+",461,614
+6489c3d3232a5cce8f9f:472:485,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,472,485,"### System Commands
+```bash
+npx claude-flow init [--wizard] [--codex] [--full]
+npx claude-flow daemon start
+npx claude-flow daemon stop
+npx claude-flow daemon status
+npx claude-flow doctor [--fix]
+npx claude-flow status
+npx claude-flow mcp start
+```
+
+---
+
+",461,614
+6489c3d3232a5cce8f9f:485:496,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,485,496,"## 🔌 TOPOLOGIES
+
+| Topology | Use Case | Command Flag |
+|----------|----------|--------------|
+| `hierarchical` | Coordinated teams, anti-drift | `--topology hierarchical` |
+| `mesh` | Peer-to-peer, equal agents | `--topology mesh` |
+| `hierarchical-mesh` | Hybrid (recommended for V3) | `--topology hierarchical-mesh` |
+| `ring` | Sequential processing | `--topology ring` |
+| `star` | Central coordinator | `--topology star` |
+| `adaptive` | Dynamic switching | `--topology adaptive` |
+
+",461,614
+6489c3d3232a5cce8f9f:496:512,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,496,512,"## 🤖 AGENT TYPES
+
+### Core
+`coordinator`, `coder`, `tester`, `reviewer`, `architect`, `researcher`
+
+### Specialized
+`security-architect`, `security-auditor`, `memory-specialist`, `performance-engineer`
+
+### Swarm Coordination
+`hierarchical-coordinator`, `mesh-coordinator`, `adaptive-coordinator`
+
+### Consensus
+`byzantine-coordinator`, `raft-manager`, `gossip-coordinator`
+
+---
+
+",461,614
+6489c3d3232a5cce8f9f:512:530,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,512,530,"## ⚙️ CONFIGURATION
+
+### Default Swarm Config
+- Topology: `hierarchical`
+- Max Agents: 8
+- Strategy: `specialized`
+- Consensus: `raft`
+- Memory: `hybrid`
+
+### Environment Variables
+```bash
+CLAUDE_FLOW_CONFIG=./claude-flow.config.json
+CLAUDE_FLOW_LOG_LEVEL=info
+CLAUDE_FLOW_MEMORY_BACKEND=hybrid
+```
+
+---
+
+",461,614
+6489c3d3232a5cce8f9f:52:64,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,52,64,"Hard invariants:
+
+- Never run two writers in one worktree.
+- Delegation may only reduce tools, servers, namespaces, network, spend,
+  concurrency, expiry, and depth.
+- Policy denial cancels dependent work before side effects.
+- MetaHarness may evaluate candidates concurrently, but only ADR-322A may
+  promote them and MetaHarness may never expand its own SafetyEnvelope.
+- Do not commit, push, merge, release, or remove worktrees unless authorized.
+- Existing installations migrate in `legacy` policy mode; use `observe` before
+  switching to `enforce`.
+
+",1,161
+6489c3d3232a5cce8f9f:530:549,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,530,549,"## 🔗 SKILLS
+
+Invoke with `$skill-name`:
+
+| Skill | Purpose |
+|-------|---------|
+| `$swarm-orchestration` | Multi-agent coordination |
+| `$memory-management` | Pattern storage/retrieval |
+| `$sparc-methodology` | Structured development |
+| `$security-audit` | Security scanning |
+| `$performance-analysis` | Profiling |
+| `$github-automation` | CI/CD management |
+| `$hive-mind` | Byzantine consensus |
+| `$neural-training` | Pattern learning |
+
+---
+
+---
+
+",461,614
+6489c3d3232a5cce8f9f:549:553,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,549,553,"## 🔌 MCP INTEGRATION (Learning & Coordination)
+
+Codex doesn't have native hooks like Claude Code, but uses **MCP (Model Context Protocol)** for learning and coordination.
+
+",461,614
+6489c3d3232a5cce8f9f:553:569,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,553,569,"### MCP Auto-Registration
+
+When you run `npx claude-flow init --codex`, the MCP server is **automatically registered** with Codex.
+
+```bash
+# Verify MCP is registered:
+codex mcp list
+
+# Expected output:
+# Name         Command  Args                   Status
+# claude-flow  npx      claude-flow mcp start  enabled
+
+# If not present, add manually:
+codex mcp add claude-flow -- npx claude-flow mcp start
+```
+
+",461,614
+6489c3d3232a5cce8f9f:569:575,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,569,575,"### Test MCP Connection
+```bash
+# Test MCP server starts correctly:
+npx claude-flow mcp start --test
+```
+
+",461,614
+6489c3d3232a5cce8f9f:575:603,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,575,603,"### MCP Tools Available
+Once added, Codex can use these tools via MCP:
+
+**Coordination:**
+| Tool | Purpose |
+|------|---------|
+| `swarm_init` | Initialize swarm (topology, maxAgents) |
+| `swarm_status` | Check swarm state |
+| `agent_spawn` | Register agent roles |
+| `agent_status` | Check agent state |
+| `task_orchestrate` | Coordinate multi-agent tasks |
+
+**Learning & Memory (USE THESE!):**
+| Tool | Purpose | When |
+|------|---------|------|
+| `memory_search` | Semantic vector search | BEFORE every task |
+| `memory_store` | Store patterns with embeddings | AFTER success |
+| `memory_retrieve` | Get by exact key | When key is known |
+| `neural_train` | Train on patterns | Periodic improvement |
+| `neural_status` | Check learning state | Debugging |
+
+**Hive Mind (Advanced):**
+| Tool | Purpose |
+|------|---------|
+| `hive-mind_init` | Byzantine consensus swarm |
+| `hive-mind_spawn` | Spawn hive workers |
+| `hive-mind_broadcast` | Message all workers |
+
+",461,614
+6489c3d3232a5cce8f9f:603:607,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,603,607,"### Self-Learning via MCP Tools (PREFERRED)
+
+Use MCP tools directly - faster than CLI commands:
+
+",461,614
+6489c3d3232a5cce8f9f:607:614,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,607,614,"**BEFORE starting any task - SEARCH for patterns:**
+```
+Use tool: memory_search
+  query: ""keywords related to your task""
+  namespace: ""patterns""
+```
+
+",461,614
+6489c3d3232a5cce8f9f:614:622,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,614,622,"**AFTER completing successfully - STORE the pattern:**
+```
+Use tool: memory_store
+  key: ""pattern-[descriptive-name]""
+  value: ""What worked: approach, code patterns, gotchas""
+  namespace: ""patterns""
+```
+
+",614,708
+6489c3d3232a5cce8f9f:622:636,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,622,636,"### MCP Learning Workflow (Use This!)
+
+```
+1. LEARN: memory_search(query=""task keywords"", namespace=""patterns"")
+   → If score > 0.7, USE that pattern
+
+2. COORDINATE: swarm_init(topology=""hierarchical"")
+   → agent_spawn(type=""coder"", name=""worker-1"")
+
+3. EXECUTE: YOU write the code, run commands, create files
+
+4. REMEMBER: memory_store(key=""pattern-x"", value=""what worked"", namespace=""patterns"")
+```
+
+",614,708
+6489c3d3232a5cce8f9f:636:645,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,636,645,"### MCP Tools for Learning
+
+| Tool | Purpose | When to Use |
+|------|---------|-------------|
+| `memory_search` | Find similar past patterns | BEFORE starting any task |
+| `memory_store` | Save successful patterns | AFTER completing a task |
+| `memory_retrieve` | Get specific pattern by key | When you know the exact key |
+| `neural_train` | Train on successful patterns | After multiple successes |
+
+",614,708
+6489c3d3232a5cce8f9f:645:671,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,645,671,"### Example: Learning-Enabled Task
+
+```
+STEP 1 - LEARN:
+Use tool: memory_search
+  query: ""validation utility function""
+  namespace: ""patterns""
+
+→ Found: pattern-email-validator (score: 0.82)
+→ Use this pattern as reference!
+
+STEP 2 - COORDINATE:
+Use tool: swarm_init with topology=""hierarchical"", maxAgents=3
+
+STEP 3 - EXECUTE:
+YOU create the files:
+  echo 'export function validate(x) { ... }' > /tmp/validator.js
+  node --test /tmp/validator.js
+
+STEP 4 - REMEMBER:
+Use tool: memory_store
+  key: ""pattern-phone-validator""
+  value: ""Phone validation: regex /^\+?[\d\s-]{10,}$/, normalize first, test edge cases""
+  namespace: ""patterns""
+```
+
+",614,708
+6489c3d3232a5cce8f9f:64:81,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,64,81,"Repository harness integration:
+
+- If tracked repository instructions define a collaboration harness, start its
+  session only after assigning an isolated worktree.
+- Inspect existing claims, acquire exact paths/resources/ports, renew leases,
+  check acknowledged inbox messages at integration boundaries, and release ownership on
+  handoff or exit.
+- A repository lease coordinates ownership; it does not grant authorization.
+  Protected work still requires the ADR-324/325 action capability and current
+  fencing epoch.
+- In-memory reference adapters demonstrate semantics; they are not distributed,
+  restart-durable release authorities.
+- Heartbeats and lease expiry establish liveness; a PID is diagnostic only.
+- `HEAD` alone is not an exact source-state identity in a dirty worktree.
+  Release evidence must bind a clean commit or an immutable snapshot of tracked
+  and untracked changes.
+
+",1,161
+6489c3d3232a5cce8f9f:671:677,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,671,677,"### Vector Search Tips
+- Searches are SEMANTIC (meaning-based, not just keywords)
+- Score > 0.7 = strong match, use that pattern
+- Score 0.5-0.7 = partial match, adapt as needed
+- Store DETAILED values for better future retrieval
+
+",614,708
+6489c3d3232a5cce8f9f:677:683,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,677,683,"### CLI Fallback (if MCP unavailable)
+```bash
+npx claude-flow memory search --query ""keywords"" --namespace patterns
+npx claude-flow memory store --key ""pattern-x"" --value ""what worked"" --namespace patterns
+```
+
+",614,708
+6489c3d3232a5cce8f9f:683:691,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,683,691,"### Coordination via MCP
+
+When claude-flow is added as MCP server, Codex can call tools directly:
+```
+Use tool: swarm_init with topology=""hierarchical""
+Use tool: memory_store with key=""result"" value=""success""
+```
+
+",614,708
+6489c3d3232a5cce8f9f:691:700,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,691,700,"### config.toml MCP Setup
+```toml
+# ~/.codex/config.toml
+[mcp_servers.claude-flow]
+command = ""npx""
+args = [""claude-flow"", ""mcp"", ""start""]
+enabled = true
+```
+
+",614,708
+6489c3d3232a5cce8f9f:700:707,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,700,707,"---
+
+## 📚 SUPPORT
+
+- Docs: https://github.com/ruvnet/claude-flow
+- Issues: https://github.com/ruvnet/claude-flow/issues
+
+",614,708
+6489c3d3232a5cce8f9f:707:708,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,707,708,"**Remember: Codex executes, claude-flow orchestrates!**
+",614,708
+6489c3d3232a5cce8f9f:81:89,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,81,89,"Useful checks:
+
+```bash
+npx ruflo policy status
+npx ruflo policy verify
+npx ruflo metaharness flywheel status
+```
+
+",1,161
+6489c3d3232a5cce8f9f:89:102,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,89,102,"Repository release contract:
+
+- The stable public train is exactly `@claude-flow/cli`, `claude-flow`, and
+  `ruflo`; internal `@claude-flow/*` components are bundled and are not part of
+  a normal standalone publish.
+- Publish from a clean, reviewed source state in that order.
+- Only the CLI publish receives the helper-signing configuration from
+  `ruv-dev`; use the existing authenticated npm session for publication.
+- Run `node scripts/audit-umbrella-version-lockstep.mjs`, verify all three
+  registry versions, and align `latest`, `alpha`, and `v3alpha`.
+
+---
+
+",1,161
+6489c3d3232a5cce8f9f:8:10,6489c3d3232a5cce8f9f,ruvnet/ruflo,bd19b6f984fb0b4465e333c5e24cc5333784f410,AGENTS.md,AGENTS.md,a953f3742d5a7c902aa8d184620e29994d6c144acae5af93ffb0b05ff0b138f2,8,10,"## 📢 TL;DR - READ THIS FIRST
+
+",1,161
 654a46428f00c8efa54f:100:110,654a46428f00c8efa54f,pytorch/pytorch,ec1459e58611f5dae138d889ae5ac88d845df2b4,.github/copilot-instructions.md,copilot-instructions.md,53371f894c4cd8fafbecd1bab001ea1cb7aaeff389de61dfee6036c6f36980bf,100,110,"## Git Workflow (AI Agent Specific)
 
 When preparing PRs from this environment:
@@ -63652,6 +64853,87 @@ purpose.  This includes, but is not limited to:
   this repository such as issues, pull requests, discussions, actions
   logs, or releases
 ",1,30
+8bf3533c0142db0454a3:10:12,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,10,12,"Replace example placeholders such as ${PLUGIN_NAME} according to the confirmed plan. Do not treat user-defined variable settings as official content.
+
+",1,53
+8bf3533c0142db0454a3:12:14,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,12,14,"## Obtain an Explicit Choice, Then Confirm the Plan
+
+",1,53
+8bf3533c0142db0454a3:14:15,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,14,15,"- Use this skill only when the user explicitly asks to develop or modify a plugin. Do not automatically turn ordinary template, document, or theme requests into plugins
+",1,53
+8bf3533c0142db0454a3:15:16,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,15,16,"- Initiate the official choice with workflow.action=""choose"" in the question tool; questions may be an empty array. The server displays a fixed, localized yes/no question. Do not treat ordinary questions, chat text, the model's own consent, or the user's previous answers as permission for this task
+",1,53
+8bf3533c0142db0454a3:16:17,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,16,17,"- After the user chooses yes, load the body through skill with action=""load"", source=""builtin"", and name=""siyuan-plugin-development"". Continue only after the server confirms successful loading. Do not read the official body if the user declines or cancels, or if the skill is disabled; user-requested custom development may still proceed under its original permissions
+",1,53
+8bf3533c0142db0454a3:17:18,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,17,18,"- Extract known requirements from the current conversation, and ask only about gaps that would change the implementation: functionality, entry points, triggers, target frontend, data-read and data-write effects, and deliverables. Do not repeat questions already answered, guess a notebook, or expand the scope to every platform
+",1,53
+8bf3533c0142db0454a3:18:19,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,18,19,"- Submit a short plan through question with workflow.action=""plan"", bound to the taskId returned by the choice. The full plan must clearly state the plugin name, frontend, functionality and entry points, data changes, delivery scope, import source, and files allowed in the package. The server freezes and displays the entire plan; do not write source code before actual acceptance is confirmed
+",1,53
+8bf3533c0142db0454a3:19:21,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,19,21,"- Update the plan and obtain new confirmation when changing a confirmed goal, source-code origin, data effects, or packaging scope. Do not fabricate a taskId, plan digest, or confirmed state; previous questions and versions do not authorize a new task
+
+",1,53
+8bf3533c0142db0454a3:1:6,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,1,6,"---
+name: siyuan-plugin-development
+description: Official frontend plugin development workflow. After the user explicitly opts in, clarify missing requirements, confirm a short plan, implement in a managed copy, verify, and package. Installation and activation require separate authorization.
+---
+
+",1,53
+8bf3533c0142db0454a3:21:23,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,21,23,"Example choice call: {""questions"":[],""workflow"":{""action"":""choose""}}. Use newTask=true only when the user explicitly requests another plugin; reconsider=true may be used when the user explicitly changes the current workflow choice. Ordinary repeated calls reuse the current choice without asking again.
+
+",1,53
+8bf3533c0142db0454a3:23:25,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,23,25,"Plan fields: taskId, proposal (at most 2000 characters), packageName, frontend (one of desktop, desktop-window, browser-desktop, mobile, or browser-mobile), dataEffects and deliverables (at most 1000 characters each), and files (at most 200 exact relative file paths). Before importing an existing plugin, call bazaar's project_status with taskId, sourcePath, and exact sourceFiles; sourceFiles must match the workflow.files awaiting confirmation. The host returns a sourceRevision for the selected existing safe files; include that digest and sourcePath in the plan. Do not implicitly read or hash the entire repository. List excluded paths such as .git, node_modules, and config without reading their contents. Omit source fields when creating a new project. The technical file list is also shown to the user; do not add unapproved files after confirmation. The allowlist may contain optional files that do not yet exist, but this does not permit omitting the entry point, manifest, or declared resources.
+
+",1,53
+8bf3533c0142db0454a3:25:27,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,25,27,"## Verify Tools and APIs First
+
+",1,53
+8bf3533c0142db0454a3:27:29,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,27,29,"Read references/development.md first. Read every resource through skill with source=""builtin"" and name=""siyuan-plugin-development/relative-path"". Check the tools currently available and the target SiYuan version; consult the official plugin-sample, petal, and source code for that version as needed. Do not treat type declarations, outdated README versions, or unreleased APIs as evidence of support in the current host.
+
+",1,53
+8bf3533c0142db0454a3:29:31,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,29,31,"Use CommonJS JavaScript by default. Use TypeScript only when the required dependencies and build tools actually exist and are authorized for use; source code is not equivalent to a runnable index.js. Native agents are not guaranteed to have a shell, dependency-installation tools, or arbitrary code execution. If a tool is missing, report the exact blocked step. Do not invent execution results or bypass a tool denial. If the user specifies TypeScript, confirm an alternative approach before switching to JavaScript.
+
+",1,53
+8bf3533c0142db0454a3:31:33,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,31,33,"## Implement in a Managed Copy
+
+",1,53
+8bf3533c0142db0454a3:33:34,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,33,34,"1. After plan confirmation, call bazaar's prepare_project with taskId so the host creates a source-code copy and baseline checkpoint; do not specify an absolute write directory yourself. For imports, first perform a read-only inspection of the exact sourceFiles, then import a copy after approval of the source and the selected files' baseline digest; leave the original directory unchanged. After reconfirming a plan for an existing managed project, obtain the current source revision with project_status(taskId), then call prepare_project(taskId, expectedSourceRevision) to establish a new checkpoint. This preserves the current source code without reimporting or overwriting it
+",1,53
+8bf3533c0142db0454a3:34:35,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,34,35,"2. Use file.write with ifAbsent=true for new files. Before editing existing text, use file.read with withMetadata=true; continue reading with the same expectedRevision and nextOffsetByte until you have fully read the original content that needs changing. truncated=true does not represent a complete file
+",1,53
+8bf3533c0142db0454a3:35:36,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,35,36,"3. Prefer file.edit for partial changes, providing expectedRevision and unique, nonoverlapping oldText/newText replacements. Use file.write with expectedRevision only when full replacement is necessary, and only after reading the entire file at that same revision. On a conflict, reread and verify first. Do not blindly retry writes or fall back to overwriting the entire file when a match is missing or ambiguous
+",1,53
+8bf3533c0142db0454a3:36:37,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,36,37,"4. Use the paths and project revisions returned by the host; verify the current source code, plan, and checkpoint through bazaar's project_status. Stop writing if a checkpoint cannot be established, and report partial failures accurately. When recovery is needed, use restore_project and respect the current revision and tool confirmation requirements
+",1,53
+8bf3533c0142db0454a3:37:39,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,37,39,"5. Do not bypass conditional writes for managed source code through copy, unzip, directory renaming, or HTTP file APIs. Do not touch host-controlled, backup, or artifact directories, or directly overwrite the actual plugin installation directory
+
+",1,53
+8bf3533c0142db0454a3:39:40,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,39,40,"Canceling the workflow does not automatically roll back changes. When cancellation, an unknown write result, or partial preparation prevents the ordinary plan from continuing, request recovery-only authorization through question with questions=[], workflow.action=""recover"", and taskId. The server displays and binds the most recently actually approved plan and its digest.
+",1,53
+8bf3533c0142db0454a3:40:42,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,40,42,"After confirmation, you may call restore_project, or retry prepare_project only for the same frozen, interrupted preparation. Recovery does not roll back notes, runtime data, or other configuration, and does not authorize further source-code changes; subsequent ordinary source changes still require normal plan confirmation.
+
+",1,53
+8bf3533c0142db0454a3:42:44,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,42,44,"Use the minimal entry-point pattern in examples/index.js as a reference and adapt it to the actual functionality. Create entry points through the public Plugin API and modify notes through kernel APIs; never use fs or Electron to modify data files directly. Put UI text in i18n. Handle return codes, missing targets, closed notebooks, repeated clicks, and late responses. onunload must handle partial initialization and clean up the plugin's own listeners, timers, observers, and requests; unloading cannot undo write requests that have already been sent.
+
+",1,53
+8bf3533c0142db0454a3:44:46,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,44,46,"## Verify, Package, and Deliver
+
+",1,53
+8bf3533c0142db0454a3:46:48,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,46,48,"Read references/verification.md first. Declare only frontends that are actually implemented and verified; do not declare kernels without kernel.js. Do not copy the example's author, repository, funding information, or data permissions, or invent a publishing identity for a local prototype.
+
+",1,53
+8bf3533c0142db0454a3:48:50,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,48,50,"Request a deterministic local ZIP through bazaar's package_local with taskId and the latest expectedSourceRevision. The host freezes only existing safe files on the allowlist. Optional paths may be absent, but plugin.json, index.js, and resources declared by the manifest must exist. It does not execute project scripts or download dependencies. If the entry point or declared resources are missing, or a secret file is detected, first correct the source code or reconfirm the scope. Retain the returned packageHash, sourceRevision, and validation results. Successful packaging does not mean JavaScript syntax, actual installation, frontend loading, or functional execution has passed verification.
+
+",1,53
+8bf3533c0142db0454a3:50:52,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,50,52,"Report separate results and evidence for source code, static checks, builds, ZIP packaging, simulated tests, actual installation, activation configuration, frontend loading, and functional execution. Mark builds for plain JavaScript as ""not applicable""; mark steps that were not run as ""unverified"" and explain why. Tests using SDK substitutes or a standalone Electron DOM environment are not SiYuan integration tests; verify desktop Electron and the desktop browser separately.
+
+",1,53
+8bf3533c0142db0454a3:52:53,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,52,53,"Installation and activation each require the user's explicit authorization for the corresponding action and target. Overwriting an enabled plugin may execute code immediately; a disable notification does not confirm unloading in every frontend, so do not claim it automatically guarantees execution has stopped. Once authorized, use only the native installation interface, bound to the package digest and target revision returned by the host; do not install through generic file writes. Rolling back code does not roll back the user's notes or configuration.
+",1,53
+8bf3533c0142db0454a3:6:10,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,6,10,"# SiYuan Frontend Plugin Development
+
+This is a read-only official skill shipped with SiYuan. Its current scope is creating and modifying frontend plugins, using CommonJS JavaScript without third-party runtime dependencies by default. Full development, verification, and recovery of kernel.js are outside this workflow's scope.
+
+",1,53
 8ca3fac134a58e31aa46:125:132,8ca3fac134a58e31aa46,openclaw/openclaw,bf10fbe8acf1295bcf982e9d4b17a9a97d4a7bde,skills/gog/SKILL.md,SKILL.md,d54a8e52b1e00bb5d33b46915fd549f8b792ef3a383fe40e92b195d11d2d5255,125,132,"Notes
 
 - Set `GOG_ACCOUNT=you@gmail.com` to avoid repeating `--account`.
@@ -76835,6 +78117,206 @@ a65c5b51358b5d324d3c:99:100,a65c5b51358b5d324d3c,photoprism/photoprism,7a347f125
 a65c5b51358b5d324d3c:9:11,a65c5b51358b5d324d3c,photoprism/photoprism,7a347f125bb93a44cfeff7cfd29dbad5337ea665,.github/copilot-instructions.md,copilot-instructions.md,9db032f29ab983e384cec40e7a80a8bcbb42d334f2280c672283f748fc17e65e,9,11,"- Path-specific rules that apply on top of this file live in `.github/instructions/*.instructions.md`.
 
 ",1,111
+a744d670a22d2438c0f7:112:114,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,112,114,"### Database Options for Development
+
+",1,157
+a744d670a22d2438c0f7:114:120,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,114,120,"During setup, choose option 4 (SQLite) for the simplest development setup:
+
+- No external database server required
+- Database file stored at the path configured in `config.json` (default under `/tmp/`)
+- Perfect for development and testing
+
+",1,157
+a744d670a22d2438c0f7:120:123,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,120,123,"> **Note:** BoltDB (option 2) was removed in Semaphore 2.19. If you have an existing
+> `database.boltdb` file, migrate to SQLite, MySQL, or PostgreSQL before upgrading.
+
+",1,157
+a744d670a22d2438c0f7:123:129,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,123,129,"### Frontend Development
+- Vue.js 2.x application in `web/` directory
+- Built with Vue CLI and Vuetify components
+- Build output goes to `api/public/` for serving by Go backend
+- Development server not typically used - Go server serves built assets
+
+",1,157
+a744d670a22d2438c0f7:129:137,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,129,137,"### Backend Development  
+- Go application with CLI and API server
+- Uses Gorilla Mux for routing
+- Supports multiple databases: MySQL, PostgreSQL, SQLite (BoltDB was removed in 2.19)
+- Configuration via JSON file or environment variables
+
+## Troubleshooting
+
+",1,157
+a744d670a22d2438c0f7:137:143,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,137,143,"### Build Issues
+- If `task` command not found: Install with `go install github.com/go-task/task/v3/cmd/task@latest`
+- If Go version errors: Ensure Go 1.21+ is installed
+- If npm install fails: Ensure Node.js 16+ is installed
+- If build takes too long: This is normal - frontend build can take 60+ seconds
+
+",1,157
+a744d670a22d2438c0f7:143:148,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,143,148,"### Runtime Issues  
+- If server won't start: Check config.json exists and database is accessible
+- If web UI shows errors: Check that frontend build completed successfully in `api/public/`
+- If API returns errors: Check server logs for specific error messages
+
+",1,157
+a744d670a22d2438c0f7:148:150,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,148,150,"### Database Issues
+
+",1,157
+a744d670a22d2438c0f7:150:151,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,150,151,"- For development, use SQLite (option 4) during setup
+",1,157
+a744d670a22d2438c0f7:151:152,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,151,152,"- The SQLite database file is created automatically at the configured path
+",1,157
+a744d670a22d2438c0f7:152:153,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,152,153,"- If database errors occur, remove the SQLite file and run setup again
+",1,157
+a744d670a22d2438c0f7:153:155,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,153,155,"- Configs with `""dialect"": ""bolt""` will fail at startup — switch to `sqlite` and re-run setup
+
+",1,157
+a744d670a22d2438c0f7:155:157,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,155,157,"## Important Notes
+
+",1,157
+a744d670a22d2438c0f7:157:158,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,157,158,"- **NEVER CANCEL** long-running builds or dependency installations
+",157,164
+a744d670a22d2438c0f7:158:159,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,158,159,"- Set appropriate timeouts: deps (5+ min), build (3+ min), tests (2+ min)  
+",157,164
+a744d670a22d2438c0f7:159:160,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,159,160,"- The application serves the frontend from the Go backend - no separate frontend server needed
+",157,164
+a744d670a22d2438c0f7:160:161,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,160,161,"- Configuration is stored in `config.json` after running setup
+",157,164
+a744d670a22d2438c0f7:161:162,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,161,162,"- Default admin credentials after setup: admin / changeme
+",157,164
+a744d670a22d2438c0f7:162:163,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,162,163,"- Linting has known issues - focus on not introducing new ones
+",157,164
+a744d670a22d2438c0f7:163:164,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,163,164,"- Always test changes by running the full application, not just unit tests",157,164
+a744d670a22d2438c0f7:17:26,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,17,26,"### Run the application:
+- ALWAYS run the bootstrapping steps first
+- Setup database and admin user: `./bin/semaphore setup` (interactive, use SQLite option 4 for development)
+- Start server: `./bin/semaphore server --config ./config.json`
+- Web UI: http://localhost:3000 (login: admin / changeme)
+- API: http://localhost:3000/api/ (test with: `curl http://localhost:3000/api/ping`)
+
+## Validation
+
+",1,157
+a744d670a22d2438c0f7:1:3,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,1,3,"# Semaphore UI Development Instructions
+
+",1,157
+a744d670a22d2438c0f7:26:27,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,26,27,"- **CRITICAL**: Always manually validate any new code by building and running the application.
+",1,157
+a744d670a22d2438c0f7:27:33,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,27,33,"- ALWAYS run through at least one complete end-to-end scenario after making changes:
+  1. Build the application: `task build`
+  2. Start the server: `./bin/semaphore server --config ./config.json`
+  3. Test API endpoint: `curl http://localhost:3000/api/ping` (should return ""pong"")
+  4. Access web UI at http://localhost:3000 and verify it loads
+  5. For auth changes: Test login with admin/changeme
+",1,157
+a744d670a22d2438c0f7:33:34,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,33,34,"- For significant changes, run full setup process to ensure setup still works
+",1,157
+a744d670a22d2438c0f7:34:36,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,34,36,"- Always build and exercise your changes before considering the task complete
+
+",1,157
+a744d670a22d2438c0f7:36:55,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,36,55,"### Complete Validation Scenario (for major changes):
+```bash
+# 1. Clean build
+task build
+
+# 2. Setup database (if config.json doesn't exist)
+./bin/semaphore setup  # Choose option 4 (SQLite), use admin/changeme
+
+# 3. Start server
+./bin/semaphore server --config ./config.json
+
+# 4. Test in another terminal
+curl http://localhost:3000/api/ping  # Should return ""pong""
+curl -I http://localhost:3000/       # Should return HTTP 200
+
+# 5. Test web interface manually in browser at http://localhost:3000
+# 6. Test login with admin/changeme if auth-related changes
+```
+
+",1,157
+a744d670a22d2438c0f7:3:5,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,3,5,"**Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
+
+",1,157
+a744d670a22d2438c0f7:55:57,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,55,57,"### Linting and Code Quality
+
+",1,157
+a744d670a22d2438c0f7:57:58,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,57,58,"- Frontend linting: `cd web && npm run lint` (has known warnings about console statements and asset sizes - ignore existing issues)
+",1,157
+a744d670a22d2438c0f7:58:59,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,58,59,"- Backend linting: `golangci-lint run --timeout=3m` (has known type errors due to module import issues - ignore existing issues) 
+",1,157
+a744d670a22d2438c0f7:59:60,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,59,60,"- **DO NOT** try to fix existing linting issues unless specifically asked to
+",1,157
+a744d670a22d2438c0f7:5:9,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,5,9,"Semaphore UI is a modern web interface for managing popular DevOps tools like Ansible, Terraform, PowerShell, and Bash scripts. It's built with Go (backend) and Vue.js (frontend), using Task runner for build automation.
+
+## Working Effectively
+
+",1,157
+a744d670a22d2438c0f7:60:61,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,60,61,"- Always run linting on new code you add to ensure it follows project standards
+",1,157
+a744d670a22d2438c0f7:61:65,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,61,65,"- Install golangci-lint if needed: `go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.57.2`
+
+## Common Tasks
+
+",1,157
+a744d670a22d2438c0f7:65:85,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,65,85,"### Repository Structure
+```
+.
+├── README.md           - Project documentation  
+├── CONTRIBUTING.md     - Development guidelines
+├── Taskfile.yml       - Task runner configuration
+├── go.mod             - Go module dependencies
+├── web/               - Vue.js frontend application
+│   ├── package.json   - Frontend dependencies
+│   ├── src/           - Vue.js source code
+│   └── public/        - Static assets
+├── cli/               - Go CLI application entry point  
+├── api/               - Go API server endpoints
+├── db/                - Database models and interfaces
+├── services/          - Business logic services
+├── util/              - Utility functions and configuration
+├── bin/               - Built binaries (after build)
+└── config.json       - Runtime configuration (after setup)
+```
+
+",1,157
+a744d670a22d2438c0f7:85:112,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,85,112,"### Key Commands Reference
+```bash
+# Install task runner
+go install github.com/go-task/task/v3/cmd/task@latest
+
+# Install all dependencies (backend + frontend + tools)
+task deps
+
+# Build application (frontend + backend)
+task build
+
+# Run tests
+task test  
+
+# Run linting
+task lint
+
+# Setup application (interactive)
+./bin/semaphore setup
+
+# Start server
+./bin/semaphore server --config ./config.json
+
+# View available task commands
+task --list
+```
+
+",1,157
+a744d670a22d2438c0f7:9:17,a744d670a22d2438c0f7,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,.github/copilot-instructions.md,copilot-instructions.md,e0006052019d744702b420eb2d5665ac9aa542693244986f1af9c76f9262307e,9,17,"### Bootstrap, build, and test the repository:
+- Install Go 1.21+ (currently requires go version 1.21 or higher)
+- Install Node.js 16+ 
+- Install Task runner: `go install github.com/go-task/task/v3/cmd/task@latest`
+- Install dependencies: `task deps` -- takes 3 minutes first time (faster with cache). NEVER CANCEL. Set timeout to 5+ minutes.
+- Build the application: `task build` -- takes 1.5 minutes. NEVER CANCEL. Set timeout to 3+ minutes.
+- Run tests: `task test` -- takes 33 seconds. NEVER CANCEL. Set timeout to 2+ minutes.
+
+",1,157
 a79bafc294ea7679f9cd:11:13,a79bafc294ea7679f9cd,browser-use/browser-use,2cc71890e65056b67fdb29d98bb407749c15bb08,skills/qa/SKILL.md,SKILL.md,52469b750db93763a0ab59b872eeb05af679af6213e89c02e19d558e1c236238,11,13,"## Inputs
 
 ",1,87
@@ -81769,6 +83251,7 @@ b2b31ca0f921ccdc1728:99:105,b2b31ca0f921ccdc1728,Significant-Gravitas/AutoGPT,e2
 | `/pr-address` | Address reviewer comments and loop until CI green — use after reviews come in; it can also post the `/review` trigger itself if the PR has no review yet |
 
 ",1,111
+b2fe13e9c6f787b154ab:1:2,b2fe13e9c6f787b154ab,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,CLAUDE.md,CLAUDE.md,3387a2fac38f6f127ab568aaabd5d33be5210809664b83ef4fa9f1fb1835a169,1,2,AGENTS/agent-primary.md,1,2
 b49b0b7d141d9ddfea72:11:13,b49b0b7d141d9ddfea72,t8y2/dbx,ee6fb66aa2bccc6232cb5e3d9d79a56ef13cac1b,skills/dbx/SKILL.md,SKILL.md,8cd6264da97176544b3751d472527953265addc6999ab99ef45517a2a59a84ed,11,13,"# DBX CLI
 
 ",1,50
@@ -82856,6 +84339,112 @@ b8beca0055ec9f43d75d:99:101,b8beca0055ec9f43d75d,streamlit/streamlit,dd3ab9df1b0
 b8beca0055ec9f43d75d:9:11,b8beca0055ec9f43d75d,streamlit/streamlit,dd3ab9df1b06d47e953e025f14bbc116dab5d755,AGENTS.md,AGENTS.md,f4c6eb3d593191b686285b620177d299d1c5eec3320c3883c61fbcab70d6e26a,9,11,"- **Communication:** Protocol Buffers (protobuf) over WebSocket.
 
 ",1,110
+b8c83e0a3e675382f893:10:12,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,10,12,"All UI work — layout, color, typography, spacing, component selection, UX behavior — must follow [`docs/STYLEGUIDE.md`](./docs/STYLEGUIDE.md). Use the tokens defined in `src/renderer/src/assets/main.css` (the canonical source) and the shadcn primitives in `src/renderer/src/components/ui/`. Don't invent new color values, font sizes, or shadow tiers when a documented one already covers the role. Read the `docs/styleguide/` deep dive it links only when your change touches that topic. When STYLEGUIDE.md is silent, follow the resolution order in its final section.
+
+",1,70
+b8c83e0a3e675382f893:12:14,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,12,14,"# Electron UI Validation
+
+",1,70
+b8c83e0a3e675382f893:14:15,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,14,15,"Always run tests and agent-launched apps in the background with `ORCA_BACKGROUND_LAUNCH=1`.
+",1,70
+b8c83e0a3e675382f893:15:17,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,15,17,"Never steal monitor focus or reveal test windows: no `show()`, `showInactive()`, `bringToFront()`,
+`app.focus()`, or OS activation. Use CDP screenshots of hidden renderers. Keep native-focus and visible-window tests paused on the user's desktop; run them on an isolated display or CI.
+",1,70
+b8c83e0a3e675382f893:17:19,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,17,19,"Rebuild modified launch-policy code before running an app; stale build wrappers are not safe.
+
+",1,70
+b8c83e0a3e675382f893:19:20,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,19,20,"Use the `$electron` skill and Playwright CDP for rendered Orca UI checks. Do not use computer-use for Orca UI validation.
+",1,70
+b8c83e0a3e675382f893:1:3,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,1,3,"# Useful Commands
+
+",1,70
+b8c83e0a3e675382f893:20:22,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,20,22,"Screenshot presentational components without Electron: `pnpm fixtures:shot <id>` ([fixtures](docs/agents-md-refs/component-fixtures.md)).
+
+",1,70
+b8c83e0a3e675382f893:22:26,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,22,26,"# Code Style
+
+## Reuse Before Reimplementing
+
+",1,70
+b8c83e0a3e675382f893:26:28,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,26,28,"Before writing new logic at any scale — a function, component, IPC channel, state store, or whole subsystem/flow — check whether an existing implementation already does the job. Extend or generalize it instead of building a parallel version.
+
+",1,70
+b8c83e0a3e675382f893:28:30,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,28,30,"## Avoid Comments
+
+",1,70
+b8c83e0a3e675382f893:30:31,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,30,31,"- Only use when code does not describe
+",1,70
+b8c83e0a3e675382f893:31:33,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,31,33,"- BE CONCISE. 1 LINE if possible (why not how)
+
+",1,70
+b8c83e0a3e675382f893:33:35,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,33,35,"## File and Module Naming
+
+",1,70
+b8c83e0a3e675382f893:35:37,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,35,37,"Never use vague names like `helpers`, `utils`, `common`, `misc`, or `shared-stuff` for files, folders, or modules. They carry zero info and tend to become dumping grounds. Name files after what they _actually_ contain — prefer the concrete domain concept (e.g. `tab-group-state.ts`, `terminal-orphan-cleanup.ts`) over the generic role (`tabs-helpers.ts`, `terminal-utils.ts`). If you find yourself reaching for `helpers`, the file probably has more than one responsibility and should be split, or there's a better name hiding in the code that describes what the functions operate on.
+
+",1,70
+b8c83e0a3e675382f893:37:39,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,37,39,"## Type Assertions: Prefer Checked Types
+
+",1,70
+b8c83e0a3e675382f893:39:41,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,39,41,"Avoid type assertions except `as const`. Unavoidable casts need a line-specific `SAFETY:` explanation:
+
+",1,70
+b8c83e0a3e675382f893:3:4,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,3,4,"- **Before handoff**: `pnpm check:changed --maxWorkers=2` (format, lint, typecheck, affected tests, ratchets; cached when nothing changed)
+",1,70
+b8c83e0a3e675382f893:41:43,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,41,43,"# First Class Citizens
+
+",1,70
+b8c83e0a3e675382f893:43:45,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,43,45,"Every change must consider these areas:
+
+",1,70
+b8c83e0a3e675382f893:45:47,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,45,47,"## Cross-Platform Support
+
+",1,70
+b8c83e0a3e675382f893:47:49,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,47,49,"Support macOS, Linux, and Windows. Guard platform-specific behavior at runtime; use platform-aware shortcuts, paths, and existing process wrappers. Before changing platform-specific code, processes, shells, shortcuts, paths, or native modules, read [`docs/agents-md-refs/cross-platform-support.md`](./docs/agents-md-refs/cross-platform-support.md).
+
+",1,70
+b8c83e0a3e675382f893:49:51,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,49,51,"## Remote Use Case
+
+",1,70
+b8c83e0a3e675382f893:4:5,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,4,5,"- **Typecheck**: `pnpm tc` (or `tc:node` / `tc:cli` / `tc:web`)
+",1,70
+b8c83e0a3e675382f893:51:53,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,51,53,"Support remote execution as well as local. Clients and servers update independently; preserve compatibility across mixed versions.
+
+",1,70
+b8c83e0a3e675382f893:53:55,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,53,55,"## Mobile
+
+",1,70
+b8c83e0a3e675382f893:55:57,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,55,57,"Any feature should be considered for parity on mobile
+
+",1,70
+b8c83e0a3e675382f893:57:59,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,57,59,"## Folder Workspaces
+
+",1,70
+b8c83e0a3e675382f893:59:61,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,59,61,"All changes must consider folder workspaces as well as git worktrees. Don't assume every workspace is a git worktree.
+
+",1,70
+b8c83e0a3e675382f893:5:6,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,5,6,"- **Test**: `pnpm test [path/to/file.test.ts]`; affected only: `pnpm test:changed [path] --maxWorkers=2` ([details](.github/CONTRIBUTING.md#targeting-local-tests))
+",1,70
+b8c83e0a3e675382f893:61:63,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,61,63,"# Git / GitHub
+
+",1,70
+b8c83e0a3e675382f893:63:65,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,63,65,"If changing code around `git`, `gh`, source-control, or review behavior read [`docs/agents-md-refs/git-workflow.md`](./docs/agents-md-refs/git-workflow.md).
+
+",1,70
+b8c83e0a3e675382f893:65:67,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,65,67,"For a failed GitHub Actions run, inspect the failed jobs and retry with `gh run rerun <run-id> --failed --repo stablyai/orca`. Preserve successful jobs; use a full rerun only when the failure requires revalidating them. A code fix needs a new push and fresh checks, not a retry of the old SHA.
+
+",1,70
+b8c83e0a3e675382f893:67:69,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,67,69,"# Tests
+
+",1,70
+b8c83e0a3e675382f893:69:70,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,69,70,"Avoid adding low-value tests. These might be fine for development but offer negative value when checked in. [Anti-patterns](./docs/agents-md-refs/test-antipatterns.md)
+",1,70
+b8c83e0a3e675382f893:6:8,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,6,8,"- **Lint**: `oxlint`; format: `pnpm format`
+
+",1,70
+b8c83e0a3e675382f893:8:10,b8c83e0a3e675382f893,stablyai/orca,66e2d3982788a763c9202a13a7fdc833dc7334db,AGENTS.md,AGENTS.md,1d9c24af3d7204e1b98c0c3d666e3ca6197df95d55c959eafac29dd23398ddeb,8,10,"# Design System
+
+",1,70
 b8d66e572c5a88f73687:10:33,b8d66e572c5a88f73687,patchy631/ai-engineering-hub,be534adc47ae3357253025d6e0ab769b465086d7,hugging-face-skills/skills/hugging-face-cli/SKILL.md,SKILL.md,0ee5649dc4db555ae46fb66fbbddb47926969ca57be1a19ccde33f4511137d45,10,33,"## Quick Command Reference
 
 | Task | Command |
@@ -92215,6 +93804,8 @@ d0ff5ec7f29ae497f187:3:5,d0ff5ec7f29ae497f187,roboflow/supervision,57753dd2f8215
 ",1,6
 d0ff5ec7f29ae497f187:5:6,d0ff5ec7f29ae497f187,roboflow/supervision,57753dd2f8215aa29eb87d88fae84b127a018537,CLAUDE.md,CLAUDE.md,5d948709c212fa1a7cd7d2ea50f95dfd49b6327533aa111f5b4d18d847f232b8,5,6,"@AGENTS.md
 ",1,6
+d10bc1e720cb4e9ae5a1:1:2,d10bc1e720cb4e9ae5a1,semaphoreui/semaphore,d1044fb3b194f359e34f6d28a102aa13734d0b9e,AGENTS.md,AGENTS.md,5754d7e6e519794fbad0dd0199b2255e5cb70dc2611a398d7940c75e6810626a,1,2,"Read and follow .claude/CLAUDE.md before starting any work.
+",1,2
 d1a442e41d64f3fbe43c:13:14,d1a442e41d64f3fbe43c,sxyazi/yazi,40a91421893bfd1ae02ef7a55afd41f886558d8c,AGENTS.md,AGENTS.md,0d057581dcdbc917d6820cbe0ef1e660b102b154ffed5668e6bf629f28774afc,13,14,"- Follow nearby code and use idiomatic Rust and Lua. In Rust, treat directories as modules and files as types: always prefer `mod_pub!` for directory exports and `mod_flat!` for file exports. Keep `mod.rs` and `lib.rs` limited to exports; put module-wide implementation in a same-named file (for example, `core/core.rs`). Rust uses `snake_case` for modules, functions, and fields and `PascalCase` for types, traits, and variants. Lua uses PascalCase component tables, `local M` plugin modules, `snake_case` methods/locals, and `_name` private fields.
 ",1,63
 d1a442e41d64f3fbe43c:14:15,d1a442e41d64f3fbe43c,sxyazi/yazi,40a91421893bfd1ae02ef7a55afd41f886558d8c,AGENTS.md,AGENTS.md,0d057581dcdbc917d6820cbe0ef1e660b102b154ffed5668e6bf629f28774afc,14,15,"- Separate distinct responsibilities and processing stages with a single blank line, following nearby code. Group related statements together; use blank lines between preparation, validation, I/O, fallback, progress reporting, cleanup, and return values when they mark a distinct step. Keep this spacing when writing or simplifying code; the smallest implementation must still be readable.
@@ -93077,6 +94668,162 @@ d47f5e62f0a4892453f9:9:12,d47f5e62f0a4892453f9,codewhale-hq/Codewhale,ce7d4ef837
 there — it is not restated here, because rung 2 is ""already in this codebase?""
 and a second copy of a rule is the thing the rule forbids.
 ",1,12
+d4a79b75283bee311f3b:103:105,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,103,105,"### Debugging Tips
+
+",1,127
+d4a79b75283bee311f3b:105:110,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,105,110,"- Use `/doctor` for diagnostics
+- Run long-running terminal commands as background tasks for better log visibility
+- Use browser automation MCPs (Claude in Chrome, Playwright, Chrome DevTools) for Claude to inspect console logs
+- Provide screenshots when reporting visual issues
+
+",1,127
+d4a79b75283bee311f3b:110:112,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,110,112,"## Git Commit Rules
+
+",1,127
+d4a79b75283bee311f3b:112:114,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,112,114,"When committing changes, **create separate commits per file**. Do NOT bundle multiple file changes into a single commit. Each file gets its own commit with a descriptive message specific to that file's changes.
+
+",1,127
+d4a79b75283bee311f3b:114:119,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,114,119,"For example, if `README.md`, `best-practice/claude-subagents.md`, and a skill file all changed:
+- Commit 1: `git add README.md` → commit with README-specific message
+- Commit 2: `git add best-practice/claude-subagents.md` → commit with subagents-doc-specific message
+- Commit 3: `git add .claude/skills/weather-fetcher/SKILL.md` → commit with skill-specific message
+
+",1,127
+d4a79b75283bee311f3b:119:121,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,119,121,"This makes the git history cleaner and easier to review, revert, or cherry-pick individual changes.
+
+",1,127
+d4a79b75283bee311f3b:11:18,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,11,18,"### Weather System (Example Workflow)
+A demonstration of two distinct skill patterns via the **Command → Agent → Skill** architecture:
+- `/weather-orchestrator` command (`.claude/commands/weather-orchestrator.md`): Entry point — asks user for C/F, invokes agent, then invokes SVG skill
+- `weather-agent` agent (`.claude/agents/weather-agent.md`): Fetches temperature using its preloaded `weather-fetcher` skill (agent skill pattern)
+- `weather-fetcher` skill (`.claude/skills/weather-fetcher/SKILL.md`): Preloaded into agent — instructions for fetching temperature from Open-Meteo
+- `weather-svg-creator` skill (`.claude/skills/weather-svg-creator/SKILL.md`): Skill — creates SVG weather card, writes `orchestration-workflow/weather.svg` and `orchestration-workflow/output.md`
+
+",1,127
+d4a79b75283bee311f3b:121:123,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,121,123,"## Documentation
+
+",1,127
+d4a79b75283bee311f3b:123:127,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,123,127,"See `.claude/rules/markdown-docs.md` for documentation standards. Key docs:
+- `best-practice/claude-subagents.md`: Subagent frontmatter, hooks, and repository agents
+- `best-practice/claude-commands.md`: Slash command patterns and built-in command reference
+- `orchestration-workflow/orchestration-workflow.md`: Weather system flow diagram
+",1,127
+d4a79b75283bee311f3b:18:20,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,18,20,"Two skill patterns: agent skills (preloaded via `skills:` field) vs skills (invoked via `Skill` tool). See `orchestration-workflow/orchestration-workflow.md` for the complete flow diagram.
+
+",1,127
+d4a79b75283bee311f3b:1:3,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,1,3,"# CLAUDE.md
+
+",1,127
+d4a79b75283bee311f3b:20:33,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,20,33,"### Skill Definition Structure
+Skills in `.claude/skills/<name>/SKILL.md` use YAML frontmatter:
+- `name`: Display name and `/slash-command` (defaults to directory name)
+- `description`: When to invoke (recommended for auto-discovery)
+- `argument-hint`: Autocomplete hint (e.g., `[issue-number]`)
+- `disable-model-invocation`: Set `true` to prevent automatic invocation
+- `user-invocable`: Set `false` to hide from `/` menu (background knowledge only)
+- `allowed-tools`: Tools allowed without permission prompts when skill is active
+- `model`: Model to use when skill is active
+- `context`: Set to `fork` to run in isolated subagent context
+- `agent`: Subagent type for `context: fork` (default: `general-purpose`)
+- `hooks`: Lifecycle hooks scoped to this skill
+
+",1,127
+d4a79b75283bee311f3b:33:36,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,33,36,"### Presentation System
+See `.claude/rules/presentation.md` — presentation work is delegated per-presentation to `presentation-vibe-coding` (for `presentation/vibe-coding-to-agentic-engineering/`) or `presentation-claude-gemini` (for `presentation/2026-04-25-gdg-kolachi-cli-claude-code-gemini/`).
+
+",1,127
+d4a79b75283bee311f3b:36:43,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,36,43,"### Hooks System
+Cross-platform sound notification system in `.claude/hooks/`:
+- `scripts/hooks.py`: Main handler for Claude Code hook events
+- `config/hooks-config.json`: Shared team configuration
+- `config/hooks-config.local.json`: Personal overrides (git-ignored)
+- `sounds/`: Audio files organized by hook event (generated via ElevenLabs TTS)
+
+",1,127
+d4a79b75283bee311f3b:3:5,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,3,5,"This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+",1,127
+d4a79b75283bee311f3b:43:45,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,43,45,"Hook events configured in `.claude/settings.json`: PreToolUse, PostToolUse, PostToolBatch, UserPromptSubmit, UserPromptExpansion, Notification, Stop, StopFailure, SubagentStart, SubagentStop, PreCompact, PostCompact, SessionStart, SessionEnd, Setup, PermissionRequest, PermissionDenied, TeammateIdle, TaskCompleted, TaskCreated, ConfigChange, CwdChanged, DirectoryAdded, FileChanged, WorktreeCreate, WorktreeRemove, Elicitation, ElicitationResult, InstructionsLoaded, MessageDisplay. (33 events total; full reference at claude-code-hooks.)
+
+",1,127
+d4a79b75283bee311f3b:45:47,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,45,47,"Special handling: git commits trigger `pretooluse-git-committing` sound.
+
+",1,127
+d4a79b75283bee311f3b:47:49,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,47,49,"## Critical Patterns
+
+",1,127
+d4a79b75283bee311f3b:49:55,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,49,55,"### Subagent Orchestration
+Subagents **cannot** invoke other subagents via bash commands. Use the Agent tool (renamed from Task in v2.1.63; `Task(...)` still works as an alias):
+```
+Agent(subagent_type=""agent-name"", description=""..."", prompt=""..."", model=""haiku"")
+```
+
+",1,127
+d4a79b75283bee311f3b:55:57,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,55,57,"Be explicit about tool usage in subagent definitions. Avoid vague terms like ""launch"" that could be misinterpreted as bash commands.
+
+",1,127
+d4a79b75283bee311f3b:57:75,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,57,75,"### Subagent Definition Structure
+Subagents in `.claude/agents/*.md` use YAML frontmatter:
+- `name`: Subagent identifier
+- `description`: When to invoke (use ""PROACTIVELY"" for auto-invocation)
+- `tools`: Comma-separated allowlist of tools (inherits all if omitted). Supports `Agent(agent_type)` syntax
+- `disallowedTools`: Tools to deny, removed from inherited or specified list
+- `model`: Model alias: `haiku`, `sonnet`, `opus`, or `inherit` (default: `inherit`)
+- `permissionMode`: Permission mode (e.g., `""acceptEdits""`, `""plan""`, `""bypassPermissions""`)
+- `maxTurns`: Maximum agentic turns before the subagent stops
+- `skills`: List of skill names to preload into agent context
+- `mcpServers`: MCP servers for this subagent (server names or inline configs)
+- `hooks`: Lifecycle hooks scoped to this subagent (all hook events are supported; `PreToolUse`, `PostToolUse`, and `Stop` are the most common)
+- `memory`: Persistent memory scope — `user`, `project`, or `local` (see `reports/claude-agent-memory.md`)
+- `background`: Set to `true` to always run as a background task
+- `effort`: Effort level override: `low`, `medium`, `high`, `max` (default: inherits from session)
+- `isolation`: Set to `""worktree""` to run in a temporary git worktree
+- `color`: CLI output color for visual distinction
+
+",1,127
+d4a79b75283bee311f3b:5:7,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,5,7,"## Repository Overview
+
+",1,127
+d4a79b75283bee311f3b:75:83,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,75,83,"### Configuration Hierarchy
+1. **Managed** (`managed-settings.json` / MDM plist / Registry): Organization-enforced, cannot be overridden
+2. Command line arguments: Single-session overrides
+3. `.claude/settings.local.json`: Personal project settings (git-ignored)
+4. `.claude/settings.json`: Team-shared settings
+5. `~/.claude/settings.json`: Global personal defaults
+6. `hooks-config.local.json` overrides `hooks-config.json`
+
+",1,127
+d4a79b75283bee311f3b:7:9,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,7,9,"This is a best practices repository for Claude Code configuration, demonstrating patterns for skills, subagents, hooks, and commands. It serves as a reference implementation rather than an application codebase.
+
+",1,127
+d4a79b75283bee311f3b:83:86,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,83,86,"### Disable Hooks
+Set `""disableAllHooks"": true` in `.claude/settings.local.json`, or disable individual hooks in `hooks-config.json`.
+
+",1,127
+d4a79b75283bee311f3b:86:88,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,86,88,"## Answering Best Practice Questions
+
+",1,127
+d4a79b75283bee311f3b:88:90,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,88,90,"When the user asks a Claude Code best practice question, **always search this repo first** (`best-practice/`, `reports/`, `tips/`, `implementation/`, and `README.md`) before relying on training knowledge or external sources. This repo is the authoritative source — only fall back to external docs or web search if the answer is not found here.
+
+",1,127
+d4a79b75283bee311f3b:90:94,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,90,94,"## Workflow Best Practices
+
+From experience with this repository:
+
+",1,127
+d4a79b75283bee311f3b:94:103,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,94,103,"- Keep CLAUDE.md under 200 lines per file for reliable adherence
+- `.claude/rules/*.md` with `paths:` YAML frontmatter are lazy-loaded only when Claude touches matching files; without frontmatter they load into every session like CLAUDE.md
+- Use commands for workflows instead of standalone agents
+- Create feature-specific subagents with skills (progressive disclosure) rather than general-purpose agents
+- Perform manual `/compact` at ~50% context usage
+- Start with plan mode for complex tasks
+- Use human-gated task list workflow for multi-step tasks
+- Break subtasks small enough to complete in under 50% context
+
+",1,127
+d4a79b75283bee311f3b:9:11,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,9,11,"## Key Components
+
+",1,127
 d4f0ca4b05510f028f06:102:104,d4f0ca4b05510f028f06,microsoft/SkillOpt,e2edfa9721ce41c98e50fa129da87cf1f53c2f7f,plugins/openclaw/SKILL.md,SKILL.md,d1d9dcd8121433bf2349e05d0a304f8ecc715fdbcedb05d4bf48ace556752a6c,102,104,"Contributions that turn this reference into a portable integration should add
 tests and update all three documents together.
 ",1,104

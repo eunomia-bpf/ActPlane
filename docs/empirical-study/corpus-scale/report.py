@@ -32,6 +32,7 @@ def main():
     config = [('snapshot_date', '2026-10-28'), ('stars_min', 100), ('pushed_since', '2025-01-01'),
               ('search_results_per_query', 100), ('paths_per_family', 1), ('max_file_bytes', 128000),
               ('bootstrap_replicates', BOOTSTRAPS), ('bootstrap_seed', SEED),
+              ('confidence_level', .95),
               ('min_final_kappa', MIN_KAPPA), ('min_primary_kappa', MIN_PRIMARY_KAPPA),
               ('min_coverage', MIN_COVERAGE), ('max_excerpt_lines_target', 160)]
     config += [('quota_' + k, v) for k, v in QUOTAS.items()]
@@ -49,7 +50,9 @@ def main():
     repos = read_csv(HERE / 'repositories.csv') if (HERE / 'repositories.csv').exists() else []
     manifest = read_csv(HERE / 'corpus_manifest.csv') if (HERE / 'corpus_manifest.csv').exists() else []
     counts = Counter(r['status'] for r in manifest)
+    family_count = len({r['family'] for r in manifest if r['status'] == 'included'})
     write_csv(HERE / 'collection_summary.csv', [dict(metric='collected_repositories', value=len(repos)),
+        dict(metric='represented_file_families', value=family_count),
         *[dict(metric='file_status_' + k, value=v) for k, v in sorted(counts.items())]])
     lines = ['# Expanded instruction-file characterization', '',
         '**Status: collection and calibration in progress. Do not replace paper claims until the calibration gates and analysis coverage below are complete.**' if not overall else
@@ -95,7 +98,7 @@ def main():
     lines.extend(f'| {r["dimension"]} | {r["passed"]} | {r["reason"]} |' for r in gates)
     format_path = HERE / 'format_calibration_summary.csv'
     if format_path.exists():
-        lines += ['', 'When some axes fail, the exact reduced output schema is calibrated again before scaling. This avoids assuming that changing the requested output dimensions leaves predictions unchanged. The coding guide remains fixed.', '',
+        lines += ['', 'When some axes fail, a focused prompt containing only the requested coding-guide axes and examples is calibrated again before scaling. The exact focused prompt and reduced output schema are used for both this check and deployment. This avoids assuming that removing rejected axes leaves predictions unchanged. Definitions, examples, and agreement cutoffs are not tuned against individual errors.', '',
                   '| Reduced-schema model | Dimension | Evaluated N | Cohen’s kappa |', '|---|---|---:|---:|']
         for r in read_csv(format_path):
             if r['scope'] == 'applicable_gold':
@@ -158,9 +161,13 @@ def main():
         '## Paper-ready paragraph', '']
     if overall:
         valid = {k: r for k, r in overall.items() if r['status'] == 'ok'}
-        paragraph = f'We expanded the instruction-file characterization to {coverage["analyzed_repositories"]} repositories and {int(coverage["analyzed_statements"]):,} statements using a dated, commit-pinned GitHub snapshot spanning the requested instruction formats. '
+        paragraph = ''
+        if any(r['group_type'] == 'file_scope' and r['group'] == 'noncoding_assistance' and int(r['statements']) > 0 for r in summary):
+            paragraph = 'To broaden coverage beyond coding repositories, we included applications, agent frameworks, and an exploratory slice of noncoding task instructions. '
+        paragraph += f'We expanded the characterization to {coverage["analyzed_repositories"]} repositories and {int(coverage["analyzed_statements"]):,} statements using a dated, commit-pinned GitHub snapshot spanning {family_count} instruction-file families. '
         if 'policy_fraction' in valid:
-            paragraph += f'Policies account for {fmt(valid["policy_fraction"])} of statements. '
+            r = valid['policy_fraction']
+            paragraph += f'Policies account for {fmt(r)} of statements ({100*cfg["confidence_level"]:.0f}% repository-bootstrap interval {fmt(r, "ci_low")}–{fmt(r, "ci_high")}). '
         if 'system_state_fraction' in valid:
             paragraph += f'Of these policies, {fmt(valid["system_state_fraction"])} are system-observable, and {fmt(valid["cross_event_project_share"])} of repositories contain cross-event requirements. '
         if 'context_required_fraction' in valid:
