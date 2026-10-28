@@ -41,6 +41,10 @@ def main():
     parallel = read('controls-guest68-parallel-v3.csv')
     check('all parallel kernel controls pass', True, all(r['control_passed'] == '1' for r in parallel))
     check('all kernel controls pass', True, all(r['control_passed'] == '1' for r in controls))
+    summary = read('summary.csv')
+    expected_points = {r['model'] for r in summary if r['detection_rate'] != '' and r['false_trigger_rate'] != ''}
+    plotted = read('figure-data.csv')
+    check('figure matches complete score rows', expected_points == {r['model'] for r in plotted}, True)
     check('PDF embeds TrueType', True, b'/FontFile2' in (HERE / 'comparison.pdf').read_bytes())
     csv_write(HERE / 'validation.csv', checks)
     if not all(r['passed'] for r in checks):

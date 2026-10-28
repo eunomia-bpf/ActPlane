@@ -19,13 +19,13 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 6 / 8 of 8 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
-| zai/glm-5.3 | 34 / 38 of 38 | 11 / 19 of 19 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
-| zai/glm-5.3-flash | 33 / 38 of 38 | 6 / 11 of 11 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 10 / 13 of 38 | 1 / 3 of 24 | unavailable | unavailable | unavailable | 25 / 21 | $0.0000 |
-| zai/glm-4.5-air | 33 / 38 of 38 | 3 / 8 of 8 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
-| gpt-6-astra | 27 / 38 of 38 | 30 / 55 of 60 | 43.0% | 18.4% | 0.554 | 0 / 2 | $0.3112 |
-| claude-opus-4-6 | 30 / 38 of 38 | 16 / 33 of 33 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 13 / 19 of 21 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
+| zai/glm-5.3 | 34 / 38 of 38 | 23 / 32 of 32 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 12 / 23 of 23 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
+| zai/glm-4.7-flash | 10 / 13 of 38 | 1 / 5 of 49 | unavailable | unavailable | unavailable | 25 / 44 | $0.0000 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 10 / 21 of 21 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
+| gpt-6-astra | 27 / 38 of 38 | 47 / 106 of 115 | 43.0% | 18.4% | 0.554 | 0 / 2 | $0.3112 |
+| claude-opus-4-6 | 30 / 38 of 38 | 39 / 65 of 65 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
 | --- | --- | --- | --- | --- | --- |
@@ -51,11 +51,11 @@ held-out sets, and no semantic deduplication is claimed.
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 22 | 0 | 12 | 0 |
+| qwen3.8-27b-nvfp4 | 22 | 4 | 12 | 2 |
 | zai/glm-5.3 | 0 | 0 | 0 | 0 |
 | zai/glm-5.3-flash | 2 | 0 | 0 | 0 |
 | zai/glm-4.7-flash | 1 | 0 | 0 | 0 |
-| zai/glm-4.5-air | 2 | 0 | 0 | 0 |
+| zai/glm-4.5-air | 2 | 1 | 0 | 0 |
 | gpt-6-astra | 0 | 0 | 0 | 0 |
 | claude-opus-4-6 | 0 | 0 | 0 | 0 |
 
@@ -116,7 +116,9 @@ account model catalog and probing. The paper's original RQ1 translator was
 GPT-5.5, which this account rejects. This substitution follows the operator update.
 Codex identity comes from incoming server `response.model` fields captured by
 protocol-only tracing. Warmup responses with `generate=false` are excluded from
-inference counts. A scored call must contain exactly one inference and no tool
+inference counts. Codex token counts use CLI-reported turn usage. Cache-warmup
+metadata are retained separately and are not added again to those counts.
+A scored call must contain exactly one inference and no tool
 outputs. Raw transport frames are discarded to avoid retaining session state.
 
 Compiler acceptance requires an emitted blob and a nonempty rule set. Compile
@@ -155,6 +157,8 @@ same AGENT/COMMAND label convention as the CLI. Each worker has private network
 and mount namespaces, a short `/tmp/repo` bind mount, artifact safety shims, and
 an environment without credentials. Relative Bash and file-changing tool paths
 are preserved. Read uses an absolute path, as in the original harness.
+Short checkout paths reduce finite-buffer path truncation and differ from the
+original runner's temporary paths.
 Selected fixture archives are hash-recorded in `fixture-packs.csv` and unpacked
 into fresh guest-local tmpfs checkouts. Earlier shared-filesystem replays are
 diagnostics. All scored rows use the same guest-local fixture filesystem.

@@ -173,7 +173,9 @@ account model catalog and probing. The paper's original RQ1 translator was
 GPT-5.5, which this account rejects. This substitution follows the operator update.
 Codex identity comes from incoming server `response.model` fields captured by
 protocol-only tracing. Warmup responses with `generate=false` are excluded from
-inference counts. A scored call must contain exactly one inference and no tool
+inference counts. Codex token counts use CLI-reported turn usage. Cache-warmup
+metadata are retained separately and are not added again to those counts.
+A scored call must contain exactly one inference and no tool
 outputs. Raw transport frames are discarded to avoid retaining session state.
 
 Compiler acceptance requires an emitted blob and a nonempty rule set. Compile
@@ -212,6 +214,8 @@ same AGENT/COMMAND label convention as the CLI. Each worker has private network
 and mount namespaces, a short `/tmp/repo` bind mount, artifact safety shims, and
 an environment without credentials. Relative Bash and file-changing tool paths
 are preserved. Read uses an absolute path, as in the original harness.
+Short checkout paths reduce finite-buffer path truncation and differ from the
+original runner's temporary paths.
 Selected fixture archives are hash-recorded in `fixture-packs.csv` and unpacked
 into fresh guest-local tmpfs checkouts. Earlier shared-filesystem replays are
 diagnostics. All scored rows use the same guest-local fixture filesystem.
@@ -305,7 +309,7 @@ derived outputs. No script opens or updates a pull request.
         if r['detection_rate'] == '' or r['false_trigger_rate'] == '':
             continue
         x, y = 100*float(r['false_trigger_rate']), 100*float(r['detection_rate'])
-        ax.scatter(x, y, label=NAMES[r['model']], marker=markers[i % len(markers)], s=85,
+        ax.scatter(x, y, label=NAMES[r['model']], marker=markers[len(plotted) % len(markers)], s=85,
                    color='black' if r['model'] == 'reference' else plt.get_cmap('tab10')(i))
         plotted.append(dict(model=r['model'], false_trigger_rate=r['false_trigger_rate'], detection_rate=r['detection_rate']))
     if plotted:
