@@ -73,8 +73,10 @@ def main():
     manifest = read_csv(HERE / 'corpus_manifest.csv') if (HERE / 'corpus_manifest.csv').exists() else []
     counts = Counter(r['status'] for r in manifest)
     family_count = len({r['family'] for r in manifest if r['status'] == 'included'})
+    unique_files = len({(r['repo'], r['content_sha256']) for r in manifest if r['status'] == 'included'})
     write_csv(HERE / 'collection_summary.csv', [dict(metric='collected_repositories', value=len(repos)),
         dict(metric='represented_file_families', value=family_count),
+        dict(metric='selected_unique_repo_content_pairs', value=unique_files),
         *[dict(metric='file_status_' + k, value=v) for k, v in sorted(counts.items())]])
     lines = ['# Expanded instruction-file characterization', '',
         '**Status: scaled characterization is incomplete. Do not replace paper claims until the calibration gates and analysis coverage below are complete.**' if not overall else
@@ -92,7 +94,8 @@ def main():
         if r and r['status'] == 'ok':
             new += f' [{fmt(r, "ci_low")}, {fmt(r, "ci_high")}]'
         lines.append(f'| {name} | {fmt(old)} | {fmt(baseline[key])} | {new} | {delta_fmt(r)} |')
-    lines += ['', f'The collected manifest currently covers {len(repos):,} repositories. ' +
+    lines += ['', f'The collected manifest covers {len(repos):,} repositories and {counts["included"]:,} selected instruction paths '
+        f'({unique_files:,} distinct repository/content pairs). ' +
         (f'The analysis includes {coverage["analyzed_repositories"]} repositories and {int(coverage["analyzed_statements"]):,} statements. '
          f'{coverage["incomplete_files"]} extracted files have incomplete model pairs. '
          f'{coverage["repositories_with_incomplete_sources"]} repositories are withheld until every selected source is successfully extracted and labeled.'
@@ -231,7 +234,7 @@ def main():
         paragraph = ''
         if any(r['group_type'] == 'file_scope' and r['group'] == 'noncoding_assistance' and int(r['statements']) > 0 for r in summary):
             paragraph = 'We broadened the sample across applications and agent frameworks and included an exploratory slice of noncoding task instructions. '
-        paragraph += f'We expanded the characterization to {coverage["analyzed_repositories"]} repositories and {int(coverage["analyzed_statements"]):,} statements using a dated, commit-pinned GitHub snapshot spanning {family_count} instruction-file families. '
+        paragraph += f'We expanded the characterization to {coverage["analyzed_repositories"]} repositories and {int(coverage["analyzed_statements"]):,} statements from {int(coverage["selected_source_files"]):,} files after byte deduplication within each repository, using a dated, commit-pinned GitHub snapshot spanning {family_count} instruction-file families. '
         if 'policy_fraction' in valid:
             r = valid['policy_fraction']
             paragraph += f'The automated labels mark {fmt(r)} of statements as policies ({100*cfg["confidence_level"]:.0f}% repository-bootstrap interval {fmt(r, "ci_low")}–{fmt(r, "ci_high")}). '

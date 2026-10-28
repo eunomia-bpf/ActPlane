@@ -14,7 +14,7 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 | Repositories with cross-event policies | 81.0% | 79.7% | withheld | withheld |
 | OS-tier policy candidates (count) | 607 | 607 | withheld | withheld |
 
-The collected manifest currently covers 325 repositories. The analysis includes 45 repositories and 2,841 statements. 495 extracted files have incomplete model pairs. 280 repositories are withheld until every selected source is successfully extracted and labeled.
+The collected manifest covers 325 repositories and 771 selected instruction paths (761 distinct repository/content pairs). The analysis includes 45 repositories and 2,841 statements. 495 extracted files have incomplete model pairs. 280 repositories are withheld until every selected source is successfully extracted and labeled.
 
 The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.
 
