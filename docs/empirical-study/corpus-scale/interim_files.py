@@ -17,9 +17,10 @@ def main():
     complete = {key for key, rows in files.items()
                 if all(labels.get(r['statement_id'], {}).get('status') == 'ok' for r in rows)}
     joined = [dict(r, **{d: labels[r['statement_id']].get(d, '') for d in DIMS})
-              for key in complete for r in files[key]]
+              for key in sorted(complete) for r in files[key]]
     all_repos = {r['repo']: r for r in read_csv(HERE / 'repositories.csv')}
-    represented = {r['repo']: all_repos[r['repo']] for r in joined}
+    present = {r['repo'] for r in joined}
+    represented = {name: row for name, row in all_repos.items() if name in present}
     required = defaultdict(set)
     for row in read_csv(HERE / 'corpus_manifest.csv'):
         if row['status'] == 'included':

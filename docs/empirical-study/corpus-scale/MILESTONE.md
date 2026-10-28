@@ -2,11 +2,11 @@
 
 **Interim process snapshot. Do not substitute these for complete-snapshot paper results.**
 
-As of 2026-10-28T17:56:56+00:00, 294 complete files contain 11,585 labeled statements from 209 repositories. 55 repositories have every selected source labeled. 467 unfinished files are excluded from this separate snapshot.
+As of 2026-10-28T17:58:03+00:00, 294 complete files contain 11,585 labeled statements from 209 repositories. 55 repositories have every selected source labeled. 467 unfinished files are excluded from this separate snapshot.
 
 | Metric | Estimate | Repository-bootstrap interval | Status |
 |---|---:|---:|---|
-| policy_fraction | 53.9% | 50.5%–57.4% | ok |
+| policy_fraction | 53.9% | 50.6%–57.3% | ok |
 | system_state_fraction | withheld | withheld | withheld_calibration_failed |
 | context_required_fraction | withheld | withheld | withheld_calibration_failed |
 | cross_event_project_share | withheld | withheld | withheld_calibration_failed |
