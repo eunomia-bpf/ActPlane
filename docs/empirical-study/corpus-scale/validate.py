@@ -41,6 +41,35 @@ def main(a):
         record('repositories_below_star_floor', 0, sum(int(r['stars']) < 100 for r in repositories))
         record('repositories_inactive_since_2025', 0,
                sum(r['pushed_at'] < '2025-01-01' for r in repositories))
+        categories_path = HERE / 'repository_categories.csv'
+        if categories_path.exists():
+            categories = read_csv(categories_path)
+            record('duplicate_repository_categories', 0, len(categories) - len({r['repo'] for r in categories}))
+            record('unknown_category_repositories', 0,
+                   len({r['repo'] for r in categories} - {r['repo'] for r in repositories}))
+            record('invalid_successful_categories', 0, sum(r['category'] not in
+                   {'agent_frameworks', 'applications', 'noncoding_agents'}
+                   for r in categories if r['status'] == 'ok'))
+        scopes_path = HERE / 'file_scopes.csv'
+        if scopes_path.exists():
+            scopes = read_csv(scopes_path)
+            scope_keys = [(r['repo'], r['content_sha256']) for r in scopes]
+            selected_keys = {(r['repo'], r['content_sha256']) for r in manifest if r['status'] == 'included'}
+            record('duplicate_file_scope_keys', 0, len(scope_keys) - len(set(scope_keys)))
+            record('unknown_file_scope_keys', 0, len(set(scope_keys) - selected_keys))
+            record('invalid_successful_file_scopes', 0, sum(r['scope'] not in
+                   {'software_development', 'noncoding_assistance', 'general_agent_operations',
+                    'mixed', 'descriptive_reference', 'unclear'} for r in scopes if r['status'] == 'ok'))
+            analysis_path, noncoding_path = HERE / 'analysis_statements.csv', HERE / 'noncoding_statements.csv'
+            if analysis_path.exists() and noncoding_path.exists():
+                noncoding_keys = {(r['repo'], r['content_sha256']) for r in scopes
+                                 if r['status'] == 'ok' and r['scope'] == 'noncoding_assistance'}
+                expected_ids = {r['statement_id'] for r in read_csv(analysis_path)
+                                if (r['repo'], r['content_sha256']) in noncoding_keys}
+                exported = read_csv(noncoding_path)
+                exported_ids = {r['statement_id'] for r in exported}
+                record('duplicate_noncoding_statement_ids', 0, len(exported) - len(exported_ids))
+                record('noncoding_statement_membership_difference', 0, len(expected_ids ^ exported_ids))
         hashes_bad, blob_hashes_bad, missing, undecodable, sources = 0, 0, 0, 0, {}
         for f in manifest:
             if f['status'] != 'included':

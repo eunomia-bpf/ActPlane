@@ -11,6 +11,14 @@ calibration_adjudicated_unique_ids,2116,2116,True
 calibration_adjudicated_unexpected_model_identity,0,0,True
 repositories_below_star_floor,0,0,True
 repositories_inactive_since_2025,0,0,True
+duplicate_repository_categories,0,0,True
+unknown_category_repositories,0,0,True
+invalid_successful_categories,0,0,True
+duplicate_file_scope_keys,0,0,True
+unknown_file_scope_keys,0,0,True
+invalid_successful_file_scopes,0,0,True
+duplicate_noncoding_statement_ids,0,0,True
+noncoding_statement_membership_difference,0,0,True
 missing_raw_source_files,0,0,True
 source_sha256_mismatches,0,0,True
 pinned_git_blob_sha1_mismatches,0,0,True
