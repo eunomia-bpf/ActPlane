@@ -3091,3 +3091,44 @@ Run the setup script to initialize submodules and build GhosttyKit:
 ./scripts/setup.sh
 ```
 "
+glm,topic,paper:manaflow-ai/cmux:17,Security,Configuration & Environment,"
+## Cloud VM secrets
+
+Cloud VM build, test, and local dev scripts use provider secrets from `~/.secrets/cmux.env`.
+
+- `E2B_API_KEY`
+- `FREESTYLE_API_KEY`
+- R2 upload vars used by `web/scripts/build-cloud-vm-images.ts` when creating Freestyle snapshots
+
+Load them with:
+
+```bash
+set -a
+source ~/.secrets/cmux.env
+set +a
+```
+"
+glm,topic,paper:manaflow-ai/cmux:18,Security,Configuration & Environment,"
+`~/.secrets/cmuxterm-dev.env` is for local Stack/web env and does not contain the provider build keys.
+`bun dev` sources `~/.secrets/cmux.env` first when present, then `~/.secrets/cmuxterm-dev.env` so
+cmuxterm-specific Stack settings override broader cmux secrets. The web dev loader still accepts
+the legacy `~/.secret/cmuxterm.env` and `~/.secrets/cmuxterm.env` paths while machines migrate.
+"
+glm,topic,paper:manaflow-ai/cmux:22,Architecture,DevOps,"
+Production and staging Cloud VM Postgres should use the Vercel Marketplace AWS Aurora PostgreSQL
+OIDC/RDS IAM path. Runtime env names are `CMUX_DB_DRIVER=aws-rds-iam`, `AWS_ROLE_ARN`,
+`AWS_REGION`, `PGHOST`, `PGPORT`, `PGUSER`, and `PGDATABASE`. Run production/staging migrations
+with `bun db:migrate:aws-rds-iam`; never run Drizzle migrations from Vercel build or route startup.
+Local development keeps using the `CMUX_PORT`-derived Docker Postgres path from `bun dev`.
+Cloud VM create pricing gates should use Stack Auth team payment items when enabled. Postgres remains
+the source of truth for VM lifecycle, active VM limits, idempotency, and usage events.
+"
+glm,topic,paper:manaflow-ai/cmux:38,Testing,Development Process,"## Regression test commit policy
+
+When adding a regression test for a bug fix, use a two-commit structure so CI proves the test catches the bug:
+
+1. **Commit 1:** Add the failing test only (no fix). CI should go red.
+2. **Commit 2:** Add the fix. CI should go green.
+
+This makes it visible in the GitHub PR UI (Commits tab, check statuses) that the test genuinely fails without the fix.
+"

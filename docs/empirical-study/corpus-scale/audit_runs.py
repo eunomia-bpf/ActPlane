@@ -12,7 +12,7 @@ def main(a):
     rows = []
     identities = Counter()
     for filename in ['github-requests.jsonl', 'model-requests.jsonl', 'label-failures.jsonl',
-                     'extraction-chunks.jsonl', 'downloads.jsonl']:
+                     'extraction-chunks.jsonl', 'downloads.jsonl', 'optional-processes.jsonl']:
         path = a.raw / filename
         counts = Counter()
         if not path.exists():
@@ -36,6 +36,18 @@ def main(a):
     write_csv(HERE / 'run_audit.csv', rows)
     write_csv(HERE / 'model_identity.csv', [dict(requested_model=k[0], returned_model=k[1],
         successful_requests=v) for k, v in sorted(identities.items())])
+    scope_path = HERE / 'file_scopes.csv'
+    if scope_path.exists():
+        scopes = {(r['repo'], r['content_sha256']): r for r in read_csv(scope_path)}
+        unique = {}
+        for f in read_csv(HERE / 'corpus_manifest.csv'):
+            key = (f['repo'], f['content_sha256'])
+            if f['status'] == 'included' and key not in unique:
+                s = scopes.get(key, {})
+                unique[key] = dict(repo=f['repo'], content_sha256=f['content_sha256'],
+                    file_path=f['file_path'], scope=s.get('scope', 'unclassified'),
+                    status=s.get('status', 'not_completed'))
+        write_csv(HERE / 'scope_coverage.csv', unique.values())
     # Reviewable samples of reference/model mismatches, sampled without cherry-picking.
     gold = read_csv(HERE / 'paper_labels.csv')
     disagreements = []

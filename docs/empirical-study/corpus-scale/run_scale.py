@@ -5,7 +5,7 @@ import sys
 import argparse
 import time
 
-from common import HERE, read_csv
+from common import DEFAULT_RAW, HERE, log, now, read_csv
 from analyze import calibration
 
 
@@ -79,7 +79,13 @@ def main():
         '--batch-size', '48',
         '--primary', str(HERE / 'labels_qwen.csv'), '--other', str(HERE / 'labels_glm.csv'),
         '--output', str(HERE / 'labels.csv'))
-    scope_process.wait()
+    if scope_process.poll() is None:
+        # The noncoding scope slice is optional. Keep the completed judgments
+        # and explicitly mark the remaining files as unclassified.
+        scope_process.terminate()
+        scope_process.wait()
+        log(DEFAULT_RAW / 'optional-processes.jsonl', dict(at=now(),
+            operation='scope_classification', status='partial_at_primary_completion'))
     run('analyze.py')
     run('figures.py')
     run('audit_runs.py')
