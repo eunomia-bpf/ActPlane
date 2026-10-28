@@ -8,13 +8,13 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 
 | Measure | Paper claim | Recovered labels | New automated labels (repository bootstrap interval) | Difference vs recovered |
 |---|---:|---:|---:|---:|
-| Policy / all statements | 64.0% | 64.3% | 59.4% [50.8%, 64.3%] | -4.9 pp [-15.7, +4.2] |
+| Policy / all statements | 64.0% | 64.3% | 56.8% [48.5%, 62.6%] | -7.5 pp [-18.2, +2.1] |
 | System-observable / policies | 83.0% | 82.8% | withheld | withheld |
 | Context needed / system-observable | 74.0% | 73.6% | withheld | withheld |
 | Repositories with cross-event policies | 81.0% | 79.7% | withheld | withheld |
 | OS-tier policy candidates (count) | 607 | 607 | withheld | withheld |
 
-The collected manifest currently covers 325 repositories. The analysis includes 10 repositories and 757 statements. 654 extracted files have incomplete model pairs. 315 repositories are withheld until every selected source is successfully extracted and labeled.
+The collected manifest currently covers 325 repositories. The analysis includes 23 repositories and 1,416 statements. 590 extracted files have incomplete model pairs. 302 repositories are withheld until every selected source is successfully extracted and labeled.
 
 The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.
 
@@ -87,9 +87,9 @@ Agreement between the primary models on the analyzed new spans is reported separ
 
 | New-corpus intermodel dimension | Paired statements | Disagreements | Raw agreement | Kappa |
 |---|---:|---:|---:|---:|
-| topic | 757 | 263 | 0.653 | 0.576 |
-| type | 757 | 92 | 0.878 | 0.747 |
-| any_scaled_axis | 757 | 314 | 0.585 | undefined |
+| topic | 1416 | 406 | 0.713 | 0.667 |
+| type | 1416 | 167 | 0.882 | 0.760 |
+| any_scaled_axis | 1416 | 515 | 0.636 | undefined |
 
 ## Selection and measurement
 
@@ -167,22 +167,23 @@ The collected repositories have a star range of 12,209–458,063, with median 40
 
 | Family | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| AGENTS.md | 4 | 73 | 45.2% | withheld | withheld | withheld | withheld |
-| CLAUDE.md | 1 | 1 | 0.0% | withheld | withheld | withheld | withheld |
-| SKILL.md | 7 | 683 | 61.1% | withheld | withheld | withheld | withheld |
+| AGENTS.md | 8 | 235 | 55.3% | withheld | withheld | withheld | withheld |
+| CLAUDE.md | 7 | 215 | 51.2% | withheld | withheld | withheld | withheld |
+| SKILL.md | 15 | 930 | 57.1% | withheld | withheld | withheld | withheld |
+| copilot-instructions.md | 1 | 36 | 91.7% | withheld | withheld | withheld | withheld |
 
 | Category | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| agent_frameworks | 5 | 341 | 57.5% | withheld | withheld | withheld | withheld |
-| applications | 4 | 130 | 45.4% | withheld | withheld | withheld | withheld |
-| noncoding_agents | 1 | 286 | 68.2% | withheld | withheld | withheld | withheld |
+| agent_frameworks | 11 | 675 | 59.1% | withheld | withheld | withheld | withheld |
+| applications | 9 | 361 | 52.6% | withheld | withheld | withheld | withheld |
+| noncoding_agents | 3 | 380 | 56.6% | withheld | withheld | withheld | withheld |
 
 | File_scope | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | general_agent_operations | 1 | 6 | 16.7% | withheld | withheld | withheld | withheld |
 | noncoding_assistance | 1 | 49 | 53.1% | withheld | withheld | withheld | withheld |
-| software_development | 3 | 137 | 47.4% | withheld | withheld | withheld | withheld |
-| unclassified | 5 | 564 | 63.5% | withheld | withheld | withheld | withheld |
+| software_development | 12 | 509 | 58.0% | withheld | withheld | withheld | withheld |
+| unclassified | 11 | 851 | 56.6% | withheld | withheld | withheld | withheld |
 | unclear | 1 | 1 | 0.0% | withheld | withheld | withheld | withheld |
 
 ## Reproduction and artifacts
