@@ -14,7 +14,7 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 | Repositories with cross-event policies | 81.0% | 79.7% | withheld | withheld |
 | OS-tier policy candidates (count) | 607 | 607 | withheld | withheld |
 
-The collected manifest covers 325 repositories and 771 selected instruction paths (761 distinct repository/content pairs). The analysis includes 84 repositories and 6,364 statements. 379 extracted files have incomplete model pairs. 241 repositories are withheld until every selected source is successfully extracted and labeled.
+The collected manifest covers 325 repositories and 771 selected instruction paths (761 distinct repository/content pairs). The analysis includes 84 repositories and 6,364 statements. 379 extracted files await complete model pairs or final adjudication. 241 repositories are withheld until every selected source is successfully extracted and labeled.
 
 The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.
 
@@ -24,7 +24,7 @@ The OS-tier count is the union of per-event and cross-event taxonomy labels. It 
 
 `compare_references.py` checks both supplied historical branches without checkout. Their annotation files are byte-identical, as recorded by the shared annotation hash in `historical_reference_comparison.csv`. The project-share discrepancy is therefore present in both supplied references.
 
-`taxonomy.txt` reconstructs the coding guide and examples in `origin/artifact-ready:docs/empirical.md` and the current motivation section. The exact historical invocation prompts and the human review sample were not located. This is a reconstructed prompt, not a claim of exact prompt replication. Gold labels are never sent to either model or to adjudication.
+`taxonomy.txt` reconstructs the coding guide and examples in `origin/artifact-ready:docs/empirical.md` and the current motivation section. The exact historical invocation prompts and the human review sample were not located. This is a reconstructed prompt, not a claim of exact prompt replication. Reference labels for the statements being judged are never included in prediction or adjudication payloads.
 
 Equivalent JSON wrappers are normalized without changing labels or source boundaries. Invalid values, missing IDs, and inconsistent cross-axis applicability are rejected and retried, with earlier responses retained in the raw cache. `calibration_schema_errors.csv` records predictions rejected during schema validation. The reported agreement measures the accepted automated labeling pipeline rather than strict first-response JSON compliance.
 
@@ -224,7 +224,7 @@ The repository-requested `oss-change-workflow` skill was unavailable in the inst
 | 6 | [empirical-waterfall-context-horizontal.pdf](figures/empirical-waterfall-context-horizontal.pdf) | withheld | enforceability,context_required |
 | 7 | [empirical_rq4_context_by_enforcement.pdf](figures/empirical_rq4_context_by_enforcement.pdf) | withheld | enforceability,context_required |
 
-An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains every plotted value.
+An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains the counts, denominators, and project fractions used by the plots.
 
 ## Paper-ready paragraph
 

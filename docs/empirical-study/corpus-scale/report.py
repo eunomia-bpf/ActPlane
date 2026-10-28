@@ -97,7 +97,7 @@ def main():
     lines += ['', f'The collected manifest covers {len(repos):,} repositories and {counts["included"]:,} selected instruction paths '
         f'({unique_files:,} distinct repository/content pairs). ' +
         (f'The analysis includes {coverage["analyzed_repositories"]} repositories and {int(coverage["analyzed_statements"]):,} statements. '
-         f'{coverage["incomplete_files"]} extracted files have incomplete model pairs. '
+         f'{coverage["incomplete_files"]} extracted files await complete model pairs or final adjudication. '
          f'{coverage["repositories_with_incomplete_sources"]} repositories are withheld until every selected source is successfully extracted and labeled.'
          if coverage else 'Labeling coverage is pending.'), '',
         'The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.', '',
@@ -109,7 +109,7 @@ def main():
         f'However, annotation spans cover {int(audit["labeled_span_lines"]):,} lines in the primary referenced sources, so the recovered labels do not establish statement coverage of every additional instruction file. '
         'The cross-event repository share differs from the rounded paper claim and remains visible in the comparison table.', '',
         '`compare_references.py` checks both supplied historical branches without checkout. Their annotation files are byte-identical, as recorded by the shared annotation hash in `historical_reference_comparison.csv`. The project-share discrepancy is therefore present in both supplied references.', '',
-        '`taxonomy.txt` reconstructs the coding guide and examples in `origin/artifact-ready:docs/empirical.md` and the current motivation section. The exact historical invocation prompts and the human review sample were not located. This is a reconstructed prompt, not a claim of exact prompt replication. Gold labels are never sent to either model or to adjudication.', '',
+        '`taxonomy.txt` reconstructs the coding guide and examples in `origin/artifact-ready:docs/empirical.md` and the current motivation section. The exact historical invocation prompts and the human review sample were not located. This is a reconstructed prompt, not a claim of exact prompt replication. Reference labels for the statements being judged are never included in prediction or adjudication payloads.', '',
         'Equivalent JSON wrappers are normalized without changing labels or source boundaries. Invalid values, missing IDs, and inconsistent cross-axis applicability are rejected and retried, with earlier responses retained in the raw cache. `calibration_schema_errors.csv` records predictions rejected during schema validation. The reported agreement measures the accepted automated labeling pipeline rather than strict first-response JSON compliance.', '',
         'The initial full-axis calibration uses the legacy whole-batch retry policy (`--retry-policy batch`). During scaling, a small number of invalid values caused repeated requests for otherwise valid rows. The revised default retains valid rows and retries only invalid or missing IDs, while ambiguous IDs still reject the whole response. The focused prompt was recalibrated from cached initial requests under this exact revised policy before resuming scaling. `format_calibration_v1_summary.csv` preserves the earlier whole-batch check. The original failed axes remain withheld regardless of the revised check, and the codebook and thresholds are unchanged.', '',
         'The partial first-pass source labels and figures are preserved in branch history and the raw `retry-protocol-v1/` backup. They are superseded by the revised-policy run rather than mixed into its final accepted labels. `retry_protocol.csv` records the versions, and the interruption remains in the run audit.', '',
@@ -228,7 +228,7 @@ def main():
         table = ['## Figure handoff', '', '| Paper figure | PDF | Status | Unvalidated axes |', '|---|---|---|---|']
         for r in read_csv(HERE / 'figure_manifest.csv'):
             table.append(f'| {r["paper_figure"]} | [{r["file"].split("/")[-1]}]({r["file"]}) | {r["status"]} | {r["failed_dimensions"]} |')
-        table += ['', 'An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains every plotted value.', '']
+        table += ['', 'An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains the counts, denominators, and project fractions used by the plots.', '']
         lines[-2:-2] = table
     if overall and coverage.get('analyzed_repositories') == coverage.get('collected_repositories'):
         valid = {k: r for k, r in overall.items() if r['status'] == 'ok'}
