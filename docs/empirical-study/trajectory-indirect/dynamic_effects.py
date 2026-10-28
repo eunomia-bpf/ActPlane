@@ -17,6 +17,7 @@ from pathlib import Path
 import posixpath
 import re
 import shlex
+import subprocess
 
 import bashlex
 
@@ -112,10 +113,16 @@ def analyze(raw):
             call=json.loads(line)
             if call['trajectory_id'] in wanted:by_trajectory[call['trajectory_id']].append(call)
     all_calls=[];all_effects=[];replays=[]
+    tracked_cache={}
     for plan in plans:
         run=raw/'dynamic'/'runs'/plan['dynamic_id']
         if not (run/'done.json').exists():continue
         done=json.loads((run/'done.json').read_text())
+        tracked_key=(plan['repository'],plan['base_commit'])
+        if tracked_key not in tracked_cache:
+            git_dir=raw/'dynamic/git-cache'/plan['repository'].replace('/','__')
+            tree=subprocess.check_output(['git','--git-dir',str(git_dir),'ls-tree','-r','-z','--name-only',plan['base_commit']])
+            tracked_cache[tracked_key]={p.decode('utf-8',errors='replace') for p in tree.split(b'\0') if p}
         observer_metadata=json.loads((run/'observer_metadata.json').read_text()) if (run/'observer_metadata.json').exists() else {}
         string_bytes=observer_metadata.get('config',{}).get('observer_string_bytes',256)
         records={r['call_id']:r for r in map(json.loads,(run/'calls.jsonl').read_text().splitlines())} if (run/'calls.jsonl').exists() else {}
@@ -128,6 +135,8 @@ def analyze(raw):
                     observer_error_detail='; '.join(errors[:10]),elapsed_s=done['elapsed_s'],finished_utc=done['finished_utc'])
         replay['observer_string_bytes']=string_bytes
         replay['observer_sha256']=observer_metadata.get('observer_sha256','')
+        for key in ('per_call_timeout_s','per_trajectory_timeout_s','environment_setup_timeout_s'):
+            replay[key]=observer_metadata.get('config',{}).get(key,'')
         replay['successful_calls']=sum(r.get('exit_code')==0 for r in records.values())
         replay['failed_calls']=sum(r.get('exit_code') not in (None,0) for r in records.values())
         replay['timed_out_calls']=sum(r.get('timed_out',0) for r in records.values())
@@ -140,6 +149,7 @@ def analyze(raw):
                      replay_executed=int(bool(receipt)),exit_code=receipt.get('exit_code',''),timed_out=receipt.get('timed_out',0),
                      process_launched=int(bool(receipt) and not receipt.get('worker_error')),worker_error=receipt.get('worker_error',''),
                      original_status=call['status'],trace_valid=int(not errors),elapsed_s=receipt.get('elapsed_s',0))
+            row['original_timeout_argument']=call['args'].get('timeout','')
             totals=Counter()
             tagged_effects=effects_by_tag.get(tag,[])
             shim_execs=sum(n for kind,path,n,b in tagged_effects if kind==2 and path=='/replay/bin/apply_patch')
@@ -165,10 +175,13 @@ def analyze(raw):
                     if decision['named']==0:
                         totals['unnamed_profile_helper_exec_events']+=n;totals['unnamed_profile_helper_exec_objects']+=1
                 project=plan['sandbox_workdir'].rstrip('/')+'/'
+                effects['project_base_tracked']=-1
                 if path.startswith(project):
-                    relative=path[len(project):]
+                    relative=path[len(project):].removesuffix(' (deleted)')
+                    effects['project_base_tracked']=int(relative in tracked_cache[tracked_key])
+                    dependency=any(part in relative.split('/') for part in ('_submodules','node_modules','.pnpm-store','.yarn','.npm'))
                     generated=any(part in relative.split('/') for part in ('.git','__pycache__','.pytest_cache','node_modules','target','build','dist','.mypy_cache','.ruff_cache','.tox','.venv','venv'))
-                    effects['path_scope']='project_generated' if generated else 'project_other'
+                    effects['path_scope']='project_dependency' if dependency else 'project_generated' if generated else 'project_other'
                 elif path.startswith('/cache/'):effects['path_scope']='package_cache'
                 elif path.startswith('/venv/'):effects['path_scope']='environment'
                 elif path.startswith('/tmp/'):effects['path_scope']='temporary'
@@ -285,6 +298,18 @@ def analyze(raw):
                                unnamed_call_object_pairs=sum(e['named']==0 for e in effects),
                                unnamed_call_object_pct=100*sum(e['named']==0 for e in effects)/len(effects)))
     write_csv(HERE/'dynamic_scope_summary.csv',scope_rows)
+    tracked_groups=defaultdict(list)
+    for effect in all_effects:
+        if effect['effect']!='write':continue
+        scope={1:'base_tracked_project',0:'other_project',-1:'outside_project'}[effect['project_base_tracked']]
+        for key in [('ALL','ALL',scope),(effect['framework'],effect['model'],scope)]:tracked_groups[key].append(effect)
+    tracked_rows=[]
+    for key,effects in sorted(tracked_groups.items()):
+        total=sum(e['events'] for e in effects);unnamed=sum(e['events'] for e in effects if e['named']==0)
+        tracked_rows.append(dict(framework=key[0],model=key[1],path_scope=key[2],events=total,unnamed_events=unnamed,
+            unnamed_pct=100*unnamed/total,call_file_pairs=len(effects),unnamed_call_file_pairs=sum(e['named']==0 for e in effects),
+            unnamed_call_file_pct=100*sum(e['named']==0 for e in effects)/len(effects)))
+    write_csv(HERE/'dynamic_tracked_scope_summary.csv',tracked_rows)
     confusion=[]
     for scope in ('all_recorded_calls','executed_calls','successful_calls','effectful_calls','indirect_vs_direct'):
         calls=[c for c in all_calls if scope=='all_recorded_calls' or (scope=='executed_calls' and c['replay_executed'])

@@ -44,6 +44,22 @@ os.close(fd)
 os.write(1,b'hello\\n')
 PY
 """
+FAILED_WRITE="""/usr/bin/python3 - <<'PY'
+import errno,os,resource,signal
+signal.signal(signal.SIGXFSZ,signal.SIG_IGN)
+resource.setrlimit(resource.RLIMIT_FSIZE,(0,0))
+fd=os.open('failed-write.txt',os.O_CREAT|os.O_WRONLY,0o600)
+assert os.write(fd,b'')==0
+try:
+    os.write(fd,b'x')
+except OSError as exc:
+    assert exc.errno==errno.EFBIG
+else:
+    raise AssertionError('regular-file write unexpectedly succeeded')
+os.close(fd)
+os.write(1,b'failure-confirmed\\n')
+PY
+"""
 
 
 def calibrate(raw):
@@ -61,7 +77,8 @@ def calibrate(raw):
                 '--symlink','usr/lib64','/lib64','--proc','/proc','--dev','/dev','--tmpfs','/tmp',
                 '--bind',str(run/'project'),'/project','--ro-bind',str(launch),'/launch',
                 '--clearenv','--setenv','PATH','/usr/bin:/bin','--chdir','/project','/launch']
-        for label,tag,command in [('positive','apti6e999999',POSITIVE),('negative','apti6e999998',NEGATIVE)]:
+        for label,tag,command in [('positive','apti6e999999',POSITIVE),('negative','apti6e999998',NEGATIVE),
+                                  ('failed-write','apti6e999997',FAILED_WRITE)]:
             (run/(label+'.sh')).write_text(command)
             result=subprocess.run(common+[tag,'/bin/bash','-c',command],capture_output=True,text=True,timeout=30)
             (run/(label+'.stdout')).write_text(result.stdout)

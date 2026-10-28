@@ -33,6 +33,12 @@ def check(raw,evidence=None):
                      expected=0,observed=false_writes,observed_bytes=0,passed=int(false_writes==0),
                      observer_sha256=hashlib.sha256((HERE/'observer.bt').read_bytes()).hexdigest(),
                      evidence=str(evidence.relative_to(raw))))
+    if (evidence.parent/'failed-write.sh').exists():
+        failed_writes=sum(n for (tag,kind,path),n in counts.items() if tag=='apti6e999997' and kind==1)
+        rows.append(dict(probe_case='zero-byte-and-rejected-regular-file-writes-are-excluded',kind=1,path='failed-write.txt',
+                         expected=0,observed=failed_writes,observed_bytes=0,passed=int(failed_writes==0),
+                         observer_sha256=hashlib.sha256((HERE/'observer.bt').read_bytes()).hexdigest(),
+                         evidence=str(evidence.relative_to(raw))))
     assert not errors and all(r['passed'] for r in rows),'calibration failed'
     write_csv(HERE/'dynamic_calibration.csv',rows)
     preflight=[

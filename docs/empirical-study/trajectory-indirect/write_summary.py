@@ -24,6 +24,7 @@ def summarize(state,raw):
     confusion=next(r for r in read('dynamic_confusion.csv') if r['scope']=='all_recorded_calls')
     attempts=read('dynamic_attempts.csv')
     resource=read('resources.csv')[0]
+    tracked=next(r for r in read('dynamic_tracked_scope_summary.csv') if r['framework']=='ALL' and r['path_scope']=='base_tracked_project')
     def pct(v):return f'{float(v):.2f}%'
     table='| Framework / recorded model | Traj. | Recorded calls | Attempted | Exit zero | Unnamed writes | Unnamed execs |\n|---|---:|---:|---:|---:|---:|---:|\n'
     for r in summaries:
@@ -39,7 +40,7 @@ No PR action was taken during this follow-up.
 Static analysis covers {int(methods['total_trajectories']):,} public trajectories and {int(methods['total_calls']):,} recorded calls/action slots. Dynamic validation replays the unchanged fixed sample of {len(replays)} trajectories on exact base commits, with captured OS regular-file writes and successful execs attributed to their initiating tool-call arguments.
 
 {table}
-Pooled observed effects: {int(overall['write_events']):,} positive-byte regular-file write operations, {pct(overall['unnamed_write_pct'])} unnamed, and {int(overall['exec_events']):,} successful execs, {pct(overall['unnamed_exec_pct'])} unnamed. Distinct call-path fractions are {pct(overall['unnamed_write_object_pct'])} for writes and {pct(overall['unnamed_exec_object_pct'])} for execs. Excluding conventional generated/build/cache paths, the project call-file unnamed fraction is {pct(metrics['nongenerated_project_unnamed_write_call_object_pct'])}.
+Pooled observed effects: {int(overall['write_events']):,} positive-byte regular-file write operations, {pct(overall['unnamed_write_pct'])} unnamed, and {int(overall['exec_events']):,} successful execs, {pct(overall['unnamed_exec_pct'])} unnamed. Distinct call-path fractions are {pct(overall['unnamed_write_object_pct'])} for writes and {pct(overall['unnamed_exec_object_pct'])} for execs. For paths tracked in the root repository at the exact base commit, {tracked['unnamed_events']} of {tracked['events']} captured write operations ({pct(tracked['unnamed_pct'])}) and {tracked['unnamed_call_file_pairs']} of {tracked['call_file_pairs']} distinct call-file pairs ({pct(tracked['unnamed_call_file_pct'])}) were unnamed. This membership does not identify intended edits, and writes to temporary paths later renamed over tracked files can fall outside that row.
 
 The post-hoc sensitivity excluding exec basenames id and run-parts yields {pct(metrics['without_profile_helpers_unnamed_exec_pct'])} unnamed execs. These helpers occur in the replay host's login-shell profile. Primary metrics retain them. The filename filter can remove genuine project executions and is not a causal origin attribution.
 

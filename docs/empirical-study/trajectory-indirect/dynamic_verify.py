@@ -90,6 +90,9 @@ def verify(raw,require_complete=False):
         unnamed_removed=sum(int(c['unnamed_profile_helper_exec_'+unit]) for c in calls)
         check('filtered_exec_'+unit,int(filtered['exec_'+unit]),int(overall['exec_'+unit])-removed)
         check('filtered_unnamed_exec_'+unit,int(filtered['unnamed_exec_'+unit]),int(overall['unnamed_exec_'+unit])-unnamed_removed)
+    tracked=[r for r in read('dynamic_tracked_scope_summary.csv') if r['framework']=='ALL']
+    check('tracked_scope_write_events',sum(int(r['events']) for r in tracked),int(overall['write_events']))
+    check('tracked_scope_call_file_pairs',sum(int(r['call_file_pairs']) for r in tracked),int(overall['write_objects']))
     write_csv(HERE/'dynamic_verification.csv',checks)
     failed=[c['check'] for c in checks if not c['passed']]
     if failed:raise SystemExit('Verification failed: '+', '.join(failed))

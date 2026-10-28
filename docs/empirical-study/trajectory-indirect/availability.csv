@@ -1,6 +1,6 @@
 probe,status,detail,utc
 docker_daemon,0,Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?,2026-10-28T05:26:49Z
-bpftrace_binary,unavailable,binary lookup only,2026-10-28T05:26:49Z
+bpftrace_binary,available,Local binary lookup. Actual load/calibration evidence is in dynamic_preflight.csv.,2026-10-28T09:20:45Z
 qwen38_without_key,200,"[""qwen3.8-27b-nvfp4""]",2026-10-28T05:26:49Z
 qwen38_with_gateway_key,200,"[""qwen3.8-27b-nvfp4""]",2026-10-28T05:26:49Z
 glm53-flash_without_key,401,[],2026-10-28T05:26:49Z
@@ -12,4 +12,4 @@ SWE-bench/SWE-smith-trajectories,200,"{""revision"": ""08e109b4a59eaeebf80e4675c
 SWE-Gym/MoatlessTools-Sampled-Trajectories,200,"{""revision"": ""51ba9a7f38fed087bcb1a11b3d51972ed72a8317"", ""declared_license"": null, ""decision"": ""Not sampled: no root license/card declaration found during availability check.""}",2026-10-28T05:26:49Z
 SWE-Gym/OpenHands-Sampled-Trajectories,200,"{""revision"": ""baf3a4e4bff514d48ddc08a93a2ade5c126212c7"", ""declared_license"": null, ""decision"": ""Not sampled: raw archive card has no declared license; used MIT-declared SFT release with documented success selection.""}",2026-10-28T05:26:49Z
 required_oss_change_workflow_skill,unavailable,"Not listed in available skills and filesystem search found no oss-change-workflow/SKILL.md. Followed scope, validation, docs synchronization, and branch handoff guidance from AGENTS.md and the operator update.",2026-10-28T05:26:49Z
-dynamic_replay,not_run,No reachable local Docker daemon or pre-provisioned replay environments. No service/deployment changes made. Used prespecified two-LLM call annotation fallback.,2026-10-28T05:26:49Z
+dynamic_replay,receipts_available,40 primary replay receipts. See dynamic_replays.csv and dynamic_attempts.csv. Local bpftrace/namespaces replaced the initial Docker limitation.,2026-10-28T09:20:45Z

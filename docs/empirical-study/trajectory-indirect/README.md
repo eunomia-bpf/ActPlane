@@ -4,28 +4,28 @@
 
 ## Dynamic replay validation
 
-**Interim: 31 of 40 planned replay receipts are available.** **Observer errors remain. Effect tables are diagnostics pending instrumentation retries.** The [fixed plan](dynamic_plan.csv) was selected by a committed hash ranking, paired by task within each source. It includes exact base commits recovered from pinned task metadata. No task was replaced based on replay success. Recorded calls are replayed in order against a fresh checkout in a private local PID/mount namespace. Shell command strings remain as recorded. Dedicated edits are implemented as direct file writes by the committed adapter. The coordinator, environment setup, and injected dispatchers are excluded from observed effects. No oracle or verifier patches are applied. [dynamic_metadata_manifest.csv](dynamic_metadata_manifest.csv) records pinned metadata versions, task-archive hashes, and license caveats. The pinned SWE-bench Verified card does not state a dataset license, and no separate native task-data license was verified. Derived tables, brief call previews, and source locators are committed, while full task archives and transcripts stay external and third-party source terms remain applicable.
+**Final fixed sample: 40 replayed trajectories across 4 recorded model groups and 3 frameworks.** The [fixed plan](dynamic_plan.csv) was selected by a committed hash ranking, paired by task within each source. It includes exact base commits recovered from pinned task metadata. No task was replaced based on replay success. Recorded calls are replayed in order against a fresh checkout in a private local PID/mount namespace. Shell command strings remain as recorded. Dedicated edits are implemented as direct file writes by the committed adapter. The coordinator, environment setup, and injected dispatchers are excluded from observed effects. No oracle or verifier patches are applied. [dynamic_metadata_manifest.csv](dynamic_metadata_manifest.csv) records pinned metadata versions, task-archive hashes, and license caveats. The pinned SWE-bench Verified card does not state a dataset license, and no separate native task-data license was verified. Derived tables, brief call previews, and source locators are committed, while full task archives and transcripts stay external and third-party source terms remain applicable.
 
-Across the available receipts, the observer recorded **2,033,390 successful regular-file write operations**, of which **99.01% were unnamed**, and **9,331 successful execs**, of which **71.66% were unnamed**. At least one unnamed write or exec was observed for **390 of 992 recorded calls (39.31%)**. The count of trajectories with an observed unnamed effect is **29**. These pooled event totals are affected by large installations. Counting each distinct `(call, object)` pair once gives **99.95% unnamed write pairs** and **43.25% unnamed exec pairs**. Unresolved/truncated object paths are kept in the denominator and separately counted: 3 write events and 0 exec events. The reported unnamed fractions therefore use the lower endpoint for unresolved names.
+Across the available receipts, the observer recorded **1,862,321 successful regular-file write operations**, of which **98.92% were unnamed**, and **10,067 successful execs**, of which **72.14% were unnamed**. At least one unnamed write or exec was observed for **491 of 1335 recorded calls (36.78%)**. The count of trajectories with an observed unnamed effect is **38**. These pooled event totals are affected by large installations. Counting each distinct `(call, object)` pair once gives **99.94% unnamed write pairs** and **41.40% unnamed exec pairs**. Unresolved/truncated object paths are kept in the denominator and separately counted: 0 write events and 0 exec events. The reported unnamed fractions therefore use the lower endpoint for unresolved names.
 
 An object in these tables is a kernel-resolved regular-file path for writes or the requested executable pathname of a successful exec syscall. It is not an inode or a unique process. Executable aliases, symlinks, and interpreter loading are not expanded into additional exec effects. To avoid weighting trajectories by installation volume, the following medians give each trajectory with the relevant captured effects equal weight. Trajectories with no captured effect of that kind have an undefined fraction and remain in the call/fidelity denominators. [dynamic_trajectory_summary.csv](dynamic_trajectory_summary.csv) contains every replay receipt.
 
 | Effect | Weighting within trajectory | Trajectories with effects | Median unnamed fraction |
 |---|---|---:|---:|
-| write | events | 31 | 99.96% |
-| write | objects | 31 | 99.84% |
-| exec | events | 31 | 56.08% |
-| exec | objects | 31 | 46.15% |
+| write | events | 40 | 99.83% |
+| write | objects | 40 | 99.66% |
+| exec | events | 40 | 54.91% |
+| exec | objects | 40 | 42.36% |
 
 
 | Replayed framework / recorded model | Traj. | Recorded calls | Executed | Exit zero | Unnamed write events | Unnamed exec events |
 |---|---:|---:|---:|---:|---:|---:|
-| Claude Code / fable-5 | 10 | 410 | 410 | 373 | 98.45% | 72.09% |
+| Claude Code / fable-5 | 10 | 410 | 410 | 373 | 98.18% | 79.23% |
 | Codex / gpt-5.6-sol | 10 | 180 | 180 | 145 | >99.99% | 59.77% |
 | mini-SWE-agent / claude-opus-4-6 | 10 | 377 | 377 | 341 | 99.96% | 79.06% |
-| mini-SWE-agent / gpt-5.2-high | 1 | 25 | 25 | 23 | 99.28% | 67.83% |
+| mini-SWE-agent / gpt-5.2-high | 10 | 368 | 368 | 330 | 99.60% | 50.05% |
 
-These are effects observed during replays of recorded trajectories, not original OS telemetry. 110 calls exited nonzero and 1 timed out. All recorded calls in completed receipts remain in denominators, including unexecuted calls after a fatal replay error. There are 0 fatal replay receipts and 14 failed setup steps, including failed initial steps later recovered by a fallback. Nonzero commands can still produce effects, which are counted. Exit zero means command completion, not agreement with original test outcomes or task resolution. [dynamic_fidelity.csv](dynamic_fidelity.csv) cross-tabulates source-reported status and replay outcome, retaining unavailable source statuses. The source of each failure and original/replayed call statuses are retained in [dynamic_calls.csv](dynamic_calls.csv), [dynamic_replays.csv](dynamic_replays.csv), and external command logs. The observer error count is 3. A nonzero observer error count invalidates complete-census claims and must be resolved before treating a final sample as complete.
+These are effects observed during bounded replays of recorded trajectories, not original OS telemetry. The replay launcher waits up to 180 seconds per call. The between-call trajectory budget is 3600 seconds including setup, and each setup command has a 600-second limit. These are replay budget choices. Original timeout argument values are retained separately in the per-call CSV and can differ from these limits. 146 calls exited nonzero and 2 timed out. All recorded calls in completed receipts remain in denominators, including unexecuted calls after a fatal replay error. There are 0 fatal replay receipts and 18 failed setup steps, including failed initial steps later recovered by a fallback. Nonzero commands can still produce effects, which are counted. Exit zero means command completion, not agreement with original test outcomes or task resolution. [dynamic_fidelity.csv](dynamic_fidelity.csv) cross-tabulates source-reported status and replay outcome, retaining unavailable source statuses. The source of each failure and original/replayed call statuses are retained in [dynamic_calls.csv](dynamic_calls.csv), [dynamic_replays.csv](dynamic_replays.csv), and external command logs. The observer error count is 0. A nonzero observer error count invalidates complete-census claims and must be resolved before treating a final sample as complete.
 
 ### Visibility definition and measured operations
 
@@ -38,29 +38,29 @@ The eBPF observer follows tagged thread lineages using initial-namespace kernel 
 | Static primary class | Calls | Write events | Unnamed writes | Exec events | Unnamed execs |
 |---|---:|---:|---:|---:|---:|
 | direct_edit | 61 | 61 | 0.00% | 0 | n/a |
-| direct_shell | 27 | 70 | 74.29% | 41 | 0.00% |
-| indirect | 278 | 1,892,527 | 99.95% | 7,323 | 84.28% |
-| inline_code | 98 | 11,704 | 99.28% | 328 | 54.57% |
-| read_only | 502 | 98 | 100.00% | 1,198 | 18.70% |
-| unknown | 26 | 128,930 | 85.23% | 441 | 25.40% |
+| direct_shell | 39 | 91 | 65.93% | 53 | 0.00% |
+| indirect | 318 | 1,720,110 | 99.94% | 7,608 | 87.75% |
+| inline_code | 192 | 12,983 | 99.20% | 497 | 50.30% |
+| read_only | 698 | 118 | 100.00% | 1,467 | 15.27% |
+| unknown | 27 | 128,958 | 85.24% | 442 | 25.34% |
 
 The physical validation target is a call with at least one observed unnamed write or exec. `indirect` is the positive prediction. All other primary classes are negative, including the separately reported inline-code class. The tables distinguish all recorded calls, executed calls, exit-zero calls, effects-producing calls, and the subset labeled indirect or a direct mutation. Thus command failures are visible in the main denominator, rather than being silently discarded. Precision and recall are descriptive for this replay and visibility definition.
 
 | Call denominator | Calls | TP | FP | FN | TN | Precision | Recall |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| all_recorded_calls | 992 | 208 | 70 | 182 | 532 | 74.8% | 53.3% |
-| executed_calls | 992 | 208 | 70 | 182 | 532 | 74.8% | 53.3% |
-| successful_calls | 882 | 163 | 45 | 168 | 506 | 78.4% | 49.2% |
-| effectful_calls | 842 | 208 | 70 | 182 | 382 | 74.8% | 53.3% |
-| indirect_vs_direct | 366 | 208 | 70 | 7 | 81 | 74.8% | 96.7% |
+| all_recorded_calls | 1335 | 247 | 71 | 244 | 773 | 77.7% | 50.3% |
+| executed_calls | 1335 | 247 | 71 | 244 | 773 | 77.7% | 50.3% |
+| successful_calls | 1189 | 200 | 45 | 213 | 731 | 81.6% | 48.4% |
+| effectful_calls | 1183 | 247 | 71 | 244 | 621 | 77.7% | 50.3% |
+| indirect_vs_direct | 418 | 247 | 71 | 8 | 92 | 77.7% | 96.9% |
 
 
 | Replayed framework / model | Calls | TP | FP | FN | Precision | Recall |
 |---|---:|---:|---:|---:|---:|---:|
-| Claude Code / fable-5 | 410 | 57 | 38 | 6 | 60.0% | 90.5% |
+| Claude Code / fable-5 | 410 | 59 | 36 | 6 | 62.1% | 90.8% |
 | Codex / gpt-5.6-sol | 180 | 49 | 1 | 130 | 98.0% | 27.4% |
 | mini-SWE-agent / claude-opus-4-6 | 377 | 100 | 31 | 42 | 76.3% | 70.4% |
-| mini-SWE-agent / gpt-5.2-high | 25 | 2 | 0 | 4 | 100.0% | 33.3% |
+| mini-SWE-agent / gpt-5.2-high | 368 | 39 | 3 | 66 | 92.9% | 37.1% |
 
 
 ### Shell-profile sensitivity
@@ -69,11 +69,11 @@ The preserved recorded login-shell wrappers source this replay host's profile. I
 
 | Cohort | Excluded execs | Remaining execs | Remaining unnamed execs | Unnamed exec fraction | Call-level precision | Call-level recall |
 |---|---:|---:|---:|---:|---:|---:|
-| Overall | 360 | 8971 | 6329 | 70.55% | 66.2% | 72.7% |
-| Claude Code / fable-5 | 0 | 3551 | 2560 | 72.09% | 60.0% | 90.5% |
+| Overall | 360 | 9707 | 6904 | 71.12% | 70.1% | 63.0% |
+| Claude Code / fable-5 | 0 | 3461 | 2742 | 79.23% | 62.1% | 90.8% |
 | Codex / gpt-5.6-sol | 360 | 1867 | 973 | 52.12% | 50.0% | 59.5% |
 | mini-SWE-agent / claude-opus-4-6 | 0 | 3438 | 2718 | 79.06% | 76.3% | 70.4% |
-| mini-SWE-agent / gpt-5.2-high | 0 | 115 | 78 | 67.83% | 100.0% | 33.3% |
+| mini-SWE-agent / gpt-5.2-high | 0 | 941 | 471 | 50.05% | 92.9% | 37.1% |
 
 [dynamic_confusion.csv](dynamic_confusion.csv) also reports unresolved truth counts and corresponding precision/recall bounds. A failed or unexecuted call is not evidence that the original deployment had no indirect effect. Unsupported tool substitution, dependency failures, malformed normalized commands, different runtime versions, SCM-derived version labels from shallow history, time limits, and initial environment differences limit transfer to original executions.
 
@@ -81,15 +81,25 @@ The preserved recorded login-shell wrappers source this replay host's profile. I
 
 | Observed file-write location | Write operations | Unnamed operations | Distinct (call, file) pairs | Unnamed pairs |
 |---|---:|---:|---:|---:|
-| environment | 5,836 | 99.98% | 3,787 | 99.97% |
-| home | 39,135 | 99.97% | 2,627 | 99.62% |
-| package_cache | 266,587 | 99.67% | 83,394 | >99.99% |
-| project_generated | 182,204 | >99.99% | 110,423 | >99.99% |
-| project_other | 124,953 | 99.92% | 96,124 | 99.89% |
-| system_or_other | 198 | 98.48% | 131 | 99.24% |
-| temporary | 1,414,477 | 98.65% | 28,703 | 99.86% |
+| environment | 11,858 | >99.99% | 8,046 | 99.99% |
+| home | 39,160 | 99.97% | 2,645 | 99.62% |
+| package_cache | 245,671 | 99.64% | 83,987 | >99.99% |
+| project_dependency | 120,376 | >99.99% | 95,857 | >99.99% |
+| project_generated | 181,028 | >99.99% | 111,564 | >99.99% |
+| project_other | 8,350 | 98.53% | 631 | 80.98% |
+| system_or_other | 209 | 100.00% | 144 | 100.00% |
+| temporary | 1,255,669 | 98.47% | 28,913 | 99.80% |
 
-`project_generated` identifies conventional generated/build/cache components, including Git metadata, bytecode, virtual environments, node_modules, target, build, and dist. `project_other` covers remaining files below the project root. These are path conventions, not an intent or security judgment. Both rows are included in the project-tree fraction. Package-cache and environment writes are genuine replay effects but can dominate pooled counts. Private per-trajectory caches prevent a preceding model's replay from warming a later one. Instrumentation failures, including long-path buffer errors, trigger a retained full-sequence retry of the same task with a larger buffer. Command or setup failures alone do not trigger this instrumentation procedure. Separately, initial Astropy environment trials exposed isolated-build setuptools incompatibility and GCC 14 rejecting legacy C signatures. The primary mini cohort uses the same recorded legacy build dependencies, a no-build-isolation fallback, and GCC/G++ 12. Earlier completed or interrupted environment trials remain in `environment-attempts/` and the attempt ledger. Setup changes never apply oracle patches. [dynamic_attempts.csv](dynamic_attempts.csv) accounts for primary and excluded attempts, while [dynamic_replays.csv](dynamic_replays.csv) records the actual path-buffer size of each primary attempt. Setup effects are excluded. Disposable runtime trees are removed after source commits, command receipts, freeze records, final diffs, and observer data are saved. Full per-call object records are in the external `dynamic/effects.jsonl.gz`; [dynamic_effect_sample.csv](dynamic_effect_sample.csv) gives hash-ranked examples balanced across static class, effect kind, and path scope.
+
+| Root-repository path membership | Write operations | Unnamed operations | Distinct (call, file) pairs | Unnamed pairs |
+|---|---:|---:|---:|---:|
+| base_tracked_project | 175 | 45.71% | 149 | 37.58% |
+| other_project | 309,579 | 99.99% | 207,903 | 99.98% |
+| outside_project | 1,552,567 | 98.71% | 123,735 | 99.94% |
+
+
+[dynamic_tracked_scope_summary.csv](dynamic_tracked_scope_summary.csv) tests path membership against each exact base commit's root-repository Git tree. It distinguishes captured writes to already tracked paths from other project paths and paths outside the project. Submodule contents are absent from the root repository's file tree. These are captured write operations, so writes to temporary files later renamed over tracked files can fall outside the tracked-path row. Membership does not identify intended edits or the code responsible for a write.
+`project_dependency` identifies `_submodules`, node_modules, .pnpm-store, .yarn, and .npm components. `project_generated` identifies conventional generated/build/cache components, including Git metadata, bytecode, virtual environments, target, build, and dist. `project_other` covers remaining files below the project root. These post-hoc descriptive path conventions do not establish file intent or code origin. Every project row is included in the project-tree fraction. The dependency split was added after an audit showed that submodule materialization and a package cache dominated the initially broad remaining-project category. Primary effect fractions and static predictions are unchanged. Package-cache and environment writes are genuine replay effects but can dominate pooled counts. Private per-trajectory caches prevent a preceding model's replay from warming a later one. Instrumentation failures, including long-path buffer errors, trigger a retained full-sequence retry of the same task with a larger buffer. Command or setup failures alone do not trigger this instrumentation procedure. Separately, initial Astropy environment trials exposed isolated-build setuptools incompatibility and GCC 14 rejecting legacy C signatures. The primary mini cohort uses the same recorded legacy build dependencies, a no-build-isolation fallback, and GCC/G++ 12. Earlier completed or interrupted environment trials remain in `environment-attempts/` and the attempt ledger. Setup changes never apply oracle patches. [dynamic_attempts.csv](dynamic_attempts.csv) accounts for primary and excluded attempts, while [dynamic_replays.csv](dynamic_replays.csv) records the actual path-buffer size of each primary attempt. Setup effects are excluded. Disposable runtime trees are removed after source commits, command receipts, freeze records, final diffs, and observer data are saved. Full per-call object records are in the external `dynamic/effects.jsonl.gz`; [dynamic_effect_sample.csv](dynamic_effect_sample.csv) gives hash-ranked examples balanced across static class, effect kind, and path scope.
 
 [dynamic_effects.pdf](dynamic_effects.pdf) compares distinct call-object fractions by model group and static class, with embedded TrueType fonts. [dynamic_report_metrics.csv](dynamic_report_metrics.csv) records report totals. The cohort is a paired, descriptive sample with best-effort environments, not a causal comparison of models or frameworks. [dynamic_evidence_manifest.csv](dynamic_evidence_manifest.csv) hashes retained metadata, call receipts, command logs, and observer evidence. [dynamic_host_environment.csv](dynamic_host_environment.csv) records local tool versions and analysis-source hashes.
 
@@ -206,7 +216,7 @@ python3 -m pytest -q test_analyze.py test_dynamic.py
 
 The annotation command requires `LITELLM_BASE_URL` and `LITELLM_API_KEY` for the named GLM model, plus access to the named direct Qwen endpoint. It keeps at most 4 requests concurrent and never writes credentials. Completed annotations are cached. Transport/format failures get up to 3 attempts and are retained. Full arguments, feedback excerpts, model responses, normalized sampled trajectories, and logs remain under the external raw directory. The committed call sample contains source locators and hashes to recover full arguments without redistributing whole trajectories.
 
-At the last [resource measurement](resources.csv), raw files occupied 0.362 GB, under the 25 GB limit, and workspace disk use was 36.8%, below 85%. [method_metrics.csv](method_metrics.csv) records report constants and derived totals. All quantitative claims in this README are generated by this script from committed CSVs. Source versions, licensing statements, and sampling decisions are recorded in the manifest, configuration, and availability audit.
+At the last [resource measurement](resources.csv), raw files occupied 3.596 GB, under the 25 GB limit, and workspace disk use was 44.0%, below 85%. [method_metrics.csv](method_metrics.csv) records report constants and derived totals. All quantitative claims in this README are generated by this script from committed CSVs. Source versions, licensing statements, and sampling decisions are recorded in the manifest, configuration, and availability audit.
 
 The requested `oss-change-workflow` skill was absent from the available catalog and filesystem search. We followed the scope, validation, synchronized docs/results, and branch workflow stated in AGENTS.md and the operator update. Results are handed off on the experiment branch. This study changes only this output directory and does not edit the paper.
 
@@ -232,4 +242,4 @@ The committed sample plan and task metadata hashes identify exact repository bas
 
 ## Paper-ready motivation paragraph
 
-Dynamic validation is in progress. The current 31 replay receipts contain 3 observer errors. Paper-ready quantitative replay claims are withheld until the same affected trajectories have been replayed with corrected instrumentation. All earlier attempts remain recorded, and no sampled task is replaced based on command or setup success.
+Tool-call arguments do not enumerate every effect of coding-agent execution. We analyzed 89,176 recorded agent actions and replayed 40 trajectories under eBPF observation. In these best-effort replays, 98.92% of captured regular-file write operations and 72.14% of successful execs lacked a matching literal basename or explicit glob in the initiating arguments. Excluding known replay shell-profile helper names leaves 71.12% unnamed execs. Unnamed effects occurred in 38 replays and 36.78% of calls. Counts include temporary files, dependency materialization, and caches. The replay attempted 1,335 calls, with 89.1% exiting zero. These observations motivate enforcement where effects occur. Minimal environments and substitute edit tools limit transfer to original deployments, and unnamed effects do not imply policy violations.

@@ -1,10 +1,11 @@
 framework,model,original_status,replay_outcome,calls
-ALL,ALL,failed,exit_nonzero,56
-ALL,ALL,failed,exit_zero,22
-ALL,ALL,success,exit_nonzero,53
-ALL,ALL,success,exit_zero,849
+ALL,ALL,failed,exit_nonzero,85
+ALL,ALL,failed,exit_zero,31
+ALL,ALL,failed,timeout,1
+ALL,ALL,success,exit_nonzero,59
+ALL,ALL,success,exit_zero,1138
 ALL,ALL,success,timeout,1
-ALL,ALL,unknown,exit_zero,11
+ALL,ALL,unknown,exit_zero,20
 Claude Code,fable-5,failed,exit_nonzero,5
 Claude Code,fable-5,failed,exit_zero,2
 Claude Code,fable-5,success,exit_nonzero,31
@@ -19,7 +20,9 @@ mini-SWE-agent,claude-opus-4-6,failed,exit_zero,12
 mini-SWE-agent,claude-opus-4-6,success,exit_nonzero,7
 mini-SWE-agent,claude-opus-4-6,success,exit_zero,319
 mini-SWE-agent,claude-opus-4-6,unknown,exit_zero,10
-mini-SWE-agent,gpt-5.2-high,failed,exit_nonzero,2
-mini-SWE-agent,gpt-5.2-high,failed,exit_zero,2
-mini-SWE-agent,gpt-5.2-high,success,exit_zero,20
-mini-SWE-agent,gpt-5.2-high,unknown,exit_zero,1
+mini-SWE-agent,gpt-5.2-high,failed,exit_nonzero,31
+mini-SWE-agent,gpt-5.2-high,failed,exit_zero,11
+mini-SWE-agent,gpt-5.2-high,failed,timeout,1
+mini-SWE-agent,gpt-5.2-high,success,exit_nonzero,6
+mini-SWE-agent,gpt-5.2-high,success,exit_zero,309
+mini-SWE-agent,gpt-5.2-high,unknown,exit_zero,10
