@@ -7,7 +7,7 @@ from pathlib import Path
 import json
 from models import identity_ok, codex_server_evidence
 from replay import copy_fixture, notify_policy, runner_label, tools_in_trace
-from translate import compile_policy, extract, inputs, make_prompt, usage_of, translate_one
+from translate import compile_policy, extract, inputs, make_prompt, usage_of, translate_one, retryable
 from summarize import detection
 from prepare import DEFAULT_RAW
 
@@ -97,6 +97,26 @@ class ProtocolTests(unittest.TestCase):
                 self.assertEqual(result['attempts'], 2)
                 self.assertIn('compiler rejected', call.call_args_list[1].args[1][-1]['content'])
                 translate_one(raw, 'rq2', 'qwen3.8-27b-nvfp4', item)
+                self.assertEqual(call.call_count, 2)
+
+    def test_capacity_transport_retries_without_using_compiler_revision(self):
+        self.assertTrue(retryable(dict(status='cli_error', error='Selected model is at capacity')))
+        self.assertFalse(retryable(dict(status='http_error', http_status=401, error='expired key')))
+        good = 'source AGENT = exec "**"\nrule test:\n notify exec "git" if AGENT\n because "test"'
+        failed = dict(status='cli_error', error='Selected model is at capacity', elapsed_s=.01)
+        success = dict(status='ok', text=good, elapsed_s=.01, identity_verified=True,
+                       response_model='gpt-6-astra', usage=dict(input_tokens=10, output_tokens=10))
+        with tempfile.TemporaryDirectory(dir=DEFAULT_RAW) as temp:
+            raw = Path(temp)
+            (raw / 'dsl-reference.md').write_text('frozen test reference')
+            item = dict(uid='test', repo_dir='test', statement_id='test', directive='No git', source_evidence=[])
+            with patch('translate.cli_call', side_effect=[failed, success]) as call, patch('translate.time.sleep') as sleep:
+                result = translate_one(raw, 'rq1', 'gpt-6-astra', item)
+                self.assertEqual(result['compile_at_1'], 1)
+                self.assertEqual(result['attempts'], 1)
+                self.assertEqual(result['transport_retries'], 1)
+                sleep.assert_called_once_with(15)
+                translate_one(raw, 'rq1', 'gpt-6-astra', item)
                 self.assertEqual(call.call_count, 2)
 
     def test_codex_identity_comes_from_incoming_server_response(self):

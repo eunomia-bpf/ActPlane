@@ -14,7 +14,7 @@ import subprocess
 import sys
 import time
 
-from prepare import HERE, ROOT, DEFAULT_RAW
+from prepare import HERE, ROOT, DEFAULT_RAW, json_write
 
 STATE = Path('/workspaces/.agent-state/actplane-translation-models')
 BRANCH = 'experiments/translation-models-20261028'
@@ -53,12 +53,21 @@ def checkpoint(message):
     changed = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=ROOT).returncode
     if changed:
         run(['git', 'commit', '-m', message])
-        run(['git', 'push', 'origin', f'HEAD:refs/heads/{BRANCH}'])
+    # A previous push may have failed after its commit succeeded.
+    for attempt in range(4):
+        try:
+            run(['git', 'push', 'origin', f'HEAD:refs/heads/{BRANCH}'])
+            break
+        except subprocess.CalledProcessError:
+            if attempt == 3:
+                raise
+            time.sleep(15 * 2 ** attempt)
 
 
-def write_status(phase):
+def write_status(phase, job_pid=None):
     STATE.mkdir(parents=True, exist_ok=True)
-    (STATE / 'study-status.json').write_text(json.dumps(dict(phase=phase, pid=os.getpid(), utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())), indent=2) + '\n')
+    json_write(STATE / 'study-status.json', dict(phase=phase, pid=os.getpid(), job_pid=job_pid,
+               utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())))
 
 
 def wait_adopted(pid, needle, phase):
@@ -76,6 +85,7 @@ def main():
     ap.add_argument('--adopt-rq2-pid', type=int, default=0)
     ap.add_argument('--adopt-reference-pid', type=int, default=0)
     ap.add_argument('--adopt-openai-pid', type=int, default=0)
+    ap.add_argument('--from-phase', choices=['reference', 'corpus'], default='reference')
     args = ap.parse_args()
     lock = (DEFAULT_RAW / 'study-driver.lock').open('w')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -83,26 +93,30 @@ def main():
     if branch != BRANCH:
         raise SystemExit('Refusing to run on an unexpected branch')
     run(command('test_protocol.py'))
-    write_status('reference validation')
-    wait_adopted(args.adopt_reference_pid, 'guest.py', 'reference validation')
-    run(command('guest.py', '--log', 'reference-final-resume', '--', *command('replay.py', '--run-tag', 'guest68-scored-v3', '--loader', DEFAULT_RAW / 'bounded-loader/process')))
-    checkpoint('experiments: record full reference replay and artifact agreement')
-    write_status('sample translations')
-    wait_adopted(args.adopt_rq2_pid, 'translate.py', 'sample translations')
-    wait_adopted(args.adopt_openai_pid, 'translate.py', 'sample translations')
-    run(command('translate.py', '--corpus', 'rq2'))
-    checkpoint('experiments: record policy-sample model translations')
+    if args.from_phase == 'reference':
+        write_status('reference validation')
+        wait_adopted(args.adopt_reference_pid, 'guest.py', 'reference validation')
+        run(command('guest.py', '--log', 'reference-final-resume', '--', *command('replay.py', '--run-tag', 'guest68-scored-v3', '--loader', DEFAULT_RAW / 'bounded-loader/process')))
+        checkpoint('experiments: record full reference replay and artifact agreement')
+        write_status('sample translations')
+        wait_adopted(args.adopt_rq2_pid, 'translate.py', 'sample translations')
+        wait_adopted(args.adopt_openai_pid, 'translate.py', 'sample translations')
+        run(command('translate.py', '--corpus', 'rq2'))
+        checkpoint('experiments: record policy-sample model translations')
     logs = DEFAULT_RAW / 'orchestration'
     logs.mkdir(exist_ok=True)
     for phase, argv, log_name in (
         ('sample model replay', command('guest.py', '--log', 'model-replays', '--', *command('replay_batch.py')), 'model-replay.log'),
         ('corpus translations', command('translate.py', '--corpus', 'rq1'), 'rq1.log'),
     ):
+        if args.from_phase == 'corpus' and phase == 'sample model replay':
+            continue
         write_status(phase)
-        with (logs / log_name).open('w') as output:
+        with (logs / log_name).open('a') as output:
             job = subprocess.Popen(argv, cwd=ROOT, stdout=output, stderr=subprocess.STDOUT)
             last = time.monotonic()
             while job.poll() is None:
+                write_status(phase, job.pid)
                 if time.monotonic() - last > 600:
                     checkpoint('experiments: checkpoint ' + phase)
                     last = time.monotonic()

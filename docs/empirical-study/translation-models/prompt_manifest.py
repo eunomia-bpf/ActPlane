@@ -3,7 +3,7 @@
 from prepare import DEFAULT_RAW, HERE, csv_write, sha
 import inspect
 from models import MODELS, api_call
-from translate import inputs, make_prompt, request_workers
+from translate import inputs, make_prompt, request_workers, transport_budget
 
 
 def main():
@@ -38,6 +38,9 @@ def main():
         settings.append(dict(model=model, adapter=kind, api_max_output_tokens='' if cli else cap,
                              temperature='CLI default' if cli else '0',
                              reasoning='medium' if kind == 'codex' else 'provider default',
+                             sample_transport_budget=transport_budget('rq2'),
+                             corpus_transport_budget=transport_budget('rq1'),
+                             corpus_transport_backoff_s='15|30|60',
                              current_sample_worker_limit=request_workers('rq2', model),
                              corpus_worker_limit=request_workers('rq1', model)))
     csv_write(HERE / 'model-settings.csv', settings)

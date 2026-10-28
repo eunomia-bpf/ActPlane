@@ -187,7 +187,12 @@ unobservability, provider-reported output truncation, or compiler-message heuris
 Output truncation counts are also retained per attempt and per policy. They are not semantic judgments. The CLI's
 blob and JSON-report modes are called separately. Provider overload retries are
 recorded separately from compiler revisions. Each model has a bounded transport
-retry budget for missing responses. API calls use parallel workers per model,
+retry budget for missing responses, recorded in `model-settings.csv`. The corpus
+budget includes an additional recovery transport after a supervisor-reported
+service interruption. Capacity, timeout, and transient HTTP errors use exponential
+backoff. Permanent access errors remain access failures. Every completed transport
+is checkpointed before retrying, and returned model answers are never resampled.
+API calls use parallel workers per model,
 with local endpoint concurrency within the operator limit. Latency is observed
 under shared serving load and the recorded scripts' worker limits, rather than
 an isolated model-speed benchmark. Per-policy wall time includes observed

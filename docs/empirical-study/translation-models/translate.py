@@ -147,6 +147,23 @@ def failure_category(text):
     return 'syntax_or_lowering'
 
 
+def retryable(response):
+    """Transport failures only. Never request a second valid model answer."""
+    if response.get('status') == 'ok':
+        return False
+    error = response.get('error', '').lower()
+    return (response.get('http_status') in (408, 429, 500, 502, 503, 504)
+            or response.get('status') == 'transport_error'
+            or any(s in error for s in ('timeoutexpired', 'at capacity', 'overloaded',
+                                        'temporarily unavailable', 'connection reset')))
+
+
+def transport_budget(corpus):
+    # The scored sample is frozen. Corpus recovery adds one transport after the
+    # original three-call budget, following the supervisor's service interruption.
+    return 4 if corpus == 'rq1' else 3
+
+
 def translate_one(raw, corpus, model, item):
     key = item['uid'].replace('::', '__').replace('/', '__')
     out = raw / 'translations' / corpus / model.replace('/', '__') / key
@@ -156,12 +173,9 @@ def translate_one(raw, corpus, model, item):
         previous = json.loads(cached.read_text())
         terminal = out / f"attempt-{previous['attempts']}" / 'response.json'
         response = json.loads(terminal.read_text())
-        # Resume an interrupted CLI transport budget, never resample a model
-        # answer or exceed the same three-transport budget used for HTTP.
-        retry_cli = (MODELS[model][1] in ('claude', 'codex') and previous['status'] == 'access_failure'
-                     and 'TimeoutExpired' in response.get('error', '')
-                     and len(response.get('transport_attempts', [])) < 2)
-        if not retry_cli:
+        retry_access = (previous['status'] == 'access_failure' and retryable(response)
+                        and len(response.get('transport_attempts', [])) + 1 < transport_budget(corpus))
+        if not retry_access:
             return previous
         json_write(out / 'prior-access-result.json', previous)
     prompt = make_prompt(raw, item)
@@ -179,49 +193,43 @@ def translate_one(raw, corpus, model, item):
         attempt_dir.mkdir(exist_ok=True)
         saved_response = attempt_dir / 'response.json'
         response = json.loads(saved_response.read_text()) if saved_response.exists() else None
-        if MODELS[model][1] in ('claude', 'codex'):
-            # Retry only missing CLI responses, with the same bounded transport
-            # budget as HTTP. A returned model answer is never resampled.
-            cli_prompt = prompt if attempt == 1 else json.dumps(messages[1:], ensure_ascii=False)
-            transports = []
-            if response is not None:
-                transports = response.pop('transport_attempts', [])
-                transports.append(response)
-            while len(transports) < 3 and (not transports or 'TimeoutExpired' in transports[-1].get('error', '')):
-                if transports:
-                    time.sleep(15 * len(transports))
-                transports.append(cli_call(model, cli_prompt, attempt_dir))
-            response = dict(transports[-1])
+        cli = MODELS[model][1] in ('claude', 'codex')
+        cli_prompt = prompt if attempt == 1 else json.dumps(messages[1:], ensure_ascii=False)
+        transports = []
+        if response is not None:
+            transports = response.pop('transport_attempts', [])
+            transports.append(response)
+        while len(transports) < transport_budget(corpus) and (not transports or retryable(transports[-1])):
+            # Preserve every completed transport before waiting or starting the
+            # next call. A root-session interruption cannot erase its evidence.
+            delay = 15 * 2 ** (len(transports) - 1) if transports else 0
+            if delay:
+                time.sleep(delay)
+            response = (cli_call(model, cli_prompt, attempt_dir) if cli else
+                        api_call(model, messages, session='actplane-translation-models-20261028'))
+            response['backoff_before_s'] = delay
+            transports.append(response)
+            saved = dict(response)
             if len(transports) > 1:
-                response['transport_attempts'] = transports[:-1]
-            row['transport_retries'] += len(transports) - 1
-            row['api_wall_s'] += sum(t['elapsed_s'] for t in transports[:-1])
+                saved['transport_attempts'] = transports[:-1]
+            json_write(saved_response, saved)
+        response = dict(transports[-1])
+        if len(transports) > 1:
+            response['transport_attempts'] = transports[:-1]
+        row['transport_retries'] += len(transports) - 1
+        row['api_wall_s'] += sum(t['elapsed_s'] for t in transports[:-1])
+        if cli:
             answer = response.get('text', '')
-        elif response is not None:
-            row['transport_retries'] += len(response.get('transport_attempts', []))
-            row['api_wall_s'] += sum(t['elapsed_s'] for t in response.get('transport_attempts', []))
-            answer = response.get('response', {}).get('choices', [{}])[0].get('message', {}).get('content') or ''
         else:
-            transports = []
-            for transport_try in range(3):
-                response = api_call(model, messages, session='actplane-translation-models-20261028')
-                transports.append(response)
-                transient = response.get('http_status') in (429, 502, 503, 504) or response['status'] == 'transport_error'
-                if not transient or transport_try == 2:
-                    break
-                row['transport_retries'] += 1
-                time.sleep(15 * (transport_try + 1))
-            row['api_wall_s'] += sum(t['elapsed_s'] for t in transports[:-1])
-            if len(transports) > 1:
-                response['transport_attempts'] = transports[:-1]
             answer = response.get('response', {}).get('choices', [{}])[0].get('message', {}).get('content') or ''
         json_write(attempt_dir / 'response.json', response)
         row['attempts'] = attempt
         row['api_wall_s'] += response['elapsed_s']
         row['response_model'] = response.get('response_model', '')
         row['identity_verified'] &= int(response.get('identity_verified', False))
-        for k, v in usage_of(response, model).items():
-            row[k] += v
+        for transport in transports:
+            for k, v in usage_of(transport, model).items():
+                row[k] += v
         if response['status'] != 'ok':
             row.update(status='access_failure', failure_category=response['status'])
             break
@@ -260,7 +268,7 @@ def export_trials(raw, corpus, model):
         r['output_truncated_responses'] = sum(finish_reason(t, model) in ('length', 'max_tokens') for t in calls)
         if r['status'] == 'compiler_failure' and responses and finish_reason(responses[-1], model) in ('length', 'max_tokens'):
             r['failure_category'] = 'generation_output_limit'
-        r['transport_backoff_s'] = sum(15 * len(response.get('transport_attempts', [])) * (len(response.get('transport_attempts', [])) + 1) / 2 for response in responses)
+        r['transport_backoff_s'] = sum(sum(t.get('backoff_before_s', 15 * i) for i, t in enumerate(response.get('transport_attempts', []) + [response])) for response in responses)
         r['wall_s'] = round(max(float(r['wall_s']), float(r['api_wall_s']) + float(r['compile_wall_s']) + r['transport_backoff_s']), 4)
         r['usage_missing_transports'] = sum(not usage_reported(t, model) for t in calls)
         r['retry_errors'] = json.dumps(r['retry_errors'], ensure_ascii=False)
