@@ -29,6 +29,7 @@ rq1,qwen3.8-27b-nvfp4,nanocoai__nanoclaw::19,compiler_failure,generation_output_
 rq1,qwen3.8-27b-nvfp4,nearai__ironclaw::29,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,openai__codex::17,compiler_failure,syntax_or_lowering
 rq1,qwen3.8-27b-nvfp4,vxcontrol__pentagi::15,compiler_failure,generation_output_limit
+rq1,zai/glm-5.3,NVIDIA__NemoClaw::19,compiler_failure,syntax_or_lowering
 rq2,zai/glm-4.7-flash,NVIDIA__NemoClaw__s01_private_vulnerability_reporting,access_failure,rate_limited
 rq2,zai/glm-4.7-flash,NVIDIA__NemoClaw__s02_no_new_javascript_sources,access_failure,rate_limited
 rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__29,access_failure,transport_timeout
@@ -194,6 +195,19 @@ rq1,zai/glm-4.7-flash,gastownhall__beads::26,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,gastownhall__beads::27,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,gastownhall__beads::29,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,gastownhall__beads::32,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,gastownhall__beads::34,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,gastownhall__beads::35,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,gastownhall__beads::38,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,gastownhall__beads::4,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,gastownhall__beads::40,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,gastownhall__beads::41,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,gastownhall__beads::42,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,gastownhall__beads::43,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,gastownhall__beads::44,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,gastownhall__beads::45,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,gastownhall__beads::46,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,gastownhall__beads::6,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,gastownhall__beads::7,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::2,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::4,compiler_failure,generation_output_limit

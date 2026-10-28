@@ -216,17 +216,24 @@ def wait_transport(raw, model, delay):
     return delay
 
 
-def translate_one(raw, corpus, model, item):
+def backoff_remaining(response, transports):
+    """A checkpoint gap can already satisfy the transport's minimum interval."""
+    elapsed = max(0, time.time() - response['observed_at_unix'])
+    return max(0, 15 * 2 ** (transports - 1) - elapsed)
+
+
+def translate_one(raw, corpus, model, item, transport_limit=None):
     key = item['uid'].replace('::', '__').replace('/', '__')
     out = raw / 'translations' / corpus / model.replace('/', '__') / key
     out.mkdir(parents=True, exist_ok=True)
+    budget = transport_limit or transport_budget(corpus)
     cached = out / 'result.json'
     if cached.exists():
         previous = json.loads(cached.read_text())
         terminal = out / f"attempt-{previous['attempts']}" / 'response.json'
         response = json.loads(terminal.read_text())
         retry_access = (previous['status'] == 'access_failure' and retryable(response)
-                        and len(response.get('transport_attempts', [])) + 1 < transport_budget(corpus))
+                        and len(response.get('transport_attempts', [])) + 1 < budget)
         if not retry_access:
             return previous
         json_write(out / 'prior-access-result.json', previous)
@@ -254,10 +261,10 @@ def translate_one(raw, corpus, model, item):
             transports.append(response)
             if retryable(response):
                 record_cooldown(raw, model, response)
-        while len(transports) < transport_budget(corpus) and (not transports or retryable(transports[-1])):
+        while len(transports) < budget and (not transports or retryable(transports[-1])):
             # Preserve every completed transport before waiting or starting the
             # next call. A root-session interruption cannot erase its evidence.
-            delay = 15 * 2 ** (len(transports) - 1) if transports else 0
+            delay = backoff_remaining(transports[-1], len(transports)) if transports else 0
             delay = wait_transport(raw, model, delay)
             response = (cli_call(model, cli_prompt, attempt_dir) if cli else
                         api_call(model, messages, session='actplane-translation-models-20261028'))

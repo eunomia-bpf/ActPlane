@@ -19,11 +19,11 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 81 / 162 of 180 | 40.4% | 10.5% | 0.548 | 0 / 1 | n/a |
-| zai/glm-5.3 | 34 / 38 of 38 | 341 / 435 of 435 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
-| zai/glm-5.3-flash | 33 / 38 of 38 | 167 / 248 of 248 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 10 / 13 of 38 | 39 / 62 of 374 | unavailable | unavailable | unavailable | 25 / 306 | $0.0000 |
-| zai/glm-4.5-air | 33 / 38 of 38 | 159 / 241 of 244 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 83 / 165 of 183 | 40.4% | 10.5% | 0.548 | 0 / 1 | n/a |
+| zai/glm-5.3 | 34 / 38 of 38 | 360 / 459 of 460 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 168 / 252 of 252 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
+| zai/glm-4.7-flash | 10 / 13 of 38 | 40 / 63 of 388 | unavailable | unavailable | unavailable | 25 / 319 | $0.0000 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 165 / 249 of 252 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
 | gpt-6-astra | 27 / 38 of 38 | 273 / 572 of 607 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
 | claude-opus-4-6 | 30 / 38 of 38 | 187 / 279 of 607 | 47.4% | 11.8% | 0.610 | 0 / 328 | $0.1384 |
 
@@ -33,8 +33,8 @@ unanswered policies. Overall yield above retains every attempted policy.
 
 | Model with access failures | Sample responses | Sample response-only compile@1 / @3 | Corpus responses | Corpus response-only compile@1 / @3 |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 38 / 38 | 39.5% / 68.4% | 179 / 180 | 45.3% / 90.5% |
-| zai/glm-4.7-flash | 13 / 38 | 76.9% / 100.0% | 68 / 374 | 57.4% / 91.2% |
+| qwen3.8-27b-nvfp4 | 38 / 38 | 39.5% / 68.4% | 182 / 183 | 45.6% / 90.7% |
+| zai/glm-4.7-flash | 13 / 38 | 76.9% / 100.0% | 69 / 388 | 58.0% / 91.3% |
 | claude-opus-4-6 | 38 / 38 | 78.9% / 100.0% | 279 / 607 | 67.0% / 100.0% |
 
 Corpus accounting means include completed trials and known transport usage.
@@ -44,11 +44,11 @@ tokens, and time are retained for both corpora in the translation CSVs.
 
 | Model | Corpus policies | Mean input tokens | Mean output tokens | Mean active wall seconds | Known USD/policy | Transports missing usage |
 | --- | --- | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 180 | 24149.2 | 10495.6 | 702.7 | unmeasured | 74 |
-| zai/glm-5.3 | 435 | 15955.6 | 3687.9 | 74.6 | $0.0386 | 0 |
-| zai/glm-5.3-flash | 248 | 18411.5 | 4240.3 | 128.4 | $0.0049 | 3 |
-| zai/glm-4.7-flash | 374 | 5111.5 | 1751.4 | 173.0 | $0.0000 | 1307 |
-| zai/glm-4.5-air | 244 | 19916.3 | 4588.6 | 131.8 | $0.0090 | 1 |
+| qwen3.8-27b-nvfp4 | 183 | 24183.3 | 10526.9 | 702.7 | unmeasured | 75 |
+| zai/glm-5.3 | 460 | 15822.6 | 3633.3 | 73.0 | $0.0381 | 0 |
+| zai/glm-5.3-flash | 252 | 18513.6 | 4343.6 | 132.5 | $0.0049 | 4 |
+| zai/glm-4.7-flash | 388 | 4952.6 | 1700.4 | 173.0 | $0.0000 | 1360 |
+| zai/glm-4.5-air | 252 | 19817.4 | 4615.1 | 132.3 | $0.0090 | 1 |
 | gpt-6-astra | 607 | 38384.5 | 223.7 | 41.8 | $0.3950 | 20 |
 | claude-opus-4-6 | 607 | 9757.8 | 812.2 | 45.0 | $0.0691 | 0 |
 
@@ -75,15 +75,15 @@ tokens, and time are retained for both corpora in the translation CSVs.
 | claude-opus-4-6 | 190 / 190 | 190 | 47.4% | 11.8% | 0.610 |
 
 `metric-baselines.csv` contains analytic constant-classifier checks from the
-trace labels. Always triggering gives F1 0.750 with
-100.0% false triggers. F1 therefore needs to be read
+trace labels. Always triggering gives F1 0.750 with a
+false-trigger rate of 100.0%. F1 therefore needs to be read
 alongside both detection and false-trigger rates for this constructed class balance.
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 22 | 73 | 12 | 16 |
+| qwen3.8-27b-nvfp4 | 22 | 74 | 12 | 16 |
 | zai/glm-5.3 | 0 | 16 | 0 | 0 |
-| zai/glm-5.3-flash | 2 | 12 | 0 | 0 |
+| zai/glm-5.3-flash | 2 | 13 | 0 | 0 |
 | zai/glm-4.7-flash | 1 | 14 | 0 | 1 |
 | zai/glm-4.5-air | 2 | 20 | 0 | 1 |
 | gpt-6-astra | 0 | 0 | 0 | 0 |
@@ -284,4 +284,4 @@ derived outputs. No script opens or updates a pull request.
 
 ## Paper paragraph
 
-We compare policy translation across 7 response-verified model configurations using a shared DSL reference and compiler feedback. The behavioral sample contains 38 repository policies and 190 labeled traces, including 114 violations and 76 compliant traces. We replay tool effects under the kernel engine without agent continuation or model judges. Completed model rows attain F1 from 0.548 to 0.637. Configured output budgets and CLI defaults also affect these rates. Compiler acceptance on the 607-policy corpus measures syntactic compatibility rather than semantic correctness. Reference agreement and replay failures are reported separately because backend behavior and fixture fidelity can also affect detection.
+We compare policy translation across 7 response-verified model configurations using a shared DSL reference and compiler feedback. The behavioral sample contains 38 repository policies and 190 labeled traces, including 114 violations and 76 compliant traces. We replay tool effects under the kernel engine without agent continuation or model judges. Completed model rows attain F1 from 0.548 to 0.637, with false-trigger rates from 10.5% to 18.4%. Configured output budgets and CLI defaults also affect these rates. Compiler acceptance on the 607-policy corpus measures syntactic compatibility rather than semantic correctness. Reference agreement and replay failures are reported separately because backend behavior and fixture fidelity can also affect detection.

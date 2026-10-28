@@ -7,7 +7,7 @@ from pathlib import Path
 import json
 from models import identity_ok, codex_server_evidence
 from replay import copy_fixture, notify_policy, runner_label, tools_in_trace
-from translate import compile_policy, extract, inputs, make_prompt, usage_of, translate_one, retryable, reset_time
+from translate import compile_policy, extract, inputs, make_prompt, usage_of, translate_one, retryable, reset_time, backoff_remaining
 from summarize import detection
 from prepare import DEFAULT_RAW
 
@@ -115,7 +115,8 @@ class ProtocolTests(unittest.TestCase):
                 self.assertEqual(result['compile_at_1'], 1)
                 self.assertEqual(result['attempts'], 1)
                 self.assertEqual(result['transport_retries'], 1)
-                sleep.assert_called_once_with(15)
+                self.assertEqual(sleep.call_count, 1)
+                self.assertTrue(14 <= sleep.call_args.args[0] <= 15)
                 translate_one(raw, 'rq1', 'gpt-6-astra', item)
                 self.assertEqual(call.call_count, 2)
 
@@ -126,6 +127,11 @@ class ProtocolTests(unittest.TestCase):
                         observed_at_unix=observed)
         self.assertTrue(retryable(response))
         self.assertEqual(reset_time(response), dt.datetime(2026, 10, 28, 10, 41, tzinfo=dt.timezone.utc).timestamp())
+
+    def test_checkpoint_gap_satisfies_backoff_without_resampling_answer(self):
+        with patch('translate.time.time', return_value=300):
+            self.assertEqual(backoff_remaining(dict(observed_at_unix=100), 4), 0)
+            self.assertEqual(backoff_remaining(dict(observed_at_unix=299), 1), 14)
 
     def test_codex_identity_comes_from_incoming_server_response(self):
         outgoing = 'Sending message ' + json.dumps({'type': 'response.completed', 'response': {'model': 'requested'}})

@@ -103,7 +103,9 @@ def main():
         paragraph = (f"We compare policy translation across {available} response-verified model configurations using a shared DSL reference and compiler feedback. "
                      f"The behavioral sample contains {counts['rq2']} repository policies and {len(traces)} labeled traces, including {positive} violations and {negative} compliant traces. "
                      f"We replay tool effects under the kernel engine without agent continuation or model judges. "
-                     f"Completed model rows attain F1 from {fmin:.3f} to {fmax:.3f}. "
+                     f"Completed model rows attain F1 from {fmin:.3f} to {fmax:.3f}, with false-trigger rates "
+                     f"from {pct(min(float(r['false_trigger_rate']) for r in p_rows))} "
+                     f"to {pct(max(float(r['false_trigger_rate']) for r in p_rows))}. "
                      + compilation +
                      f"Configured output budgets and CLI defaults also affect these rates. Compiler acceptance on the {counts['rq1']}-policy corpus measures syntactic compatibility rather than semantic correctness. "
                      "Reference agreement and replay failures are reported separately because backend behavior and fixture fidelity can also affect detection.")
@@ -155,8 +157,8 @@ tokens, and time are retained for both corpora in the translation CSVs.
 {chr(10).join(coverage)}
 
 `metric-baselines.csv` contains analytic constant-classifier checks from the
-trace labels. Always triggering gives F1 {float(always['f1']):.3f} with
-{pct(always['false_trigger_rate'])} false triggers. F1 therefore needs to be read
+trace labels. Always triggering gives F1 {float(always['f1']):.3f} with a
+false-trigger rate of {pct(always['false_trigger_rate'])}. F1 therefore needs to be read
 alongside both detection and false-trigger rates for this constructed class balance.
 
 {chr(10).join(budgets)}
