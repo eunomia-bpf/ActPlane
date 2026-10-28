@@ -197,7 +197,7 @@ def main():
         valid = {k: r for k, r in overall.items() if r['status'] == 'ok'}
         paragraph = ''
         if any(r['group_type'] == 'file_scope' and r['group'] == 'noncoding_assistance' and int(r['statements']) > 0 for r in summary):
-            paragraph = 'To broaden coverage beyond coding repositories, we included applications, agent frameworks, and an exploratory slice of noncoding task instructions. '
+            paragraph = 'We broadened the sample across applications and agent frameworks and included an exploratory slice of noncoding task instructions. '
         paragraph += f'We expanded the characterization to {coverage["analyzed_repositories"]} repositories and {int(coverage["analyzed_statements"]):,} statements using a dated, commit-pinned GitHub snapshot spanning {family_count} instruction-file families. '
         if 'policy_fraction' in valid:
             r = valid['policy_fraction']
