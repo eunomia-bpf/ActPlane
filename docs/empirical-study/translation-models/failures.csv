@@ -187,9 +187,7 @@ rq1,zai/glm-4.7-flash,ag-ui-protocol__ag-ui::3,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,ag-ui-protocol__ag-ui::4,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::10,compiler_failure,generation_output_limit
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::15,compiler_failure,model_declared_unobservable
-rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::6,access_failure,ok
-rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::8,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::9,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::9,access_failure,ok
 rq1,zai/glm-4.7-flash,anomalyco__opencode::1,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,anomalyco__opencode::28,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,anomalyco__opencode::4,access_failure,provider_capacity
