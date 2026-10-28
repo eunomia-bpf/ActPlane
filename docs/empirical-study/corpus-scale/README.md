@@ -6,15 +6,15 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 
 ## Comparison with the submitted paper
 
-| Measure | Paper claim | Recovered labels | New automated labels (repository bootstrap interval) |
-|---|---:|---:|---:|
-| Policy / all statements | 64.0% | 64.3% | 51.9% [35.7%, 61.1%] |
-| System-observable / policies | 83.0% | 82.8% | withheld |
-| Context needed / system-observable | 74.0% | 73.6% | withheld |
-| Repositories with cross-event policies | 81.0% | 79.7% | withheld |
-| OS-tier policy candidates (count) | 607 | 607 | withheld |
+| Measure | Paper claim | Recovered labels | New automated labels (repository bootstrap interval) | Difference vs recovered |
+|---|---:|---:|---:|---:|
+| Policy / all statements | 64.0% | 64.3% | 59.4% [50.8%, 64.3%] | -4.9 pp [-15.7, +4.2] |
+| System-observable / policies | 83.0% | 82.8% | withheld | withheld |
+| Context needed / system-observable | 74.0% | 73.6% | withheld | withheld |
+| Repositories with cross-event policies | 81.0% | 79.7% | withheld | withheld |
+| OS-tier policy candidates (count) | 607 | 607 | withheld | withheld |
 
-The collected manifest currently covers 325 repositories. The analysis includes 8 repositories and 341 statements. 667 extracted files have incomplete model pairs. 317 repositories are withheld until every selected source is successfully extracted and labeled.
+The collected manifest currently covers 325 repositories. The analysis includes 10 repositories and 757 statements. 654 extracted files have incomplete model pairs. 315 repositories are withheld until every selected source is successfully extracted and labeled.
 
 The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.
 
@@ -87,9 +87,9 @@ Agreement between the primary models on the analyzed new spans is reported separ
 
 | New-corpus intermodel dimension | Paired statements | Disagreements | Raw agreement | Kappa |
 |---|---:|---:|---:|---:|
-| topic | 341 | 139 | 0.592 | 0.534 |
-| type | 341 | 47 | 0.862 | 0.724 |
-| any_scaled_axis | 341 | 159 | 0.534 | undefined |
+| topic | 757 | 263 | 0.653 | 0.576 |
+| type | 757 | 92 | 0.878 | 0.747 |
+| any_scaled_axis | 757 | 314 | 0.585 | undefined |
 
 ## Selection and measurement
 
@@ -115,13 +115,15 @@ A separate `scope_files.py` classifier examines source excerpts to identify actu
 
 Optional scope classification initially ran alongside primary labeling. Observed local request latency motivated deferring its remaining work until primary labeling completes, allocating the bounded local concurrency to primary labels and interim adjudication. Scope work resumes alongside final adjudication and ends when the primary analysis is ready. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis. This changes client request scheduling without changing the coding guide, accepted labels, or thresholds.
 
-Intervals use 2,000 bootstrap replicates resampling repositories within discovery strata, with new-corpus seed 20261028 and historical seed 20261029. They describe sensitivity within this convenience sample. Sparse groups can yield degenerate intervals without establishing population precision. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.
+Intervals are central 95% percentile intervals using 2,000 bootstrap replicates resampling repositories within discovery strata, with new-corpus seed 20261028 and historical seed 20261029. They describe sensitivity within this convenience sample. Sparse groups can yield degenerate intervals without establishing population precision. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.
 
 Headline analysis requires every selected source file in a repository to have complete model pairs and final labels. Incomplete repositories remain in the collection and coverage tables rather than entering project-level denominators with unobserved files treated as negative. This makes interim checkpoints subsets of the final snapshot, not final results.
 
 ## Breakdowns
 
 Full counts, denominators, intervals, and calibration status are in `summary.csv`.
+
+`paper_family_summary.csv` gives the recovered reference baselines by primary annotated file family. For shared families, `summary.csv` also includes independently bootstrapped differences from those baselines. These comparisons hold the family name fixed while repository selection and snapshot conditions still differ.
 
 The new sample shares 27 repository identities with the historical sample and adds 298 previously unsampled repositories. 37 historical repositories are not resampled. This is a new convenience sample rather than a longitudinal panel. Repository identity is compared case-insensitively without attempting to resolve renames.
 
@@ -165,20 +167,22 @@ The collected repositories have a star range of 12,209–458,063, with median 40
 
 | Family | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| AGENTS.md | 3 | 59 | 44.1% | withheld | withheld | withheld | withheld |
-| SKILL.md | 5 | 282 | 53.5% | withheld | withheld | withheld | withheld |
+| AGENTS.md | 4 | 73 | 45.2% | withheld | withheld | withheld | withheld |
+| CLAUDE.md | 1 | 1 | 0.0% | withheld | withheld | withheld | withheld |
+| SKILL.md | 7 | 683 | 61.1% | withheld | withheld | withheld | withheld |
 
 | Category | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| agent_frameworks | 4 | 211 | 55.9% | withheld | withheld | withheld | withheld |
+| agent_frameworks | 5 | 341 | 57.5% | withheld | withheld | withheld | withheld |
 | applications | 4 | 130 | 45.4% | withheld | withheld | withheld | withheld |
+| noncoding_agents | 1 | 286 | 68.2% | withheld | withheld | withheld | withheld |
 
 | File_scope | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | general_agent_operations | 1 | 6 | 16.7% | withheld | withheld | withheld | withheld |
 | noncoding_assistance | 1 | 49 | 53.1% | withheld | withheld | withheld | withheld |
-| software_development | 2 | 123 | 47.2% | withheld | withheld | withheld | withheld |
-| unclassified | 3 | 162 | 56.8% | withheld | withheld | withheld | withheld |
+| software_development | 3 | 137 | 47.4% | withheld | withheld | withheld | withheld |
+| unclassified | 5 | 564 | 63.5% | withheld | withheld | withheld | withheld |
 | unclear | 1 | 1 | 0.0% | withheld | withheld | withheld | withheld |
 
 ## Reproduction and artifacts

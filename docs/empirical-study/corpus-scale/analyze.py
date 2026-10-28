@@ -154,6 +154,14 @@ def summarize(rows, repos, gates=None, source='new', seed=SEED):
     return summary, draws
 
 
+def compare(summary, draws, baseline, baseline_draws):
+    for i, row in enumerate(summary):
+        if row['status'] == baseline[i]['status'] == 'ok':
+            row['artifact_delta'] = row['value'] - baseline[i]['value']
+            diff = draws[:, i] - baseline_draws[:, i]
+            row['delta_ci_low'], row['delta_ci_high'] = np.nanquantile(diff, [.025, .975])
+
+
 def analyze():
     gates = {r['dimension']: r['passed'] == 'True' for r in read_csv(HERE / 'calibration_gates.csv')}
     if (HERE / 'format_calibration_gates.csv').exists():
@@ -163,6 +171,14 @@ def analyze():
     paper_repos = {r['repo']: r for r in read_csv(HERE / 'paper_files.csv')}
     baseline, baseline_draws = summarize(paper, paper_repos, source='paper_artifact', seed=SEED + 1)
     write_csv(HERE / 'paper_summary.csv', baseline)
+    baseline_families, historical_families = {}, []
+    for family in sorted({r['family'] for r in paper}):
+        subset = [r for r in paper if r['family'] == family]
+        rs = {r['repo']: paper_repos[r['repo']] for r in subset}
+        ss, family_draws = summarize(subset, rs, source='paper_artifact', seed=SEED + 1)
+        baseline_families[family] = (ss, family_draws)
+        historical_families.extend(dict(r, group_type='family', group=family) for r in ss)
+    write_csv(HERE / 'paper_family_summary.csv', historical_families)
     if (HERE / 'repositories.csv').exists():
         from describe_corpus import main as describe_corpus
         describe_corpus()
@@ -203,11 +219,7 @@ def analyze():
     complete_repos = {r['repo'] for r in joined}
     selected_repos = {k: v for k, v in repos.items() if k in complete_repos}
     summary, draws = summarize(joined, selected_repos, gates)
-    for i, row in enumerate(summary):
-        if row['status'] == 'ok':
-            row['artifact_delta'] = row['value'] - baseline[i]['value']
-            diff = draws[:, i] - baseline_draws[:, i]
-            row['delta_ci_low'], row['delta_ci_high'] = np.nanquantile(diff, [.025, .975])
+    compare(summary, draws, baseline, baseline_draws)
     summaries = [dict(r, group_type='overall', group='all') for r in summary]
     categories_path = HERE / 'repository_categories.csv'
     categories = {repo: 'unclassified' for repo in repos}
@@ -229,7 +241,9 @@ def analyze():
         subset = [s for s in joined if (s['repo'], s['content_sha256']) in pairs]
         rs = {s['repo']: repos[s['repo']] for s in subset}
         if rs:
-            ss, _ = summarize(subset, rs, gates)
+            ss, family_draws = summarize(subset, rs, gates)
+            if fam in baseline_families:
+                compare(ss, family_draws, *baseline_families[fam])
             summaries.extend(dict(r, group_type='family', group=fam) for r in ss)
     scopes_path = HERE / 'file_scopes.csv'
     if scopes_path.exists():

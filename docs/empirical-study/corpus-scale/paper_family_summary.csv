@@ -1,0 +1,11 @@
+source,metric,numerator,denominator,value,ci_low,ci_high,status,repositories,statements,group_type,group
+paper_artifact,policy_fraction,1064,1561,0.6816143497757847,0.5853675839885633,0.7680858772741289,ok,41,1561,family,AGENTS.md
+paper_artifact,system_state_fraction,913,1064,0.8580827067669173,0.7994808318869705,0.906745182333825,ok,41,1561,family,AGENTS.md
+paper_artifact,context_required_fraction,666,913,0.7294633077765608,0.6597765930965815,0.7945679568809625,ok,41,1561,family,AGENTS.md
+paper_artifact,cross_event_project_share,32,41,0.7804878048780488,0.6341463414634146,0.9024390243902439,ok,41,1561,family,AGENTS.md
+paper_artifact,os_enforceable_count,476,41,476.0,350.0,643.0,ok,41,1561,family,AGENTS.md
+paper_artifact,policy_fraction,297,555,0.5351351351351351,0.4431219688590147,0.6344108100947208,ok,23,555,family,CLAUDE.md
+paper_artifact,system_state_fraction,214,297,0.7205387205387206,0.6234441408621736,0.8255130932406519,ok,23,555,family,CLAUDE.md
+paper_artifact,context_required_fraction,164,214,0.7663551401869159,0.6793356751502297,0.8471689734290577,ok,23,555,family,CLAUDE.md
+paper_artifact,cross_event_project_share,19,23,0.8260869565217391,0.6521739130434783,0.9565217391304348,ok,23,555,family,CLAUDE.md
+paper_artifact,os_enforceable_count,131,23,131.0,101.0,161.0,ok,23,555,family,CLAUDE.md
