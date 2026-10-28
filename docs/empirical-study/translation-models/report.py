@@ -88,10 +88,21 @@ def main():
     p_rows = [r for r in rows if r['model'] != 'reference' and r['f1'] != '']
     if p_rows:
         fmin, fmax = min(float(r['f1']) for r in p_rows), max(float(r['f1']) for r in p_rows)
+        complete_corpus = [r for r in rows if r['model'] != 'reference'
+                           and int(r['rq1_completed']) == int(r['rq1_planned'])
+                           and int(r['rq1_responses']) == int(r['rq1_planned'])]
+        compilation = ''
+        if len(complete_corpus) >= 2:
+            initial = [float(r['rq1_compile_at_1_rate']) for r in complete_corpus]
+            revised = [float(r['rq1_compile_at_3_rate']) for r in complete_corpus]
+            compilation = (f"For fully available configurations, compilation on {counts['rq1']} policies ranges "
+                           f"from {pct(min(initial))} to {pct(max(initial))} initially and from "
+                           f"{pct(min(revised))} to {pct(max(revised))} after compiler feedback. ")
         paragraph = (f"We compare policy translation across {available} response-verified model configurations using a shared DSL reference and compiler feedback. "
                      f"The behavioral sample contains {counts['rq2']} repository policies and {len(traces)} labeled traces, including {positive} violations and {negative} compliant traces. "
                      f"We replay tool effects under the kernel engine without agent continuation or model judges. "
                      f"Completed model rows attain F1 from {fmin:.3f} to {fmax:.3f}. "
+                     + compilation +
                      f"Configured output budgets and CLI defaults also affect these rates. Compiler acceptance on the {counts['rq1']}-policy corpus measures syntactic compatibility rather than semantic correctness. "
                      "Reference agreement and replay failures are reported separately because backend behavior and fixture fidelity can also affect detection.")
     else:

@@ -36,8 +36,23 @@ def main():
     for corpus, budget in [('rq2', 3), ('rq1', 4)]:
         check(f'{corpus}:bounded transport retries', True, all(int(r['transport']) <= budget for r in attempts if r['corpus'] == corpus))
     loader_hash = json.loads((DEFAULT_RAW / 'bounded-loader/metadata.json').read_text())['loader_sha256']
+    references = {(r['repo'], r['statement_id']): r['policy_sha256'] for r in read('reference-compilation.csv')}
     for model in ['reference'] + models:
         rows = read('replay-' + model.replace('/', '__') + '.csv')
+        if model == 'reference':
+            check('replay:reference:matches_compiled_policy', True,
+                  all(r['policy_sha256'] == references[r['repo'], r['statement_id']] for r in rows if r['status'] == 'ok'))
+        else:
+            translations = {(r['repo'], r['statement_id']): r
+                            for r in read('translations-rq2-' + model.replace('/', '__') + '.csv')}
+            check(f'replay:{model}:matches_compiled_policy', True,
+                  all(r['policy_sha256'] == translations[r['repo'], r['statement_id']]['policy_sha256']
+                      for r in rows if r['status'] == 'ok'))
+            check(f'replay:{model}:compiler_failures_are_absent_policies', True,
+                  all(translations[r['repo'], r['statement_id']]['status'] == 'compiler_failure'
+                      for r in rows if r['status'] == 'translation_failed'))
+            check(f'replay:{model}:access_failures_remain_unknown', True,
+                  all(r['fired'] == '' for r in rows if r['status'] == 'translation_unavailable'))
         check(f'replay:{model}:guest_local_fixtures', True, all(r.get('fixture_fs') == 'guest-tmpfs' for r in rows))
         check(f'replay:{model}:kernel', True, all(r['kernel'] == '6.8.0-138-generic' for r in rows))
         check(f'replay:{model}:same_loader', True, all(r['loader_sha256'] == loader_hash for r in rows if r['status'] == 'ok'))
