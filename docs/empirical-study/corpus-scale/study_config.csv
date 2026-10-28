@@ -12,6 +12,12 @@ min_final_kappa,0.6
 min_primary_kappa,0.4
 min_coverage,0.98
 max_excerpt_lines_target,160
+historical_retry_policy,batch
+scaling_retry_policy,invalid
+local_workers,4
+remote_workers,2
+reduced_and_scale_local_batch_size,48
+reduced_and_scale_remote_batch_size,24
 quota_general,200
 quota_agent,75
 quota_noncoding_discovery,50

@@ -37,6 +37,9 @@ def main():
               ('confidence_level', .95),
               ('min_final_kappa', MIN_KAPPA), ('min_primary_kappa', MIN_PRIMARY_KAPPA),
               ('min_coverage', MIN_COVERAGE), ('max_excerpt_lines_target', 160)]
+    config += [('historical_retry_policy', 'batch'), ('scaling_retry_policy', 'invalid'),
+               ('local_workers', 4), ('remote_workers', 2),
+               ('reduced_and_scale_local_batch_size', 48), ('reduced_and_scale_remote_batch_size', 24)]
     config += [('quota_' + k, v) for k, v in QUOTAS.items()]
     write_csv(HERE / 'study_config.csv', [dict(parameter=k, value=v) for k, v in config])
     cfg = dict(config)
@@ -88,6 +91,7 @@ def main():
         '`compare_references.py` checks both supplied historical branches without checkout. Their annotation files are byte-identical, as recorded by the shared annotation hash in `historical_reference_comparison.csv`. The project-share discrepancy is therefore present in both supplied references.', '',
         '`taxonomy.txt` reconstructs the coding guide and examples in `origin/artifact-ready:docs/empirical.md` and the current motivation section. The exact historical invocation prompts and the human review sample were not located. This is a reconstructed prompt, not a claim of exact prompt replication. Gold labels are never sent to either model or to adjudication.', '',
         'Equivalent JSON wrappers are normalized without changing labels or source boundaries. Invalid values, missing IDs, and inconsistent cross-axis applicability are rejected and retried, with earlier responses retained in the raw cache. `calibration_schema_errors.csv` records predictions rejected during schema validation. The reported agreement measures the accepted automated labeling pipeline rather than strict first-response JSON compliance.', '',
+        'The initial full-axis calibration uses the legacy whole-batch retry policy (`--retry-policy batch`). During scaling, a small number of invalid values caused repeated requests for otherwise valid rows. The revised default retains valid rows and retries only invalid or missing IDs, while ambiguous IDs still reject the whole response. The focused prompt was recalibrated from cached initial requests under this exact revised policy before resuming scaling. `format_calibration_v1_summary.csv` preserves the earlier whole-batch check. The original failed axes remain withheld regardless of the revised check, and the codebook and thresholds are unchanged.', '',
         'The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` endpoint and the gateway’s named `zai/glm-5.3` route. The gateway-reported model identity is recorded but its provider weights cannot be independently audited. GLM uses low reasoning effort because its reasoning cannot be disabled. Disagreements are reread by Qwen with anonymized primary labels whose order is deterministically permuted by statement-ID hash. Adjudication remains correlated with a primary model and has no independent human reference.', '',
         '| Model vs paper | Dimension | Applicable gold N | Evaluated N | Raw agreement | Cohen’s kappa |',
         '|---|---|---:|---:|---:|---:|']
@@ -178,9 +182,9 @@ def main():
         'Use an isolated Python environment with `requirements.txt`. Set `GH_TOKEN`, `LITELLM_BASE_URL`, and `LITELLM_API_KEY` in the environment. Never pass secrets as command-line arguments. Raw responses, cached prompts/completions, source files, retries, and HTTP logs stay in the operator-specified raw directory. Set `ACTPLANE_CORPUS_RAW` to reproduce in a different raw-data location. Access to the named model endpoints is required.', '',
         '```bash',
         'python recover.py', 'python collect.py',
-        'python label.py --model qwen3.8-27b-nvfp4 --output calibration_qwen.csv',
-        'python label.py --model zai/glm-5.3 --workers 2 --batch-size 12 --output calibration_glm.csv',
-        'python label.py --model qwen3.8-27b-nvfp4 --primary calibration_qwen.csv --other calibration_glm.csv --output calibration_adjudicated.csv',
+        'python label.py --model qwen3.8-27b-nvfp4 --retry-policy batch --output calibration_qwen.csv',
+        'python label.py --model zai/glm-5.3 --retry-policy batch --workers 2 --batch-size 12 --output calibration_glm.csv',
+        'python label.py --model qwen3.8-27b-nvfp4 --retry-policy batch --primary calibration_qwen.csv --other calibration_glm.csv --output calibration_adjudicated.csv',
         'python analyze.py --calibration-only',
         '# Scale only the dimensions that passed. See run_scale.py for the gate-controlled pipeline.',
         'python run_scale.py', 'python analyze.py', 'python figures.py', 'python report.py', '```', '',

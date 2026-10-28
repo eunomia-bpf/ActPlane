@@ -34,6 +34,32 @@ def main():
                 passed=[r['statement_id'] for r in result] == ['0', '1', '2']))
             checks.append(dict(check='successful_split_accepts_every_source',
                 passed=all(r['status'] == 'ok' for r in result)))
+
+        calls = []
+        def partly_invalid(_args, _system, payload, budget):
+            entries = payload['statements']
+            calls.append([r['text'] for r in entries])
+            content = ('{"labels": [[0, "description"], [1, ""], [2, "directive"]]}'
+                       if len(entries) == 3 else '{"labels": [[0, "description"]]}')
+            return dict(model='test', choices=[dict(message=dict(content=content))])
+        with patch('label.complete', side_effect=partly_invalid):
+            result = classify(args, batch, 'coding guide', ['type'], None)
+            checks.append(dict(check='partial_validation_retries_only_invalid_id',
+                passed=[len(c) for c in calls] == [3, 1]))
+            checks.append(dict(check='partial_validation_retains_valid_decisions',
+                passed=[r['type'] for r in result] == ['description', 'description', 'directive']))
+
+        calls = []
+        def missing_id(_args, _system, payload, budget):
+            entries = payload['statements']
+            calls.append(len(entries))
+            content = ('{"labels": [[0, "description"], [2, "directive"]]}'
+                       if len(entries) == 3 else '{"labels": [[0, "description"]]}')
+            return dict(model='test', choices=[dict(message=dict(content=content))])
+        with patch('label.complete', side_effect=missing_id):
+            result = classify(args, batch, 'coding guide', ['type'], None)
+            checks.append(dict(check='missing_id_retry_preserves_source_order',
+                passed=calls == [3, 1] and [r['statement_id'] for r in result] == ['0', '1', '2']))
     write_csv(HERE / 'label_failure_validation.csv', checks)
     if not all(r['passed'] for r in checks):
         raise SystemExit('Label failure validation failed')

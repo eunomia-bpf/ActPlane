@@ -1,0 +1,3 @@
+version,retry_policy,reference_commit,raw_backup,status
+v1,batch,baf65998,retry-protocol-v1,retired_after_recording_complete_calibration_and_partial_source_labels
+v2,invalid,,,focused_reference_recheck_before_deployment

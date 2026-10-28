@@ -153,24 +153,42 @@ def classify(a, batch, guide, dims, other):
         if isinstance(obj, list) and len(obj) == 1 and isinstance(obj[0], dict) and 'labels' in obj[0]:
             obj = obj[0]
         parsed = obj['labels'] if isinstance(obj, dict) and 'labels' in obj else [obj] if isinstance(obj, dict) and 'id' in obj else obj
-        result = {}
+        result, seen, invalid = {}, set(), []
+        retry_policy = getattr(a, 'retry_policy', 'invalid')
         for values in parsed:
             if isinstance(values, dict):
                 values = [values['id'], *[values[d] for d in dims]]
             i, *labels = values
             if isinstance(i, str) and i.isdigit():
                 i = int(i)
-            if not isinstance(i, int) or i < 0 or i >= len(batch) or i in result or len(labels) != len(dims):
+            if not isinstance(i, int) or i < 0 or i >= len(batch) or i in seen or len(labels) != len(dims):
                 raise ValueError('invalid_id_or_label_length')
+            seen.add(i)
             pred = dict(zip(dims, labels))
             error = schema_error(pred, dims)
             if error:
-                raise ValueError(error)
+                if retry_policy == 'batch':
+                    raise ValueError(error)
+                invalid.append((i, error))
+                continue
             result[i] = dict(statement_id=batch[i]['statement_id'], **pred,
                 model=a.model, returned_model=response.get('model', ''), status='ok',
                 adjudicated=bool(other is not None))
-        if len(result) != len(batch):
+        missing = set(range(len(batch))) - seen
+        if missing and retry_policy == 'batch':
             raise ValueError('missing_ids')
+        invalid.extend((i, 'missing_id') for i in sorted(missing))
+        if invalid:
+            if not result:
+                # No usable labels. Splitting changes the prompt context and
+                # eventually records an explicit singleton failure.
+                raise ValueError('no_valid_rows')
+            log(a.raw / 'label-failures.jsonl', dict(at=now(), model=a.model,
+                ids=[batch[i]['statement_id'] for i, _ in invalid],
+                error='retry_invalid_rows', reasons=[error for _, error in invalid]))
+            repaired = classify(a, [batch[i] for i, _ in invalid], guide, dims, other)
+            for (i, _), row in zip(invalid, repaired):
+                result[i] = row
         return [result[i] for i in range(len(batch))]
     except Exception as e:
         log(a.raw / 'label-failures.jsonl', dict(at=now(), model=a.model,
@@ -253,6 +271,8 @@ if __name__ == '__main__':
     p.add_argument('--dimensions', default=','.join(DIMS))
     p.add_argument('--primary', type=Path)
     p.add_argument('--other', type=Path)
+    p.add_argument('--retry-policy', choices=['invalid', 'batch'], default='invalid',
+                   help='Retry invalid/missing IDs only, or reproduce legacy whole-batch retry.')
     args = p.parse_args()
     if args.workers > (8 if args.model == 'qwen3.8-27b-nvfp4' else 4):
         p.error('worker count exceeds the shared-endpoint budget')

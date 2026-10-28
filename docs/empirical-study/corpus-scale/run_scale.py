@@ -5,7 +5,7 @@ import sys
 import argparse
 import time
 
-from common import DEFAULT_RAW, HERE, log, now, read_csv
+from common import DEFAULT_RAW, HERE, log, now, read_csv, write_csv
 from analyze import calibration
 
 
@@ -23,7 +23,8 @@ def main():
         raise SystemExit('Type calibration did not pass; no automated scaling is justified.')
     if len(dimensions) < 4:
         # Recheck the exact reduced output schema before deploying it at scale.
-        validation = ['--input', str(HERE / 'paper_labels.csv'), '--dimensions', ','.join(dimensions)]
+        validation = ['--input', str(HERE / 'paper_labels.csv'), '--dimensions', ','.join(dimensions),
+                      '--retry-policy', 'invalid']
         commands = [[sys.executable, str(HERE / 'label.py'), *validation,
                      '--model', model, '--workers', '4' if name == 'qwen' else '2',
                      '--batch-size', '48' if name == 'qwen' else '24',
@@ -41,10 +42,18 @@ def main():
         format_gates = calibration('format_calibration', dimensions)
         if not all(r['passed'] for r in format_gates):
             raise SystemExit('Reduced-schema calibration failed; inspect before changing the deployment schema.')
+        protocol_path = HERE / 'retry_protocol.csv'
+        if protocol_path.exists():
+            protocols = read_csv(protocol_path)
+            for protocol in protocols:
+                if protocol['version'] == 'v2':
+                    protocol['status'] = 'validated_and_deployed_for_' + '_'.join(dimensions)
+            write_csv(protocol_path, protocols)
     run('extract.py', '--workers', '4')
     run('categorize.py')
     scope_process = subprocess.Popen([sys.executable, str(HERE / 'scope_files.py'), '--workers', '1'])
-    shared = ['--input', str(HERE / 'statements.csv'), '--dimensions', ','.join(dimensions)]
+    shared = ['--input', str(HERE / 'statements.csv'), '--dimensions', ','.join(dimensions),
+              '--retry-policy', 'invalid']
     commands = [
         [sys.executable, str(HERE / 'label.py'), *shared, '--model', 'qwen3.8-27b-nvfp4',
          '--workers', '4', '--batch-size', '48', '--output', str(HERE / 'labels_qwen.csv')],
