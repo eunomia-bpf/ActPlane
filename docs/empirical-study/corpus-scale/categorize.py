@@ -28,21 +28,28 @@ def main(a):
     repos = read_csv(HERE / 'repositories.csv')
     output = HERE / 'repository_categories.csv'
     done = {r['repo']: r for r in read_csv(output)} if output.exists() else {}
-    todo = [r for r in repos if r['repo'] not in done]
+    todo = [r for r in repos if r['repo'] not in done or done[r['repo']].get('status') == 'failed']
     for start in range(0, len(todo), 24):
         batch = todo[start:start + 24]
         payload = [dict(id=i, repo=r['repo'], description=r['description'], topics=r['topics']) for i, r in enumerate(batch)]
         try:
             response = complete(a, PROMPT, payload, budget=4096)
-            values = parse_json(response['choices'][0]['message']['content'])['repositories']
+            obj = parse_json(response['choices'][0]['message']['content'])
+            values = obj['repositories'] if isinstance(obj, dict) else obj
+            repo_ids = {r['repo']: i for i, r in enumerate(batch)}
+            values = [[int(row[0]) if str(row[0]).isdigit() else repo_ids[row[0]], *row[1:]] for row in values]
             assert len(values) == len(batch)
             assert sorted(r[0] for r in values) == list(range(len(batch)))
             for i, category, confidence, rationale in values:
                 assert category in ('agent_frameworks', 'applications', 'noncoding_agents')
                 done[batch[i]['repo']] = dict(repo=batch[i]['repo'], category=category,
-                    confidence=confidence, rationale=rationale, model=a.model, review='model_metadata_only')
+                    confidence=confidence, rationale=rationale, model=a.model, review='model_metadata_only', status='ok')
         except Exception as e:
             print('category_batch_failed', start, type(e).__name__, flush=True)
+            for r in batch:
+                done[r['repo']] = dict(repo=r['repo'], category='unclassified', confidence='low',
+                    rationale=type(e).__name__, model=a.model, review='model_metadata_only', status='failed')
+            write_csv(output, sorted(done.values(), key=lambda r: r['repo']))
             continue
         write_csv(output, sorted(done.values(), key=lambda r: r['repo']))
         print('categorized', len(done), flush=True)

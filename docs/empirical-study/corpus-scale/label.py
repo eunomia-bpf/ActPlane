@@ -94,7 +94,7 @@ def classify(a, batch, guide, dims, other):
     system += 'Return every supplied id exactly once, using only the defined values. Empty inapplicable labels use "". No explanation.'
     try:
         response = complete(a, system, dict(statements=entries),
-                            budget=max(2048, len(batch) * (100 if a.model == 'qwen3.8-27b-nvfp4' else 350)))
+                            budget=max(2048, len(batch) * 100) if a.model == 'qwen3.8-27b-nvfp4' else 12000)
         message = response['choices'][0]['message']['content']
         parsed = parse_json(message)['labels']
         result = {}

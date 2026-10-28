@@ -1,0 +1,20 @@
+stratum,query,returned,total_count,incomplete_results,response_sha256
+general,stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,229451,False,ae743aa6f9396d3d7d4330ce9eea4b4e1383cfdd35322e2d1288fbd4720936ec
+general,topic:developer-tools stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,1840,False,5ba06edfb882d86e28b7047513ca57a25d0986a2b9055e322356649a9297bf0c
+general,topic:webapp stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,275,False,c165556bfa2ac34ff9fa881e609566797441881834c6a73cbf81c10f1a2903a7
+general,topic:database stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,1447,False,34c0a32fac6b59f3938eeecf3636c1a4d2ccdc092c105b09ec415f34bfab7fb7
+general,topic:devops stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,923,False,98822db80be1e39f109ef97a242b842b4665dbfc9a76249199c307e043558249
+general,topic:machine-learning stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,2983,False,25b98c248cc7f2a9b07352aad207e564c8ee72c542fa93d615fd8cfa6d12a890
+agent,topic:ai-agent stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,1307,False,d192e76c0ed62784d7ab6c1784ab36a034b118d237593ec0e7130e00c3780596
+agent,topic:ai-agents stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,2989,False,89134881adcbf0780faae928c8a32942cf8e7a34f11e0b9c7d1208ed9352ffa2
+agent,topic:agent-framework stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,195,False,814d398db2007afa202c35e46c14ddecd6e31da458afa68a4ca5e1c01e074b81
+agent,topic:coding-agent stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,386,False,2203b1e29562c11104477d858ca84192dc6fa4dd6381dbf77818cffae34b0944
+agent,topic:llm-agent stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,162,False,c618666d8bb0e98a6be113a0c8d78776b6a44ee6bac0acf60793eeb8e8a1d24f
+agent,topic:mcp stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,3004,False,93141fa7449e74c14b12284130c63a9385a35ae737a89e7813aef9179f24192b
+noncoding_discovery,personal assistant agent stars:>=100 pushed:>=2025-01-01 archived:false fork:false,42,42,False,807e6cdf88f657aff50680f92bdff8a411bf33965021cab16542cb675e44c0ed
+noncoding_discovery,email agent stars:>=100 pushed:>=2025-01-01 archived:false fork:false,52,52,False,c170ed769da24219b1e35567c3425270aed30bc4afd8b0addb0fdecac8389ef3
+noncoding_discovery,calendar assistant stars:>=100 pushed:>=2025-01-01 archived:false fork:false,16,16,False,694fec17925656c2038f627323c2dc691c3562dd1db3165f146ebf01b626c097
+noncoding_discovery,office agent stars:>=100 pushed:>=2025-01-01 archived:false fork:false,68,68,False,cb74ea1586d4af1c019a525ffec4bec64782ae5d187c8aa79446ec21f443bf0e
+noncoding_discovery,agent skills stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,1972,False,70986fcad4c0c12a5d32f7bc615c4741901e00fe6ff001c63b27fbf337944783
+noncoding_discovery,topic:browser-automation stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,195,False,45b354eb6cd69e21e4e7598605ee9512a00cbbf4e4e33df9c74b115f370ec9ba
+noncoding_discovery,research agent stars:>=100 pushed:>=2025-01-01 archived:false fork:false,100,479,False,4eed817d8ee2d97fe3e0e7ee95232e7ddeeef7137f20e21a70fca34dfe2eb9e0

@@ -14,7 +14,7 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 | Repositories with cross-event policies | 81.0% | 79.7% | withheld or pending |
 | OS-tier policy candidates (count) | 607 | 607 | withheld or pending |
 
-The collected manifest currently covers 89 repositories. Labeling coverage is pending.
+The collected manifest currently covers 188 repositories. Labeling coverage is pending.
 
 The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.
 
@@ -28,18 +28,18 @@ The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` end
 
 | Model vs paper | Dimension | Applicable gold N | Evaluated N | Raw agreement | Cohen’s kappa |
 |---|---|---:|---:|---:|---:|
-| qwen | type | 2116 | 622 | 0.939 | 0.864 |
-| qwen | topic | 2116 | 622 | 0.664 | 0.616 |
-| qwen | enforceability | 1361 | 419 | 0.685 | 0.580 |
-| qwen | context_required | 1127 | 320 | 0.397 | 0.157 |
-| glm | type | 2116 | 24 | 0.917 | 0.778 |
-| glm | topic | 2116 | 24 | 0.750 | 0.669 |
-| glm | enforceability | 1361 | 18 | 0.667 | 0.483 |
-| glm | context_required | 1127 | 15 | 0.600 | 0.262 |
-| inter_model | type | 2116 | 24 | 0.958 | 0.895 |
-| inter_model | topic | 2116 | 24 | 0.875 | 0.833 |
-| inter_model | enforceability | 1361 | 18 | 0.833 | 0.742 |
-| inter_model | context_required | 1127 | 15 | 0.867 | 0.552 |
+| qwen | type | 2116 | 2116 | 0.929 | 0.843 |
+| qwen | topic | 2116 | 2116 | 0.698 | 0.656 |
+| qwen | enforceability | 1361 | 1361 | 0.700 | 0.585 |
+| qwen | context_required | 1127 | 1127 | 0.390 | 0.147 |
+| glm | type | 2116 | 192 | 0.932 | 0.858 |
+| glm | topic | 2116 | 192 | 0.750 | 0.712 |
+| glm | enforceability | 1361 | 117 | 0.573 | 0.435 |
+| glm | context_required | 1127 | 81 | 0.395 | 0.121 |
+| inter_model | type | 2116 | 192 | 0.938 | 0.871 |
+| inter_model | topic | 2116 | 192 | 0.745 | 0.706 |
+| inter_model | enforceability | 1361 | 117 | 0.803 | 0.732 |
+| inter_model | context_required | 1127 | 81 | 0.728 | 0.344 |
 
 `calibration_summary.csv` also reports end-to-end agreement including inapplicable labels. The applicable-gold evaluation counts a predicted inapplicable value as disagreement. `calibration_confusion.csv` retains every confusion cell and missing predictions are reported explicitly.
 

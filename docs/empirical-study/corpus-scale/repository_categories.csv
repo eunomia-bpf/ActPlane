@@ -1,0 +1,25 @@
+repo,category,confidence,rationale,model,review
+ComposioHQ/composio,agent_frameworks,high,"Composio provides toolkits, MCP infrastructure, and context management for building AI agents, which is agent infrastructure/SDK.",qwen3.8-27b-nvfp4,model_metadata_only
+Dokploy/dokploy,applications,high,"Dokploy is a deployment platform (PaaS alternative), which is general software/infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only
+GoogleChrome/lighthouse,applications,high,"Lighthouse is an automated auditing tool for web performance, which is a developer tool but not an agent.",qwen3.8-27b-nvfp4,model_metadata_only
+JCodesMore/ai-website-cloner-template,agent_frameworks,medium,A template/boilerplate for cloning websites using AI coding agents; primarily a developer tool/skill for software engineering.,qwen3.8-27b-nvfp4,model_metadata_only
+The-Vibe-Company/quivr,applications,high,"An engine for content search and monitoring with RAG capabilities, functioning as a general software service/library.",qwen3.8-27b-nvfp4,model_metadata_only
+agno-agi/agno,agent_frameworks,high,Described as a self-improving agent platform with topics including developer-tools and ai-agents.,qwen3.8-27b-nvfp4,model_metadata_only
+appsmithorg/appsmith,applications,high,"A low-code platform for building admin panels and internal tools, which is general software.",qwen3.8-27b-nvfp4,model_metadata_only
+cockroachdb/cockroach,applications,high,"CockroachDB is a distributed SQL database, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
+codewhale-hq/Codewhale,agent_frameworks,high,"An open-source coding agent for the terminal with topics like coding-agent, mcp, and developer-tools.",qwen3.8-27b-nvfp4,model_metadata_only
+continuedev/continue,agent_frameworks,high,"Continue is an open-source coding agent, which is a coding agent/developer tool.",qwen3.8-27b-nvfp4,model_metadata_only
+directus/directus,applications,high,"Directus is a headless CMS and backend framework, which is general software.",qwen3.8-27b-nvfp4,model_metadata_only
+dragonflydb/dragonfly,applications,high,"Dragonfly is an in-memory key-value store (Redis alternative), which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
+duckdb/duckdb,applications,high,"DuckDB is a high-performance analytical database system, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
+esengine/DeepSeek-Reasonix,agent_frameworks,high,"DeepSeek-Reasonix is a coding agent for software engineering tasks, which is a coding agent.",qwen3.8-27b-nvfp4,model_metadata_only
+facebook/rocksdb,applications,high,"RocksDB is an embeddable key-value store library, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
+google-research/google-research,applications,high,"A collection of research code and models from Google Research, which falls under ML models/research.",qwen3.8-27b-nvfp4,model_metadata_only
+koalaman/shellcheck,applications,high,"ShellCheck is a static analysis tool/linter for shell scripts, which is a developer tool but not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only
+nautechsystems/nautilus_trader,applications,high,"NautilusTrader is a trading engine, which is a specialized application/library.",qwen3.8-27b-nvfp4,model_metadata_only
+patchy631/ai-engineering-hub,applications,high,"A collection of tutorials and documentation on AI engineering, which is an education/documentation collection.",qwen3.8-27b-nvfp4,model_metadata_only
+photoprism/photoprism,applications,high,"An AI-powered photo management app, which is a general application.",qwen3.8-27b-nvfp4,model_metadata_only
+pingcap/tidb,applications,high,"TiDB is a distributed SQL database; while it mentions agentic workloads, its primary purpose is as a database system.",qwen3.8-27b-nvfp4,model_metadata_only
+qdrant/qdrant,applications,high,"Qdrant is a vector database and search engine, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
+surrealdb/surrealdb,applications,high,"SurrealDB is a document-graph database, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
+typeorm/typeorm,applications,high,"TypeORM is an ORM library for Node.js, which is a general software library.",qwen3.8-27b-nvfp4,model_metadata_only

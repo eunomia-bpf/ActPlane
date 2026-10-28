@@ -1,0 +1,11 @@
+check,expected,actual,passed
+historical_statement_total,2116,2116,True
+historical_repository_total,64,64,True
+historical_os_tier_count,607,607,True
+calibration_qwen_unique_ids,2116,2116,True
+calibration_glm_unique_ids,96,96,True
+missing_raw_source_files,0,0,True
+source_sha256_mismatches,0,0,True
+statement_unique_ids,2983,2983,True
+verbatim_source_mismatches,0,0,True
+source_partition_errors,0,0,True

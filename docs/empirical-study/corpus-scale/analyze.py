@@ -181,7 +181,9 @@ def analyze():
             row['delta_ci_low'], row['delta_ci_high'] = np.nanquantile(diff, [.025, .975])
     summaries = [dict(r, group_type='overall', group='all') for r in summary]
     categories_path = HERE / 'repository_categories.csv'
-    categories = {r['repo']: r.get('category', 'unclassified') for r in read_csv(categories_path)} if categories_path.exists() else {}
+    categories = {repo: 'unclassified' for repo in repos}
+    if categories_path.exists():
+        categories.update({r['repo']: r.get('category', 'unclassified') for r in read_csv(categories_path)})
     for category in sorted(set(categories.values())):
         rs = {k: v for k, v in selected_repos.items() if categories.get(k) == category}
         subset = [s for s in joined if s['repo'] in rs]
@@ -201,6 +203,15 @@ def analyze():
         if rs:
             ss, _ = summarize(subset, rs, gates)
             summaries.extend(dict(r, group_type='family', group=fam) for r in ss)
+    scopes_path = HERE / 'file_scopes.csv'
+    if scopes_path.exists():
+        scopes = {(r['repo'], r['content_sha256']): r['scope'] for r in read_csv(scopes_path) if r['status'] == 'ok'}
+        for scope in sorted(set(scopes.values())):
+            subset = [s for s in joined if scopes.get((s['repo'], s['content_sha256'])) == scope]
+            rs = {s['repo']: repos[s['repo']] for s in subset}
+            if rs:
+                ss, _ = summarize(subset, rs, gates)
+                summaries.extend(dict(r, group_type='file_scope', group=scope) for r in ss)
     write_csv(HERE / 'summary.csv', summaries)
     write_csv(HERE / 'analysis_statements.csv', [{k: v for k, v in s.items() if k != 'text'} for s in joined])
     write_csv(HERE / 'analysis_coverage.csv', [dict(

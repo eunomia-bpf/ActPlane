@@ -17,6 +17,7 @@ def main():
         raise SystemExit('Type calibration did not pass; no automated scaling is justified.')
     run('extract.py', '--workers', '4')
     run('categorize.py')
+    run('scope_files.py', '--workers', '4')
     shared = ['--input', str(HERE / 'statements.csv'), '--dimensions', ','.join(dimensions)]
     commands = [
         [sys.executable, str(HERE / 'label.py'), *shared, '--model', 'qwen3.8-27b-nvfp4',
@@ -32,6 +33,8 @@ def main():
         '--output', str(HERE / 'labels.csv'))
     run('analyze.py')
     run('figures.py')
+    run('audit_runs.py')
+    run('validate.py', '--require-complete')
     run('report.py')
 
 
