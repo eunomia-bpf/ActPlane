@@ -101,6 +101,8 @@ All requested families are inspected in recursive commit-pinned trees: CLAUDE.md
 
 The Cursor family recognizer includes `.md` and `.mdc` files immediately inside a `.cursor/rules/` directory. Other extensions and nested rule directories are outside this operational definition.
 
+The new snapshot retains pure redirect files when selected. Historical redirect removal only reconstructs the original inventory and is not a new-corpus eligibility filter. A matching instruction filename establishes presence, while actual use by a deployed agent remains unverified.
+
 Qwen proposes semantic statement starts in source chunks targeting 160 lines. The script derives half-open ranges and copies source text exactly. Coverage, hashes, and range continuity are checked, while extraction failures remain recorded. Earlier range-pair attempts that failed validation remain in the raw logs. This validates source fidelity, not the semantic correctness of boundaries. Chunking may separate context, and the new extraction has no human boundary audit. Calibration holds historical boundaries fixed and therefore does not validate new extraction quality.
 
 The historical reference contains coding-repository CLAUDE.md and AGENTS.md statements. Its calibration does not establish equivalent accuracy on the additional file families or noncoding tasks. The new family and task-scope breakdowns therefore remain descriptive automated estimates, even for axes that pass the historical agreement gate.
