@@ -101,6 +101,7 @@ def main():
     run('figures.py')
     run('audit_runs.py')
     run('validate.py', '--require-complete')
+    run('validate_figures.py')
     run('report.py')
 
 
