@@ -21,6 +21,8 @@ def main():
                              attempt=path.parent.name, transport=number, status=response['status'],
                              access_category=access_category(response) if response['status'] != 'ok' else '',
                              backoff_before_s=response.get('backoff_before_s', 15 * (number - 1)),
+                             observed_at_unix=response.get('observed_at_unix', ''),
+                             retry_after_unix=response.get('retry_after_unix', ''),
                              response_model=response.get('response_model', ''),
                              finish_reason=finish_reason(response, model),
                              identity_verified=int(response.get('identity_verified', False)),

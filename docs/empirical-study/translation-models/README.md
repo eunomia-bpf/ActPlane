@@ -19,13 +19,13 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 17 / 28 of 30 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
-| zai/glm-5.3 | 34 / 38 of 38 | 35 / 45 of 45 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
-| zai/glm-5.3-flash | 33 / 38 of 38 | 18 / 32 of 32 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 10 / 13 of 38 | 6 / 10 of 52 | unavailable | unavailable | unavailable | 25 / 42 | $0.0000 |
-| zai/glm-4.5-air | 33 / 38 of 38 | 22 / 33 of 33 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
-| gpt-6-astra | 27 / 38 of 38 | 59 / 125 of 132 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
-| claude-opus-4-6 | 30 / 38 of 38 | 65 / 99 of 99 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 23 / 38 of 41 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
+| zai/glm-5.3 | 34 / 38 of 38 | 56 / 72 of 72 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 32 / 50 of 50 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
+| zai/glm-4.7-flash | 10 / 13 of 38 | 7 / 12 of 64 | unavailable | unavailable | unavailable | 25 / 51 | $0.0000 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 29 / 45 of 45 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
+| gpt-6-astra | 27 / 38 of 38 | 62 / 134 of 141 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
+| claude-opus-4-6 | 30 / 38 of 38 | 74 / 112 of 607 | 47.4% | 11.8% | 0.610 | 0 / 495 | $0.1384 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
 | --- | --- | --- | --- | --- | --- |
@@ -51,11 +51,11 @@ held-out sets, and no semantic deduplication is claimed.
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 22 | 8 | 12 | 2 |
-| zai/glm-5.3 | 0 | 1 | 0 | 0 |
-| zai/glm-5.3-flash | 2 | 1 | 0 | 0 |
-| zai/glm-4.7-flash | 1 | 1 | 0 | 0 |
-| zai/glm-4.5-air | 2 | 1 | 0 | 0 |
+| qwen3.8-27b-nvfp4 | 22 | 12 | 12 | 3 |
+| zai/glm-5.3 | 0 | 2 | 0 | 0 |
+| zai/glm-5.3-flash | 2 | 2 | 0 | 0 |
+| zai/glm-4.7-flash | 1 | 2 | 0 | 0 |
+| zai/glm-4.5-air | 2 | 4 | 0 | 0 |
 | gpt-6-astra | 0 | 0 | 0 | 0 |
 | claude-opus-4-6 | 0 | 0 | 0 | 0 |
 
@@ -133,7 +133,11 @@ recorded separately from compiler revisions. Each model has a bounded transport
 retry budget for missing responses, recorded in `model-settings.csv`. The corpus
 budget includes an additional recovery transport after a supervisor-reported
 service interruption. Capacity, timeout, and transient HTTP errors use exponential
-backoff. Permanent access errors remain access failures. Every completed transport
+backoff. CLI session limits wait for the provider-reported UTC reset before the
+next transport, with the wait retained in wall-time accounting. A recovery worker
+waits for the original model queue to finish before reopening its bounded access
+failures. This avoids duplicate requests. Permanent access errors remain access
+failures. Every completed transport
 is checkpointed before retrying, and returned model answers are never resampled.
 API calls use parallel workers per model,
 with local endpoint concurrency within the operator limit. Latency is observed
@@ -206,6 +210,11 @@ The preserved `invalid-protocol-calls.csv` audits an interrupted preliminary run
 whose compiler invocation combined incompatible CLI flags. Those calls are not
 model failures or scored trials. Raw responses remain in `invalid-protocol/`.
 Interrupted requests with unknown usage are preserved in `interrupted-requests.csv`.
+The installed Codex shell wrapper initially left native children alive on timeout.
+Those trial-only orphan processes are audited in `orphaned-cli-processes.csv` and
+terminated without interrupting the active corpus worker. New CLI launches use
+private process groups, which are terminated together on timeout. Usage from
+timed-out requests remains unknown, even when their child process is cleaned up.
 Kernel smoke failures are retained separately as diagnostics. Failed engine loads
 are never counted as true negatives. The behavioral sample is small, constructed,
 and selected for OS observability. It is not a held-out natural policy population.
