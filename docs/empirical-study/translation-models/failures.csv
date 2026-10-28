@@ -53,9 +53,6 @@ rq1,zai/glm-5.3,NVIDIA__NemoClaw::19,compiler_failure,syntax_or_lowering
 rq1,zai/glm-5.3,zeroclaw-labs__zeroclaw::22,compiler_failure,generation_output_limit
 rq1,zai/glm-5.3-flash,openai__openai-agents-python::39,compiler_failure,generation_output_limit
 rq2,zai/glm-4.7-flash,OpenPipe__ART__2,compiler_failure,syntax_or_lowering
-rq2,zai/glm-4.7-flash,ruvnet__ruflo__read-before-edit,access_failure,provider_capacity
-rq2,zai/glm-4.7-flash,yusufkaraaslan__Skill_Seekers__68,access_failure,rate_limited
-rq2,zai/glm-4.7-flash,yusufkaraaslan__Skill_Seekers__local-fast-test-scope,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,AlexsJones__llmfit::28,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,AlexsJones__llmfit::29,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,AlexsJones__llmfit::31,access_failure,rate_limited
