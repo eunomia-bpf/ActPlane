@@ -54,7 +54,7 @@ def main():
     run('report.py')
     if a.commit_checkpoints:
         checkpoint('Complete historical two-model calibration and adjudication')
-    run('run_scale.py')
+    run('run_scale.py', *(['--commit-checkpoints'] if a.commit_checkpoints else []))
     if a.commit_checkpoints:
         checkpoint('Complete calibrated scaled corpus characterization and figures')
     run('handoff.py')

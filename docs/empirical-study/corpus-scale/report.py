@@ -49,6 +49,8 @@ def main():
         '## Comparison with the submitted paper', '',
         '| Measure | Paper claim | Recovered labels | New snapshot (repository bootstrap interval) |',
         '|---|---:|---:|---:|']
+    if coverage and coverage['analyzed_repositories'] != coverage['collected_repositories']:
+        lines[2] = '**Interim subset: labeling is incomplete. These are results for fully labeled repositories only; do not substitute them for the final full-snapshot claims.**'
     for key, name in NAMES.items():
         old = dict(claims[key], metric=key)
         r = overall.get(key)

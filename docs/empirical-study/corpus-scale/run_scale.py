@@ -2,6 +2,8 @@
 """Gate-controlled, restartable scaled labeling. Run after calibration completes."""
 import subprocess
 import sys
+import argparse
+import time
 
 from common import HERE, read_csv
 from analyze import calibration
@@ -12,6 +14,9 @@ def run(script, *args):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--commit-checkpoints', action='store_true')
+    args = parser.parse_args()
     gates = read_csv(HERE / 'calibration_gates.csv')
     dimensions = [r['dimension'] for r in gates if r['passed'] == 'True']
     if 'type' not in dimensions:
@@ -44,7 +49,26 @@ def main():
         [sys.executable, str(HERE / 'label.py'), *shared, '--model', 'zai/glm-5.3',
          '--workers', '2', '--batch-size', '24', '--output', str(HERE / 'labels_glm.csv')]]
     processes = [subprocess.Popen(c) for c in commands]
-    results = [p.wait() for p in processes]
+    last_checkpoint = time.monotonic()
+    while any(p.poll() is None for p in processes):
+        time.sleep(30)
+        if time.monotonic() - last_checkpoint < 1800:
+            continue
+        if all((HERE / f'labels_{name}.csv').exists() for name in ('qwen', 'glm')):
+            run('label.py', *shared, '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
+                '--primary', str(HERE / 'labels_qwen.csv'), '--other', str(HERE / 'labels_glm.csv'),
+                '--output', str(HERE / 'labels.csv'))
+            run('analyze.py')
+            coverage = read_csv(HERE / 'analysis_coverage.csv')[0]
+            if int(coverage['analyzed_repositories']) > 0:
+                run('figures.py')
+                run('audit_runs.py')
+                run('report.py')
+                if args.commit_checkpoints:
+                    from complete import checkpoint
+                    checkpoint('Checkpoint fully labeled repository subset during corpus scaling')
+        last_checkpoint = time.monotonic()
+    results = [p.returncode for p in processes]
     if any(results):
         raise SystemExit('A primary labeler failed; restart after inspecting raw logs.')
     run('label.py', *shared, '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
