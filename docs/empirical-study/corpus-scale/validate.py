@@ -27,6 +27,9 @@ def main(a):
         if path.exists():
             rows = read_csv(path)
             record(name + '_unique_ids', len(rows), len({r['statement_id'] for r in rows}))
+            expected_model = 'zai/glm-5.3' if name.endswith('_glm') else 'qwen3.8-27b-nvfp4'
+            record(name + '_unexpected_model_identity', 0, sum(
+                r.get('returned_model') != expected_model for r in rows if r['status'] == 'ok'))
             if a.require_complete:
                 record(name + '_successful_rows', len(paper), sum(r['status'] == 'ok' for r in rows))
     manifest_path = HERE / 'corpus_manifest.csv'
@@ -86,6 +89,16 @@ def main(a):
                 record('scaled_label_unique_ids', len(labels), len({r['statement_id'] for r in labels}))
                 unknown = {r['statement_id'] for r in labels} - {r['statement_id'] for r in rows}
                 record('unknown_scaled_label_ids', 0, len(unknown))
+                record('unexpected_final_model_identity', 0, sum(
+                    r.get('returned_model') != 'qwen3.8-27b-nvfp4' for r in labels if r['status'] == 'ok'))
+                for model, expected_model in [('qwen', 'qwen3.8-27b-nvfp4'), ('glm', 'zai/glm-5.3')]:
+                    primary_path = HERE / f'labels_{model}.csv'
+                    if primary_path.exists():
+                        primary = read_csv(primary_path)
+                        record('unexpected_' + model + '_model_identity', 0, sum(
+                            r.get('returned_model') != expected_model for r in primary if r['status'] == 'ok'))
+                        if a.require_complete:
+                            record(model + '_primary_successful_rows', len(rows), sum(r['status'] == 'ok' for r in primary))
                 enabled = {r['dimension'] for r in read_csv(HERE / 'calibration_gates.csv') if r['passed'] == 'True'}
                 format_path = HERE / 'format_calibration_gates.csv'
                 if format_path.exists():

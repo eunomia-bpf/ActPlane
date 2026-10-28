@@ -4,8 +4,11 @@ historical_repository_total,64,64,True
 historical_os_tier_count,607,607,True
 historical_deduplicated_non_redirect_file_total,84,84,True
 calibration_qwen_unique_ids,2116,2116,True
+calibration_qwen_unexpected_model_identity,0,0,True
 calibration_glm_unique_ids,2116,2116,True
+calibration_glm_unexpected_model_identity,0,0,True
 calibration_adjudicated_unique_ids,2116,2116,True
+calibration_adjudicated_unexpected_model_identity,0,0,True
 repositories_below_star_floor,0,0,True
 repositories_inactive_since_2025,0,0,True
 missing_raw_source_files,0,0,True
