@@ -7,7 +7,10 @@ format_calibration_qwen.csv,invalid_batch_feedback,ok,2116
 format_calibration_glm.csv,invalid_singleton_feedback,ok,2116
 format_calibration_adjudicated.csv,agreement,ok,1540
 format_calibration_adjudicated.csv,invalid_batch_feedback,ok,576
-labels_qwen.csv,not_yet_tagged,ok,18330
+labels_qwen.csv,invalid_batch_feedback,ok,6041
+labels_qwen.csv,invalid_singleton_feedback,ok,18330
 labels_glm.csv,invalid_singleton_feedback,ok,30846
-labels.csv,not_yet_tagged,failed,15148
-labels.csv,not_yet_tagged,ok,15698
+labels.csv,agreement,ok,12825
+labels.csv,invalid_batch_feedback,ok,1454
+labels.csv,invalid_singleton_feedback,ok,5676
+labels.csv,not_yet_tagged,failed,10891

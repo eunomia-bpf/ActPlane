@@ -8,13 +8,13 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 
 | Measure | Paper claim | Recovered labels | New automated labels (repository bootstrap interval) | Difference vs recovered |
 |---|---:|---:|---:|---:|
-| Policy / all statements | 64.0% | 64.3% | 57.5% [53.2%, 61.5%] | -6.8 pp [-15.2, +1.7] |
+| Policy / all statements | 64.0% | 64.3% | 56.5% [52.5%, 60.0%] | -7.8 pp [-16.1, +0.6] |
 | System-observable / policies | 83.0% | 82.8% | withheld | withheld |
 | Context needed / system-observable | 74.0% | 73.6% | withheld | withheld |
 | Repositories with cross-event policies | 81.0% | 79.7% | withheld | withheld |
 | OS-tier policy candidates (count) | 607 | 607 | withheld | withheld |
 
-The collected manifest covers 325 repositories and 771 selected instruction paths (761 distinct repository/content pairs). The analysis includes 84 repositories and 6,364 statements. 379 extracted files await complete model pairs or final adjudication. 241 repositories are withheld until every selected source is successfully extracted and labeled.
+The collected manifest covers 325 repositories and 771 selected instruction paths (761 distinct repository/content pairs). The analysis includes 120 repositories and 9,223 statements. 281 extracted files await complete model pairs or final adjudication. 205 repositories are withheld until every selected source is successfully extracted and labeled.
 
 The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.
 
@@ -89,9 +89,9 @@ Agreement between the primary models on the analyzed new spans is reported separ
 
 | New-corpus intermodel dimension | Paired statements | Disagreements | Raw agreement | Kappa |
 |---|---:|---:|---:|---:|
-| topic | 6364 | 1784 | 0.720 | 0.684 |
-| type | 6364 | 617 | 0.903 | 0.801 |
-| any_scaled_axis | 6364 | 2178 | 0.658 | undefined |
+| topic | 9223 | 2620 | 0.716 | 0.680 |
+| type | 9223 | 870 | 0.906 | 0.808 |
+| any_scaled_axis | 9223 | 3182 | 0.655 | undefined |
 
 ## Selection and measurement
 
@@ -114,6 +114,8 @@ Overall analysis counts each byte-identical file once within a repository. Famil
 Repository-purpose groups are defined in `categorize.py`: agent_frameworks includes reusable agent infrastructure, coding agents, editors, and developer-agent tools; applications includes general software, libraries, services, and educational collections; noncoding_agents covers assistants primarily advertised for personal, office, research, browser, or finance tasks. Mixed systems are assigned by their primary advertised purpose. These categories have not received independent human reliability validation.
 
 A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used. The optional OpenCode routes also reject requests with the requested session header, as recorded in `gateway_probes.csv`. A named GLM flash route was used only for a throughput pilot and is not part of the primary calibration.
+
+`noncoding_manifest.csv` and `noncoding_statements.csv` materialize the analyzed sources classified as `noncoding_assistance`. Mixed, unclear, unclassified, and software-development sources remain visible in the main tables rather than entering this exploratory subset.
 
 Optional scope classification initially ran alongside primary labeling. Observed local request latency motivated deferring its remaining work until primary labeling completes, allocating the bounded local concurrency to primary labels and interim adjudication. Scope work resumes alongside final adjudication and ends when the primary analysis is ready. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis. This changes client request scheduling without changing the coding guide, accepted labels, or thresholds.
 
@@ -169,27 +171,27 @@ The collected repositories have a star range of 12,209–458,063, with median 40
 
 | Family | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| .cursor/rules/* | 1 | 8 | 62.5% | withheld | withheld | withheld | withheld |
-| .cursorrules | 1 | 1 | 0.0% | withheld | withheld | withheld | withheld |
-| AGENTS.md | 53 | 2522 | 57.3% | withheld | withheld | withheld | withheld |
-| CLAUDE.md | 31 | 789 | 52.5% | withheld | withheld | withheld | withheld |
-| GEMINI.md | 1 | 2 | 50.0% | withheld | withheld | withheld | withheld |
-| SKILL.md | 50 | 2845 | 59.2% | withheld | withheld | withheld | withheld |
-| copilot-instructions.md | 10 | 204 | 56.4% | withheld | withheld | withheld | withheld |
+| .cursor/rules/* | 4 | 40 | 62.5% | withheld | withheld | withheld | withheld |
+| .cursorrules | 4 | 6 | 33.3% | withheld | withheld | withheld | withheld |
+| AGENTS.md | 79 | 3959 | 57.3% | withheld | withheld | withheld | withheld |
+| CLAUDE.md | 45 | 862 | 52.0% | withheld | withheld | withheld | withheld |
+| GEMINI.md | 2 | 5 | 60.0% | withheld | withheld | withheld | withheld |
+| SKILL.md | 76 | 3984 | 56.7% | withheld | withheld | withheld | withheld |
+| copilot-instructions.md | 15 | 375 | 56.0% | withheld | withheld | withheld | withheld |
 
 | Category | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| agent_frameworks | 34 | 2822 | 60.0% | withheld | withheld | withheld | withheld |
-| applications | 43 | 2965 | 54.9% | withheld | withheld | withheld | withheld |
-| noncoding_agents | 7 | 577 | 58.4% | withheld | withheld | withheld | withheld |
+| agent_frameworks | 44 | 3523 | 59.3% | withheld | withheld | withheld | withheld |
+| applications | 60 | 4314 | 55.9% | withheld | withheld | withheld | withheld |
+| noncoding_agents | 16 | 1386 | 51.3% | withheld | withheld | withheld | withheld |
 
 | File_scope | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| general_agent_operations | 4 | 16 | 50.0% | withheld | withheld | withheld | withheld |
-| noncoding_assistance | 9 | 411 | 59.6% | withheld | withheld | withheld | withheld |
-| software_development | 63 | 4322 | 56.9% | withheld | withheld | withheld | withheld |
-| unclassified | 26 | 1597 | 58.5% | withheld | withheld | withheld | withheld |
-| unclear | 13 | 18 | 50.0% | withheld | withheld | withheld | withheld |
+| general_agent_operations | 8 | 102 | 71.6% | withheld | withheld | withheld | withheld |
+| noncoding_assistance | 16 | 690 | 50.7% | withheld | withheld | withheld | withheld |
+| software_development | 93 | 6472 | 57.7% | withheld | withheld | withheld | withheld |
+| unclassified | 35 | 1935 | 53.7% | withheld | withheld | withheld | withheld |
+| unclear | 19 | 24 | 50.0% | withheld | withheld | withheld | withheld |
 
 ## Reproduction and artifacts
 
