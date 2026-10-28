@@ -75,6 +75,12 @@ def main():
         mean = lambda key: f"{float(r['rq1_' + key]):.1f}"
         cost = f"${float(r['rq1_uncached_list_usd_mean']):.4f}" if r['rq1_uncached_list_usd_mean'] != '' else 'unmeasured'
         accounting.append(f"| {r['model']} | {r['rq1_completed']} | {mean('input_tokens_mean')} | {mean('output_tokens_mean')} | {mean('wall_s_mean')} | {cost} | {r['rq1_usage_missing_transports']} |")
+    response_rates = ['| Model with access failures | Sample responses | Sample response-only compile@1 / @3 | Corpus responses | Corpus response-only compile@1 / @3 |',
+                      '| --- | --- | --- | --- | --- |']
+    for r in rows:
+        if not (int(r['rq1_access_failures']) + int(r['rq2_access_failures'])):
+            continue
+        response_rates.append(f"| {r['model']} | {r['rq2_responses']} / {r['rq2_completed']} | {pct(r['rq2_conditional_compile_at_1_rate'])} / {pct(r['rq2_conditional_compile_at_3_rate'])} | {r['rq1_responses']} / {r['rq1_completed']} | {pct(r['rq1_conditional_compile_at_1_rate'])} / {pct(r['rq1_conditional_compile_at_3_rate'])} |")
     artifact_summary = read('artifact-reference-summary.csv')[0]
     reference_audit = read('reference-validation-summary.csv')
     reference_audit = reference_audit[0] if reference_audit else dict(matching_trace_snapshots=0, traces=0, script_disagreements_old_nonzero_new_zero=0)
@@ -117,6 +123,12 @@ model-generation trial. The behavioral sample covers
 held-out sets, and no semantic deduplication is claimed.
 
 {chr(10).join(table)}
+
+For rows with access failures, response-only compiler acceptance is shown below.
+These conditional rates describe returned answers and cannot estimate the
+unanswered policies. Overall yield above retains every attempted policy.
+
+{chr(10).join(response_rates)}
 
 Corpus accounting means include completed trials and known transport usage.
 Active wall time includes provider waits and compiler revisions. It excludes
