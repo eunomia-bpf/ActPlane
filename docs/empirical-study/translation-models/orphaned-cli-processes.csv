@@ -11,3 +11,5 @@ pid,cwd,recorded_utc,action,usage
 1362241,rq1/gpt-6-astra/multica-ai__multica__12/attempt-1/empty-cwd,2026-10-28T09:44:09Z,terminate_orphaned_timeout_child,unknown
 1366095,rq1/gpt-6-astra/multica-ai__multica__6/attempt-2/empty-cwd,2026-10-28T09:53:59Z,terminate_orphaned_timeout_child,unknown
 1366269,rq1/gpt-6-astra/multica-ai__multica__7/attempt-2/empty-cwd,2026-10-28T09:54:04Z,terminate_orphaned_timeout_child,unknown
+1370588,rq1/gpt-6-astra/openai__codex__17/attempt-2/empty-cwd,2026-10-28T10:04:09Z,terminate_orphaned_timeout_child,unknown
+1370834,rq1/gpt-6-astra/openai__codex__15/attempt-2/empty-cwd,2026-10-28T10:04:19Z,terminate_orphaned_timeout_child,unknown
