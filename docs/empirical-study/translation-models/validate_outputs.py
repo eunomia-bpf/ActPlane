@@ -36,6 +36,8 @@ def main():
         check(f'replay:{model}:violation_labels', 114, sum(int(r['violation']) for r in rows))
         check(f'replay:{model}:compliant_labels', 76, sum(r['violation'] == '0' for r in rows))
     controls = read('controls-guest68-scored-v2.csv')
+    parallel = read('controls-guest68-parallel-v2.csv')
+    check('all parallel kernel controls pass', True, all(r['control_passed'] == '1' for r in parallel))
     check('all kernel controls pass', True, all(r['control_passed'] == '1' for r in controls))
     check('PDF embeds TrueType', True, b'/FontFile2' in (HERE / 'comparison.pdf').read_bytes())
     csv_write(HERE / 'validation.csv', checks)

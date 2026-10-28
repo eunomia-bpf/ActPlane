@@ -13,4 +13,4 @@ rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__29,access_failure,transport_er
 rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__s01_use_test_wrapper,access_failure,http_error
 rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__s02_keep_credentials_out_of_repo,access_failure,transport_error
 rq2,zai/glm-4.7-flash,OpenPipe__ART__2,access_failure,http_error
-rq2,claude-opus-4-6,ruvnet__ruflo__29,access_failure,cli_error
+rq2,zai/glm-4.7-flash,OpenPipe__ART__prek_before_commit,access_failure,transport_error

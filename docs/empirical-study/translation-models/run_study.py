@@ -90,20 +90,24 @@ def main():
     wait_adopted(args.adopt_rq2_pid, 'translate.py', 'sample translations')
     run(command('translate.py', '--corpus', 'rq2'))
     checkpoint('experiments: record policy-sample model translations')
-    write_status('corpus translations and model replay')
     logs = DEFAULT_RAW / 'orchestration'
     logs.mkdir(exist_ok=True)
-    with (logs / 'rq1.log').open('w') as out1, (logs / 'model-replay.log').open('w') as out2:
-        rq1 = subprocess.Popen(command('translate.py', '--corpus', 'rq1'), cwd=ROOT, stdout=out1, stderr=subprocess.STDOUT)
-        replay = subprocess.Popen(command('guest.py', '--log', 'model-replays', '--', *command('replay_batch.py')), cwd=ROOT, stdout=out2, stderr=subprocess.STDOUT)
-        last = time.monotonic()
-        while rq1.poll() is None or replay.poll() is None:
-            if time.monotonic() - last > 600:
-                checkpoint('experiments: checkpoint corpus compilation and kernel outcomes')
-                last = time.monotonic()
-            time.sleep(30)
-        if rq1.returncode or replay.returncode:
-            raise RuntimeError(f'Background phase failed: rq1={rq1.returncode}, replay={replay.returncode}; resume this driver after inspecting logs')
+    for phase, argv, log_name in (
+        ('sample model replay', command('guest.py', '--log', 'model-replays', '--', *command('replay_batch.py')), 'model-replay.log'),
+        ('corpus translations', command('translate.py', '--corpus', 'rq1'), 'rq1.log'),
+    ):
+        write_status(phase)
+        with (logs / log_name).open('w') as output:
+            job = subprocess.Popen(argv, cwd=ROOT, stdout=output, stderr=subprocess.STDOUT)
+            last = time.monotonic()
+            while job.poll() is None:
+                if time.monotonic() - last > 600:
+                    checkpoint('experiments: checkpoint ' + phase)
+                    last = time.monotonic()
+                time.sleep(30)
+            if job.returncode:
+                raise RuntimeError(f'{phase} failed: exit {job.returncode}; inspect {logs / log_name} and resume')
+        checkpoint('experiments: complete ' + phase)
     derive()
     run(command('validate_outputs.py'))
     checkpoint('experiments: finalize model comparison, figure, and paper snippets')

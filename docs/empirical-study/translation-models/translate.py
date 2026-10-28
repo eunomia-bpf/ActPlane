@@ -255,7 +255,7 @@ def run_model(raw, corpus, model, limit=None):
     items = inputs(raw, corpus)
     if limit:
         items = items[:limit]
-    workers = 4 if MODELS[model][1] == 'local' else 4 if model == 'zai/glm-4.7-flash' else 2
+    workers = (8 if corpus == 'rq1' else 4) if MODELS[model][1] == 'local' else 4 if model == 'zai/glm-4.7-flash' else 2
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(translate_one, raw, corpus, model, item) for item in items]
         for f in concurrent.futures.as_completed(futures):

@@ -38,6 +38,8 @@ def main():
     provenance = read('provenance.csv')[0]
     native = read('matcher-equivalence.csv')[0]
     controls = read('controls-guest68-scored-v2.csv')
+    parallel_controls = read('controls-guest68-parallel-v2.csv')
+    parallel_passes = sum(r['control_passed'] == '1' for r in parallel_controls)
     control_passes = sum(r['control_passed'] == '1' for r in controls)
     table = ['| Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Sample USD/policy |',
              '| --- | --- | --- | --- | --- | --- | --- |']
@@ -135,11 +137,15 @@ API calls use deterministic temperature and an output-token cap. CLI wrapper
 defaults differ and add context overhead. Claude uses a pinned model with tools,
 skills, hooks, and MCP disabled. GPT access is excluded rather than substituted.
 
-Compiler acceptance requires an emitted blob and a nonempty rule set. The CLI's
+Compiler acceptance requires an emitted blob and a nonempty rule set. Terminal
+failure categories in `failure-counts.csv` use explicit model-declared
+unobservability or compiler-message heuristics. They are not semantic judgments. The CLI's
 blob and JSON-report modes are called separately. Provider overload retries are
 recorded separately from compiler revisions. Each model has a bounded transport
 retry budget for missing responses. API calls use parallel workers per model,
-with local endpoint concurrency below the operator limit. Token counts include all completed
+with local endpoint concurrency within the operator limit. Latency is observed
+under shared serving load and the recorded scripts' worker limits, rather than
+an isolated model-speed benchmark. Token counts include all completed
 model responses, including reasoning and compiler revisions. `prices.csv` records
 the [ZAI list prices](https://docs.z.ai/guides/overview/pricing) and
 [Claude list prices](https://platform.claude.com/docs/en/about-claude/pricing).
@@ -171,7 +177,8 @@ branch against the original predicates with simulated BPF helpers:
 {native['cases']} cases, {native['mismatches']} mismatches. These checks are not a
 whole-engine equivalence proof. Expanded guest controls pass {control_passes} of
 {len(controls)}, including positive/negative write checks and read-before-write
-label propagation. All scored models and references use this same engine build.
+label propagation. Parallel controls pass {parallel_passes} of
+{len(parallel_controls)} with separate simultaneous engine instances. All scored models and references use this same engine build.
 Per-trace loader and fixture hashes identify the actual configuration.
 
 Original evaluated source checkout SHAs are absent from the artifact. Candidate

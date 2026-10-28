@@ -1,11 +1,13 @@
 """Checks of scoring-sensitive protocol behavior, not product implementation."""
 import unittest
+from unittest.mock import patch
 import tempfile
 from pathlib import Path
 
 from models import identity_ok
 from replay import copy_fixture, notify_policy, runner_label, tools_in_trace
-from translate import compile_policy, extract, inputs, make_prompt, usage_of
+from translate import compile_policy, extract, inputs, make_prompt, usage_of, translate_one
+from summarize import detection
 from prepare import DEFAULT_RAW
 
 
@@ -57,6 +59,40 @@ class ProtocolTests(unittest.TestCase):
             self.assertFalse((root / 'checkout').is_symlink())
             (root / 'checkout/file').write_text('modified')
             self.assertEqual((root / 'source/file').read_text(), 'baseline')
+
+    def test_scoring_known_confusion_matrix_and_missing_outcomes(self):
+        rows = [dict(violation='1', fired=str(int(i < 66)), status='ok', family='visible_violation') for i in range(114)]
+        rows += [dict(violation='0', fired=str(int(i < 17)), status='ok', family='allowed_effect_compliant') for i in range(76)]
+        result = detection(rows)
+        self.assertEqual(result['detection_rate'], 66/114)
+        self.assertEqual(result['false_trigger_rate'], 17/76)
+        self.assertEqual(result['f1'], 132/197)
+        self.assertEqual(result['agreement_traces'], 0)
+        rows[0].update(status='error', fired='')
+        self.assertEqual(detection(rows)['detection_rate'], '')
+        self.assertEqual(detection(rows)['conditional_detection_rate'], 65/113)
+        rows[0].update(status='translation_failed', fired='0')
+        self.assertEqual(detection(rows)['detection_rate'], 65/114)
+
+    def test_revision_gets_real_compiler_error_and_cache_does_not_resample(self):
+        good = 'source AGENT = exec "**"\nrule test:\n notify exec "git" if AGENT\n because "test"'
+        def response(text):
+            return dict(status='ok', elapsed_s=.01, identity_verified=True,
+                        response_model='qwen3.8-27b-nvfp4',
+                        response={'choices': [{'message': {'content': text}}],
+                                  'usage': {'prompt_tokens': 10, 'completion_tokens': 10}})
+        with tempfile.TemporaryDirectory(dir=DEFAULT_RAW) as temp:
+            raw = Path(temp)
+            (raw / 'dsl-reference.md').write_text('frozen test reference')
+            item = dict(uid='test', repo_dir='test', statement_id='test', directive='No git', source_evidence=[])
+            with patch('translate.api_call', side_effect=[response('not a policy'), response(good)]) as call:
+                result = translate_one(raw, 'rq2', 'qwen3.8-27b-nvfp4', item)
+                self.assertEqual(result['compile_at_1'], 0)
+                self.assertEqual(result['compile_at_3'], 1)
+                self.assertEqual(result['attempts'], 2)
+                self.assertIn('compiler rejected', call.call_args_list[1].args[1][-1]['content'])
+                translate_one(raw, 'rq2', 'qwen3.8-27b-nvfp4', item)
+                self.assertEqual(call.call_count, 2)
 
 
 if __name__ == '__main__':
