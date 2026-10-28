@@ -179,7 +179,8 @@ def classify(a, batch, guide, dims, other):
         if len(batch) > 1 and str(e) != 'model_request_failed':
             mid = len(batch) // 2
             return classify(a, batch[:mid], guide, dims, other) + classify(a, batch[mid:], guide, dims, other)
-        return [dict(statement_id=batch[0]['statement_id'], model=a.model, status='failed', error=str(e)[:160])]
+        return [dict(statement_id=row['statement_id'], model=a.model,
+                     status='failed', error=str(e)[:160]) for row in batch]
 
 
 def run(a):
