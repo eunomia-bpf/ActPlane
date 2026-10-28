@@ -40,6 +40,7 @@ def main():
     config += [('historical_retry_policy', 'batch'), ('scaling_retry_policy', 'invalid'),
                ('local_workers', 4), ('remote_workers', 2),
                ('reduced_and_scale_local_batch_size', 48), ('reduced_and_scale_remote_batch_size', 24)]
+    config += [('max_singleton_schema_repairs', 2)]
     config += [('quota_' + k, v) for k, v in QUOTAS.items()]
     write_csv(HERE / 'study_config.csv', [dict(parameter=k, value=v) for k, v in config])
     cfg = dict(config)
@@ -93,6 +94,7 @@ def main():
         'Equivalent JSON wrappers are normalized without changing labels or source boundaries. Invalid values, missing IDs, and inconsistent cross-axis applicability are rejected and retried, with earlier responses retained in the raw cache. `calibration_schema_errors.csv` records predictions rejected during schema validation. The reported agreement measures the accepted automated labeling pipeline rather than strict first-response JSON compliance.', '',
         'The initial full-axis calibration uses the legacy whole-batch retry policy (`--retry-policy batch`). During scaling, a small number of invalid values caused repeated requests for otherwise valid rows. The revised default retains valid rows and retries only invalid or missing IDs, while ambiguous IDs still reject the whole response. The focused prompt was recalibrated from cached initial requests under this exact revised policy before resuming scaling. `format_calibration_v1_summary.csv` preserves the earlier whole-batch check. The original failed axes remain withheld regardless of the revised check, and the codebook and thresholds are unchanged.', '',
         'The partial first-pass source labels and figures are preserved in branch history and the raw `retry-protocol-v1/` backup. They are superseded by the revised-policy run rather than mixed into its final accepted labels. `retry_protocol.csv` records the versions, and the interruption remains in the run audit.', '',
+        f'An invalid singleton receives up to {cfg["max_singleton_schema_repairs"]} additional schema-repair requests that repeat the permitted values and unchanged coding guide. Persistently invalid responses remain failures. The legacy full-axis calibration does not use this feedback, while the focused calibration and scaled run both do.', '',
         'The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` endpoint and the gateway’s named `zai/glm-5.3` route. The gateway-reported model identity is recorded but its provider weights cannot be independently audited. GLM uses low reasoning effort because its reasoning cannot be disabled. Disagreements are reread by Qwen with anonymized primary labels whose order is deterministically permuted by statement-ID hash. Adjudication remains correlated with a primary model and has no independent human reference.', '',
         '| Model vs paper | Dimension | Applicable gold N | Evaluated N | Raw agreement | Cohen’s kappa |',
         '|---|---|---:|---:|---:|---:|']

@@ -18,6 +18,7 @@ local_workers,4
 remote_workers,2
 reduced_and_scale_local_batch_size,48
 reduced_and_scale_remote_batch_size,24
+max_singleton_schema_repairs,2
 quota_general,200
 quota_agent,75
 quota_noncoding_discovery,50

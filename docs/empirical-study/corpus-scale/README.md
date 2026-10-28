@@ -32,6 +32,8 @@ The initial full-axis calibration uses the legacy whole-batch retry policy (`--r
 
 The partial first-pass source labels and figures are preserved in branch history and the raw `retry-protocol-v1/` backup. They are superseded by the revised-policy run rather than mixed into its final accepted labels. `retry_protocol.csv` records the versions, and the interruption remains in the run audit.
 
+An invalid singleton receives up to 2 additional schema-repair requests that repeat the permitted values and unchanged coding guide. Persistently invalid responses remain failures. The legacy full-axis calibration does not use this feedback, while the focused calibration and scaled run both do.
+
 The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` endpoint and the gateway’s named `zai/glm-5.3` route. The gateway-reported model identity is recorded but its provider weights cannot be independently audited. GLM uses low reasoning effort because its reasoning cannot be disabled. Disagreements are reread by Qwen with anonymized primary labels whose order is deterministically permuted by statement-ID hash. Adjudication remains correlated with a primary model and has no independent human reference.
 
 | Model vs paper | Dimension | Applicable gold N | Evaluated N | Raw agreement | Cohen’s kappa |

@@ -129,7 +129,7 @@ def complete(a, system, payload, budget=4096):
     raise RuntimeError('model_request_failed')
 
 
-def classify(a, batch, guide, dims, other):
+def classify(a, batch, guide, dims, other, schema_retry=0):
     entries = []
     for i, row in enumerate(batch):
         entry = dict(id=i, text=row['text'])
@@ -145,6 +145,11 @@ def classify(a, batch, guide, dims, other):
         'Neither annotation has priority. Return your final judgment, including dimensions that agree.')
     system = guide + '\n' + instruction + '\nReturn JSON only: {"labels": [[id, ' + ', '.join(dims) + '], ...]}. '
     system += 'Return every supplied id exactly once, using only the defined values. Empty inapplicable labels use "". No explanation.'
+    if schema_retry:
+        system += (f'\nSchema repair attempt {schema_retry}: the preceding response was invalid. '
+                   'Use exactly one permitted value for each requested dimension. '
+                   'Type and topic cannot be blank. Apply the same coding guide. Permitted values: '
+                   + json.dumps({d: ALLOWED[d] for d in dims}) + '.')
     try:
         response = complete(a, system, dict(statements=entries),
                             budget=max(2048, len(batch) * 100) if a.model == 'qwen3.8-27b-nvfp4' else 12000)
@@ -192,7 +197,10 @@ def classify(a, batch, guide, dims, other):
         return [result[i] for i in range(len(batch))]
     except Exception as e:
         log(a.raw / 'label-failures.jsonl', dict(at=now(), model=a.model,
-            ids=[r['statement_id'] for r in batch], error=str(e)[:160]))
+            ids=[r['statement_id'] for r in batch], error=str(e)[:160], schema_retry=schema_retry))
+        if (len(batch) == 1 and getattr(a, 'retry_policy', 'invalid') == 'invalid'
+                and str(e) != 'model_request_failed' and schema_retry < 2):
+            return classify(a, batch, guide, dims, other, schema_retry + 1)
         # Split malformed/truncated batches once down to individual statements.
         if len(batch) > 1 and str(e) != 'model_request_failed':
             mid = len(batch) // 2
