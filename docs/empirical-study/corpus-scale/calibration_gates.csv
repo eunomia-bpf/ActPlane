@@ -1,0 +1,5 @@
+dimension,passed,min_final_kappa,min_primary_kappa,min_coverage,reason
+type,False,0.6,0.4,0.98,incomplete_or_below_prespecified_threshold
+topic,False,0.6,0.4,0.98,type_gate_failed
+enforceability,False,0.6,0.4,0.98,type_gate_failed
+context_required,False,0.6,0.4,0.98,enforcement_gate_failed

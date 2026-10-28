@@ -1,0 +1,16 @@
+parameter,value
+snapshot_date,2026-10-28
+stars_min,100
+pushed_since,2025-01-01
+search_results_per_query,100
+paths_per_family,1
+max_file_bytes,128000
+bootstrap_replicates,2000
+bootstrap_seed,20261028
+min_final_kappa,0.6
+min_primary_kappa,0.4
+min_coverage,0.98
+max_excerpt_lines_target,160
+quota_general,200
+quota_agent,75
+quota_noncoding_discovery,50
