@@ -26,6 +26,12 @@ ALLOWED = {'type': ['description', 'directive'], 'topic': TOPICS,
            'context_required': ['', 'none', 'project', 'task']}
 
 
+def protocol_name(a):
+    if getattr(a, 'retry_policy', 'invalid') == 'batch':
+        return 'legacy_batch'
+    return 'invalid_' + getattr(a, 'schema_repair_mode', 'batch') + '_feedback'
+
+
 def guide_for_dimensions(full, dimensions):
     """Keep the original full calibration prompt, focus reduced deployments.
 
@@ -178,7 +184,7 @@ def classify(a, batch, guide, dims, other, schema_retry=0):
                 continue
             result[i] = dict(statement_id=batch[i]['statement_id'], **pred,
                 model=a.model, returned_model=response.get('model', ''), status='ok',
-                adjudicated=bool(other is not None))
+                adjudicated=bool(other is not None), retry_protocol=protocol_name(a))
         missing = set(range(len(batch))) - seen
         if missing and retry_policy == 'batch':
             raise ValueError('missing_ids')
@@ -198,7 +204,8 @@ def classify(a, batch, guide, dims, other, schema_retry=0):
     except Exception as e:
         log(a.raw / 'label-failures.jsonl', dict(at=now(), model=a.model,
             ids=[r['statement_id'] for r in batch], error=str(e)[:160], schema_retry=schema_retry))
-        if (len(batch) == 1 and getattr(a, 'retry_policy', 'invalid') == 'invalid'
+        if ((len(batch) == 1 or getattr(a, 'schema_repair_mode', 'batch') == 'batch')
+                and getattr(a, 'retry_policy', 'invalid') == 'invalid'
                 and str(e) != 'model_request_failed' and schema_retry < 2):
             return classify(a, batch, guide, dims, other, schema_retry + 1)
         # Split malformed/truncated batches once down to individual statements.
@@ -206,7 +213,7 @@ def classify(a, batch, guide, dims, other, schema_retry=0):
             mid = len(batch) // 2
             return classify(a, batch[:mid], guide, dims, other) + classify(a, batch[mid:], guide, dims, other)
         return [dict(statement_id=row['statement_id'], model=a.model,
-                     status='failed', error=str(e)[:160]) for row in batch]
+                     status='failed', error=str(e)[:160], retry_protocol=protocol_name(a)) for row in batch]
 
 
 def run(a):
@@ -225,7 +232,7 @@ def run(a):
             sid = r['statement_id']
             left, right = primary.get(sid, {}), other.get(sid, {})
             if left.get('status') == right.get('status') == 'ok' and all(left.get(d, '') == right.get(d, '') for d in dims):
-                retained.append(dict(left, model='agreement', adjudicated=False))
+                retained.append(dict(left, model='agreement', adjudicated=False, retry_protocol='agreement'))
             elif left.get('status') == right.get('status') == 'ok':
                 pending.append(dict(r, **{d: left.get(d, '') for d in dims}))
             else:
@@ -233,6 +240,11 @@ def run(a):
         rows = pending
     done = {r['statement_id']: r for r in read_csv(a.output)} if a.output.exists() else {}
     for r in done.values():
+        if r.get('status') == 'ok' and not r.get('retry_protocol'):
+            # Existing accepted annotations precede batched schema feedback.
+            r['retry_protocol'] = ('agreement' if r.get('model') == 'agreement' else
+                'legacy_batch' if getattr(a, 'retry_policy', 'invalid') == 'batch' else
+                'invalid_singleton_feedback')
         error = schema_error(r, dims) if r.get('status') == 'ok' else ''
         if error:
             log(a.raw / 'label-schema-errors.jsonl', dict(at=now(), model=a.model,
@@ -259,7 +271,7 @@ def run(a):
             for row in future.result():
                 done[row['statement_id']] = row
             write_csv(a.output, sorted(done.values(), key=lambda r: r['statement_id']),
-                      ['statement_id', *DIMS, 'model', 'returned_model', 'status', 'adjudicated', 'error'])
+                      ['statement_id', *DIMS, 'model', 'returned_model', 'status', 'adjudicated', 'error', 'retry_protocol'])
             print('completed', i, '/', len(batches), 'rows', len(done), flush=True)
     if not batches:
         write_csv(a.output, sorted(done.values(), key=lambda r: r['statement_id']))
@@ -281,6 +293,8 @@ if __name__ == '__main__':
     p.add_argument('--other', type=Path)
     p.add_argument('--retry-policy', choices=['invalid', 'batch'], default='invalid',
                    help='Retry invalid/missing IDs only, or reproduce legacy whole-batch retry.')
+    p.add_argument('--schema-repair-mode', choices=['batch', 'singleton'], default='batch',
+                   help='Apply the unchanged schema feedback before splitting an unusable batch, or reproduce v2 singleton repairs.')
     args = p.parse_args()
     if args.workers > (8 if args.model == 'qwen3.8-27b-nvfp4' else 4):
         p.error('worker count exceeds the shared-endpoint budget')

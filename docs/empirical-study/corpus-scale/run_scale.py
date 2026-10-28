@@ -46,9 +46,13 @@ def main():
         if protocol_path.exists():
             protocols = read_csv(protocol_path)
             for protocol in protocols:
-                if protocol['version'] == 'v2':
+                if protocol['version'] == 'v3':
                     protocol['status'] = 'validated_and_deployed_for_' + '_'.join(dimensions)
+                    protocol['reference_commit'] = subprocess.check_output(
+                        ['git', '-C', str(HERE), 'rev-parse', 'HEAD'], text=True).strip()
             write_csv(protocol_path, protocols)
+        if (HERE / 'calibration-v2').exists():
+            run('compare_reference_versions.py')
     run('extract.py', '--workers', '4')
     run('categorize.py')
     # Give primary measurements the available local slots. Scope classification

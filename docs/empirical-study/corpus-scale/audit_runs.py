@@ -45,6 +45,16 @@ def main(a):
         write_csv(HERE / 'calibration_schema_errors.csv', schema_rows)
     write_csv(HERE / 'model_identity.csv', [dict(requested_model=k[0], returned_model=k[1],
         successful_requests=v) for k, v in sorted(identities.items())])
+    protocol_counts = []
+    for name in ['calibration_qwen', 'calibration_glm', 'calibration_adjudicated',
+                 'format_calibration_qwen', 'format_calibration_glm', 'format_calibration_adjudicated',
+                 'labels_qwen', 'labels_glm', 'labels']:
+        path = HERE / (name + '.csv')
+        if path.exists():
+            counts = Counter((r.get('retry_protocol') or 'not_yet_tagged', r['status']) for r in read_csv(path))
+            protocol_counts.extend(dict(source_file=path.name, retry_protocol=protocol, status=status, rows=count)
+                                   for (protocol, status), count in sorted(counts.items()))
+    write_csv(HERE / 'annotation_protocol_counts.csv', protocol_counts)
     scope_path = HERE / 'file_scopes.csv'
     if scope_path.exists():
         scopes = {(r['repo'], r['content_sha256']): r for r in read_csv(scope_path)}

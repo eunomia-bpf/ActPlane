@@ -32,7 +32,9 @@ The initial full-axis calibration uses the legacy whole-batch retry policy (`--r
 
 The partial first-pass source labels and figures are preserved in branch history and the raw `retry-protocol-v1/` backup. They are superseded by the revised-policy run rather than mixed into its final accepted labels. `retry_protocol.csv` records the versions, and the interruption remains in the run audit.
 
-An invalid singleton receives up to 2 additional schema-repair requests that repeat the permitted values and unchanged coding guide. Persistently invalid responses remain failures. The legacy full-axis calibration does not use this feedback, while the focused calibration and scaled run both do.
+A schema-invalid subset receives up to 2 additional schema-repair requests that repeat the permitted values and unchanged coding guide before binary splitting. Persistently invalid singletons remain failures. The legacy full-axis calibration does not use this feedback.
+
+An observed all-blank-type subset made singleton-only repairs expensive during the scaled run. The current implementation applies the identical schema feedback to an unusable batch before splitting it. Accepted earlier annotations remain frozen. `retry_protocol` records the implementation on each accepted prediction, and `annotation_protocol_counts.csv` summarizes the mixture. The earlier singleton-repair reference outputs and scores are preserved in `calibration-v2/`, and `calibration_protocol_comparison.csv` reports every changed reference value after the batched-repair recheck. Both implementations use the same models, coding guide, and thresholds. Cached initial responses can be reused when rechecking a repair implementation.
 
 The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` endpoint and the gateway’s named `zai/glm-5.3` route. The gateway-reported model identity is recorded but its provider weights cannot be independently audited. GLM uses low reasoning effort because its reasoning cannot be disabled. Disagreements are reread by Qwen with anonymized primary labels whose order is deterministically permuted by statement-ID hash. Adjudication remains correlated with a primary model and has no independent human reference.
 
@@ -67,19 +69,6 @@ Before inspecting the complete calibration, the scaling gate was fixed at final 
 | context_required | False | enforcement_gate_failed |
 
 The historical primary-source audit records 0 missing lines, 0 overlapping lines, and 0 text mismatches under the original validator’s whitespace normalization. 417 spans differ in exact formatting. Calibration uses the recorded annotated text unchanged. New extracted text is copied directly from its source spans and checked for exact fidelity.
-
-When some axes fail, a focused prompt containing only the requested coding-guide axes and examples is calibrated again before scaling. The exact focused prompt and reduced output schema are used for both this check and deployment. This avoids assuming that removing rejected axes leaves predictions unchanged. Definitions, examples, and agreement cutoffs are not tuned against individual errors.
-
-| Reduced-schema model | Dimension | Evaluated N | Cohen’s kappa |
-|---|---|---:|---:|
-| qwen | type | 2116 | 0.815 |
-| qwen | topic | 2116 | 0.693 |
-| glm | type | 2116 | 0.803 |
-| glm | topic | 2116 | 0.661 |
-| adjudicated | type | 2116 | 0.831 |
-| adjudicated | topic | 2116 | 0.680 |
-| inter_model | type | 2116 | 0.792 |
-| inter_model | topic | 2116 | 0.766 |
 
 **Poor agreement:** qwen on context_required (κ=0.147); glm on context_required (κ=0.205); adjudicated on context_required (κ=0.191). These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.
 

@@ -25,7 +25,8 @@ scale_final_adjudication_workers,4
 deferred_optional_scope_workers,3
 reduced_and_scale_local_batch_size,48
 reduced_and_scale_remote_batch_size,24
-max_singleton_schema_repairs,2
+max_schema_repairs_before_split,2
+schema_repair_mode,batch
 quota_general,200
 quota_agent,75
 quota_noncoding_discovery,50

@@ -81,6 +81,18 @@ def main():
             result = classify(args, batch[:1], 'coding guide', ['type'], None)
             checks.append(dict(check='legacy_policy_has_no_new_schema_feedback',
                 passed=request.call_count == 1 and result[0]['status'] == 'failed'))
+        args.retry_policy = 'invalid'
+        calls = []
+        def repair_unusable_batch(_args, system, payload, budget):
+            calls.append(len(payload['statements']))
+            labels = [[i, 'description' if 'Schema repair attempt' in system else '']
+                      for i in range(len(payload['statements']))]
+            import json
+            return dict(model='test', choices=[dict(message=dict(content=json.dumps(dict(labels=labels))))])
+        with patch('label.complete', side_effect=repair_unusable_batch):
+            result = classify(args, batch, 'coding guide', ['type'], None)
+            checks.append(dict(check='unusable_batch_repaired_before_singleton_splitting',
+                passed=calls == [3, 3] and all(r['status'] == 'ok' for r in result)))
     write_csv(HERE / 'label_failure_validation.csv', checks)
     if not all(r['passed'] for r in checks):
         raise SystemExit('Label failure validation failed')
