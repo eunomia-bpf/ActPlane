@@ -1,9 +1,11 @@
 """Checks of scoring-sensitive protocol behavior, not product implementation."""
 import unittest
+import tempfile
+from pathlib import Path
 
 from models import identity_ok
-from replay import notify_policy, runner_label, tools_in_trace
-from translate import extract, inputs, make_prompt
+from replay import copy_fixture, notify_policy, runner_label, tools_in_trace
+from translate import compile_policy, extract, inputs, make_prompt, usage_of
 from prepare import DEFAULT_RAW
 
 
@@ -32,6 +34,29 @@ class ProtocolTests(unittest.TestCase):
     def test_formatting_removal_does_not_repair_bad_syntax(self):
         self.assertEqual(extract('```dsl\nrule nonsense\n```'), 'rule nonsense')
         self.assertEqual(extract('Here is the rule:\ninvalid'), 'Here is the rule:\ninvalid')
+
+    def test_real_cli_acceptance_and_rejection(self):
+        with tempfile.TemporaryDirectory(dir=DEFAULT_RAW) as temp:
+            out = Path(temp)
+            good = 'source AGENT = exec "**"\nrule test:\n notify exec "git" "commit" if AGENT\n because "test"'
+            self.assertTrue(compile_policy(good, out)['ok'])
+            self.assertFalse(compile_policy('not a policy', out)['ok'])
+
+    def test_usage_accepts_optional_null_details(self):
+        data = {'response': {'usage': {'prompt_tokens': 2, 'completion_tokens': 3,
+                                      'prompt_tokens_details': None, 'completion_tokens_details': None}}}
+        self.assertEqual(usage_of(data, 'qwen3.8-27b-nvfp4')['input_tokens'], 2)
+
+    def test_fixture_symlink_is_copied_independently(self):
+        with tempfile.TemporaryDirectory(dir=DEFAULT_RAW) as temp:
+            root = Path(temp)
+            (root / 'source').mkdir()
+            (root / 'source/file').write_text('baseline')
+            (root / 'selected').symlink_to(root / 'source', target_is_directory=True)
+            copy_fixture(root / 'selected', root / 'checkout')
+            self.assertFalse((root / 'checkout').is_symlink())
+            (root / 'checkout/file').write_text('modified')
+            self.assertEqual((root / 'source/file').read_text(), 'baseline')
 
 
 if __name__ == '__main__':

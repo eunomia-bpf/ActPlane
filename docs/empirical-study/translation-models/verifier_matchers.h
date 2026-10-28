@@ -4,7 +4,7 @@
  * change. build_loader.py checks native equivalence before building BPF.
  */
 #ifdef __BPF__
-struct tm_length_buf { char data[TAINT_PAT_LEN + 1]; __u64 a[2], b[2]; };
+struct tm_length_buf { char data[TAINT_PAT_LEN + 1]; __u64 a[8], b[8]; };
 struct {
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
     __uint(max_entries, 1);
@@ -41,8 +41,8 @@ static __always_inline int tm_window(const char *text, const char *pat, int n)
     __u32 key = 0;
     struct tm_length_buf *s = bpf_map_lookup_elem(&tm_length_scratch, &key);
     if (!s) return 0;
-    TE_COPY(s->a, sizeof(s->a), text);
-    TE_COPY(s->b, sizeof(s->b), pat);
+    TE_COPY(s->a, TAINT_SUF_MAX, text);
+    TE_COPY(s->b, TAINT_SUF_MAX, pat);
     return (((s->a[0] ^ s->b[0]) & tm_mask(n)) |
             ((s->a[1] ^ s->b[1]) & tm_mask(n - 8))) == 0;
 #else

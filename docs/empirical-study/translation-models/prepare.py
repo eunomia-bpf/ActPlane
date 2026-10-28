@@ -9,6 +9,8 @@ import json
 from pathlib import Path
 import subprocess
 import tarfile
+import tempfile
+import os
 import urllib.request
 
 HERE = Path(__file__).resolve().parent
@@ -26,10 +28,12 @@ def sha(data):
 
 def csv_write(path, rows):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open('w', newline='') as f:
+    with tempfile.NamedTemporaryFile('w', newline='', dir=path.parent, delete=False, suffix='.csv.tmp') as f:
+        temporary = f.name
         w = csv.DictWriter(f, fieldnames=list(rows[0]), lineterminator='\n')
         w.writeheader()
         w.writerows(rows)
+    os.replace(temporary, path)
 
 
 def export(raw, ref):

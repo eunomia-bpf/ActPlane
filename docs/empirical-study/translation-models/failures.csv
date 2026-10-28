@@ -1,0 +1,12 @@
+corpus,model,uid,status,failure_category
+rq2,qwen3.8-27b-nvfp4,NousResearch__hermes-agent__29,compiler_failure,syntax_or_lowering
+rq2,qwen3.8-27b-nvfp4,OpenPipe__ART__uv_managed_dependencies,compiler_failure,syntax_or_lowering
+rq2,qwen3.8-27b-nvfp4,alibaba__OpenSandbox__kubernetes_apis_make_manifests_generate,compiler_failure,syntax_or_lowering
+rq2,qwen3.8-27b-nvfp4,alibaba__OpenSandbox__sdk_generated_output_not_only_fix,compiler_failure,syntax_or_lowering
+rq2,qwen3.8-27b-nvfp4,browser-use__browser-harness__direct-browser-harness-cli,compiler_failure,syntax_or_lowering
+rq2,zai/glm-4.7-flash,NVIDIA__NemoClaw__s01_private_vulnerability_reporting,access_failure,http_error
+rq2,zai/glm-4.7-flash,NVIDIA__NemoClaw__s02_no_new_javascript_sources,access_failure,http_error
+rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__29,access_failure,transport_error
+rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__s01_use_test_wrapper,access_failure,http_error
+rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__s02_keep_credentials_out_of_repo,access_failure,transport_error
+rq2,claude-opus-4-6,ruvnet__ruflo__29,access_failure,cli_error

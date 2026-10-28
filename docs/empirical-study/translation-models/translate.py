@@ -80,11 +80,16 @@ def compile_policy(text, out):
     start = time.monotonic()
     try:
         p = subprocess.run([str(ROOT / 'target/release/actplane'), '--rule', text, 'compile',
-                            '--out', str(out / 'policy.bin'), '--force', '--json'],
+                            '--out', str(out / 'policy.bin'), '--force'],
                            text=True, capture_output=True, timeout=45)
         (out / 'compile.stdout').write_text(p.stdout)
         (out / 'compile.stderr').write_text(p.stderr)
-        report = json.loads(p.stdout) if p.stdout.startswith('{') else {}
+        report = {}
+        if p.returncode == 0:
+            reviewed = subprocess.run([str(ROOT / 'target/release/actplane'), '--rule', text, 'compile', '--json'],
+                                     text=True, capture_output=True, timeout=45)
+            (out / 'compile-report.json').write_text(reviewed.stdout)
+            report = json.loads(reviewed.stdout) if reviewed.stdout.startswith('{') else {}
         # CLI accepts empty configs; an empty/no-rule answer is not a translation.
         ok = p.returncode == 0 and report.get('rule_count', 0) > 0
         error = p.stderr if p.returncode else '' if ok else 'The policy contains no rules. Return a nonempty DSL policy.'
@@ -101,10 +106,10 @@ def usage_of(response, model):
                     cached_input_tokens=u.get('cache_read_input_tokens', 0),
                     cache_write_tokens=u.get('cache_creation_input_tokens', 0),
                     reasoning_tokens=u.get('output_tokens_details', {}).get('thinking_tokens', 0))
-    u = response.get('response', {}).get('usage', {})
+    u = response.get('response', {}).get('usage') or {}
     return dict(input_tokens=u.get('prompt_tokens', 0), output_tokens=u.get('completion_tokens', 0),
-                cached_input_tokens=u.get('prompt_tokens_details', {}).get('cached_tokens', 0), cache_write_tokens=0,
-                reasoning_tokens=u.get('completion_tokens_details', {}).get('reasoning_tokens', 0))
+                cached_input_tokens=(u.get('prompt_tokens_details') or {}).get('cached_tokens', 0), cache_write_tokens=0,
+                reasoning_tokens=(u.get('completion_tokens_details') or {}).get('reasoning_tokens', 0))
 
 
 def failure_category(text):
@@ -130,7 +135,17 @@ def translate_one(raw, corpus, model, item):
     out.mkdir(parents=True, exist_ok=True)
     cached = out / 'result.json'
     if cached.exists():
-        return json.loads(cached.read_text())
+        previous = json.loads(cached.read_text())
+        terminal = out / f"attempt-{previous['attempts']}" / 'response.json'
+        response = json.loads(terminal.read_text())
+        # Resume an interrupted CLI transport budget, never resample a model
+        # answer or exceed the same three-transport budget used for HTTP.
+        retry_cli = (MODELS[model][1] == 'claude' and previous['status'] == 'access_failure'
+                     and 'TimeoutExpired' in response.get('error', '')
+                     and len(response.get('transport_attempts', [])) < 2)
+        if not retry_cli:
+            return previous
+        (out / 'prior-access-result.json').write_text(cached.read_text())
     prompt = make_prompt(raw, item)
     (out / 'prompt.txt').write_text(prompt)
     messages = [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': prompt}]
@@ -140,17 +155,47 @@ def translate_one(raw, corpus, model, item):
                attempts=0, status='compiler_failure', failure_category='', response_model='', identity_verified=1,
                input_tokens=0, output_tokens=0, cached_input_tokens=0, cache_write_tokens=0, reasoning_tokens=0,
                wall_s=0, api_wall_s=0, compile_wall_s=0, policy_sha256='', policy='', retry_errors=[])
+    row['transport_retries'] = 0
     for attempt in range(1, 4):
         attempt_dir = out / f'attempt-{attempt}'
         attempt_dir.mkdir(exist_ok=True)
+        saved_response = attempt_dir / 'response.json'
+        response = json.loads(saved_response.read_text()) if saved_response.exists() else None
         if MODELS[model][1] in ('claude', 'codex'):
-            # Each retry is a fresh single-turn CLI invocation with the same
-            # conversation transcript, rather than an agent continuation.
+            # Retry only missing CLI responses, with the same bounded transport
+            # budget as HTTP. A returned model answer is never resampled.
             cli_prompt = prompt if attempt == 1 else json.dumps(messages[1:], ensure_ascii=False)
-            response = cli_call(model, cli_prompt, attempt_dir)
+            transports = []
+            if response is not None:
+                transports = response.pop('transport_attempts', [])
+                transports.append(response)
+            while len(transports) < 3 and (not transports or 'TimeoutExpired' in transports[-1].get('error', '')):
+                if transports:
+                    time.sleep(15 * len(transports))
+                transports.append(cli_call(model, cli_prompt, attempt_dir))
+            response = dict(transports[-1])
+            if len(transports) > 1:
+                response['transport_attempts'] = transports[:-1]
+            row['transport_retries'] += len(transports) - 1
+            row['api_wall_s'] += sum(t['elapsed_s'] for t in transports[:-1])
             answer = response.get('text', '')
+        elif response is not None:
+            row['transport_retries'] += len(response.get('transport_attempts', []))
+            row['api_wall_s'] += sum(t['elapsed_s'] for t in response.get('transport_attempts', []))
+            answer = response.get('response', {}).get('choices', [{}])[0].get('message', {}).get('content') or ''
         else:
-            response = api_call(model, messages, session='actplane-translation-models-20261028')
+            transports = []
+            for transport_try in range(3):
+                response = api_call(model, messages, session='actplane-translation-models-20261028')
+                transports.append(response)
+                transient = response.get('http_status') in (429, 502, 503, 504) or response['status'] == 'transport_error'
+                if not transient or transport_try == 2:
+                    break
+                row['transport_retries'] += 1
+                time.sleep(15 * (transport_try + 1))
+            row['api_wall_s'] += sum(t['elapsed_s'] for t in transports[:-1])
+            if len(transports) > 1:
+                response['transport_attempts'] = transports[:-1]
             answer = response.get('response', {}).get('choices', [{}])[0].get('message', {}).get('content') or ''
         (attempt_dir / 'response.json').write_text(json.dumps(response, indent=2) + '\n')
         row['attempts'] = attempt
@@ -178,7 +223,7 @@ def translate_one(raw, corpus, model, item):
         messages += [{'role': 'assistant', 'content': answer},
                      {'role': 'user', 'content': 'The compiler rejected your answer with this error:\n' + error
                       + '\nReturn a revised complete DSL policy only. Do not use tools.'}]
-    row['wall_s'] = round(time.monotonic() - start, 4)
+    row['wall_s'] = round(max(time.monotonic() - start, row['api_wall_s'] + row['compile_wall_s']), 4)
     for k in ('api_wall_s', 'compile_wall_s'):
         row[k] = round(row[k], 4)
     cached.write_text(json.dumps(row, indent=2) + '\n')
@@ -193,6 +238,11 @@ def export_trials(raw, corpus, model):
         r = json.loads(path.read_text())
         r.pop('policy', None)
         r['retry_errors'] = json.dumps(r['retry_errors'], ensure_ascii=False)
+        p = path.parent / f"attempt-{r['attempts']}" / 'compile-report.json'
+        report = json.loads(p.read_text()) if p.exists() and p.read_text().startswith('{') else {}
+        r['rule_count'] = report.get('rule_count', 0)
+        r['backend_unsupported_clauses'] = sum(not c['supported'] for c in report.get('backend_support', {}).get('clauses', []))
+        r['compiler_warnings'] = json.dumps(report.get('warnings', []), ensure_ascii=False)
         rows.append(r)
     if rows:
         csv_write(HERE / f'translations-{corpus}-{model.replace("/", "__")}.csv', rows)
@@ -202,7 +252,7 @@ def run_model(raw, corpus, model, limit=None):
     items = inputs(raw, corpus)
     if limit:
         items = items[:limit]
-    workers = 4 if MODELS[model][1] == 'local' else 2
+    workers = 4 if MODELS[model][1] == 'local' else 4 if model == 'zai/glm-4.7-flash' else 2
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(translate_one, raw, corpus, model, item) for item in items]
         for f in concurrent.futures.as_completed(futures):

@@ -25,7 +25,7 @@ def run(args, cwd, log):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--raw', type=Path, default=DEFAULT_RAW)
-    ap.add_argument('--clang', default='clang-18')
+    ap.add_argument('--clang', default='clang')
     args = ap.parse_args()
     out = args.raw / 'bounded-loader'
     out.mkdir(parents=True, exist_ok=True)
@@ -42,6 +42,14 @@ def main():
     # matchers remain present for native equivalence checks.
     text = text.replace('return taint_suffix(text, pat);', 'return tm_suffix(text, pat);')
     text = text.replace('return taint_contains(text, pat);', 'return tm_contains(text, pat);')
+    # Remove a wrapper frame introduced by file-source materialization. This
+    # changes inlining only, retaining the wrapper's full body and call order.
+    wrapper = 'static __noinline void te_materialize_file_source(pid_t pid,'
+    assert text.count(wrapper) == 1
+    text = text.replace(wrapper, wrapper.replace('__noinline', '__always_inline'))
+    wrapper = 'static __noinline void te_materialize_file_source_domain(pid_t pid,'
+    assert text.count(wrapper) == 1
+    text = text.replace(wrapper, wrapper.replace('__noinline', '__always_inline'))
     engine.write_text(text)
     test = out / 'matcher_equivalence.c'
     test.write_text(r'''
@@ -55,6 +63,17 @@ typedef uint64_t __u64;
 #include "taint.h"
 static int bpf_loop(unsigned n, long (*f)(__u32, void *), void *c, unsigned flags) {
     (void)flags; for (unsigned i=0; i<n; i++) if (f(i,c)) break; return 0;
+}
+/* Exercise the actual BPF matcher branch with deterministic native helpers. */
+#define __BPF__ 1
+#define __uint(name,value) int name
+#define __type(name,type) type *name
+#define SEC(name)
+static void *bpf_map_lookup_elem(void *map, const void *key) {
+    (void)map; (void)key; static _Alignas(8) unsigned char scratch[512]; return scratch;
+}
+static int bpf_probe_read_kernel_str(void *dst, unsigned n, const char *src) {
+    size_t len=strnlen(src,n-1); memcpy(dst,src,len); ((char *)dst)[len]=0; return len+1;
 }
 #include "verifier_matchers.h"
 static uint32_t rng=0x12345678;

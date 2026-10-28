@@ -99,6 +99,8 @@ def cli_call(model, prompt, out):
             result['text'] = data.get('result', '')
             if data.get('is_error'):
                 result.update(status='cli_error', error=data.get('result'))
+            elif data.get('num_turns') != 1 or len(data.get('usage', {}).get('iterations', [])) != 1:
+                result.update(status='protocol_error', error='CLI did not report exactly one model iteration')
         else:
             events = [json.loads(x) for x in proc.stdout.splitlines() if x.startswith('{')]
             result['response'] = events

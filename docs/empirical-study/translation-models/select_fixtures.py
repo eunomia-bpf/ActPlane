@@ -6,6 +6,7 @@ and the last upstream commit before the artifact date against Read/Edit inputs.
 All traces and all models use the same chosen source per repository.
 """
 import json
+import subprocess
 from pathlib import Path
 
 from prepare import DEFAULT_RAW, HERE, csv_write
@@ -41,7 +42,7 @@ def preconditions(repo, traces):
 
 def main():
     raw = DEFAULT_RAW
-    rows, chosen = [], []
+    rows, chosen, statement_rows = [], [], []
     names = sorted({p.parent.parent.name for p in (raw / 'artifact/docs/corpus-test').glob('*/*/statement.json')})
     for name in names:
         current = raw / 'repos' / name
@@ -52,6 +53,9 @@ def main():
             current.rename(saved)
         candidates = sorted(set((raw / 'repository-candidates' / name).glob('*')) |
                             set((raw / 'previous-fixtures' / name).glob('*')))
+        for candidate in candidates:
+            subprocess.run(['git', 'reset', '--hard', 'HEAD'], cwd=candidate, check=True, capture_output=True)
+            subprocess.run(['git', 'clean', '-fdx', '-e', '.fixture-ready'], cwd=candidate, check=True, capture_output=True)
         traces = sorted((raw / 'artifact/docs/corpus-test' / name).glob('*/trace*.jsonl'))
         scores = []
         for p in candidates:
@@ -65,8 +69,20 @@ def main():
             r['selected'] = int(p == selected)
             rows.append(r)
         chosen.append(result.copy())
+        for manifest in sorted((raw / 'artifact/docs/corpus-test' / name).glob('*/statement.json')):
+            sd = manifest.parent
+            traces = [sd / t for t in json.loads(manifest.read_text())['trace_files']]
+            scores = [(preconditions(p, traces), p) for p in candidates]
+            score, selected = max(scores, key=lambda item: (item[0]['edit_matches'], item[0]['read_matches'], item[1].name))
+            link = raw / 'selected-rule-fixtures' / name / sd.name
+            link.parent.mkdir(parents=True, exist_ok=True)
+            if link.is_symlink():
+                link.unlink()
+            link.symlink_to(selected, target_is_directory=True)
+            statement_rows.append(dict(repo=name, statement_id=sd.name, commit=selected.name, **score))
     csv_write(HERE / 'fixture-candidates.csv', rows)
     csv_write(HERE / 'selected-fixtures.csv', chosen)
+    csv_write(HERE / 'selected-statement-fixtures.csv', statement_rows)
     print('selected fixture sources by Read/Edit preconditions')
 
 

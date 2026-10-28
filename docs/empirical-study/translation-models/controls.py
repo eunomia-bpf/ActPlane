@@ -18,24 +18,33 @@ def main():
     statement.mkdir(parents=True, exist_ok=True)
     repo = args.raw / 'repos/fixture'
     repo.mkdir(exist_ok=True)
+    (repo / 'secret.env').write_text('control-secret\n')
     rows = []
     cases = [
         ('exec_positive', 'notify exec "true" if AGENT', 'Bash', {'command': '/bin/true'}),
         ('exec_unconditional', 'notify exec "true" if true', 'Bash', {'command': '/bin/true'}),
         ('write_positive', 'notify write file "*" if AGENT', 'Write', {'file_path': 'canary.txt', 'content': 'canary\n'}),
+        ('bookkeeping_negative', 'notify write file "*" if AGENT', 'Bash', {'command': 'true'}),
         ('write_negative', 'notify write file "*" if SECRET', 'Write', {'file_path': 'canary.txt', 'content': 'canary\n'}),
         ('suffix_positive', 'notify write file "**/*.txt" if AGENT', 'Write', {'file_path': 'canary.txt', 'content': 'canary\n'}),
         ('contains_positive', 'notify write file "protected/**" if AGENT', 'Write', {'file_path': 'protected/canary.txt', 'content': 'canary\n'}),
+        ('read_gate_violation', 'notify write file "out.txt" if AGENT and not SEEN', 'Sequence',
+         [{'type': 'tool_use', 'name': 'Write', 'input': {'file_path': 'out.txt', 'content': 'canary'}}]),
+        ('read_gate_compliant', 'notify write file "out.txt" if AGENT and not SEEN', 'Sequence',
+         [{'type': 'tool_use', 'name': 'Read', 'input': {'file_path': 'secret.env'}},
+          {'type': 'tool_use', 'name': 'Write', 'input': {'file_path': 'out.txt', 'content': 'canary'}}]),
     ]
     for name, clause, tool, inp in cases:
         trace = statement / (name + '.jsonl')
-        records = [{'type': 'ground_truth', 'violation': name != 'write_negative'},
-                   {'type': 'assistant', 'content': [{'type': 'tool_use', 'name': tool, 'input': inp}]}]
+        expected = name not in ('write_negative', 'read_gate_compliant', 'bookkeeping_negative')
+        effects = inp if tool == 'Sequence' else [{'type': 'tool_use', 'name': tool, 'input': inp}]
+        records = [{'type': 'ground_truth', 'violation': expected}]
+        records += [{'type': 'assistant', 'content': [effect]} for effect in effects]
         trace.write_text('\n'.join(map(json.dumps, records)) + '\n')
-        policy = 'source AGENT = exec "**"\nrule control:\n ' + clause + '\n because "kernel replay control"'
+        policy = 'source AGENT = exec "**"\nsource SEEN = file "**/secret.env"\nrule control:\n ' + clause + '\n because "kernel replay control"' if tool == 'Sequence' else 'source AGENT = exec "**"\nrule control:\n ' + clause + '\n because "kernel replay control"'
         out = args.raw / 'controls' / args.tag / name
         row = replay_one(args.raw, statement, trace, 'control', policy, out, loader_bin=args.loader)
-        row['expected_fired'] = int(name != 'write_negative')
+        row['expected_fired'] = int(expected)
         row['control_passed'] = int(row['status'] == 'ok' and row['fired'] == row['expected_fired'])
         rows.append(row)
         print(name, row['status'], row['fired'], row['control_passed'], flush=True)

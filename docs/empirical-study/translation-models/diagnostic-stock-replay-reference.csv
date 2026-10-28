@@ -1,0 +1,52 @@
+agreement,artifact_fired,elapsed_s,error,events,family,fired,kernel,model,notify_sha256,policy_sha256,repo,statement_id,status,tool_errors,trace,violation
+,0,13.7378,"RuntimeError: loader_not_ready: *)(r6 +0)       ; frame5: R3_w=map_value(map=ts_eval_scratch,ks=4,vs=304,off=28) R6_w=fp[4]-32 cb
+1872: (0f) r3 += r1
+value -2147483648 makes map_value pointer be out of bounds
+processed 21128 insns (limit 1000000) max_states_per_insn 17 total_states 387 peak_states 266 mark_read 41
+-- END PROG LOAD LOG --
+libbpf: prog 'exec_tp_rule_complex': failed to load: -EINVAL
+libbpf: failed to load object 'process_bpf'
+libbpf: failed to load BPF skeleton 'process_bpf': -EINVAL
+Failed to load BPF skeleton
+",,allowed_effect_compliant,,6.8.0-138-generic,reference,e45f9d5492cbd6e2ef160b1323004a4d4b251dd69436fc1448bc02a3e344984d,e45f9d5492cbd6e2ef160b1323004a4d4b251dd69436fc1448bc02a3e344984d,Alishahryar1__free-claude-code,6,error,,trace_allowed_effect_compliant.jsonl,0
+,0,13.8227,"RuntimeError: loader_not_ready: *)(r6 +0)       ; frame5: R3_w=map_value(map=ts_eval_scratch,ks=4,vs=304,off=28) R6_w=fp[4]-32 cb
+1872: (0f) r3 += r1
+value -2147483648 makes map_value pointer be out of bounds
+processed 21128 insns (limit 1000000) max_states_per_insn 17 total_states 387 peak_states 266 mark_read 41
+-- END PROG LOAD LOG --
+libbpf: prog 'exec_tp_rule_complex': failed to load: -EINVAL
+libbpf: failed to load object 'process_bpf'
+libbpf: failed to load BPF skeleton 'process_bpf': -EINVAL
+Failed to load BPF skeleton
+",,lookalike_compliant,,6.8.0-138-generic,reference,e45f9d5492cbd6e2ef160b1323004a4d4b251dd69436fc1448bc02a3e344984d,e45f9d5492cbd6e2ef160b1323004a4d4b251dd69436fc1448bc02a3e344984d,Alishahryar1__free-claude-code,6,error,,trace_lookalike_compliant.jsonl,0
+,1,13.6205,"RuntimeError: loader_not_ready: *)(r6 +0)       ; frame5: R3_w=map_value(map=ts_eval_scratch,ks=4,vs=304,off=28) R6_w=fp[4]-32 cb
+1872: (0f) r3 += r1
+value -2147483648 makes map_value pointer be out of bounds
+processed 21128 insns (limit 1000000) max_states_per_insn 17 total_states 387 peak_states 266 mark_read 41
+-- END PROG LOAD LOG --
+libbpf: prog 'exec_tp_rule_complex': failed to load: -EINVAL
+libbpf: failed to load object 'process_bpf'
+libbpf: failed to load BPF skeleton 'process_bpf': -EINVAL
+Failed to load BPF skeleton
+",,visible_violation,,6.8.0-138-generic,reference,e45f9d5492cbd6e2ef160b1323004a4d4b251dd69436fc1448bc02a3e344984d,e45f9d5492cbd6e2ef160b1323004a4d4b251dd69436fc1448bc02a3e344984d,Alishahryar1__free-claude-code,6,error,,trace_visible_violation.jsonl,1
+,1,13.6602,"RuntimeError: loader_not_ready: *)(r6 +0)       ; frame5: R3_w=map_value(map=ts_eval_scratch,ks=4,vs=304,off=28) R6_w=fp[4]-32 cb
+1872: (0f) r3 += r1
+value -2147483648 makes map_value pointer be out of bounds
+processed 21128 insns (limit 1000000) max_states_per_insn 17 total_states 387 peak_states 266 mark_read 41
+-- END PROG LOAD LOG --
+libbpf: prog 'exec_tp_rule_complex': failed to load: -EINVAL
+libbpf: failed to load object 'process_bpf'
+libbpf: failed to load BPF skeleton 'process_bpf': -EINVAL
+Failed to load BPF skeleton
+",,script_visible_violation,,6.8.0-138-generic,reference,e45f9d5492cbd6e2ef160b1323004a4d4b251dd69436fc1448bc02a3e344984d,e45f9d5492cbd6e2ef160b1323004a4d4b251dd69436fc1448bc02a3e344984d,Alishahryar1__free-claude-code,6,error,,trace_script_visible_violation.jsonl,1
+,1,14.6144,"RuntimeError: loader_not_ready: rminates)
+libbpf: prog 'trace_openat_exit': BPF program load failed: -E2BIG
+libbpf: prog 'trace_openat_exit': -- BEGIN PROG LOAD LOG --
+the call stack of 8 frames is too deep !
+processed 378860 insns (limit 1000000) max_states_per_insn 25 total_states 21950 peak_states 5535 mark_read 153
+-- END PROG LOAD LOG --
+libbpf: prog 'trace_openat_exit': failed to load: -E2BIG
+libbpf: failed to load object 'process_bpf'
+libbpf: failed to load BPF skeleton 'process_bpf': -E2BIG
+Failed to load BPF skeleton
+",,opaque_fixture_violation,,6.8.0-138-generic,reference,e45f9d5492cbd6e2ef160b1323004a4d4b251dd69436fc1448bc02a3e344984d,e45f9d5492cbd6e2ef160b1323004a4d4b251dd69436fc1448bc02a3e344984d,Alishahryar1__free-claude-code,6,error,,trace_opaque_fixture_violation.jsonl,1
