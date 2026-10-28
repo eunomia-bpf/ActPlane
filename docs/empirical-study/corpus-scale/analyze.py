@@ -164,6 +164,8 @@ def analyze():
     baseline, baseline_draws = summarize(paper, paper_repos, source='paper_artifact')
     write_csv(HERE / 'paper_summary.csv', baseline)
     if (HERE / 'repositories.csv').exists():
+        from describe_corpus import main as describe_corpus
+        describe_corpus()
         snapshot = read_csv(HERE / 'repositories.csv')
         overview = []
         for dimension in ('stratum', 'language'):

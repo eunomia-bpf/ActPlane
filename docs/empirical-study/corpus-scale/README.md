@@ -86,13 +86,26 @@ A separate `scope_files.py` classifier examines source excerpts to identify actu
 
 Optional scope classification runs alongside primary labeling and ends when the primary analysis is ready. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis.
 
-Intervals use 2,000 bootstrap replicates resampling repositories within discovery strata, with seed 20261028. They describe sensitivity within this convenience sample. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.
+Intervals use 2,000 bootstrap replicates resampling repositories within discovery strata, with seed 20261028. They describe sensitivity within this convenience sample. Sparse groups can yield degenerate intervals without establishing population precision. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.
 
 Headline analysis requires every selected source file in a repository to have complete model pairs and final labels. Incomplete repositories remain in the collection and coverage tables rather than entering project-level denominators with unobserved files treated as negative. This makes interim checkpoints subsets of the final snapshot, not final results.
 
 ## Breakdowns
 
 Full counts, denominators, intervals, and calibration status are in `summary.csv`.
+
+The new sample shares 27 repository identities with the historical sample and adds 298 previously unsampled repositories. 37 historical repositories are not resampled. This is a new convenience sample rather than a longitudinal panel. Repository identity is compared case-insensitively without attempting to resolve renames.
+
+| File family | Selected paths | Repositories | Excluded discovered paths |
+|---|---:|---:|---:|
+| .cursor/rules/* | 19 | 19 | 98 |
+| .cursorrules | 7 | 7 | 1 |
+| .windsurfrules | 1 | 1 | 0 |
+| AGENTS.md | 244 | 244 | 956 |
+| CLAUDE.md | 173 | 173 | 323 |
+| GEMINI.md | 20 | 20 | 80 |
+| SKILL.md | 243 | 243 | 18258 |
+| copilot-instructions.md | 64 | 64 | 2 |
 
 The collected repositories have a star range of 12,209–458,063, with median 40,335. These are snapshot metadata rather than authenticity judgments.
 

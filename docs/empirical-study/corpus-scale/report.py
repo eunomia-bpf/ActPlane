@@ -139,9 +139,21 @@ def main():
         'A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used. The optional OpenCode routes also reject requests with the requested session header, as recorded in `gateway_probes.csv`. A named GLM flash route was used only for a throughput pilot and is not part of the primary calibration.', '',
         'Optional scope classification runs alongside primary labeling and ends when the primary analysis is ready. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis.', '',
         f'Intervals use {BOOTSTRAPS:,} bootstrap replicates resampling repositories within discovery strata, with seed {SEED}. '
-        'They describe sensitivity within this convenience sample. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.', '',
+        'They describe sensitivity within this convenience sample. Sparse groups can yield degenerate intervals without establishing population precision. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.', '',
         'Headline analysis requires every selected source file in a repository to have complete model pairs and final labels. Incomplete repositories remain in the collection and coverage tables rather than entering project-level denominators with unobserved files treated as negative. This makes interim checkpoints subsets of the final snapshot, not final results.', '',
         '## Breakdowns', '', 'Full counts, denominators, intervals, and calibration status are in `summary.csv`.']
+    overlap_path = HERE / 'snapshot_overlap.csv'
+    if overlap_path.exists():
+        overlap = read_csv(overlap_path)[0]
+        lines += ['', f'The new sample shares {overlap["shared_repositories"]} repository identities with the historical sample and adds '
+                  f'{overlap["newly_sampled_repositories"]} previously unsampled repositories. '
+                  f'{overlap["historical_repositories_not_resampled"]} historical repositories are not resampled. '
+                  'This is a new convenience sample rather than a longitudinal panel. Repository identity is compared case-insensitively without attempting to resolve renames.']
+    family_path = HERE / 'family_coverage.csv'
+    if family_path.exists():
+        lines += ['', '| File family | Selected paths | Repositories | Excluded discovered paths |', '|---|---:|---:|---:|']
+        lines.extend(f'| {r["family"]} | {r["selected_paths"]} | {r["selected_repositories"]} | {r["excluded_paths"]} |'
+                     for r in read_csv(family_path))
     overview_path = HERE / 'corpus_overview.csv'
     if overview_path.exists():
         overview = read_csv(overview_path)
