@@ -27,6 +27,10 @@ def verify(raw,require_complete=False):
     check('unique_planned_ids',len(set(p['dynamic_id'] for p in plans)),len(plans))
     check('completed_receipt_count',len(replays),len(plans) if require_complete else len(replays))
     check('no_unplanned_replays',len(set(indexed)-{p['dynamic_id'] for p in plans}),0)
+    check('metadata_preparation_errors',sum(bool(p['preparation_error']) for p in plans),0)
+    cfg=json.loads((HERE/'dynamic_config.json').read_text())
+    for framework,model in cfg['groups']:
+        check(framework+'_'+model+'_planned_count',sum((p['framework'],p['model'])==(framework,model) for p in plans),cfg['per_group'])
     check('unique_call_ids',len(set(c['call_id'] for c in calls)),len(calls))
     known_tags=set()
     for plan in plans:
@@ -52,7 +56,8 @@ def verify(raw,require_complete=False):
         check(ident+'_new_tags',len(tags&known_tags),0)
         known_tags|=tags
         check(ident+'_unknown_lineage_tags',len({tag for tag,kind,path in counts}-tags),0)
-        check(ident+'_one_dispatcher_per_call',sum(n for (tag,kind,path),n in counts.items() if kind==9),len(receipts))
+        check(ident+'_one_dispatcher_per_launched_call',sum(n for (tag,kind,path),n in counts.items() if kind==9),
+              sum(not r.get('worker_error') for r in receipts))
         check(ident+'_bytes_have_write_counts',sum(key not in counts for key in byte_counts),0)
         check(ident+'_nonnegative_events',sum(n<0 for n in counts.values()),0)
     overall=next(r for r in summaries if (r['framework'],r['model'],r['classification'])==('ALL','ALL','ALL'))

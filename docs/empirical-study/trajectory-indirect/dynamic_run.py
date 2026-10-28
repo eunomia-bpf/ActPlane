@@ -256,7 +256,12 @@ if __name__=='__main__':
     parser.add_argument('--raw',type=Path,required=True)
     parser.add_argument('--ids',default='')
     parser.add_argument('--keep-runtime',action='store_true')
+    parser.add_argument('--observer-string-bytes',type=int,default=None,
+                        help='Instrumentation retry override, retained in per-run observer metadata')
     args=parser.parse_args()
+    if args.observer_string_bytes is not None:
+        if args.observer_string_bytes<256:parser.error('observer string buffer must be at least 256 bytes')
+        CFG['observer_string_bytes']=args.observer_string_bytes
     root=args.raw/'dynamic';root.mkdir(exist_ok=True)
     checked(['gcc','-O2','-Wall','-Wextra',str(HERE/'launch.c'),'-o',str(root/'launch')],root/'build-launch.log')
     plans=list(csv.DictReader((HERE/'dynamic_plan.csv').open()))

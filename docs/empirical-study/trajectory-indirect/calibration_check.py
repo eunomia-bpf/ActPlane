@@ -16,8 +16,9 @@ from analyze import HERE,write_csv
 from dynamic_effects import parse_observer
 
 
-def check(raw):
-    counts,byte_counts,errors=parse_observer(raw/'dynamic/calibration/observer-identity.jsonl')
+def check(raw,evidence=None):
+    evidence=evidence or raw/'dynamic/calibration/observer-identity.jsonl'
+    counts,byte_counts,errors=parse_observer(evidence)
     expected={(1,'/project/direct.txt'):1,(1,'/project/hidden.txt'):1,(1,'/project/vector.txt'):2,(1,'/project/copied.txt'):1,
               (2,'/usr/bin/python3'):1,(2,'/bin/true'):1,(2,'/bin/false'):1,(3,'/project/hidden.txt'):1,(9,'/bin/bash'):1}
     rows=[]
@@ -25,11 +26,13 @@ def check(raw):
         got=counts.get(('apti6e999999',kind,path),0)
         rows.append(dict(probe_case='namespace-scalar-vector-pwrite-copy-truncate-descendants',kind=kind,path=path,
                          expected=want,observed=got,observed_bytes=byte_counts.get(('apti6e999999',kind,path),0),
-                         passed=int(got==want),observer_sha256=hashlib.sha256((HERE/'observer.bt').read_bytes()).hexdigest()))
+                         passed=int(got==want),observer_sha256=hashlib.sha256((HERE/'observer.bt').read_bytes()).hexdigest(),
+                         evidence=str(evidence.relative_to(raw))))
     false_writes=sum(n for (tag,kind,path),n in counts.items() if tag=='apti6e999998' and kind==1)
     rows.append(dict(probe_case='preallocation-followed-by-stdout-is-not-data-write',kind=1,path='allocated-only',
                      expected=0,observed=false_writes,observed_bytes=0,passed=int(false_writes==0),
-                     observer_sha256=hashlib.sha256((HERE/'observer.bt').read_bytes()).hexdigest()))
+                     observer_sha256=hashlib.sha256((HERE/'observer.bt').read_bytes()).hexdigest(),
+                     evidence=str(evidence.relative_to(raw))))
     assert not errors and all(r['passed'] for r in rows),'calibration failed'
     write_csv(HERE/'dynamic_calibration.csv',rows)
     preflight=[

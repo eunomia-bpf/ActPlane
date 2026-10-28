@@ -253,7 +253,12 @@ The replay requires Linux tracing privileges, BTF, bpftrace, bubblewrap, a C com
 python3 dynamic_prepare.py --raw "$RAW"
 UV_PYTHON_INSTALL_DIR="$RAW/dynamic/toolchains" UV_PYTHON_BIN_DIR="$RAW/dynamic/toolbin" uv python install 3.9.25 3.12.16
 python3 dynamic_run.py --raw "$RAW"
+python3 dynamic_retry.py --raw "$RAW"
+python3 dynamic_calibrate.py --raw "$RAW"
 python3 dynamic_effects.py --raw "$RAW"
+python3 dynamic_attempts.py --raw "$RAW"
+python3 dynamic_verify.py --raw "$RAW" --require-complete
+python3 dynamic_provenance.py --raw "$RAW"
 python3 report.py
 ```
 

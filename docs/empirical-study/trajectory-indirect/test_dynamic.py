@@ -29,6 +29,9 @@ def test_globs_are_shell_words_not_embedded_program_arithmetic():
 
 def test_truncation_is_unknown():
     assert visibility('/repo/very_long..',{'command':'make'},'/repo','write')['named']==-1
+    path='/repo/'+('nested/'*40)+'out.txt'
+    assert visibility(path,{'command':'cat out.txt'},'/repo','write')['named']==-1
+    assert visibility(path,{'command':'cat out.txt'},'/repo','write',1024)['named']==1
 
 
 def test_edit_and_patch_apply_bytes_without_oracle(tmp_path,monkeypatch):

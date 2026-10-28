@@ -1,0 +1,41 @@
+component,exit_code,value
+host_kernel,0,Linux 7.3.0-070300rc3-generic #202609132247 SMP PREEMPT_DYNAMIC Sun Sep 13 23:07:09 UTC 2026 x86_64 GNU/Linux
+bpftrace,0,bpftrace v0.23.2
+bubblewrap,0,bubblewrap 0.12.0
+gcc,0,14.2.0
+git,0,git version 2.55.0
+system_python,0,Python 3.13.5
+node,0,v20.19.2
+npm,0,9.2.0
+java,0,"openjdk version ""21.0.13"" 2026-10-20
+OpenJDK Runtime Environment (build 21.0.13+9-1-deb13u2-Debian)
+OpenJDK 64-Bit Server VM (build 21.0.13+9-1-deb13u2-Debian, mixed mode, sharing)"
+maven,0,"[1mApache Maven 3.9.9[m
+Maven home: /usr/share/maven
+Java version: 21.0.13, vendor: Debian, runtime: /usr/lib/jvm/java-21-openjdk-amd64
+Default locale: en, platform encoding: UTF-8
+OS name: ""linux"", version: ""7.3.0-070300rc3-generic"", arch: ""amd64"", family: ""unix"""
+go,0,go version go1.24.4 linux/amd64
+rustc,0,rustc 1.98.1 (48a229cea 2026-09-01)
+cargo,0,cargo 1.98.1 (797e8a9bc 2026-08-05)
+source_sha256:analyze.py,0,edb4e5d336d077b1da16e6a8b6f1a407e0fed3a7a85ca5106fe405bfd63356a8
+source_sha256:calibration_check.py,0,26e1fa587d14e9dc5b73e348f26b81be7102c87f372556d38e374874f212160c
+source_sha256:collect.py,0,fa613e61095f7aa58111bff2c65033ff09542414b7a7cb34e7ea5918817a09ee
+source_sha256:dynamic_attempts.py,0,d0169fb946e9de47f619ceced51a64553101c408d31d27611596c0187ac69af9
+source_sha256:dynamic_calibrate.py,0,40203fdc87024488d100215b45573c0a54b7261f86dd948f19a407a6b8320a54
+source_sha256:dynamic_effects.py,0,6dba8f1a9e7455ecc641ed1b57a398fd6a494ed9d68f6efeaa16a5ef94122185
+source_sha256:dynamic_prepare.py,0,0f9ad203480cc0a176b37a51ba5a4de15e7e21e2ce9c683a11be4eb1b48d4b5e
+source_sha256:dynamic_provenance.py,0,3fd8ffa9b0b257abdc6353c7991aa865d21ffb0bb813bfba25040207d61b80d9
+source_sha256:dynamic_report.py,0,fdaeb2726d8ccce9008be98811256765e7c5cddddc648df24ec02271405d8cb3
+source_sha256:dynamic_retry.py,0,1510d5d8deea4ee919b683e6d4beb1dd278974543319b0b1c256b348c60c4043
+source_sha256:dynamic_run.py,0,e2c059ce2c0eab86e0b05fdf4314b251bd10ab92ecacc612d42dccc5eb3d9a12
+source_sha256:dynamic_verify.py,0,b1ea287402c03818644c166a17218f6a4b3755a829f62335559e3f9d65a456eb
+source_sha256:dynamic_watch.py,0,f0cde3435b0678fc5bad55b81a93882ea2d5007568f9dcfc2ad58ab090049057
+source_sha256:probe.py,0,10c2b477b7987439fff85fb865b37f1e82da7578ca473b146cf20eb085b9c2e5
+source_sha256:replay_tools.py,0,45acfee26aa7b3fa562d56d6d04d0eca1e222d337059e40ff0dfd299edb96587
+source_sha256:replay_worker.py,0,82e383bcdfe63f0b18e235a9479f748e8fe6f47758dec97b03b6e0c603c25b4f
+source_sha256:report.py,0,a393265fa4c1d070f21627283dcc96998d3262f3f25d67f08952bfc85f10b7ef
+source_sha256:test_analyze.py,0,6e918ab6b7272c2b78861ccd893cbe5d0b426e5f938acee4eee73c19035bf7c4
+source_sha256:test_dynamic.py,0,9c7b5109dbb64693de878bf5f26f9b8ee92feae7804c862fe275b8d609b27aa7
+source_sha256:validate.py,0,a64273dd406fcdef297b6f130feed453f1b55bb03bef671515f9a3c0b8ff08c8
+source_sha256:verify.py,0,c864d500130ed24bd85414fba9185ad6bf17440899c5c8834b84bdb7aea0302e

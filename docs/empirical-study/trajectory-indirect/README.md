@@ -4,49 +4,59 @@
 
 ## Dynamic replay validation
 
-**Interim: 3 of 40 planned replay receipts are available.** The [fixed plan](dynamic_plan.csv) was selected by a committed hash ranking, paired by task within each source. It includes exact base commits recovered from pinned task metadata. No task was replaced based on replay success. Recorded calls are replayed in order against a fresh checkout in a private local PID/mount namespace. Shell command strings remain as recorded. Dedicated edits are implemented as direct file writes by the committed adapter. The coordinator, environment setup, and injected dispatchers are excluded from observed effects. No oracle or verifier patches are applied.
+**Interim: 13 of 40 planned replay receipts are available.** **Observer errors remain. Effect tables are diagnostics pending instrumentation retries.** The [fixed plan](dynamic_plan.csv) was selected by a committed hash ranking, paired by task within each source. It includes exact base commits recovered from pinned task metadata. No task was replaced based on replay success. Recorded calls are replayed in order against a fresh checkout in a private local PID/mount namespace. Shell command strings remain as recorded. Dedicated edits are implemented as direct file writes by the committed adapter. The coordinator, environment setup, and injected dispatchers are excluded from observed effects. No oracle or verifier patches are applied. [dynamic_metadata_manifest.csv](dynamic_metadata_manifest.csv) records pinned metadata versions, task-archive hashes, and license caveats. The pinned SWE-bench Verified card does not state a dataset license, and no separate native task-data license was verified. Derived tables, brief call previews, and source locators are committed, while full task archives and transcripts stay external and third-party source terms remain applicable.
 
-Across the available receipts, the observer recorded **127,276 successful regular-file write operations**, of which **99.99% were unnamed**, and **346 successful execs**, of which **70.23% were unnamed**. These pooled event totals are affected by large installations. Counting each distinct `(call, object)` pair once gives **99.98% unnamed write pairs** and **50.64% unnamed exec pairs**. Unresolved/truncated object paths are kept in the denominator and separately counted: 0 write events and 0 exec events. The reported unnamed fractions therefore use the lower endpoint for unresolved names.
+Across the available receipts, the observer recorded **1,290,887 successful regular-file write operations**, of which **98.45% were unnamed**, and **3,974 successful execs**, of which **68.92% were unnamed**. At least one unnamed write or exec was observed for **113 of 460 recorded calls (24.57%)**. These pooled event totals are affected by large installations. Counting each distinct `(call, object)` pair once gives **99.97% unnamed write pairs** and **41.27% unnamed exec pairs**. Unresolved/truncated object paths are kept in the denominator and separately counted: 3 write events and 0 exec events. The reported unnamed fractions therefore use the lower endpoint for unresolved names.
 
-An object in these tables is a resolved path, not an inode or a unique process. To avoid weighting trajectories by installation volume, the following medians give each trajectory with the relevant captured effects equal weight. Trajectories with no captured effect of that kind have an undefined fraction and remain in the call/fidelity denominators. [dynamic_trajectory_summary.csv](dynamic_trajectory_summary.csv) contains every replay receipt.
+An object in these tables is a kernel-resolved regular-file path for writes or the requested executable pathname of a successful exec syscall. It is not an inode or a unique process. Executable aliases, symlinks, and interpreter loading are not expanded into additional exec effects. To avoid weighting trajectories by installation volume, the following medians give each trajectory with the relevant captured effects equal weight. Trajectories with no captured effect of that kind have an undefined fraction and remain in the call/fidelity denominators. [dynamic_trajectory_summary.csv](dynamic_trajectory_summary.csv) contains every replay receipt.
 
 | Effect | Weighting within trajectory | Trajectories with effects | Median unnamed fraction |
 |---|---|---:|---:|
-| write | events | 3 | 99.96% |
-| write | objects | 3 | 98.99% |
-| exec | events | 3 | 62.75% |
-| exec | objects | 3 | 51.35% |
+| write | events | 13 | 99.96% |
+| write | objects | 13 | 99.84% |
+| exec | events | 13 | 49.79% |
+| exec | objects | 13 | 41.51% |
 
 
 | Replayed framework / recorded model | Traj. | Recorded calls | Executed | Exit zero | Unnamed write events | Unnamed exec events |
 |---|---:|---:|---:|---:|---:|---:|
-| Claude Code / fable-5 | 3 | 94 | 94 | 89 | 99.99% | 70.23% |
+| Claude Code / fable-5 | 10 | 410 | 410 | 373 | 98.45% | 72.09% |
+| Codex / gpt-5.6-sol | 3 | 50 | 50 | 36 | 100.00% | 42.32% |
 
-These are effects observed during replays of recorded trajectories, not original OS telemetry. 5 calls exited nonzero and 0 timed out. All recorded calls in completed receipts remain in denominators, including unexecuted calls after a fatal replay error. There are 0 fatal replay receipts and 1 failed setup steps. Nonzero commands can still produce effects, which are counted. The source of each failure and original/replayed call statuses are retained in [dynamic_calls.csv](dynamic_calls.csv), [dynamic_replays.csv](dynamic_replays.csv), and external command logs. The observer error count is 0. A nonzero observer error count invalidates complete-census claims and must be resolved before treating a final sample as complete.
+These are effects observed during replays of recorded trajectories, not original OS telemetry. 51 calls exited nonzero and 1 timed out. All recorded calls in completed receipts remain in denominators, including unexecuted calls after a fatal replay error. There are 0 fatal replay receipts and 5 failed setup steps. Nonzero commands can still produce effects, which are counted. Exit zero means command completion, not agreement with original test outcomes or task resolution. [dynamic_fidelity.csv](dynamic_fidelity.csv) cross-tabulates source-reported status and replay outcome, retaining unavailable source statuses. The source of each failure and original/replayed call statuses are retained in [dynamic_calls.csv](dynamic_calls.csv), [dynamic_replays.csv](dynamic_replays.csv), and external command logs. The observer error count is 3. A nonzero observer error count invalidates complete-census claims and must be resolved before treating a final sample as complete.
 
 ### Visibility definition and measured operations
 
 A write targets a named object if its literal basename occurs as a standalone token anywhere in the original argument values, or if a visible shell-style glob matches it. Executable basenames permit PATH resolution. Inline source and editor content count as argument values. This deliberately liberal rule can match a same-named object in another directory, so it is conservative about declaring effects unnamed. A directory name alone does not enumerate descendants. [dynamic_effects.py](dynamic_effects.py) also retains strict full/relative-path matching as a sensitivity result. String truncation is classified as unresolved, rather than unnamed. An `exec` is a successful execve/execveat, not a fork. The injected dispatcher is tracked separately, and the supplied patch shim's injected Python exec is removed one-for-one from its observed helper exec count.
 
-The eBPF observer follows tagged thread lineages using initial-namespace kernel thread IDs and resolves regular-file paths at `security_file_permission`. It counts successful VFS scalar, vectored, positioned, copied, sendfile, and clone writes. It separately records explicit VFS truncations. It excludes pipes/sockets and does not claim a census of every filesystem mutation: empty-file creation, namespace operations, memory-mapped dirtying, and some asynchronous/offloaded paths can be missed. The primary percentages concern the captured positive-byte regular-file write operations and successful execs. The first harness exec is excluded. [dynamic_calibration.csv](dynamic_calibration.csv) checks observed scalar/vector/positioned/copy/truncate/descendant behavior inside an isolated namespace. [dynamic_preflight.csv](dynamic_preflight.csv) and the `dynamic_pilot_*` CSVs retain development failures, including map overflow and a shared-cache pilot. Those pilot observations are excluded from the fixed private-cache sample.
+The eBPF observer follows tagged thread lineages using initial-namespace kernel thread IDs and resolves regular-file paths at `security_file_permission`. It counts successful VFS scalar, vectored, positioned, copied, sendfile, and clone writes. It separately records explicit VFS truncations. It excludes pipes/sockets and does not claim a census of every filesystem mutation: empty-file creation, namespace operations, memory-mapped dirtying, and some asynchronous/offloaded paths can be missed. The primary percentages concern the captured positive-byte regular-file write operations and successful execs. The first harness exec is excluded. [dynamic_calibration.csv](dynamic_calibration.csv) checks observed scalar/vector/positioned/copy/truncate/descendant behavior inside an isolated namespace. [dynamic_preflight.csv](dynamic_preflight.csv) and the `dynamic_pilot_*` CSVs retain development failures, including map overflow and a shared-cache pilot. Those pilot observations are excluded from the fixed private-cache sample. A later negative preallocation/stdout check exposed stale path attribution. File-identity guards corrected it. All earlier private-cache attempts are retained in `dynamic_diagnostic_v1_*` and excluded, and the unchanged fixed cohort was restarted with the corrected observer. [dynamic_verification.csv](dynamic_verification.csv) checks that published replay receipts share the corrected observer hash, cover the planned calls, and reconcile with raw map counts.
 
 ### Calls labeled indirect versus direct
 
 | Static primary class | Calls | Write events | Unnamed writes | Exec events | Unnamed execs |
 |---|---:|---:|---:|---:|---:|
-| direct_edit | 15 | 15 | 0.00% | 0 | n/a |
-| direct_shell | 1 | 0 | n/a | 3 | 0.00% |
-| indirect | 17 | 127,261 | >99.99% | 309 | 78.64% |
-| read_only | 61 | 0 | n/a | 34 | 0.00% |
+| direct_edit | 61 | 61 | 0.00% | 0 | n/a |
+| direct_shell | 5 | 0 | n/a | 16 | 0.00% |
+| indirect | 107 | 1,161,961 | 99.92% | 3,341 | 78.27% |
+| inline_code | 10 | 0 | n/a | 25 | 0.00% |
+| read_only | 264 | 15 | 100.00% | 442 | 14.93% |
+| unknown | 13 | 128,850 | 85.23% | 150 | 38.67% |
 
-The physical validation target is a call with at least one observed unnamed write or exec. `indirect` is the positive prediction. All other primary classes are negative, including the separately reported inline-code class. The tables distinguish all recorded calls, executed calls, effects-producing calls, and the subset labeled indirect or a direct mutation. Thus command failures are visible in the main denominator, rather than being silently discarded. Precision and recall are descriptive for this replay and visibility definition.
+The physical validation target is a call with at least one observed unnamed write or exec. `indirect` is the positive prediction. All other primary classes are negative, including the separately reported inline-code class. The tables distinguish all recorded calls, executed calls, exit-zero calls, effects-producing calls, and the subset labeled indirect or a direct mutation. Thus command failures are visible in the main denominator, rather than being silently discarded. Precision and recall are descriptive for this replay and visibility definition.
 
 | Call denominator | Calls | TP | FP | FN | TN | Precision | Recall |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| all_recorded_calls | 94 | 12 | 5 | 0 | 77 | 70.6% | 100.0% |
-| executed_calls | 94 | 12 | 5 | 0 | 77 | 70.6% | 100.0% |
-| effectful_calls | 50 | 12 | 5 | 0 | 33 | 70.6% | 100.0% |
-| indirect_vs_direct | 33 | 12 | 5 | 0 | 16 | 70.6% | 100.0% |
+| all_recorded_calls | 460 | 69 | 38 | 44 | 309 | 64.5% | 61.1% |
+| executed_calls | 460 | 69 | 38 | 44 | 309 | 64.5% | 61.1% |
+| successful_calls | 409 | 53 | 25 | 40 | 291 | 67.9% | 57.0% |
+| effectful_calls | 311 | 69 | 38 | 44 | 160 | 64.5% | 61.1% |
+| indirect_vs_direct | 173 | 69 | 38 | 0 | 66 | 64.5% | 100.0% |
+
+
+| Replayed framework / model | Calls | TP | FP | FN | Precision | Recall |
+|---|---:|---:|---:|---:|---:|---:|
+| Claude Code / fable-5 | 410 | 57 | 38 | 6 | 60.0% | 90.5% |
+| Codex / gpt-5.6-sol | 50 | 12 | 0 | 38 | 100.0% | 24.0% |
 
 [dynamic_confusion.csv](dynamic_confusion.csv) also reports unresolved truth counts and corresponding precision/recall bounds. A failed or unexecuted call is not evidence that the original deployment had no indirect effect. Unsupported tool substitution, dependency failures, malformed normalized commands, different runtime versions, time limits, and initial environment differences limit transfer to original executions.
 
@@ -54,16 +64,16 @@ The physical validation target is a call with at least one observed unnamed writ
 
 | Observed file-write location | Write operations | Unnamed operations | Distinct (call, file) pairs | Unnamed pairs |
 |---|---:|---:|---:|---:|
-| home | 98 | 100.00% | 98 | 100.00% |
-| package_cache | 55,078 | 100.00% | 45,376 | 100.00% |
-| project_generated | 64,482 | >99.99% | 51,147 | >99.99% |
-| project_other | 232 | 93.53% | 224 | 93.30% |
-| system_or_other | 36 | 100.00% | 18 | 100.00% |
-| temporary | 7,350 | 100.00% | 4,886 | 100.00% |
+| home | 312 | 100.00% | 303 | 100.00% |
+| package_cache | 213,632 | 99.58% | 81,197 | >99.99% |
+| project_generated | 117,497 | >99.99% | 101,319 | >99.99% |
+| project_other | 96,577 | 99.94% | 81,663 | 99.93% |
+| system_or_other | 109 | 97.25% | 54 | 98.15% |
+| temporary | 862,760 | 97.79% | 15,494 | 99.91% |
 
-`project_generated` identifies conventional generated/build/cache components, including Git metadata, bytecode, virtual environments, node_modules, target, build, and dist. `project_other` covers remaining files below the project root. These are path conventions, not an intent or security judgment. Both rows are included in the project-tree fraction. Package-cache and environment writes are genuine replay effects but can dominate pooled counts. Private per-trajectory caches prevent a preceding model's replay from warming a later one. Setup effects are excluded. Disposable runtime trees are removed after source commits, command receipts, freeze records, final diffs, and observer data are saved. Full per-call object records are in the external `dynamic/effects.jsonl.gz`; [dynamic_effect_sample.csv](dynamic_effect_sample.csv) gives a committed sample.
+`project_generated` identifies conventional generated/build/cache components, including Git metadata, bytecode, virtual environments, node_modules, target, build, and dist. `project_other` covers remaining files below the project root. These are path conventions, not an intent or security judgment. Both rows are included in the project-tree fraction. Package-cache and environment writes are genuine replay effects but can dominate pooled counts. Private per-trajectory caches prevent a preceding model's replay from warming a later one. Instrumentation failures, including long-path buffer errors, trigger a retained full-sequence retry of the same task with a larger buffer. Command or setup failures alone do not trigger this procedure. [dynamic_attempts.csv](dynamic_attempts.csv) accounts for primary and excluded attempts, while [dynamic_replays.csv](dynamic_replays.csv) records the actual path-buffer size of each primary attempt. Setup effects are excluded. Disposable runtime trees are removed after source commits, command receipts, freeze records, final diffs, and observer data are saved. Full per-call object records are in the external `dynamic/effects.jsonl.gz`; [dynamic_effect_sample.csv](dynamic_effect_sample.csv) gives hash-ranked examples balanced across static class, effect kind, and path scope.
 
-[dynamic_effects.pdf](dynamic_effects.pdf) compares distinct call-object fractions by model group and static class, with embedded TrueType fonts. [dynamic_report_metrics.csv](dynamic_report_metrics.csv) records report totals. The cohort is a paired, descriptive sample with best-effort environments, not a causal comparison of models or frameworks.
+[dynamic_effects.pdf](dynamic_effects.pdf) compares distinct call-object fractions by model group and static class, with embedded TrueType fonts. [dynamic_report_metrics.csv](dynamic_report_metrics.csv) records report totals. The cohort is a paired, descriptive sample with best-effort environments, not a causal comparison of models or frameworks. [dynamic_evidence_manifest.csv](dynamic_evidence_manifest.csv) hashes retained metadata, call receipts, command logs, and observer evidence. [dynamic_host_environment.csv](dynamic_host_environment.csv) records local tool versions and analysis-source hashes.
 
 ## Static results
 
@@ -190,7 +200,12 @@ The replay requires Linux tracing privileges, BTF, bpftrace, bubblewrap, a C com
 python3 dynamic_prepare.py --raw "$RAW"
 UV_PYTHON_INSTALL_DIR="$RAW/dynamic/toolchains" UV_PYTHON_BIN_DIR="$RAW/dynamic/toolbin" uv python install 3.9.25 3.12.16
 python3 dynamic_run.py --raw "$RAW"
+python3 dynamic_retry.py --raw "$RAW"
+python3 dynamic_calibrate.py --raw "$RAW"
 python3 dynamic_effects.py --raw "$RAW"
+python3 dynamic_attempts.py --raw "$RAW"
+python3 dynamic_verify.py --raw "$RAW" --require-complete
+python3 dynamic_provenance.py --raw "$RAW"
 python3 report.py
 ```
 
@@ -198,4 +213,4 @@ The committed sample plan and task metadata hashes identify exact repository bas
 
 ## Paper-ready motivation paragraph
 
-Preliminary results. Tool-call arguments do not enumerate every effect of coding-agent execution. We statically analyzed 89,176 recorded calls and replayed 3 public trajectories under eBPF observation. In these best-effort replays, 99.99% of observed regular-file write operations and 70.23% of successful execs had no matching literal object basename or explicit glob in the initiating call's arguments. Restricting writes to project trees, 99.97% of distinct call-file pairs were unnamed. The replay attempted 94 of 94 calls, with 94.7% exiting successfully. These observations motivate enforcement where effects occur, while measuring visibility rather than policy violations. The replays use minimal environments and substitute edit tools, so they do not reconstruct the original deployments.
+Dynamic validation is in progress. The current 13 replay receipts contain 3 observer errors. Paper-ready quantitative replay claims are withheld until the same affected trajectories have been replayed with corrected instrumentation. All earlier attempts remain recorded, and no sampled task is replaced based on command or setup success.

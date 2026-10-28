@@ -1,23 +1,32 @@
 framework,model,path_scope,effect,events,unnamed_events,unknown_events,unnamed_pct,call_object_pairs,unnamed_call_object_pairs,unnamed_call_object_pct
-ALL,ALL,environment,exec,2,2,0,100.0,2,2,100.0
-ALL,ALL,home,exec,9,9,0,100.0,9,9,100.0
-ALL,ALL,home,write,98,98,0,100.0,98,98,100.0
-ALL,ALL,package_cache,exec,7,7,0,100.0,4,4,100.0
-ALL,ALL,package_cache,write,55078,55078,0,100.0,45376,45376,100.0
-ALL,ALL,project_generated,exec,24,19,0,79.16666666666667,6,2,33.333333333333336
-ALL,ALL,project_generated,write,64482,64480,0,99.99689835923203,51147,51145,99.99608970223082
-ALL,ALL,project_other,write,232,217,0,93.53448275862068,224,209,93.30357142857143
-ALL,ALL,system_or_other,exec,304,206,0,67.76315789473684,135,62,45.925925925925924
-ALL,ALL,system_or_other,write,36,36,0,100.0,18,18,100.0
-ALL,ALL,temporary,write,7350,7350,0,100.0,4886,4886,100.0
-Claude Code,fable-5,environment,exec,2,2,0,100.0,2,2,100.0
-Claude Code,fable-5,home,exec,9,9,0,100.0,9,9,100.0
-Claude Code,fable-5,home,write,98,98,0,100.0,98,98,100.0
-Claude Code,fable-5,package_cache,exec,7,7,0,100.0,4,4,100.0
-Claude Code,fable-5,package_cache,write,55078,55078,0,100.0,45376,45376,100.0
-Claude Code,fable-5,project_generated,exec,24,19,0,79.16666666666667,6,2,33.333333333333336
-Claude Code,fable-5,project_generated,write,64482,64480,0,99.99689835923203,51147,51145,99.99608970223082
-Claude Code,fable-5,project_other,write,232,217,0,93.53448275862068,224,209,93.30357142857143
-Claude Code,fable-5,system_or_other,exec,304,206,0,67.76315789473684,135,62,45.925925925925924
-Claude Code,fable-5,system_or_other,write,36,36,0,100.0,18,18,100.0
-Claude Code,fable-5,temporary,write,7350,7350,0,100.0,4886,4886,100.0
+ALL,ALL,environment,exec,8,4,0,50.0,8,4,50.0
+ALL,ALL,home,exec,24,24,0,100.0,24,24,100.0
+ALL,ALL,home,write,312,312,0,100.0,303,303,100.0
+ALL,ALL,package_cache,exec,1012,696,0,68.77470355731225,59,36,61.016949152542374
+ALL,ALL,package_cache,write,213632,212739,0,99.58199146195327,81197,81195,99.99753685480991
+ALL,ALL,project_generated,exec,35,24,0,68.57142857142857,15,6,40.0
+ALL,ALL,project_generated,write,117497,117494,0,99.9974467433211,101319,101316,99.99703905486632
+ALL,ALL,project_other,write,96577,96516,0,99.93683796349028,81663,81602,99.92530276869574
+ALL,ALL,system_or_other,exec,2777,1925,0,69.3194094346417,963,337,34.994807892004154
+ALL,ALL,system_or_other,write,109,106,3,97.24770642201835,54,53,98.14814814814815
+ALL,ALL,temporary,exec,118,66,0,55.932203389830505,77,66,85.71428571428571
+ALL,ALL,temporary,write,862760,843713,0,97.79231767814919,15494,15480,99.90964244223571
+Claude Code,fable-5,environment,exec,8,4,0,50.0,8,4,50.0
+Claude Code,fable-5,home,exec,19,19,0,100.0,19,19,100.0
+Claude Code,fable-5,home,write,208,208,0,100.0,202,202,100.0
+Claude Code,fable-5,package_cache,exec,1012,696,0,68.77470355731225,59,36,61.016949152542374
+Claude Code,fable-5,package_cache,write,213617,212724,0,99.58196210975719,81182,81180,99.99753639969451
+Claude Code,fable-5,project_generated,exec,35,24,0,68.57142857142857,15,6,40.0
+Claude Code,fable-5,project_generated,write,117482,117479,0,99.9974464173235,101316,101313,99.99703896719176
+Claude Code,fable-5,project_other,write,96577,96516,0,99.93683796349028,81663,81602,99.92530276869574
+Claude Code,fable-5,system_or_other,exec,2359,1751,0,74.22636710470539,657,198,30.136986301369863
+Claude Code,fable-5,system_or_other,write,79,76,3,96.20253164556962,39,38,97.43589743589743
+Claude Code,fable-5,temporary,exec,118,66,0,55.932203389830505,77,66,85.71428571428571
+Claude Code,fable-5,temporary,write,861113,842066,0,97.78809517450091,15373,15359,99.90893124308853
+Codex,gpt-5.6-sol,home,exec,5,5,0,100.0,5,5,100.0
+Codex,gpt-5.6-sol,home,write,104,104,0,100.0,101,101,100.0
+Codex,gpt-5.6-sol,package_cache,write,15,15,0,100.0,15,15,100.0
+Codex,gpt-5.6-sol,project_generated,write,15,15,0,100.0,3,3,100.0
+Codex,gpt-5.6-sol,system_or_other,exec,418,174,0,41.6267942583732,306,139,45.42483660130719
+Codex,gpt-5.6-sol,system_or_other,write,30,30,0,100.0,15,15,100.0
+Codex,gpt-5.6-sol,temporary,write,1647,1647,0,100.0,121,121,100.0
