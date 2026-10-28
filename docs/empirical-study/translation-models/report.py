@@ -82,6 +82,8 @@ def main():
             continue
         response_rates.append(f"| {r['model']} | {r['rq2_responses']} / {r['rq2_completed']} | {pct(r['rq2_conditional_compile_at_1_rate'])} / {pct(r['rq2_conditional_compile_at_3_rate'])} | {r['rq1_responses']} / {r['rq1_completed']} | {pct(r['rq1_conditional_compile_at_1_rate'])} / {pct(r['rq1_conditional_compile_at_3_rate'])} |")
     artifact_summary = read('artifact-reference-summary.csv')[0]
+    baselines = {r['baseline']: r for r in read('metric-baselines.csv')}
+    always = baselines['always_trigger']
     reference_audit = read('reference-validation-summary.csv')
     reference_audit = reference_audit[0] if reference_audit else dict(matching_trace_snapshots=0, traces=0, script_disagreements_old_nonzero_new_zero=0)
     reference = next(r for r in rows if r['model'] == 'reference')
@@ -151,6 +153,11 @@ tokens, and time are retained for both corpora in the translation CSVs.
 {chr(10).join(families)}
 
 {chr(10).join(coverage)}
+
+`metric-baselines.csv` contains analytic constant-classifier checks from the
+trace labels. Always triggering gives F1 {float(always['f1']):.3f} with
+{pct(always['false_trigger_rate'])} false triggers. F1 therefore needs to be read
+alongside both detection and false-trigger rates for this constructed class balance.
 
 {chr(10).join(budgets)}
 
@@ -314,6 +321,8 @@ compilation corpus does not establish generalization to unseen policy classes. R
 effects, compiler approximations, syscall visibility, wrapper behavior, and model
 serving defaults limit causal claims about translation quality alone. Compilation
 success does not establish faithful semantics or DSL expressivity.
+Each model has a single generation trajectory per policy. Repeated-generation
+variance and statistically significant model rankings are not established.
 
 ## Reproduction and artifacts
 

@@ -81,6 +81,14 @@ def main():
     csv_write(HERE / 'artifact-reference-detections.csv', artifact_rows)
     artifact_csv_rows = [{k: str(v) for k,v in r.items()} for r in artifact_rows]
     csv_write(HERE / 'artifact-reference-summary.csv', [detection(artifact_csv_rows)])
+    baseline_fields = ('violation_traces', 'compliant_traces', 'true_positives', 'false_positives',
+                       'detection_rate', 'false_trigger_rate', 'f1')
+    baselines = []
+    for name, value in [('always_trigger', '1'), ('never_trigger', '0')]:
+        scores = detection([{**r, 'fired': value} for r in artifact_csv_rows])
+        baselines.append(dict(baseline=name, basis='analytic_constant_classifier',
+                              **{k: scores[k] for k in baseline_fields}))
+    csv_write(HERE / 'metric-baselines.csv', baselines)
     all_access = [dict(model='reference', status='reference', identity_verified='1', error='')] + access
     for a in all_access:
         model = a['model']
