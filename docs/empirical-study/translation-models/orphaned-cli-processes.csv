@@ -7,3 +7,5 @@ pid,cwd,recorded_utc,action,usage
 1352279,rq1/gpt-6-astra/luongnv89__claude-howto__13/attempt-1/empty-cwd,2026-10-28T09:24:24Z,terminate_orphaned_timeout_child,unknown
 1357109,rq1/gpt-6-astra/luongnv89__claude-howto__2/attempt-1/empty-cwd,2026-10-28T09:34:04Z,terminate_orphaned_timeout_child,unknown
 1357275,rq1/gpt-6-astra/luongnv89__claude-howto__17/attempt-2/empty-cwd,2026-10-28T09:34:04Z,terminate_orphaned_timeout_child,unknown
+1362039,rq1/gpt-6-astra/multica-ai__multica__11/attempt-2/empty-cwd,2026-10-28T09:44:09Z,terminate_orphaned_timeout_child,unknown
+1362241,rq1/gpt-6-astra/multica-ai__multica__12/attempt-1/empty-cwd,2026-10-28T09:44:09Z,terminate_orphaned_timeout_child,unknown
