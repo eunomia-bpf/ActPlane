@@ -10,7 +10,7 @@ import subprocess
 import time
 
 from models import MODELS, SYSTEM, api_call, cli_call
-from prepare import HERE, ROOT, DEFAULT_RAW, csv_write, sha
+from prepare import HERE, ROOT, DEFAULT_RAW, csv_write, sha, json_write
 
 INSTRUCTIONS = '''Translate the directive below into one complete ActPlane DSL policy.
 Use only the supplied DSL reference. Translate the strongest syscall-observable
@@ -163,7 +163,7 @@ def translate_one(raw, corpus, model, item):
                      and len(response.get('transport_attempts', [])) < 2)
         if not retry_cli:
             return previous
-        (out / 'prior-access-result.json').write_text(cached.read_text())
+        json_write(out / 'prior-access-result.json', previous)
     prompt = make_prompt(raw, item)
     (out / 'prompt.txt').write_text(prompt)
     messages = [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': prompt}]
@@ -215,7 +215,7 @@ def translate_one(raw, corpus, model, item):
             if len(transports) > 1:
                 response['transport_attempts'] = transports[:-1]
             answer = response.get('response', {}).get('choices', [{}])[0].get('message', {}).get('content') or ''
-        (attempt_dir / 'response.json').write_text(json.dumps(response, indent=2) + '\n')
+        json_write(attempt_dir / 'response.json', response)
         row['attempts'] = attempt
         row['api_wall_s'] += response['elapsed_s']
         row['response_model'] = response.get('response_model', '')
@@ -244,7 +244,7 @@ def translate_one(raw, corpus, model, item):
     row['wall_s'] = round(max(time.monotonic() - start, row['api_wall_s'] + row['compile_wall_s']), 4)
     for k in ('api_wall_s', 'compile_wall_s'):
         row[k] = round(row[k], 4)
-    cached.write_text(json.dumps(row, indent=2) + '\n')
+    json_write(cached, row)
     print(corpus, model, item['uid'], row['status'], row['attempts'], flush=True)
     return row
 

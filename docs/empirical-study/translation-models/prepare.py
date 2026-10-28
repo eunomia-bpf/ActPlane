@@ -36,6 +36,16 @@ def csv_write(path, rows):
     os.replace(temporary, path)
 
 
+def json_write(path, value):
+    """Publish complete JSON records while concurrent exporters scan results."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile('w', dir=path.parent, delete=False, suffix='.json.tmp') as f:
+        temporary = f.name
+        json.dump(value, f, indent=2)
+        f.write('\n')
+    os.replace(temporary, path)
+
+
 def export(raw, ref):
     dest = raw / 'artifact'
     dest.mkdir(parents=True, exist_ok=True)

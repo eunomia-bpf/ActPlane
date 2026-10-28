@@ -20,7 +20,7 @@ import tempfile
 
 import yaml
 
-from prepare import HERE, ROOT, DEFAULT_RAW, csv_write, sha
+from prepare import HERE, ROOT, DEFAULT_RAW, csv_write, sha, json_write
 from pack_fixtures import archive_path
 
 
@@ -52,6 +52,11 @@ def worker(payload):
     work.mkdir()
     subprocess.run(['mount', '--bind', str(backing_work), str(work)], check=True)
     os.chdir(work)
+    # Match the artifact's apply_fixtures permission normalization before the
+    # monitored interval. The frozen corpus contains a shell fixture at 0644.
+    for fixture in (work / '.eval-fixtures').rglob('*'):
+        if fixture.is_file() and (fixture.parent.name == 'bin' or fixture.suffix == '.sh'):
+            fixture.chmod(fixture.stat().st_mode | 0o755)
     env = {'PATH': f'{work}/.eval-safe-bin:{work}/.eval-fixtures/bin:' + os.defpath + ':/usr/local/bin',
            'HOME': str(work / '.eval-home'), 'LANG': 'C.UTF-8',
            'GIT_TERMINAL_PROMPT': '0', 'UV_NO_SYNC': '1', 'UV_OFFLINE': '1',
@@ -206,7 +211,7 @@ def replay_one(raw, statement, trace, model, policy, out, no_engine=False, loade
                    error=f'No compiled translation: {translation_status or "compiler_failure"}')
         if local_dir:
             local_dir.rmdir()
-        (out / 'result.json').write_text(json.dumps(row, indent=2) + '\n')
+        json_write(out / 'result.json', row)
         return row
     try:
         remove_checkout(work)
@@ -296,7 +301,7 @@ def replay_one(raw, statement, trace, model, policy, out, no_engine=False, loade
         if local_dir:
             local_dir.rmdir()
     row['elapsed_s'] = round(time.monotonic() - start, 4)
-    (out / 'result.json').write_text(json.dumps(row, indent=2) + '\n')
+    json_write(out / 'result.json', row)
     return row
 
 

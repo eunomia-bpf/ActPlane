@@ -14,35 +14,35 @@ model-generation trial.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| Qwen3.8-27B NVFP4 | 15 / 26 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | n/a |
-| GLM-5.3 | 34 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0327 |
-| GLM-5.3-Flash | 33 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0040 |
-| GLM-4.7-Flash | 10 / 13 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 25 / 0 | $0.0000 |
-| GLM-4.5-Air | 33 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0066 |
-| GPT-6 Astra | 27 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.3112 |
-| Claude Opus 4.6 | 30 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.1384 |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | n/a |
+| zai/glm-5.3 | 34 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0327 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0040 |
+| zai/glm-4.7-flash | 10 / 13 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 25 / 0 | $0.0000 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0066 |
+| gpt-6-astra | 27 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.3112 |
+| claude-opus-4-6 | 30 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.1384 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
 | --- | --- | --- | --- | --- | --- |
 | Paper reference | 27 / 38 | 27 / 38 | 26 / 38 | 0 | 2 |
-| Qwen3.8-27B NVFP4 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
-| GLM-5.3 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
-| GLM-5.3-Flash | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
-| GLM-4.7-Flash | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
-| GLM-4.5-Air | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
-| GPT-6 Astra | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
-| Claude Opus 4.6 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| qwen3.8-27b-nvfp4 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| zai/glm-5.3 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| zai/glm-5.3-flash | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| zai/glm-4.7-flash | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| zai/glm-4.5-air | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| gpt-6-astra | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| claude-opus-4-6 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 
 | Model | Usable traces / planned | Conditional detection | Conditional false trigger | Conditional F1 |
 | --- | --- | --- | --- | --- |
 | Paper reference | 190 / 190 | 70.2% | 17.1% | 0.773 |
-| Qwen3.8-27B NVFP4 | 0 / 190 | unavailable | unavailable | unavailable |
-| GLM-5.3 | 0 / 190 | unavailable | unavailable | unavailable |
-| GLM-5.3-Flash | 0 / 190 | unavailable | unavailable | unavailable |
-| GLM-4.7-Flash | 0 / 190 | unavailable | unavailable | unavailable |
-| GLM-4.5-Air | 0 / 190 | unavailable | unavailable | unavailable |
-| GPT-6 Astra | 0 / 190 | unavailable | unavailable | unavailable |
-| Claude Opus 4.6 | 0 / 190 | unavailable | unavailable | unavailable |
+| qwen3.8-27b-nvfp4 | 0 / 190 | unavailable | unavailable | unavailable |
+| zai/glm-5.3 | 0 / 190 | unavailable | unavailable | unavailable |
+| zai/glm-5.3-flash | 0 / 190 | unavailable | unavailable | unavailable |
+| zai/glm-4.7-flash | 0 / 190 | unavailable | unavailable | unavailable |
+| zai/glm-4.5-air | 0 / 190 | unavailable | unavailable | unavailable |
+| gpt-6-astra | 0 / 190 | unavailable | unavailable | unavailable |
+| claude-opus-4-6 | 0 / 190 | unavailable | unavailable | unavailable |
 
 Conditional scores use only usable traces and may be biased by unavailable
 translations or replay errors. Headline scores require complete coverage.
@@ -57,7 +57,12 @@ not the artifact's recovery scores or trajectory judges. Per-policy agreement an
 every disagreement appear in `reference-validation-policies.csv` and
 `reference-disagreements.csv`. Differences can arise from recovered fixtures, the
 current compiler, and the experimental backend, so replay does not perfectly
-isolate backend fidelity. The original artifact's
+isolate backend fidelity. All 190 of
+190 trace snapshots match the original result records.
+Among script-family disagreements, 21
+had a nonzero tool return code in the original setup and none in this replay.
+The execution audit records these environment differences without inferring
+why an original command failed. The original artifact's
 reference detections were themselves imperfect against the trace labels:
 66 of 114
 violations detected, 17 of

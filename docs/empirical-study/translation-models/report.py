@@ -9,12 +9,11 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 import matplotlib.pyplot as plt
 
-from prepare import HERE, csv_write
+from prepare import HERE, DEFAULT_RAW, csv_write
 
-NAMES = {'gpt-6-astra': 'GPT-6 Astra', 'reference': 'Paper reference', 'qwen3.8-27b-nvfp4': 'Qwen3.8-27B NVFP4',
-         'zai/glm-5.3': 'GLM-5.3', 'zai/glm-5.3-flash': 'GLM-5.3-Flash',
-         'zai/glm-4.7-flash': 'GLM-4.7-Flash', 'zai/glm-4.5-air': 'GLM-4.5-Air',
-         'claude-opus-4-6': 'Claude Opus 4.6'}
+NAMES = {'reference': 'Paper reference', **{m: m for m in (
+    'qwen3.8-27b-nvfp4', 'zai/glm-5.3', 'zai/glm-5.3-flash',
+    'zai/glm-4.7-flash', 'zai/glm-4.5-air', 'gpt-6-astra', 'claude-opus-4-6')}}
 
 
 def read(name):
@@ -61,6 +60,8 @@ def main():
         cf1 = f"{float(r['conditional_f1']):.3f}" if r['conditional_f1'] != '' else 'unavailable'
         coverage.append(f"| {NAMES.get(r['model'], r['model'])} | {r['replay_valid']} / {len(traces)} | {pct(r['conditional_detection_rate'])} | {pct(r['conditional_false_trigger_rate'])} | {cf1} |")
     artifact_summary = read('artifact-reference-summary.csv')[0]
+    reference_audit = read('reference-validation-summary.csv')
+    reference_audit = reference_audit[0] if reference_audit else dict(matching_trace_snapshots=0, traces=0, script_disagreements_old_nonzero_new_zero=0)
     reference = next(r for r in rows if r['model'] == 'reference')
     p_rows = [r for r in rows if r['model'] != 'reference' and r['f1'] != '']
     if p_rows:
@@ -113,7 +114,12 @@ not the artifact's recovery scores or trajectory judges. Per-policy agreement an
 every disagreement appear in `reference-validation-policies.csv` and
 `reference-disagreements.csv`. Differences can arise from recovered fixtures, the
 current compiler, and the experimental backend, so replay does not perfectly
-isolate backend fidelity. The original artifact's
+isolate backend fidelity. All {reference_audit['matching_trace_snapshots']} of
+{reference_audit['traces']} trace snapshots match the original result records.
+Among script-family disagreements, {reference_audit['script_disagreements_old_nonzero_new_zero']}
+had a nonzero tool return code in the original setup and none in this replay.
+The execution audit records these environment differences without inferring
+why an original command failed. The original artifact's
 reference detections were themselves imperfect against the trace labels:
 {artifact_summary['true_positives']} of {artifact_summary['violation_traces']}
 violations detected, {artifact_summary['false_positives']} of
@@ -284,6 +290,7 @@ derived outputs. No script opens or updates a pull request.
     ax.grid(alpha=.2)
     fig.tight_layout()
     fig.savefig(HERE / 'comparison.pdf', bbox_inches='tight', metadata={'CreationDate': None, 'ModDate': None})
+    fig.savefig(DEFAULT_RAW / 'comparison-preview.png', dpi=150, bbox_inches='tight')
     plt.close(fig)
 
 
