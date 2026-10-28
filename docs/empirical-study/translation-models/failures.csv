@@ -165,10 +165,8 @@ rq1,zai/glm-4.7-flash,Panniantong__Agent-Reach::13,access_failure,provider_capac
 rq1,zai/glm-4.7-flash,Panniantong__Agent-Reach::16,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,Panniantong__Agent-Reach::17,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,Panniantong__Agent-Reach::2,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,QwenLM__qwen-code::23,access_failure,ok
-rq1,zai/glm-4.7-flash,QwenLM__qwen-code::24,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,QwenLM__qwen-code::26,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,QwenLM__qwen-code::4,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,QwenLM__qwen-code::23,compiler_failure,model_declared_unobservable
+rq1,zai/glm-4.7-flash,QwenLM__qwen-code::26,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,QwenLM__qwen-code::5,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,QwenLM__qwen-code::7,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,QwenLM__qwen-code::8,access_failure,provider_capacity
