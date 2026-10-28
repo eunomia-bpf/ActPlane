@@ -8,13 +8,13 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 
 | Measure | Paper claim | Recovered labels | New automated labels (repository bootstrap interval) | Difference vs recovered |
 |---|---:|---:|---:|---:|
-| Policy / all statements | 64.0% | 64.3% | 59.7% [53.8%, 64.3%] | -4.6 pp [-14.0, +4.2] |
+| Policy / all statements | 64.0% | 64.3% | 57.5% [53.2%, 61.5%] | -6.8 pp [-15.2, +1.7] |
 | System-observable / policies | 83.0% | 82.8% | withheld | withheld |
 | Context needed / system-observable | 74.0% | 73.6% | withheld | withheld |
 | Repositories with cross-event policies | 81.0% | 79.7% | withheld | withheld |
 | OS-tier policy candidates (count) | 607 | 607 | withheld | withheld |
 
-The collected manifest covers 325 repositories and 771 selected instruction paths (761 distinct repository/content pairs). The analysis includes 45 repositories and 2,841 statements. 495 extracted files have incomplete model pairs. 280 repositories are withheld until every selected source is successfully extracted and labeled.
+The collected manifest covers 325 repositories and 771 selected instruction paths (761 distinct repository/content pairs). The analysis includes 84 repositories and 6,364 statements. 379 extracted files have incomplete model pairs. 241 repositories are withheld until every selected source is successfully extracted and labeled.
 
 The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.
 
@@ -87,9 +87,9 @@ Agreement between the primary models on the analyzed new spans is reported separ
 
 | New-corpus intermodel dimension | Paired statements | Disagreements | Raw agreement | Kappa |
 |---|---:|---:|---:|---:|
-| topic | 2841 | 891 | 0.686 | 0.646 |
-| type | 2841 | 303 | 0.893 | 0.777 |
-| any_scaled_axis | 2841 | 1076 | 0.621 | undefined |
+| topic | 6364 | 1784 | 0.720 | 0.684 |
+| type | 6364 | 617 | 0.903 | 0.801 |
+| any_scaled_axis | 6364 | 2178 | 0.658 | undefined |
 
 ## Selection and measurement
 
@@ -167,24 +167,27 @@ The collected repositories have a star range of 12,209–458,063, with median 40
 
 | Family | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| AGENTS.md | 24 | 1027 | 62.3% | withheld | withheld | withheld | withheld |
-| CLAUDE.md | 15 | 285 | 50.5% | withheld | withheld | withheld | withheld |
-| SKILL.md | 25 | 1406 | 59.2% | withheld | withheld | withheld | withheld |
-| copilot-instructions.md | 3 | 123 | 64.2% | withheld | withheld | withheld | withheld |
+| .cursor/rules/* | 1 | 8 | 62.5% | withheld | withheld | withheld | withheld |
+| .cursorrules | 1 | 1 | 0.0% | withheld | withheld | withheld | withheld |
+| AGENTS.md | 53 | 2522 | 57.3% | withheld | withheld | withheld | withheld |
+| CLAUDE.md | 31 | 789 | 52.5% | withheld | withheld | withheld | withheld |
+| GEMINI.md | 1 | 2 | 50.0% | withheld | withheld | withheld | withheld |
+| SKILL.md | 50 | 2845 | 59.2% | withheld | withheld | withheld | withheld |
+| copilot-instructions.md | 10 | 204 | 56.4% | withheld | withheld | withheld | withheld |
 
 | Category | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| agent_frameworks | 19 | 1468 | 60.1% | withheld | withheld | withheld | withheld |
-| applications | 21 | 927 | 60.7% | withheld | withheld | withheld | withheld |
-| noncoding_agents | 5 | 446 | 56.3% | withheld | withheld | withheld | withheld |
+| agent_frameworks | 34 | 2822 | 60.0% | withheld | withheld | withheld | withheld |
+| applications | 43 | 2965 | 54.9% | withheld | withheld | withheld | withheld |
+| noncoding_agents | 7 | 577 | 58.4% | withheld | withheld | withheld | withheld |
 
 | File_scope | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| general_agent_operations | 2 | 9 | 33.3% | withheld | withheld | withheld | withheld |
-| noncoding_assistance | 5 | 203 | 54.2% | withheld | withheld | withheld | withheld |
-| software_development | 31 | 1554 | 60.3% | withheld | withheld | withheld | withheld |
-| unclassified | 15 | 1068 | 60.2% | withheld | withheld | withheld | withheld |
-| unclear | 4 | 7 | 42.9% | withheld | withheld | withheld | withheld |
+| general_agent_operations | 4 | 16 | 50.0% | withheld | withheld | withheld | withheld |
+| noncoding_assistance | 9 | 411 | 59.6% | withheld | withheld | withheld | withheld |
+| software_development | 63 | 4322 | 56.9% | withheld | withheld | withheld | withheld |
+| unclassified | 26 | 1597 | 58.5% | withheld | withheld | withheld | withheld |
+| unclear | 13 | 18 | 50.0% | withheld | withheld | withheld | withheld |
 
 ## Reproduction and artifacts
 

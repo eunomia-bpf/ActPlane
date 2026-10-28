@@ -1,13 +1,13 @@
 dimension,label,statements,directives
-topic,AI Integration,438,282
-topic,Architecture,243,63
-topic,Build and Run,242,160
-topic,Configuration & Environment,143,61
-topic,DevOps,100,63
-topic,Development Process,283,224
-topic,Documentation,328,151
-topic,Implementation Details,574,409
-topic,Maintenance,47,37
-topic,Security,102,87
-topic,System Overview,134,1
-topic,Testing,207,158
+topic,AI Integration,926,600
+topic,Architecture,585,96
+topic,Build and Run,436,249
+topic,Configuration & Environment,264,121
+topic,DevOps,213,125
+topic,Development Process,776,585
+topic,Documentation,722,324
+topic,Implementation Details,1147,802
+topic,Maintenance,101,80
+topic,Security,238,169
+topic,System Overview,256,2
+topic,Testing,700,505
