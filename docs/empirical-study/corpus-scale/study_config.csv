@@ -7,6 +7,7 @@ paths_per_family,1
 max_file_bytes,128000
 bootstrap_replicates,2000
 bootstrap_seed,20261028
+historical_bootstrap_seed,20261029
 confidence_level,0.95
 min_final_kappa,0.6
 min_primary_kappa,0.4

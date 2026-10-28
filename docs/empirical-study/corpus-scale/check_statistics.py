@@ -2,7 +2,7 @@
 """Known-answer checks for policy denominators, project units, and kappa."""
 import numpy as np
 
-from analyze import kappa, metric_vector, summarize
+from analyze import SEED, kappa, metric_vector, summarize
 from common import HERE, write_csv
 
 
@@ -33,6 +33,13 @@ def main():
     system = next(r for r in empty_policy if r['metric'] == 'system_state_fraction')
     checks.append(dict(check='no_policies_has_no_system_fraction', expected=True,
                        actual=system['value'] == '' and system['status'] == 'undefined_zero_denominator'))
+    # Equal observed samples still have uncertainty in their difference when
+    # resampled independently. Reusing identical draws would wrongly erase it.
+    _, new_draws = summarize(rows, {repo: {} for repo in 'abc'}, seed=SEED)
+    _, old_draws = summarize(rows, {repo: {} for repo in 'abc'}, seed=SEED + 1)
+    low, high = np.quantile(new_draws[:, 0] - old_draws[:, 0], [.025, .975])
+    checks.append(dict(check='equal_samples_retain_independent_delta_uncertainty',
+                       expected=True, actual=low < 0 < high))
     for r in checks:
         r['passed'] = bool(np.isclose(r['expected'], r['actual']))
     write_csv(HERE / 'statistics_validation.csv', checks)

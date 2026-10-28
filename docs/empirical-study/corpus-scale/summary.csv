@@ -1,5 +1,5 @@
 source,metric,numerator,denominator,value,ci_low,ci_high,status,repositories,statements,artifact_delta,delta_ci_low,delta_ci_high,group_type,group
-new,policy_fraction,109,178,0.6123595505617978,0.4636363636363636,0.6788617886178862,ok,3,178,-0.030835156432531097,-0.2245783799980931,0.08545032233775186,overall,all
+new,policy_fraction,109,178,0.6123595505617978,0.4636363636363636,0.6788617886178862,ok,3,178,-0.030835156432531097,-0.22730716581165086,0.08399227367922055,overall,all
 new,system_state_fraction,,,,,,withheld_calibration_failed,3,178,,,,overall,all
 new,context_required_fraction,,,,,,withheld_calibration_failed,3,178,,,,overall,all
 new,cross_event_project_share,,,,,,withheld_calibration_failed,3,178,,,,overall,all

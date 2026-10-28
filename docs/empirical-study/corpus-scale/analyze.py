@@ -132,9 +132,9 @@ def bootstrap(values, strata, seed=SEED):
     return result
 
 
-def summarize(rows, repos, gates=None, source='new'):
+def summarize(rows, repos, gates=None, source='new', seed=SEED):
     keys, values = metric_vector(rows, list(repos))
-    draws = bootstrap(values, [r.get('stratum', 'paper') for r in repos.values()])
+    draws = bootstrap(values, [r.get('stratum', 'paper') for r in repos.values()], seed=seed)
     totals = values.sum(axis=0)
     summary = []
     for i, key in enumerate(keys):
@@ -161,7 +161,7 @@ def analyze():
             gates[r['dimension']] = gates.get(r['dimension'], False) and r['passed'] == 'True'
     paper = read_csv(HERE / 'paper_labels.csv')
     paper_repos = {r['repo']: r for r in read_csv(HERE / 'paper_files.csv')}
-    baseline, baseline_draws = summarize(paper, paper_repos, source='paper_artifact')
+    baseline, baseline_draws = summarize(paper, paper_repos, source='paper_artifact', seed=SEED + 1)
     write_csv(HERE / 'paper_summary.csv', baseline)
     if (HERE / 'repositories.csv').exists():
         from describe_corpus import main as describe_corpus
