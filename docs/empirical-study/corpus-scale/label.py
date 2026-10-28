@@ -100,6 +100,8 @@ def classify(a, batch, guide, dims, other):
         result = {}
         for values in parsed:
             i, *labels = values
+            if isinstance(i, str) and i.isdigit():
+                i = int(i)
             if not isinstance(i, int) or i < 0 or i >= len(batch) or i in result or len(labels) != len(dims):
                 raise ValueError('invalid_id_or_label_length')
             pred = dict(zip(dims, labels))

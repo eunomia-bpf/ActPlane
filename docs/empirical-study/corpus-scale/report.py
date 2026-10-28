@@ -63,8 +63,11 @@ def main():
         'The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.', '',
         '## Historical recovery and calibration', '',
         f'`recover.py` exports the artifact branch by immutable commit without checking it out. It recovered {audit["labeled_statements"]} labeled statements in {audit["label_files"]} annotation files referencing {audit["referenced_source_files"]} primary instruction paths. '
-        f'The corresponding artifact directories contain {audit["raw_instruction_files"]} raw instruction files ({audit["raw_unique_contents_within_repo"]} byte-distinct within repositories), whereas the paper claims {claims["instruction_files"]["value"]}. '
-        'The artifact therefore reproduces the statement totals but does not independently reproduce the paper’s file denominator. The cross-event repository share also differs from the rounded paper claim. These discrepancies remain visible in the comparison table.', '',
+        f'The corresponding artifact directories contain {audit["raw_instruction_files"]} raw instruction files ({audit["raw_unique_contents_within_repo"]} byte-distinct within repositories). '
+        f'Excluding {audit["pure_at_redirect_files"]} pure `@AGENTS.md` redirect files after byte deduplication yields exactly {audit["unique_non_redirect_files"]} files, '
+        f'{int(audit["unique_non_redirect_lines"]):,} lines, and {int(audit["unique_non_redirect_bytes"]):,} bytes, reproducing the historical file denominator and size totals. '
+        f'However, annotation spans cover {int(audit["labeled_span_lines"]):,} lines in the primary referenced sources, so the recovered labels do not establish statement coverage of every additional instruction file. '
+        'The cross-event repository share differs from the rounded paper claim and remains visible in the comparison table.', '',
         '`taxonomy.txt` reconstructs the coding guide and examples in `origin/artifact-ready:docs/empirical.md` and the current motivation section. The exact historical invocation prompts and the human review sample were not located. This is a reconstructed prompt, not a claim of exact prompt replication. Gold labels are never sent to either model or to adjudication.', '',
         'The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` endpoint and the gateway’s named `zai/glm-5.3` route. The gateway-reported model identity is recorded but its provider weights cannot be independently audited. GLM uses low reasoning effort because its reasoning cannot be disabled. Disagreements are reread by Qwen with anonymized primary labels. Adjudication is therefore correlated with a primary model, not an independent human reference.', '',
         '| Model vs paper | Dimension | Applicable gold N | Evaluated N | Raw agreement | Cohen’s kappa |',
@@ -78,6 +81,11 @@ def main():
         'Type must pass for any dependent result. Enforcement must pass before context may scale. These are study decisions rather than universal reliability standards. The same historical set is used for calibration and evaluation, so agreement is not a held-out generalization estimate.', '',
         '| Dimension | Scale? | Reason |', '|---|---|---|']
     lines.extend(f'| {r["dimension"]} | {r["passed"]} | {r["reason"]} |' for r in gates)
+    poor = [r for r in cal if r['scope'] == 'applicable_gold' and r['model'] != 'inter_model'
+            and float(r.get('coverage', 0)) >= MIN_COVERAGE and float(r['kappa']) < MIN_PRIMARY_KAPPA]
+    if poor:
+        lines += ['', '**Poor agreement:** ' + '; '.join(f'{r["model"]} on {r["dimension"]} (κ={float(r["kappa"]):.3f})' for r in poor) +
+                  '. These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.']
     lines += ['', '## Selection and measurement', '',
         f'The eligibility floor is {cfg["stars_min"]} stars with a push on or after {cfg["pushed_since"]}. Forks and archived repositories are excluded by the search. '
         f'`collect.py` takes the top {cfg["search_results_per_query"]} results of each fixed query, unions within a discovery stratum, and visits candidates by descending stars with repository name breaking ties. '
@@ -91,10 +99,20 @@ def main():
         f'Qwen proposes semantic statement starts in source chunks targeting {cfg["max_excerpt_lines_target"]} lines. The script derives half-open ranges and copies source text exactly. '
         'Coverage, hashes, and range continuity are checked, while extraction failures remain recorded. Earlier range-pair attempts that failed validation remain in the raw logs. This validates source fidelity, not the semantic correctness of boundaries. Chunking may separate context, and the new extraction has no human boundary audit. Calibration holds historical boundaries fixed and therefore does not validate new extraction quality.', '',
         'Overall analysis counts each byte-identical file once within a repository. Family analysis attributes shared text to each family in which it appears, so family counts are not additive. Repository categories come from a separate metadata classifier and are explicitly marked as model judgments. A noncoding-agent repository can still contain coding instructions. The category breakdown must not be described as a noncoding-policy slice without inspecting file scope.', '',
+        'A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used.', '',
         f'Intervals use {BOOTSTRAPS:,} bootstrap replicates resampling repositories within discovery strata, with seed {SEED}. '
         'They describe sensitivity within this convenience sample. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.', '',
         '## Breakdowns', '', 'Full counts, denominators, intervals, and calibration status are in `summary.csv`.']
-    for kind in ('family', 'category'):
+    overview_path = HERE / 'corpus_overview.csv'
+    if overview_path.exists():
+        overview = read_csv(overview_path)
+        total = next((r for r in overview if r['dimension'] == 'overall'), None)
+        if total:
+            lines += ['', f'The collected repositories have a star range of {int(total["stars_min"]):,}–{int(total["stars_max"]):,}, '
+                      f'with median {float(total["stars_median"]):,.0f}. These are snapshot metadata rather than authenticity judgments.', '',
+                      '| Primary language | Repositories |', '|---|---:|']
+            lines.extend(f'| {r["label"]} | {r["repositories"]} |' for r in overview if r['dimension'] == 'language')
+    for kind in ('family', 'category', 'file_scope'):
         subset = [r for r in summary if r['group_type'] == kind]
         if not subset:
             continue

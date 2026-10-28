@@ -1,9 +1,9 @@
 source,model,status,attempt,count
-github-requests.jsonl,,200,1,741
-model-requests.jsonl,qwen3.8-27b-nvfp4,200,1,580
-model-requests.jsonl,zai/glm-5.3,200,1,31
+github-requests.jsonl,,200,1,1085
+model-requests.jsonl,qwen3.8-27b-nvfp4,200,1,1143
+model-requests.jsonl,zai/glm-5.3,200,1,43
 label-failures.jsonl,qwen3.8-27b-nvfp4,invalid_response_or_failed_request,,27
-label-failures.jsonl,zai/glm-5.3,invalid_response_or_failed_request,,18
+label-failures.jsonl,zai/glm-5.3,invalid_response_or_failed_request,,22
 extraction-chunks.jsonl,,failed,,19
-extraction-chunks.jsonl,,ok,,357
-downloads.jsonl,,included,,450
+extraction-chunks.jsonl,,ok,,550
+downloads.jsonl,,included,,771

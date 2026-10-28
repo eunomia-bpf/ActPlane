@@ -1,0 +1,27 @@
+dimension,label,repositories,stars_min,stars_median,stars_max
+stratum,agent,75,30317,50014.0,108586
+stratum,general,200,12209,40907.5,458063
+stratum,noncoding_discovery,50,14195,27718.0,115581
+language,C,5,12829,27544.0,253725
+language,C#,3,14812,32634.0,46253
+language,C++,15,12856,32233.0,201315
+language,Clojure,1,49878,49878.0,49878
+language,Dart,1,180485,180485.0,180485
+language,Go,33,12428,32589.0,190727
+language,HTML,6,16910,48514.0,174853
+language,Haskell,1,40257,40257.0,40257
+language,Java,14,12209,19147.0,52224
+language,JavaScript,23,20119,56944.0,291047
+language,Julia,1,49217,49217.0,49217
+language,Jupyter Notebook,10,21613,38746.5,122299
+language,Lua,1,17258,17258.0,17258
+language,MDX,3,74577,79596.0,175021
+language,Makefile,1,39829,39829.0,39829
+language,Mojo,1,30063,30063.0,30063
+language,Python,96,14278,46261.0,330740
+language,Rust,29,17165,33240.0,194971
+language,Shell,3,28060,305018.0,306615
+language,TypeScript,73,12323,38726.0,458063
+language,Zig,1,37072,37072.0,37072
+language,unspecified,4,17337,38857.0,225592
+overall,all,325,12209,40335.0,458063

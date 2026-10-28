@@ -14,13 +14,13 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 | Repositories with cross-event policies | 81.0% | 79.7% | withheld or pending |
 | OS-tier policy candidates (count) | 607 | 607 | withheld or pending |
 
-The collected manifest currently covers 188 repositories. Labeling coverage is pending.
+The collected manifest currently covers 325 repositories. Labeling coverage is pending.
 
 The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.
 
 ## Historical recovery and calibration
 
-`recover.py` exports the artifact branch by immutable commit without checking it out. It recovered 2116 labeled statements in 64 annotation files referencing 64 primary instruction paths. The corresponding artifact directories contain 93 raw instruction files (86 byte-distinct within repositories), whereas the paper claims 84. The artifact therefore reproduces the statement totals but does not independently reproduce the paper’s file denominator. The cross-event repository share also differs from the rounded paper claim. These discrepancies remain visible in the comparison table.
+`recover.py` exports the artifact branch by immutable commit without checking it out. It recovered 2116 labeled statements in 64 annotation files referencing 64 primary instruction paths. The corresponding artifact directories contain 93 raw instruction files (86 byte-distinct within repositories). Excluding 2 pure `@AGENTS.md` redirect files after byte deduplication yields exactly 84 files, 16,256 lines, and 1,136,161 bytes, reproducing the historical file denominator and size totals. However, annotation spans cover 10,209 lines in the primary referenced sources, so the recovered labels do not establish statement coverage of every additional instruction file. The cross-event repository share differs from the rounded paper claim and remains visible in the comparison table.
 
 `taxonomy.txt` reconstructs the coding guide and examples in `origin/artifact-ready:docs/empirical.md` and the current motivation section. The exact historical invocation prompts and the human review sample were not located. This is a reconstructed prompt, not a claim of exact prompt replication. Gold labels are never sent to either model or to adjudication.
 
@@ -32,14 +32,14 @@ The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` end
 | qwen | topic | 2116 | 2116 | 0.698 | 0.656 |
 | qwen | enforceability | 1361 | 1361 | 0.700 | 0.585 |
 | qwen | context_required | 1127 | 1127 | 0.390 | 0.147 |
-| glm | type | 2116 | 192 | 0.932 | 0.858 |
-| glm | topic | 2116 | 192 | 0.750 | 0.712 |
-| glm | enforceability | 1361 | 117 | 0.573 | 0.435 |
-| glm | context_required | 1127 | 81 | 0.395 | 0.121 |
-| inter_model | type | 2116 | 192 | 0.938 | 0.871 |
-| inter_model | topic | 2116 | 192 | 0.745 | 0.706 |
-| inter_model | enforceability | 1361 | 117 | 0.803 | 0.732 |
-| inter_model | context_required | 1127 | 81 | 0.728 | 0.344 |
+| glm | type | 2116 | 288 | 0.910 | 0.794 |
+| glm | topic | 2116 | 288 | 0.743 | 0.706 |
+| glm | enforceability | 1361 | 196 | 0.587 | 0.453 |
+| glm | context_required | 1127 | 142 | 0.437 | 0.151 |
+| inter_model | type | 2116 | 288 | 0.910 | 0.799 |
+| inter_model | topic | 2116 | 288 | 0.743 | 0.706 |
+| inter_model | enforceability | 1361 | 196 | 0.735 | 0.641 |
+| inter_model | context_required | 1127 | 142 | 0.683 | 0.249 |
 
 `calibration_summary.csv` also reports end-to-end agreement including inapplicable labels. The applicable-gold evaluation counts a predicted inapplicable value as disagreement. `calibration_confusion.csv` retains every confusion cell and missing predictions are reported explicitly.
 
@@ -51,6 +51,8 @@ Before inspecting the complete calibration, the scaling gate was fixed at final 
 | topic | False | type_gate_failed |
 | enforceability | False | type_gate_failed |
 | context_required | False | enforcement_gate_failed |
+
+**Poor agreement:** qwen on context_required (κ=0.147). These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.
 
 ## Selection and measurement
 
@@ -64,11 +66,40 @@ Qwen proposes semantic statement starts in source chunks targeting 160 lines. Th
 
 Overall analysis counts each byte-identical file once within a repository. Family analysis attributes shared text to each family in which it appears, so family counts are not additive. Repository categories come from a separate metadata classifier and are explicitly marked as model judgments. A noncoding-agent repository can still contain coding instructions. The category breakdown must not be described as a noncoding-policy slice without inspecting file scope.
 
+A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used.
+
 Intervals use 2,000 bootstrap replicates resampling repositories within discovery strata, with seed 20261028. They describe sensitivity within this convenience sample. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.
 
 ## Breakdowns
 
 Full counts, denominators, intervals, and calibration status are in `summary.csv`.
+
+The collected repositories have a star range of 12,209–458,063, with median 40,335. These are snapshot metadata rather than authenticity judgments.
+
+| Primary language | Repositories |
+|---|---:|
+| C | 5 |
+| C# | 3 |
+| C++ | 15 |
+| Clojure | 1 |
+| Dart | 1 |
+| Go | 33 |
+| HTML | 6 |
+| Haskell | 1 |
+| Java | 14 |
+| JavaScript | 23 |
+| Julia | 1 |
+| Jupyter Notebook | 10 |
+| Lua | 1 |
+| MDX | 3 |
+| Makefile | 1 |
+| Mojo | 1 |
+| Python | 96 |
+| Rust | 29 |
+| Shell | 3 |
+| TypeScript | 73 |
+| Zig | 1 |
+| unspecified | 4 |
 
 ## Reproduction and artifacts
 

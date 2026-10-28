@@ -10,6 +10,7 @@ from common import DEFAULT_RAW, HERE, read_csv, write_csv
 
 def main(a):
     rows = []
+    identities = Counter()
     for filename in ['github-requests.jsonl', 'model-requests.jsonl', 'label-failures.jsonl',
                      'extraction-chunks.jsonl', 'downloads.jsonl']:
         path = a.raw / filename
@@ -23,6 +24,8 @@ def main(a):
                 counts[('', 'incomplete_log_record', '')] += 1
                 continue
             model = r.get('model', '')
+            if filename == 'model-requests.jsonl' and r.get('returned_model'):
+                identities[(model, r['returned_model'])] += 1
             status = str(r.get('http_status', r.get('status', r.get('error', 'recorded'))))
             if filename == 'label-failures.jsonl':
                 status = 'invalid_response_or_failed_request'
@@ -31,6 +34,8 @@ def main(a):
         for (model, status, attempt), count in sorted(counts.items()):
             rows.append(dict(source=filename, model=model, status=status, attempt=attempt, count=count))
     write_csv(HERE / 'run_audit.csv', rows)
+    write_csv(HERE / 'model_identity.csv', [dict(requested_model=k[0], returned_model=k[1],
+        successful_requests=v) for k, v in sorted(identities.items())])
     # Reviewable samples of reference/model mismatches, sampled without cherry-picking.
     gold = read_csv(HERE / 'paper_labels.csv')
     disagreements = []

@@ -64,8 +64,24 @@ def main():
     write_csv(HERE / 'paper_claims.csv', [dict(metric=k, value=v, note=n,
         source='actplane-atc/main:sections/02-motivation.tex (retrieved 2026-10-28); operator brief for OS count')
         for k, v, n in claims])
+    substantive = []
+    redirects = 0
+    for r in files:
+        seen = set()
+        for path in (dest / 'docs/corpus' / r['repo'].replace('/', '__')).glob('*.md'):
+            content = path.read_bytes()
+            if content.strip() in (b'@AGENTS.md', b'@CLAUDE.md'):
+                redirects += 1
+                continue
+            if content not in seen:
+                seen.add(content)
+                substantive.append(content)
     audit = dict(label_files=len(files), labeled_statements=len(rows),
         referenced_source_files=len({r['file_path'] for r in rows}),
+        labeled_span_lines=sum(int(r['end_line']) - int(r['start_line']) for r in rows),
+        pure_at_redirect_files=redirects, unique_non_redirect_files=len(substantive),
+        unique_non_redirect_lines=sum(len(b.splitlines()) for b in substantive),
+        unique_non_redirect_bytes=sum(map(len, substantive)),
         raw_instruction_files=sum(len(list((dest / 'docs/corpus' / r['repo'].replace('/', '__')).glob('*.md'))) for r in files),
         raw_unique_contents_within_repo=sum(len({p.read_bytes() for p in
             (dest / 'docs/corpus' / r['repo'].replace('/', '__')).glob('*.md')}) for r in files))

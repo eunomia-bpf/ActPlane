@@ -1,5 +1,10 @@
 repo,family,file_path,canonical_path,content_sha256
+MODSetter/SurfSense,.cursorrules,www/.cursorrules,CLAUDE.md,a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9
 avelino/awesome-go,copilot-instructions.md,.github/copilot-instructions.md,.cursorrules,a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9
+bytebase/bytebase,GEMINI.md,GEMINI.md,CLAUDE.md,336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49
+corsairdev/corsair,CLAUDE.md,CLAUDE.md,AGENTS.md,de277950f18aa8a4e4e942061bdcf60c595c99e593faaf23f687c983395fe50e
+googleapis/mcp-toolbox,CLAUDE.md,CLAUDE.md,AGENTS.md,399080f41ccf73c6004e0f85c0a58fc1767080a0ef19bb3f3a90caa14f94bd79
+greensock/gsap-skills,GEMINI.md,GEMINI.md,CLAUDE.md,a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9
 huggingface/transformers,CLAUDE.md,CLAUDE.md,AGENTS.md,13285a5fd29ed8e73d122d3630397ada4bcda9971d5dd88d968ac9156114d762
 netdata/netdata,GEMINI.md,GEMINI.md,CLAUDE.md,a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9
 ripienaar/free-for-dev,CLAUDE.md,CLAUDE.md,AGENTS.md,c792e18d2c18d8b368c4648b9e9b05b4c14f806840524af4284af3c7f7c635f6

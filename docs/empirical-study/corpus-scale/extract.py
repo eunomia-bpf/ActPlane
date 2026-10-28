@@ -66,7 +66,9 @@ def segment(a, f):
             response = complete(a, PROMPT, dict(start_line=start, exclusive_end_line=end,
                 numbered_lines=''.join(f'{i}: {s}' for i, s in enumerate(part, start))),
                 budget=4096)
-            starts = parse_json(response['choices'][0]['message']['content'])['starts']
+            obj = parse_json(response['choices'][0]['message']['content'])
+            starts = obj['starts'] if isinstance(obj, dict) else obj
+            starts = [int(s) if isinstance(s, str) and s.isdigit() else s for s in starts]
             if not starts or starts[0] != start or starts != sorted(set(starts)):
                 raise ValueError('invalid_starts')
             if not all(isinstance(s, int) and start <= s < end for s in starts):

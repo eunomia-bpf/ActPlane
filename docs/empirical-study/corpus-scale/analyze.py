@@ -144,7 +144,7 @@ def summarize(rows, repos, gates=None, source='new'):
                 'os_enforceable_count': 'enforceability'}[key]
         valid = gates is None or gates.get(need, False)
         lo, hi = np.nanquantile(draws[:, i], [.025, .975]) if np.isfinite(draws[:, i]).any() else (float('nan'), float('nan'))
-        summary.append(dict(source=source, metric=key, numerator=int(numerator), denominator=int(denominator),
+        summary.append(dict(source=source, metric=key, numerator=int(numerator) if valid else '', denominator=int(denominator) if valid else '',
             value=value if valid else '', ci_low=lo if valid else '', ci_high=hi if valid else '',
             status='ok' if valid else 'withheld_calibration_failed', repositories=len(repos), statements=len(rows)))
     return summary, draws
@@ -156,6 +156,20 @@ def analyze():
     paper_repos = {r['repo']: r for r in read_csv(HERE / 'paper_files.csv')}
     baseline, baseline_draws = summarize(paper, paper_repos, source='paper_artifact')
     write_csv(HERE / 'paper_summary.csv', baseline)
+    if (HERE / 'repositories.csv').exists():
+        snapshot = read_csv(HERE / 'repositories.csv')
+        overview = []
+        for dimension in ('stratum', 'language'):
+            for label in sorted({r.get(dimension, '') or 'unspecified' for r in snapshot}):
+                rs = [r for r in snapshot if (r.get(dimension, '') or 'unspecified') == label]
+                stars = [int(r['stars']) for r in rs]
+                overview.append(dict(dimension=dimension, label=label, repositories=len(rs),
+                    stars_min=min(stars), stars_median=float(np.median(stars)), stars_max=max(stars)))
+        stars = [int(r['stars']) for r in snapshot]
+        if stars:
+            overview.append(dict(dimension='overall', label='all', repositories=len(snapshot),
+                stars_min=min(stars), stars_median=float(np.median(stars)), stars_max=max(stars)))
+        write_csv(HERE / 'corpus_overview.csv', overview)
     statements_path = HERE / 'statements.csv'
     labels_path = HERE / 'labels.csv'
     if not statements_path.exists() or not labels_path.exists():
@@ -222,6 +236,8 @@ def analyze():
     breakdown = []
     for group_type, groups in [('topic', {s['topic'] for s in joined}), ('enforceability', {s['enforceability'] for s in joined}),
                                ('context_required', {s['context_required'] for s in joined})]:
+        if not gates.get(group_type, False):
+            continue
         for group in sorted(groups):
             subset = [s for s in joined if s[group_type] == group]
             breakdown.append(dict(dimension=group_type, label=group, statements=len(subset),

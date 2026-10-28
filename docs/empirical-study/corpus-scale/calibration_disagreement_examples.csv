@@ -2393,5 +2393,106 @@ glm,topic,paper:Hmbown/DeepSeek-TUI:25,Development Process,Security,"- **Externa
 "
 glm,topic,paper:Hmbown/DeepSeek-TUI:26,Development Process,Documentation,"- **Promotional language in CHANGELOG / README / docs** (""the best Y"", ""now with Z built-in!"") gets cut on review.
 "
+glm,enforceability,paper:Hmbown/DeepSeek-TUI:29,semantic_only,cross_event,"
+If a PR is too large or scope-mixed to merge directly, harvest the useful commits/files/ideas yourself and land them. Don't ask the contributor to split it — just do the split. Comment with thanks, what landed, the CHANGELOG line, and a light tip if there's something they could do next time to make a future PR merge faster.
+"
+glm,topic,paper:Hmbown/DeepSeek-TUI:30,Development Process,Security,"
+The trust boundary on credentials, sandbox, providers, publishing, telemetry, sponsorship, branding, global prompts, and model/tool policy still needs `Hmbown` to sign off — but the burden of getting there is on us, not the contributor.
+"
+glm,topic,paper:Hmbown/DeepSeek-TUI:33,AI Integration,Documentation,"- **Modes**: Three modes — Plan (read-only investigation), Agent (tool use with approval), YOLO (auto-approved). See `docs/MODES.md` for details.
+"
+glm,enforceability,paper:Hmbown/DeepSeek-TUI:33,,per_event,"- **Modes**: Three modes — Plan (read-only investigation), Agent (tool use with approval), YOLO (auto-approved). See `docs/MODES.md` for details.
+"
+glm,enforceability,paper:Hmbown/DeepSeek-TUI:34,semantic_only,cross_event,"- **Sub-agents**: Use persistent `agent_open` sessions for independent side work. Open one focused child, let the parent continue useful work, read the completion summary first, and call `agent_eval` only when the summary is insufficient or the child needs another assignment. Close completed sessions with `agent_close`. Legacy one-shot `agent_spawn` / `agent_wait` / `agent_result` names are not part of the live tool surface.
+"
+glm,topic,paper:Hmbown/DeepSeek-TUI:37,AI Integration,Architecture,"
+## Session Longevity (Critical)
+
+Long sessions in DeepSeek TUI WILL degrade and crash if you work sequentially. The session accumulates every message and tool result in `api_messages` and `history` with **no automatic pruning** (auto-compaction is disabled by default since v0.6.6). Session saves serialize the entire bloated array to disk.
+"
 glm,topic,paper:Hmbown/DeepSeek-TUI:4,Implementation Details,Build and Run,"- Lint: `cargo clippy --workspace --all-targets --all-features`
+"
+glm,context_required,paper:Hmbown/DeepSeek-TUI:41,,project,"
+4. **Reassess after 3 sequential parent turns.** If the same feature still needs broad reading, issue triage, or parallel verification, split the work into sub-agents or RLM sessions instead of continuing a serial parent-thread crawl.
+"
+glm,enforceability,paper:InsForge/InsForge:13,content,,"- Database inserts require array format: `[{...}]`
+"
+glm,enforceability,paper:InsForge/InsForge:9,content,per_event,"
+## When to Use SDK vs MCP Tools
+
+### Always SDK for Application Logic:
+
+- Authentication (register, login, logout, profiles)
+- Database CRUD (select, insert, update, delete)
+- Storage operations (upload, download files)
+- AI integration via the provisioned OpenRouter key with the OpenAI SDK or OpenRouter HTTP API
+- Serverless function invocation
+"
+glm,topic,paper:Kilo-Org/kilocode:10,Build and Run,Testing,"- **Test**: `bun test` from `packages/opencode/` (NOT from root -- root blocks tests)
+"
+glm,topic,paper:Kilo-Org/kilocode:11,Build and Run,Testing,"- **Single test**: `bun test ./test/tool/tool-define.test.ts` from `packages/opencode/`
+"
+glm,topic,paper:Kilo-Org/kilocode:14,Build and Run,Implementation Details,"- **Knip** (unused exports): `bun run knip` from `packages/kilo-vscode/`. CI runs this — all exported types/functions must be imported somewhere. Remove or unexport unused exports before pushing.
+"
+glm,topic,paper:Kilo-Org/kilocode:15,Build and Run,Documentation,"- **Source links**: After adding or changing URLs in `packages/kilo-vscode/`, `packages/kilo-vscode/webview-ui/`, or `packages/opencode/src/`, run `bun run script/extract-source-links.ts` from the repo root and commit the updated `packages/kilo-docs/source-links.md`. CI runs this check — the build fails if the file is stale.
+"
+glm,topic,paper:Kilo-Org/kilocode:16,Build and Run,Development Process,"- **kilocode_change check**: `bun run check-kilocode-change` from `packages/kilo-vscode/`. CI runs this — `kilocode_change` is a marker for upstream merge conflicts and must not appear in `packages/kilo-vscode/` or `packages/kilo-ui/` (these are entirely Kilo Code additions). Remove the markers before pushing.
+"
+glm,topic,paper:Kilo-Org/kilocode:17,Build and Run,Implementation Details,"- **opencode annotation check**: `bun run script/check-opencode-annotations.ts` from repo root. CI runs this on PRs touching `packages/opencode/` — every Kilo-specific change in shared opencode files must be annotated with `kilocode_change` markers. Exempt paths (no markers needed): `packages/opencode/src/kilocode/`, `packages/opencode/test/kilocode/`, and any path containing `kilocode` in the name.
+"
+glm,topic,paper:Kilo-Org/kilocode:18,Build and Run,DevOps,"- **workflow allowlist**: `bun run script/check-workflows.ts` from repo root. CI runs this as part of the annotations workflow — any `.yml` / `.yaml` file added to or removed from `.github/workflows/` must be reflected in the hardcoded list in `script/check-workflows.ts`. Prevents upstream-merged workflows from silently starting to run in our CI.
+"
+glm,enforceability,paper:Kilo-Org/kilocode:18,per_event,cross_event,"- **workflow allowlist**: `bun run script/check-workflows.ts` from repo root. CI runs this as part of the annotations workflow — any `.yml` / `.yaml` file added to or removed from `.github/workflows/` must be reflected in the hardcoded list in `script/check-workflows.ts`. Prevents upstream-merged workflows from silently starting to run in our CI.
+"
+glm,topic,paper:Kilo-Org/kilocode:19,Build and Run,Testing,"- **Backend/SDK programmatic testing**: see [TESTING.md](./TESTING.md) for spawning the local main-branch backend (`bun dev serve`) and driving it via `curl` — use this instead of `kilo serve` (prod binary) when testing backend fixes.
+"
+glm,context_required,paper:Kilo-Org/kilocode:20,project,task,"## Quality Checks
+Before saying an implementation is ready, run the smallest relevant checks that can catch lint, typecheck, and test failures for the touched package. Do not rely on manual extension launch to discover build problems. Fix failures you introduced before the final response, or state exactly which check is still failing or could not be run.
+"
+glm,topic,paper:Kilo-Org/kilocode:24,Architecture,System Overview,"| Product | Package | Description |
+|---|---|---|
+| Kilo CLI | `packages/opencode/` | Core engine. TUI, `kilo run`, `kilo serve`. Fork of upstream OpenCode. |
+| Kilo VS Code Extension | `packages/kilo-vscode/` | VS Code extension. Bundles the CLI binary, spawns `kilo serve` as a child process. Includes the **Agent Manager** — a multi-session orchestration panel with git worktree isolation. |
+"
+glm,topic,paper:Kilo-Org/kilocode:25,Architecture,Documentation,"**Agent Manager** refers to a feature inside `packages/kilo-vscode/` (extension code in `src/agent-manager/`, webview in `webview-ui/agent-manager/`). It is not a standalone product. See the extension's `AGENTS.md` for details.
+"
+glm,topic,paper:Kilo-Org/kilocode:26,Architecture,Configuration & Environment,"Extension-specific settings should live in the Kilo extension settings, not default VS Code settings, unless they are intentionally VS Code-wide.
+"
+glm,context_required,paper:Kilo-Org/kilocode:41,none,task,"- Before finishing edits, review touched lines and shorten newly introduced identifiers where possible.
+"
+glm,context_required,paper:Kilo-Org/kilocode:48,none,project,"Tests MUST test actual implementation, do not duplicate logic into a test.
+"
+glm,topic,paper:Kilo-Org/kilocode:49,Implementation Details,Documentation,"## Markdown Tables
+Do not pad markdown table cells for column alignment. Use the compact form with single-space-padded content cells and a minimal separator row:
+```
+| Command | What it runs |
+|---|---|
+| `kilo serve` | The prod CLI on `$PATH`. |
+```
+Do **not** right-pad cells to line up columns:
+```
+| Command                       | What it runs             |
+| ----------------------------- | ------------------------ |
+| `kilo serve`                  | The prod CLI on `$PATH`. |
+```
+Padding makes every content change rewrite the entire table, which blows up diffs on untouched rows. Markdown files are excluded from prettier (see `.prettierignore`) so running the formatter won't re-pad them, and `script/check-md-table-padding.ts` enforces the rule in CI. Run `bun run script/check-md-table-padding.ts --fix` to auto-rewrite padded tables.
+"
+glm,topic,paper:Kilo-Org/kilocode:51,Development Process,DevOps,"## Changesets
+User-facing changes (features, fixes, breaking changes) require a changeset file for release notes. Run `bunx changeset add` or manually create `.changeset/<slug>.md`. Use `patch` for bug fixes, `minor` for new features, `major` for breaking changes. See `.changeset/README.md` for details.
+"
+glm,topic,paper:Kilo-Org/kilocode:52,Development Process,DevOps,"Changeset descriptions appear directly in release notes and are read by end users. Keep them concise and feature-oriented — describe **what changed from the user's perspective**, not implementation details. Write in imperative mood (e.g. ""Support exporting conversations as markdown"" not ""Add a new export handler that serializes session messages to .md files"").
+"
+glm,topic,paper:Kilo-Org/kilocode:54,AI Integration,Development Process,"## GitHub Issues
+When creating or managing GitHub issues for the VS Code extension or JetBrains plugin via `gh`, load `.kilo/skills/gh-issues/SKILL.md`. It covers templates, project boards (`VS Code Extension`, `Jetbrains Plugin`), title conventions, and the `gh auth refresh -s project` recovery path.
+"
+glm,enforceability,paper:Kilo-Org/kilocode:54,content,per_event,"## GitHub Issues
+When creating or managing GitHub issues for the VS Code extension or JetBrains plugin via `gh`, load `.kilo/skills/gh-issues/SKILL.md`. It covers templates, project boards (`VS Code Extension`, `Jetbrains Plugin`), title conventions, and the `gh auth refresh -s project` recovery path.
+"
+glm,topic,paper:Kilo-Org/kilocode:55,Maintenance,System Overview,"## Fork Merge Process
+Kilo CLI is a fork of [opencode](https://github.com/anomalyco/opencode).
+"
+glm,enforceability,paper:Kilo-Org/kilocode:57,semantic_only,,"### Minimizing Merge Conflicts
+We regularly merge upstream changes from opencode. To minimize merge conflicts and keep the sync process smooth:
+"
+glm,topic,paper:Kilo-Org/kilocode:62,Maintenance,Configuration & Environment,"5. **Mirror new config keys to the cloud schema** - When adding a `kilocode_change` key to `Config.Info` in `packages/opencode/src/config/config.ts`, also add the matching JSON Schema entry in `apps/web/src/app/config.json/extras.ts` in the [cloud repo](https://github.com/Kilo-Org/cloud). See [CLI Config Schema](packages/kilo-docs/pages/contributing/architecture/config-schema.md) for the step-by-step.
 "

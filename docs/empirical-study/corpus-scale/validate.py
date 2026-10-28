@@ -18,6 +18,9 @@ def main(a):
     record('historical_repository_total', int(claims['repositories']), len({r['repo'] for r in paper}))
     record('historical_os_tier_count', int(claims['os_enforceable_count']),
            sum(r['type'] == 'directive' and r['enforceability'] in ('per_event', 'cross_event') for r in paper))
+    audit = read_csv(HERE / 'paper_audit.csv')[0]
+    record('historical_deduplicated_non_redirect_file_total', int(claims['instruction_files']),
+           int(audit['unique_non_redirect_files']))
     for name in ['calibration_qwen', 'calibration_glm', 'calibration_adjudicated']:
         path = HERE / (name + '.csv')
         if path.exists():

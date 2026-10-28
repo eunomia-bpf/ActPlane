@@ -1,25 +1,313 @@
-repo,category,confidence,rationale,model,review
-ComposioHQ/composio,agent_frameworks,high,"Composio provides toolkits, MCP infrastructure, and context management for building AI agents, which is agent infrastructure/SDK.",qwen3.8-27b-nvfp4,model_metadata_only
-Dokploy/dokploy,applications,high,"Dokploy is a deployment platform (PaaS alternative), which is general software/infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only
-GoogleChrome/lighthouse,applications,high,"Lighthouse is an automated auditing tool for web performance, which is a developer tool but not an agent.",qwen3.8-27b-nvfp4,model_metadata_only
-JCodesMore/ai-website-cloner-template,agent_frameworks,medium,A template/boilerplate for cloning websites using AI coding agents; primarily a developer tool/skill for software engineering.,qwen3.8-27b-nvfp4,model_metadata_only
-The-Vibe-Company/quivr,applications,high,"An engine for content search and monitoring with RAG capabilities, functioning as a general software service/library.",qwen3.8-27b-nvfp4,model_metadata_only
-agno-agi/agno,agent_frameworks,high,Described as a self-improving agent platform with topics including developer-tools and ai-agents.,qwen3.8-27b-nvfp4,model_metadata_only
-appsmithorg/appsmith,applications,high,"A low-code platform for building admin panels and internal tools, which is general software.",qwen3.8-27b-nvfp4,model_metadata_only
-cockroachdb/cockroach,applications,high,"CockroachDB is a distributed SQL database, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
-codewhale-hq/Codewhale,agent_frameworks,high,"An open-source coding agent for the terminal with topics like coding-agent, mcp, and developer-tools.",qwen3.8-27b-nvfp4,model_metadata_only
-continuedev/continue,agent_frameworks,high,"Continue is an open-source coding agent, which is a coding agent/developer tool.",qwen3.8-27b-nvfp4,model_metadata_only
-directus/directus,applications,high,"Directus is a headless CMS and backend framework, which is general software.",qwen3.8-27b-nvfp4,model_metadata_only
-dragonflydb/dragonfly,applications,high,"Dragonfly is an in-memory key-value store (Redis alternative), which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
-duckdb/duckdb,applications,high,"DuckDB is a high-performance analytical database system, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
-esengine/DeepSeek-Reasonix,agent_frameworks,high,"DeepSeek-Reasonix is a coding agent for software engineering tasks, which is a coding agent.",qwen3.8-27b-nvfp4,model_metadata_only
-facebook/rocksdb,applications,high,"RocksDB is an embeddable key-value store library, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
-google-research/google-research,applications,high,"A collection of research code and models from Google Research, which falls under ML models/research.",qwen3.8-27b-nvfp4,model_metadata_only
-koalaman/shellcheck,applications,high,"ShellCheck is a static analysis tool/linter for shell scripts, which is a developer tool but not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only
-nautechsystems/nautilus_trader,applications,high,"NautilusTrader is a trading engine, which is a specialized application/library.",qwen3.8-27b-nvfp4,model_metadata_only
-patchy631/ai-engineering-hub,applications,high,"A collection of tutorials and documentation on AI engineering, which is an education/documentation collection.",qwen3.8-27b-nvfp4,model_metadata_only
-photoprism/photoprism,applications,high,"An AI-powered photo management app, which is a general application.",qwen3.8-27b-nvfp4,model_metadata_only
-pingcap/tidb,applications,high,"TiDB is a distributed SQL database; while it mentions agentic workloads, its primary purpose is as a database system.",qwen3.8-27b-nvfp4,model_metadata_only
-qdrant/qdrant,applications,high,"Qdrant is a vector database and search engine, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
-surrealdb/surrealdb,applications,high,"SurrealDB is a document-graph database, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only
-typeorm/typeorm,applications,high,"TypeORM is an ORM library for Node.js, which is a general software library.",qwen3.8-27b-nvfp4,model_metadata_only
+repo,category,confidence,rationale,model,review,status
+78/xiaozhi-esp32,applications,medium,"A chatbot application for ESP32 devices; while it uses MCP, its primary purpose is a general consumer-facing chatbot service rather than a coding or professional agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+AgriciDaniel/claude-seo,noncoding_agents,high,"A skill for SEO and marketing, which is a non-coding business/office task.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+AstrBotDevs/AstrBot,agent_frameworks,high,"An AI agent assistant and development framework that integrates multiple IM platforms and LLMs, functioning as a reusable agent runtime.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+Automattic/harper,applications,high,"Harper is a grammar checker tool/library, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+Chalarangelo/30-seconds-of-code,applications,high,"Collection of coding articles and snippets for education, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+CherryHQ/cherry-studio,applications,medium,"It is a general-purpose AI productivity studio/chat application, not a reusable framework or specific non-coding agent skill set.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+ChromeDevTools/chrome-devtools-mcp,agent_frameworks,high,"It is an MCP server for Chrome DevTools, specifically designed to assist coding agents with debugging.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+ClickHouse/ClickHouse,applications,high,Real-time analytics database management system; general software.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+Comfy-Org/ComfyUI,applications,high,"A GUI and backend for diffusion models (image generation), not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+ComposioHQ/awesome-claude-skills,agent_frameworks,high,"Curated list of skills and configurations for coding agents (Claude, Codex, etc.).",qwen3.8-27b-nvfp4,model_metadata_only,ok
+ComposioHQ/composio,agent_frameworks,high,"Composio provides toolkits, MCP infrastructure, and context management for building AI agents, which is agent infrastructure/SDK.",qwen3.8-27b-nvfp4,model_metadata_only,
+CopilotKit/CopilotKit,agent_frameworks,high,"A frontend stack and protocol (AG-UI) for building agent-native applications, serving as a developer framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+D4Vinci/Scrapling,applications,high,"Web scraping framework and library; while it has MCP support, its primary purpose is data extraction.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+DietrichGebert/ponytail,agent_frameworks,high,Provides agent skills and configurations (YAGNI prompt engineering) specifically for coding agents like Claude Code and Cursor.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+Dokploy/dokploy,applications,high,"Dokploy is a deployment platform (PaaS alternative), which is general software/infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,
+Donchitos/Claude-Code-Game-Studios,agent_frameworks,high,"A configuration of agents and skills for game development, which is a software engineering domain.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+GoogleChrome/lighthouse,applications,high,"Lighthouse is an automated auditing tool for web performance, which is a developer tool but not an agent.",qwen3.8-27b-nvfp4,model_metadata_only,
+GoogleContainerTools/skaffold,applications,high,"Skaffold is a Kubernetes development tool, a general developer tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+Graphify-Labs/graphify,agent_frameworks,high,"A skill for coding agents that turns codebases into knowledge graphs, explicitly listed as a skill for Claude Code, Cursor, etc.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+HKUDS/DeepTutor,applications,high,"A specialized AI tutoring and interactive learning system, which is a domain-specific application rather than a general framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+HKUDS/Vibe-Trading,noncoding_agents,high,"A personal trading agent focused on finance and algorithmic trading, which is a non-coding domain.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+HKUDS/nanobot,agent_frameworks,high,It is a personal AI agent framework with multi-agent workflows and automation capabilities.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+JCodesMore/ai-website-cloner-template,agent_frameworks,medium,A template/boilerplate for cloning websites using AI coding agents; primarily a developer tool/skill for software engineering.,qwen3.8-27b-nvfp4,model_metadata_only,
+JuliaLang/julia,applications,high,Programming language implementation; general software.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+JuliusBrussee/caveman,agent_frameworks,high,"Skill and proxy for coding agents that optimizes token usage, specifically targeting software engineering workflows.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+K-Dense-AI/scientific-agent-skills,noncoding_agents,high,"Agent skills library for scientific research (biology, chemistry, medicine), serving research professionals rather than software engineers.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+KKKKhazix/khazix-skills,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+Leonxlnx/taste-skill,agent_frameworks,high,Agent skills specifically for coding agents to improve frontend design and UI aesthetics.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+LibreChat-AI/LibreChat,applications,high,"An enhanced ChatGPT clone and web UI for interacting with various LLMs, serving as a general application interface.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+MemPalace/mempalace,agent_frameworks,high,It is an AI memory system/infrastructure for agents.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+NVIDIA/SkillSpector,agent_frameworks,high,"A security scanner for agent skills, which is a developer security tool for agent infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+NirDiamant/GenAI_Agents,applications,high,"A collection of tutorials and implementations for GenAI agents, serving as educational content rather than a reusable framework/SDK.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+NirDiamant/RAG_Techniques,applications,high,"A collection of tutorials and notebooks for RAG techniques, serving as educational content rather than a reusable agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+NousResearch/hermes-agent,agent_frameworks,medium,AI agent framework that grows with the user; supports multiple LLMs and coding contexts.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+OpenHands/OpenHands,agent_frameworks,high,AI-driven development platform (coding agent) for software engineering.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+OrchestratorInc/agent-orchestrator,agent_frameworks,high,"Agent Orchestrator is a tool for orchestrating coding agents, fitting coding agent orchestration.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+OthmanAdi/planning-with-files,agent_frameworks,high,"A planning tool for coding agents and long-running tasks, explicitly mentioning coding agents and context engineering.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+OtterMind/Chat2DB,applications,high,"A database client and SQL workspace with AI features, primarily a developer tool for database management.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+PaddlePaddle/Paddle,applications,high,"A deep learning framework (PaddlePaddle), core ML infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+Panniantong/Agent-Reach,noncoding_agents,high,"CLI tool giving agents access to social media and web content (Twitter, Reddit, YouTube) for research and browsing, primarily for non-coding tasks.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+ParadevAI/Paradev,agent_frameworks,high,"Paradev is an agentic IDE for orchestrating coding agents, fitting coding agents/orchestration.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+QwenLM/qwen-code,agent_frameworks,high,"An open-source AI coding agent that runs in the terminal, explicitly a coding agent.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+SWE-agent/SWE-agent,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+Shubhamsaboo/awesome-llm-apps,applications,high,"A collection of open-source examples and apps, not a reusable framework or SDK.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+Significant-Gravitas/AutoGPT,agent_frameworks,high,Framework for building autonomous AI agents; agent orchestration and development tools.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+Skyvern-AI/skyvern,noncoding_agents,high,"Automates browser-based workflows, which is general browser task automation.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+StarRocks/starrocks,applications,high,Open-source query engine and database for analytics.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+TencentCloud/TencentDB-Agent-Memory,agent_frameworks,high,"A memory hub/infrastructure for AI agents, providing reusable memory assets and governance.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+The-Vibe-Company/quivr,applications,high,"An engine for content search and monitoring with RAG capabilities, functioning as a general software service/library.",qwen3.8-27b-nvfp4,model_metadata_only,
+TheAlgorithms/Python,applications,high,Collection of algorithms implemented in Python; education/reference material.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+TwiN/gatus,applications,high,Automated status page and monitoring tool for developers.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+Twigpine/openclaude,agent_frameworks,high,"A CLI tool for running AI agents, described as a coding tool that runs anywhere.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+Unleash/unleash,applications,high,"Unleash is a feature flag management platform, a general software application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+VictoriaMetrics/VictoriaMetrics,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+Yeachan-Heo/oh-my-claudecode,agent_frameworks,high,"A multi-agent orchestration tool designed specifically for Claude Code, focusing on coding agent workflows.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+ZhuLinsen/daily_stock_analysis,noncoding_agents,high,"The primary purpose is financial analysis and stock trading automation, which falls under finance.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+aaif-goose/goose,agent_frameworks,high,"It is an extensible AI agent that performs coding and system tasks (install, execute, edit, test).",qwen3.8-27b-nvfp4,model_metadata_only,ok
+addyosmani/agent-skills,agent_frameworks,high,"Collection of engineering skills for AI coding agents, directly supporting software development tasks.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+affaan-m/ECC,agent_frameworks,high,Agent harness performance optimization system with skills and memory for coding agents like Claude Code.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+agentscope-ai/QwenPaw,agent_frameworks,high,"A personal AI assistant and agent harness that is extensible and supports multiple chat apps, fitting the agent framework/harness category.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+agentscope-ai/agentscope,agent_frameworks,high,AgentScope is a framework for building and running multi-modal and multi-agent systems.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+agentskills/agentskills,agent_frameworks,high,"Specification and documentation for Agent Skills, which is developer infrastructure/standard.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+agno-agi/agno,agent_frameworks,high,Described as a self-improving agent platform with topics including developer-tools and ai-agents.,qwen3.8-27b-nvfp4,model_metadata_only,
+ahmedkhaleel2004/gitdiagram,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+ai-job-search-dev/ai-job-search,noncoding_agents,high,"Similar to repo 1, it is an AI agent framework specifically for job search and application tasks.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+alchaincyf/huashu-design,noncoding_agents,medium,"A design skill for generating prototypes and PPTX, focused on design/office deliverables rather than code.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+alibaba/nacos,applications,high,"A service discovery and configuration management platform (Nacos) that has added AI/MCP registry features, but is primarily a microservices infrastructure tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+alibaba/page-agent,noncoding_agents,high,"A GUI agent for controlling web interfaces, primarily used for general browser task automation.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+alirezarezvani/claude-skills,agent_frameworks,high,"A collection of skills, plugins, and configurations for coding agents like Claude Code and Cursor, primarily for software engineering.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+anomalyco/opencode,agent_frameworks,high,Open source coding agent; agent framework/runtime for software development.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+anthropics/claude-code,agent_frameworks,high,"An agentic coding tool that executes tasks in the terminal, explicitly categorized as a coding agent.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+anthropics/claude-plugins-official,agent_frameworks,high,"A directory of official plugins for Claude Code, which are developer-agent skills and configurations for software engineering.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+anthropics/skills,agent_frameworks,high,Public repository for Agent Skills; developer-agent configurations and skills.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+apache/airflow,applications,high,Workflow orchestration platform for data pipelines; general software.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+apache/apisix,applications,high,"Apache APISIX is an API gateway, a general infrastructure service.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+apache/doris,applications,high,"Apache Doris is a database engine, a general software application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+apache/shardingsphere,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+appsmithorg/appsmith,applications,high,"A low-code platform for building admin panels and internal tools, which is general software.",qwen3.8-27b-nvfp4,model_metadata_only,
+arc53/DocsGPT,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+argoproj/argo-cd,applications,high,"A continuous deployment tool for Kubernetes, DevOps infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+asgeirtj/system_prompts_leaks,applications,high,"It is a documentation/collection of system prompts, serving as a reference resource rather than an executable agent or framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+assafelovic/gpt-researcher,noncoding_agents,high,"Autonomous agent for deep research and data synthesis, a general research assistant rather than a coding tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+avelino/awesome-go,applications,high,Curated list of Go frameworks and libraries; documentation/education collection.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+ayghri/i-have-adhd,agent_frameworks,high,Configuration/skill for coding agents (Claude) to improve output style; developer-agent skill.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+beekeeper-studio/beekeeper-studio,applications,high,A SQL client application for database management.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+blader/humanizer,noncoding_agents,high,"Agent skill for humanizing AI-generated text, focused on writing/content creation rather than coding.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+bojieli/ai-agent-book,applications,high,"It is an open-source book and educational resource about AI agents, not a tool or framework itself.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+browser-use/browser-use,agent_frameworks,high,Library and cloud service specifically for building and running AI browser agents.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+browserbase/stagehand,agent_frameworks,high,"An SDK for browser automation and data extraction, which is a developer tool/infrastructure for building agents.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+bytebase/bytebase,applications,high,"Bytebase is a database governance tool, a general software application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+bytedance/deer-flow,agent_frameworks,high,"Open-source long-horizon SuperAgent harness for research, coding, and creation tasks.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+calesthio/OpenMontage,noncoding_agents,high,"Agentic video production system; while it uses coding assistants, its primary advertised use is creative media production (video), not software engineering.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+can1357/oh-my-pi,agent_frameworks,high,"A coding agent with IDE integration, explicitly categorized as an AI coding agent.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+career-ops-hq/career-ops,noncoding_agents,high,"The primary purpose is to automate job search tasks like scanning job boards, tailoring resumes, and preparing for interviews, which are personal/office tasks.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+cheaper-inference/OmniRoute,agent_frameworks,high,"AI gateway and infrastructure for coding agents, providing model routing and token optimization for tools like Claude Code.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+chroma-core/chroma,applications,high,"A vector database/search infrastructure library for AI applications, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+citrolabs/ego-lite,noncoding_agents,medium,"A browser for AI agents to run automation, sharing logged-in state for general web tasks.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+citusdata/citus,applications,high,"Distributed PostgreSQL extension, a database technology unrelated to agents.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+clash-verge-rev/clash-verge-rev,applications,high,"A GUI client for proxy configuration, unrelated to AI agents.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+clockworklabs/SpacetimeDB,applications,high,"A real-time database and web framework, core infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+cloudflare/security-audit-skill,agent_frameworks,high,"Coding-agent skill specifically for security audits in codebases, directly related to software engineering and code review.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+cockroachdb/cockroach,applications,high,"CockroachDB is a distributed SQL database, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only,
+code-yeongyu/oh-my-openagent,agent_frameworks,high,"It is an orchestration tool/skill for coding agents (Claude, Codex, etc.) to manage graph engineering tasks.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+codewhale-hq/Codewhale,agent_frameworks,high,"An open-source coding agent for the terminal with topics like coding-agent, mcp, and developer-tools.",qwen3.8-27b-nvfp4,model_metadata_only,
+coleam00/Archon,agent_frameworks,high,"A harness builder for AI coding, designed to make coding agents deterministic, fitting the agent development tools category.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+continuedev/continue,agent_frameworks,high,"Continue is an open-source coding agent, which is a coding agent/developer tool.",qwen3.8-27b-nvfp4,model_metadata_only,
+convex/convex-backend,applications,high,Open-source reactive database backend for app developers.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+coreyhaines31/marketingskills,noncoding_agents,high,"It provides skills for marketing tasks (SEO, copywriting, CRO), which are business/office tasks, not software engineering.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+corsairdev/corsair,agent_frameworks,medium,"Corsair is an SDK/infrastructure for connecting agents to apps via OAuth/MCP, fitting agent development tools.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+crewAIInc/crewAI,agent_frameworks,high,It is a framework for orchestrating autonomous AI agents.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+dagger/dagger,applications,high,"Dagger is a CI/CD automation engine, a general developer tool/application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+dailydotdev/daily,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+dair-ai/Prompt-Engineering-Guide,applications,high,"Collection of guides, papers, and resources for prompt engineering and AI agents; educational/documentation content.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+darrenburns/posting,applications,high,A modern API client CLI tool for terminal use.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+dbeaver/dbeaver,applications,high,Database GUI client; general software application.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+debezium/debezium,applications,high,"Debezium is a change data capture framework, a general data pipeline tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+decolua/9router,agent_frameworks,high,"AI gateway/proxy specifically for connecting and managing AI coding agents (Claude Code, Cursor, etc.), serving as developer infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+deepseek-ai/deepseek-harness,agent_frameworks,high,Agent plugin system ('Everything is a Plugin') for AI agents; developer-agent infrastructure.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+deepspeedai/DeepSpeed,applications,high,Deep learning optimization library; general software library.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+directus/directus,applications,high,"Directus is a headless CMS and backend framework, which is general software.",qwen3.8-27b-nvfp4,model_metadata_only,
+dotnet/efcore,applications,high,"EF Core is an ORM library for .NET, a general software library.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+dragonflydb/dragonfly,applications,high,"Dragonfly is an in-memory key-value store (Redis alternative), which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only,
+duckdb/duckdb,applications,high,"DuckDB is a high-performance analytical database system, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only,
+earendil-works/pi,agent_frameworks,high,"Toolkit providing LLM API, agent loop, and coding agent CLI.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+electron/electron,applications,high,"Framework for building desktop applications, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+eosphoros-ai/DB-GPT,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+esengine/DeepSeek-Reasonix,agent_frameworks,high,"DeepSeek-Reasonix is a coding agent for software engineering tasks, which is a coding agent.",qwen3.8-27b-nvfp4,model_metadata_only,
+excalidraw/excalidraw,applications,high,"A virtual whiteboard application, unrelated to AI agents.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+f/prompts.chat,applications,high,"A community-driven collection of prompts and a web application for sharing them, not a reusable agent framework or coding tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+facebook/rocksdb,applications,high,"RocksDB is an embeddable key-value store library, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only,
+feder-cr/invisible_dots,noncoding_agents,high,"Browser automation and stealth agent system for general web tasks (alternative to Grok Bot), focused on personal/office web automation.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+files-community/Files,applications,high,File manager application; general software.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+firecrawl/firecrawl,agent_frameworks,high,Library to supercharge AI agents with web data; MCP infrastructure and agent tooling.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+floci-io/floci,applications,high,"An AWS local emulator for development and testing, unrelated to agents.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+flutter/flutter,applications,high,Framework for building mobile and web apps; general software development framework.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+freeCodeCamp/freeCodeCamp,applications,high,Open-source codebase and curriculum for learning programming; primarily an educational platform/application.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+garrytan/gstack,agent_frameworks,high,"A configuration/setup for Claude Code with specific tools and roles, serving as a developer-agent configuration.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+getpaseo/paseo,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+getsentry/sentry,applications,high,Error tracking and monitoring service; general software.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+ggml-org/llama.cpp,applications,high,"A library for LLM inference in C/C++, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+github/awesome-copilot,agent_frameworks,high,"Collection of instructions, agents, and skills for GitHub Copilot, a coding assistant, thus focused on software engineering.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+github/github-mcp-server,agent_frameworks,high,"GitHub's official MCP server, which is core MCP infrastructure for agent-tool interaction.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+github/spec-kit,agent_frameworks,medium,A toolkit for Spec-Driven Development (SDD) that integrates with AI coding assistants to structure engineering processes.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+go-gitea/gitea,applications,high,Self-hosted Git hosting and DevOps platform; general software service.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+golang/go,applications,high,"The Go programming language implementation, not an agent tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+google-gemini/gemini-cli,agent_frameworks,high,"Open-source AI agent CLI that brings Gemini into the terminal, functioning as a coding/developer agent.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+google-research/google-research,applications,high,"A collection of research code and models from Google Research, which falls under ML models/research.",qwen3.8-27b-nvfp4,model_metadata_only,
+google/skills,agent_frameworks,high,"Agent skills for Google products, serving as a library/SDK for agent development.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+googleapis/mcp-toolbox,agent_frameworks,high,"MCP Toolbox is an MCP server for databases, which is MCP infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+googleworkspace/cli,noncoding_agents,high,"CLI tool for Google Workspace (Gmail, Calendar, Drive) with agent skills, primarily for office/productivity automation.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+gradio-app/gradio,applications,high,Library for building ML app interfaces; general software library.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+h4ckf0r0day/obscura,noncoding_agents,medium,"A headless browser for AI agents and web scraping, used for general web automation tasks.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+harry0703/MoneyPrinterTurbo,applications,high,"An application for automated video generation, not an agent framework or coding tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+headroomlabs-ai/headroom,agent_frameworks,high,Library and proxy for compressing tool outputs and RAG chunks to optimize context for coding agents.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+herdrdev/herdr,agent_frameworks,high,Runtime and multiplexer specifically for coding agents; agent orchestration infrastructure.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+heygen-com/hyperframes,agent_frameworks,medium,"It is a tool/framework for rendering video from HTML, explicitly built for agents to use in creative/development workflows.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+huggingface/transformers,applications,high,"A library for machine learning models (NLP, vision, audio), not an agent orchestration framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+hugohe3/ppt-master,noncoding_agents,high,"The primary purpose is to generate PowerPoint presentations, which is a personal/office productivity task.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+iOfficeAI/AionUi,agent_frameworks,high,"A cowork app that orchestrates and teams up various CLI coding agents, serving as an agent orchestration tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+iOfficeAI/OfficeCLI,noncoding_agents,high,"Purpose-built for automating office documents (Word, Excel, PowerPoint), which falls under office work.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+iii-hq/iii,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+infiniflow/ragflow,agent_frameworks,high,RAG engine that fuses retrieval with agent capabilities to create a context layer for LLMs/agents.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+infracost/infracost,applications,high,"Cloud cost estimation tool for infrastructure as code; while it mentions AI coding agents, its primary purpose is FinOps/cost intelligence.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+invertase/react-native-firebase,applications,high,Firebase implementation library for React Native apps.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+jackwener/OpenCLI,noncoding_agents,high,"Browser automation tool that turns websites into CLIs for AI agents, focused on general web task automation.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+jeecgboot/JeecgBoot,applications,high,"It is a low-code enterprise platform for generating software systems, a general application/service.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+kepano/obsidian-skills,noncoding_agents,high,"Agent skills for Obsidian (note-taking/knowledge management), focused on personal productivity and document management.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+kestra-io/kestra,applications,high,"A general-purpose workflow orchestration platform (control plane) for data, infra, and AI agents, not an agent-specific framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+koala73/worldmonitor,noncoding_agents,high,"Real-time global intelligence dashboard for news and geopolitical monitoring, serving as a situational awareness tool rather than a coding framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+koalaman/shellcheck,applications,high,"ShellCheck is a static analysis tool/linter for shell scripts, which is a developer tool but not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,
+kubernetes/kubernetes,applications,high,"Core infrastructure for container orchestration, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+kubesphere/kubesphere,applications,high,"KubeSphere is a Kubernetes management platform, a general DevOps application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+kysely-org/kysely,applications,high,"Kysely is a SQL query builder library, a general software library.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+langchain-ai/langchain,agent_frameworks,high,Described as an 'agent engineering platform' and a framework for building AI agents.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+langchain-ai/langgraph,agent_frameworks,high,"LangGraph is a well-known framework for building resilient, stateful agents and multi-agent systems.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+langflow-ai/langflow,agent_frameworks,high,"A tool for building and deploying AI-powered agents and workflows, fitting the category of agent development tools.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+langgenius/dify,agent_frameworks,high,"A platform for building agentic workflows, RAG pipelines, and AI applications, serving as an agent development and orchestration tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+lexmount/moli,noncoding_agents,medium,"A headless browser for AI agents, used for web crawling/scraping automation.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+lidge-jun/opencodex,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+lightpanda-io/browser,applications,high,Headless browser engine designed for AI and automation; a core software component/library rather than an agent framework or specific agent skill.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+lobehub/lobehub,agent_frameworks,high,"Chief Agent Operator platform for organizing, scheduling, and managing AI agent teams.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+louislam/uptime-kuma,applications,high,"Self-hosted monitoring tool, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+marimo-team/marimo,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+mattpocock/skills,agent_frameworks,high,Skills for engineers from .agents directory; developer-agent configurations for software engineering.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+meilisearch/meilisearch,applications,high,Search engine API and database; general software service.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+mem0ai/mem0,agent_frameworks,high,"It is a memory infrastructure/SDK layer for AI agents, a core component of agent development.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+metabase/metabase,applications,high,Business Intelligence and analytics tool; general software application.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+microsoft/AI-For-Beginners,applications,high,Educational course collection for AI/ML; documentation/education.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+microsoft/ML-For-Beginners,applications,high,"Educational course on machine learning, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+microsoft/PowerToys,applications,high,"A collection of Windows productivity utilities, unrelated to AI agents.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+microsoft/ai-agents-for-beginners,applications,high,"It is a collection of lessons and educational content for learning AI agents, not a reusable framework or specific agent application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+microsoft/autogen,agent_frameworks,high,It is a well-known programming framework for building agentic AI systems.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+microsoft/generative-ai-for-beginners,applications,high,"Educational course on generative AI, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+microsoft/onnxruntime,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+microsoft/playwright-mcp,agent_frameworks,high,"An MCP server for Playwright, which is part of the MCP infrastructure for connecting agents to tools.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+microsoft/vscode,applications,high,Visual Studio Code; general code editor application.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+mindsdb/mindshub,agent_frameworks,medium,"A unified workspace for agents to execute tasks, likely serving as an agent runtime or orchestration layer.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+mksglu/context-mode,agent_frameworks,high,"Context window optimization and MCP infrastructure for AI coding agents, serving as a development tool for agent orchestration.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+mlflow/mlflow,applications,high,"An AI engineering platform for MLOps, model management, and observability, not an agent orchestration framework itself.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+modular/modular,applications,high,"A programming language and platform (Mojo/MAX) for AI development, not an agent framework or non-coding agent.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+mongodb/mongo,applications,high,"The MongoDB database engine, a core infrastructure component.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+morluto/rea,agent_frameworks,high,Agent skills and MCP infrastructure for reverse engineering and binary analysis; developer-agent tools.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+mudler/LocalAI,applications,high,"It is a local AI inference engine/runtime for running various models, a general software library/service.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+mukul975/Anthropic-Cybersecurity-Skills,agent_frameworks,high,"A collection of structured cybersecurity skills for AI agents, intended for use in coding/development environments like Claude Code.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+multica-ai/andrej-karpathy-skills,agent_frameworks,high,CLAUDE.md file to improve coding agent behavior; developer-agent configuration for software engineering.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+mvanhorn/last30days-skill,noncoding_agents,high,"Agent skill for researching topics across social media and web sources, a general research/information gathering tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+n8n-io/n8n,applications,high,Workflow automation platform with integrations; general software service.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+nanocoai/nanoclaw,noncoding_agents,high,"Lightweight agent connecting to messaging apps (WhatsApp, Slack, Gmail) for personal assistant tasks, similar to OpenClaw.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+nautechsystems/nautilus_trader,applications,high,"NautilusTrader is a trading engine, which is a specialized application/library.",qwen3.8-27b-nvfp4,model_metadata_only,
+nektos/act,applications,high,CI/CD tool for running GitHub Actions locally; general DevOps software.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+neo4j/neo4j,applications,high,"Neo4j is a graph database, which is a general software application/library.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+netdata/netdata,applications,high,"Observability and monitoring platform, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+nextlevelbuilder/ui-ux-pro-max-skill,agent_frameworks,high,"An AI skill providing design intelligence for coding agents (Claude Code, Cursor, etc.), falling under developer-agent skills.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+nodejs/node,applications,high,"JavaScript runtime environment, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+novuhq/novu,applications,high,"Open-source communication infrastructure (notifications, email, SMS) for products and agents; a general backend service/library.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+obra/superpowers,agent_frameworks,high,Agentic skills framework and software development methodology for coding agents.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+ollama/ollama,applications,high,Tool to run LLMs locally; general software/library for model inference.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+onnx/onnx,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+op7418/guizang-ppt-skill,noncoding_agents,high,"A skill for generating slide decks/presentations, which is a non-coding office/creative task.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+openai/codex,agent_frameworks,high,"A lightweight coding agent that runs in the terminal, explicitly categorized as a coding agent.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+openbq-org/OpenBB,applications,high,"Financial data platform, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+openclaw/openclaw,noncoding_agents,medium,Personal AI assistant ('The AI that really does things') focused on personal data and cross-platform assistance.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+opendatalab/MinerU,applications,high,Document parsing library (PDF/Office to Markdown) for LLMs; a general utility library rather than an agent framework or specific agent skill.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+openinterpreter/openinterpreter,agent_frameworks,high,It is a coding agent framework/runtime for open-source models.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+paperclipai/paperclip,agent_frameworks,high,"App for managing and orchestrating agents at work, focusing on agent skills and workflows.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+patchy631/ai-engineering-hub,applications,high,"A collection of tutorials and documentation on AI engineering, which is an education/documentation collection.",qwen3.8-27b-nvfp4,model_metadata_only,
+photoprism/photoprism,applications,high,"An AI-powered photo management app, which is a general application.",qwen3.8-27b-nvfp4,model_metadata_only,
+phuryn/pm-skills,noncoding_agents,high,"Skills for Product Management (discovery, strategy, launch), which is a non-coding business/office domain.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+pingcap/tidb,applications,high,"TiDB is a distributed SQL database; while it mentions agentic workloads, its primary purpose is as a database system.",qwen3.8-27b-nvfp4,model_metadata_only,
+pranshuparmar/witr,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+prisma/orm,applications,high,ORM library for databases; general software library.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+pubkey/rxdb,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+puppeteer/puppeteer,applications,high,"Library for automating browsers, but primarily a developer tool for testing/automation, not an agent orchestration framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+pytorch/pytorch,applications,high,"Machine learning library for tensors and neural networks, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+qdrant/qdrant,applications,high,"Qdrant is a vector database and search engine, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only,
+questdb/questdb,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+ray-project/ray,applications,high,Distributed compute engine for AI/ML; general software library/framework.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+react/react,applications,high,Library for web and native user interfaces; general software library.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+react/react-native,applications,high,"Framework for building mobile applications, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+reflex-dev/reflex,applications,high,"A web application framework for building full-stack apps in Python, unrelated to agents.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+ripienaar/free-for-dev,applications,high,"A list of free services for developers, not an agent tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+roboflow/supervision,applications,high,Computer vision utility library; general software library.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+rocketride-org/rocketride-server,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+rohitg00/ai-engineering-from-scratch,applications,high,"Educational course on AI engineering, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+rqlite/rqlite,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+rtk-ai/rtk,agent_frameworks,high,Developer tool (CLI proxy) designed to optimize token usage for agentic coding workflows.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+rust-lang/rust,applications,high,"Programming language and compiler, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+rustdesk/rustdesk,applications,high,"Remote desktop application for end-users, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+ruvnet/ruflo,agent_frameworks,high,Agent harness for deploying multi-agent swarms and coordinating autonomous workflows.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+scikit-learn/scikit-learn,applications,high,Machine learning library; general software library.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+screenpipe/screenpipe,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+scylladb/scylladb,applications,high,"ScyllaDB is a NoSQL database, a general software application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+semantica-agi/semantica,agent_frameworks,medium,"Semantica is infrastructure for agent memory and context graphs, fitting agent development tools/infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+semaphoreui/semaphore,applications,high,"Semaphore is a UI/API for DevOps tools, a general software application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+shadcn-ui/ui,applications,high,"UI component library for web development, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+shanraisshan/claude-code-best-practice,agent_frameworks,high,"It provides best practices, skills, and configurations for coding agents (Claude Code) to improve software engineering workflows.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+shap/shap,applications,high,"A library for explaining machine learning model outputs (SHAP), an ML utility.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+shareAI-lab/learn-claude-code,agent_frameworks,high,"Educational repository building a nano agent harness from scratch, serving as a development tool/tutorial for agent creation.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+sickn33/agentic-awesome-skills,agent_frameworks,high,Agent skill catalog and control plane for coding agents; agent development infrastructure.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+sirmalloc/ccstatusline,agent_frameworks,high,"ccstatusline is a configuration/UI tool for Claude Code, a coding agent, fitting developer-agent skills/configurations.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+siyuan-note/siyuan,applications,high,"A self-hosted knowledge workspace and note-taking application that supports AI agent collaboration, primarily a productivity tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+srbhr/Resume-Matcher,noncoding_agents,high,"An application specifically for building resumes and cover letters, which falls under personal/office work and document generation.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+stablyai/orca,agent_frameworks,high,"Platform for orchestrating and running a fleet of coding agents (e.g., Claude Code, Grok Bot).",qwen3.8-27b-nvfp4,model_metadata_only,ok
+stas00/ml-engineering,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+stefan-jansen/machine-learning-for-trading,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+streamlit/streamlit,applications,high,Framework for building data apps; general software library.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+supabase/supabase,applications,high,"Backend-as-a-Service platform (Postgres, Auth, etc.), not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+surrealdb/surrealdb,applications,high,"SurrealDB is a document-graph database, which is general software/database.",qwen3.8-27b-nvfp4,model_metadata_only,
+sxyazi/yazi,applications,high,Terminal file manager; general software application.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+t8y2/dbx,applications,high,"A lightweight database client tool, primarily for database management.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+taosdata/TDengine,applications,high,"A time-series database for IoT, core infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+tensorflow/tensorflow,applications,high,Machine learning framework; general software library.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+tesseract-ocr/tesseract,applications,high,"OCR engine library, not an agent framework.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+thedaviddias/Front-End-Checklist,agent_frameworks,high,It is a checklist and reference resource specifically designed for AI agents to use in software engineering (front-end development).,qwen3.8-27b-nvfp4,model_metadata_only,ok
+thedotmack/claude-mem,agent_frameworks,high,Memory engine and context management tool for coding agents like Claude Code.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+theonedev/onedev,applications,high,"Onedev is a development platform (Git/CI/CD), a general software application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+tinyhumansai/openhuman,agent_frameworks,high,"An open-source agent harness and orchestration tool for running multiple agents, fitting the definition of agent infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+tirth8205/code-review-graph,agent_frameworks,high,"Code intelligence graph and MCP server designed to optimize context for AI coding tools, acting as a developer-agent skill/infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+titanwings/distilly,agent_frameworks,medium,"A tool to distill knowledge into reusable skills for agents, serving as a development tool for agent creation.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+topoteretes/cognee,agent_frameworks,high,"An AI memory platform specifically designed to provide persistent long-term memory for agents, which is a core agent infrastructure component.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+torvalds/linux,applications,high,Linux kernel source tree; core operating system software.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+trinodb/trino,applications,high,"Trino is a distributed SQL query engine, a general software application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+trycua/cua,noncoding_agents,high,"Computer-use agent framework for desktop automation and general OS interaction, not specific to software engineering workflows.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+tt-a1i/archify,agent_frameworks,high,"Agent skill for generating diagrams, specifically for coding agents like Claude Code.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+tursodatabase/turso,applications,high,"A SQL database implementation in Rust, core infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+twbs/bootstrap,applications,high,"A standard HTML/CSS/JS framework for web development, unrelated to AI agents.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+typeorm/typeorm,applications,high,"TypeORM is an ORM library for Node.js, which is a general software library.",qwen3.8-27b-nvfp4,model_metadata_only,
+ultralytics/ultralytics,applications,high,Computer vision library for object detection; ML model library.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+ultraworkers/claw-code,agent_frameworks,medium,Agent-managed project built with coding agents; demonstrates agent-driven development workflow.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+upstash/context7,agent_frameworks,high,It is an MCP server providing up-to-date documentation context for coding agents.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+usebruno/bruno,applications,high,API testing IDE; general developer tool.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+valkey-io/valkey,applications,high,"A key-value database, core infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+vercel-labs/agent-skills,agent_frameworks,high,"A collection of skills for agents, serving as a library/SDK component for agent development.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+vercel-labs/skills,agent_frameworks,high,"A tool for managing and running agent skills, which is developer infrastructure for agent development.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+vercel/next.js,applications,high,"A React framework for web development, unrelated to AI agents.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+vinta/awesome-python,applications,high,Curated list of Python tools and libraries; documentation/education collection.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+virattt/dexter,noncoding_agents,high,"An autonomous agent for financial research, which is a non-coding domain.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+virgiliojr94/book-to-skill,agent_frameworks,high,"A tool to convert technical books into Claude Code skills, which is a developer-agent skill/configuration for software engineering.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+volcengine/OpenViking,agent_frameworks,high,"Context database and memory management infrastructure for AI agents, serving as a reusable component for agent development.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+vxcontrol/pentagi,noncoding_agents,high,"Autonomous AI agents specifically for penetration testing and security operations, which falls under specialized professional task automation rather than general software engineering.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+wanshuiyin/Auto-claude-code-research-in-sleep,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+wavetermdev/waveterm,unclassified,low,KeyError,qwen3.8-27b-nvfp4,model_metadata_only,failed
+wheresryan22/anatomy,noncoding_agents,medium,"A skill for creating illustrations/visualizations, which is a creative/non-coding task.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+wshobson/agents,agent_frameworks,high,A marketplace for agentic plugins and skills specifically for coding agents like Claude Code and Cursor.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+xerj-org/xerj,agent_frameworks,high,"Xerj is an MCP server and search engine specifically designed for agent memory and RAG, fitting MCP infrastructure.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+yamadashy/repomix,agent_frameworks,high,"A developer tool that packs repositories into AI-friendly files for coding agents/LLMs, fitting the 'developer-agent skills/configurations' category.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+yangshun/tech-interview-handbook,applications,high,"Educational materials for coding interviews, not an agent tool.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+zarazhangrui/frontend-slides,noncoding_agents,medium,"A skill for creating presentations/slides, which is a non-coding task (office/creative work).",qwen3.8-27b-nvfp4,model_metadata_only,ok
+zauberzeug/nicegui,applications,high,"NiceGUI is a Python library for building web UIs, a general software library.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+zealdocs/zeal,applications,high,"Offline documentation browser and reference library, a general desktop application.",qwen3.8-27b-nvfp4,model_metadata_only,ok
+zeroclaw-labs/zeroclaw,noncoding_agents,high,Explicitly described as an autonomous AI personal assistant infrastructure.,qwen3.8-27b-nvfp4,model_metadata_only,ok
+zhayujie/CowAgent,agent_frameworks,high,Described as an open-source personal AI assistant and agent harness with multi-agent orchestration and tool execution capabilities.,qwen3.8-27b-nvfp4,model_metadata_only,ok
