@@ -84,6 +84,7 @@ def main():
             r.update({corpus + '_responses': responses,
                       corpus + '_conditional_compile_at_1_rate': c1/responses if responses else '',
                       corpus + '_conditional_compile_at_3_rate': c3/responses if responses else '',
+                      corpus + '_output_limit_failures': sum(t['failure_category'] == 'generation_output_limit' and t['status'] == 'compiler_failure' for t in trials),
                       corpus + '_truncated_policies': sum(int(t.get('output_truncated_responses') or 0) > 0 for t in trials),
                       corpus + '_identity_failures': sum(t['status']=='identity_failure' for t in trials),
                       corpus + '_planned': expected, corpus + '_completed': n,

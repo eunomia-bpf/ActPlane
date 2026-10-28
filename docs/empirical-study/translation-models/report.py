@@ -54,6 +54,11 @@ def main():
         families.append('| ' + ' | '.join([NAMES.get(r['model'], r['model'])] +
                          [f"{r[f + '_detected']} / {r[f + '_n']}" for f in ('direct', 'script', 'hidden')] +
                          [r['replay_errors'], r['tool_error_traces']]) + ' |')
+    budgets = ['| Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |',
+               '| --- | --- | --- | --- | --- |']
+    for r in rows:
+        if r['model'] != 'reference':
+            budgets.append(f"| {NAMES[r['model']]} | {r['rq2_truncated_policies']} | {r['rq1_truncated_policies']} | {r['rq2_output_limit_failures']} | {r['rq1_output_limit_failures']} |")
     coverage = ['| Model | Usable traces / planned | Conditional detection | Conditional false trigger | Conditional F1 |',
                 '| --- | --- | --- | --- | --- |']
     for r in rows:
@@ -100,6 +105,13 @@ model-generation trial.
 {chr(10).join(families)}
 
 {chr(10).join(coverage)}
+
+{chr(10).join(budgets)}
+
+API output budgets constrain these deployment configurations. Reported cutoffs
+are separated from other compiler failures. CLI stop reasons are not always
+reported, so a zero known cutoff count does not establish absence of truncation.
+The results do not measure unconstrained model capability.
 
 Conditional scores use only usable traces and may be biased by unavailable
 translations or replay errors. Headline scores require complete coverage.

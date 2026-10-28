@@ -255,7 +255,7 @@ def export_trials(raw, corpus, model):
     for path in paths:
         r = json.loads(path.read_text())
         r.pop('policy', None)
-        responses = [json.loads(p.read_text()) for p in path.parent.glob('attempt-*/response.json')]
+        responses = [json.loads(p.read_text()) for p in sorted(path.parent.glob('attempt-*/response.json'))]
         calls = [t for response in responses for t in response.get('transport_attempts', []) + [response]]
         r['output_truncated_responses'] = sum(finish_reason(t, model) in ('length', 'max_tokens') for t in calls)
         if r['status'] == 'compiler_failure' and responses and finish_reason(responses[-1], model) in ('length', 'max_tokens'):
