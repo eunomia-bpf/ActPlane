@@ -263,6 +263,11 @@ The preserved `invalid-protocol-calls.csv` audits an interrupted preliminary run
 whose compiler invocation combined incompatible CLI flags. Those calls are not
 model failures or scored trials. Raw responses remain in `invalid-protocol/`.
 Interrupted requests with unknown usage are preserved in `interrupted-requests.csv`.
+The installed Codex shell wrapper initially left native children alive on timeout.
+Those trial-only orphan processes are audited in `orphaned-cli-processes.csv` and
+terminated without interrupting the active corpus worker. New CLI launches use
+private process groups, which are terminated together on timeout. Usage from
+timed-out requests remains unknown, even when their child process is cleaned up.
 Kernel smoke failures are retained separately as diagnostics. Failed engine loads
 are never counted as true negatives. The behavioral sample is small, constructed,
 and selected for OS observability. It is not a held-out natural policy population.

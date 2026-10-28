@@ -5,6 +5,7 @@ import concurrent.futures
 import json
 import os
 import re
+import signal
 from pathlib import Path
 import subprocess
 import time
@@ -92,7 +93,18 @@ def cli_call(model, prompt, out):
             # Protocol-only tracing exposes incoming server response.model.
             # Never retain raw frames: they also contain opaque session state.
             env['RUST_LOG'] = 'tungstenite::protocol=trace'
-        proc = subprocess.run(args, input=prompt, cwd=cwd, env=env, capture_output=True, text=True, timeout=360)
+        # The installed CLI is a shell wrapper. Killing only that wrapper on a
+        # timeout leaves its native child issuing requests after our call ends.
+        child = subprocess.Popen(args, cwd=cwd, env=env, stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True, start_new_session=True)
+        try:
+            stdout, stderr = child.communicate(prompt, timeout=360)
+        except subprocess.TimeoutExpired:
+            os.killpg(child.pid, signal.SIGKILL)
+            child.communicate()
+            raise
+        proc = subprocess.CompletedProcess(args, child.returncode, stdout, stderr)
         (out / 'stdout.json').write_text(proc.stdout)
         (out / 'stderr.txt').write_text(proc.stderr if MODELS[model][1] != 'codex' else
                                        'Raw protocol frames discarded. See server-responses.json for safe identity and usage evidence.\n')
