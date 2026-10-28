@@ -240,6 +240,10 @@ def cache_is_terminal(cached, budget):
     if previous['status'] != 'access_failure':
         return True
     response = json.loads((cached.parent / f"attempt-{previous['attempts']}" / 'response.json').read_text())
+    # A recovery can save its returned answer just before an interruption. Finish
+    # compiling that answer even when the older policy result is still access_failure.
+    if response['status'] == 'ok':
+        return False
     return not (retryable(response) and len(response.get('transport_attempts', [])) + 1 < budget)
 
 

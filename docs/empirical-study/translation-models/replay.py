@@ -316,6 +316,13 @@ def artifact_outcomes(raw):
     return rows
 
 
+def replay_cache_matches(row, policy, translation_status):
+    if policy:
+        return row.get('policy_sha256') == sha(policy.encode()) and row['status'] in ('ok', 'error')
+    expected = 'translation_failed' if translation_status == 'compiler_failure' else 'translation_unavailable'
+    return row['status'] == expected
+
+
 def main():
     if '--worker' in sys.argv:
         worker(json.load(sys.stdin))
@@ -351,8 +358,9 @@ def main():
         for name in json.loads(statement.read_text())['trace_files']:
             out = args.raw / ('preflight' if args.no_engine else 'replay') / args.run_tag / args.model.replace('/', '__') / sd.parent.name / sd.name / name
             cached = out / 'result.json'
-            if cached.exists() and not (args.redo_errors and json.loads(cached.read_text())['status'] != 'ok'):
-                row = json.loads(cached.read_text())
+            prior = json.loads(cached.read_text()) if cached.exists() else None
+            if prior and replay_cache_matches(prior, policy, translation_status) and not (args.redo_errors and prior['status'] != 'ok'):
+                row = prior
             else:
                 row = replay_one(args.raw, sd, sd / name, args.model, policy, out, args.no_engine, args.loader, translation_status)
                 print(sd.parent.name, sd.name, name, row['status'], row['fired'], flush=True)

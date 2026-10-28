@@ -6,10 +6,10 @@ from pathlib import Path
 
 import json
 from models import identity_ok, codex_server_evidence
-from replay import copy_fixture, notify_policy, runner_label, tools_in_trace
+from replay import copy_fixture, notify_policy, runner_label, tools_in_trace, replay_cache_matches
 from translate import compile_policy, extract, inputs, make_prompt, usage_of, translate_one, retryable, reset_time, backoff_remaining
 from summarize import detection
-from prepare import DEFAULT_RAW
+from prepare import DEFAULT_RAW, sha
 
 
 class ProtocolTests(unittest.TestCase):
@@ -159,6 +159,19 @@ class ProtocolTests(unittest.TestCase):
                 sleep.assert_not_called()
                 translate_one(raw, 'rq1', 'zai/glm-4.7-flash', item, transport_limit=6)
                 self.assertEqual(call.call_count, 1)
+                # Simulate a stop after saving the new response but before
+                # replacing the older terminal access-failure policy record.
+                (out / 'result.json').write_text(json.dumps(dict(status='access_failure', attempts=1)))
+                resumed = translate_one(raw, 'rq1', 'zai/glm-4.7-flash', item, transport_limit=6)
+                self.assertEqual(resumed['status'], 'compiled')
+                self.assertEqual(call.call_count, 1)
+
+    def test_replay_cache_invalidates_unavailable_outcomes_without_erasing_engine_errors(self):
+        policy = 'source AGENT = exec "**"'
+        self.assertFalse(replay_cache_matches(dict(status='translation_unavailable'), policy, 'compiled'))
+        self.assertTrue(replay_cache_matches(dict(status='error', policy_sha256=sha(policy.encode())), policy, 'compiled'))
+        self.assertFalse(replay_cache_matches(dict(status='translation_unavailable'), '', 'compiler_failure'))
+        self.assertTrue(replay_cache_matches(dict(status='translation_failed'), '', 'compiler_failure'))
 
     def test_codex_identity_comes_from_incoming_server_response(self):
         outgoing = 'Sending message ' + json.dumps({'type': 'response.completed', 'response': {'model': 'requested'}})

@@ -74,7 +74,7 @@ def main():
             # only prior unavailable outcomes under the same kernel and fixtures.
             subprocess.run([sys.executable, str(HERE / 'guest.py'), '--log', 'provider-recovery', '--',
                             sys.executable, str(HERE / 'replay.py'), '--model', model,
-                            '--redo-errors', '--run-tag', 'guest68-scored-v3',
+                            '--run-tag', 'guest68-scored-v3',
                             '--loader', str(DEFAULT_RAW / 'bounded-loader/process')], cwd=ROOT, check=True)
     print('Provider access recovery complete:', model, flush=True)
 

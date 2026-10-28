@@ -132,6 +132,9 @@ def main():
             if job.returncode:
                 raise RuntimeError(f'{phase} failed: exit {job.returncode}; inspect {logs / log_name} and resume')
         checkpoint('experiments: complete ' + phase)
+    write_status('final cached sample validation')
+    run(command('translate.py', '--corpus', 'rq2'))
+    run(command('guest.py', '--log', 'final-model-replays', '--', *command('replay_batch.py')))
     derive()
     run(command('validate_outputs.py'))
     checkpoint('experiments: finalize model comparison, figure, and paper snippets')
