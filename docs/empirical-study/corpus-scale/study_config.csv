@@ -14,8 +14,12 @@ min_coverage,0.98
 max_excerpt_lines_target,160
 historical_retry_policy,batch
 scaling_retry_policy,invalid
-local_workers,4
+historical_and_focused_local_workers,4
 remote_workers,2
+scale_primary_local_workers,6
+scale_interim_adjudication_workers,2
+scale_final_adjudication_workers,4
+deferred_optional_scope_workers,3
 reduced_and_scale_local_batch_size,48
 reduced_and_scale_remote_batch_size,24
 max_singleton_schema_repairs,2

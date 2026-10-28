@@ -51,12 +51,13 @@ def main():
             write_csv(protocol_path, protocols)
     run('extract.py', '--workers', '4')
     run('categorize.py')
-    scope_process = subprocess.Popen([sys.executable, str(HERE / 'scope_files.py'), '--workers', '1'])
+    # Give primary measurements the available local slots. Scope classification
+    # is optional and resumes after both primary labelers finish.
     shared = ['--input', str(HERE / 'statements.csv'), '--dimensions', ','.join(dimensions),
               '--retry-policy', 'invalid']
     commands = [
         [sys.executable, str(HERE / 'label.py'), *shared, '--model', 'qwen3.8-27b-nvfp4',
-         '--workers', '4', '--batch-size', '48', '--output', str(HERE / 'labels_qwen.csv')],
+         '--workers', '6', '--batch-size', '48', '--output', str(HERE / 'labels_qwen.csv')],
         [sys.executable, str(HERE / 'label.py'), *shared, '--model', 'zai/glm-5.3',
          '--workers', '2', '--batch-size', '24', '--output', str(HERE / 'labels_glm.csv')]]
     processes = [subprocess.Popen(c) for c in commands]
@@ -66,7 +67,7 @@ def main():
         if time.monotonic() - last_checkpoint < 1800:
             continue
         if all((HERE / f'labels_{name}.csv').exists() for name in ('qwen', 'glm')):
-            workers = '3' if processes[0].poll() is None and scope_process.poll() is None else '4'
+            workers = '2' if processes[0].poll() is None else '6'
             run('label.py', *shared, '--model', 'qwen3.8-27b-nvfp4', '--workers', workers,
                 '--batch-size', '48',
                 '--primary', str(HERE / 'labels_qwen.csv'), '--other', str(HERE / 'labels_glm.csv'),
@@ -84,6 +85,7 @@ def main():
     results = [p.returncode for p in processes]
     if any(results):
         raise SystemExit('A primary labeler failed; restart after inspecting raw logs.')
+    scope_process = subprocess.Popen([sys.executable, str(HERE / 'scope_files.py'), '--workers', '3'])
     run('label.py', *shared, '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
         '--batch-size', '48',
         '--primary', str(HERE / 'labels_qwen.csv'), '--other', str(HERE / 'labels_glm.csv'),
