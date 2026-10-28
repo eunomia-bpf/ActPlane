@@ -31,6 +31,19 @@ belongs to exactly one statement, so do not split a line with several clauses.
 Do not output text or labels, only the statement starting lines.'''
 
 
+def parse_starts(obj):
+    """Normalize equivalent JSON wrappers without changing any boundary."""
+    if isinstance(obj, list) and len(obj) == 1 and isinstance(obj[0], dict) and 'starts' in obj[0]:
+        obj = obj[0]
+    if isinstance(obj, dict):
+        starts = obj['starts']
+    elif isinstance(obj, list) and all(isinstance(x, dict) and 'offset' in x for x in obj):
+        starts = [x['offset'] for x in obj]
+    else:
+        starts = obj
+    return [int(s) if isinstance(s, str) and s.isdigit() else s for s in starts]
+
+
 def chunks(lines, limit=160, max_chars=18000):
     start = 0
     while start < len(lines):
@@ -67,8 +80,7 @@ def segment(a, f):
                 numbered_lines=''.join(f'{i}: {s}' for i, s in enumerate(part, start))),
                 budget=4096)
             obj = parse_json(response['choices'][0]['message']['content'])
-            starts = obj['starts'] if isinstance(obj, dict) else obj
-            starts = [int(s) if isinstance(s, str) and s.isdigit() else s for s in starts]
+            starts = parse_starts(obj)
             if not starts or starts[0] != start or starts != sorted(set(starts)):
                 raise ValueError('invalid_starts')
             if not all(isinstance(s, int) and start <= s < end for s in starts):

@@ -32,14 +32,14 @@ The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` end
 | qwen | topic | 2116 | 2116 | 0.698 | 0.656 |
 | qwen | enforceability | 1361 | 1361 | 0.700 | 0.585 |
 | qwen | context_required | 1127 | 1127 | 0.390 | 0.147 |
-| glm | type | 2116 | 536 | 0.890 | 0.750 |
-| glm | topic | 2116 | 536 | 0.690 | 0.651 |
-| glm | enforceability | 1361 | 352 | 0.622 | 0.495 |
-| glm | context_required | 1127 | 275 | 0.385 | 0.154 |
-| inter_model | type | 2116 | 536 | 0.888 | 0.752 |
-| inter_model | topic | 2116 | 536 | 0.763 | 0.733 |
-| inter_model | enforceability | 1361 | 352 | 0.741 | 0.653 |
-| inter_model | context_required | 1127 | 275 | 0.680 | 0.317 |
+| glm | type | 2116 | 908 | 0.904 | 0.795 |
+| glm | topic | 2116 | 908 | 0.718 | 0.678 |
+| glm | enforceability | 1361 | 559 | 0.673 | 0.551 |
+| glm | context_required | 1127 | 449 | 0.434 | 0.188 |
+| inter_model | type | 2116 | 908 | 0.916 | 0.822 |
+| inter_model | topic | 2116 | 908 | 0.779 | 0.747 |
+| inter_model | enforceability | 1361 | 559 | 0.766 | 0.679 |
+| inter_model | context_required | 1127 | 449 | 0.722 | 0.385 |
 
 `calibration_summary.csv` also reports end-to-end agreement including inapplicable labels. The applicable-gold evaluation counts a predicted inapplicable value as disagreement. `calibration_confusion.csv` retains every confusion cell and missing predictions are reported explicitly.
 

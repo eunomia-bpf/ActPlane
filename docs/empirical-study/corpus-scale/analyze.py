@@ -228,7 +228,8 @@ def analyze():
             summaries.extend(dict(r, group_type='family', group=fam) for r in ss)
     scopes_path = HERE / 'file_scopes.csv'
     if scopes_path.exists():
-        scopes = {(r['repo'], r['content_sha256']): r['scope'] for r in read_csv(scopes_path) if r['status'] == 'ok'}
+        scopes = {(s['repo'], s['content_sha256']): 'unclassified' for s in joined}
+        scopes.update({(r['repo'], r['content_sha256']): r['scope'] for r in read_csv(scopes_path) if r['status'] == 'ok'})
         for scope in sorted(set(scopes.values())):
             subset = [s for s in joined if scopes.get((s['repo'], s['content_sha256'])) == scope]
             rs = {s['repo']: repos[s['repo']] for s in subset}

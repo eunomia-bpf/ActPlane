@@ -2865,5 +2865,112 @@ glm,topic,paper:abhigyanpatwari/GitNexus:5,AI Integration,Testing,"
 
 **PreToolUse** hooks can block tools (e.g. `git_commit`) until checks pass. Adapt to this repo: `cd gitnexus && npm test` before commit.
 "
+glm,context_required,paper:aden-hive/hive:13,task,project,"- When the user says `push`, you may `git pull --rebase` to integrate latest changes, but never discard other in-progress work.
+"
 glm,topic,paper:aden-hive/hive:5,Development Process,Maintenance,"- Do not update dependencies casually. Version bumps, patched dependencies, overrides, or vendored dependency changes require explicit approval.
+"
+glm,context_required,paper:ag-ui-protocol/ag-ui:6,task,none,"- If the user needs help with an Nx configuration or project graph error, use the `nx_workspace` tool to get any errors
+"
+glm,topic,paper:alibaba/OpenSandbox:10,AI Integration,Testing,"- For cross-language e2e tests under `tests/**`, read the language-local README and keep test assumptions aligned with current server and SDK behavior.
+"
+glm,topic,paper:alibaba/OpenSandbox:8,AI Integration,Architecture,"- For runtime component changes under `components/**`, read the nearest `README.md` or `DEVELOPMENT.md`; keep component APIs aligned with `specs/` and SDK consumers.
+"
+glm,topic,paper:charmbracelet/crush:12,Architecture,Documentation,"- **Context files**: Crush reads AGENTS.md, CRUSH.md, CLAUDE.md, GEMINI.md
+  (and `.local` variants) from the working directory for project-specific
+  instructions.
+"
+glm,topic,paper:charmbracelet/crush:16,Architecture,Build and Run,"- **CGO disabled**: builds with `CGO_ENABLED=0` and
+  `GOEXPERIMENT=greenteagc`.
+"
+glm,topic,paper:charmbracelet/crush:20,Build and Run,Implementation Details,"- **Lint**: `task lint:fix`
+"
+glm,topic,paper:charmbracelet/crush:22,Build and Run,Maintenance,"- **Modernize**: `task modernize` (runs `modernize` which makes code
+  simplifications)
+"
+glm,topic,paper:chenhg5/cc-connect:10,Configuration & Environment,Implementation Details,"- Use `map[string]any` options for agent/platform factories to stay flexible
+"
+glm,enforceability,paper:cocoindex-io/cocoindex:2,,cross_event,"
+## Build and Test Commands
+
+This project uses [uv](https://docs.astral.sh/uv/) for Python project management.
+
+### Building
+
+```bash
+uv run maturin develop   # Build Rust code and install Python package (required after Rust changes)
+```
+"
+glm,topic,paper:cocoindex-io/cocoindex:33,System Overview,Development Process,"
+## Versioning
+
+The current codebase is for CocoIndex v1, which is a fundamental redesign from CocoIndex v0. Currently the `v1` branch is the main branch for CocoIndex v1 code.
+"
+glm,topic,paper:cocoindex-io/cocoindex:7,Architecture,System Overview,"
+## Key Concepts
+
+### Mental model: declarative data pipelines
+
+CocoIndex uses a **declarative** programming model — you specify *what* your output should look like (target states), not *how* to incrementally update it. The engine handles change detection and applies minimal updates automatically.
+
+Think of it like:
+
+* **React**: declare UI as function of state → React re-renders what changed
+* **Spreadsheets**: declare formulas → cells recompute when inputs change
+* **CocoIndex**: declare target states as function of source → engine syncs what changed
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:10,AI Integration,Configuration & Environment,"
+## TEAM MODE
+
+OFF by default. Parallel multi-agent coordination, modeled after Claude Code Agent Teams. Enable via `team_mode.enabled` in `.opencode/oh-my-opencode.jsonc` or user config; restart OpenCode after change.
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:12,AI Integration,Architecture,"Teams live as directories under `~/.omo/teams/{name}/config.json` (user) or `<project>/.omo/teams/{name}/config.json` (project; project beats user on collisions). Members declared as `kind: ""subagent_type""` (direct agent) or `kind: ""category""` (routed through `sisyphus-junior`).
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:34,Implementation Details,Configuration & Environment,"- **TypeScript:** strict mode, ESNext, bundler moduleResolution, `bun-types` (never `@types/node`).
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:43,Build and Run,DevOps,"- **Dual package:** `oh-my-opencode` + `oh-my-openagent` published simultaneously during the rename transition.
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:49,Build and Run,DevOps,"- Never run `bun publish` directly — use the GitHub Actions workflow.
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:51,Build and Run,AI Integration,"- Never write to existing files without reading them first (`write-existing-file-guard`).
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:52,Build and Run,AI Integration,"- Never use `background_cancel(all=true)` — cancel by `taskId` individually.
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:59,Build and Run,AI Integration,"- Prometheus may ONLY edit `.md` files (enforced by `prometheus-md-only` hook); FORBIDDEN paths: `src/`, `package.json`, config files.
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:68,Implementation Details,Configuration & Environment,"- **Plugin load timeout:** 10s for Claude Code plugin discovery.
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:73,Testing,DevOps,"- **CI tests:** root tests run through plain `bun test`; `packages/web/**` has its own package-level CI workflow.
+"
+glm,topic,paper:code-yeongyu/oh-my-openagent:87,Implementation Details,Maintenance,"- **Workspace migration:** Runtime state migrated from `.sisyphus/` → `.omo/`. Legacy `.sisyphus/` still exists during transition; `src/shared/legacy-workspace-migration.ts` copies it forward on first load.
+"
+glm,topic,paper:colbymchenry/codegraph:32,Documentation,AI Integration,"
+### MCP server instructions
+
+`src/mcp/server-instructions.ts` is sent back to the agent in the MCP `initialize` response. This is the *first* thing every agent sees about how to use the tools — treat it as the authoritative tool guidance and keep it in sync with `instructions-template.ts` and `.cursor/rules/codegraph.mdc`.
+"
+glm,topic,paper:colbymchenry/codegraph:40,Development Process,Testing,"
+## Windows validation (Parallels + SSH)
+
+For any Windows-specific PR, bug, or implementation, validate it on the real Windows VM rather than guessing. Connection details live in the gitignored **`.parallels`** file at the repo root (VM name, guest IP, SSH user/key). `prlctl exec` needs Parallels Pro and is unavailable, so SSH is the bridge.
+"
+glm,topic,paper:colbymchenry/codegraph:43,Configuration & Environment,Build and Run,"- Guest toolchain (winget): Node LTS, Git, and the **VC++ ARM64 redistributable** (required by `@rollup/rollup-win32-arm64-msvc`, which vitest pulls in).
+"
+glm,topic,paper:colbymchenry/codegraph:45,Development Process,Testing,"- Known pre-existing Windows failure: `security.test.ts > Session marker symlink resistance > does not follow a pre-planted symlink` (symlink creation needs privileges on Windows). Unrelated to current work; don't let it mask new regressions.
+"
+glm,enforceability,paper:colbymchenry/codegraph:45,,semantic_only,"- Known pre-existing Windows failure: `security.test.ts > Session marker symlink resistance > does not follow a pre-planted symlink` (symlink creation needs privileges on Windows). Unrelated to current work; don't let it mask new regressions.
+"
+glm,topic,paper:colbymchenry/codegraph:52,Maintenance,Testing,"
+## House rules
+
+- The `0.7.x` line is in active multi-agent rollout. Any change to `src/installer/` (especially `targets/`) needs corresponding test coverage and a CHANGELOG entry — installer regressions break every new install silently.
+"
+glm,topic,paper:colbymchenry/codegraph:53,Maintenance,AI Integration,"- When changing what the MCP tools do or how agents should use them, update **all three** of `src/mcp/server-instructions.ts`, `src/installer/instructions-template.ts`, and `.cursor/rules/codegraph.mdc` — they're written to different places but say the same thing.
+"
+glm,enforceability,paper:czlonkowski/n8n-mcp:21,cross_event,semantic_only,"## Memories and Notes for Development
+
+### Development Workflow Reminders
+- When you make changes to MCP server, you need to ask the user to reload it before you test
+"
+glm,enforceability,paper:czlonkowski/n8n-mcp:29,semantic_only,,"### Common Pitfalls
+- The MCP server needs to be reloaded in Claude Desktop after changes
 "

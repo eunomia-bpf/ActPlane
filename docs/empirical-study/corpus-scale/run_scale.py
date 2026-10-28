@@ -41,7 +41,7 @@ def main():
             raise SystemExit('Reduced-schema calibration failed; inspect before changing the deployment schema.')
     run('extract.py', '--workers', '4')
     run('categorize.py')
-    run('scope_files.py', '--workers', '4')
+    scope_process = subprocess.Popen([sys.executable, str(HERE / 'scope_files.py'), '--workers', '1'])
     shared = ['--input', str(HERE / 'statements.csv'), '--dimensions', ','.join(dimensions)]
     commands = [
         [sys.executable, str(HERE / 'label.py'), *shared, '--model', 'qwen3.8-27b-nvfp4',
@@ -55,7 +55,8 @@ def main():
         if time.monotonic() - last_checkpoint < 1800:
             continue
         if all((HERE / f'labels_{name}.csv').exists() for name in ('qwen', 'glm')):
-            run('label.py', *shared, '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
+            workers = '3' if processes[0].poll() is None and scope_process.poll() is None else '4'
+            run('label.py', *shared, '--model', 'qwen3.8-27b-nvfp4', '--workers', workers,
                 '--primary', str(HERE / 'labels_qwen.csv'), '--other', str(HERE / 'labels_glm.csv'),
                 '--output', str(HERE / 'labels.csv'))
             run('analyze.py')
@@ -74,6 +75,7 @@ def main():
     run('label.py', *shared, '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
         '--primary', str(HERE / 'labels_qwen.csv'), '--other', str(HERE / 'labels_glm.csv'),
         '--output', str(HERE / 'labels.csv'))
+    scope_process.wait()
     run('analyze.py')
     run('figures.py')
     run('audit_runs.py')
