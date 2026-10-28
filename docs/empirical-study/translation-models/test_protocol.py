@@ -7,7 +7,7 @@ from pathlib import Path
 import json
 from models import identity_ok, codex_server_evidence
 from replay import copy_fixture, notify_policy, runner_label, tools_in_trace
-from translate import compile_policy, extract, inputs, make_prompt, usage_of, translate_one, retryable
+from translate import compile_policy, extract, inputs, make_prompt, usage_of, translate_one, retryable, reset_time
 from summarize import detection
 from prepare import DEFAULT_RAW
 
@@ -118,6 +118,14 @@ class ProtocolTests(unittest.TestCase):
                 sleep.assert_called_once_with(15)
                 translate_one(raw, 'rq1', 'gpt-6-astra', item)
                 self.assertEqual(call.call_count, 2)
+
+    def test_provider_reset_uses_observation_date_not_resume_date(self):
+        import datetime as dt
+        observed = dt.datetime(2026, 10, 28, 8, 50, tzinfo=dt.timezone.utc).timestamp()
+        response = dict(status='cli_error', error="You've hit your session limit · resets 10:40am (UTC)",
+                        observed_at_unix=observed)
+        self.assertTrue(retryable(response))
+        self.assertEqual(reset_time(response), dt.datetime(2026, 10, 28, 10, 41, tzinfo=dt.timezone.utc).timestamp())
 
     def test_codex_identity_comes_from_incoming_server_response(self):
         outgoing = 'Sending message ' + json.dumps({'type': 'response.completed', 'response': {'model': 'requested'}})

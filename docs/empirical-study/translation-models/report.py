@@ -190,7 +190,11 @@ recorded separately from compiler revisions. Each model has a bounded transport
 retry budget for missing responses, recorded in `model-settings.csv`. The corpus
 budget includes an additional recovery transport after a supervisor-reported
 service interruption. Capacity, timeout, and transient HTTP errors use exponential
-backoff. Permanent access errors remain access failures. Every completed transport
+backoff. CLI session limits wait for the provider-reported UTC reset before the
+next transport, with the wait retained in wall-time accounting. A recovery worker
+waits for the original model queue to finish before reopening its bounded access
+failures. This avoids duplicate requests. Permanent access errors remain access
+failures. Every completed transport
 is checkpointed before retrying, and returned model answers are never resampled.
 API calls use parallel workers per model,
 with local endpoint concurrency within the operator limit. Latency is observed

@@ -3,6 +3,7 @@
 import argparse
 import concurrent.futures
 import csv
+import datetime as dt
 import json
 from pathlib import Path
 import re
@@ -154,12 +155,15 @@ def retryable(response):
     error = response.get('error', '').lower()
     return (response.get('http_status') in (408, 429, 500, 502, 503, 504)
             or response.get('status') == 'transport_error'
+            or ('limit' in error and 'resets' in error)
             or any(s in error for s in ('timeoutexpired', 'at capacity', 'overloaded',
                                         'temporarily unavailable', 'connection reset')))
 
 
 def access_category(response):
     error = response.get('error', '').lower()
+    if 'limit' in error and 'resets' in error:
+        return 'provider_session_limit'
     if 'at capacity' in error or 'overloaded' in error:
         return 'provider_capacity'
     if 'timeoutexpired' in error or 'timed out' in error:
@@ -173,6 +177,43 @@ def transport_budget(corpus):
     # The scored sample is frozen. Corpus recovery adds one transport after the
     # original three-call budget, following the supervisor's service interruption.
     return 4 if corpus == 'rq1' else 3
+
+
+def reset_time(response):
+    """Use the provider's UTC session-reset clock, anchored to observation time."""
+    if response.get('retry_after_unix'):
+        return response['retry_after_unix']
+    match = re.search(r'resets (\d{1,2})(?::(\d{2}))?(am|pm) \(UTC\)', response.get('error', ''), re.I)
+    if not match:
+        return 0
+    observed = dt.datetime.fromtimestamp(response['observed_at_unix'], dt.timezone.utc)
+    hour = int(match[1]) % 12 + (12 if match[3].lower() == 'pm' else 0)
+    reset = observed.replace(hour=hour, minute=int(match[2] or 0), second=0, microsecond=0)
+    if reset <= observed:
+        reset += dt.timedelta(days=1)
+    return reset.timestamp() + 60  # allow the provider reset to become visible
+
+
+def cooldown_path(raw, model):
+    return raw / 'provider-cooldowns' / (model.replace('/', '__') + '.json')
+
+
+def record_cooldown(raw, model, response):
+    reset = reset_time(response)
+    if reset:
+        response['retry_after_unix'] = reset
+        json_write(cooldown_path(raw, model), dict(retry_after_unix=reset,
+                   reason=access_category(response)))
+
+
+def wait_transport(raw, model, delay):
+    path = cooldown_path(raw, model)
+    if path.exists():
+        delay = max(delay, json.loads(path.read_text())['retry_after_unix'] - time.time())
+    delay = max(0, delay)
+    if delay:
+        time.sleep(delay)
+    return delay
 
 
 def translate_one(raw, corpus, model, item):
@@ -208,17 +249,22 @@ def translate_one(raw, corpus, model, item):
         cli_prompt = prompt if attempt == 1 else json.dumps(messages[1:], ensure_ascii=False)
         transports = []
         if response is not None:
+            response.setdefault('observed_at_unix', saved_response.stat().st_mtime)
             transports = response.pop('transport_attempts', [])
             transports.append(response)
+            if retryable(response):
+                record_cooldown(raw, model, response)
         while len(transports) < transport_budget(corpus) and (not transports or retryable(transports[-1])):
             # Preserve every completed transport before waiting or starting the
             # next call. A root-session interruption cannot erase its evidence.
             delay = 15 * 2 ** (len(transports) - 1) if transports else 0
-            if delay:
-                time.sleep(delay)
+            delay = wait_transport(raw, model, delay)
             response = (cli_call(model, cli_prompt, attempt_dir) if cli else
                         api_call(model, messages, session='actplane-translation-models-20261028'))
             response['backoff_before_s'] = delay
+            response['observed_at_unix'] = time.time()
+            if retryable(response):
+                record_cooldown(raw, model, response)
             transports.append(response)
             saved = dict(response)
             if len(transports) > 1:

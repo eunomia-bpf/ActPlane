@@ -73,7 +73,7 @@ def write_status(phase, job_pid=None):
 def wait_adopted(pid, needle, phase):
     last = time.monotonic()
     while alive(pid, needle):
-        write_status(phase)
+        write_status(phase, pid)
         if time.monotonic() - last > 600:
             checkpoint('experiments: checkpoint ongoing translation measurements')
             last = time.monotonic()
@@ -86,6 +86,8 @@ def main():
     ap.add_argument('--adopt-reference-pid', type=int, default=0)
     ap.add_argument('--adopt-openai-pid', type=int, default=0)
     ap.add_argument('--from-phase', choices=['reference', 'corpus'], default='reference')
+    ap.add_argument('--adopt-corpus-pid', type=int, default=0)
+    ap.add_argument('--adopt-recovery-pid', type=int, default=0)
     args = ap.parse_args()
     lock = (DEFAULT_RAW / 'study-driver.lock').open('w')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -105,6 +107,8 @@ def main():
         checkpoint('experiments: record policy-sample model translations')
     logs = DEFAULT_RAW / 'orchestration'
     logs.mkdir(exist_ok=True)
+    wait_adopted(args.adopt_corpus_pid, 'translate.py', 'corpus translations (adopted)')
+    wait_adopted(args.adopt_recovery_pid, 'recover_cli.py', 'provider session-limit recovery')
     for phase, argv, log_name in (
         ('sample model replay', command('guest.py', '--log', 'model-replays', '--', *command('replay_batch.py')), 'model-replay.log'),
         ('corpus translations', command('translate.py', '--corpus', 'rq1'), 'rq1.log'),
