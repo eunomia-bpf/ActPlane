@@ -199,7 +199,8 @@ Use an isolated Python environment with `requirements.txt`. Set `GH_TOKEN`, `LIT
 
 ```bash
 python recover.py
-python collect.py
+# Restore the pinned snapshot. collect.py instead discovers a new snapshot.
+python restore_sources.py
 python label.py --model qwen3.8-27b-nvfp4 --retry-policy batch --output calibration_qwen.csv
 python label.py --model zai/glm-5.3 --retry-policy batch --workers 2 --batch-size 12 --output calibration_glm.csv
 python label.py --model qwen3.8-27b-nvfp4 --retry-policy batch --primary calibration_qwen.csv --other calibration_glm.csv --output calibration_adjudicated.csv
@@ -208,8 +209,13 @@ python analyze.py --calibration-only
 python run_scale.py
 python analyze.py
 python figures.py
+python audit_runs.py
+python validate.py --require-complete
+python validate_figures.py
 python report.py
 ```
+
+`restore_sources.py` verifies the committed source hashes and Git blob hashes, downloads missing or corrupt cached files from their immutable commit URLs, and records every outcome in `source_restore_validation.csv`. It does not overwrite collection metadata or rediscover repositories. `collect.py` is the separate discovery command for a new dated snapshot. Model regeneration can vary even with the same named endpoint and fixed prompts, so the committed accepted labels remain the record of this run.
 
 Committed artifacts include immutable historical provenance, historical labels, model labels, calibration confusion tables, search queries, corpus/file manifests, extraction status, repository categories, summary tables, and the figures corresponding to the paper’s plots. GitHub requests are sequential, cached, and honor retry/reset feedback. Model concurrency stays within the operator’s endpoint limits.
 
