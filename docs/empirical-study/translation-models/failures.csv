@@ -21,6 +21,7 @@ rq1,qwen3.8-27b-nvfp4,CoplayDev__unity-mcp::22,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,CoplayDev__unity-mcp::27,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,CoplayDev__unity-mcp::9,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,Hmbown__DeepSeek-TUI::31,compiler_failure,generation_output_limit
+rq1,qwen3.8-27b-nvfp4,Kilo-Org__kilocode::16,compiler_failure,syntax_or_lowering
 rq1,qwen3.8-27b-nvfp4,Kilo-Org__kilocode::18,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,Kilo-Org__kilocode::20,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,NVIDIA__NemoClaw::18,compiler_failure,generation_output_limit
@@ -88,7 +89,7 @@ rq1,zai/glm-4.7-flash,AlexsJones__llmfit::29,compiler_failure,model_declared_uno
 rq1,zai/glm-4.7-flash,AlexsJones__llmfit::31,compiler_failure,generation_output_limit
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::24,compiler_failure,syntax_or_lowering
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::31,compiler_failure,model_declared_unobservable
-rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::9,access_failure,ok
+rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::9,compiler_failure,generation_output_limit
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::2,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::3,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::4,access_failure,provider_capacity
@@ -164,7 +165,7 @@ rq1,zai/glm-4.7-flash,Panniantong__Agent-Reach::13,access_failure,provider_capac
 rq1,zai/glm-4.7-flash,Panniantong__Agent-Reach::16,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,Panniantong__Agent-Reach::17,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,Panniantong__Agent-Reach::2,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,QwenLM__qwen-code::22,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,QwenLM__qwen-code::22,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,QwenLM__qwen-code::23,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,QwenLM__qwen-code::24,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,QwenLM__qwen-code::26,access_failure,provider_capacity
