@@ -41,6 +41,7 @@ rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::7,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::74,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::76,access_failure,transport_timeout
+rq1,qwen3.8-27b-nvfp4,mksglu__context-mode::6,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,multica-ai__multica::7,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,nanocoai__nanoclaw::19,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,nearai__ironclaw::29,compiler_failure,generation_output_limit
@@ -362,9 +363,8 @@ rq1,zai/glm-4.7-flash,multica-ai__multica::12,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,multica-ai__multica::6,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,multica-ai__multica::7,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,nanocoai__nanoclaw::19,compiler_failure,syntax_or_lowering
-rq1,zai/glm-4.7-flash,nanocoai__nanoclaw::33,access_failure,ok
-rq1,zai/glm-4.7-flash,nanocoai__nanoclaw::34,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,nanocoai__nanoclaw::35,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,nanocoai__nanoclaw::33,compiler_failure,model_declared_unobservable
+rq1,zai/glm-4.7-flash,nanocoai__nanoclaw::35,access_failure,ok
 rq1,zai/glm-4.7-flash,nearai__ironclaw::19,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,nearai__ironclaw::2,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,nearai__ironclaw::22,access_failure,provider_capacity
