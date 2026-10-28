@@ -36,14 +36,18 @@ The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` end
 | qwen | topic | 2116 | 2116 | 0.698 | 0.656 |
 | qwen | enforceability | 1361 | 1361 | 0.701 | 0.586 |
 | qwen | context_required | 1127 | 1127 | 0.390 | 0.147 |
-| glm | type | 2116 | 1700 | 0.912 | 0.795 |
-| glm | topic | 2116 | 1700 | 0.718 | 0.678 |
-| glm | enforceability | 1361 | 1145 | 0.682 | 0.563 |
-| glm | context_required | 1127 | 944 | 0.447 | 0.221 |
-| inter_model | type | 2116 | 1700 | 0.930 | 0.836 |
-| inter_model | topic | 2116 | 1700 | 0.796 | 0.767 |
-| inter_model | enforceability | 1361 | 1145 | 0.770 | 0.680 |
-| inter_model | context_required | 1127 | 944 | 0.731 | 0.415 |
+| glm | type | 2116 | 2116 | 0.902 | 0.780 |
+| glm | topic | 2116 | 2116 | 0.702 | 0.662 |
+| glm | enforceability | 1361 | 1361 | 0.683 | 0.564 |
+| glm | context_required | 1127 | 1127 | 0.439 | 0.205 |
+| adjudicated | type | 2116 | 2116 | 0.928 | 0.840 |
+| adjudicated | topic | 2116 | 2116 | 0.702 | 0.662 |
+| adjudicated | enforceability | 1361 | 1361 | 0.706 | 0.594 |
+| adjudicated | context_required | 1127 | 1127 | 0.421 | 0.191 |
+| inter_model | type | 2116 | 2116 | 0.920 | 0.816 |
+| inter_model | topic | 2116 | 2116 | 0.786 | 0.757 |
+| inter_model | enforceability | 1361 | 1361 | 0.755 | 0.661 |
+| inter_model | context_required | 1127 | 1127 | 0.733 | 0.412 |
 
 `calibration_summary.csv` also reports end-to-end agreement including inapplicable labels. The applicable-gold evaluation counts a predicted inapplicable value as disagreement. `calibration_confusion.csv` retains every confusion cell and missing predictions are reported explicitly.
 
@@ -51,14 +55,14 @@ Before inspecting the complete calibration, the scaling gate was fixed at final 
 
 | Dimension | Scale? | Reason |
 |---|---|---|
-| type | False | incomplete_or_below_prespecified_threshold |
-| topic | False | type_gate_failed |
-| enforceability | False | type_gate_failed |
+| type | True | passed |
+| topic | True | passed |
+| enforceability | False | incomplete_or_below_prespecified_threshold |
 | context_required | False | enforcement_gate_failed |
 
 The historical primary-source audit records 0 missing lines, 0 overlapping lines, and 0 text mismatches under the original validator’s whitespace normalization. 417 spans differ in exact formatting. Calibration uses the recorded annotated text unchanged. New extracted text is copied directly from its source spans and checked for exact fidelity.
 
-**Poor agreement:** qwen on context_required (κ=0.147). These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.
+**Poor agreement:** qwen on context_required (κ=0.147); glm on context_required (κ=0.205); adjudicated on context_required (κ=0.191). These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.
 
 ## Selection and measurement
 
