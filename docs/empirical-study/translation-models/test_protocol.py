@@ -77,6 +77,7 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(detection(rows)['conditional_detection_rate'], 65/113)
         rows[0].update(status='translation_failed', fired='0')
         self.assertEqual(detection(rows)['detection_rate'], 65/114)
+        self.assertEqual(detection(rows)['compiled_rule_detection_rate'], 65/113)
 
     def test_revision_gets_real_compiler_error_and_cache_does_not_resample(self):
         good = 'source AGENT = exec "**"\nrule test:\n notify exec "git" if AGENT\n because "test"'

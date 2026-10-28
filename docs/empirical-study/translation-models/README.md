@@ -9,13 +9,18 @@ compliant), and a separate 607-policy compilation corpus. Counts in
 the table are completed trials, so partial rows must not be read as full-corpus
 rates. Detection, false-trigger rate, and F1 remain unavailable unless every planned
 trace has an outcome. The reference row is a supplied translation, not a new
-model-generation trial.
+model-generation trial. The behavioral sample covers
+15 repositories, while compilation covers
+62. The corpora share
+10 repository/statement identifiers and
+1 exact directive texts. They are not disjoint
+held-out sets, and no semantic deduplication is claimed.
 
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
 | qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 0 / 0 of 0 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
-| zai/glm-5.3 | 34 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0327 |
+| zai/glm-5.3 | 34 / 38 of 38 | 0 / 0 of 0 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
 | zai/glm-5.3-flash | 33 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0040 |
 | zai/glm-4.7-flash | 10 / 13 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 25 / 0 | $0.0000 |
 | zai/glm-4.5-air | 33 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.0066 |
@@ -26,23 +31,23 @@ model-generation trial.
 | --- | --- | --- | --- | --- | --- |
 | Paper reference | 27 / 38 | 27 / 38 | 26 / 38 | 0 | 2 |
 | qwen3.8-27b-nvfp4 | 15 / 38 | 16 / 38 | 15 / 38 | 0 | 1 |
-| zai/glm-5.3 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| zai/glm-5.3 | 16 / 38 | 18 / 38 | 15 / 38 | 0 | 2 |
 | zai/glm-5.3-flash | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 | zai/glm-4.7-flash | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 | zai/glm-4.5-air | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 | gpt-6-astra | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 | claude-opus-4-6 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 
-| Model | Usable traces / planned | Conditional detection | Conditional false trigger | Conditional F1 |
-| --- | --- | --- | --- | --- |
-| Paper reference | 190 / 190 | 70.2% | 17.1% | 0.773 |
-| qwen3.8-27b-nvfp4 | 190 / 190 | 40.4% | 10.5% | 0.548 |
-| zai/glm-5.3 | 0 / 190 | unavailable | unavailable | unavailable |
-| zai/glm-5.3-flash | 0 / 190 | unavailable | unavailable | unavailable |
-| zai/glm-4.7-flash | 0 / 190 | unavailable | unavailable | unavailable |
-| zai/glm-4.5-air | 0 / 190 | unavailable | unavailable | unavailable |
-| gpt-6-astra | 0 / 190 | unavailable | unavailable | unavailable |
-| claude-opus-4-6 | 0 / 190 | unavailable | unavailable | unavailable |
+| Model | Usable outcomes / planned | Compiled-rule traces | Compiled-only detection | Compiled-only false trigger | Compiled-only F1 |
+| --- | --- | --- | --- | --- | --- |
+| Paper reference | 190 / 190 | 190 | 70.2% | 17.1% | 0.773 |
+| qwen3.8-27b-nvfp4 | 190 / 190 | 130 | 59.0% | 15.4% | 0.697 |
+| zai/glm-5.3 | 190 / 190 | 190 | 43.0% | 13.2% | 0.566 |
+| zai/glm-5.3-flash | 0 / 190 | 0 | unavailable | unavailable | unavailable |
+| zai/glm-4.7-flash | 0 / 190 | 0 | unavailable | unavailable | unavailable |
+| zai/glm-4.5-air | 0 / 190 | 0 | unavailable | unavailable | unavailable |
+| gpt-6-astra | 0 / 190 | 0 | unavailable | unavailable | unavailable |
+| claude-opus-4-6 | 0 / 190 | 0 | unavailable | unavailable | unavailable |
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
 | --- | --- | --- | --- | --- |
@@ -54,13 +59,15 @@ model-generation trial.
 | gpt-6-astra | 0 | 0 | 0 | 0 |
 | claude-opus-4-6 | 0 | 0 | 0 | 0 |
 
-API output budgets constrain these deployment configurations. Reported cutoffs
+API output is capped at 8192 tokens, including reported reasoning.
+This budget constrains these deployment configurations. Reported cutoffs
 are separated from other compiler failures. CLI stop reasons are not always
 reported, so a zero known cutoff count does not establish absence of truncation.
 The results do not measure unconstrained model capability.
 
-Conditional scores use only usable traces and may be biased by unavailable
-translations or replay errors. Headline scores require complete coverage.
+Compiled-only scores use successfully compiled and replayed policies. This
+selection can bias comparisons. Coverage-conditioned end-to-end scores are
+also retained in the CSV. Headline end-to-end scores require complete outcomes.
 A final compiler failure supplies no policy and is an end-to-end nondetection.
 An API/identity failure or failed kernel load has an unknown behavioral outcome.
 
@@ -222,4 +229,4 @@ derived outputs. No script opens or updates a pull request.
 
 ## Paper paragraph
 
-We compare policy translation across 7 response-verified model configurations using a shared DSL reference and compiler feedback. The behavioral sample contains 38 repository policies and 190 labeled traces, including 114 violations and 76 compliant traces. We replay tool effects under the kernel engine without agent continuation or model judges. Completed model rows attain F1 from 0.548 to 0.548. Compiler acceptance on the separate 607-policy corpus measures syntactic compatibility rather than semantic correctness. Reference agreement and replay failures are reported separately because backend behavior and fixture fidelity can also affect detection.
+We compare policy translation across 7 response-verified model configurations using a shared DSL reference and compiler feedback. The behavioral sample contains 38 repository policies and 190 labeled traces, including 114 violations and 76 compliant traces. We replay tool effects under the kernel engine without agent continuation or model judges. Completed model rows attain F1 from 0.548 to 0.566. Configured output budgets and CLI defaults also affect these rates. Compiler acceptance on the 607-policy corpus measures syntactic compatibility rather than semantic correctness. Reference agreement and replay failures are reported separately because backend behavior and fixture fidelity can also affect detection.

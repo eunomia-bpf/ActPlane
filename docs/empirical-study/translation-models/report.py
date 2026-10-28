@@ -29,6 +29,9 @@ def main():
     all_rows = read('summary.csv')
     rows = [r for r in all_rows if r['access_status'] in ('ok', 'reference')]
     counts = {r['corpus']: int(r['policies']) for r in read('corpus-counts.csv')}
+    overlap = read('corpus-overlap.csv')[0]
+    settings = read('model-settings.csv')
+    api_cap = next(r['api_max_output_tokens'] for r in settings if r['model'] == 'qwen3.8-27b-nvfp4')
     traces = read('trace-manifest.csv')
     positive = sum(int(r['violation']) for r in traces)
     negative = len(traces) - positive
@@ -59,11 +62,11 @@ def main():
     for r in rows:
         if r['model'] != 'reference':
             budgets.append(f"| {NAMES[r['model']]} | {r['rq2_truncated_policies']} | {r['rq1_truncated_policies']} | {r['rq2_output_limit_failures']} | {r['rq1_output_limit_failures']} |")
-    coverage = ['| Model | Usable traces / planned | Conditional detection | Conditional false trigger | Conditional F1 |',
-                '| --- | --- | --- | --- | --- |']
+    coverage = ['| Model | Usable outcomes / planned | Compiled-rule traces | Compiled-only detection | Compiled-only false trigger | Compiled-only F1 |',
+                '| --- | --- | --- | --- | --- | --- |']
     for r in rows:
-        cf1 = f"{float(r['conditional_f1']):.3f}" if r['conditional_f1'] != '' else 'unavailable'
-        coverage.append(f"| {NAMES.get(r['model'], r['model'])} | {r['replay_valid']} / {len(traces)} | {pct(r['conditional_detection_rate'])} | {pct(r['conditional_false_trigger_rate'])} | {cf1} |")
+        cf1 = f"{float(r['compiled_rule_f1']):.3f}" if r['compiled_rule_f1'] != '' else 'unavailable'
+        coverage.append(f"| {NAMES.get(r['model'], r['model'])} | {r['replay_valid']} / {len(traces)} | {r['compiled_rule_traces']} | {pct(r['compiled_rule_detection_rate'])} | {pct(r['compiled_rule_false_trigger_rate'])} | {cf1} |")
     artifact_summary = read('artifact-reference-summary.csv')[0]
     reference_audit = read('reference-validation-summary.csv')
     reference_audit = reference_audit[0] if reference_audit else dict(matching_trace_snapshots=0, traces=0, script_disagreements_old_nonzero_new_zero=0)
@@ -75,7 +78,7 @@ def main():
                      f"The behavioral sample contains {counts['rq2']} repository policies and {len(traces)} labeled traces, including {positive} violations and {negative} compliant traces. "
                      f"We replay tool effects under the kernel engine without agent continuation or model judges. "
                      f"Completed model rows attain F1 from {fmin:.3f} to {fmax:.3f}. "
-                     f"Compiler acceptance on the separate {counts['rq1']}-policy corpus measures syntactic compatibility rather than semantic correctness. "
+                     f"Configured output budgets and CLI defaults also affect these rates. Compiler acceptance on the {counts['rq1']}-policy corpus measures syntactic compatibility rather than semantic correctness. "
                      "Reference agreement and replay failures are reported separately because backend behavior and fixture fidelity can also affect detection.")
     else:
         paragraph = (f"We compare policy translation across {available} response-verified model configurations with identical directive, source-evidence, instruction-file, and DSL-reference inputs. "
@@ -98,7 +101,12 @@ compliant), and a separate {counts['rq1']}-policy compilation corpus. Counts in
 the table are completed trials, so partial rows must not be read as full-corpus
 rates. Detection, false-trigger rate, and F1 remain unavailable unless every planned
 trace has an outcome. The reference row is a supplied translation, not a new
-model-generation trial.
+model-generation trial. The behavioral sample covers
+{overlap['behavioral_repositories']} repositories, while compilation covers
+{overlap['compilation_repositories']}. The corpora share
+{overlap['matching_repo_statement_ids']} repository/statement identifiers and
+{overlap['matching_directive_text']} exact directive texts. They are not disjoint
+held-out sets, and no semantic deduplication is claimed.
 
 {chr(10).join(table)}
 
@@ -108,13 +116,15 @@ model-generation trial.
 
 {chr(10).join(budgets)}
 
-API output budgets constrain these deployment configurations. Reported cutoffs
+API output is capped at {api_cap} tokens, including reported reasoning.
+This budget constrains these deployment configurations. Reported cutoffs
 are separated from other compiler failures. CLI stop reasons are not always
 reported, so a zero known cutoff count does not establish absence of truncation.
 The results do not measure unconstrained model capability.
 
-Conditional scores use only usable traces and may be biased by unavailable
-translations or replay errors. Headline scores require complete coverage.
+Compiled-only scores use successfully compiled and replayed policies. This
+selection can bias comparisons. Coverage-conditioned end-to-end scores are
+also retained in the CSV. Headline end-to-end scores require complete outcomes.
 A final compiler failure supplies no policy and is an end-to-end nondetection.
 An API/identity failure or failed kernel load has an unknown behavioral outcome.
 
@@ -298,7 +308,7 @@ derived outputs. No script opens or updates a pull request.
         ax.legend(loc='center left', bbox_to_anchor=(1, .5), frameon=False, fontsize=8)
     else:
         ax.text(.5, .5, 'Behavioral replay pending validation', ha='center', va='center', transform=ax.transAxes)
-    ax.set(xlabel='False-trigger rate (%)', ylabel='Violation detection rate (%)', xlim=(-2, 102), ylim=(-2, 102))
+    ax.set(title='End-to-end translation and replay', xlabel='False-trigger rate (%)', ylabel='Violation detection rate (%)', xlim=(-2, 102), ylim=(-2, 102))
     ax.grid(alpha=.2)
     fig.tight_layout()
     fig.savefig(HERE / 'comparison.pdf', bbox_inches='tight', metadata={'CreationDate': None, 'ModDate': None})

@@ -38,6 +38,16 @@ def detection(rows):
                   conditional_detection_rate=tp/pos if pos else '',
                   conditional_false_trigger_rate=fp/neg if neg else '',
                   conditional_f1=2*tp/(tp+fp+pos) if pos else '')
+    compiled = [r for r in valid if r['status'] == 'ok']
+    cp = sum(r['violation'] == '1' for r in compiled)
+    cn = len(compiled) - cp
+    ctp = sum(r['violation'] == '1' and r['fired'] == '1' for r in compiled)
+    cfp = sum(r['violation'] == '0' and r['fired'] == '1' for r in compiled)
+    result.update(compiled_rule_traces=len(compiled), compiled_rule_violation_traces=cp,
+                  compiled_rule_compliant_traces=cn,
+                  compiled_rule_detection_rate=ctp/cp if cp else '',
+                  compiled_rule_false_trigger_rate=cfp/cn if cn else '',
+                  compiled_rule_f1=2*ctp/(ctp+cfp+cp) if cp else '')
     for name, family in [('direct', 'visible_violation'), ('script', 'script_visible_violation'), ('hidden', 'opaque_fixture_violation')]:
         part = [r for r in valid if r['family'] == family]
         result[name + '_n'] = len(part)

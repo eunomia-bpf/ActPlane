@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Audit shared model-independent inputs without committing prompt text."""
 from prepare import DEFAULT_RAW, HERE, csv_write, sha
-from translate import inputs, make_prompt
+import inspect
+from models import MODELS, api_call
+from translate import inputs, make_prompt, request_workers
 
 
 def main():
@@ -21,6 +23,24 @@ def main():
                              directive_chars=len(item['directive']), context_files='|'.join(files),
                              context_file_count=len(files)))
     csv_write(HERE / 'prompt-manifest.csv', rows)
+    sample, corpus = inputs(DEFAULT_RAW, 'rq2'), inputs(DEFAULT_RAW, 'rq1')
+    sample_ids = {(r['repo_dir'], str(r['statement_id'])) for r in sample}
+    corpus_ids = {(r['repo_dir'], str(r['statement_id'])) for r in corpus}
+    csv_write(HERE / 'corpus-overlap.csv', [dict(behavioral_policies=len(sample), compilation_policies=len(corpus),
+              behavioral_repositories=len({r['repo_dir'] for r in sample}),
+              compilation_repositories=len({r['repo_dir'] for r in corpus}),
+              matching_repo_statement_ids=len(sample_ids & corpus_ids),
+              matching_directive_text=len({r['directive'] for r in sample} & {r['directive'] for r in corpus}))])
+    cap = inspect.signature(api_call).parameters['max_tokens'].default
+    settings = []
+    for model, (_, kind) in MODELS.items():
+        cli = kind in ('claude', 'codex')
+        settings.append(dict(model=model, adapter=kind, api_max_output_tokens='' if cli else cap,
+                             temperature='CLI default' if cli else '0',
+                             reasoning='medium' if kind == 'codex' else 'provider default',
+                             current_sample_worker_limit=request_workers('rq2', model),
+                             corpus_worker_limit=request_workers('rq1', model)))
+    csv_write(HERE / 'model-settings.csv', settings)
 
 
 if __name__ == '__main__':
