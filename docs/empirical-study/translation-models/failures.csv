@@ -14,6 +14,7 @@ rq2,qwen3.8-27b-nvfp4,ruvnet__ruflo__read-before-edit,compiler_failure,generatio
 rq1,qwen3.8-27b-nvfp4,AlexsJones__llmfit::17,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,AlexsJones__llmfit::27,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,alibaba__OpenSandbox::23,compiler_failure,generation_output_limit
+rq1,qwen3.8-27b-nvfp4,nanocoai__nanoclaw::19,compiler_failure,generation_output_limit
 rq2,zai/glm-4.7-flash,NVIDIA__NemoClaw__s01_private_vulnerability_reporting,access_failure,rate_limited
 rq2,zai/glm-4.7-flash,NVIDIA__NemoClaw__s02_no_new_javascript_sources,access_failure,rate_limited
 rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__29,access_failure,transport_timeout
@@ -91,6 +92,16 @@ rq1,zai/glm-4.7-flash,nearai__ironclaw::35,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,nearai__ironclaw::37,compiler_failure,syntax_or_lowering
 rq1,zai/glm-4.7-flash,nearai__ironclaw::38,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,nearai__ironclaw::39,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,nearai__ironclaw::45,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,nearai__ironclaw::46,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,nearai__ironclaw::47,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,nearai__ironclaw::49,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,ruvnet__ruflo::27,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,ruvnet__ruflo::28,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,ruvnet__ruflo::30,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,ruvnet__ruflo::54,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,ruvnet__ruflo::56,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,ruvnet__ruflo::58,access_failure,rate_limited
 rq1,gpt-6-astra,AlexsJones__llmfit::34,compiler_failure,model_declared_unobservable
 rq1,gpt-6-astra,InsForge__InsForge::6,compiler_failure,model_declared_unobservable
 rq1,gpt-6-astra,Yeachan-Heo__oh-my-claudecode::21,compiler_failure,model_declared_unobservable

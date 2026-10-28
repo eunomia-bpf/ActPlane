@@ -19,12 +19,12 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 23 / 38 of 41 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
-| zai/glm-5.3 | 34 / 38 of 38 | 56 / 72 of 72 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
-| zai/glm-5.3-flash | 33 / 38 of 38 | 32 / 50 of 50 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 10 / 13 of 38 | 7 / 12 of 64 | unavailable | unavailable | unavailable | 25 / 51 | $0.0000 |
-| zai/glm-4.5-air | 33 / 38 of 38 | 29 / 45 of 45 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
-| gpt-6-astra | 27 / 38 of 38 | 62 / 134 of 141 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 26 / 45 of 49 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
+| zai/glm-5.3 | 34 / 38 of 38 | 71 / 87 of 87 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 37 / 61 of 61 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
+| zai/glm-4.7-flash | 10 / 13 of 38 | 11 / 17 of 79 | unavailable | unavailable | unavailable | 25 / 61 | $0.0000 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 34 / 51 of 51 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
+| gpt-6-astra | 27 / 38 of 38 | 63 / 137 of 144 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
 | claude-opus-4-6 | 30 / 38 of 38 | 74 / 112 of 607 | 47.4% | 11.8% | 0.610 | 0 / 495 | $0.1384 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
@@ -51,11 +51,11 @@ held-out sets, and no semantic deduplication is claimed.
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 22 | 12 | 12 | 3 |
+| qwen3.8-27b-nvfp4 | 22 | 17 | 12 | 4 |
 | zai/glm-5.3 | 0 | 2 | 0 | 0 |
 | zai/glm-5.3-flash | 2 | 2 | 0 | 0 |
 | zai/glm-4.7-flash | 1 | 2 | 0 | 0 |
-| zai/glm-4.5-air | 2 | 4 | 0 | 0 |
+| zai/glm-4.5-air | 2 | 5 | 0 | 0 |
 | gpt-6-astra | 0 | 0 | 0 | 0 |
 | claude-opus-4-6 | 0 | 0 | 0 | 0 |
 
