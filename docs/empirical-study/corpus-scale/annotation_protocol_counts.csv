@@ -1,0 +1,10 @@
+source_file,retry_protocol,status,rows
+calibration_qwen.csv,legacy_batch,ok,2116
+calibration_glm.csv,legacy_batch,ok,2116
+calibration_adjudicated.csv,agreement,ok,1174
+calibration_adjudicated.csv,legacy_batch,ok,942
+format_calibration_glm.csv,not_yet_tagged,ok,2116
+labels_qwen.csv,not_yet_tagged,ok,18330
+labels_glm.csv,not_yet_tagged,ok,30846
+labels.csv,not_yet_tagged,failed,15148
+labels.csv,not_yet_tagged,ok,15698
