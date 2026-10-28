@@ -31,6 +31,22 @@ def main():
                 value, lo, hi = [f'{100*float(x):.1f}%' for x in (value, lo, hi)]
         interval = f'{lo}–{hi}' if lo and hi else 'withheld'
         lines.append(f'| {r["metric"]} | {value or "withheld"} | {interval} | {r["status"]} |')
+    scope_path = HERE / 'scope_coverage.csv'
+    if scope_path.exists():
+        scopes = read_csv(scope_path)
+        lines += ['', f'Exploratory file-scope classification: {sum(r["status"] == "ok" for r in scopes)} '
+                  f'of {len(scopes)} distinct repository/content pairs have accepted judgments. '
+                  'Scope and repository-category judgments have no human reliability calibration.']
+        subset = next((r for r in read_csv(HERE / 'summary.csv') if r['group_type'] == 'file_scope'
+                       and r['group'] == 'noncoding_assistance' and r['metric'] == 'policy_fraction'), None)
+        if subset and subset['status'] == 'ok':
+            files = read_csv(HERE / 'noncoding_manifest.csv')
+            pairs = {(r['repo'], r['content_sha256']) for r in files}
+            lines += ['', f'The exploratory noncoding slice contains {len(pairs)} source pairs in '
+                      f'{subset["repositories"]} repositories and {subset["statements"]} statements. '
+                      f'Its automated policy fraction is {100*float(subset["value"]):.1f}% '
+                      f'({100*float(subset["ci_low"]):.1f}%–{100*float(subset["ci_high"]):.1f}%). '
+                      'The inspectable exports are noncoding_manifest.csv and noncoding_statements.csv.']
     lines += ['', '| Calibration | Dimension | Applicable N | Kappa |', '|---|---|---:|---:|']
     for name in ['calibration', 'format_calibration']:
         path = HERE / (name + '_summary.csv')
@@ -56,6 +72,12 @@ def main():
         lines += ['', '| Paper figure | Status | PDF |', '|---|---|---|']
         lines.extend(f'| {r["paper_figure"]} | {r["status"]} | {r["file"]} |' for r in read_csv(figure_path))
         lines += ['', 'Withheld PDFs are placeholders and must not be inserted as updated results.']
+    for filename, label in [('validation.csv', 'Source, label, and metadata checks'),
+                            ('figure_production_validation.csv', 'Actual-PDF font and snapshot checks')]:
+        path = HERE / filename
+        if path.exists():
+            checks = read_csv(path)
+            lines += ['', f'{label}: {sum(r["passed"] == "True" for r in checks)}/{len(checks)} passed.']
     lines += ['', f'Artifacts: `{HERE}`', '',
               'Raw downloads and logs: `/workspaces/.agent-state/actplane-research/raw/corpus-scale-20261028`', '',
               'Open caveats: convenience/star/query sampling; automated statement boundaries; historical reference conventions and missing human review sample; correlated model adjudication; exploratory model-based file scopes; withheld dimensions must not replace paper claims. See README.md and calibration tables for exact agreement and limitations.', '',
