@@ -1,0 +1,8 @@
+label,corpus,model,uid,attempt,status,usage,charge,recorded_utc
+supervisor-update-20261028-0630,rq2,qwen3.8-27b-nvfp4,rohitg00__agentmemory__agent-hooks-not-manual,attempt-3,interrupted_response_unknown,unknown,unknown,2026-10-28T06:35:15Z
+supervisor-update-20261028-0630,rq2,qwen3.8-27b-nvfp4,ruvnet__ruflo__29,attempt-3,interrupted_response_unknown,unknown,unknown,2026-10-28T06:35:15Z
+supervisor-update-20261028-0630,rq2,qwen3.8-27b-nvfp4,ruvnet__ruflo__no-root-workfiles,attempt-2,interrupted_response_unknown,unknown,unknown,2026-10-28T06:35:15Z
+supervisor-update-20261028-0630,rq2,qwen3.8-27b-nvfp4,ruvnet__ruflo__read-before-edit,attempt-2,interrupted_response_unknown,unknown,unknown,2026-10-28T06:35:15Z
+supervisor-update-20261028-0630,rq2,zai/glm-4.5-air,ruvnet__ruflo__29,attempt-1,interrupted_response_unknown,unknown,unknown,2026-10-28T06:35:15Z
+supervisor-update-20261028-0630,rq2,zai/glm-4.7-flash,browser-use__browser-harness__direct-browser-harness-cli,attempt-2,interrupted_response_unknown,unknown,unknown,2026-10-28T06:35:15Z
+supervisor-update-20261028-0630,rq2,zai/glm-5.3-flash,rohitg00__agentmemory__container-entrypoints-only,attempt-1,interrupted_response_unknown,unknown,unknown,2026-10-28T06:35:15Z

@@ -3,7 +3,7 @@
 Results on branch `experiments/translation-models-20261028`. The operator will
 consolidate lane branches. No pull request is created or updated by this lane.
 
-The planned scope is 6 accessible model configurations, 38
+The planned scope is 7 accessible model configurations, 38
 behavioral policies with 190 traces (114 violation, 76
 compliant), and a separate 607-policy compilation corpus. Counts in
 the table are completed trials, so partial rows must not be read as full-corpus
@@ -14,11 +14,12 @@ model-generation trial.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | pending | pending | pending | n/a |
-| Qwen3.8-27B NVFP4 | 13 / 23 of 31 | 0 / 0 of 0 | pending | pending | pending | n/a |
+| Qwen3.8-27B NVFP4 | 13 / 23 of 33 | 0 / 0 of 0 | pending | pending | pending | n/a |
 | GLM-5.3 | 34 / 38 of 38 | 0 / 0 of 0 | pending | pending | pending | $0.0327 |
-| GLM-5.3-Flash | 26 / 30 of 30 | 0 / 0 of 0 | pending | pending | pending | $0.0038 |
-| GLM-4.7-Flash | 5 / 8 of 15 | 0 / 0 of 0 | pending | pending | pending | $0.0000 |
-| GLM-4.5-Air | 26 / 31 of 31 | 0 / 0 of 0 | pending | pending | pending | $0.0066 |
+| GLM-5.3-Flash | 33 / 37 of 37 | 0 / 0 of 0 | pending | pending | pending | $0.0038 |
+| GLM-4.7-Flash | 7 / 10 of 25 | 0 / 0 of 0 | pending | pending | pending | $0.0000 |
+| GLM-4.5-Air | 32 / 37 of 37 | 0 / 0 of 0 | pending | pending | pending | $0.0065 |
+| GPT-6 Astra | 4 / 7 of 7 | 0 / 0 of 0 | pending | pending | pending | $0.3507 |
 | Claude Opus 4.6 | 30 / 38 of 38 | 0 / 0 of 0 | pending | pending | pending | $0.1384 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
@@ -29,6 +30,7 @@ model-generation trial.
 | GLM-5.3-Flash | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 | GLM-4.7-Flash | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 | GLM-4.5-Air | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| GPT-6 Astra | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 | Claude Opus 4.6 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 
 | Model | Usable traces / planned | Conditional detection | Conditional false trigger | Conditional F1 |
@@ -39,6 +41,7 @@ model-generation trial.
 | GLM-5.3-Flash | 0 / 190 | pending | pending | pending |
 | GLM-4.7-Flash | 0 / 190 | pending | pending | pending |
 | GLM-4.5-Air | 0 / 190 | pending | pending | pending |
+| GPT-6 Astra | 0 / 190 | pending | pending | pending |
 | Claude Opus 4.6 | 0 / 190 | pending | pending | pending |
 
 Conditional scores use only usable traces and may be biased by unavailable
@@ -76,7 +79,14 @@ or LLM judge. Every response must identify the requested model. Gateway identifi
 are response assertions, not independent verification of deployed weights.
 API calls use deterministic temperature and an output-token cap. CLI wrapper
 defaults differ and add context overhead. Claude uses a pinned model with tools,
-skills, hooks, and MCP disabled. GPT access is excluded rather than substituted.
+skills, hooks, and MCP disabled. The OpenAI row uses response-verified GPT-6 Astra
+through `codex exec`, selected as the strongest served model after checking the
+account model catalog and probing. The paper's original RQ1 translator was
+GPT-5.5, which this account rejects. This substitution follows the operator update.
+Codex identity comes from incoming server `response.model` fields captured by
+protocol-only tracing. Warmup responses with `generate=false` are excluded from
+inference counts. A scored call must contain exactly one inference and no tool
+outputs. Raw transport frames are discarded to avoid retaining session state.
 
 Compiler acceptance requires an emitted blob and a nonempty rule set. Terminal
 failure categories in `failure-counts.csv` use explicit model-declared
@@ -89,7 +99,8 @@ under shared serving load and the recorded scripts' worker limits, rather than
 an isolated model-speed benchmark. Token counts include all completed
 model responses, including reasoning and compiler revisions. `prices.csv` records
 the [ZAI list prices](https://docs.z.ai/guides/overview/pricing) and
-[Claude list prices](https://platform.claude.com/docs/en/about-claude/pricing).
+[Claude list prices](https://platform.claude.com/docs/en/about-claude/pricing), and
+[OpenAI list prices](https://developers.openai.com/api/docs/models/gpt-6-astra).
 Dollar values are uncached API equivalents, including for the subscription CLI,
 not bills. Local infrastructure cost is unmeasured. Transport failures without
 usage cannot be assigned an inferred token charge. Reported token and dollar
@@ -104,6 +115,9 @@ same AGENT/COMMAND label convention as the CLI. Each worker has private network
 and mount namespaces, a short `/tmp/repo` bind mount, artifact safety shims, and
 an environment without credentials. Relative Bash and file-changing tool paths
 are preserved. Read uses an absolute path, as in the original harness.
+Selected fixture archives are hash-recorded in `fixture-packs.csv` and unpacked
+into fresh guest-local tmpfs checkouts. Earlier shared-filesystem replays are
+diagnostics. All scored rows use the same guest-local fixture filesystem.
 Harness tool-result logs are buffered and flushed only after the engine stops,
 using a pipe completion handshake. Actual tool subprocess stdout is preserved.
 Earlier smoke runs with monitored harness logging are diagnostic only.
@@ -142,6 +156,7 @@ the intended forbidden side effect occurred.
 The preserved `invalid-protocol-calls.csv` audits an interrupted preliminary run
 whose compiler invocation combined incompatible CLI flags. Those calls are not
 model failures or scored trials. Raw responses remain in `invalid-protocol/`.
+Interrupted requests with unknown usage are preserved in `interrupted-requests.csv`.
 Kernel smoke failures are retained separately as diagnostics. Failed engine loads
 are never counted as true negatives. The behavioral sample is small, constructed,
 and selected for OS observability. It is not a held-out natural policy population.
@@ -164,7 +179,9 @@ make test
 python3 docs/empirical-study/translation-models/prepare.py --as-of 2026-06-07T00:00:00Z
 python3 docs/empirical-study/translation-models/extra_candidates.py
 python3 docs/empirical-study/translation-models/select_fixtures.py
+python3 docs/empirical-study/translation-models/pack_fixtures.py
 python3 docs/empirical-study/translation-models/models.py
+python3 docs/empirical-study/translation-models/select_openai.py
 python3 docs/empirical-study/translation-models/build_loader.py
 python3 -m unittest discover -s docs/empirical-study/translation-models -p 'test_*.py'
 ```
@@ -176,4 +193,4 @@ derived outputs. No script opens or updates a pull request.
 
 ## Paper paragraph
 
-We compare policy translation across 6 response-verified model configurations with identical directive, source-evidence, instruction-file, and DSL-reference inputs. The behavioral sample contains 38 policies and 190 labeled traces, while a separate corpus contains 607 policies. Each translation receives compiler feedback on revisions. Kernel replay uses fixed tool effects without agent continuation or model judges. Compiler acceptance is reported separately from behavioral correctness. Behavioral scores remain pending until reference replay and the full trace set are available.
+We compare policy translation across 7 response-verified model configurations with identical directive, source-evidence, instruction-file, and DSL-reference inputs. The behavioral sample contains 38 policies and 190 labeled traces, while a separate corpus contains 607 policies. Each translation receives compiler feedback on revisions. Kernel replay uses fixed tool effects without agent continuation or model judges. Compiler acceptance is reported separately from behavioral correctness. Behavioral scores remain pending until reference replay and the full trace set are available.

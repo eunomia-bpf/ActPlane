@@ -7,6 +7,8 @@ rq2,qwen3.8-27b-nvfp4,browser-use__browser-harness__direct-browser-harness-cli,c
 rq2,qwen3.8-27b-nvfp4,czlonkowski__n8n-mcp__no_committed_sensitive_test_env,compiler_failure,syntax_or_lowering
 rq2,qwen3.8-27b-nvfp4,google__adk-python__generated-agentconfig-schema,compiler_failure,syntax_or_lowering
 rq2,qwen3.8-27b-nvfp4,google__adk-python__session-db-migration-root,compiler_failure,syntax_or_lowering
+rq2,qwen3.8-27b-nvfp4,rohitg00__agentmemory__agent-hooks-not-manual,compiler_failure,syntax_or_lowering
+rq2,qwen3.8-27b-nvfp4,ruvnet__ruflo__29,compiler_failure,syntax_or_lowering
 rq2,zai/glm-4.7-flash,NVIDIA__NemoClaw__s01_private_vulnerability_reporting,access_failure,http_error
 rq2,zai/glm-4.7-flash,NVIDIA__NemoClaw__s02_no_new_javascript_sources,access_failure,http_error
 rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__29,access_failure,transport_error
@@ -14,3 +16,11 @@ rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__s01_use_test_wrapper,access_fa
 rq2,zai/glm-4.7-flash,NousResearch__hermes-agent__s02_keep_credentials_out_of_repo,access_failure,transport_error
 rq2,zai/glm-4.7-flash,OpenPipe__ART__2,access_failure,http_error
 rq2,zai/glm-4.7-flash,OpenPipe__ART__prek_before_commit,access_failure,transport_error
+rq2,zai/glm-4.7-flash,browser-use__browser-harness__direct-browser-harness-cli,access_failure,http_error
+rq2,zai/glm-4.7-flash,code-yeongyu__oh-my-openagent__bun-only-runtime,access_failure,http_error
+rq2,zai/glm-4.7-flash,code-yeongyu__oh-my-openagent__platform-binaries-generated,access_failure,http_error
+rq2,zai/glm-4.7-flash,czlonkowski__n8n-mcp__41,access_failure,http_error
+rq2,zai/glm-4.7-flash,czlonkowski__n8n-mcp__no_committed_sensitive_test_env,access_failure,http_error
+rq2,zai/glm-4.7-flash,google__adk-python__session-db-migration-root,access_failure,http_error
+rq2,zai/glm-4.7-flash,openai__codex__app-server-v2-only,access_failure,http_error
+rq2,zai/glm-4.7-flash,openai__codex__generated-typescript-protocol,access_failure,http_error

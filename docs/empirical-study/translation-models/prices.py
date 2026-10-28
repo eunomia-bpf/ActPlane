@@ -13,6 +13,7 @@ def main():
         ('zai/glm-5.3-flash', .15, .50, zai, 'uncached list price equivalent'),
         ('zai/glm-4.7-flash', 0, 0, zai, 'free public API list price'),
         ('zai/glm-4.5-air', .2, 1.1, zai, 'uncached list price equivalent'),
+        ('gpt-6-astra', 10, 50, 'https://developers.openai.com/api/docs/models/gpt-6-astra', 'uncached standard API equivalent; subscription CLI used'),
         ('claude-opus-4-6', 5, 25, claude, 'uncached API equivalent; subscription CLI used'),
     ]:
         rows.append(dict(model=model, input_usd_per_million=inp, output_usd_per_million=out,

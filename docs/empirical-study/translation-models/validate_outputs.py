@@ -30,13 +30,15 @@ def main():
     loader_hash = json.loads((DEFAULT_RAW / 'bounded-loader/metadata.json').read_text())['loader_sha256']
     for model in ['reference'] + models:
         rows = read('replay-' + model.replace('/', '__') + '.csv')
+        check(f'replay:{model}:guest_local_fixtures', True, all(r.get('fixture_fs') == 'guest-tmpfs' for r in rows))
+        check(f'replay:{model}:kernel', True, all(r['kernel'] == '6.8.0-138-generic' for r in rows))
         check(f'replay:{model}:same_loader', True, all(r['loader_sha256'] == loader_hash for r in rows if r['status'] == 'ok'))
         check(f'replay:{model}:rows', 190, len(rows))
         check(f'replay:{model}:unique', 190, len({(r['repo'], r['statement_id'], r['trace']) for r in rows}))
         check(f'replay:{model}:violation_labels', 114, sum(int(r['violation']) for r in rows))
         check(f'replay:{model}:compliant_labels', 76, sum(r['violation'] == '0' for r in rows))
-    controls = read('controls-guest68-scored-v2.csv')
-    parallel = read('controls-guest68-parallel-v2.csv')
+    controls = read('controls-guest68-scored-v3.csv')
+    parallel = read('controls-guest68-parallel-v3.csv')
     check('all parallel kernel controls pass', True, all(r['control_passed'] == '1' for r in parallel))
     check('all kernel controls pass', True, all(r['control_passed'] == '1' for r in controls))
     check('PDF embeds TrueType', True, b'/FontFile2' in (HERE / 'comparison.pdf').read_bytes())

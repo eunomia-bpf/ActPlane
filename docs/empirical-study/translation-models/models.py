@@ -4,6 +4,7 @@ import argparse
 import concurrent.futures
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -24,6 +25,7 @@ MODELS = {
     'opencode-go/gpt-5.6-luna': (None, 'gateway'),
     'opencode-go/grok-4.6': (None, 'gateway'),
     'gpt-5.5': (None, 'codex'),
+    'gpt-6-astra': (None, 'codex'),
     'claude-opus-4-6': (None, 'claude'),
 }
 SYSTEM = 'You translate natural-language repository policies into ActPlane DSL. Return only the requested policy. Do not use tools.'
@@ -85,9 +87,15 @@ def cli_call(model, prompt, out):
                 '--no-session-persistence', '--output-format', 'json', '--system-prompt', SYSTEM]
     start = time.monotonic()
     try:
-        proc = subprocess.run(args, input=prompt, cwd=cwd, capture_output=True, text=True, timeout=360)
+        env = dict(os.environ)
+        if MODELS[model][1] == 'codex':
+            # Protocol-only tracing exposes incoming server response.model.
+            # Never retain raw frames: they also contain opaque session state.
+            env['RUST_LOG'] = 'tungstenite::protocol=trace'
+        proc = subprocess.run(args, input=prompt, cwd=cwd, env=env, capture_output=True, text=True, timeout=360)
         (out / 'stdout.json').write_text(proc.stdout)
-        (out / 'stderr.txt').write_text(proc.stderr)
+        (out / 'stderr.txt').write_text(proc.stderr if MODELS[model][1] != 'codex' else
+                                       'Raw protocol frames discarded. See server-responses.json for safe identity and usage evidence.\n')
         result = dict(status='ok' if not proc.returncode else 'cli_error', returncode=proc.returncode,
                       elapsed_s=time.monotonic() - start, response_model='', identity_verified=False)
         if MODELS[model][1] == 'claude':
@@ -108,12 +116,44 @@ def cli_call(model, prompt, out):
                                        if e.get('type') == 'item.completed' and e.get('item', {}).get('type') == 'agent_message')
             result['usage'] = next((e.get('usage') for e in events if e.get('type') == 'turn.completed'), {})
             result['tool_calls'] = [e for e in events if e.get('item', {}).get('type') in ('command_execution', 'mcp_tool_call', 'web_search')]
-            result['error'] = ('\n'.join(e.get('message', '') for e in events if e.get('type') == 'error') or proc.stderr[-2000:]) if proc.returncode else ''
-            # Do not claim a requested CLI model is a verified serving model.
+            result['error'] = ('\n'.join(e.get('message', '') for e in events if e.get('type') == 'error') or f'Codex exited {proc.returncode}') if proc.returncode else ''
+            server = codex_server_evidence(proc.stderr)
+            (out / 'server-responses.json').write_text(json.dumps(server, indent=2) + '\n')
+            result['server_responses'] = server
+            inferences = [r for r in server if r.get('generate') is not False]
+            returned = sorted({r.get('model', '') for r in inferences})
+            result['response_model'] = ','.join(returned)
+            result['identity_verified'] = bool(returned) and all(identity_ok(model, m) for m in returned)
+            allowed = {'message', 'reasoning'}
+            if proc.returncode == 0 and (len(inferences) != 1 or result['tool_calls'] or
+                                        any(set(r['output_types']) - allowed for r in inferences)):
+                result.update(status='protocol_error', error='CLI did not complete exactly one inference without tool calls')
+
         return result
     except Exception as e:
         return dict(status='cli_error', elapsed_s=time.monotonic() - start,
                     error=f'{type(e).__name__}: {e}', response_model='', identity_verified=False)
+
+
+def codex_server_evidence(stderr):
+    """Parse only incoming completed response objects, excluding raw headers."""
+    rows = []
+    for line in stderr.splitlines():
+        marker = 'Received message '
+        if marker not in line:
+            continue
+        try:
+            event = json.loads(line.split(marker, 1)[1])
+        except json.JSONDecodeError:
+            continue
+        if event.get('type') != 'response.completed':
+            continue
+        response = event.get('response', {})
+        row = {k: response.get(k) for k in ('id', 'model', 'status', 'generate', 'usage')}
+        row['output_types'] = [o.get('type') for o in response.get('output', [])]
+        if not any(old['id'] == row['id'] for old in rows):
+            rows.append(row)
+    return rows
 
 
 def probe(model, raw, refresh=False):

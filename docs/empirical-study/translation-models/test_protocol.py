@@ -4,7 +4,8 @@ from unittest.mock import patch
 import tempfile
 from pathlib import Path
 
-from models import identity_ok
+import json
+from models import identity_ok, codex_server_evidence
 from replay import copy_fixture, notify_policy, runner_label, tools_in_trace
 from translate import compile_policy, extract, inputs, make_prompt, usage_of, translate_one
 from summarize import detection
@@ -93,6 +94,16 @@ class ProtocolTests(unittest.TestCase):
                 self.assertIn('compiler rejected', call.call_args_list[1].args[1][-1]['content'])
                 translate_one(raw, 'rq2', 'qwen3.8-27b-nvfp4', item)
                 self.assertEqual(call.call_count, 2)
+
+    def test_codex_identity_comes_from_incoming_server_response(self):
+        outgoing = 'Sending message ' + json.dumps({'type': 'response.completed', 'response': {'model': 'requested'}})
+        warmup = dict(type='response.completed', response=dict(id='warmup', model='gpt-6-astra', generate=False, output=[]))
+        actual = dict(type='response.completed', response=dict(id='actual', model='gpt-6-astra', output=[dict(type='message')], usage={'input_tokens': 12, 'output_tokens': 3}))
+        text = outgoing + '\nReceived message ' + json.dumps(warmup) + '\nReceived message ' + json.dumps(actual)
+        evidence = codex_server_evidence(text)
+        self.assertEqual([r['model'] for r in evidence], ['gpt-6-astra', 'gpt-6-astra'])
+        self.assertEqual(len([r for r in evidence if r['generate'] is not False]), 1)
+        self.assertEqual(usage_of({'usage': {'input_tokens': 12, 'output_tokens': 3}}, 'gpt-6-astra')['input_tokens'], 12)
 
 
 if __name__ == '__main__':

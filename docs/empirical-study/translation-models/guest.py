@@ -38,7 +38,10 @@ def main():
         command = command[1:]
     if not command:
         raise SystemExit('Supply a guest command after --')
-    script = shlex.join(command) + '; tm_status=$?; echo TM_GUEST_EXIT=$tm_status; exit "$tm_status"'
+    guest_work = raw / 'guest-work'
+    guest_work.mkdir(exist_ok=True)
+    setup = 'mount -t tmpfs -o size=1G tmpfs ' + shlex.quote(str(guest_work)) + ' && '
+    script = setup + shlex.join(command) + '; tm_status=$?; echo TM_GUEST_EXIT=$tm_status; exit "$tm_status"'
     argv = ['virtme-run', '--kimg', str(kernel), '--mods', 'auto', '--memory', '3G', '--cpus', '2',
             '--force-9p', '--show-boot-console', '--rwdir', str(raw), '--rwdir', str(HERE),
             '--cwd', str(ROOT), '--script-sh', script]

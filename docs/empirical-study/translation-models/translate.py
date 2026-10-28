@@ -106,10 +106,20 @@ def usage_of(response, model):
                     cached_input_tokens=u.get('cache_read_input_tokens', 0),
                     cache_write_tokens=u.get('cache_creation_input_tokens', 0),
                     reasoning_tokens=(u.get('output_tokens_details') or {}).get('thinking_tokens', 0))
+    if MODELS[model][1] == 'codex':
+        u = response.get('usage') or {}
+        return dict(input_tokens=u.get('input_tokens', 0), output_tokens=u.get('output_tokens', 0),
+                    cached_input_tokens=u.get('cached_input_tokens', 0),
+                    cache_write_tokens=u.get('cache_write_input_tokens', 0),
+                    reasoning_tokens=u.get('reasoning_output_tokens', 0))
     u = response.get('response', {}).get('usage') or {}
     return dict(input_tokens=u.get('prompt_tokens', 0), output_tokens=u.get('completion_tokens', 0),
                 cached_input_tokens=(u.get('prompt_tokens_details') or {}).get('cached_tokens', 0), cache_write_tokens=0,
                 reasoning_tokens=(u.get('completion_tokens_details') or {}).get('reasoning_tokens', 0))
+
+
+def usage_reported(response, model):
+    return bool(response.get('usage')) if MODELS[model][1] == 'codex' else bool(response.get('response', {}).get('usage'))
 
 
 def failure_category(text):
@@ -140,7 +150,7 @@ def translate_one(raw, corpus, model, item):
         response = json.loads(terminal.read_text())
         # Resume an interrupted CLI transport budget, never resample a model
         # answer or exceed the same three-transport budget used for HTTP.
-        retry_cli = (MODELS[model][1] == 'claude' and previous['status'] == 'access_failure'
+        retry_cli = (MODELS[model][1] in ('claude', 'codex') and previous['status'] == 'access_failure'
                      and 'TimeoutExpired' in response.get('error', '')
                      and len(response.get('transport_attempts', [])) < 2)
         if not retry_cli:
@@ -239,7 +249,7 @@ def export_trials(raw, corpus, model):
         r.pop('policy', None)
         responses = [json.loads(p.read_text()) for p in path.parent.glob('attempt-*/response.json')]
         calls = [t for response in responses for t in response.get('transport_attempts', []) + [response]]
-        r['usage_missing_transports'] = sum(not bool(t.get('response', {}).get('usage')) for t in calls)
+        r['usage_missing_transports'] = sum(not usage_reported(t, model) for t in calls)
         r['retry_errors'] = json.dumps(r['retry_errors'], ensure_ascii=False)
         p = path.parent / f"attempt-{r['attempts']}" / 'compile-report.json'
         report = json.loads(p.read_text()) if p.exists() and p.read_text().startswith('{') else {}

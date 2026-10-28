@@ -1,0 +1,11 @@
+model,description,catalog_fetched_at,selected,selection_source,selection_reason
+gpt-6.1-sol,Latest workhorse model for coding and everyday work.,2026-10-28T06:38:00.016632976Z,0,https://developers.openai.com/api/docs/models/gpt-6-astra,"catalog alternative, not selected"
+gpt-6-astra,Frontier intelligence for the most demanding work.,2026-10-28T06:38:00.016632976Z,1,https://developers.openai.com/api/docs/models/gpt-6-astra,most capable model per official catalog; response-verified through this account
+gpt-6.1-terra,GPT-6.1 Terra Codex model.,2026-10-28T06:38:00.016632976Z,0,https://developers.openai.com/api/docs/models/gpt-6-astra,"catalog alternative, not selected"
+gpt-6-sol,Previous generation workhorse model.,2026-10-28T06:38:00.016632976Z,0,https://developers.openai.com/api/docs/models/gpt-6-astra,"catalog alternative, not selected"
+gpt-reserve,Fast and affordable agentic coding model.,2026-10-28T06:38:00.016632976Z,0,https://developers.openai.com/api/docs/models/gpt-6-astra,"catalog alternative, not selected"
+gpt-6-luna,Fast and affordable model for easier tasks.,2026-10-28T06:38:00.016632976Z,0,https://developers.openai.com/api/docs/models/gpt-6-astra,"catalog alternative, not selected"
+gpt-5.6-sol,Older generation workhorse model.,2026-10-28T06:38:00.016632976Z,0,https://developers.openai.com/api/docs/models/gpt-6-astra,"catalog alternative, not selected"
+gpt-5.6-terra,Older balanced model for straightforward work.,2026-10-28T06:38:00.016632976Z,0,https://developers.openai.com/api/docs/models/gpt-6-astra,"catalog alternative, not selected"
+gpt-5.6-luna,Older fast and efficient model.,2026-10-28T06:38:00.016632976Z,0,https://developers.openai.com/api/docs/models/gpt-6-astra,"catalog alternative, not selected"
+codex-auto-review,Automatic approval review model for Codex.,2026-10-28T06:38:00.016632976Z,0,https://developers.openai.com/api/docs/models/gpt-6-astra,"catalog alternative, not selected"

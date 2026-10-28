@@ -1,4 +1,4 @@
 corpus,model,status,failure_category,policies
-rq2,qwen3.8-27b-nvfp4,compiler_failure,syntax_or_lowering,8
-rq2,zai/glm-4.7-flash,access_failure,http_error,4
+rq2,qwen3.8-27b-nvfp4,compiler_failure,syntax_or_lowering,10
+rq2,zai/glm-4.7-flash,access_failure,http_error,12
 rq2,zai/glm-4.7-flash,access_failure,transport_error,3

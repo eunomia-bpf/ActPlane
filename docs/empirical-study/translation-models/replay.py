@@ -16,10 +16,12 @@ import signal
 import subprocess
 import sys
 import time
+import tempfile
 
 import yaml
 
 from prepare import HERE, ROOT, DEFAULT_RAW, csv_write, sha
+from pack_fixtures import archive_path
 
 
 def artifact_helpers(raw):
@@ -143,10 +145,14 @@ def wait_trace_done(child, control_fd, timeout=180):
         raise RuntimeError('worker did not stop after trace')
 
 
-def copy_fixture(source, work):
+def copy_fixture(source, work, archive=None):
     # Source selection uses symlinks. Resolve before cp -a so each replay gets
     # an independent directory rather than a symlink to the frozen baseline.
-    subprocess.run(['cp', '-a', '--reflink=auto', str(source.resolve()), str(work)], check=True)
+    if archive is not None and archive.exists():
+        work.mkdir()
+        subprocess.run(['tar', '-xzf', str(archive), '--no-same-owner', '-C', str(work)], check=True)
+    else:
+        subprocess.run(['cp', '-a', '--reflink=auto', str(source.resolve()), str(work)], check=True)
 
 
 def remove_checkout(work):
@@ -164,7 +170,10 @@ def replay_one(raw, statement, trace, model, policy, out, no_engine=False, loade
                violation=int(records[0]['violation']), status='ok', fired='', events='',
                tool_errors='', elapsed_s='', artifact_fired='', agreement='', error='')
     row['kernel'] = os.uname().release
-    work = out / 'checkout'
+    ephemeral = raw / 'guest-work'
+    local_dir = Path(tempfile.mkdtemp(prefix='trace-', dir=ephemeral)) if os.path.ismount(ephemeral) else None
+    work = local_dir / 'checkout' if local_dir else out / 'checkout'
+    row['fixture_fs'] = 'guest-tmpfs' if local_dir else 'shared-filesystem'
     loader = child = None
     control_read = control_write = None
     start = time.monotonic()
@@ -173,6 +182,8 @@ def replay_one(raw, statement, trace, model, policy, out, no_engine=False, loade
         row.update(status='translation_unavailable' if unavailable else 'translation_failed',
                    fired='' if unavailable else 0, events=0, tool_errors=0, elapsed_s=0,
                    error=f'No compiled translation: {translation_status or "compiler_failure"}')
+        if local_dir:
+            local_dir.rmdir()
         (out / 'result.json').write_text(json.dumps(row, indent=2) + '\n')
         return row
     try:
@@ -180,7 +191,9 @@ def replay_one(raw, statement, trace, model, policy, out, no_engine=False, loade
         source = raw / 'selected-rule-fixtures' / statement.parent.name / statement.name
         if not source.exists():
             source = raw / 'repos' / statement.parent.name
-        copy_fixture(source, work)
+        archive = archive_path(source, raw)
+        copy_fixture(source, work, archive)
+        row['fixture_archive'] = archive.name if archive.exists() else 'unpacked-synthetic-control'
         row['fixture_commit'] = (source / '.fixture-ready').read_text().strip() if (source / '.fixture-ready').exists() else 'synthetic-control'
         row['loader_sha256'] = sha((loader_bin or ROOT / 'bpf/process').read_bytes())
         fixture = statement / 'fixtures'
@@ -258,6 +271,8 @@ def replay_one(raw, statement, trace, model, policy, out, no_engine=False, loade
             loader.terminate()
             loader.wait(timeout=10)
         remove_checkout(work)
+        if local_dir:
+            local_dir.rmdir()
     row['elapsed_s'] = round(time.monotonic() - start, 4)
     (out / 'result.json').write_text(json.dumps(row, indent=2) + '\n')
     return row

@@ -4,4 +4,5 @@ zai/glm-5.3,1.4,4.4,https://docs.z.ai/guides/overview/pricing,2026-10-28,uncache
 zai/glm-5.3-flash,0.15,0.5,https://docs.z.ai/guides/overview/pricing,2026-10-28,uncached list price equivalent
 zai/glm-4.7-flash,0,0,https://docs.z.ai/guides/overview/pricing,2026-10-28,free public API list price
 zai/glm-4.5-air,0.2,1.1,https://docs.z.ai/guides/overview/pricing,2026-10-28,uncached list price equivalent
+gpt-6-astra,10,50,https://developers.openai.com/api/docs/models/gpt-6-astra,2026-10-28,uncached standard API equivalent; subscription CLI used
 claude-opus-4-6,5,25,https://platform.claude.com/docs/en/about-claude/pricing,2026-10-28,uncached API equivalent; subscription CLI used

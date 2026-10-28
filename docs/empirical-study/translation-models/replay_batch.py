@@ -17,7 +17,7 @@ def main():
         out.mkdir(exist_ok=True)
         with (out / (model.replace('/', '__') + '.log')).open('w') as f:
             p = subprocess.run([sys.executable, str(HERE / 'replay.py'), '--model', model,
-                                '--run-tag', 'guest68-scored-v2', '--loader', str(DEFAULT_RAW / 'bounded-loader/process')],
+                                '--run-tag', 'guest68-scored-v3', '--loader', str(DEFAULT_RAW / 'bounded-loader/process')],
                                stdout=f, stderr=subprocess.STDOUT)
         if p.returncode:
             raise RuntimeError(f'Model replay failed: {model}; inspect {out}')
