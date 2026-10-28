@@ -26,7 +26,32 @@ def main():
                 value, lo, hi = [f'{float(x):,.0f}' for x in (value, lo, hi)]
             else:
                 value, lo, hi = [f'{100*float(x):.1f}%' for x in (value, lo, hi)]
-        lines.append(f'| {r["metric"]} | {value or "withheld"} | {lo}–{hi} | {r["status"]} |')
+        interval = f'{lo}–{hi}' if lo and hi else 'withheld'
+        lines.append(f'| {r["metric"]} | {value or "withheld"} | {interval} | {r["status"]} |')
+    lines += ['', '| Calibration | Dimension | Applicable N | Kappa |', '|---|---|---:|---:|']
+    for name in ['calibration', 'format_calibration']:
+        path = HERE / (name + '_summary.csv')
+        if not path.exists():
+            continue
+        for r in read_csv(path):
+            if r['model'] == 'adjudicated' and r['scope'] == 'applicable_gold':
+                lines.append(f'| {name} | {r["dimension"]} | {r["evaluated"]} | {float(r["kappa"]):.3f} |')
+    audit = read_csv(HERE / 'paper_audit.csv')[0]
+    baseline = {r['metric']: r for r in read_csv(HERE / 'paper_summary.csv')}
+    claims = {r['metric']: r for r in read_csv(HERE / 'paper_claims.csv')}
+    cross = baseline['cross_event_project_share']
+    lines += ['', f'Historical caveats: the recovered annotations reference {audit["referenced_source_files"]} primary files, '
+              f'while the deduplicated non-redirect inventory contains {audit["unique_non_redirect_files"]} files. '
+              'The labels do not establish coverage of every additional file. '
+              f'The recovered cross-event project share is {cross["numerator"]}/{cross["denominator"]} '
+              f'({100*float(cross["value"]):.1f}%), versus the paper claim of '
+              f'{100*float(claims["cross_event_project_share"]["value"]):.1f}%. '
+              'Both supplied historical branches contain identical annotations.']
+    figure_path = HERE / 'figure_manifest.csv'
+    if figure_path.exists():
+        lines += ['', '| Paper figure | Status | PDF |', '|---|---|---|']
+        lines.extend(f'| {r["paper_figure"]} | {r["status"]} | {r["file"]} |' for r in read_csv(figure_path))
+        lines += ['', 'Withheld PDFs are placeholders and must not be inserted as updated results.']
     lines += ['', f'Artifacts: `{HERE}`', '',
               'Raw downloads and logs: `/workspaces/.agent-state/actplane-research/raw/corpus-scale-20261028`', '',
               'Open caveats: convenience/star/query sampling; automated statement boundaries; historical reference conventions and missing human review sample; correlated model adjudication; exploratory model-based file scopes; withheld dimensions must not replace paper claims. See README.md and calibration tables for exact agreement and limitations.', '',
