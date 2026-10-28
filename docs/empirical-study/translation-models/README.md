@@ -19,13 +19,13 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 117 / 224 of 255 | 40.4% | 10.5% | 0.548 | 0 / 7 | n/a |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 117 / 224 of 259 | 40.4% | 10.5% | 0.548 | 0 / 8 | n/a |
 | zai/glm-5.3 | 34 / 38 of 38 | 469 / 605 of 607 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
-| zai/glm-5.3-flash | 33 / 38 of 38 | 291 / 430 of 430 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 302 / 444 of 444 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
 | zai/glm-4.7-flash | 10 / 13 of 38 | 55 / 90 of 607 | unavailable | unavailable | unavailable | 25 / 507 | $0.0000 |
-| zai/glm-4.5-air | 33 / 38 of 38 | 276 / 415 of 418 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 283 / 423 of 426 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
 | gpt-6-astra | 27 / 38 of 38 | 273 / 572 of 607 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
-| claude-opus-4-6 | 30 / 38 of 38 | 200 / 296 of 607 | 47.4% | 11.8% | 0.610 | 0 / 311 | $0.1384 |
+| claude-opus-4-6 | 30 / 38 of 38 | 214 / 321 of 607 | 47.4% | 11.8% | 0.610 | 0 / 286 | $0.1384 |
 
 For rows with access failures, the table below conditions on policy trajectories
 that end with a compiler result. An access failure during revisions leaves a
@@ -36,9 +36,9 @@ trajectories. Individual transport records are in `attempts.csv`.
 
 | Model with access failures | Sample completed trajectories | Sample conditional compile@1 / @3 | Corpus completed trajectories | Corpus conditional compile@1 / @3 |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 38 / 38 | 39.5% / 68.4% | 248 / 255 | 47.2% / 90.3% |
+| qwen3.8-27b-nvfp4 | 38 / 38 | 39.5% / 68.4% | 251 / 259 | 46.6% / 89.2% |
 | zai/glm-4.7-flash | 13 / 38 | 76.9% / 100.0% | 100 / 607 | 55.0% / 90.0% |
-| claude-opus-4-6 | 38 / 38 | 78.9% / 100.0% | 296 / 607 | 67.6% / 100.0% |
+| claude-opus-4-6 | 38 / 38 | 78.9% / 100.0% | 321 / 607 | 66.7% / 100.0% |
 
 Corpus accounting means include completed trials and known transport usage.
 Active wall time includes provider waits and compiler revisions. It excludes
@@ -47,13 +47,13 @@ tokens, and time are retained for both corpora in the translation CSVs.
 
 | Model | Corpus policies | Mean input tokens | Mean output tokens | Mean active wall seconds | Known USD/policy | Transports missing usage |
 | --- | --- | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 255 | 24463.4 | 10362.2 | 802.0 | unmeasured | 170 |
+| qwen3.8-27b-nvfp4 | 259 | 24485.3 | 10550.1 | 833.9 | unmeasured | 190 |
 | zai/glm-5.3 | 607 | 15399.9 | 3766.4 | 71.6 | $0.0381 | 0 |
-| zai/glm-5.3-flash | 430 | 17652.7 | 4273.2 | 126.7 | $0.0048 | 5 |
+| zai/glm-5.3-flash | 444 | 17475.0 | 4243.3 | 125.5 | $0.0047 | 5 |
 | zai/glm-4.7-flash | 607 | 4355.7 | 1620.5 | 174.3 | $0.0000 | 2149 |
-| zai/glm-4.5-air | 418 | 18735.9 | 4562.7 | 130.5 | $0.0088 | 2 |
+| zai/glm-4.5-air | 426 | 18578.2 | 4549.4 | 130.8 | $0.0087 | 3 |
 | gpt-6-astra | 607 | 38384.5 | 223.7 | 41.8 | $0.3950 | 20 |
-| claude-opus-4-6 | 607 | 10483.3 | 857.7 | 89.8 | $0.0739 | 0 |
+| claude-opus-4-6 | 607 | 11623.5 | 926.7 | 92.1 | $0.0813 | 0 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
 | --- | --- | --- | --- | --- | --- |
@@ -84,7 +84,7 @@ alongside both detection and false-trigger rates for this constructed class bala
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 22 | 101 | 12 | 23 |
+| qwen3.8-27b-nvfp4 | 22 | 105 | 12 | 26 |
 | zai/glm-5.3 | 0 | 24 | 0 | 1 |
 | zai/glm-5.3-flash | 2 | 24 | 0 | 0 |
 | zai/glm-4.7-flash | 1 | 23 | 0 | 2 |
