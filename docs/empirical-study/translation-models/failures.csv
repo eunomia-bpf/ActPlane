@@ -22,6 +22,7 @@ rq1,qwen3.8-27b-nvfp4,CoplayDev__unity-mcp::27,compiler_failure,generation_outpu
 rq1,qwen3.8-27b-nvfp4,CoplayDev__unity-mcp::9,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,Hmbown__DeepSeek-TUI::31,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,Kilo-Org__kilocode::16,compiler_failure,syntax_or_lowering
+rq1,qwen3.8-27b-nvfp4,Kilo-Org__kilocode::17,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,Kilo-Org__kilocode::18,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,Kilo-Org__kilocode::20,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,NVIDIA__NemoClaw::18,compiler_failure,generation_output_limit
@@ -167,16 +168,12 @@ rq1,zai/glm-4.7-flash,Panniantong__Agent-Reach::17,access_failure,provider_capac
 rq1,zai/glm-4.7-flash,Panniantong__Agent-Reach::2,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,QwenLM__qwen-code::23,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,QwenLM__qwen-code::26,compiler_failure,model_declared_unobservable
-rq1,zai/glm-4.7-flash,QwenLM__qwen-code::5,access_failure,rate_limited
-rq1,zai/glm-4.7-flash,QwenLM__qwen-code::7,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,QwenLM__qwen-code::8,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,RightNow-AI__openfang::2,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,RightNow-AI__openfang::3,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,RightNow-AI__openfang::6,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,RightNow-AI__openfang::9,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,Usagi-org__ai-goofish-monitor::2,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,Usagi-org__ai-goofish-monitor::5,access_failure,rate_limited
-rq1,zai/glm-4.7-flash,Yeachan-Heo__oh-my-claudecode::16,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,Yeachan-Heo__oh-my-claudecode::21,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::14,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::15,access_failure,rate_limited
