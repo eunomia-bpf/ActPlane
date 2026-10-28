@@ -1,0 +1,43 @@
+agreement,artifact_fired,control_passed,elapsed_s,error,events,expected_fired,family,fired,kernel,model,notify_sha256,policy_sha256,repo,statement_id,status,tool_errors,trace,violation
+,,1,1.4562,,1,1,exec_positive,1,6.8.0-138-generic,control,df314ff7206c06a8b871542be3ae4e3085e6dba7d5d97de35f5dbfe6e93735e5,df314ff7206c06a8b871542be3ae4e3085e6dba7d5d97de35f5dbfe6e93735e5,fixture,rule,ok,0,exec_positive.jsonl,1
+,,1,1.434,,1,1,exec_unconditional,1,6.8.0-138-generic,control,3157b884baf7a76b37718276217c64b48833fd895c92a770d7f0231734f8b9ba,3157b884baf7a76b37718276217c64b48833fd895c92a770d7f0231734f8b9ba,fixture,rule,ok,0,exec_unconditional.jsonl,1
+,,0,1.8755,"RuntimeError: loader_not_ready: ibbpf: prog 'trace_openat_exit': BPF program load failed: -EACCES
+libbpf: prog 'trace_openat_exit': -- BEGIN PROG LOAD LOG --
+combined stack size of 8 calls is 544. Too large
+processed 270022 insns (limit 1000000) max_states_per_insn 25 total_states 13510 peak_states 5047 mark_read 153
+-- END PROG LOAD LOG --
+libbpf: prog 'trace_openat_exit': failed to load: -EACCES
+libbpf: failed to load object 'process_bpf'
+libbpf: failed to load BPF skeleton 'process_bpf': -EACCES
+Failed to load BPF skeleton
+",,1,write_positive,,6.8.0-138-generic,control,6088acddac12905cb736eae9525ca1477e445991f6da47bce36ee9b6a212d339,6088acddac12905cb736eae9525ca1477e445991f6da47bce36ee9b6a212d339,fixture,rule,error,,write_positive.jsonl,1
+,,0,1.885,"RuntimeError: loader_not_ready: ibbpf: prog 'trace_openat_exit': BPF program load failed: -EACCES
+libbpf: prog 'trace_openat_exit': -- BEGIN PROG LOAD LOG --
+combined stack size of 8 calls is 544. Too large
+processed 270022 insns (limit 1000000) max_states_per_insn 25 total_states 13510 peak_states 5047 mark_read 153
+-- END PROG LOAD LOG --
+libbpf: prog 'trace_openat_exit': failed to load: -EACCES
+libbpf: failed to load object 'process_bpf'
+libbpf: failed to load BPF skeleton 'process_bpf': -EACCES
+Failed to load BPF skeleton
+",,0,write_negative,,6.8.0-138-generic,control,b1cf3a9554d42145ec4f1ebb80fbea73b96dca367bf02db7471dca968bec456b,b1cf3a9554d42145ec4f1ebb80fbea73b96dca367bf02db7471dca968bec456b,fixture,rule,error,,write_negative.jsonl,0
+,,0,2.3247,"RuntimeError: loader_not_ready: ibbpf: prog 'trace_openat_exit': BPF program load failed: -EACCES
+libbpf: prog 'trace_openat_exit': -- BEGIN PROG LOAD LOG --
+combined stack size of 8 calls is 544. Too large
+processed 362431 insns (limit 1000000) max_states_per_insn 31 total_states 20827 peak_states 5888 mark_read 153
+-- END PROG LOAD LOG --
+libbpf: prog 'trace_openat_exit': failed to load: -EACCES
+libbpf: failed to load object 'process_bpf'
+libbpf: failed to load BPF skeleton 'process_bpf': -EACCES
+Failed to load BPF skeleton
+",,1,suffix_positive,,6.8.0-138-generic,control,0f64b151bca5169d784e9c83d650eef93ff557fa6a01b1ccdf3567a0b0796318,0f64b151bca5169d784e9c83d650eef93ff557fa6a01b1ccdf3567a0b0796318,fixture,rule,error,,suffix_positive.jsonl,1
+,,0,2.076,"RuntimeError: loader_not_ready: ibbpf: prog 'trace_openat_exit': BPF program load failed: -EACCES
+libbpf: prog 'trace_openat_exit': -- BEGIN PROG LOAD LOG --
+combined stack size of 8 calls is 544. Too large
+processed 323865 insns (limit 1000000) max_states_per_insn 26 total_states 18106 peak_states 5636 mark_read 153
+-- END PROG LOAD LOG --
+libbpf: prog 'trace_openat_exit': failed to load: -EACCES
+libbpf: failed to load object 'process_bpf'
+libbpf: failed to load BPF skeleton 'process_bpf': -EACCES
+Failed to load BPF skeleton
+",,1,contains_positive,,6.8.0-138-generic,control,456f30c998019895952b6d361cce98ff3ac35258fbe99ed884743363f2c7861c,456f30c998019895952b6d361cce98ff3ac35258fbe99ed884743363f2c7861c,fixture,rule,error,,contains_positive.jsonl,1

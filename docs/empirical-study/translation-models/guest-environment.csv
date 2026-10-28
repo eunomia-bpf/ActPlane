@@ -1,0 +1,2 @@
+kernel,kernel_sha256,modules_url,modules_sha256,acceleration,memory,cpus
+vmlinuz-6.8.0-138-generic,0456840aedbceaaa119c6e4eb460873cce48bd355b767a387d97a8a626171571,https://archive.ubuntu.com/ubuntu/pool/main/l/linux/linux-modules-6.8.0-138-generic_6.8.0-138.138_amd64.deb,2b6108dba87947e4cb7d79759fd85dfe39d431466d745d1b6ec75b4bdabe866d,kvm,3G,2
