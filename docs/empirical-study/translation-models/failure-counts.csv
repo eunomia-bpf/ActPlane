@@ -1,11 +1,11 @@
 corpus,model,status,failure_category,policies
 rq1,claude-opus-4-6,access_failure,provider_session_limit,495
-rq1,gpt-6-astra,compiler_failure,model_declared_unobservable,7
+rq1,gpt-6-astra,compiler_failure,model_declared_unobservable,8
 rq1,gpt-6-astra,compiler_failure,syntax_or_lowering,1
-rq1,qwen3.8-27b-nvfp4,compiler_failure,generation_output_limit,8
+rq1,qwen3.8-27b-nvfp4,compiler_failure,generation_output_limit,9
 rq1,zai/glm-4.5-air,compiler_failure,syntax_or_lowering,1
-rq1,zai/glm-4.7-flash,access_failure,provider_capacity,101
-rq1,zai/glm-4.7-flash,access_failure,rate_limited,42
+rq1,zai/glm-4.7-flash,access_failure,provider_capacity,107
+rq1,zai/glm-4.7-flash,access_failure,rate_limited,46
 rq1,zai/glm-4.7-flash,compiler_failure,generation_output_limit,1
 rq1,zai/glm-4.7-flash,compiler_failure,model_declared_unobservable,2
 rq1,zai/glm-4.7-flash,compiler_failure,syntax_or_lowering,1
