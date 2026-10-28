@@ -19,11 +19,11 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 147 / 272 of 313 | 40.4% | 10.5% | 0.548 | 0 / 10 | n/a |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 148 / 274 of 316 | 40.4% | 10.5% | 0.548 | 0 / 11 | n/a |
 | zai/glm-5.3 | 34 / 38 of 38 | 469 / 605 of 607 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
-| zai/glm-5.3-flash | 33 / 38 of 38 | 355 / 530 of 531 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 27 / 37 of 38 | 57 / 93 of 607 | 56.1% | 30.3% | 0.637 | 0 / 501 | $0.0000 |
-| zai/glm-4.5-air | 33 / 38 of 38 | 348 / 526 of 529 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 364 / 541 of 542 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
+| zai/glm-4.7-flash | 27 / 37 of 38 | 58 / 94 of 607 | 56.1% | 30.3% | 0.637 | 0 / 499 | $0.0000 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 359 / 541 of 544 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
 | gpt-6-astra | 27 / 38 of 38 | 273 / 572 of 607 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
 | claude-opus-4-6 | 30 / 38 of 38 | 260 / 390 of 607 | 47.4% | 11.8% | 0.610 | 0 / 217 | $0.1384 |
 
@@ -36,8 +36,8 @@ trajectories. Individual transport records are in `attempts.csv`.
 
 | Model with access failures | Sample completed trajectories | Sample conditional compile@1 / @3 | Corpus completed trajectories | Corpus conditional compile@1 / @3 |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 38 / 38 | 39.5% / 68.4% | 303 / 313 | 48.5% / 89.8% |
-| zai/glm-4.7-flash | 38 / 38 | 71.1% / 97.4% | 106 / 607 | 53.8% / 87.7% |
+| qwen3.8-27b-nvfp4 | 38 / 38 | 39.5% / 68.4% | 305 / 316 | 48.5% / 89.8% |
+| zai/glm-4.7-flash | 38 / 38 | 71.1% / 97.4% | 108 / 607 | 53.7% / 87.0% |
 | claude-opus-4-6 | 38 / 38 | 78.9% / 100.0% | 390 / 607 | 66.7% / 100.0% |
 
 Corpus accounting means include completed trials and known transport usage.
@@ -47,11 +47,11 @@ tokens, and time are retained for both corpora in the translation CSVs.
 
 | Model | Corpus policies | Mean input tokens | Mean output tokens | Mean active wall seconds | Known USD/policy | Transports missing usage |
 | --- | --- | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 313 | 24217.4 | 10365.5 | 826.9 | unmeasured | 231 |
+| qwen3.8-27b-nvfp4 | 316 | 24195.3 | 10346.9 | 830.6 | unmeasured | 237 |
 | zai/glm-5.3 | 607 | 15399.9 | 3766.4 | 71.6 | $0.0381 | 0 |
-| zai/glm-5.3-flash | 531 | 17322.8 | 4352.8 | 125.7 | $0.0048 | 5 |
-| zai/glm-4.7-flash | 607 | 4539.3 | 1692.8 | 176.5 | $0.0000 | 2149 |
-| zai/glm-4.5-air | 529 | 17907.4 | 4484.2 | 125.3 | $0.0085 | 3 |
+| zai/glm-5.3-flash | 542 | 17238.6 | 4353.6 | 125.4 | $0.0048 | 5 |
+| zai/glm-4.7-flash | 607 | 4595.7 | 1720.1 | 177.4 | $0.0000 | 2149 |
+| zai/glm-4.5-air | 544 | 17824.2 | 4489.3 | 124.7 | $0.0085 | 3 |
 | gpt-6-astra | 607 | 38384.5 | 223.7 | 41.8 | $0.3950 | 20 |
 | claude-opus-4-6 | 607 | 13691.4 | 1125.7 | 98.5 | $0.0966 | 0 |
 
@@ -84,11 +84,11 @@ alongside both detection and false-trigger rates for this constructed class bala
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 22 | 122 | 12 | 30 |
+| qwen3.8-27b-nvfp4 | 22 | 123 | 12 | 30 |
 | zai/glm-5.3 | 0 | 24 | 0 | 1 |
-| zai/glm-5.3-flash | 2 | 37 | 0 | 1 |
+| zai/glm-5.3-flash | 2 | 38 | 0 | 1 |
 | zai/glm-4.7-flash | 3 | 25 | 0 | 3 |
-| zai/glm-4.5-air | 2 | 40 | 0 | 1 |
+| zai/glm-4.5-air | 2 | 41 | 0 | 1 |
 | gpt-6-astra | 0 | 0 | 0 | 0 |
 | claude-opus-4-6 | 0 | 0 | 0 | 0 |
 
