@@ -19,13 +19,13 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 13 / 19 of 21 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
-| zai/glm-5.3 | 34 / 38 of 38 | 23 / 32 of 32 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
-| zai/glm-5.3-flash | 33 / 38 of 38 | 12 / 23 of 23 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 10 / 13 of 38 | 1 / 5 of 49 | unavailable | unavailable | unavailable | 25 / 44 | $0.0000 |
-| zai/glm-4.5-air | 33 / 38 of 38 | 10 / 21 of 21 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
-| gpt-6-astra | 27 / 38 of 38 | 47 / 106 of 115 | 43.0% | 18.4% | 0.554 | 0 / 2 | $0.3112 |
-| claude-opus-4-6 | 30 / 38 of 38 | 39 / 65 of 65 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 15 / 21 of 23 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
+| zai/glm-5.3 | 34 / 38 of 38 | 28 / 37 of 37 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
+| zai/glm-5.3-flash | 33 / 38 of 38 | 14 / 26 of 26 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
+| zai/glm-4.7-flash | 10 / 13 of 38 | 4 / 8 of 52 | unavailable | unavailable | unavailable | 25 / 44 | $0.0000 |
+| zai/glm-4.5-air | 33 / 38 of 38 | 15 / 26 of 26 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
+| gpt-6-astra | 27 / 38 of 38 | 55 / 121 of 128 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
+| claude-opus-4-6 | 30 / 38 of 38 | 49 / 76 of 76 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
 | --- | --- | --- | --- | --- | --- |
@@ -53,7 +53,7 @@ held-out sets, and no semantic deduplication is claimed.
 | --- | --- | --- | --- | --- |
 | qwen3.8-27b-nvfp4 | 22 | 4 | 12 | 2 |
 | zai/glm-5.3 | 0 | 0 | 0 | 0 |
-| zai/glm-5.3-flash | 2 | 0 | 0 | 0 |
+| zai/glm-5.3-flash | 2 | 1 | 0 | 0 |
 | zai/glm-4.7-flash | 1 | 0 | 0 | 0 |
 | zai/glm-4.5-air | 2 | 1 | 0 | 0 |
 | gpt-6-astra | 0 | 0 | 0 | 0 |
@@ -130,7 +130,12 @@ unobservability, provider-reported output truncation, or compiler-message heuris
 Output truncation counts are also retained per attempt and per policy. They are not semantic judgments. The CLI's
 blob and JSON-report modes are called separately. Provider overload retries are
 recorded separately from compiler revisions. Each model has a bounded transport
-retry budget for missing responses. API calls use parallel workers per model,
+retry budget for missing responses, recorded in `model-settings.csv`. The corpus
+budget includes an additional recovery transport after a supervisor-reported
+service interruption. Capacity, timeout, and transient HTTP errors use exponential
+backoff. Permanent access errors remain access failures. Every completed transport
+is checkpointed before retrying, and returned model answers are never resampled.
+API calls use parallel workers per model,
 with local endpoint concurrency within the operator limit. Latency is observed
 under shared serving load and the recorded scripts' worker limits, rather than
 an isolated model-speed benchmark. Per-policy wall time includes observed

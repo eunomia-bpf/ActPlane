@@ -158,6 +158,17 @@ def retryable(response):
                                         'temporarily unavailable', 'connection reset')))
 
 
+def access_category(response):
+    error = response.get('error', '').lower()
+    if 'at capacity' in error or 'overloaded' in error:
+        return 'provider_capacity'
+    if 'timeoutexpired' in error or 'timed out' in error:
+        return 'transport_timeout'
+    return {401: 'authorization', 403: 'authorization', 429: 'rate_limited',
+            500: 'provider_error', 502: 'gateway_error', 503: 'provider_unavailable',
+            504: 'gateway_timeout'}.get(response.get('http_status'), response['status'])
+
+
 def transport_budget(corpus):
     # The scored sample is frozen. Corpus recovery adds one transport after the
     # original three-call budget, following the supervisor's service interruption.
@@ -231,7 +242,7 @@ def translate_one(raw, corpus, model, item):
             for k, v in usage_of(transport, model).items():
                 row[k] += v
         if response['status'] != 'ok':
-            row.update(status='access_failure', failure_category=response['status'])
+            row.update(status='access_failure', failure_category=access_category(response))
             break
         if not response.get('identity_verified'):
             row.update(status='identity_failure', failure_category='response_model_mismatch')
@@ -265,7 +276,15 @@ def export_trials(raw, corpus, model):
         r.pop('policy', None)
         responses = [json.loads(p.read_text()) for p in sorted(path.parent.glob('attempt-*/response.json'))]
         calls = [t for response in responses for t in response.get('transport_attempts', []) + [response]]
+        # Recompute accounting from immutable call evidence, including older
+        # checkpoints whose aggregate excluded usage on failed transports.
+        for key in ('input_tokens', 'output_tokens', 'cached_input_tokens', 'cache_write_tokens', 'reasoning_tokens'):
+            r[key] = sum(usage_of(t, model)[key] for t in calls)
+        r['api_wall_s'] = round(sum(t['elapsed_s'] for t in calls), 4)
+        r['transport_retries'] = len(calls) - len(responses)
         r['output_truncated_responses'] = sum(finish_reason(t, model) in ('length', 'max_tokens') for t in calls)
+        if r['status'] == 'access_failure' and responses:
+            r['failure_category'] = access_category(responses[-1])
         if r['status'] == 'compiler_failure' and responses and finish_reason(responses[-1], model) in ('length', 'max_tokens'):
             r['failure_category'] = 'generation_output_limit'
         r['transport_backoff_s'] = sum(sum(t.get('backoff_before_s', 15 * i) for i, t in enumerate(response.get('transport_attempts', []) + [response])) for response in responses)
