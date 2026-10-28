@@ -1,13 +1,13 @@
-model,adapter,api_max_output_tokens,api_io_timeout_s,cli_wall_timeout_s,temperature,reasoning,sample_transport_budget,corpus_transport_budget,corpus_transport_backoff_s,current_sample_worker_limit,corpus_worker_limit
-qwen3.8-27b-nvfp4,local,8192,360,,0,provider default,3,4,15|30|60,4,8
-glm-5.3-flash-nvfp4,local-auth,8192,360,,0,provider default,3,4,15|30|60,2,2
-qwen3.8-flash-next-nvfp4,local-auth,8192,360,,0,provider default,3,4,15|30|60,2,2
-zai/glm-5.3,gateway,8192,360,,0,provider default,3,4,15|30|60,2,2
-zai/glm-5.3-flash,gateway,8192,360,,0,provider default,3,4,15|30|60,2,2
-zai/glm-4.7-flash,gateway,8192,360,,0,provider default,3,4,15|30|60,4,4
-zai/glm-4.5-air,gateway,8192,360,,0,provider default,3,4,15|30|60,2,2
-opencode-go/gpt-5.6-luna,gateway,8192,360,,0,provider default,3,4,15|30|60,2,2
-opencode-go/grok-4.6,gateway,8192,360,,0,provider default,3,4,15|30|60,2,2
-gpt-5.5,codex,,,360,CLI default,medium,3,4,15|30|60,2,2
-gpt-6-astra,codex,,,360,CLI default,medium,3,4,15|30|60,2,2
-claude-opus-4-6,claude,,,360,CLI default,provider default,3,4,15|30|60,2,2
+model,adapter,api_max_output_tokens,api_io_timeout_s,cli_wall_timeout_s,temperature,reasoning,compiler_feedback_format,sample_transport_budget,corpus_transport_budget,corpus_transport_backoff_s,current_sample_worker_limit,corpus_worker_limit
+qwen3.8-27b-nvfp4,local,8192,360,,0,provider default,native chat history,3,4,15|30|60,4,8
+glm-5.3-flash-nvfp4,local-auth,8192,360,,0,provider default,native chat history,3,4,15|30|60,2,2
+qwen3.8-flash-next-nvfp4,local-auth,8192,360,,0,provider default,native chat history,3,4,15|30|60,2,2
+zai/glm-5.3,gateway,8192,360,,0,provider default,native chat history,3,4,15|30|60,2,2
+zai/glm-5.3-flash,gateway,8192,360,,0,provider default,native chat history,3,4,15|30|60,2,2
+zai/glm-4.7-flash,gateway,8192,360,,0,provider default,native chat history,3,4,15|30|60,4,4
+zai/glm-4.5-air,gateway,8192,360,,0,provider default,native chat history,3,4,15|30|60,2,2
+opencode-go/gpt-5.6-luna,gateway,8192,360,,0,provider default,native chat history,3,4,15|30|60,2,2
+opencode-go/grok-4.6,gateway,8192,360,,0,provider default,native chat history,3,4,15|30|60,2,2
+gpt-5.5,codex,,,360,CLI default,medium,serialized JSON history in user text,3,4,15|30|60,2,2
+gpt-6-astra,codex,,,360,CLI default,medium,serialized JSON history in user text,3,4,15|30|60,2,2
+claude-opus-4-6,claude,,,360,CLI default,provider default,serialized JSON history in user text,3,4,15|30|60,2,2

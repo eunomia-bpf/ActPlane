@@ -216,7 +216,10 @@ removed. There is no syntax repair, policy tuning against traces, agent recovery
 or LLM judge. Every response must identify the requested model. Gateway identifiers
 are response assertions, not independent verification of deployed weights.
 API calls use deterministic temperature and an output-token cap. CLI wrapper
-defaults differ and add context overhead. Claude uses a pinned model with tools,
+defaults differ and add context overhead. On compiler revisions, API adapters
+send native chat history, while stateless CLI adapters serialize the same history
+as JSON in user text. These adapter formats are part of the measured configurations.
+Claude uses a pinned model with tools,
 skills, hooks, and MCP disabled. The OpenAI row uses response-verified GPT-6 Astra
 through `codex exec`, selected as the strongest served model after checking the
 account model catalog and probing. The paper's original RQ1 translator was

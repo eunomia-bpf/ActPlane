@@ -40,6 +40,7 @@ def main():
                              cli_wall_timeout_s=REQUEST_TIMEOUT_S if cli else '',
                              temperature='CLI default' if cli else '0',
                              reasoning='medium' if kind == 'codex' else 'provider default',
+                             compiler_feedback_format='serialized JSON history in user text' if cli else 'native chat history',
                              sample_transport_budget=transport_budget('rq2'),
                              corpus_transport_budget=transport_budget('rq1'),
                              corpus_transport_backoff_s='15|30|60',
