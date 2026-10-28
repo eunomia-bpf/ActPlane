@@ -121,8 +121,11 @@ def classify(a, batch, guide, dims, other):
     for i, row in enumerate(batch):
         entry = dict(id=i, text=row['text'])
         if other is not None:
-            entry['annotations'] = [{k: row.get(k, '') for k in dims},
+            annotations = [{k: row.get(k, '') for k in dims},
                 {k: other[row['statement_id']].get(k, '') for k in dims}]
+            if int(digest(row['statement_id'])[:2], 16) & 1:
+                annotations.reverse()
+            entry['annotations'] = annotations
         entries.append(entry)
     instruction = ('Independently assign labels to each statement.' if other is None else
         'Adjudicate the two anonymized annotations by rereading each statement and the coding guide. '

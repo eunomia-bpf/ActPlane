@@ -24,7 +24,7 @@ The OS-tier count is the union of per-event and cross-event taxonomy labels. It 
 
 `taxonomy.txt` reconstructs the coding guide and examples in `origin/artifact-ready:docs/empirical.md` and the current motivation section. The exact historical invocation prompts and the human review sample were not located. This is a reconstructed prompt, not a claim of exact prompt replication. Gold labels are never sent to either model or to adjudication.
 
-The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` endpoint and the gateway’s named `zai/glm-5.3` route. The gateway-reported model identity is recorded but its provider weights cannot be independently audited. GLM uses low reasoning effort because its reasoning cannot be disabled. Disagreements are reread by Qwen with anonymized primary labels. Adjudication is therefore correlated with a primary model, not an independent human reference.
+The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` endpoint and the gateway’s named `zai/glm-5.3` route. The gateway-reported model identity is recorded but its provider weights cannot be independently audited. GLM uses low reasoning effort because its reasoning cannot be disabled. Disagreements are reread by Qwen with anonymized primary labels whose order is deterministically permuted by statement-ID hash. Adjudication remains correlated with a primary model and has no independent human reference.
 
 | Model vs paper | Dimension | Applicable gold N | Evaluated N | Raw agreement | Cohen’s kappa |
 |---|---|---:|---:|---:|---:|
@@ -32,14 +32,14 @@ The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` end
 | qwen | topic | 2116 | 2116 | 0.698 | 0.656 |
 | qwen | enforceability | 1361 | 1361 | 0.700 | 0.585 |
 | qwen | context_required | 1127 | 1127 | 0.390 | 0.147 |
-| glm | type | 2116 | 1220 | 0.901 | 0.782 |
-| glm | topic | 2116 | 1220 | 0.713 | 0.673 |
-| glm | enforceability | 1361 | 774 | 0.659 | 0.538 |
-| glm | context_required | 1127 | 617 | 0.449 | 0.216 |
-| inter_model | type | 2116 | 1220 | 0.920 | 0.827 |
-| inter_model | topic | 2116 | 1220 | 0.779 | 0.748 |
-| inter_model | enforceability | 1361 | 774 | 0.751 | 0.660 |
-| inter_model | context_required | 1127 | 617 | 0.726 | 0.398 |
+| glm | type | 2116 | 1388 | 0.905 | 0.791 |
+| glm | topic | 2116 | 1388 | 0.717 | 0.678 |
+| glm | enforceability | 1361 | 880 | 0.661 | 0.541 |
+| glm | context_required | 1127 | 707 | 0.436 | 0.207 |
+| inter_model | type | 2116 | 1388 | 0.923 | 0.831 |
+| inter_model | topic | 2116 | 1388 | 0.789 | 0.760 |
+| inter_model | enforceability | 1361 | 880 | 0.758 | 0.668 |
+| inter_model | context_required | 1127 | 707 | 0.740 | 0.409 |
 
 `calibration_summary.csv` also reports end-to-end agreement including inapplicable labels. The applicable-gold evaluation counts a predicted inapplicable value as disagreement. `calibration_confusion.csv` retains every confusion cell and missing predictions are reported explicitly.
 
