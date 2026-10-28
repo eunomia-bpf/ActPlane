@@ -58,6 +58,12 @@ def main():
                       for r in rows if r['status'] == 'translation_failed'))
             check(f'replay:{model}:access_failures_remain_unknown', True,
                   all(r['fired'] == '' for r in rows if r['status'] == 'translation_unavailable'))
+            check(f'replay:{model}:unavailable_rows_match_current_translation', True,
+                  all(translations[r['repo'], r['statement_id']]['status'] in ('access_failure', 'identity_failure')
+                      for r in rows if r['status'] == 'translation_unavailable'))
+            check(f'replay:{model}:every_compiled_policy_has_replay_attempts', True,
+                  all(r['status'] in ('ok', 'error') for r in rows
+                      if translations[r['repo'], r['statement_id']]['status'] == 'compiled'))
         check(f'replay:{model}:guest_local_fixtures', True, all(r.get('fixture_fs') == 'guest-tmpfs' for r in rows))
         check(f'replay:{model}:kernel', True, all(r['kernel'] == '6.8.0-138-generic' for r in rows))
         check(f'replay:{model}:same_loader', True, all(r['loader_sha256'] == loader_hash for r in rows if r['status'] == 'ok'))
