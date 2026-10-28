@@ -16,6 +16,7 @@ rq1,qwen3.8-27b-nvfp4,AlexsJones__llmfit::27,compiler_failure,generation_output_
 rq1,qwen3.8-27b-nvfp4,Alishahryar1__free-claude-code::12,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,Alishahryar1__free-claude-code::25,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,Alishahryar1__free-claude-code::7,compiler_failure,generation_output_limit
+rq1,qwen3.8-27b-nvfp4,Alishahryar1__free-claude-code::9,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,alibaba__OpenSandbox::23,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,nanocoai__nanoclaw::19,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,nearai__ironclaw::29,compiler_failure,generation_output_limit
@@ -76,6 +77,7 @@ rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::40,access_failure,provider_cap
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::47,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::49,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::50,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::53,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,OpenPipe__ART::1,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,OpenPipe__ART::2,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,QwenLM__qwen-code::22,access_failure,provider_capacity
@@ -110,6 +112,18 @@ rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::5,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::6,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::8,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::9,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,browser-use__browser-harness::4,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,charmbracelet__crush::18,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,charmbracelet__crush::19,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,charmbracelet__crush::20,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,charmbracelet__crush::22,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,charmbracelet__crush::23,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,charmbracelet__crush::39,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::2,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::21,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::25,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::26,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::27,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,datawhalechina__easy-vibe::2,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,earendil-works__pi::12,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,earendil-works__pi::18,access_failure,provider_capacity
@@ -207,6 +221,7 @@ rq1,gpt-6-astra,AlexsJones__llmfit::34,compiler_failure,model_declared_unobserva
 rq1,gpt-6-astra,InsForge__InsForge::6,compiler_failure,model_declared_unobservable
 rq1,gpt-6-astra,Yeachan-Heo__oh-my-claudecode::21,compiler_failure,model_declared_unobservable
 rq1,gpt-6-astra,abhigyanpatwari__GitNexus::18,compiler_failure,model_declared_unobservable
+rq1,gpt-6-astra,czlonkowski__n8n-mcp::33,compiler_failure,model_declared_unobservable
 rq1,gpt-6-astra,multica-ai__multica::7,compiler_failure,model_declared_unobservable
 rq1,gpt-6-astra,nearai__ironclaw::33,compiler_failure,model_declared_unobservable
 rq1,gpt-6-astra,nearai__ironclaw::35,compiler_failure,model_declared_unobservable
@@ -308,12 +323,6 @@ rq1,claude-opus-4-6,RightNow-AI__openfang::9,access_failure,provider_session_lim
 rq1,claude-opus-4-6,Usagi-org__ai-goofish-monitor::2,access_failure,provider_session_limit
 rq1,claude-opus-4-6,Usagi-org__ai-goofish-monitor::5,access_failure,provider_session_limit
 rq1,claude-opus-4-6,Usagi-org__ai-goofish-monitor::7,access_failure,provider_session_limit
-rq1,claude-opus-4-6,abhigyanpatwari__GitNexus::17,access_failure,provider_session_limit
-rq1,claude-opus-4-6,abhigyanpatwari__GitNexus::18,access_failure,provider_session_limit
-rq1,claude-opus-4-6,abhigyanpatwari__GitNexus::19,access_failure,provider_session_limit
-rq1,claude-opus-4-6,abhigyanpatwari__GitNexus::2,access_failure,provider_session_limit
-rq1,claude-opus-4-6,abhigyanpatwari__GitNexus::21,access_failure,provider_session_limit
-rq1,claude-opus-4-6,abhigyanpatwari__GitNexus::22,access_failure,provider_session_limit
 rq1,claude-opus-4-6,aden-hive__hive::10,access_failure,provider_session_limit
 rq1,claude-opus-4-6,aden-hive__hive::11,access_failure,provider_session_limit
 rq1,claude-opus-4-6,aden-hive__hive::12,access_failure,provider_session_limit
@@ -379,7 +388,7 @@ rq1,claude-opus-4-6,czlonkowski__n8n-mcp::40,access_failure,provider_session_lim
 rq1,claude-opus-4-6,czlonkowski__n8n-mcp::41,access_failure,provider_session_limit
 rq1,claude-opus-4-6,czlonkowski__n8n-mcp::42,access_failure,provider_session_limit
 rq1,claude-opus-4-6,datawhalechina__easy-vibe::2,access_failure,provider_session_limit
-rq1,claude-opus-4-6,earendil-works__pi::12,access_failure,provider_session_limit
+rq1,claude-opus-4-6,earendil-works__pi::12,access_failure,ok
 rq1,claude-opus-4-6,earendil-works__pi::17,access_failure,provider_session_limit
 rq1,claude-opus-4-6,earendil-works__pi::18,access_failure,provider_session_limit
 rq1,claude-opus-4-6,earendil-works__pi::19,access_failure,provider_session_limit
