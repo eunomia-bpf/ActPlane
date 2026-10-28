@@ -24,7 +24,7 @@ held-out sets, and no semantic deduplication is claimed.
 | zai/glm-5.3-flash | 33 / 38 of 38 | 0 / 0 of 0 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
 | zai/glm-4.7-flash | 10 / 13 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 25 / 0 | $0.0000 |
 | zai/glm-4.5-air | 33 / 38 of 38 | 0 / 0 of 0 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
-| gpt-6-astra | 27 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.3112 |
+| gpt-6-astra | 27 / 38 of 38 | 0 / 0 of 0 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
 | claude-opus-4-6 | 30 / 38 of 38 | 0 / 0 of 0 | unavailable | unavailable | unavailable | 0 / 0 | $0.1384 |
 
 | Model | Direct detected / replayed | Script detected / replayed | Hidden detected / replayed | Replay errors | Tool-error traces |
@@ -35,7 +35,7 @@ held-out sets, and no semantic deduplication is claimed.
 | zai/glm-5.3-flash | 18 / 38 | 19 / 38 | 18 / 38 | 0 | 2 |
 | zai/glm-4.7-flash | 9 / 13 | 9 / 13 | 9 / 13 | 0 | 0 |
 | zai/glm-4.5-air | 19 / 38 | 20 / 38 | 19 / 38 | 0 | 2 |
-| gpt-6-astra | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
+| gpt-6-astra | 17 / 38 | 16 / 38 | 16 / 38 | 0 | 2 |
 | claude-opus-4-6 | 0 / 0 | 0 / 0 | 0 / 0 | 0 | 0 |
 
 | Model | Usable outcomes / planned | Compiled-rule traces | Compiled-only detection | Compiled-only false trigger | Compiled-only F1 |
@@ -46,7 +46,7 @@ held-out sets, and no semantic deduplication is claimed.
 | zai/glm-5.3-flash | 190 / 190 | 190 | 48.2% | 15.8% | 0.608 |
 | zai/glm-4.7-flash | 65 / 190 | 65 | 69.2% | 38.5% | 0.711 |
 | zai/glm-4.5-air | 190 / 190 | 190 | 50.9% | 13.2% | 0.637 |
-| gpt-6-astra | 0 / 190 | 0 | unavailable | unavailable | unavailable |
+| gpt-6-astra | 190 / 190 | 190 | 43.0% | 18.4% | 0.554 |
 | claude-opus-4-6 | 0 / 190 | 0 | unavailable | unavailable | unavailable |
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
