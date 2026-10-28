@@ -1,0 +1,9 @@
+timestamp_utc	2026-09-21T09:35:14Z
+git_commit	193d01813ec3f840b5276de2db1c2c2690c5e34f
+host_kernel	7.3.0-070300rc3-generic
+guest_kernel	6.8.0-138-generic
+acceleration	tcg
+qemu_status	0
+policy_sha256	23a6823e9396b2876bd1a7d2009511e997900315c57322d30a074e0eb9b0e964
+process_sha256	f8ec774052dadc46a5b7d6ccbe1b5a180453c9acdc37bd437f21742f27936c34
+actplane_sha256	f1a792befd75715c2ddb7909df20f6337fcd302e292c3e0da1c319614e807830

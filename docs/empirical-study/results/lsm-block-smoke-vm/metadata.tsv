@@ -1,0 +1,9 @@
+timestamp_utc	2026-09-28T16:43:59Z
+git_commit	66f6413e8f455ad15b338db69b2cf0720408a1f9
+host_kernel	7.3.0-070300rc3-generic
+guest_kernel	6.8.0-138-generic
+guest_lsm	lockdown,capability,landlock,yama,apparmor,bpf
+acceleration	tcg
+qemu_status	0
+qemu_timeout_s	900
+actplane_bin_sha256	29a050dc5e1247dfc1b16aa5dcb77ea3a84b12e8a4a6f1d5187b83a404617de6
