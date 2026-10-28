@@ -31,6 +31,12 @@ def main(a):
     manifest_path = HERE / 'corpus_manifest.csv'
     if manifest_path.exists():
         manifest = read_csv(manifest_path)
+        repositories = read_csv(HERE / 'repositories.csv')
+        if a.require_complete:
+            record('at_least_300_collected_repositories', True, len(repositories) >= 300)
+        record('repositories_below_star_floor', 0, sum(int(r['stars']) < 100 for r in repositories))
+        record('repositories_inactive_since_2025', 0,
+               sum(r['pushed_at'] < '2025-01-01' for r in repositories))
         hashes_bad, missing, sources = 0, 0, {}
         for f in manifest:
             if f['status'] != 'included':
@@ -63,6 +69,8 @@ def main(a):
                 gaps += cursor != len(sources[key]) + 1
             record('verbatim_source_mismatches', 0, mismatches)
             record('source_partition_errors', 0, gaps)
+            if a.require_complete:
+                record('all_selected_source_files_segmented', len(sources), len(groups))
             labels_path = HERE / 'labels.csv'
             if labels_path.exists():
                 labels = read_csv(labels_path)

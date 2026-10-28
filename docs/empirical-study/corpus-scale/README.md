@@ -32,14 +32,14 @@ The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` end
 | qwen | topic | 2116 | 2116 | 0.698 | 0.656 |
 | qwen | enforceability | 1361 | 1361 | 0.700 | 0.585 |
 | qwen | context_required | 1127 | 1127 | 0.390 | 0.147 |
-| glm | type | 2116 | 288 | 0.910 | 0.794 |
-| glm | topic | 2116 | 288 | 0.743 | 0.706 |
-| glm | enforceability | 1361 | 196 | 0.587 | 0.453 |
-| glm | context_required | 1127 | 142 | 0.437 | 0.151 |
-| inter_model | type | 2116 | 288 | 0.910 | 0.799 |
-| inter_model | topic | 2116 | 288 | 0.743 | 0.706 |
-| inter_model | enforceability | 1361 | 196 | 0.735 | 0.641 |
-| inter_model | context_required | 1127 | 142 | 0.683 | 0.249 |
+| glm | type | 2116 | 380 | 0.905 | 0.783 |
+| glm | topic | 2116 | 380 | 0.708 | 0.669 |
+| glm | enforceability | 1361 | 257 | 0.584 | 0.437 |
+| glm | context_required | 1127 | 202 | 0.401 | 0.139 |
+| inter_model | type | 2116 | 380 | 0.895 | 0.769 |
+| inter_model | topic | 2116 | 380 | 0.747 | 0.713 |
+| inter_model | enforceability | 1361 | 257 | 0.728 | 0.630 |
+| inter_model | context_required | 1127 | 202 | 0.663 | 0.268 |
 
 `calibration_summary.csv` also reports end-to-end agreement including inapplicable labels. The applicable-gold evaluation counts a predicted inapplicable value as disagreement. `calibration_confusion.csv` retains every confusion cell and missing predictions are reported explicitly.
 
@@ -69,6 +69,8 @@ Overall analysis counts each byte-identical file once within a repository. Famil
 A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used.
 
 Intervals use 2,000 bootstrap replicates resampling repositories within discovery strata, with seed 20261028. They describe sensitivity within this convenience sample. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.
+
+Headline analysis requires every selected source file in a repository to have complete model pairs and final labels. Incomplete repositories remain in the collection and coverage tables rather than entering project-level denominators with unobserved files treated as negative. This makes interim checkpoints subsets of the final snapshot, not final results.
 
 ## Breakdowns
 
@@ -121,7 +123,7 @@ python report.py
 
 Committed artifacts include immutable historical provenance, historical labels, model labels, calibration confusion tables, search queries, corpus/file manifests, extraction status, repository categories, summary tables, and the figures corresponding to the paper’s plots. GitHub requests are sequential, cached, and honor retry/reset feedback. Model concurrency stays within the operator’s endpoint limits.
 
-The repository-requested `oss-change-workflow` skill was unavailable in the installed skill catalog and filesystem search. Work follows the explicit repository scope, validation, documentation, and draft-PR instructions. No paper source, kernel code, cluster deployment, or other lane is changed.
+The repository-requested `oss-change-workflow` skill was unavailable in the installed skill catalog and filesystem search. Work follows the explicit repository scope, validation, and documentation instructions. The operator’s updated handoff rule is to commit and push only to `experiments/corpus-scale-20261028`, with no further PR activity. No paper source, kernel code, cluster deployment, or other lane is changed.
 
 ## Paper-ready paragraph
 

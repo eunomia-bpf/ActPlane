@@ -58,7 +58,8 @@ def main():
         lines.append(f'| {name} | {fmt(old)} | {fmt(baseline[key])} | {new} |')
     lines += ['', f'The collected manifest currently covers {len(repos):,} repositories. ' +
         (f'The analysis includes {coverage["analyzed_repositories"]} repositories and {int(coverage["analyzed_statements"]):,} statements. '
-         f'{coverage["incomplete_files"]} extracted files have incomplete model pairs and are excluded from the complete-file analysis.'
+         f'{coverage["incomplete_files"]} extracted files have incomplete model pairs. '
+         f'{coverage["repositories_with_incomplete_sources"]} repositories are withheld until every selected source is successfully extracted and labeled.'
          if coverage else 'Labeling coverage is pending.'), '',
         'The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.', '',
         '## Historical recovery and calibration', '',
@@ -81,6 +82,13 @@ def main():
         'Type must pass for any dependent result. Enforcement must pass before context may scale. These are study decisions rather than universal reliability standards. The same historical set is used for calibration and evaluation, so agreement is not a held-out generalization estimate.', '',
         '| Dimension | Scale? | Reason |', '|---|---|---|']
     lines.extend(f'| {r["dimension"]} | {r["passed"]} | {r["reason"]} |' for r in gates)
+    format_path = HERE / 'format_calibration_summary.csv'
+    if format_path.exists():
+        lines += ['', 'When some axes fail, the exact reduced output schema is calibrated again before scaling. This avoids assuming that changing the requested output dimensions leaves predictions unchanged. The coding guide remains fixed.', '',
+                  '| Reduced-schema model | Dimension | Evaluated N | Cohen’s kappa |', '|---|---|---:|---:|']
+        for r in read_csv(format_path):
+            if r['scope'] == 'applicable_gold':
+                lines.append(f'| {r["model"]} | {r["dimension"]} | {r["evaluated"]} | {float(r["kappa"]):.3f} |')
     poor = [r for r in cal if r['scope'] == 'applicable_gold' and r['model'] != 'inter_model'
             and float(r.get('coverage', 0)) >= MIN_COVERAGE and float(r['kappa']) < MIN_PRIMARY_KAPPA]
     if poor:
@@ -102,6 +110,7 @@ def main():
         'A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used.', '',
         f'Intervals use {BOOTSTRAPS:,} bootstrap replicates resampling repositories within discovery strata, with seed {SEED}. '
         'They describe sensitivity within this convenience sample. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.', '',
+        'Headline analysis requires every selected source file in a repository to have complete model pairs and final labels. Incomplete repositories remain in the collection and coverage tables rather than entering project-level denominators with unobserved files treated as negative. This makes interim checkpoints subsets of the final snapshot, not final results.', '',
         '## Breakdowns', '', 'Full counts, denominators, intervals, and calibration status are in `summary.csv`.']
     overview_path = HERE / 'corpus_overview.csv'
     if overview_path.exists():
@@ -134,7 +143,7 @@ def main():
         '# Scale only the dimensions that passed. See run_scale.py for the gate-controlled pipeline.',
         'python run_scale.py', 'python analyze.py', 'python figures.py', 'python report.py', '```', '',
         'Committed artifacts include immutable historical provenance, historical labels, model labels, calibration confusion tables, search queries, corpus/file manifests, extraction status, repository categories, summary tables, and the figures corresponding to the paper’s plots. GitHub requests are sequential, cached, and honor retry/reset feedback. Model concurrency stays within the operator’s endpoint limits.', '',
-        'The repository-requested `oss-change-workflow` skill was unavailable in the installed skill catalog and filesystem search. Work follows the explicit repository scope, validation, documentation, and draft-PR instructions. No paper source, kernel code, cluster deployment, or other lane is changed.', '',
+        'The repository-requested `oss-change-workflow` skill was unavailable in the installed skill catalog and filesystem search. Work follows the explicit repository scope, validation, and documentation instructions. The operator’s updated handoff rule is to commit and push only to `experiments/corpus-scale-20261028`, with no further PR activity. No paper source, kernel code, cluster deployment, or other lane is changed.', '',
         '## Paper-ready paragraph', '']
     if overall:
         valid = {k: r for k, r in overall.items() if r['status'] == 'ok'}

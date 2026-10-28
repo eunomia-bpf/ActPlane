@@ -2496,3 +2496,217 @@ We regularly merge upstream changes from opencode. To minimize merge conflicts a
 "
 glm,topic,paper:Kilo-Org/kilocode:62,Maintenance,Configuration & Environment,"5. **Mirror new config keys to the cloud schema** - When adding a `kilocode_change` key to `Config.Info` in `packages/opencode/src/config/config.ts`, also add the matching JSON Schema entry in `apps/web/src/app/config.json/extras.ts` in the [cloud repo](https://github.com/Kilo-Org/cloud). See [CLI Config Schema](packages/kilo-docs/pages/contributing/architecture/config-schema.md) for the step-by-step.
 "
+glm,topic,paper:Kilo-Org/kilocode:65,Development Process,Implementation Details,"### Kilocode Change Markers
+When editing shared upstream files, mark Kilo-specific lines with `kilocode_change` comments so future merges can find them. The basic forms are:
+- Single line: `const value = 42 // kilocode_change`
+- Multi-line block: wrap with `// kilocode_change start` / `// kilocode_change end`
+- New file in a shared path: `// kilocode_change - new file` at the top
+- JSX/TSX: use `{/* kilocode_change */}` (and `{/* kilocode_change start */}` / `end`)
+"
+glm,topic,paper:Kilo-Org/kilocode:66,Development Process,Implementation Details,"Markers are NOT needed in paths that contain `kilocode` in the name (e.g. `packages/opencode/src/kilocode/`, `packages/opencode/test/kilocode/`) — these are entirely Kilo Code additions and won't conflict with upstream.
+"
+glm,enforceability,paper:NVIDIA/NemoClaw:10,cross_event,content,"Security-sensitive code paths require extra test coverage.
+"
+glm,context_required,paper:NVIDIA/NemoClaw:10,task,project,"Security-sensitive code paths require extra test coverage.
+"
+glm,topic,paper:NVIDIA/NemoClaw:14,Implementation Details,Configuration & Environment,"
+### TypeScript
+
+- Plugin code in `nemoclaw/src/` is linted and formatted by the root Biome config
+- CLI type-checking via `tsconfig.cli.json`
+- Plugin type-checking via `nemoclaw/tsconfig.json`
+"
+glm,topic,paper:NVIDIA/NemoClaw:16,Maintenance,Documentation,"
+### No External Project Links
+
+Do not add links to third-party code repositories, community collections, or unofficial resources. Links to official tool documentation (Node.js, Python, uv) are acceptable.
+"
+glm,topic,paper:NVIDIA/NemoClaw:17,DevOps,Development Process,"
+## Git Hooks (prek)
+
+All hooks managed by [prek](https://prek.j178.dev/) (installed via `npm install`):
+
+| Hook | What runs |
+|------|-----------|
+| **pre-commit** | File fixers, formatters, linters, Vitest (plugin) |
+| **commit-msg** | commitlint (Conventional Commits) |
+| **pre-push** | TypeScript type check (tsc --noEmit for plugin, JS, CLI) |
+"
+glm,topic,paper:NVIDIA/NemoClaw:19,Development Process,Architecture,"
+### Common Patterns
+
+**Adding a CLI command:**
+
+- Entry point: `bin/nemoclaw.js` (launches the compiled CLI in `dist/`)
+- Main CLI implementation lives in `src/lib/` and compiles to `dist/lib/`
+- Add tests in `test/`
+"
+glm,enforceability,paper:NVIDIA/NemoClaw:19,cross_event,content,"
+### Common Patterns
+
+**Adding a CLI command:**
+
+- Entry point: `bin/nemoclaw.js` (launches the compiled CLI in `dist/`)
+- Main CLI implementation lives in `src/lib/` and compiles to `dist/lib/`
+- Add tests in `test/`
+"
+glm,topic,paper:NVIDIA/NemoClaw:20,Development Process,Architecture,"
+**Adding a plugin feature:**
+
+- Source: `nemoclaw/src/`
+- Co-locate tests as `*.test.ts`
+- Build with `cd nemoclaw && npm run build`
+"
+glm,enforceability,paper:NVIDIA/NemoClaw:20,cross_event,per_event,"
+**Adding a plugin feature:**
+
+- Source: `nemoclaw/src/`
+- Co-locate tests as `*.test.ts`
+- Build with `cd nemoclaw && npm run build`
+"
+glm,topic,paper:NVIDIA/NemoClaw:21,Development Process,Configuration & Environment,"
+**Adding a network policy preset:**
+
+- Add YAML to `nemoclaw-blueprint/policies/presets/`
+- Follow existing preset structure (see `slack.yaml`, `discord.yaml`)
+"
+glm,topic,paper:NVIDIA/NemoClaw:23,Configuration & Environment,Development Process,"
+### Gotchas
+
+- `npm install` at root triggers `prek install` which sets up git hooks. If hooks fail, check that `core.hooksPath` is unset: `git config --unset core.hooksPath`
+- The `nemoclaw/` subdirectory has its own `package.json` and `node_modules`, while sharing the root Biome config — it's a separate npm project
+- SPDX headers are auto-inserted by pre-commit hooks; don't worry about adding them manually
+- Coverage thresholds are ratcheted in `ci/coverage-threshold-*.json` — new code should not decrease CLI or plugin coverage
+- The `.claude/skills` symlink points to `.agents/skills` — both paths resolve to the same content
+"
+glm,enforceability,paper:NVIDIA/NemoClaw:23,,cross_event,"
+### Gotchas
+
+- `npm install` at root triggers `prek install` which sets up git hooks. If hooks fail, check that `core.hooksPath` is unset: `git config --unset core.hooksPath`
+- The `nemoclaw/` subdirectory has its own `package.json` and `node_modules`, while sharing the root Biome config — it's a separate npm project
+- SPDX headers are auto-inserted by pre-commit hooks; don't worry about adding them manually
+- Coverage thresholds are ratcheted in `ci/coverage-threshold-*.json` — new code should not decrease CLI or plugin coverage
+- The `.claude/skills` symlink points to `.agents/skills` — both paths resolve to the same content
+"
+glm,enforceability,paper:NVIDIA/NemoClaw:8,content,per_event,"- Mock external dependencies; don't call real NVIDIA APIs in unit tests
+- E2E tests run on ephemeral Brev cloud instances
+"
+glm,topic,paper:NousResearch/hermes-agent:10,Development Process,Implementation Details,"
+### Adding a Slash Command
+
+1. Add a `CommandDef` entry to `COMMAND_REGISTRY` in `hermes_cli/commands.py`:
+```python
+CommandDef(""mycommand"", ""Description of what it does"", ""Session"",
+           aliases=(""mc"",), args_hint=""[arg]""),
+```
+2. Add handler in `HermesCLI.process_command()` in `cli.py`:
+```python
+elif canonical == ""mycommand"":
+    self._handle_mycommand(cmd_original)
+```
+3. If the command is available in the gateway, add a handler in `gateway/run.py`:
+```python
+if canonical == ""mycommand"":
+    return await self._handle_mycommand(event)
+```
+4. For persistent settings, use `save_config_value()` in `cli.py`
+
+**CommandDef fields:**
+- `name` — canonical name without slash (e.g. `""background""`)
+- `description` — human-readable description
+- `category` — one of `""Session""`, `""Configuration""`, `""Tools & Skills""`, `""Info""`, `""Exit""`
+- `aliases` — tuple of alternative names (e.g. `(""bg"",)`)
+- `args_hint` — argument placeholder shown in help (e.g. `""<prompt>""`, `""[name]""`)
+- `cli_only` — only available in the interactive CLI
+- `gateway_only` — only available in messaging platforms
+- `gateway_config_gate` — config dotpath (e.g. `""display.tool_progress_command""`); when set on a `cli_only` command, the command becomes available in the gateway if the config value is truthy. `GATEWAY_KNOWN_COMMANDS` always includes config-gated commands so the gateway can dispatch them; help/menus only show them when the gate is open.
+
+**Adding an alias** requires only adding it to the `aliases` tuple on the existing `CommandDef`. No other file changes needed — dispatch, help text, Telegram menu, Slack mapping, and autocomplete all update automatically.
+
+---
+"
+glm,topic,paper:NousResearch/hermes-agent:2,Build and Run,Configuration & Environment,"## Development Environment
+
+```bash
+# Prefer .venv; fall back to venv if that's what your checkout has.
+source .venv/bin/activate   # or: source venv/bin/activate
+```
+
+`scripts/run_tests.sh` probes `.venv` first, then `venv`, then
+`$HOME/.hermes/hermes-agent/venv` (for worktrees that share a venv with the
+main checkout).
+"
+glm,topic,paper:NousResearch/hermes-agent:31,Development Process,Configuration & Environment,"
+8. **`.env.example` additions are isolated to a clearly delimited
+   block.** Don't touch the surrounding file — contributor-supplied
+   `.env.example` versions are usually stale and edits outside the
+   skill's own block must be dropped during salvage.
+
+The full salvage / modernization checklist for external skill PRs
+lives in the `hermes-agent-dev` skill at
+`references/new-skill-pr-salvage.md` — load it before polishing
+contributor skill PRs.
+
+---
+"
+glm,topic,paper:NousResearch/hermes-agent:34,Maintenance,Architecture,"
+## Curator (skill lifecycle)
+
+Background skill-maintenance system that tracks usage on agent-created
+skills and auto-archives stale ones. Users never lose skills; archives
+go to `~/.hermes/skills/.archive/` and are restorable.
+
+- **Core:** `agent/curator.py` (review loop, auto-transitions, LLM review
+  prompt) + `agent/curator_backup.py` (pre-run tar.gz snapshots).
+- **CLI:** `hermes_cli/curator.py` wires `hermes curator <verb>` where
+  verbs are: `status`, `run`, `pause`, `resume`, `pin`, `unpin`,
+  `archive`, `restore`, `prune`, `backup`, `rollback`.
+- **Telemetry:** `tools/skill_usage.py` owns the sidecar
+  `~/.hermes/skills/.usage.json` — per-skill `use_count`, `view_count`,
+  `patch_count`, `last_activity_at`, `state` (active / stale /
+  archived), `pinned`.
+
+Invariants:
+- Curator only touches skills with `created_by: ""agent""` provenance —
+  bundled + hub-installed skills are off-limits.
+- Never deletes; max destructive action is archive.
+- Pinned skills are exempt from every auto-transition and from the
+  LLM review pass.
+- `skill_manage(action=""delete"")` refuses pinned skills; patch/edit/
+  write_file/remove_file go through so the agent can keep improving
+  pinned skills.
+
+Config section (`curator:` in `config.yaml`):
+`enabled`, `interval_hours`, `min_idle_hours`, `stale_after_days`,
+`archive_after_days`, `backup.*`.
+
+Full user-facing docs: `website/docs/user-guide/features/curator.md`.
+
+---
+"
+glm,topic,paper:NousResearch/hermes-agent:42,Maintenance,Implementation Details,"
+### DO NOT introduce new `simple_term_menu` usage
+Existing call sites in `hermes_cli/main.py` remain for legacy fallback only;
+the preferred UI is curses (stdlib) because `simple_term_menu` has
+ghost-duplication rendering bugs in tmux/iTerm2 with arrow keys. New
+interactive menus must use `hermes_cli/curses_ui.py` — see
+`hermes_cli/tools_config.py` for the canonical pattern.
+"
+glm,context_required,paper:NousResearch/hermes-agent:48,task,project,"
+### Don't wire in dead code without E2E validation
+Unused code that was never shipped was dead for a reason. Before wiring an
+unused module into a live code path, E2E test the real resolution chain
+with actual imports (not mocks) against a temp `HERMES_HOME`.
+"
+glm,topic,paper:OthmanAdi/planning-with-files:13,Development Process,AI Integration,"---
+
+## Issue/PR comment style
+
+After a fix ships, comment on the issue or PR:
+
+- Address by `@handle`.
+- One sentence: fix confirmed in vX.Y.Z.
+- Specific: what the root cause was, what mechanism changed.
+- If they are now in CONTRIBUTORS.md, say so.
+- Run through /humanizer before posting.
+"

@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 from common import HERE, read_csv
+from analyze import calibration
 
 
 def run(script, *args):
@@ -15,6 +16,24 @@ def main():
     dimensions = [r['dimension'] for r in gates if r['passed'] == 'True']
     if 'type' not in dimensions:
         raise SystemExit('Type calibration did not pass; no automated scaling is justified.')
+    if len(dimensions) < 4:
+        # Recheck the exact reduced output schema before deploying it at scale.
+        validation = ['--input', str(HERE / 'paper_labels.csv'), '--dimensions', ','.join(dimensions)]
+        commands = [[sys.executable, str(HERE / 'label.py'), *validation,
+                     '--model', model, '--workers', '4', '--batch-size', '16',
+                     '--output', str(HERE / f'format_calibration_{name}.csv')]
+                    for model, name in [('qwen3.8-27b-nvfp4', 'qwen'), ('zai/glm-5.3', 'glm')]]
+        processes = [subprocess.Popen(c) for c in commands]
+        results = [p.wait() for p in processes]
+        if any(results):
+            raise SystemExit('Output-format calibration failed to run.')
+        run('label.py', *validation, '--model', 'qwen3.8-27b-nvfp4', '--workers', '4',
+            '--primary', str(HERE / 'format_calibration_qwen.csv'),
+            '--other', str(HERE / 'format_calibration_glm.csv'),
+            '--output', str(HERE / 'format_calibration_adjudicated.csv'))
+        format_gates = calibration('format_calibration', dimensions)
+        if not all(r['passed'] for r in format_gates):
+            raise SystemExit('Reduced-schema calibration failed; inspect before changing the deployment schema.')
     run('extract.py', '--workers', '4')
     run('categorize.py')
     run('scope_files.py', '--workers', '4')

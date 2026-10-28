@@ -99,6 +99,8 @@ def classify(a, batch, guide, dims, other):
         parsed = parse_json(message)['labels']
         result = {}
         for values in parsed:
+            if isinstance(values, dict):
+                values = [values['id'], *[values[d] for d in dims]]
             i, *labels = values
             if isinstance(i, str) and i.isdigit():
                 i = int(i)

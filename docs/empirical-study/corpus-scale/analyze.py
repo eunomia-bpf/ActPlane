@@ -40,16 +40,17 @@ def eligible(row, dim):
     return row['type'] == 'directive' and row['enforceability'] in ('content', 'per_event', 'cross_event')
 
 
-def calibration():
+def calibration(prefix='calibration', dimensions=None):
+    dimensions = dimensions or DIMS
     gold = read_csv(HERE / 'paper_labels.csv')
     predictions = {}
     for name in ('qwen', 'glm', 'adjudicated'):
-        path = HERE / f'calibration_{name}.csv'
+        path = HERE / f'{prefix}_{name}.csv'
         if path.exists():
             predictions[name] = {r['statement_id']: r for r in read_csv(path)}
     results, confusion = [], []
     for model, pred in predictions.items():
-        for dim in DIMS:
+        for dim in dimensions:
             for scope in ('applicable_gold', 'all_including_na'):
                 base = [r for r in gold if scope == 'all_including_na' or eligible(r, dim)]
                 pairs = [(g.get(dim, '') or '__NA__', pred[g['statement_id']].get(dim, '') or '__NA__')
@@ -62,7 +63,7 @@ def calibration():
                 for (g, p), count in Counter(pairs).items():
                     confusion.append(dict(model=model, dimension=dim, scope=scope, gold=g, prediction=p, count=count))
     if 'qwen' in predictions and 'glm' in predictions:
-        for dim in DIMS:
+        for dim in dimensions:
             pairs = [(predictions['qwen'][g['statement_id']].get(dim, '') or '__NA__',
                       predictions['glm'][g['statement_id']].get(dim, '') or '__NA__')
                      for g in gold if eligible(g, dim) and
@@ -71,11 +72,11 @@ def calibration():
             results.append(dict(model='inter_model', dimension=dim, scope='applicable_gold',
                 expected=sum(eligible(g, dim) for g in gold), evaluated=len(pairs),
                 kappa=kappa(left, right), agreement=np.mean(np.array(left) == np.array(right)) if pairs else ''))
-    write_csv(HERE / 'calibration_summary.csv', results)
-    write_csv(HERE / 'calibration_confusion.csv', confusion)
+    write_csv(HERE / f'{prefix}_summary.csv', results)
+    write_csv(HERE / f'{prefix}_confusion.csv', confusion)
     index = {(r['model'], r['dimension']): r for r in results if r['scope'] == 'applicable_gold'}
     gates = []
-    for dim in DIMS:
+    for dim in dimensions:
         records = [index.get((model, dim), {}) for model in ('qwen', 'glm', 'adjudicated')]
         passed = all(r.get('coverage', 0) >= MIN_COVERAGE for r in records)
         passed = passed and records[-1].get('kappa', -1) >= MIN_KAPPA
@@ -86,11 +87,11 @@ def calibration():
     # A dependent dimension cannot bypass a failed parent gate.
     by_dim = {r['dimension']: r for r in gates}
     for dim in ('topic', 'enforceability', 'context_required'):
-        if not by_dim['type']['passed']:
+        if dim in by_dim and not by_dim['type']['passed']:
             by_dim[dim].update(passed=False, reason='type_gate_failed')
-    if not by_dim['enforceability']['passed']:
+    if 'context_required' in by_dim and not by_dim.get('enforceability', {}).get('passed', False):
         by_dim['context_required'].update(passed=False, reason='enforcement_gate_failed')
-    write_csv(HERE / 'calibration_gates.csv', gates)
+    write_csv(HERE / f'{prefix}_gates.csv', gates)
     return gates
 
 
@@ -152,6 +153,9 @@ def summarize(rows, repos, gates=None, source='new'):
 
 def analyze():
     gates = {r['dimension']: r['passed'] == 'True' for r in read_csv(HERE / 'calibration_gates.csv')}
+    if (HERE / 'format_calibration_gates.csv').exists():
+        for r in read_csv(HERE / 'format_calibration_gates.csv'):
+            gates[r['dimension']] = gates.get(r['dimension'], False) and r['passed'] == 'True'
     paper = read_csv(HERE / 'paper_labels.csv')
     paper_repos = {r['repo']: r for r in read_csv(HERE / 'paper_files.csv')}
     baseline, baseline_draws = summarize(paper, paper_repos, source='paper_artifact')
@@ -183,8 +187,14 @@ def analyze():
         by_file[(s['repo'], s['content_sha256'])].append(s)
     complete_files = {key for key, ss in by_file.items()
                       if all(labels.get(s['statement_id'], {}).get('status') == 'ok' for s in ss)}
+    manifest = read_csv(HERE / 'corpus_manifest.csv')
+    required = defaultdict(set)
+    for f in manifest:
+        if f['status'] == 'included':
+            required[f['repo']].add((f['repo'], f['content_sha256']))
+    fully_labeled_repos = {repo for repo, files in required.items() if files <= complete_files}
     joined = [dict(s, **{d: labels[s['statement_id']].get(d, '') for d in DIMS})
-              for s in statements if (s['repo'], s['content_sha256']) in complete_files]
+              for s in statements if (s['repo'], s['content_sha256']) in complete_files and s['repo'] in fully_labeled_repos]
     complete_repos = {r['repo'] for r in joined}
     selected_repos = {k: v for k, v in repos.items() if k in complete_repos}
     summary, draws = summarize(joined, selected_repos, gates)
@@ -206,7 +216,6 @@ def analyze():
             summaries.extend(dict(r, group_type='category', group=category) for r in ss)
     # Attribute a byte-identical alias to each family it actually appears in,
     # while overall counts use each unique repository/content pair only once.
-    manifest = read_csv(HERE / 'corpus_manifest.csv')
     families = defaultdict(set)
     for f in manifest:
         if f['status'] == 'included':
@@ -232,7 +241,10 @@ def analyze():
         collected_repositories=len(repos), extracted_repositories=len({r['repo'] for r in statements}),
         analyzed_repositories=len(selected_repos), extracted_statements=len(statements),
         analyzed_statements=len(joined), complete_files=len(complete_files),
-        incomplete_files=len(by_file) - len(complete_files))])
+        incomplete_files=len(by_file) - len(complete_files),
+        repositories_with_incomplete_sources=len(repos) - len(selected_repos),
+        selected_source_files=sum(len(files) for files in required.values()),
+        extracted_source_files=len(by_file))])
     breakdown = []
     for group_type, groups in [('topic', {s['topic'] for s in joined}), ('enforceability', {s['enforceability'] for s in joined}),
                                ('context_required', {s['context_required'] for s in joined})]:
