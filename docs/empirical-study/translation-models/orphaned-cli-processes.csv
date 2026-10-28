@@ -4,3 +4,6 @@ pid,cwd,recorded_utc,action,usage
 1345187,rq1/gpt-6-astra/heygen-com__hyperframes__10/attempt-1/empty-cwd,2026-10-28T09:14:03Z,terminate_orphaned_timeout_child,unknown
 1345365,rq1/gpt-6-astra/earendil-works__pi__7/attempt-2/empty-cwd,2026-10-28T09:14:03Z,terminate_orphaned_timeout_child,unknown
 1352022,rq1/gpt-6-astra/heygen-com__hyperframes__5/attempt-1/empty-cwd,2026-10-28T09:24:04Z,terminate_orphaned_timeout_child,unknown
+1352279,rq1/gpt-6-astra/luongnv89__claude-howto__13/attempt-1/empty-cwd,2026-10-28T09:24:24Z,terminate_orphaned_timeout_child,unknown
+1357109,rq1/gpt-6-astra/luongnv89__claude-howto__2/attempt-1/empty-cwd,2026-10-28T09:34:04Z,terminate_orphaned_timeout_child,unknown
+1357275,rq1/gpt-6-astra/luongnv89__claude-howto__17/attempt-2/empty-cwd,2026-10-28T09:34:04Z,terminate_orphaned_timeout_child,unknown
