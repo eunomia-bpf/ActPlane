@@ -56,6 +56,10 @@ def run_worker(worker):
    for condition in task['condition_order'].split(','):
     rows=export()
     if any(r['task']==name and r['condition']==condition and r['selected_for_comparison']=='1' for r in rows):continue
+    # A broken verifier does not authorize another model sample after a genuine
+    # native agent timeout. Keep the existing trajectory for outcome audit.
+    timed_out=[r for r in rows if r['task']==name and r['condition']==condition and r['exception_type']=='AgentTimeoutError']
+    if timed_out:print('GENUINE_TIMEOUT_NO_RESAMPLE_REQUIRES_OUTCOME_AUDIT',name,condition,flush=True);continue
     unresolved=[r for r in rows if r['task']==name and r['condition']==condition and r['outcome_valid']!='1' and r['verifier_valid']!='0']
     if unresolved:print('NEEDS_OUTCOME_AUDIT',name,condition,flush=True);continue
     if time.time()>=deadline:print('REPORTING_CUTOFF_PARTIAL',name,condition,flush=True);break

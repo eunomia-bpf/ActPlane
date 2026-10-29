@@ -19,7 +19,7 @@ def write(name,rows,original_fields):
 def fields(name):
  with (OUT/name).open() as handle:return next(csv.reader(handle))
 trials=read('trials.csv');calls=read('calls.csv');events=read('interventions.csv')
-infrastructure={r['trial_id']:r for r in read('infrastructure-audits.csv') if r.get('retry_allowed')=='1'}
+infrastructure={r['trial_id']:r for r in read('infrastructure-audits.csv') if r.get('confirmed_infrastructure_failure')=='1' or r.get('retry_allowed')=='1'}
 for trial in trials:
  directory=Path(trial['raw_result']).parent/'agent'
  scope=json.loads((directory/'scope.json').read_text()) if (directory/'scope.json').exists() else {}

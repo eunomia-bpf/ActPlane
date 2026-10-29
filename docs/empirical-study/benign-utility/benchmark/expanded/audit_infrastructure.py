@@ -12,8 +12,9 @@ for result in sorted((RAW/'jobs').glob('qemu-alpine-ssh-*/*/result.json')):
  text=stdout.read_text(errors='replace')
  if not all(s in text for s in ('404  Not Found','curl: command not found','uvx: command not found')):continue
  assert not (verifier/'ctrf.json').exists(),'Executed tests must not be excluded by this transport audit'
- data=json.loads(result.read_text())
- rows.append(dict(trial_id=result.parent.name,task='qemu-alpine-ssh',reason='official_verifier_dependency_http404_before_pytest',retry_allowed=1,verifier_status='not_executed_official_apt_dependency_http404',evidence=str(stdout)+'; no ctrf.json; official tests/test.sh lines4-19 install curl and uv before pytest'))
+ data=json.loads(result.read_text());exception=data.get('exception_info') or {}
+ timed_out=exception.get('exception_type')=='AgentTimeoutError'
+ rows.append(dict(trial_id=result.parent.name,task='qemu-alpine-ssh',reason='official_verifier_dependency_http404_before_pytest',confirmed_infrastructure_failure=1,retry_allowed=int(not timed_out),verifier_status='not_executed_official_apt_dependency_http404',agent_exception=exception.get('exception_type',''),disposition='retain_genuine_agent_timeout_no_model_resample; utility_unknown_without_executed_oracle' if timed_out else 'confirmed_infrastructure_failure_requires_audit_before_model_retry',evidence=str(stdout)+'; no ctrf.json; official tests/test.sh lines4-19 install curl and uv before pytest; Harbor0.25.0 SingleStepStrategy continues verification after AgentTimeoutError'))
 file=OUT/'infrastructure-audits.csv'
 old=list(csv.DictReader(file.open())) if file.exists() else []
 merged={r['trial_id']:r for r in old}
