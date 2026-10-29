@@ -13,3 +13,7 @@ The official Terminus controller/model API runs outside the protected task shell
 The running Workspace kernel does not provide the required BPF-LSM enforcement mode. A retained calibrated tracepoint loader can load and supports `kill` forced failure. These trials will explicitly identify that mode; they cannot establish pre-operation network denial. No shared kernel reboot or deployment change is authorized or attempted.
 
 Other runnable benchmark, policy-scoping and replay work continues. Setup/preflight failures and unsupported repository directives are retained in their respective machine-readable result files rather than silently removed.
+
+## Shared disk pressure
+
+During setup the shared volume rose from its initial low utilization toward the user's ceiling, while this lane retained only its first benchmark image. The matrix checks capacity before each cell and prunes only images in its own isolated Docker daemon. Another lane's state will not be removed. If the next official image cannot fit below the ceiling, that cell must remain pending until capacity becomes available. Raw capacity receipts are retained remotely by the benchmark worker.
