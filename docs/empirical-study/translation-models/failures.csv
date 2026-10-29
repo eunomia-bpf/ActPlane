@@ -262,9 +262,8 @@ rq1,zai/glm-4.7-flash,google__adk-python::3,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,google__adk-python::4,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,google__adk-python::5,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,google__adk-python::6,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,access_failure,ok
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::4,compiler_failure,generation_output_limit
-rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,access_failure,ok
 rq1,zai/glm-4.7-flash,hugohe3__ppt-master::10,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,hugohe3__ppt-master::2,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,hugohe3__ppt-master::4,access_failure,provider_capacity

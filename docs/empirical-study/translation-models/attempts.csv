@@ -5992,13 +5992,15 @@ rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,atte
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.273712900932878,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,attempt-1,4,http_error,provider_capacity,60,1793181852.8227012,,,,0,429,11.682082643033937,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,attempt-1,5,ok,,0,1793241738.2480407,,zai/glm-4.7-flash,stop,1,,66.64958292501979,1,8933,2144,3,0,2038
+rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,attempt-2,1,ok,,0,1793241836.8829277,,zai/glm-4.7-flash,stop,1,,98.6174518908374,1,9074,4194,8931,0,4115
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::4,heygen-com__hyperframes__4,attempt-1,1,ok,,0,,,zai/glm-4.7-flash,stop,1,,173.25440125283785,1,8986,3726,3,0,3650
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::4,heygen-com__hyperframes__4,attempt-2,1,ok,,0,,,zai/glm-4.7-flash,length,1,,174.77290067006834,1,9098,8192,3,0,8192
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::4,heygen-com__hyperframes__4,attempt-3,1,ok,,0,,,zai/glm-4.7-flash,length,1,,199.55247817211784,1,9136,8192,3,0,8192
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,10.25301757408306,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.229750137776136,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.433235447853804,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,11.381883171154186,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,attempt-1,4,http_error,provider_capacity,60,1793181894.3561382,,,,0,429,11.381883171154186,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,attempt-1,5,ok,,0,1793241939.5064394,,zai/glm-4.7-flash,stop,1,,102.42402151715942,1,8953,5518,3,0,5466
 rq1,zai/glm-4.7-flash,hugohe3__ppt-master::10,hugohe3__ppt-master__10,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,10.40243816608563,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,hugohe3__ppt-master::10,hugohe3__ppt-master__10,attempt-1,2,http_error,rate_limited,15,,,,,0,429,10.547535588033497,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,hugohe3__ppt-master::10,hugohe3__ppt-master__10,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.365624686004594,0,0,0,0,0,0
