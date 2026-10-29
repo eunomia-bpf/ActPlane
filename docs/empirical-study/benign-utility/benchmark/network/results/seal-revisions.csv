@@ -1,0 +1,2 @@
+utc,reason,previous_sha256,replacement_sha256,scored_jobs_before_revision,nonruntime_artifacts_unchanged,raw_archive
+2026-10-29T11:45:43Z,pre-model instrumentation mapping repair,fc97db4559aec5336caffc072cc051dca9c8bb62e86a630093a0de4a87dac64c,74790da1c6be00b1fcaeae4ddf7cc9ff29ddd93730262e46a3e8ca59f92451d6,0,1,/workspaces/exp/benign-utility/raw/benchmark/network/seal-preflights/20261029T114543Z

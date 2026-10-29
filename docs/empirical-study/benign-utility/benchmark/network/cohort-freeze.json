@@ -22,7 +22,7 @@
   },
   "runtime_code": {
     "adapter.py": "5b17263abdf7feea554d631a3406c6ff50358b1b1bdb5c57fefbdd2c72e5ea28",
-    "network/adapter.py": "70eaca9de3179866b49d55984f7e6b4a749ad2b087f61aec4387f269c7b12249",
+    "network/adapter.py": "b956f1ca54fd40de4f92f489be921d575c07f387911c4899a9e55c43ed4f9db1",
     "network/run.py": "845baab55bce528f972ec8841a85350c8dcb4461ad08cc2f8c792be029c422e3"
   },
   "engine_sha256": "981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520",
