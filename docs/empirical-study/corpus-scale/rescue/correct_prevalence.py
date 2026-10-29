@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Test-confusion calibration with repository-bootstrap uncertainty and audit flags."""
 import argparse,sys
-from collections import defaultdict
+from collections import Counter,defaultdict
 from pathlib import Path
 import numpy as np
 from scipy.optimize import minimize
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from common import HERE,read_csv,write_csv
+from common import HERE,DEFAULT_RAW,read_csv,write_csv
 OUT=HERE/'rescue'
 ENF=['semantic_only','content','per_event','cross_event']
 CTX=['not_system','none','project','task']
@@ -99,7 +99,7 @@ def main(a):
     if bp is None:failures[bflag]+=1;draws.append(np.full(len(classes),np.nan))
     else:draws.append(bp);boundary+=bool(bflag)
    draws=np.asarray(draws);valid=np.isfinite(draws).all(axis=1);valid_count=int(valid.sum())
-   diagnostics.append(dict(group_type=group_type,group=group,axis=axis,test_repositories=len(test_repos),target_repositories=len(source_names),target_directives=int(nc.sum()),matrix_rank=np.linalg.matrix_rank(mat) if mat is not None else '',condition_number=condition,point_status=flag or 'ok',successful_bootstraps=valid_count,total_bootstraps=a.bootstraps,boundary_bootstraps=boundary,failures=str(dict(failures))))
+   diagnostics.append(dict(group_type=group_type,group=group,axis=axis,test_repositories=len(test_repos),target_repositories=len(source_names),target_directives=int(nc.sum()),matrix_rank=np.linalg.matrix_rank(mat) if mat is not None else '',condition_number=condition,mixture_residual_l1=float(np.abs(mat@point-nc.sum(axis=0)/nc.sum()).sum()) if point is not None and nc.sum() else '',point_status=flag or 'ok',successful_bootstraps=valid_count,total_bootstraps=a.bootstraps,boundary_bootstraps=boundary,failures=str(dict(failures))))
    def add(metric,value,ds,gate):
     enough=value is not None and np.isfinite(ds).sum()>=.8*a.bootstraps
     low,high=np.nanquantile(ds,[.025,.975]) if enough else ('','')
@@ -136,9 +136,12 @@ def main(a):
   arr=np.asarray(draws);enough=point is not None and np.isfinite(arr).sum()>=.8*a.bootstraps
   lo,hi=np.nanquantile(arr,[.025,.975]) if enough else ('','')
   results.append(dict(group_type=group_type,group=group,metric='cross_event_project_share',value=point[1] if point is not None else '',ci_low=lo,ci_high=hi,method='test_repository_binary_confusion_mixture',status=('corrected_estimate' if gates['enforceability'] else 'exploratory_corrected_estimate') if point is not None else 'not_identifiable',point_flag=flag or 'project_size_transport_unverified',successful_bootstraps=int(np.isfinite(arr).sum()),bootstrap_replicates=a.bootstraps,interval_status='ok' if enough else 'insufficient_identifiable_bootstrap_draws',test_repositories=len(test_repos),repositories=len(source_names),directives=len(source),revision=selected))
+  diagnostics.append(dict(group_type=group_type,group=group,axis='project_cross_event',test_repositories=len(test_repos),target_repositories=len(source_names),target_directives=len(source),matrix_rank=np.linalg.matrix_rank(mat) if mat is not None else '',condition_number=float(np.linalg.cond(mat)) if mat is not None else '',mixture_residual_l1=float(np.abs(mat@point-nc.sum(axis=0)/nc.sum()).sum()) if point is not None else '',point_status=flag or 'ok',successful_bootstraps=int(np.isfinite(arr).sum()),total_bootstraps=a.bootstraps,boundary_bootstraps='',failures=str(dict(fails))))
   for i,p in enumerate(['no_cross_event','has_cross_event']):
    for j,g in enumerate(['no_cross_event','has_cross_event']):confusion.append(dict(group_type=group_type,group=group,axis='project_cross_event',gold=g,prediction=p,count=int(tc.sum(axis=0)[i,j])))
- write_csv(OUT/'corrected_summary.csv',results);write_csv(OUT/'correction_diagnostics.csv',diagnostics);write_csv(OUT/'correction_confusion.csv',confusion);write_csv(OUT/'correction_bootstrap_audit.csv',draw_audit)
+ write_csv(OUT/'corrected_summary.csv',results);write_csv(OUT/'correction_diagnostics.csv',diagnostics);write_csv(OUT/'correction_confusion.csv',confusion);write_csv(DEFAULT_RAW/'rescue-correction-bootstrap.csv',draw_audit)
+ counts=Counter((r['group_type'],r['group'],r['axis'],r['status'],r['reason']) for r in draw_audit)
+ write_csv(OUT/'correction_bootstrap_audit.csv',[dict(group_type=k[0],group=k[1],axis=k[2],status=k[3],reason=k[4],replicates=v) for k,v in sorted(counts.items())])
  print('Correction rows',len(results),'bootstrap audit rows',len(draw_audit))
 
 if __name__=='__main__':

@@ -56,6 +56,25 @@ def main():
             if r['model'] == 'adjudicated' and r['scope'] == 'applicable_gold':
                 label = 'Initial full codebook' if name == 'calibration' else 'Deployed retained axes'
                 lines.append(f'| {label} | {r["dimension"]} | {r["evaluated"]} | {float(r["kappa"]):.3f} |')
+    if (HERE / 'rescue/test_gates.csv').exists():
+        revision = read_csv(HERE / 'rescue/selection.csv')[0]['revision']
+        lines += ['', f'Rescue revision `{revision}` was selected on development repositories and evaluated once on the frozen test split. '
+                  'All original reference rows had earlier calibration/aggregate diagnostic exposure, so this is a prospective holdout for rescue tuning, not an untouched external test set.', '',
+                  '| Rescue test dimension | Kappa | Coverage | Passed |', '|---|---:|---:|---|']
+        for r in read_csv(HERE / 'rescue/test_gates.csv'):
+            lines.append(f'| {r["dimension"]} | {float(r["test_kappa"]):.3f} | {100*float(r["coverage"]):.1f}% | {r["passed"]} |')
+        corrected = HERE / 'rescue/corrected_summary.csv'
+        if corrected.exists():
+            lines += ['', '| Corrected overall metric | Estimate | Bootstrap interval | Status |', '|---|---:|---:|---|']
+            for r in read_csv(corrected):
+                if r['group_type'] != 'overall' or r['metric'] not in ['system_state_fraction', 'context_required_fraction', 'cross_event_project_share', 'os_enforceable_count']:
+                    continue
+                def fmt(field):
+                    if not r.get(field):
+                        return 'unavailable'
+                    return f'{float(r[field]):,.0f}' if r['metric'].endswith('_count') else f'{100*float(r[field]):.1f}%'
+                lines.append(f'| {r["metric"]} | {fmt("value")} | [{fmt("ci_low")}, {fmt("ci_high")}] | {r["status"]} |')
+            lines += ['', 'Corrections assume the test error matrix transfers across repositories, instruction families and task domains. This assumption is unverified. They are conditional on the frozen directive set. Failed-gate corrections remain exploratory. See rescue/PROTOCOL.md and correction diagnostics for boundary and non-identifiable fits.']
     audit = read_csv(HERE / 'paper_audit.csv')[0]
     baseline = {r['metric']: r for r in read_csv(HERE / 'paper_summary.csv')}
     claims = {r['metric']: r for r in read_csv(HERE / 'paper_claims.csv')}
@@ -80,7 +99,7 @@ def main():
             lines += ['', f'{label}: {sum(r["passed"] == "True" for r in checks)}/{len(checks)} passed.']
     lines += ['', f'Artifacts: `{HERE}`', '',
               'Raw downloads and logs: `/workspaces/.agent-state/actplane-research/raw/corpus-scale-20261028`', '',
-              'Open caveats: convenience/star/query sampling; automated statement boundaries; historical reference conventions and missing human review sample; correlated model adjudication; exploratory model-based file scopes; withheld dimensions must not replace paper claims. See README.md and calibration tables for exact agreement and limitations.', '',
+              'Open caveats: convenience/star/query sampling; automated statement boundaries; historical reference conventions and missing human review sample; correlated model adjudication; exploratory model-based file scopes; any remaining withheld dimensions must not replace paper claims. See README.md and calibration tables for exact agreement and limitations.', '',
               'No paper files were edited. Operator handoff is branch-only; no further PR activity was performed after the update.']
     a.state.mkdir(parents=True, exist_ok=True)
     (a.state / 'SUMMARY.md').write_text('\n'.join(lines) + '\n')
