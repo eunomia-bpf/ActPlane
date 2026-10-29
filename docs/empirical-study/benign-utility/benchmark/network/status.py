@@ -15,6 +15,20 @@ for path in sorted((BASE/'jobs').glob('*/*/agent/calls.jsonl')):
   try:row=json.loads(line);calls.setdefault(row['index'],{}).update(row)
   except ValueError:pass
  print('ACTIVE_CALLS',path.parent.parent.name,len(calls))
+ effects={'inet4_connect_attempts':0,'inet6_connect_attempts':0,'candidate_read_access_attempts':0,'observer_helper_errors':0}
+ observer=path.parent/'observer.jsonl'
+ if observer.exists():
+  for line in observer.read_text(errors='replace').splitlines():
+   try:event=json.loads(line)
+   except ValueError:continue
+   if event.get('type')=='helper_error':effects['observer_helper_errors']+=1
+   if event.get('type')!='printf':continue
+   for entry in event.get('data','').splitlines():
+    parts=entry.split('|',4)
+    if len(parts)!=5 or parts[2]!='benchmark':continue
+    if parts[0]=='READ':effects['candidate_read_access_attempts']+=1
+    if parts[0]=='CONNECT' and parts[4] in ('2','10'):effects['inet4_connect_attempts' if parts[4]=='2' else 'inet6_connect_attempts']+=1
+ print('LIVE_EFFECTS',json.dumps(effects))
 for process in Path('/proc').glob('[0-9]*'):
  try:args=(process/'cmdline').read_bytes().split(b'\0')
  except OSError:continue
