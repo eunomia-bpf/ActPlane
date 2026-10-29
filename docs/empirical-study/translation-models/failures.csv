@@ -17,7 +17,6 @@ rq1,qwen3.8-27b-nvfp4,Alishahryar1__free-claude-code::12,compiler_failure,genera
 rq1,qwen3.8-27b-nvfp4,Alishahryar1__free-claude-code::25,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,Alishahryar1__free-claude-code::7,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,Alishahryar1__free-claude-code::9,compiler_failure,generation_output_limit
-rq1,qwen3.8-27b-nvfp4,CoplayDev__unity-mcp::22,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,CoplayDev__unity-mcp::27,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,CoplayDev__unity-mcp::9,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,Hmbown__DeepSeek-TUI::31,compiler_failure,generation_output_limit
@@ -28,7 +27,6 @@ rq1,qwen3.8-27b-nvfp4,Kilo-Org__kilocode::20,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,NVIDIA__NemoClaw::18,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,NVIDIA__NemoClaw::25,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,NVIDIA__NemoClaw::26,compiler_failure,generation_output_limit
-rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::41,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::48,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,OthmanAdi__planning-with-files::5,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,OthmanAdi__planning-with-files::7,compiler_failure,generation_output_limit
@@ -54,12 +52,9 @@ rq1,qwen3.8-27b-nvfp4,hugohe3__ppt-master::7,compiler_failure,syntax_or_lowering
 rq1,qwen3.8-27b-nvfp4,iOfficeAI__AionUi::28,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::16,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::38,compiler_failure,generation_output_limit
-rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,access_failure,transport_timeout
+rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::7,compiler_failure,generation_output_limit
-rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::74,access_failure,transport_timeout
-rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::76,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,mksglu__context-mode::6,compiler_failure,generation_output_limit
-rq1,qwen3.8-27b-nvfp4,multica-ai__multica::7,access_failure,transport_timeout
 rq1,qwen3.8-27b-nvfp4,nanocoai__nanoclaw::19,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,nearai__ironclaw::29,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,openai__codex::17,compiler_failure,syntax_or_lowering
@@ -75,9 +70,8 @@ rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::57,compiler_failure,generation_output_
 rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::67,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::69,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,openclaw__openclaw::77,access_failure,transport_timeout
-rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::29,access_failure,transport_timeout
-rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::31,access_failure,transport_timeout
-rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::32,access_failure,transport_timeout
+rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::31,compiler_failure,generation_output_limit
+rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::32,access_failure,ok
 rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::33,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::34,compiler_failure,generation_output_limit
 rq1,qwen3.8-27b-nvfp4,rtk-ai__rtk::4,compiler_failure,generation_output_limit
@@ -244,10 +238,7 @@ rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::41,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::42,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,datawhalechina__easy-vibe::2,access_failure,transport_timeout
 rq1,zai/glm-4.7-flash,earendil-works__pi::18,compiler_failure,syntax_or_lowering
-rq1,zai/glm-4.7-flash,earendil-works__pi::28,access_failure,ok
-rq1,zai/glm-4.7-flash,earendil-works__pi::29,access_failure,rate_limited
-rq1,zai/glm-4.7-flash,earendil-works__pi::30,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,earendil-works__pi::32,access_failure,rate_limited
+rq1,zai/glm-4.7-flash,earendil-works__pi::32,access_failure,ok
 rq1,zai/glm-4.7-flash,earendil-works__pi::33,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,earendil-works__pi::35,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,earendil-works__pi::36,access_failure,rate_limited
@@ -569,13 +560,3 @@ rq1,gpt-6-astra,tirth8205__code-review-graph::24,compiler_failure,model_declared
 rq1,gpt-6-astra,tirth8205__code-review-graph::27,compiler_failure,syntax_or_lowering
 rq1,gpt-6-astra,zeroclaw-labs__zeroclaw::22,compiler_failure,model_declared_unobservable
 rq1,gpt-6-astra,zeroclaw-labs__zeroclaw::28,compiler_failure,model_declared_unobservable
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::22,access_failure,provider_session_limit
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::23,access_failure,provider_session_limit
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::24,access_failure,provider_session_limit
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::28,access_failure,provider_session_limit
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::3,access_failure,provider_session_limit
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::34,access_failure,provider_session_limit
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::4,access_failure,provider_session_limit
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::7,access_failure,provider_session_limit
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::8,access_failure,provider_session_limit
-rq1,claude-opus-4-6,zeroclaw-labs__zeroclaw::9,access_failure,provider_session_limit

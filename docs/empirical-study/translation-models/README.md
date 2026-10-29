@@ -19,13 +19,13 @@ held-out sets, and no semantic deduplication is claimed.
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Paper reference | 38 / 38 of 38 | not generated | 70.2% | 17.1% | 0.773 | 0 / 0 | n/a |
-| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 297 / 532 of 607 | 40.4% | 10.5% | 0.548 | 0 / 18 | n/a |
+| qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 298 / 538 of 607 | 40.4% | 10.5% | 0.548 | 0 / 10 | n/a |
 | zai/glm-5.3 | 34 / 38 of 38 | 469 / 605 of 607 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
 | zai/glm-5.3-flash | 33 / 38 of 38 | 411 / 606 of 607 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 27 / 37 of 38 | 98 / 166 of 607 | 56.1% | 30.3% | 0.637 | 0 / 409 | $0.0000 |
+| zai/glm-4.7-flash | 27 / 37 of 38 | 100 / 169 of 607 | 56.1% | 30.3% | 0.637 | 0 / 406 | $0.0000 |
 | zai/glm-4.5-air | 33 / 38 of 38 | 403 / 604 of 607 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
 | gpt-6-astra | 27 / 38 of 38 | 273 / 572 of 607 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
-| claude-opus-4-6 | 30 / 38 of 38 | 394 / 597 of 607 | 47.4% | 11.8% | 0.610 | 0 / 10 | $0.1384 |
+| claude-opus-4-6 | 30 / 38 of 38 | 400 / 607 of 607 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
 
 For rows with access failures, the table below conditions on policy trajectories
 that end with a compiler result. An access failure during revisions leaves a
@@ -36,9 +36,8 @@ trajectories. Individual transport records are in `attempts.csv`.
 
 | Model with access failures | Sample completed trajectories | Sample conditional compile@1 / @3 | Corpus completed trajectories | Corpus conditional compile@1 / @3 |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 38 / 38 | 39.5% / 68.4% | 589 / 607 | 50.4% / 90.3% |
-| zai/glm-4.7-flash | 38 / 38 | 71.1% / 97.4% | 198 / 607 | 49.5% / 83.8% |
-| claude-opus-4-6 | 38 / 38 | 78.9% / 100.0% | 597 / 607 | 66.0% / 100.0% |
+| qwen3.8-27b-nvfp4 | 38 / 38 | 39.5% / 68.4% | 597 / 607 | 49.9% / 90.1% |
+| zai/glm-4.7-flash | 38 / 38 | 71.1% / 97.4% | 201 / 607 | 49.8% / 84.1% |
 
 Corpus accounting means include completed trials and known transport usage.
 Active wall time includes provider waits and compiler revisions. It excludes
@@ -47,13 +46,13 @@ tokens, and time are retained for both corpora in the translation CSVs.
 
 | Model | Corpus policies | Mean input tokens | Mean output tokens | Mean active wall seconds | Known USD/policy | Transports missing usage |
 | --- | --- | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 607 | 21201.5 | 9951.4 | 808.4 | unmeasured | 444 |
+| qwen3.8-27b-nvfp4 | 607 | 21475.4 | 10074.3 | 816.4 | unmeasured | 444 |
 | zai/glm-5.3 | 607 | 15399.9 | 3766.4 | 71.6 | $0.0381 | 0 |
 | zai/glm-5.3-flash | 607 | 16836.1 | 4264.9 | 121.3 | $0.0047 | 5 |
-| zai/glm-4.7-flash | 607 | 8529.2 | 3028.0 | 224.3 | $0.0000 | 2181 |
+| zai/glm-4.7-flash | 607 | 8623.7 | 3070.0 | 225.5 | $0.0000 | 2181 |
 | zai/glm-4.5-air | 607 | 17378.9 | 4406.3 | 120.3 | $0.0083 | 3 |
 | gpt-6-astra | 607 | 38384.5 | 223.7 | 41.8 | $0.3950 | 20 |
-| claude-opus-4-6 | 607 | 19713.0 | 1682.9 | 166.1 | $0.1406 | 0 |
+| claude-opus-4-6 | 607 | 19990.9 | 1704.5 | 207.7 | $0.1426 | 0 |
 
 | Model | Direct detected / total | Script detected / total | Hidden detected / total | Replay errors | Tool-error traces |
 | --- | --- | --- | --- | --- | --- |
@@ -84,10 +83,10 @@ alongside both detection and false-trigger rates for this constructed class bala
 
 | Model | Sample policies with reported cutoff | Corpus policies with reported cutoff | Sample terminal output-limit failures | Corpus terminal output-limit failures |
 | --- | --- | --- | --- | --- |
-| qwen3.8-27b-nvfp4 | 22 | 230 | 12 | 54 |
+| qwen3.8-27b-nvfp4 | 22 | 232 | 12 | 56 |
 | zai/glm-5.3 | 0 | 24 | 0 | 1 |
 | zai/glm-5.3-flash | 2 | 40 | 0 | 1 |
-| zai/glm-4.7-flash | 3 | 43 | 0 | 7 |
+| zai/glm-4.7-flash | 3 | 44 | 0 | 7 |
 | zai/glm-4.5-air | 2 | 43 | 0 | 1 |
 | gpt-6-astra | 0 | 0 | 0 | 0 |
 | claude-opus-4-6 | 0 | 0 | 0 | 0 |
@@ -305,4 +304,4 @@ derived outputs. No script opens or updates a pull request.
 
 ## Paper paragraph
 
-We compare policy translation across 7 response-verified model configurations using a shared DSL reference and compiler feedback. The behavioral sample contains 38 repository policies and 190 labeled traces, including 114 violations and 76 compliant traces. We replay tool effects under the kernel engine without agent continuation or model judges. Completed model rows attain F1 from 0.548 to 0.637, with false-trigger rates from 10.5% to 30.3%. For fully available configurations, compilation on 607 policies ranges from 45.0% to 77.3% initially and from 94.2% to 99.8% after compiler feedback. Configured output budgets and CLI defaults also affect these rates. Compiler acceptance on the 607-policy corpus measures syntactic compatibility rather than semantic correctness. Reference agreement and replay failures are reported separately because backend behavior and fixture fidelity can also affect detection.
+We compare policy translation across 7 response-verified model configurations using a shared DSL reference and compiler feedback. The behavioral sample contains 38 repository policies and 190 labeled traces, including 114 violations and 76 compliant traces. We replay tool effects under the kernel engine without agent continuation or model judges. Completed model rows attain F1 from 0.548 to 0.637, with false-trigger rates from 10.5% to 30.3%. For fully available configurations, compilation on 607 policies ranges from 45.0% to 77.3% initially and from 94.2% to 100.0% after compiler feedback. Configured output budgets and CLI defaults also affect these rates. Compiler acceptance on the 607-policy corpus measures syntactic compatibility rather than semantic correctness. Reference agreement and replay failures are reported separately because backend behavior and fixture fidelity can also affect detection.
