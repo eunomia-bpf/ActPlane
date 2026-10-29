@@ -21,3 +21,9 @@ cancel-async-tasks,b,kernel-receipt-preflight,cancel-async-tasks__numHUYf,0,2,ca
 cancel-async-tasks,b,kernel-receipt-preflight,cancel-async-tasks__numHUYf,0,3,call_1_1,1,10,1685985586926085,1685986588198800,0,0,0,0,0,0,complete
 cancel-async-tasks,b,scope-validated-preflight,cancel-async-tasks__AkxQosh,0,1,call_0_1,1,10,1685828208244194,1685828319326644,0,0,0,0,0,0,incomplete
 cancel-async-tasks,b,scope-validated-preflight,cancel-async-tasks__AkxQosh,0,2,call_1_1,1,10,1685876416994637,1685877418292863,0,0,0,0,0,0,incomplete
+cancel-async-tasks,c,1,cancel-async-tasks__BaZjqUc,1,1,call_0_1,1,10,1687038142186592,1687038244702513,0,0,0,0,0,4,complete
+cancel-async-tasks,c,1,cancel-async-tasks__BaZjqUc,1,2,call_1_1,1,10,1687191099119372,1687192101350448,0,0,0,0,0,0,complete
+cancel-async-tasks,c,1,cancel-async-tasks__BaZjqUc,1,3,call_2_1,1,10,1687228575523725,1687229578258154,0,0,0,0,0,0,complete
+cancel-async-tasks,c,1,cancel-async-tasks__BaZjqUc,1,4,call_3_1,1,10,1687342706807224,1687344710357134,0,0,0,0,0,0,complete
+cancel-async-tasks,c,1,cancel-async-tasks__BaZjqUc,1,5,call_4_1,1,10,1687380113524327,1687381115359966,0,0,0,0,0,0,complete
+cancel-async-tasks,c,1,cancel-async-tasks__BaZjqUc,1,6,call_5_1,1,10,1687415931901867,1687417934227415,0,0,0,0,0,0,complete
