@@ -29,6 +29,10 @@ do {
         $body=[IO.File]::ReadAllText($path)
         $table=if($name -eq 'SUMMARY.md'){$progress.Substring(0,$progress.IndexOf('Available-condition'))}else{$progress}
         $body=[regex]::Replace($body,'(?s)<!-- expansion-status:start -->.*?<!-- expansion-status:end -->','<!-- expansion-status:start -->'+"`n"+$table+"`n"+'<!-- expansion-status:end -->')
+        $paragraph=Join-Path $lane 'results/paper-paragraph.md'
+        if($name -eq 'README.md' -and (Test-Path -LiteralPath $paragraph)) {
+          $body=[regex]::Replace($body,'(?s)<!-- paper-paragraph:start -->.*?<!-- paper-paragraph:end -->','<!-- paper-paragraph:start -->'+"`n"+[IO.File]::ReadAllText($paragraph)+"`n"+'<!-- paper-paragraph:end -->')
+        }
         [IO.File]::WriteAllText($path,$body,[Text.UTF8Encoding]::new($false))
       }
       # The only recursively removed tree is this lane's just-pulled publication copy.

@@ -216,6 +216,7 @@ def main():
     if positions:
         write(args.out / 'position.csv', positions)
     expansion_progress(rows, args.out)
+    paper_paragraph(rows, args.out)
     render(rows, positions, args.out)
 
 
@@ -256,6 +257,32 @@ def expansion_progress(rows, out):
         lines.append(f"| {cohort} | {names[row['condition']]} | {row['calls']} | {row['confirmed_false_calls']} | {row['unknown_calls']} | {row['unattributed_intervention_events']} | {bounds} |")
     lines += ['', 'The added/combined matrices are complete only when every frozen task has valid outcomes in every condition. Security coverage and adjudication completeness remain separate fields.', '']
     (out / 'expansion-progress.md').write_text('\n'.join(lines))
+
+
+def paper_paragraph(rows, out):
+    combined = {r['condition']: r for r in rows if r['dataset'] == 'Terminal-Bench combined'}
+    if not combined:
+        return
+    def scores(group):
+        return ', '.join(f"{int(group[c]['complete_triplet_successes'])}/{group[c]['complete_triplet_tasks']}" for c in ('a', 'b', 'c'))
+    original = {r['condition']: r for r in rows if r['dataset'] == 'Terminal-Bench'}
+    status = 'completed' if all(r['matrix_complete'] for r in combined.values()) else 'partial'
+    text = (f"Using GLM-5.3 and official Terminal-Bench 2.0 rewards, we planned {combined['a']['planned_sessions']} tasks. "
+            f"The {status} matched snapshot covers {combined['a']['complete_triplet_tasks']} tasks, with successes of {scores(combined)} "
+            f"without defense, with broad sources and with narrowed sources. Original-subset results remain {scores(original)}. ")
+    network = {r['condition']: r for r in rows if r['dataset'] == 'Terminal-Bench network stratum'}
+    if network:
+        text += (f"The separate network subset achieved {scores(network)}; broad/narrowed false calls were "
+                 f"{network['b']['confirmed_false_calls']}/{network['b']['calls']} and {network['c']['confirmed_false_calls']}/{network['c']['calls']}. ")
+    replay = {r['condition']: r for r in rows if r['dataset'] == 'Public replay'}
+    if replay and replay['broad']['false_rate_upper_pct'] != '':
+        text += (f"Across {replay['broad']['outcome_valid_sessions']} public replay trajectories, broad false-call bounds were "
+                 f"{replay['broad']['confirmed_false_rate_pct']:.2f}-{replay['broad']['false_rate_upper_pct']:.2f}%, "
+                 f"versus {replay['scoped']['confirmed_false_rate_pct']:.2f}% with narrowed sources. ")
+    text += ("Single-attempt success differences and timings are descriptive. Process-subtree coverage and source/socket gaps limit protection; "
+             "trusted declassification and retained model-context recovery remain unmeasured.")
+    assert len(text.split()) <= 150
+    (out / 'paper-paragraph.md').write_text(text + '\n')
 
 
 def render(rows, positions, out):
