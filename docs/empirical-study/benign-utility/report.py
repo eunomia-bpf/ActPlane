@@ -34,8 +34,14 @@ def main():
     benchmark_calls = [r for r in read(args.benchmark / 'calls.csv') if r['main_matrix'] == '1']
     replay_runs = read(args.replay / 'runs.csv')
     replay_calls = read(args.replay / 'calls.csv')
+    event_data = {
+        'Terminal-Bench': [r for r in read(args.benchmark / 'interventions.csv') if r['main_matrix'] == '1'],
+        'Public replay': read(args.replay / 'interventions.csv'),
+    }
     task_count = len(read(args.benchmark / 'tasks.csv'))
     cohort_count = len(read(args.replay / 'cohort.csv'))
+    if not task_count or not cohort_count:
+        raise ValueError('Both frozen benchmark and replay manifests are required')
     rows, positions = [], []
     for dataset, conditions, runs, calls, planned in [
         ('Terminal-Bench', ['a', 'b', 'c'], trials, benchmark_calls, task_count),
@@ -62,6 +68,13 @@ def main():
         for condition in conditions:
             selected = [r for r in valid_runs if r['condition'] == condition]
             selected_calls = [r for r in valid_calls if r['condition'] == condition]
+            selected_events = [r for r in event_data[dataset]
+                if r['condition'] == condition and (r[identity], condition) in valid_keys
+                and (any(str(r.get(k, '')).lower() in ('true', '1') for k in ('killed', 'blocked'))
+                     if benchmark else number(r, 'intervened') > 0)]
+            attributed = sum(number(r, 'intervention_events' if benchmark else 'intervention_count') for r in selected_calls)
+            if attributed > len(selected_events):
+                raise ValueError(f'Call counts exceed actual intervention events: {dataset}/{condition}')
             scored = [r for r in selected if r.get('official_success', '') != ''] if benchmark else []
             timing = []
             total_timing = []
@@ -75,8 +88,8 @@ def main():
                     total_timing.append(number(run, total_key) / number(control, total_key))
             grouped = defaultdict(list)
             for call in selected_calls:
-                i = int(call['call_index'])
-                start = int(call['bin_start']) if 'bin_start' in call else (i // 10) * 10
+                i = int(call['call_index'] if benchmark else call['position'])
+                start = ((i - 1) // 10) * 10 + 1
                 grouped[start].append(call)
             for start, group in sorted(grouped.items()):
                 positions.append(dict(dataset=dataset, condition=condition, bin_start=start,
@@ -90,10 +103,14 @@ def main():
                 official_successes=sum(number(r, 'official_success') for r in scored) if benchmark else '',
                 official_success_pct=100 * sum(number(r, 'official_success') for r in scored) / len(scored) if scored else '',
                 calls=len(selected_calls),
+                intervention_events=len(selected_events),
+                unattributed_intervention_events=len(selected_events) - int(attributed),
                 intervened_calls=sum(number(r, 'intervened') > 0 if benchmark else number(r, 'intervention_count') > 0 for r in selected_calls),
                 confirmed_false_calls=sum(number(r, 'confirmed_false' if benchmark else 'fp_count') > 0 for r in selected_calls),
                 unknown_calls=sum(number(r, 'unknown' if benchmark else 'unknown_count') > 0 for r in selected_calls),
                 source_read_accesses=sum(number(r, 'source_read_accesses') for r in selected_calls),
+                ipv4_connect_attempts=sum(number(r, 'inet4_connect_attempts') for r in selected)
+                    if benchmark else sum(number(r, 'ipv4_connect_attempts') for r in selected_calls),
                 paired_sessions=len(timing),
                 median_paired_execution_difference_pct=100 * (median(timing) - 1) if timing else '',
                 median_paired_total_difference_pct=100 * (median(total_timing) - 1) if total_timing else '',
@@ -128,9 +145,13 @@ def render(rows, positions, out):
             axes[1].plot(x, [100*r['confirmed_false_calls']/r['calls'] for r in data], marker='.', color=color, label=label)
             if any(r['unknown_calls'] for r in data):
                 axes[1].plot(x, [100*(r['confirmed_false_calls']+r['unknown_calls'])/r['calls'] for r in data], ls=':', color=color, label=label+' incl. unresolved')
-    axes[1].set(xlabel='Original public-trajectory call index (bins of ten)', ylabel='Confirmed false interventions / calls (%)', title='Recorded-call replay; completed sessions only')
+    replay_complete = all(r['matrix_complete'] for r in rows if r['dataset'] == 'Public replay')
+    replay_title = 'Public replay' if replay_complete else 'Public replay (partial)'
+    axes[1].set(xlabel='Within-session call position (bins of ten)', ylabel='Confirmed false interventions / calls (%)', title=replay_title)
     axes[1].set_ylim(bottom=0)
     if axes[1].lines:
+        if not any(any(y > 0 for y in line.get_ydata()) for line in axes[1].lines):
+            axes[1].set_ylim(0, 1)
         axes[1].legend(fontsize=7)
     else:
         axes[1].text(.5, .5, 'Replay results pending', transform=axes[1].transAxes, ha='center')

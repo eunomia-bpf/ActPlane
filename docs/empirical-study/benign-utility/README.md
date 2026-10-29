@@ -1,0 +1,28 @@
+# Benign utility and filename-source over-tainting
+
+**Run in progress.** The official benchmark matrix and matched public-trajectory replays have not all finished. The machine-readable `matrix_complete` field in [headline.csv](results/headline.csv) distinguishes complete comparisons from partial observations. Do not use a partial prefix as the completed utility result.
+
+The benchmark uses the official [Terminal-Bench task release](https://github.com/harbor-framework/terminal-bench-2) through [Harbor](https://github.com/harbor-framework/harbor). Exact package versions, model identity and dataset revision are recorded in [versions.csv](benchmark/results/versions.csv) and [tasks.csv](benchmark/results/tasks.csv). The subset was selected before outcomes to include software, data and secret-handling tasks. It is purposive rather than representative of the full benchmark. Model selection and preliminary failures are documented in [model-selection.md](benchmark/model-selection.md); candidate trials never enter the main comparison.
+
+Conditions are no AgPlane, a broad secret-filename IFC policy, and narrowed source paths. The defended conditions use the same retained calibrated kernel engine and enforce `kill connect` on secret-labeled processes. This is kernel-forced process failure, without BPF-LSM pre-operation denial. The isolated [enforcement control](benchmark/results/enforcement-control.csv) verifies this mechanism outside official tasks. It does not contribute task-success or intervention observations. The scoped condition has no demonstrated trusted declassification gate.
+
+The official task-success endpoint is the native verifier reward, defined by [Harbor's task verifier contract](https://docs.harborframework.com/tasks/overview). Tasks, verifiers, prompts, decoding defaults and official timeouts remain unchanged. [trials.csv](benchmark/results/trials.csv) retains main and candidate trials, infrastructure failures, official timeouts and separate setup, agent and verifier timings. Paired elapsed-time differences are descriptive. Sampling noise, condition order, image cache state and concurrent workloads prevent treating them as isolated kernel overhead.
+
+The protected boundary is the retained task shell and its descendants. The Terminus controller, model API and model context are outside that subtree. The low-level loader's semantic messages are retained in logs; terminal failures reach the model. These results do not evaluate the higher-level corrective-feedback interface or session-wide confinement across tool-output IPC. Filename sources also miss secrets embedded in executables, Git objects and arbitrary files. Exact absolute source paths can miss relative syscall spellings in tracepoint mode. A low intervention count cannot establish that those flows are safe.
+
+The public replay copies the fixed cohort and original harness without modifying the previous lane. [provenance.csv](replay/results/provenance.csv) and [cohort.csv](replay/results/cohort.csv) preserve the inputs. Commands retain their recorded order and setup semantics. Replays do not model agent recovery or supply official task-success scores. [runs.csv](replay/results/runs.csv) records instrumentation coverage, failures and retries; partial or incompatible-instrumentation runs are excluded from the covered-call denominator. Repository instructions and unsupported or out-of-scope directives are retained in [instruction_inventory.csv](replay/results/instruction_inventory.csv) and [instruction_exclusions.csv](replay/results/instruction_exclusions.csv).
+
+Interventions mean successful kernel kills or denials, rather than notifications or rule matches alone. Independent classification follows [annotation.md](annotation.md). A real secret-tainted process attempting a forbidden connection is a true violation even during a benign task. Broad filename matches on independently verified public material can instead be false interventions against actual-secret policy intent. Unresolved cases remain unknown. The diagnostic rates use dispatched tool calls for the live benchmark and covered recorded calls for replay, with within-session position bins. Native ATIF proposals that were never dispatched are recorded separately. This is an explicitly defined study diagnostic because Terminal-Bench supplies no action-level secret-policy annotations.
+
+All execution and analysis take place inside the Workspace. From this lane's synced remote `src` directory, recompute the combined CSV and PDF from the durable exports:
+
+```bash
+python3 report.py \
+  --benchmark /workspaces/exp/benign-utility/benchmark/results \
+  --replay /workspaces/exp/benign-utility/replay/results \
+  --out /workspaces/exp/benign-utility/results
+```
+
+Benchmark reproduction starts with `bash benchmark/setup.sh`, followed by the installed benchmark environment's `python -m benchmark.matrix`. Replay reproduction uses `bash replay/launch.sh` after existing shard jobs terminate. Compatible completed cells are retained and incompatible receipts are archived before affected cells rerun. Do not launch a competing writer for an active trajectory. The [plan](plan.md), [independent review](plan-review.md), and [open coverage gaps](BLOCKED.md) state the interpretation boundary. Raw trajectories, containers and full logs remain remote. Only small exported results and the figure are committed.
+
+The PDF is generated by Matplotlib with embedded TrueType fonts. Its left panel shows official success and its right panel shows confirmed-false call rates, with unresolved interventions shown separately. The current figure is provisional until both comparisons are complete and the result review is recorded.
