@@ -2,3 +2,5 @@ variable,value,collection_stage
 ACTPLANE_HOOK_PROFILE,unset,current_export_not_historical_launch
 ACTPLANE_ENABLE_ADVANCED_HOOKS,unset,current_export_not_historical_launch
 ACTPLANE_ADVANCED_TRACEPOINTS,unset,current_export_not_historical_launch
+kernel_release,7.3.0-070300rc3-generic,current_export_not_historical_launch
+kernel_securityfs_lsm,"lockdown,capability,landlock,yama,apparmor,bpf,ima,evm",current_export_not_historical_launch
