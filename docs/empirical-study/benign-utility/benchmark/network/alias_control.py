@@ -10,10 +10,10 @@ if len(sys.argv)>1 and sys.argv[1]=='--child':
  with open('/dev/null','rb'):pass
  os.kill(os.getpid(),signal.SIGSTOP)
  os.chroot(root)
- if spelling=='relative':os.chdir(str(Path(source).parent));read_path=Path(source).name
+ if spelling in ('relative','dot_relative'):os.chdir(str(Path(source).parent));read_path=('./' if spelling=='dot_relative' else '')+Path(source).name
  elif spelling=='renamed_symlink':read_path='/alias.key'
  else:read_path=source
- Path(read_path).read_bytes()
+ with open(read_path,'rb') as handle:handle.read()
  try:
   with socket.socket() as sock:sock.connect(('127.0.0.1',9))
   observed=0
@@ -34,7 +34,7 @@ def main():
  for task in tasks:
   sources=[r['path'] for r in known if r['task']==task['task']] or ['/app/.env']
   for source in sources:
-   for spelling in ('absolute','relative','renamed_symlink'):
+   for spelling in ('absolute','relative','dot_relative','renamed_symlink'):
     for condition in ('a','b','c'):
      number=len(rows)+1;case=folder/str(number);root=case/'root';root.mkdir(parents=True)
      fixture=root/source.lstrip('/');assert fixture.resolve().is_relative_to(root.resolve())

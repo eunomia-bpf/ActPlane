@@ -4,18 +4,22 @@ from pathlib import Path
 from benchmark.adapter import InstrumentedTerminus
 BASE=Path('/workspaces/exp/benign-utility/raw/benchmark')
 ROOT=BASE.parent.parent/'benchmark/network'
+class NetworkInstrumentationPreflightComplete(RuntimeError):pass
 
 class NetworkTerminus(InstrumentedTerminus):
  def __init__(self,*args,**kwargs):
-  self.bu_policy_directory=Path(__file__).parent/'policies'/os.environ['BU_TASK']
+  self.bu_policy_directory=ROOT/'policies'/os.environ['BU_TASK']
   self.bu_syscalls=None;self.bu_syscall_stream=None;self.bu_actual_workspace_root=None;self.bu_root_start=None
   super().__init__(*args,**kwargs)
  async def _setup_measured(self,environment):
-  await super()._setup_measured(environment)
-  scope=json.loads((self.bu_logs/'scope.json').read_text())
   seal=json.loads((ROOT/'cohort-freeze.json').read_text())
   for relative,expected in seal['files'].items():
    assert hashlib.sha256((ROOT/relative).read_bytes()).hexdigest()==expected,'Frozen cohort artifact changed'
+  for relative,expected in seal.get('runtime_code',{}).items():
+   assert hashlib.sha256((Path(__file__).parent.parent/relative).read_bytes()).hexdigest()==expected,'Frozen runtime code changed'
+  assert hashlib.sha256((BASE/'engine/process').read_bytes()).hexdigest()==seal['engine_sha256']
+  await super()._setup_measured(environment)
+  scope=json.loads((self.bu_logs/'scope.json').read_text())
   images=list(__import__('csv').DictReader((ROOT/'results/image-inventory.csv').open()))
   expected=next(r['image_id'] for r in images if r['task']==self.bu_task)
   actual=subprocess.check_output(['docker','inspect','--format','{{.Image}}',scope['container_id']],text=True).strip()
@@ -62,6 +66,17 @@ print(json.dumps(dict(container_root_pid=candidates[0],processes=items)))
    if f'TracerPid:\t{self.bu_syscalls.pid}\n' in status:break
    await asyncio.sleep(.05)
   else:raise RuntimeError('Independent syscall tracer never attached to protected shell')
+  if os.environ.get('BU_NETWORK_PREFLIGHT_ONLY')=='1':
+   await self._session.send_keys('/bin/true\n',block=False,min_timeout_sec=.2)
+   await asyncio.sleep(.2)
+   assert any('/bin/true' in p.read_text(errors='replace') for p in self.bu_logs.glob('syscalls.*') if p.name.split('.')[-1].isdigit())
+   await self._session.send_keys('/bin/sleep 30 & echo $! >/tmp/bu-trace-preflight.pid\n',block=False,min_timeout_sec=.2)
+   child=await environment.exec(command='cat /tmp/bu-trace-preflight.pid');child_pid=int(child.stdout.strip())
+   self.bu_syscalls.send_signal(signal.SIGINT);self.bu_syscalls.wait(timeout=10)
+   alive=await environment.exec(command='kill -0 '+str(child_pid));assert alive.return_code==0,'Tracer detach disrupted a background child'
+   await environment.exec(command='kill '+str(child_pid))
+   (self.bu_logs/'instrumentation-preflight.json').write_text(json.dumps(dict(passed=True,purpose='setup-only calibration; native Agent.run never entered',kernel_root_pid=scope['root_host_pid'],workspace_root_pid=matches[0],container_root_pid=container_root,trace_verified=True,detach_preserved_background_child=True,model_generation_calls=0),indent=2)+'\n')
+   raise NetworkInstrumentationPreflightComplete('Intentional setup-only stop; no model generation or task oracle')
  def _stop_observers(self):
   process=self.bu_syscalls;root_alive=False
   if self.bu_actual_workspace_root:
