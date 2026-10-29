@@ -110,6 +110,15 @@ git-leak-recovery,b,block-1,git-leak-recovery__ttfwnoD,1,0,5,call_1_2,1,10,16951
 git-leak-recovery,b,block-1,git-leak-recovery__ttfwnoD,1,0,6,call_1_3,1,10,1695180046508849,1695181047934536,0,0,0,0,0,0,scope_audit_pending,command,unverified
 git-leak-recovery,b,block-1,git-leak-recovery__ttfwnoD,1,0,7,call_2_1,1,10,1695288410833772,1695291425208489,0,0,0,0,2,0,scope_audit_pending,command,unverified
 git-leak-recovery,b,block-1,git-leak-recovery__ttfwnoD,1,0,8,call_2_2,1,10,1695291425279171,1695294428430481,0,0,0,0,0,0,scope_audit_pending,command,unverified
+git-leak-recovery,b,block-2,git-leak-recovery__Kn2WZbt,1,1,1,call_0_1,1,10,1699498989074553,1699499990622217,0,0,0,0,0,0,complete,command,recorded_asciicast_input
+git-leak-recovery,b,block-2,git-leak-recovery__Kn2WZbt,1,1,2,call_0_2,1,10,1699499990698088,1699500992511912,0,0,0,0,0,0,complete,command,recorded_asciicast_input
+git-leak-recovery,b,block-2,git-leak-recovery__Kn2WZbt,1,1,3,call_0_3,1,10,1699500992585743,1699501993227710,0,0,0,0,0,0,complete,command,recorded_asciicast_input
+git-leak-recovery,b,block-2,git-leak-recovery__Kn2WZbt,1,1,4,call_1_1,1,10,1699544371833261,1699545375210957,0,0,0,0,0,0,complete,command,recorded_asciicast_input
+git-leak-recovery,b,block-2,git-leak-recovery__Kn2WZbt,1,1,5,call_1_2,1,10,1699545375298533,1699546377199525,0,0,0,0,4,0,complete,command,recorded_asciicast_input
+git-leak-recovery,b,block-2,git-leak-recovery__Kn2WZbt,1,1,6,call_1_3,1,10,1699546377278429,1699547378787528,0,0,0,0,0,0,complete,command,recorded_asciicast_input
+git-leak-recovery,b,block-2,git-leak-recovery__Kn2WZbt,1,1,7,call_2_1,1,10,1699650633496582,1699651137207178,0,0,0,0,0,0,complete,command,recorded_asciicast_input
+git-leak-recovery,b,block-2,git-leak-recovery__Kn2WZbt,1,1,8,call_2_2,1,10,1699651137292985,1699653140651007,0,0,0,0,0,0,complete,command,recorded_asciicast_input
+git-leak-recovery,b,block-2,git-leak-recovery__Kn2WZbt,1,1,9,call_2_3,1,10,1699653140734331,1699656142222046,0,0,0,0,4,0,complete,command,recorded_asciicast_input
 git-leak-recovery,b,repair-1,git-leak-recovery__8rFGZDX,1,0,1,call_0_1,1,10,1693291154889082,1693292156207461,0,0,0,0,0,0,scope_audit_pending,command,unverified
 git-leak-recovery,b,repair-1,git-leak-recovery__8rFGZDX,1,0,2,call_1_1,1,10,1693304697547696,1693305698796429,0,0,0,0,0,0,scope_audit_pending,command,unverified
 git-leak-recovery,b,repair-1,git-leak-recovery__8rFGZDX,1,0,3,call_2_1,1,10,1693391543626362,1693393546690226,0,0,0,0,6,0,scope_audit_pending,command,unverified
