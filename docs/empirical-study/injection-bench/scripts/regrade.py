@@ -94,6 +94,12 @@ def regrade(path, tasks, run):
             return {"case": case.name, "status": "already_graded"}
         task = tasks[record["task_id"]]
         root, source = trusted_root(task, case, grading)
+        initial=grading/'out/result.json'
+        if source=='root_owned_grading_spec' and initial.exists():
+            report=json.loads(initial.read_text())
+            if bool(report.get('target_pass'))!=bool(record.get('utility_pass')):
+                raise ValueError('initial independent grader disagrees with scored utility')
+            return {'case':case.name,'status':'already_independent'}
         state = (case / "actual-final-state.json").read_bytes()
         if not isinstance(json.loads(state), dict):
             raise ValueError("actual final state is not a filesystem snapshot")

@@ -1,0 +1,16 @@
+run,model,system,cases_observed,cases_terminal,generated_policy_present,policy_absent_no_submission,initial_load_attempts,runtime_submission_attempts,native_accepted,native_rejected,kernel_acceptance_correlated,kernel_rejection_correlated,userspace_rejections,unresolved_decision_stage,requested_declassify,requested_endorse,requested_source,blocked_kernel_events
+frontier-v1,claude-cli:opus,D0_none,88,88,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+frontier-v1,claude-cli:opus,D3_action_gate,88,88,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+frontier-v1,claude-cli:opus,agplane_pre,9,9,9,0,9,0,0,0,0,0,0,0,0,0,9,0
+frontier-v1,claude-cli:opus,agplane_self,8,8,8,0,8,8,4,4,4,0,4,0,0,0,4,0
+frontier-v1,claude-cli:opus,unknown,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+frontier-v1,unknown,unknown,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+main-v1,qwen3.8-27b-nvfp4,D0_none,19,19,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+main-v1,qwen3.8-27b-nvfp4,D3_action_gate,18,18,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+main-v1,qwen3.8-27b-nvfp4,agplane_pre,4,4,0,4,0,0,0,0,0,0,0,0,0,0,0,0
+main-v1,qwen3.8-27b-nvfp4,agplane_self,4,0,4,0,4,4,1,3,0,0,3,1,0,0,3,0
+main-v1,qwen3.8-27b-nvfp4,unknown,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+main-v1,zai/glm-5.3,D0_none,100,100,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+main-v1,zai/glm-5.3,D3_action_gate,100,100,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+main-v1,zai/glm-5.3,agplane_pre,3,2,3,0,3,0,0,0,0,0,0,0,0,0,1,0
+main-v1,zai/glm-5.3,agplane_self,2,2,2,0,2,2,0,2,0,0,2,0,0,0,2,0

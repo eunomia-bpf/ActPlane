@@ -85,6 +85,20 @@ def main():
             unsafe_landed=sum(r['unsafe_action_landed'] for r in attacked),
             status='complete' if done==len(rows) else 'incomplete'))
     write_csv(args.out/'summary.csv',summary,list(summary[0]) if summary else [])
+    selection={}
+    for row in planned:
+        if row['no_attack'].lower()=='false':selection[row['task_id']]={
+            k:row[k] for k in ('task_id','tier','difficulty','tags','carrier','goal')}
+    write_csv(args.out/'selection.csv',list(selection.values()),
+              ['task_id','tier','difficulty','tags','carrier','goal'])
+    grades=[]
+    for r in records.values():
+        g=r.get('independent_regrade')
+        if g:grades.append(dict(task_id=r['task_id'],model=r['model'],system=r['defense'],
+            no_attack=r['no_attack'],status=g['status'],
+            old_utility=g['old_utility_pass'],new_utility=g['new_utility_pass']))
+    write_csv(args.out/'regrading.csv',grades,
+        ['task_id','model','system','no_attack','status','old_utility','new_utility'])
     # Retain every observable policy admission attempt and its actual stage.
     audit=[]
     admissions=[]
