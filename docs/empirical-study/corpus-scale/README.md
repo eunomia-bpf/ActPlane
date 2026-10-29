@@ -8,13 +8,13 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 
 | Measure | Paper claim | Recovered labels | New automated labels (repository bootstrap interval) | Difference vs recovered |
 |---|---:|---:|---:|---:|
-| Policy / all statements | 64.0% | 64.3% | 56.0% [52.5%, 59.3%] | -8.3 pp [-16.0, +0.3] |
+| Policy / all statements | 64.0% | 64.3% | 54.3% [51.5%, 56.9%] | -10.0 pp [-17.4, -1.9] |
 | System-observable / policies | 83.0% | 82.8% | withheld | withheld |
 | Context needed / system-observable | 74.0% | 73.6% | withheld | withheld |
 | Repositories with cross-event policies | 81.0% | 79.7% | withheld | withheld |
 | OS-tier policy candidates (count) | 607 | 607 | withheld | withheld |
 
-The collected manifest covers 325 repositories and 771 selected instruction paths (761 distinct repository/content pairs). The analysis includes 146 repositories and 11,613 statements. 226 extracted files await complete model pairs or final adjudication. 179 repositories are withheld until every selected source is successfully extracted and labeled.
+The collected manifest covers 325 repositories and 771 selected instruction paths (761 distinct repository/content pairs). The analysis includes 211 repositories and 18,031 statements. 132 extracted files await complete model pairs or final adjudication. 114 repositories are withheld until every selected source is successfully extracted and labeled.
 
 The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.
 
@@ -89,9 +89,9 @@ Agreement between the primary models on the analyzed new spans is reported separ
 
 | New-corpus intermodel dimension | Paired statements | Disagreements | Raw agreement | Kappa |
 |---|---:|---:|---:|---:|
-| topic | 11613 | 3327 | 0.714 | 0.678 |
-| type | 11613 | 1111 | 0.904 | 0.806 |
-| any_scaled_axis | 11613 | 4038 | 0.652 | undefined |
+| topic | 18031 | 5168 | 0.713 | 0.678 |
+| type | 18031 | 1844 | 0.898 | 0.794 |
+| any_scaled_axis | 18031 | 6373 | 0.647 | undefined |
 
 ## Selection and measurement
 
@@ -171,27 +171,28 @@ The collected repositories have a star range of 12,209–458,063, with median 40
 
 | Family | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| .cursor/rules/* | 4 | 40 | 62.5% [38.2%, 80.4%] | withheld | withheld | withheld | withheld |
-| .cursorrules | 5 | 40 | 45.0% [20.0%, 47.1%] | withheld | withheld | withheld | withheld |
-| AGENTS.md | 97 | 4932 | 57.4% [52.1%, 62.7%] | withheld | withheld | withheld | withheld |
-| CLAUDE.md | 57 | 1005 | 53.6% [44.0%, 62.5%] | withheld | withheld | withheld | withheld |
-| GEMINI.md | 3 | 6 | 50.0% [0.0%, 66.7%] | withheld | withheld | withheld | withheld |
-| SKILL.md | 93 | 4980 | 55.4% [50.2%, 59.9%] | withheld | withheld | withheld | withheld |
-| copilot-instructions.md | 20 | 618 | 54.4% [48.7%, 62.2%] | withheld | withheld | withheld | withheld |
+| .cursor/rules/* | 9 | 94 | 62.8% [44.9%, 75.6%] | withheld | withheld | withheld | withheld |
+| .cursorrules | 6 | 66 | 30.3% [8.6%, 47.3%] | withheld | withheld | withheld | withheld |
+| AGENTS.md | 144 | 7599 | 56.6% [52.2%, 60.7%] | withheld | withheld | withheld | withheld |
+| CLAUDE.md | 94 | 2001 | 51.6% [45.8%, 57.3%] | withheld | withheld | withheld | withheld |
+| GEMINI.md | 9 | 42 | 59.5% [40.0%, 66.7%] | withheld | withheld | withheld | withheld |
+| SKILL.md | 147 | 7140 | 53.1% [48.7%, 57.4%] | withheld | withheld | withheld | withheld |
+| copilot-instructions.md | 37 | 1102 | 51.1% [46.0%, 56.8%] | withheld | withheld | withheld | withheld |
 
 | Category | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| agent_frameworks | 51 | 4065 | 58.4% [54.3%, 62.2%] | withheld | withheld | withheld | withheld |
-| applications | 76 | 5770 | 55.8% [50.2%, 60.6%] | withheld | withheld | withheld | withheld |
-| noncoding_agents | 19 | 1778 | 51.4% [42.8%, 59.8%] | withheld | withheld | withheld | withheld |
+| agent_frameworks | 80 | 7426 | 55.4% [51.7%, 59.2%] | withheld | withheld | withheld | withheld |
+| applications | 105 | 7943 | 54.4% [50.0%, 58.8%] | withheld | withheld | withheld | withheld |
+| noncoding_agents | 26 | 2662 | 50.8% [42.5%, 58.5%] | withheld | withheld | withheld | withheld |
 
 | File_scope | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| general_agent_operations | 8 | 102 | 71.6% [41.4%, 77.6%] | withheld | withheld | withheld | withheld |
-| noncoding_assistance | 17 | 805 | 46.7% [36.4%, 58.0%] | withheld | withheld | withheld | withheld |
-| software_development | 115 | 8144 | 57.8% [53.9%, 61.7%] | withheld | withheld | withheld | withheld |
-| unclassified | 43 | 2522 | 52.6% [44.3%, 58.9%] | withheld | withheld | withheld | withheld |
-| unclear | 30 | 40 | 45.0% [29.3%, 60.0%] | withheld | withheld | withheld | withheld |
+| descriptive_reference | 2 | 40 | 2.5% [2.5%, 2.5%] | withheld | withheld | withheld | withheld |
+| general_agent_operations | 13 | 150 | 65.3% [36.6%, 76.3%] | withheld | withheld | withheld | withheld |
+| noncoding_assistance | 24 | 903 | 48.1% [38.9%, 58.4%] | withheld | withheld | withheld | withheld |
+| software_development | 173 | 13264 | 55.8% [52.6%, 59.0%] | withheld | withheld | withheld | withheld |
+| unclassified | 60 | 3607 | 50.5% [44.0%, 56.7%] | withheld | withheld | withheld | withheld |
+| unclear | 52 | 67 | 40.3% [28.8%, 51.5%] | withheld | withheld | withheld | withheld |
 
 ## Reproduction and artifacts
 

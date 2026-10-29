@@ -2534,6 +2534,217 @@ Summary: Chinese portrait video with voice-over, subtitles, and background music
 ```
 
 ",1,160,directive,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+4885d9ebebe8ec2ebefd:11:15,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,11,15,"## Task
+
+Display the current date and time in Pakistan Standard Time (UTC+5).
+
+",1,33,directive,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+4885d9ebebe8ec2ebefd:15:17,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,15,17,"## Instructions
+
+",1,33,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+4885d9ebebe8ec2ebefd:17:22,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,17,22,"1. **Get Current Time**: Run the following bash command:
+   ```
+   TZ='Asia/Karachi' date '+%Y-%m-%d %H:%M:%S %Z'
+   ```
+
+",1,33,directive,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+4885d9ebebe8ec2ebefd:1:7,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,1,7,"---
+name: time-skill
+description: Display the current time in Pakistan Standard Time (PKT, UTC+5). Use when the user asks for the current time, Pakistan time, or PKT.
+user-invocable: true
+---
+
+",1,33,description,AI Integration,,,noncoding_assistance,agreement,False,agreement
+4885d9ebebe8ec2ebefd:22:27,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,22,27,"2. **Display Result**: Show the time in this format:
+   ```
+   Current Time in Pakistan (PKT): YYYY-MM-DD HH:MM:SS PKT
+   ```
+
+",1,33,directive,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+4885d9ebebe8ec2ebefd:27:29,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,27,29,"## Requirements
+
+",1,33,description,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+4885d9ebebe8ec2ebefd:29:30,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,29,30,"- Always use the `Asia/Karachi` timezone (UTC+5)
+",1,33,directive,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+4885d9ebebe8ec2ebefd:30:31,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,30,31,"- Use 24-hour format
+",1,33,directive,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+4885d9ebebe8ec2ebefd:31:32,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,31,32,"- Include the date alongside the time
+",1,33,directive,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+4885d9ebebe8ec2ebefd:32:33,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,32,33,"- Keep the output concise — no extra commentary
+",1,33,directive,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+4885d9ebebe8ec2ebefd:7:11,4885d9ebebe8ec2ebefd,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,.claude/skills/time-skill/SKILL.md,SKILL.md,57ce908855a6c6ecfe22420e966bf863d1cf6b0684e951cb6c4c8bfaf68b2466,7,11,"# Time Skill
+
+This skill displays the current date and time in Pakistan Standard Time (PKT).
+
+",1,33,description,AI Integration,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:113:129,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,113,129,"### 7. Flag PR-quality issues (when `unresolved_count > 0`)
+If the collector reported any `unresolved` PRs (backport chain that never reached `main`),
+post a **single warning comment** on the release-note PR so reviewers can act on it. Do not
+silently drop it — these often indicate a fix that **skipped `main`** and may be missing
+from `main`/future releases (a regression risk), not just a citation quirk.
+
+```bash
+gh pr comment <pr-number> --repo StarRocks/starrocks --body-file <warning>
+```
+
+For each unresolved PR, state in the comment: the number cited in the notes and its `base`
+branch (not `main`), that no `main` PR was found, and the two impacts — (1) the citation is
+inconsistent with the other entries, and (2) verify the fix exists on `main`; forward-port
+if missing. Ask the author to confirm the correct PR number to cite. (Skip this step
+entirely when `unresolved_count` is 0.)
+
+",1,150,directive,DevOps,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:129:138,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,129,138,"### 8. Hand off translation
+Stop and tell the user:
+- Only the derived English file (e.g. `docs/en/release_notes/release-3.5.md`) changed.
+- Once `CI DOC Checker → markdownlint` passes on the PR, the
+  **""🌎 Translation Required?""** comment will auto-post with `zh` and `ja` checkboxes.
+- A **docs-maintainer** checks the desired boxes and replies **`/translate`**; the
+  `Translation Runner` workflow (`StarRocks/doc-translator` v1.0.1) then commits the
+  Chinese and Japanese versions into the same PR.
+
+",1,150,directive,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+509c18a33a9eed453dac:138:149,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,138,149,"## Notes and limits
+
+- **Whole-file translation**: `/translate` re-translates the entire file, not just the new
+  section. This is the existing established behavior — rely on it; do not change the
+  pipeline or pre-edit `zh`/`ja`.
+- **Behavior changes** are detected heuristically; the ""Needs reviewer confirmation"" list
+  plus PR review is the safety net (`docs/CLAUDE.md`: never assert unverified technical
+  facts).
+- **Portability**: the only release-specific values are version, branch, file path, and
+  repo. The same skill structure serves other StarRocks lines (e.g. a commercial product)
+  by swapping those constants — author original content, do not copy notes across products.
+",1,150,directive,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+509c18a33a9eed453dac:149:150,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,149,150,"- Commits must use `git commit -s` (DCO sign-off).
+",1,150,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:14:18,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,14,18,"Read `references/format.md` (exact output format) and `references/categorization.md`
+(how to map and rewrite PRs) before drafting. The PR is the human review gate, so favor a
+complete, accurate draft with uncertain items flagged over silent guessing.
+
+",1,150,directive,Documentation,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:18:27,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,18,27,"## Inputs
+
+- `$ARGUMENTS` = the new patch version, e.g. `3.5.19`. If absent, ask for it.
+- Derive once and reuse (examples shown for `3.5.19`):
+  - **minor** = `<MAJOR>.<MINOR>` (e.g. `3.5`), **branch** = `branch-<minor>` (e.g. `branch-3.5`)
+  - **file** = `docs/en/release_notes/release-<minor>.md` (e.g. `docs/en/release_notes/release-3.5.md`)
+  - **prev tag** = the previous patch (e.g. `3.5.18`) — the newest `## X.Y.Z` already in
+    **file**; read it to confirm rather than assuming.
+
+",1,150,description,Configuration & Environment,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+509c18a33a9eed453dac:1:8,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,1,8,"---
+name: release-notes
+description: Draft StarRocks release notes for a patch version from the PRs merged into its release branch, then open a [Doc] PR that hands off to the /translate workflow for Chinese and Japanese. Use when a new patch release (e.g. 3.5.19) has been tagged and English release notes are not yet written.
+argument-hint: ""[version] e.g. 3.5.19""
+allowed-tools: Read, Edit, Grep, Glob, Bash, Agent
+---
+
+",1,150,description,AI Integration,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:27:29,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,27,29,"Use the derived **file** path everywhere below — do not hardcode `release-3.5.md`.
+
+",1,150,directive,Implementation Details,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+509c18a33a9eed453dac:29:31,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,29,31,"## Workflow
+
+",1,150,description,Development Process,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:31:39,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,31,39,"### 1. Collect the changes
+Run the collector and capture its JSON:
+
+```bash
+bash .claude/skills/release-notes/scripts/collect-prs.sh <prev_tag> <new_tag>
+# e.g. collect-prs.sh 3.5.18 3.5.19
+```
+
+",1,150,directive,DevOps,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+509c18a33a9eed453dac:39:45,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,39,45,"It returns
+`{ release_date_raw, pr_count, prs: [{number,title,url,base,resolved_to_main,labels,body_excerpt}],
+unresolved_count, unresolved: [...] }` for every PR backported between the two tags. If
+`pr_count` is 0, stop and report — the tags likely don't exist yet or the order is wrong
+(`gh api repos/StarRocks/starrocks/tags`).
+
+",1,150,description,DevOps,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+509c18a33a9eed453dac:45:49,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,45,49,"Each PR's `number` is already resolved to the **original `main` PR** (release notes always
+cite the main PR). `release_date_raw` is only a **suggestion** (the tag/commit date) — see
+step 4 for the actual release date.
+
+",1,150,description,DevOps,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:49:53,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,49,53,"`unresolved` lists any PR whose backport chain did **not** trace back to `main`
+(`resolved_to_main: false`, e.g. a fix authored directly against a release branch). These
+need a PR-quality warning — see step 7.
+
+",1,150,description,DevOps,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+509c18a33a9eed453dac:53:59,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,53,59,"### 2. Mirror the existing format
+Read the top of the target `file` — the frontmatter, the `:::warning` block, and the
+current newest `## X.Y.Z` section. Match its heading casing, the
+`The following issues have been fixed:` line, and the PR-link style. Do not change
+frontmatter.
+
+",1,150,directive,Documentation,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:59:75,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,59,75,"### 3. Categorize and rewrite
+Apply `references/categorization.md`:
+- Map each PR to `Behavior Changes` / `Improvements` / `Bug fixes`; exclude
+  `[Doc]`/`[UT]`/`[Tool]` and behavior-neutral `[Refactor]`.
+- Rewrite each title into a user-facing sentence (strip prefixes/scope, backtick
+  identifiers), grouping closely related PRs with space-separated links.
+- Build a **""Needs reviewer confirmation""** list for uncertain section choices, terse
+  titles, or possible upgrade/downgrade-warning items. This list goes in the PR body, not
+  the release notes.
+- **Release date — always ask the user.** The official release date is set by QA and
+  product management and is **not** necessarily the tag/commit date. Prompt the user:
+  ""What is the official release date for `<new_tag>`?"", offering the detected
+  `release_date_raw` (formatted `Month D, YYYY`) only as a suggested default. Use the
+  user's answer for the `Release date:` line. Do not proceed to write the section until
+  the date is confirmed.
+
+",1,150,directive,Documentation,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:75:80,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,75,80,"### 4. Write the section
+Insert the new `## X.Y.Z` section into `file` per `references/format.md`: directly below
+the closing `:::` of the `:::warning` block and above the current newest patch section.
+Omit empty subsections. English file only.
+
+",1,150,directive,Documentation,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:80:94,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,80,94,"### 5. Lint (required so the translation comment appears)
+The `Translation Status Check` workflow only posts the language checkboxes after
+`markdownlint` passes, so the diff must be clean. Lint the **derived file**, and note the
+Vale config lives at `docs/.vale.ini` and resolves its styles relative to `docs/` — run
+Vale from the `docs/` directory:
+
+```bash
+# from the docs/ directory, using the version-derived file (e.g. release-3.5.md)
+cd docs && vale --config=.vale.ini en/release_notes/release-<minor>.md
+```
+
+Also run the repo's markdownlint (`docs/.markdownlint.json`) if available. Fix any issues.
+Re-confirm frontmatter/`description` is unchanged.
+
+",1,150,directive,Testing,,,noncoding_assistance,agreement,False,agreement
+509c18a33a9eed453dac:8:14,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,8,14,"# StarRocks Release Notes
+
+Generate the **English** release-notes section for a tagged StarRocks patch release,
+open a `[Doc]` PR for it, and hand off Chinese/Japanese translation to the existing
+`/translate` workflow. English only — never edit `docs/zh/**` or `docs/ja/**`.
+
+",1,150,directive,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_singleton_feedback
+509c18a33a9eed453dac:94:113,509c18a33a9eed453dac,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,.claude/skills/release-notes/SKILL.md,SKILL.md,f80c61a4976cba74dea69ba27e2d27bca538812cabfeeb2090de2315b1da7634,94,113,"### 6. Open the PR
+```bash
+git checkout -b release-notes-<new_tag>           # e.g. release-notes-3.5.19
+git add docs/en/release_notes/release-<minor>.md  # the derived file, e.g. release-3.5.md
+git commit -s -m ""[Doc] Add release notes for StarRocks v<new_tag>""
+git push -u origin release-notes-<new_tag>
+gh pr create --title ""[Doc] Add release notes for StarRocks v<new_tag>"" --body-file <body>
+```
+
+Fill `.github/PULL_REQUEST_TEMPLATE.md` for the body:
+- **What type of PR**: check `- [x] Doc`.
+- **Change in behavior**: check `- [x] No` (the notes themselves don't change product
+  behavior).
+- **Checklist**: this PR *is* the user documentation; leave test-case boxes unchecked.
+- **Bugfix cherry-pick branch check**: this is a docs PR, not a code backport — leave the
+  version boxes (`4.1`/`4.0`/`3.5`) unchecked unless the user says otherwise.
+- Append the **""Needs reviewer confirmation""** list under ""What I'm doing"" so reviewers
+  verify the flagged entries.
+
+",1,150,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
 53afc1618a7645c4544f:100:101,53afc1618a7645c4544f,dotnet/efcore,493b52c681ba7f9a25c7a2e6c89d237f735c83c4,.agents/skills/triage/SKILL.md,SKILL.md,536040fe3f51949de9df0c0a16b984163037d0753fa5d152d1ba15f1945f988c,100,101,"* Pay attention to the EF provider version being used, as the bug may be specific to the version reported by the user. Once you have a working repro, try other, newer versions to confirm where the bug still occurs, and whether it has already been fixed.
 ",1,124,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
 53afc1618a7645c4544f:101:103,53afc1618a7645c4544f,dotnet/efcore,493b52c681ba7f9a25c7a2e6c89d237f735c83c4,.agents/skills/triage/SKILL.md,SKILL.md,536040fe3f51949de9df0c0a16b984163037d0753fa5d152d1ba15f1945f988c,101,103,"* Once you've pinned down a provider to repro on (ideally SQL Server), do not keep code for multiple providers - the repro should only have code to repro on a single provider.
@@ -2837,6 +3048,57 @@ https://docs.composio.dev/toolkits/<toolkit>.md
 802eebb273280f6cca8b:8:10,802eebb273280f6cca8b,ComposioHQ/composio,df8a7817bbf5ba1244155fb9ea3ae5a835a65a28,skills/composio/SKILL.md,SKILL.md,1d9e3e51867fe1a346392631dc3f5139f32317642b9468d49e4b8714df818bdf,8,10,"Use this skill as a router. Identify the product and the job, load only the relevant guidance, consult canonical documentation for volatile details, and then answer or do the work the user requested.
 
 ",1,87,directive,AI Integration,,,noncoding_assistance,agreement,False,agreement
+887edf80376f6a747d4e:11:13,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,11,13,"## 1. Fetch
+
+",1,36,description,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+887edf80376f6a747d4e:13:15,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,13,15,"Arguments name specific PRs; otherwise take the queue: `gh pr list --repo vinta/awesome-python --limit 10 --json number,title,author,url,body,files,mergeable,mergeStateStatus`. Fetch all diffs in parallel: `gh pr diff <number> --repo vinta/awesome-python`.
+
+",1,36,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+887edf80376f6a747d4e:15:17,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,15,17,"Sort the batch: entry additions continue; anything else (typo fixes, website changes, docs) is out of scope — report it under ""needs human"" and touch nothing, so it resurfaces every run until a human acts. Done when every PR is sorted and has its diff.
+
+",1,36,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+887edf80376f6a747d4e:17:19,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,17,19,"## 2. Screen
+
+",1,36,description,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+887edf80376f6a747d4e:19:21,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,19,21,"Apply the Automatic Rejection rules that the diff and PR metadata answer without judgment. The recently-closed-duplicate rule needs a lookup: `gh pr list --repo vinta/awesome-python --state closed --search ""<project name>"" --limit 10`; a project under `docs/audit-logs.md` ""Rejected Additions"" also counts as previously rejected unless the PR brings evidence newer than its line. A screened-out PR goes straight to step 4 as a close, with the rule it broke as its reason.
+
+",1,36,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+887edf80376f6a747d4e:1:7,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,1,7,"---
+name: review-prs
+description: Triage open PRs — screen from the diff, delegate the admission judgment to audit-the-list, then merge or close on GitHub. Fire when the maintainer asks to review PRs, process the PR queue, or judge whether a specific PR should be merged.
+argument-hint: [PR numbers]
+---
+
+",1,36,description,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+887edf80376f6a747d4e:21:23,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,21,23,"Resolve each survivor's target use case against the current README — a diff's context lines show the base the PR was written on, which may have changed since. A merge conflict rides to the Merge arm, which absorbs it. Done when every surviving PR names its target use case.
+
+",1,36,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+887edf80376f6a747d4e:23:25,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,23,25,"## 3. Judge
+
+",1,36,description,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+887edf80376f6a747d4e:25:27,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,25,27,"Group survivors by target use case — PRs proposing entries for the same use case compete for the same slots, so they ride one invocation. Per group, invoke the `audit-the-list` skill with arguments in this shape: ""Judge proposed entries <names, each with its PR number> for the <section — subcategory> use case. Evidence and Verdicts steps only; report the verdicts back. No preview page, no README changes, no commits."" The verdict for each PR is merge or close, grounded in the fetched evidence; when the use case is at cap, a merge verdict names the entry that leaves. An entry no current use case fits is a third outcome — a structure question: carry it to Act with evidence attached, and the maintainer decides there (mint the subcategory and merge, close, or leave open). Done when every survivor holds a verdict with a reason.
+
+",1,36,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+887edf80376f6a747d4e:27:29,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,27,29,"## 4. Act
+
+",1,36,description,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+887edf80376f6a747d4e:29:30,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,29,30,"- **Close**: draft each closing comment — it states the reason and links CONTRIBUTING.md. Per batch of up to 4 closing PRs: print each draft in chat, its PR link as a label above a fenced block holding only the comment bytes, then AskUserQuestion over that batch — arms: close with the draft as printed, close without a comment, keep open. The chat print is the review copy; an option description only points at it. Keep a checklist of which verdicts have been asked; answers often arrive as custom text, and that text is the decision — an edited comment replaces the draft. Then `gh pr close <number> --repo vinta/awesome-python --comment ""<comment>""`, or a plain close.
+",1,36,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+887edf80376f6a747d4e:30:31,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,30,31,"- **Merge**: a clean PR merges with `gh pr merge <number> --repo vinta/awesome-python --merge`. A conflicted one merges locally: `git fetch origin pull/<number>/head`, `git merge FETCH_HEAD` with the standard `Merge pull request #<number> from <owner>/<headRef>` message, resolving the conflict by placing the entry correctly — GitHub still marks the PR merged and the contributor keeps credit. Either way, reconcile the section per CONTRIBUTING before pushing: remove the entry the verdict displaced, fix the new entry's display name and Entry Ordering position, `make test`, commit. An add-only diff that displaces is the normal case — the removal is this step's job, not the contributor's.
+",1,36,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+887edf80376f6a747d4e:31:33,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,31,33,"Done when every verdict has been adjudicated by the maintainer and its action executed, with every posted comment byte-identical to a printed draft or to the custom text the maintainer supplied. A kept-open PR resurfaces next run — that is its point.
+
+",1,36,description,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+887edf80376f6a747d4e:33:35,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,33,35,"## 5. Report
+
+",1,36,description,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+887edf80376f6a747d4e:35:36,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,35,36,"Summary table: PR link, verdict, action taken, plus the needs-human list. Done when every fetched PR ends in exactly one state — merged with its section reconciled, closed, or left open (kept open, needs-human, or structure question pending).
+",1,36,directive,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+887edf80376f6a747d4e:7:11,887edf80376f6a747d4e,vinta/awesome-python,91e199ced625716e7e7e421fb1750206226e2bcf,.claude/skills/review-prs/SKILL.md,SKILL.md,314feee36b0ef00f98a07f2124b2fa4a57687c2ae41b06f1d148fe05267c37a7,7,11,"# Review PRs
+
+A PR review turns the open queue into terminal states: merged, closed, or explicitly parked. The rules live in CONTRIBUTING.md (Quality Requirements, Admission, Review Process, Automatic Rejection) — this skill is the workflow that applies them, not a second copy. Every PR named in chat is a PR link, `[#<number>](https://github.com/vinta/awesome-python/pull/<number>)`, so the maintainer can open it from the terminal.
+
+",1,36,description,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
 8ca3fac134a58e31aa46:125:132,8ca3fac134a58e31aa46,openclaw/openclaw,bf10fbe8acf1295bcf982e9d4b17a9a97d4a7bde,skills/gog/SKILL.md,SKILL.md,d54a8e52b1e00bb5d33b46915fd549f8b792ef3a383fe40e92b195d11d2d5255,125,132,"Notes
 
 - Set `GOG_ACCOUNT=you@gmail.com` to avoid repeating `--account`.
@@ -3814,3 +4076,263 @@ Authorization: Bearer $DAILY_DEV_TOKEN
 ```
 
 ",1,160,description,Security,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:14:16,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,14,16,"# Triage GitHub Issues
+
+",1,88,description,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:16:18,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,16,18,"Triage issues for this repository by applying appropriate labels.
+
+",1,88,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:18:26,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,18,26,"## Repository Context
+
+- **Current repo**: !`gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo ""unknown""`
+- **Open issues**: !`gh issue list --state open --json number --jq 'length' 2>/dev/null || echo ""?""`
+- **Existing labels**: !`gh label list --json name -q '.[].name' 2>/dev/null | head -20 || echo ""none found""`
+
+---
+
+",1,88,description,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:1:14,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,1,14,"---
+name: triage
+description: |
+  Triage GitHub issues by applying type, effort, priority, and area labels.
+  Runs in an isolated context to avoid polluting the main conversation with
+  issue details. Delegates to a specialized triage agent with label validation hooks.
+argument-hint: ""[unlabeled|all|N|N-M]""
+disable-model-invocation: true
+context: fork
+agent: triage-agent
+allowed-tools: Bash(gh *), Read, Glob, Grep
+---
+
+",1,88,description,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+c2bfa2521165af914dff:26:38,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,26,38,"## Scope
+
+Determine which issues to triage based on the arguments: **$ARGUMENTS**
+
+| Argument | Behavior |
+|----------|----------|
+| (empty) | Only unlabeled issues (default) |
+| `unlabeled` | Only issues without any labels |
+| `all` | All open issues |
+| `N` | Specific issue (e.g., `67`) |
+| `N-M` | Range of issues inclusive (e.g., `60-67`) |
+
+",1,88,description,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+c2bfa2521165af914dff:38:40,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,38,40,"## Process
+
+",1,88,description,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:40:43,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,40,43,"1. **Fetch available labels** — run `gh label list --json name,description` to understand
+   the label taxonomy. Labels are organized into type, effort, priority, and area categories.
+
+",1,88,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:43:48,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,43,48,"2. **Fetch target issues** — based on the scope above. For each issue, fetch the full body:
+   ```bash
+   gh issue view {number} --json number,title,body,labels
+   ```
+
+",1,88,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:48:60,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,48,60,"3. **For each issue**:
+   - Read the title and full body carefully
+   - If needed, explore the codebase (`Glob`, `Grep`, `Read`) to understand the affected code
+   - Classify: one type, one effort, one priority, one or more areas
+   - Track relationships with other issues (duplicates, related, blocking)
+   - Apply labels:
+     ```bash
+     gh issue edit {number} --add-label ""type,effort/level,P#,area.domain""
+     ```
+   - Skip issues that already have complete labeling (type + effort + priority + area)
+   - For partially labeled issues, only add missing label categories
+
+",1,88,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:60:81,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,60,81,"4. **Output a triage summary**:
+
+   ```
+   ## Triage Summary
+
+   | Issue | Title | Labels Applied | Reasoning |
+   |-------|-------|----------------|-----------|
+   | #67 | ... | bug, effort/low, P1, core.config | ... |
+
+   **Totals:**
+   - Issues triaged: X
+   - Already labeled (skipped): Y
+   - By priority: P0(n), P1(n), P2(n), P3(n)
+
+   ## Relationships Discovered
+
+   | Issues | Relationship | Notes |
+   |--------|--------------|-------|
+   | #61, #62 | Related | Both involve config/logging UX |
+   ```
+
+",1,88,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:81:83,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,81,83,"## Rules
+
+",1,88,description,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:83:84,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,83,84,"- **Don't hardcode labels** — always fetch current labels first, they may change
+",1,88,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:84:85,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,84,85,"- **Respect existing labels** — don't remove labels, only add missing ones
+",1,88,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:85:86,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,85,86,"- **Check issue body** — titles alone aren't enough context
+",1,88,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:86:87,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,86,87,"- **Use the codebase** — if understanding a relationship requires seeing how modules connect, look
+",1,88,directive,Development Process,,,noncoding_assistance,agreement,False,agreement
+c2bfa2521165af914dff:87:88,c2bfa2521165af914dff,coleam00/Archon,4466902ff7e9459e1ba708149ddbbf82b0717ba4,.claude/skills/triage/SKILL.md,SKILL.md,0ec84e61aa7289d822d4f78a6169088c58a312db4f031b62646f784f12c35ad7,87,88,"- **When uncertain, note it** — flag ambiguous issues in the summary rather than guessing
+",1,88,directive,AI Integration,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+c6fad18e4d95ded10b42:11:13,c6fad18e4d95ded10b42,zauberzeug/nicegui,de6e60051ca0566032dfec1b569f9a206a4f0bb0,.claude/skills/advisory-text/SKILL.md,SKILL.md,3411fd3e60785b8d11f6a15b8b5b384cf41f4624134d738d752c3ba44a4ddb9f,11,13,"## Steps
+
+",1,45,description,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+c6fad18e4d95ded10b42:13:19,c6fad18e4d95ded10b42,zauberzeug/nicegui,de6e60051ca0566032dfec1b569f9a206a4f0bb0,.claude/skills/advisory-text/SKILL.md,SKILL.md,3411fd3e60785b8d11f6a15b8b5b384cf41f4624134d738d752c3ba44a4ddb9f,13,19,"1. **Read the advisory** and the fix (the merged PR or the commit on `main`):
+
+   ```
+   gh api repos/zauberzeug/nicegui/security-advisories/<ghsa-id>
+   ```
+
+",1,45,directive,Security,,,noncoding_assistance,agreement,False,agreement
+c6fad18e4d95ded10b42:19:25,c6fad18e4d95ded10b42,zauberzeug/nicegui,de6e60051ca0566032dfec1b569f9a206a4f0bb0,.claude/skills/advisory-text/SKILL.md,SKILL.md,3411fd3e60785b8d11f6a15b8b5b384cf41f4624134d738d752c3ba44a4ddb9f,19,25,"2. **Read a published advisory** to match the voice, e.g. GHSA-p92q-2755-mhgh:
+
+   ```
+   gh api repos/zauberzeug/nicegui/security-advisories/GHSA-p92q-2755-mhgh --jq '{summary, description}'
+   ```
+
+",1,45,directive,Security,,,noncoding_assistance,agreement,False,agreement
+c6fad18e4d95ded10b42:1:6,c6fad18e4d95ded10b42,zauberzeug/nicegui,de6e60051ca0566032dfec1b569f9a206a4f0bb0,.claude/skills/advisory-text/SKILL.md,SKILL.md,3411fd3e60785b8d11f6a15b8b5b384cf41f4624134d738d752c3ba44a4ddb9f,1,6,"---
+name: advisory-text
+description: Write the publication text (title and description) of a NiceGUI security advisory and patch it into the advisory via the API. Use when asked to prepare an advisory for publication (e.g. ""prepare GHSA-xxxx-xxxx-xxxx for publication"", ""write the advisory text"").
+---
+
+",1,45,description,Security,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+c6fad18e4d95ded10b42:25:28,c6fad18e4d95ded10b42,zauberzeug/nicegui,de6e60051ca0566032dfec1b569f9a206a4f0bb0,.claude/skills/advisory-text/SKILL.md,SKILL.md,3411fd3e60785b8d11f6a15b8b5b384cf41f4624134d738d752c3ba44a4ddb9f,25,28,"3. **Title:** one short sentence stating the effect, not the mechanism.
+   ""Disabled or hidden `ui.upload` elements still accept uploads"", not ""upload route bypasses the `is_ignoring_events` check"".
+
+",1,45,directive,Security,,,noncoding_assistance,agreement,False,agreement
+c6fad18e4d95ded10b42:28:37,c6fad18e4d95ded10b42,zauberzeug/nicegui,de6e60051ca0566032dfec1b569f9a206a4f0bb0,.claude/skills/advisory-text/SKILL.md,SKILL.md,3411fd3e60785b8d11f6a15b8b5b384cf41f4624134d738d752c3ba44a4ddb9f,28,37,"4. **Description** in four sections, prose only - no code dumps, no proof-of-concept steps, no internal class or function names:
+
+   - `### Summary` - what NiceGUI does, what was missing, what a client could do.
+   - `### Impact` - which applications are affected, who can exploit it (a logged-in user? anyone on the network?), what the damage depends on, and which applications are not affected.
+   - `### Patches` - ""Fixed in NiceGUI **x.y.z**"", one sentence on what the fix does and its limits (link follow-up issues), ""Upgrade to x.y.z or later.""
+   - `### Workarounds` - what to do without upgrading; often the recommended pattern anyway.
+
+   The reporter is credited via the credits field, not in the text.
+
+",1,45,directive,Security,,,noncoding_assistance,agreement,False,agreement
+c6fad18e4d95ded10b42:37:43,c6fad18e4d95ded10b42,zauberzeug/nicegui,de6e60051ca0566032dfec1b569f9a206a4f0bb0,.claude/skills/advisory-text/SKILL.md,SKILL.md,3411fd3e60785b8d11f6a15b8b5b384cf41f4624134d738d752c3ba44a4ddb9f,37,43,"5. **Draft the text for the user to review**, then patch it with a JSON file written by a script (the description contains code spans and newlines):
+
+   ```
+   gh api -X PATCH repos/zauberzeug/nicegui/security-advisories/<ghsa-id> --input patch.json   # {""summary"": ""..."", ""description"": ""...""}
+   ```
+
+",1,45,directive,Security,,,noncoding_assistance,agreement,False,agreement
+c6fad18e4d95ded10b42:43:45,c6fad18e4d95ded10b42,zauberzeug/nicegui,de6e60051ca0566032dfec1b569f9a206a4f0bb0,.claude/skills/advisory-text/SKILL.md,SKILL.md,3411fd3e60785b8d11f6a15b8b5b384cf41f4624134d738d752c3ba44a4ddb9f,43,45,"6. **Keep the advisory a draft** until the release named under Patches is on PyPI.
+   Setting the patched version, requesting a CVE and publishing are separate, confirmed actions after the release.
+",1,45,directive,Security,,,noncoding_assistance,agreement,False,agreement
+c6fad18e4d95ded10b42:6:11,c6fad18e4d95ded10b42,zauberzeug/nicegui,de6e60051ca0566032dfec1b569f9a206a4f0bb0,.claude/skills/advisory-text/SKILL.md,SKILL.md,3411fd3e60785b8d11f6a15b8b5b384cf41f4624134d738d752c3ba44a4ddb9f,6,11,"Rewrite the advisory whose GHSA ID is passed as an argument for publication.
+The submitted report is written for the maintainers (proof of concept, code quotes, internal class names);
+the published text is read by application developers who want to know whether they are affected and what to do.
+The submitted version stays in the advisory history, so nothing is lost by replacing it.
+
+",1,45,description,Security,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+cb78f2ea07e25900d5c4:10:12,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,10,12,"调用方式：Codex 使用 `$release-announcement`；Claude Code Haha 的终端输入 `/release-announcement`。这两个工具都从项目的 `.agents/skills/` 读取同一份技能。
+
+",1,29,description,AI Integration,,,noncoding_assistance,agreement,False,agreement
+cb78f2ea07e25900d5c4:12:14,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,12,14,"## 工作流
+
+",1,29,description,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+cb78f2ea07e25900d5c4:14:16,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,14,16,"1. 在仓库根目录运行 `python3 .agents/skills/release-announcement/scripts/release_poster.py scan --repo . --out artifacts/release-posters/latest-scan.json`。它按语义版本比较工作区、当前 Git 历史、本地 `main` 和已有的 `origin/main`，不切换分支、不抓取远程。读取 JSON 中的中文发布说明、来源和 `@GitHubID` 提及；`credit_candidate` 仅表示有明确署名格式，仍需核对上下文。如果来源不是工作区文件，明确告知用户。
+   复测旧版本时加 `--version 0.6.6` 并使用独立输出路径，避免覆盖最新版本的 scan 结果。
+",1,29,directive,DevOps,,,noncoding_assistance,agreement,False,agreement
+cb78f2ea07e25900d5c4:16:17,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,16,17,"2. 仅依据该版本的中文 release note 提炼主要功能和关键修复；纯修复版的 `features` 留空，纯功能版的 `fixes` 留空，绝不为了填版式虚构内容。有重要模型或供应商更新时可加一个简短区块。每条信息必须能追溯到原文，压缩表述时保留条件和边界。安装提醒只写原文确有的信息。不要把英文译文重复计数。
+",1,29,directive,DevOps,,,noncoding_assistance,agreement,False,agreement
+cb78f2ea07e25900d5c4:17:18,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,17,18,"3. 对 `credit_candidate: true` 的账号逐个核对发布说明里的贡献项；普通 `@ID` 提及（例如 PR reviewer）不算代码署名。`render` 会通过 GitHub 公共用户 API 校验 ID 并下载真实头像；无法核验时停止并报告，不能臆造头像、错配姓名，不能让图像生成模型重绘头像。正式生成不能使用 `avatar_path` 跳过核验。
+",1,29,directive,DevOps,,,noncoding_assistance,agreement,False,agreement
+cb78f2ea07e25900d5c4:18:19,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,18,19,"4. 按 [数据格式](references/poster-spec.md) 写 `poster-spec.json`，版本必须与 scan 结果一致。`features` 按用户价值排序，第一项会放进橙色首屏作为「本版重点」；其余在纸色区单列编号，修复与贡献者在墨色收尾区。运行 `python3 .agents/skills/release-announcement/scripts/release_poster.py render --scan artifacts/release-posters/latest-scan.json --spec <poster-spec.json> --out <poster.png>`。建议输出到 `artifacts/release-posters/v<version>/`，保留已有文件，文件名加版本或修订号。此脚本使用固定的编辑式视觉系统绘制准确中文和头像；不要用 imagegen 绘制正文。
+",1,29,directive,DevOps,,,noncoding_assistance,agreement,False,agreement
+cb78f2ea07e25900d5c4:19:20,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,19,20,"5. 写一段适合微信群的短文案，保存为同目录的 `wechat-copy.txt`：版本号 + 1 句主要变化 + 1 句感谢，具体细节交给图片。有本次明确署名的贡献者时感谢代码贡献；没有时只感谢反馈与支持，不暗示本版有特定群友提交。文案不要宣称未核实的下载地址或公开发布状态，也不要自动向群发送。若需要下载入口，先检查对应 GitHub Release 是否存在。
+",1,29,directive,DevOps,,,noncoding_assistance,agreement,False,agreement
+cb78f2ea07e25900d5c4:1:6,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,1,6,"---
+name: release-announcement
+description: 从本项目最新的 release-notes Markdown 制作微信群发布短文案与竖版长图，核验贡献者 GitHub ID 并嵌入真实头像。用于版本发布宣传，不负责创建或发布 GitHub Release。
+---
+
+",1,29,description,DevOps,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+cb78f2ea07e25900d5c4:20:22,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,20,22,"6. 打开原图和缩至 390px 宽的手机预览，检查首屏能否读到第一项功能、正文可读性、长标题与链接换行、头像和 ID 对应。纯修复版直接进入修复区，不出现空功能区。最后提供 PNG、短文案、所用 release note 来源和任何未核实项。生成物放在被 Git 忽略的 `artifacts/`，不要提交生成图、头像缓存或中间 JSON。
+
+",1,29,directive,DevOps,,,noncoding_assistance,agreement,False,agreement
+cb78f2ea07e25900d5c4:22:24,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,22,24,"## 图像与环境
+
+",1,29,description,Implementation Details,,,noncoding_assistance,agreement,False,agreement
+cb78f2ea07e25900d5c4:24:26,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,24,26,"默认采用「瑞士大字」版式：信号橙首屏放产品名、超大版本号和本版重点，纸色区放其余功能与补充变化，墨色区收尾放修复、贡献者和安装提示，详见 [视觉规则](references/editorial-brief.md)。主要正文 36px，单列排版。默认不需要插画。用户明确想增加插画时，可用 imagegen 只生成无字装饰素材，再用脚本绘制全部文字与真实头像；不能让装饰占去首屏。
+
+",1,29,directive,Implementation Details,,,noncoding_assistance,agreement,False,agreement
+cb78f2ea07e25900d5c4:26:28,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,26,28,"`scan` 只用 Python 标准库；`render` 需要 Pillow 和可用的中文系统字体。缺依赖时先查看项目已有运行环境，不为一次制图修改生产依赖。GitHub 头像获取是公开只读请求；失败时给出具体账号和原因。
+
+",1,29,directive,Maintenance,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+cb78f2ea07e25900d5c4:28:29,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,28,29,"修改模板后运行 `python3 -m unittest discover -s .agents/skills/release-announcement/scripts -p 'test_*.py' -v`（需要同样的 Pillow 和中文字体）。测试覆盖纯功能/纯修复、首项落在手机首屏、段落末行孤字、长文本与超长版本号边界、离线贡献者、文字重叠和各色带对比度；再用真实 release note 渲染并检查手机预览。美术调整必须落到脚本和本目录的参考说明中，不能只改变一次生成时的提示词。
+",1,29,directive,Testing,,,noncoding_assistance,agreement,False,agreement
+cb78f2ea07e25900d5c4:6:8,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,6,8,"# Release announcement
+
+",1,29,description,DevOps,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+cb78f2ea07e25900d5c4:8:10,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,8,10,"在本仓库调用 `$release-announcement` 时，交付一张可发微信群的 PNG 长图和一段很短的群文案。默认使用 [版式与文案要求](references/editorial-brief.md)；用户另有要求时以用户要求为准。
+
+",1,29,directive,DevOps,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+d289ac80f476dc820c63:15:17,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,15,17,"## Steps
+
+",1,50,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+d289ac80f476dc820c63:17:24,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,17,24,"1. Run the bundled helper. It lives in the same directory as this SKILL.md — use
+   its absolute path (here this is `.claude/skills/share/share.py`):
+
+   ```sh
+   python3 <skill-dir>/share.py [session]
+   ```
+
+",1,50,directive,Development Process,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+d289ac80f476dc820c63:1:9,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,1,9,"---
+name: share
+description: Share a Claude Code session to pastila.nl and return a viewer link. Shares the current session by default, or a session specified as a transcript path, a session id, or a project. Use when the user asks to share, publish, or get a link to this conversation or to a session/transcript.
+argument-hint: ""[session: path | session-id | project]""
+disable-model-invocation: false
+allowed-tools: Bash
+---
+
+",1,50,description,AI Integration,,,noncoding_assistance,agreement,False,agreement
+d289ac80f476dc820c63:24:29,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,24,29,"   - **No argument** → shares the **current** session (identified strictly by
+     `$CLAUDE_CODE_SESSION_ID`). If that variable is unset or its transcript
+     cannot be found, the script errors out and asks for an explicit argument
+     rather than guessing — it never falls back to ""the newest transcript"", so
+     it cannot publish an unrelated session by mistake.
+",1,50,description,AI Integration,,,noncoding_assistance,agreement,False,agreement
+d289ac80f476dc820c63:29:35,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,29,35,"   - **`[session]`** → shares another session, given as one of:
+     - a path to a `.jsonl` transcript,
+     - a session id (uuid), or
+     - a project path or its `~/.claude/projects` directory name (shares the
+       newest session in it).
+
+",1,50,description,AI Integration,,,noncoding_assistance,agreement,False,agreement
+d289ac80f476dc820c63:35:37,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,35,37,"2. Report the URL the script prints to the user.
+
+",1,50,directive,AI Integration,,,noncoding_assistance,agreement,False,agreement
+d289ac80f476dc820c63:37:41,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,37,41,"The script delegates the upload to `pastila.py` (encryption + INSERT), so that
+logic is not duplicated; it then inserts the `.claude.jsonl` extension before the
+`#` key anchor to produce the viewer link.
+
+",1,50,description,Architecture,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+d289ac80f476dc820c63:41:43,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,41,43,"## Notes
+
+",1,50,description,Documentation,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+d289ac80f476dc820c63:43:45,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,43,45,"- The link contains the decryption key in its `#` fragment — anyone with the link
+  can read the session. Share it only intentionally.
+",1,50,directive,Security,,,noncoding_assistance,agreement,False,agreement
+d289ac80f476dc820c63:45:47,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,45,47,"- Sessions include tool calls and results (file fragments, command output). Take a
+  quick look before sharing potentially sensitive ones.
+",1,50,directive,Security,,,noncoding_assistance,agreement,False,agreement
+d289ac80f476dc820c63:47:50,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,47,50,"- `pastila.py` (the encryption + upload script from the pastila repo) is bundled
+  next to `share.py` in this skill, so the skill is self-contained. It still needs
+  the Python packages `requests` and `cryptography` installed.
+",1,50,description,Build and Run,,,noncoding_assistance,qwen3.8-27b-nvfp4,True,invalid_batch_feedback
+d289ac80f476dc820c63:9:15,d289ac80f476dc820c63,ClickHouse/ClickHouse,b4fae473345e73ce794e39c673ad154167fb69f5,.claude/skills/share/SKILL.md,SKILL.md,f066d7f2d28549f35208341a5cc3023c2f9cb0c8f2e545dd442ac46f02c87d35,9,15,"# Share a Claude session
+
+Upload a Claude Code session transcript to pastila.nl (encrypted) and return a
+`.claude.jsonl` link that renders it like the viewer at
+https://github.com/ClickHouse/alexeyprompts
+
+",1,50,description,AI Integration,,,noncoding_assistance,agreement,False,agreement
