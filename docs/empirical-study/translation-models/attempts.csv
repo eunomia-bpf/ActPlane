@@ -6491,10 +6491,14 @@ rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-1,2,http_error
 rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.018447937909514,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-1,4,http_error,provider_capacity,60,1793182447.3599792,,,,0,429,10.905014837859198,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-1,5,ok,,0,1793244364.2654562,,zai/glm-4.7-flash,stop,1,,258.042786330916,1,11479,5383,3,0,5313
+rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-2,1,ok,,0,1793244566.2207472,,zai/glm-4.7-flash,stop,1,,201.9383141270373,1,11586,5841,3,0,5776
 rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.015757529065013,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,9.978874859865755,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.874752931995317,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,11.528325719060376,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-1,4,http_error,provider_capacity,60,1793182491.0652912,,,,0,429,11.528325719060376,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-1,5,ok,,0,1793244742.563902,,zai/glm-4.7-flash,stop,1,,176.23212825111113,1,11495,4152,3,0,4070
+rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-2,1,ok,,0,1793244830.364106,,zai/glm-4.7-flash,stop,1,,87.78186213900335,1,11615,1364,3,0,1282
+rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-3,1,ok,,0,1793244960.067961,,zai/glm-4.7-flash,stop,1,,129.69641136797145,1,11735,5225,3,0,5145
 rq1,zai/glm-4.7-flash,openai__codex::21,openai__codex__21,attempt-1,1,http_error,rate_limited,0,,,,,0,429,10.84149094694294,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::21,openai__codex__21,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,11.565628743031994,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::21,openai__codex__21,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.248130024177954,0,0,0,0,0,0
