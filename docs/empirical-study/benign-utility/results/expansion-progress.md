@@ -9,6 +9,10 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 | Combined | Broad sources | 9/24 | 8/9 | 8/9 |
 | Combined | Narrowed sources | 9/24 | 6/9 | 6/9 |
 
+Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `fix-code-vulnerability`, `git-leak-recovery`, `log-summary-date-ranges`, `modernize-scientific-stack`, `openssl-selfsigned-cert`, `sanitize-git-repo`, `vulnerable-secret`.
+
+Additional completed cells outside that matched set: No AgPlane: `hf-model-inference`.
+
 Available-condition scores can have different task mixes. The matched column uses the same tasks completed in every condition.
 
 | Cohort | Condition | Covered calls | False calls | Unknown calls | Unassigned events | False-call bounds |
