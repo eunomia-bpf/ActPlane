@@ -5986,10 +5986,12 @@ rq1,zai/glm-4.7-flash,heygen-com__hyperframes::2,heygen-com__hyperframes__2,atte
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::2,heygen-com__hyperframes__2,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.331262871157378,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::2,heygen-com__hyperframes__2,attempt-1,4,http_error,provider_capacity,60,1793181846.0687165,,,,0,429,9.980622163042426,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::2,heygen-com__hyperframes__2,attempt-1,5,http_error,provider_capacity,0,1793241287.4955697,,,,0,429,10.669491877779365,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,heygen-com__hyperframes::2,heygen-com__hyperframes__2,attempt-1,6,ok,,239.99963402748108,1793241671.4772756,,zai/glm-4.7-flash,stop,1,,143.98120863805525,1,8951,5993,3,0,5945
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.08087190403603,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,attempt-1,2,http_error,rate_limited,15,,,,,0,429,11.754530681064352,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.273712900932878,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,11.682082643033937,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,attempt-1,4,http_error,provider_capacity,60,1793181852.8227012,,,,0,429,11.682082643033937,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,heygen-com__hyperframes::3,heygen-com__hyperframes__3,attempt-1,5,ok,,0,1793241738.2480407,,zai/glm-4.7-flash,stop,1,,66.64958292501979,1,8933,2144,3,0,2038
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::4,heygen-com__hyperframes__4,attempt-1,1,ok,,0,,,zai/glm-4.7-flash,stop,1,,173.25440125283785,1,8986,3726,3,0,3650
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::4,heygen-com__hyperframes__4,attempt-2,1,ok,,0,,,zai/glm-4.7-flash,length,1,,174.77290067006834,1,9098,8192,3,0,8192
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::4,heygen-com__hyperframes__4,attempt-3,1,ok,,0,,,zai/glm-4.7-flash,length,1,,199.55247817211784,1,9136,8192,3,0,8192
