@@ -5562,7 +5562,10 @@ rq1,zai/glm-4.7-flash,charmbracelet__crush::23,charmbracelet__crush__23,attempt-
 rq1,zai/glm-4.7-flash,charmbracelet__crush::39,charmbracelet__crush__39,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,10.805077766999602,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,charmbracelet__crush::39,charmbracelet__crush__39,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.654314537066966,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,charmbracelet__crush::39,charmbracelet__crush__39,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.715702861081809,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,charmbracelet__crush::39,charmbracelet__crush__39,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,9.793290196917951,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,charmbracelet__crush::39,charmbracelet__crush__39,attempt-1,4,http_error,provider_capacity,60,1793183996.4156842,,,,0,429,9.793290196917951,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,charmbracelet__crush::39,charmbracelet__crush__39,attempt-1,5,ok,,0,1793254776.4487967,,zai/glm-4.7-flash,stop,1,,133.02187922690064,1,9268,6312,3,0,6245
+rq1,zai/glm-4.7-flash,charmbracelet__crush::39,charmbracelet__crush__39,attempt-2,1,ok,,0,1793254903.9316933,,zai/glm-4.7-flash,stop,1,,127.475564628141,1,9367,4879,3,0,4806
+rq1,zai/glm-4.7-flash,charmbracelet__crush::39,charmbracelet__crush__39,attempt-3,1,ok,,0,1793254978.9024513,,zai/glm-4.7-flash,stop,1,,74.96622740686871,1,9473,3073,3,0,3004
 rq1,zai/glm-4.7-flash,charmbracelet__crush::43,charmbracelet__crush__43,attempt-1,1,ok,,0,,,zai/glm-4.7-flash,length,1,,169.08728073211387,1,9195,8192,2,0,8192
 rq1,zai/glm-4.7-flash,charmbracelet__crush::43,charmbracelet__crush__43,attempt-2,1,ok,,0,,,zai/glm-4.7-flash,stop,1,,199.5893944350537,1,9233,2834,3,0,2791
 rq1,zai/glm-4.7-flash,chenhg5__cc-connect::27,chenhg5__cc-connect__27,attempt-1,1,http_error,rate_limited,0,,,,,0,429,11.239839348010719,0,0,0,0,0,0
@@ -5666,7 +5669,9 @@ rq1,zai/glm-4.7-flash,colbymchenry__codegraph::53,colbymchenry__codegraph__53,at
 rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::2,czlonkowski__n8n-mcp__2,attempt-1,1,http_error,rate_limited,0,,,,,0,429,11.007114683045074,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::2,czlonkowski__n8n-mcp__2,attempt-1,2,http_error,rate_limited,15,,,,,0,429,10.578495391178876,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::2,czlonkowski__n8n-mcp__2,attempt-1,3,http_error,rate_limited,30,,,,,0,429,11.076546461088583,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::2,czlonkowski__n8n-mcp__2,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,11.105975926853716,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::2,czlonkowski__n8n-mcp__2,attempt-1,4,http_error,provider_capacity,60,1793184081.4503858,,,,0,429,11.105975926853716,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::2,czlonkowski__n8n-mcp__2,attempt-1,5,ok,,0,1793255041.6253195,,zai/glm-4.7-flash,stop,1,,62.51784406299703,1,9806,1106,3,0,1061
+rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::2,czlonkowski__n8n-mcp__2,attempt-2,1,ok,,0,1793255185.3344162,,zai/glm-4.7-flash,stop,1,,143.70333924517035,1,9884,6546,9804,0,6493
 rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::21,czlonkowski__n8n-mcp__21,attempt-1,1,http_error,rate_limited,0,,,,,0,429,9.974727150052786,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::21,czlonkowski__n8n-mcp__21,attempt-1,2,http_error,rate_limited,15,,,,,0,429,11.316561146872118,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,czlonkowski__n8n-mcp::21,czlonkowski__n8n-mcp__21,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.32421040092595,0,0,0,0,0,0
