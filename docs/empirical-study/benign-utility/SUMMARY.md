@@ -11,10 +11,10 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 
 | Cohort | Condition | Completed / planned | Official successes / completed | Matched successes / common tasks |
 | --- | --- | ---: | ---: | ---: |
-| Added | No AgPlane | 3/18 | 2/3 | 2/3 |
+| Added | No AgPlane | 4/18 | 3/4 | 2/3 |
 | Added | Broad sources | 3/18 | 2/3 | 2/3 |
 | Added | Narrowed sources | 3/18 | 2/3 | 2/3 |
-| Combined | No AgPlane | 9/24 | 6/9 | 6/9 |
+| Combined | No AgPlane | 10/24 | 7/10 | 6/9 |
 | Combined | Broad sources | 9/24 | 8/9 | 8/9 |
 | Combined | Narrowed sources | 9/24 | 6/9 | 6/9 |
 

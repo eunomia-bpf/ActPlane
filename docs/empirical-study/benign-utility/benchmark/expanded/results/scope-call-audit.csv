@@ -86,6 +86,17 @@ fix-code-vulnerability__oEborA8,fix-code-vulnerability,c,8,3,1,1,0,recorded_asci
 fix-code-vulnerability__oEborA8,fix-code-vulnerability,c,9,0,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
 fix-code-vulnerability__oEborA8,fix-code-vulnerability,c,10,5,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
 fix-code-vulnerability__oEborA8,fix-code-vulnerability,c,11,1,0,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,1,0,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,2,1,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,3,3,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,4,0,1,1,0,empty_input_wait,wait,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,5,2,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,6,2,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,7,0,1,1,0,empty_input_wait,wait,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,8,3,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,9,4,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,10,3,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+hf-model-inference__77GbCAh,hf-model-inference,a,11,1,0,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
 modernize-scientific-stack__WTW3pnb,modernize-scientific-stack,a,1,0,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
 modernize-scientific-stack__WTW3pnb,modernize-scientific-stack,a,2,1,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
 modernize-scientific-stack__WTW3pnb,modernize-scientific-stack,a,3,1,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
