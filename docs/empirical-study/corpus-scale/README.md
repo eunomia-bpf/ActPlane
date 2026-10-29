@@ -6,6 +6,14 @@ Snapshot: 2026-10-28 UTC. All reported counts, percentages, agreement measures, 
 
 ## Comparison with the submitted paper
 
+| Inventory | Paper claim | Recovered artifact | New snapshot | New analyzed |
+|---|---:|---:|---:|---:|
+| Repositories | 64 | 64 | 325 | 211 |
+| Instruction files (byte deduplicated) | 84 | 84 | 761 | 438 |
+| Statements | 2,116 | 2,116 | 30,846 | 18,031 |
+
+The new snapshot statement count includes all extracted sources, while the analyzed column requires complete labels for every selected source in each repository. Historical file inventory and annotated source coverage differ, as detailed below.
+
 | Measure | Paper claim | Recovered labels | New automated labels (repository bootstrap interval) | Difference vs recovered |
 |---|---:|---:|---:|---:|
 | Policy / all statements | 64.0% | 64.3% | 54.3% [51.5%, 56.9%] | -10.0 pp [-17.4, -1.9] |
@@ -119,7 +127,7 @@ A separate `scope_files.py` classifier examines source excerpts to identify actu
 
 Optional scope classification initially ran alongside primary labeling. Observed local request latency motivated deferring its remaining work until primary labeling completes, allocating the bounded local concurrency to primary labels and interim adjudication. Scope work resumes alongside final adjudication and pauses when the primary analysis is ready. The separate finalization pass resumes any remaining scope judgments after other local clients exit. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis. This changes client request scheduling without changing the coding guide, accepted labels, or thresholds.
 
-Intervals are central 95% percentile intervals using 2,000 bootstrap replicates resampling repositories within discovery strata, with new-corpus seed 20261028 and historical seed 20261029. They describe sensitivity within this convenience sample. Sparse groups can yield degenerate intervals without establishing population precision. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.
+Intervals are central 95% percentile intervals using 2,000 bootstrap replicates resampling repositories within discovery strata, with new-corpus seed 20261028 and historical seed 20261029. They describe sensitivity within this convenience sample. Sparse groups can yield degenerate intervals without establishing population precision. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories. They do not model pairing or covariance for repository identities shared between snapshots.
 
 Headline analysis requires every selected source file in a repository to have complete model pairs and final labels. Incomplete repositories remain in the collection and coverage tables rather than entering project-level denominators with unobserved files treated as negative. This makes interim checkpoints subsets of the final snapshot, not final results.
 
