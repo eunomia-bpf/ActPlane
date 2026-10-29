@@ -204,7 +204,8 @@ def metrics(rows, repos, topics):
               enf[tier], paper)
     count('os_enforceable', '8. OS-enforceable policy candidates', int((enf['per_event'] + enf['cross_event']).sum()), '607')
     ratio('os_enforceable_fraction', '8. (Per-event + cross-event) / policies', enf['per_event'] + enf['cross_event'], p, '45%')
-    count('max_repo_policies', '8. Largest per-repository policy count', int(max(p)), '66')
+    count('max_repo_policies', '8. Largest per-repository policy count (all tiers)', int(max(p)))
+    count('max_repo_os_policies', '8. Largest per-repository OS-tier policy count', int(max(enf['per_event'] + enf['cross_event'])), '66')
 
     # One draw samples N whole repositories uniformly with replacement.
     weights = np.random.default_rng(SEED).multinomial(len(names), np.full(len(names), 1/len(names)), size=REPLICATES)
@@ -355,7 +356,7 @@ The original full-guide enforcement/context calibration failed (adjudicated kapp
 
 The May snapshot uses CLAUDE.md/AGENTS.md and coding-focused eligibility. The October snapshot uses eight families (CLAUDE.md, AGENTS.md, GEMINI.md, copilot-instructions.md, .cursor/rules/*, .cursorrules, .windsurfrules, SKILL.md), broader discovery/eligibility, capped family selection and automated segmentation. Labels, snapshot dates, file coverage, file inventory conventions and labelers therefore differ. These are merged descriptive counts, not a longitudinal effect or population estimate. In particular more observed files can increase repository cross-event prevalence.
 
-Several supplied paper values do not match recomputation of the original labels: majority-policy repositories 73.4% versus 70.1%, maximum policy share 100% versus 97%, Development Process and Implementation Details policy shares 88.1% / 86.9% versus 87% / 85%, cross-event repositories 79.7% versus 81%, repositories spanning all tiers 42.2% versus 43%, and largest repository policy count 131 versus 66. The 64-only column deliberately exposes these discrepancies; it is not adjusted to reproduce prose numbers. `repository_counts.csv` records both snapshots' per-repository counts for inspection. Rounded context subcategories may not sum to the separately rounded context-dependent percentage.
+Several supplied paper values do not match recomputation of the original labels: majority-policy repositories 73.4% versus 70.1%, maximum policy share 100% versus 97%, Development Process and Implementation Details policy shares 88.1% / 86.9% versus 87% / 85%, cross-event repositories 79.7% versus 81%, and repositories spanning all tiers 42.2% versus 43%. The 64-only column deliberately exposes these discrepancies; it is not adjusted to reproduce prose numbers. The supplied largest-per-repository count of 66 is reproduced for **OS-tier** policies: the original openclaw/openclaw repository has 131 total policies, including 45 per-event and 21 cross-event policies. Both maxima are reported explicitly to avoid confusing these scopes. `repository_counts.csv` records both snapshots' per-repository counts for inspection. Rounded context subcategories may not sum to the separately rounded context-dependent percentage.
 
 ## Figures and reproduction
 
@@ -371,6 +372,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File docs/empirical-study/corpus-
 ```
 
 `stage_inputs.ps1` only copies inputs and exports the immutable historical corpus subtree without checking out another branch. It requires the sibling paper checkout as specified by the operator. `.inputs/` is ignored to avoid duplicating already committed datasets. `ws.sh run` performs sync after local edits. The helper's pull places files under a nested local `src/`; move those returned artifacts into this lane directory. All Python analysis, bootstrapping, plotting, font checks and rendering occur inside actplane-dev. Python/library versions are in `environment.txt`; setup pins the three direct Python dependencies. Data inputs below must match before interpreting a rerun.
+
+The source-label checks, merged-count checks, plot-loaded-data checks, and four `pdffonts` checks passed in the Workspace. PNG previews were visually inspected. Branch-wide CI on the initial data commit failed in an unrelated, unchanged libbpf build: GCC reports discarded const qualifiers as errors in `libbpf.c` (`kallsyms_cb`, `avail_kallsyms_cb`, `resolve_full_path`). See [CI run 40949503058](https://github.com/eunomia-bpf/ActPlane/actions/runs/40949503058). No kernel, vendored library, build configuration, or workflow repair is included in this data-only lane. No PR was opened.
 
 ## Input hashes
 

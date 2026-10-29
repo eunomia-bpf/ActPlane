@@ -42,7 +42,8 @@ primary,content_context_project_task,7. Context-dependent / content,fraction,58%
 primary,content_context_none,7. Self-contained / content,fraction,42%,2110,5485,0.3846855059252507,0.33974041973699476,0.4336547599408289
 primary,os_enforceable,8. OS-enforceable policy candidates,count,607,,,6810,,
 primary,os_enforceable_fraction,8. (Per-event + cross-event) / policies,fraction,45%,6810,15985,0.42602439787300594,0.40009264749621404,0.4530022120615567
-primary,max_repo_policies,8. Largest per-repository policy count,count,66,,,216,,
+primary,max_repo_policies,8. Largest per-repository policy count (all tiers),count,unavailable,,,216,,
+primary,max_repo_os_policies,8. Largest per-repository OS-tier policy count,count,66,,,122,,
 alternative,repositories,1. Repositories,count,64,,,362,,
 alternative,instruction_files,1. Instruction files (inventory),count,84,,,811,,
 alternative,annotated_files,1. Files with statement labels,count,unavailable,,,798,,
@@ -86,7 +87,8 @@ alternative,content_context_project_task,7. Context-dependent / content,fraction
 alternative,content_context_none,7. Self-contained / content,fraction,42%,2176,5639,0.3858840219897145,0.341007103335296,0.433286090826143
 alternative,os_enforceable,8. OS-enforceable policy candidates,count,607,,,7443,,
 alternative,os_enforceable_fraction,8. (Per-event + cross-event) / policies,fraction,45%,7443,17071,0.4360025774705641,0.40983051597298426,0.46289804929784945
-alternative,max_repo_policies,8. Largest per-repository policy count,count,66,,,216,,
+alternative,max_repo_policies,8. Largest per-repository policy count (all tiers),count,unavailable,,,216,,
+alternative,max_repo_os_policies,8. Largest per-repository OS-tier policy count,count,66,,,138,,
 original_64,repositories,1. Repositories,count,64,,,64,,
 original_64,instruction_files,1. Instruction files (inventory),count,84,,,84,,
 original_64,annotated_files,1. Files with statement labels,count,unavailable,,,64,,
@@ -130,7 +132,8 @@ original_64,content_context_project_task,7. Context-dependent / content,fraction
 original_64,content_context_none,7. Self-contained / content,fraction,42%,221,520,0.425,0.34166626679462575,0.5172480880182476
 original_64,os_enforceable,8. OS-enforceable policy candidates,count,607,,,607,,
 original_64,os_enforceable_fraction,8. (Per-event + cross-event) / policies,fraction,45%,607,1361,0.44599559147685525,0.39247400557012313,0.4958756432650598
-original_64,max_repo_policies,8. Largest per-repository policy count,count,66,,,131,,
+original_64,max_repo_policies,8. Largest per-repository policy count (all tiers),count,unavailable,,,131,,
+original_64,max_repo_os_policies,8. Largest per-repository OS-tier policy count,count,66,,,66,,
 new_only_298,repositories,1. Repositories,count,64,,,298,,
 new_only_298,instruction_files,1. Instruction files (inventory),count,84,,,691,,
 new_only_298,annotated_files,1. Files with statement labels,count,unavailable,,,691,,
@@ -174,4 +177,5 @@ new_only_298,content_context_project_task,7. Context-dependent / content,fractio
 new_only_298,content_context_none,7. Self-contained / content,fraction,42%,1889,4965,0.38046324269889226,0.33153011296020146,0.43444983812722976
 new_only_298,os_enforceable,8. OS-enforceable policy candidates,count,607,,,6203,,
 new_only_298,os_enforceable_fraction,8. (Per-event + cross-event) / policies,fraction,45%,6203,14624,0.4241657549234136,0.3959936575785873,0.45241996193259854
-new_only_298,max_repo_policies,8. Largest per-repository policy count,count,66,,,216,,
+new_only_298,max_repo_policies,8. Largest per-repository policy count (all tiers),count,unavailable,,,216,,
+new_only_298,max_repo_os_policies,8. Largest per-repository OS-tier policy count,count,66,,,122,,
