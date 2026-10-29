@@ -2,6 +2,7 @@
 import csv
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 import tomllib
@@ -13,6 +14,11 @@ SEED='benign-utility-expansion-20261029-v1'
 COMMIT='69671fbaac6d67a7ef0dfec016cc38a64ef7a77c'
 
 def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+def mebibytes(value):
+    if isinstance(value,(int,float)):return value
+    match=re.fullmatch(r'\s*([\d.]+)\s*([KMGT]?)I?B?\s*',value.upper())
+    if not match:raise ValueError('Unknown native resource declaration: '+value)
+    return float(match[1])*{'':1/1024**2,'K':1/1024,'M':1,'G':1024,'T':1024**2}[match[2]]
 def write(name, rows):
     with (OUT/name).open('w',newline='') as f:
         w=csv.DictWriter(f,fieldnames=list(rows[0]),lineterminator='\n');w.writeheader();w.writerows(rows)
@@ -30,7 +36,7 @@ def main():
     catalog=[]
     for config in sorted((BASE/'terminal-bench-2').glob('*/task.toml')):
         task=config.parent.name;t=tomllib.loads(config.read_text());env=t['environment']
-        cpus=env.get('cpus',1);memory=env.get('memory_mb',2048);storage=env.get('storage_mb',10240);gpus=env.get('gpus',0)
+        cpus=env.get('cpus',1);memory=env.get('memory_mb',mebibytes(env.get('memory','2G')));storage=env.get('storage_mb',mebibytes(env.get('storage','10G')));gpus=env.get('gpus',0)
         reasons=[]
         if task in excluded:reasons.append('previously_executed_or_prespecified_subcohort')
         if not env.get('docker_image'):reasons.append('no_official_prebuilt_image')
@@ -40,7 +46,7 @@ def main():
         if storage>10240:reasons.append('declared_storage_above_10GiB')
         rank=hashlib.sha256((SEED+'\n'+task).encode()).hexdigest()
         catalog.append(dict(task=task,eligible=int(not reasons),reason=';'.join(reasons) or 'eligible',selection_hash=rank,
-            cpus=cpus,memory_mb=memory,storage_mb=storage,gpus=gpus,agent_timeout_s=t['agent']['timeout_sec'],
+            cpus=cpus,memory_mb=memory,storage_mb=storage,memory_declaration=str(env.get('memory_mb',env.get('memory','default'))),storage_declaration=str(env.get('storage_mb',env.get('storage','default'))),gpus=gpus,agent_timeout_s=t['agent']['timeout_sec'],
             verifier_timeout_s=t['verifier']['timeout_sec'],official_image=env.get('docker_image',''),
             instruction_sha256=digest(config.parent/'instruction.md'),task_config_sha256=digest(config),
             test_sha256=digest(config.parent/'tests/test.sh'),dataset_commit=COMMIT))
