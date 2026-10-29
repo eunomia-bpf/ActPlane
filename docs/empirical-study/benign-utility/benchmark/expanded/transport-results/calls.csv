@@ -1,0 +1,1 @@
+task,condition,attempt,trial_id,main_matrix,selected_for_comparison,call_index,native_tool_call_id,bin_start,bin_end,start_ns,end_ns,intervention_events,intervened,confirmed_false,unknown,source_read_accesses,connect_attempts,coverage,action_kind,dispatch_status,attribution_method

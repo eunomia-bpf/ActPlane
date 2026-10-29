@@ -1,5 +1,5 @@
 """One host coordinator; each kernel runs one fixed matched task group at a time."""
-import csv,fcntl,json,os,shlex,subprocess,sys,time,threading
+import csv,fcntl,json,os,shlex,shutil,subprocess,sys,time,threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +14,16 @@ assert set(frozen['workers'])=={'worker1'}
 tasks=list(csv.DictReader((OUT/'tasks.csv').open()))
 execution=list(csv.DictReader((OUT/'worker-assignment.csv').open()))
 task_map={t['task']:t for t in tasks};tasks=[task_map[r['task']] for r in sorted(execution,key=lambda r:int(r['execution_rank']))]
+
+def capacity(task,stage):
+ disk=shutil.disk_usage('/workspaces')
+ row=dict(task=task,stage=stage,utc=time.strftime('%FT%TZ',time.gmtime()),total_bytes=disk.total,used_bytes=disk.used,available_bytes=disk.free,used_fraction=disk.used/disk.total)
+ file=OUT/'recovery-capacity.csv';exists=file.exists()
+ with file.open('a',newline='') as stream:
+  writer=csv.DictWriter(stream,fieldnames=list(row),lineterminator='\n')
+  if not exists:writer.writeheader()
+  writer.writerow(row)
+ if row['used_fraction']>=.82:raise RuntimeError('No new cell at82% shared disk; retain headroom below85% and reclaim only rebuildable owned data')
 
 def export():
  with state:
@@ -32,6 +42,7 @@ def run_worker(worker):
   try:
    rows=export();pending=[c for c in task['condition_order'].split(',') if not any(r['task']==name and r['condition']==c and r['selected_for_comparison']=='1' for r in rows)]
    if not pending or time.time()>=deadline:continue
+   capacity(name,'before_task_group')
    seal=json.loads((ROOT/'task-seals'/f'{name}.json').read_text());assert seal['worker_id']==worker
    preflight=RAW/'instrumentation-preflights'
    done=[]
@@ -48,6 +59,7 @@ def run_worker(worker):
     unresolved=[r for r in rows if r['task']==name and r['condition']==condition and r['outcome_valid']!='1' and r['verifier_valid']!='0']
     if unresolved:print('NEEDS_OUTCOME_AUDIT',name,condition,flush=True);continue
     if time.time()>=deadline:print('REPORTING_CUTOFF_PARTIAL',name,condition,flush=True);break
+    capacity(name,'before_model_'+condition)
     attempts=[p.name for p in (RAW/'jobs').glob(f'{name}-{condition}-*')]
     attempt=('1' if condition=='a' else 'block-1') if not attempts else ('repair-' if condition=='a' else 'block-')+str(len(attempts)+1)
     print('MODEL_START',worker,name,condition,attempt,time.strftime('%FT%TZ',time.gmtime()),flush=True)

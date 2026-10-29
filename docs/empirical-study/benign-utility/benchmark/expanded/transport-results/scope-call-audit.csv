@@ -1,0 +1,12 @@
+trial_id,task,condition,call_index,exact_root_events_during_call,exact_root_observed_after_call_end,exact_root_observed_at_or_after_call_start,shell_transition_candidate,terminal_input_evidence,action_kind,security_call_coverage,scope_cutoff,evidence
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,1,1,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,2,3,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,3,2,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,4,1,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,5,2,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,6,4,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,7,2,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,8,2,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,9,1,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,10,4,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+fix-code-vulnerability__VwSvwqK,fix-code-vulnerability,a,11,2,0,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
