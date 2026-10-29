@@ -327,8 +327,7 @@ rq1,zai/glm-4.7-flash,nearai__ironclaw::2,compiler_failure,generation_output_lim
 rq1,zai/glm-4.7-flash,nearai__ironclaw::34,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,nearai__ironclaw::35,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,nearai__ironclaw::37,compiler_failure,syntax_or_lowering
-rq1,zai/glm-4.7-flash,openai__codex::25,access_failure,ok
-rq1,zai/glm-4.7-flash,openai__codex::26,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,openai__codex::26,access_failure,ok
 rq1,zai/glm-4.7-flash,openai__codex::4,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,openai__codex::47,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,openai__codex::48,access_failure,provider_capacity
