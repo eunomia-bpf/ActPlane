@@ -1,5 +1,5 @@
 """Freeze a separate manifest and comparable source policies before agent outcomes."""
-import argparse,csv,hashlib,json,shutil,struct,subprocess,tomllib
+import argparse,csv,hashlib,json,shutil,struct,subprocess,time,tomllib
 from pathlib import Path
 BASE=Path('/workspaces/exp/benign-utility/raw/benchmark');RAW=BASE/'network'
 ROOT=BASE.parent.parent/'benchmark/network';OUT=ROOT/'results';POLICIES=ROOT/'policies'
@@ -17,7 +17,7 @@ def fields(data):
 def canonical(values):return [[x.hex() if isinstance(x,bytes) else x for x in row] for row in values]
 
 def main():
- parser=argparse.ArgumentParser();parser.add_argument('--seal',action='store_true');parser.add_argument('--revise-preflight',action='store_true');args=parser.parse_args()
+ parser=argparse.ArgumentParser();parser.add_argument('--seal',action='store_true');parser.add_argument('--revise-preflight',action='store_true');parser.add_argument('--revise-unexecuted-seal',action='store_true');args=parser.parse_args()
  OUT.mkdir(parents=True,exist_ok=True);POLICIES.mkdir(exist_ok=True)
  if args.revise_preflight:
   assert not (ROOT/'cohort-freeze.json').exists(),'Never revise sealed policies'
@@ -91,8 +91,20 @@ def main():
   code_root=Path(__file__).parent.parent
   seal=dict(cohort='network_exposure_followup',model='zai/glm-5.3',agent='Harbor0.25.0 Terminus2 official defaults',repetitions=1,selection='earliest infrastructure-valid outcome; genuine failures/timeouts never resampled; unknown failures require audit',files={str(p.relative_to(ROOT)):digest(p) for p in files},runtime_code={str(p.relative_to(code_root)):digest(p) for p in (code_root/'adapter.py',code_root/'network/adapter.py',code_root/'network/run.py')},engine_sha256=digest(BASE/'engine/process'),compiler_sha256=digest(Path(COMPILER)))
   target=ROOT/'cohort-freeze.json'
-  if target.exists():assert json.loads(target.read_text())==seal,'Frozen follow-up changed'
-  else:target.write_text(json.dumps(seal,indent=2)+'\n')
+  if target.exists() and json.loads(target.read_text())!=seal:
+   assert args.revise_unexecuted_seal and not list((RAW/'jobs').glob('*')),'Never revise runtime seal after scored jobs start'
+   previous=json.loads(target.read_text())
+   assert {k:v for k,v in previous.items() if k!='runtime_code'}=={k:v for k,v in seal.items() if k!='runtime_code'},'Only pre-model runtime instrumentation repair permitted'
+   archive=RAW/'seal-preflights'/time.strftime('%Y%m%dT%H%M%SZ',time.gmtime());archive.mkdir(parents=True)
+   shutil.copyfile(target,archive/'cohort-freeze.json')
+   row=dict(utc=time.strftime('%FT%TZ',time.gmtime()),reason='pre-model instrumentation mapping repair',previous_sha256=digest(target),replacement_sha256=hashlib.sha256((json.dumps(seal,indent=2)+'\n').encode()).hexdigest(),scored_jobs_before_revision=0,nonruntime_artifacts_unchanged=1,raw_archive=str(archive))
+   receipt=OUT/'seal-revisions.csv';exists=receipt.exists()
+   with receipt.open('a',newline='') as handle:
+    writer=csv.DictWriter(handle,fieldnames=list(row))
+    if not exists:writer.writeheader()
+    writer.writerow(row)
+   target.write_text(json.dumps(seal,indent=2)+'\n')
+  elif not target.exists():target.write_text(json.dumps(seal,indent=2)+'\n')
   print('SEALED',seal['cohort'],flush=True)
  else:print('PREPARED',[(r['task'],r['condition_order']) for r in tasks],flush=True)
 

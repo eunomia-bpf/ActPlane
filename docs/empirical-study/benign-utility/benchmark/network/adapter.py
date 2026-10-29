@@ -1,5 +1,5 @@
 """Separate declared-cohort adapter; native agent defaults remain unchanged."""
-import asyncio,hashlib,json,os,shlex,signal,subprocess,time
+import asyncio,hashlib,json,os,re,signal,subprocess,time,uuid
 from pathlib import Path
 from benchmark.adapter import InstrumentedTerminus
 BASE=Path('/workspaces/exp/benign-utility/raw/benchmark')
@@ -25,39 +25,42 @@ class NetworkTerminus(InstrumentedTerminus):
   actual=subprocess.check_output(['docker','inspect','--format','{{.Image}}',scope['container_id']],text=True).strip()
   assert actual==expected,'Official task image differs from pre-outcome inventory'
   if self.bu_condition!='a':assert (self.bu_logs/'policy.dsl').read_bytes()==(self.bu_policy_directory/f'{self.bu_condition}.dsl').read_bytes()
-  # Find the real asciinema child shell, not merely tmux's outer pane shell.
-  script="""import json,pathlib
-outer=OUTER
-items={}
-for p in pathlib.Path('/proc').glob('[0-9]*'):
- try:
-  status=dict(line.split(':',1) for line in (p/'status').read_text().splitlines() if ':' in line)
-  items[int(p.name)]=dict(ppid=int(status['PPid']),comm=status['Name'].strip(),recorder=b'asciinema' in (p/'cmdline').read_bytes())
- except (OSError,KeyError,ValueError):pass
-candidates=[]
-for pid,item in items.items():
- if pid==outer or item['comm'] not in ('bash','sh','dash','zsh'):continue
- chain=[];p=item['ppid']
- while p in items and p not in chain:chain.append(p);p=items[p]['ppid']
- if outer in chain and any(items[p]['recorder'] for p in chain):candidates.append(pid)
-assert len(candidates)==1,candidates
-print(json.dumps(dict(container_root_pid=candidates[0],processes=items)))
-""".replace('OUTER',str(scope['root_namespace_pid']))
-  found=await environment.exec(command='python3 -c '+shlex.quote(script),timeout_sec=30)
-  assert found.return_code==0,found.stderr
-  process_map=json.loads(found.stdout);container_root=process_map['container_root_pid'];matches=[]
-  for p in Path('/proc').glob('[0-9]*'):
+  # Hold a unique comm marker in the actual persistent shell, independently
+  # reconfirm the kernel TGID, and map that same marker into Workspace /proc.
+  marker='buns'+uuid.uuid4().hex[:8];mapping=self.bu_logs/'workspace-map.bt';mapping_log=self.bu_logs/'workspace-map.jsonl'
+  mapping.write_text('BEGIN { printf("READY\\n"); }\ntracepoint:syscalls:sys_enter_openat /comm == "'+marker+'"/ { printf("HOST_PID|%d\\n", curtask->tgid); exit(); }\n')
+  matches=[]
+  with mapping_log.open('w') as stream:
+   mapper=subprocess.Popen(['bpftrace','-f','json',str(mapping)],stdout=stream,stderr=subprocess.STDOUT)
    try:
-    if os.readlink(p/'ns/pid')!=scope['root_pid_namespace']:continue
-    line=next(x for x in (p/'status').read_text().splitlines() if x.startswith('NSpid:'))
-    if int(line.split()[-1])==container_root:matches.append(int(p.name))
-   except (OSError,StopIteration):pass
-  assert len(matches)==1,matches
+    for _ in range(600):
+     if 'READY' in mapping_log.read_text():break
+     assert mapper.poll() is None,mapping_log.read_text()
+     await asyncio.sleep(.05)
+    else:raise RuntimeError('Workspace mapper startup timed out')
+    await self._session.send_keys(f"printf '%s' {marker} >/proc/self/comm; : >/dev/null\n",block=False,min_timeout_sec=.2)
+    for _ in range(100):
+     if 'HOST_PID|' in mapping_log.read_text():break
+     await asyncio.sleep(.05)
+    else:raise RuntimeError('Held shell marker did not yield independent kernel PID')
+    observed=int(re.search(r'HOST_PID\|(\d+)',mapping_log.read_text())[1])
+    assert observed==scope['root_host_pid'] and 'helper_error' not in mapping_log.read_text()
+    for p in Path('/proc').glob('[0-9]*'):
+     try:
+      if os.readlink(p/'ns/pid')==scope['root_pid_namespace'] and (p/'comm').read_text().strip()==marker:matches.append(int(p.name))
+     except OSError:pass
+    assert len(matches)==1,matches
+    line=next(x for x in Path(f'/proc/{matches[0]}/status').read_text().splitlines() if x.startswith('NSpid:'))
+    container_root=int(line.split()[-1])
+   finally:
+    await self._session.send_keys("printf '%s' bash >/proc/self/comm\n",block=False,min_timeout_sec=.2)
+    if mapper.poll() is None:mapper.send_signal(signal.SIGINT)
+    mapper.wait(timeout=10)
   self.bu_actual_workspace_root=matches[0]
   self.bu_root_start=Path(f'/proc/{matches[0]}/stat').read_text().rsplit(')',1)[1].split()[19]
   scope.update(tmux_outer_workspace_pid=scope['root_workspace_pid'],tmux_outer_namespace_pid=scope['root_namespace_pid'],root_workspace_pid=matches[0],root_namespace_pid=container_root,actual_image_id=actual,cohort=seal['cohort'],syscall_clock_offset_ns=time.time_ns()-time.monotonic_ns())
   (self.bu_logs/'scope.json').write_text(json.dumps(scope,indent=2)+'\n')
-  (self.bu_logs/'pre-agent-processes.json').write_text(json.dumps(process_map,indent=2)+'\n')
+  (self.bu_logs/'pre-agent-processes.json').write_text(json.dumps(dict(kernel_root=scope['root_host_pid'],workspace_root=matches[0],container_root=container_root,identity_method='held unique comm and independent kernel TGID receipt'),indent=2)+'\n')
   self.bu_syscall_stream=(self.bu_logs/'syscall-tracer.stderr').open('w')
   self.bu_syscalls=subprocess.Popen(['strace','-ff','-qq','-ttt','-T','-yy','-s','256','-e','trace=%process,openat,read,close,connect,sendto,sendmsg,write','-e','raw=read,write,sendto,sendmsg','-o',str(self.bu_logs/'syscalls'),'-p',str(matches[0])],stderr=self.bu_syscall_stream,stdout=subprocess.DEVNULL)
   for _ in range(100):
