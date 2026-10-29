@@ -5,7 +5,7 @@ ROOT=/workspaces/exp/benign-utility
 cd "$ROOT/src"
 exec 8>"$ROOT/benchmark/expanded/results/.export.lock"
 flock -s 8
-fingerprint=$(find "$ROOT/benchmark/expanded/results" -maxdepth 1 -type f -name '*.csv' -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)
+fingerprint=$({ find "$ROOT/benchmark/expanded/results" -maxdepth 1 -type f -name '*.csv' -print0 | sort -z | xargs -0 sha256sum; sha256sum report.py chronology.py; } | sha256sum | cut -d' ' -f1)
 SNAPSHOT="$ROOT/checkpoint"
 if [[ "${1:-}" != --force && -f "$SNAPSHOT/fingerprint.txt" && "$(cat "$SNAPSHOT/fingerprint.txt")" == "$fingerprint" ]]; then
   echo CHECKPOINT_UNCHANGED

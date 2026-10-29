@@ -233,6 +233,19 @@ def expansion_progress(rows, out):
         official = f"{int(row['official_successes'])}/{n}" if n else 'pending'
         matched = f"{int(row['complete_triplet_successes'])}/{common}" if common else 'pending'
         lines.append(f"| {cohort} | {names[row['condition']]} | {row['outcome_valid_sessions']}/{row['planned_sessions']} | {official} | {matched} |")
+    combined = next(r for r in selected if r['dataset'] == 'Terminal-Bench combined' and r['condition'] == 'a')
+    common = set(filter(None, combined['complete_triplet_task_ids'].split(';')))
+    names_list = ', '.join(f'`{name}`' for name in sorted(common)) or 'none yet'
+    lines += ['', 'Combined tasks with valid outcomes in all three conditions: ' + names_list + '.']
+    extra = []
+    for row in selected:
+        if row['dataset'] != 'Terminal-Bench combined':
+            continue
+        remaining = set(filter(None, row['completed_task_ids'].split(';'))) - common
+        if remaining:
+            extra.append(names[row['condition']] + ': ' + ', '.join(f'`{name}`' for name in sorted(remaining)))
+    if extra:
+        lines += ['', 'Additional completed cells outside that matched set: ' + '; '.join(extra) + '.']
     lines += ['', 'Available-condition scores can have different task mixes. The matched column uses the same tasks completed in every condition.', '',
               '| Cohort | Condition | Covered calls | False calls | Unknown calls | Unassigned events | False-call bounds |',
               '| --- | --- | ---: | ---: | ---: | ---: | ---: |']
