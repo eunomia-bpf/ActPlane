@@ -4,6 +4,8 @@ from pathlib import Path
 from harbor.agents.terminus_2.terminus_2 import Terminus2
 
 RAW=Path('/workspaces/exp/benign-utility/raw/benchmark')
+OBSERVER_STRING_BYTES=1024
+HOOK_ENV_NAMES=('ACTPLANE_HOOK_PROFILE','ACTPLANE_ENABLE_ADVANCED_HOOKS','ACTPLANE_ADVANCED_TRACEPOINTS')
 class InstrumentedTerminus(Terminus2):
  def __init__(self,logs_dir,*args,**kwargs):
   self.bu_logs=Path(logs_dir);self.bu_condition=os.environ['BU_CONDITION'];self.bu_task=os.environ['BU_TASK'];self.bu_index=0;self.bu_loader=None;self.bu_observer=None
@@ -56,11 +58,11 @@ class InstrumentedTerminus(Terminus2):
    finally:
     if mapper.poll() is None:mapper.send_signal(signal.SIGINT)
     mapper.wait(timeout=10)
-  meta=dict(condition=self.bu_condition,task=self.bu_task,root_host_pid=root,root_workspace_pid=workspace_pid,root_namespace_pid=nspid,container_id=cid,root_pid_namespace=ns,attached_monotonic=time.monotonic(),scope='tmux pane shell and descendants; controller/model API outside scope')
+  meta=dict(condition=self.bu_condition,task=self.bu_task,root_host_pid=root,root_workspace_pid=workspace_pid,root_namespace_pid=nspid,container_id=cid,root_pid_namespace=ns,attached_monotonic=time.monotonic(),scope='tmux pane shell and descendants; controller/model API outside scope',observer_string_bytes=OBSERVER_STRING_BYTES,engine_hook_environment={name:os.environ.get(name,'unset') for name in HOOK_ENV_NAMES})
   (self.bu_logs/'scope.json').write_text(json.dumps(meta,indent=2))
   self.bu_observer_log=(self.bu_logs/'observer.jsonl').open('w')
   observer=self.bu_logs/'observer.bt';shutil.copyfile(Path(__file__).parents[1]/'replay/source_observer.bt',observer)
-  self.bu_observer=subprocess.Popen(['bpftrace','-f','json',str(observer),str(root)],env={**os.environ,'BPFTRACE_MAX_STRLEN':'128','BPFTRACE_MAX_MAP_KEYS':'262144'},stdout=self.bu_observer_log,stderr=subprocess.STDOUT)
+  self.bu_observer=subprocess.Popen(['bpftrace','-f','json',str(observer),str(root)],env={**os.environ,'BPFTRACE_MAX_STRLEN':str(OBSERVER_STRING_BYTES),'BPFTRACE_MAX_MAP_KEYS':'262144'},stdout=self.bu_observer_log,stderr=subprocess.STDOUT)
   for _ in range(600):
    if 'SOURCE_OBSERVER_READY' in (self.bu_logs/'observer.jsonl').read_text():break
    if self.bu_observer.poll() is not None:raise RuntimeError('Observer failed: '+(self.bu_logs/'observer.jsonl').read_text()[-1000:])

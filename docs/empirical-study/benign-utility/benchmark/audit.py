@@ -1,5 +1,5 @@
 """Inspect actual compiler output and record engine/model provenance."""
-import csv,hashlib,json,re,struct,subprocess,urllib.request
+import csv,hashlib,json,os,re,struct,subprocess,urllib.request
 from pathlib import Path
 RAW=Path('/workspaces/exp/benign-utility/raw/benchmark');HERE=Path(__file__).parent;OUT=RAW.parent.parent/'benchmark/results'
 OUT.mkdir(exist_ok=True);rows=[]
@@ -29,6 +29,9 @@ try:
  if (OUT/'model-metadata.json').exists():(OUT/'model-metadata.json').unlink()
 except Exception as e:print('Model metadata unavailable',repr(e))
 print('Audited',len(rows),'sources')
+with (OUT/'engine-profile.csv').open('w',newline='') as f:
+ w=csv.DictWriter(f,fieldnames=['variable','value','collection_stage']);w.writeheader()
+ w.writerows(dict(variable=name,value=os.environ.get(name,'unset'),collection_stage='current_export_not_historical_launch') for name in ('ACTPLANE_HOOK_PROFILE','ACTPLANE_ENABLE_ADVANCED_HOOKS','ACTPLANE_ADVANCED_TRACEPOINTS'))
 
 # repr(C) padding bytes can differ between compilations. Compare every active
 # ABI field as well as retaining hashes, rather than treating padding as policy.
