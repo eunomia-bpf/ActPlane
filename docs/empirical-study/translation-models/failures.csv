@@ -134,10 +134,6 @@ rq1,zai/glm-4.7-flash,NVIDIA__NemoClaw::26,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,NVIDIA__NemoClaw::4,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::10,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::29,compiler_failure,generation_output_limit
-rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::47,access_failure,ok
-rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::49,access_failure,rate_limited
-rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::50,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::53,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,OthmanAdi__planning-with-files::23,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,OthmanAdi__planning-with-files::24,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,OthmanAdi__planning-with-files::25,access_failure,rate_limited
@@ -183,7 +179,7 @@ rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::9,compiler_failure,generation_output
 rq1,zai/glm-4.7-flash,anomalyco__opencode::1,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,anomalyco__opencode::28,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,anomalyco__opencode::4,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,browser-use__browser-harness::4,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,browser-use__browser-harness::4,access_failure,ok
 rq1,zai/glm-4.7-flash,charmbracelet__crush::18,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,charmbracelet__crush::19,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,charmbracelet__crush::20,access_failure,provider_capacity
