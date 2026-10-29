@@ -3,3 +3,4 @@ PyYAML==6.0.3
 numpy==2.5.4
 matplotlib==3.11.2
 scikit-learn==1.9.1
+PyMuPDF==1.26.7

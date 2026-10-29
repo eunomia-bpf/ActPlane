@@ -2,7 +2,8 @@
 """Check actual PDF fonts, calibration status, and analyzed-snapshot metadata."""
 import argparse
 import re
-import shutil
+
+import pymupdf
 
 from common import DEFAULT_RAW, HERE, read_csv, write_csv
 
@@ -10,7 +11,7 @@ from common import DEFAULT_RAW, HERE, read_csv, write_csv
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--allow-interim', action='store_true')
-    parser.add_argument('--previews', action='store_true', help='Render input-matched PNG previews outside git.')
+    parser.add_argument('--previews', action='store_true', help='Rasterize the actual PDFs to PNGs outside git.')
     args = parser.parse_args()
     results = []
     def record(check, expected, actual):
@@ -47,25 +48,24 @@ def main():
             types = re.findall(rb'/Subtype\s*/(\w+)', data)
             record(prefix + 'type3_fonts', 0, types.count(b'Type3'))
             record(prefix + 'embedded_truetype', True, b'CIDFontType2' in types and b'/FontFile2' in data)
+            with pymupdf.open(path) as document:
+                record(prefix + 'page_count', 1, len(document))
+                visible = document[0].get_text()
+                record(prefix + 'withheld_content', bool(failed), 'Result withheld' in visible)
+                if number == 2 and not failed:
+                    record(prefix + 'visible_repository_count', True,
+                           f'{int(coverage["analyzed_repositories"]):,} repositories' in visible)
+                    record(prefix + 'visible_statement_count', True,
+                           f'{int(coverage["analyzed_statements"]):,} statements' in visible)
+                if args.previews:
+                    root = DEFAULT_RAW / 'figure-pdf-preview'
+                    root.mkdir(parents=True, exist_ok=True)
+                    document[0].get_pixmap(dpi=180).save(root / (path.stem + '.png'))
     write_csv(HERE / 'figure_production_validation.csv', results)
     if not all(row['passed'] for row in results):
         raise SystemExit('Production figure validation failed')
     if args.previews:
-        root = DEFAULT_RAW / 'figure-production-preview'
-        root.mkdir(parents=True, exist_ok=True)
-        for name in ['analysis_statements.csv', 'analysis_coverage.csv', 'calibration_gates.csv', 'format_calibration_gates.csv']:
-            if (HERE / name).exists():
-                shutil.copy2(HERE / name, root / name)
-        import figures
-        figures.HERE, figures.OUT, figures.DATA = root, root / 'figures', []
-        original_save = figures.save
-        def save_preview(fig, name):
-            figures.OUT.mkdir(parents=True, exist_ok=True)
-            fig.savefig(figures.OUT / (name + '.png'), dpi=180, bbox_inches='tight')
-            original_save(fig, name)
-        figures.save = save_preview
-        figures.main()
-        print('Input-matched previews:', root / 'figures')
+        print('Actual-PDF raster previews:', DEFAULT_RAW / 'figure-pdf-preview')
     print('All actual-PDF font, gating, and snapshot checks passed.')
 
 

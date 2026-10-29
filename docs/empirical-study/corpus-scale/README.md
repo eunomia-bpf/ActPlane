@@ -214,7 +214,7 @@ python analyze.py
 python figures.py
 python audit_runs.py
 python validate.py --require-complete
-python validate_figures.py
+python validate_figures.py --previews
 python report.py
 ```
 
@@ -235,7 +235,7 @@ The repository-requested `oss-change-workflow` skill was unavailable in the inst
 | 6 | [empirical-waterfall-context-horizontal.pdf](figures/empirical-waterfall-context-horizontal.pdf) | withheld | enforceability,context_required |
 | 7 | [empirical_rq4_context_by_enforcement.pdf](figures/empirical_rq4_context_by_enforcement.pdf) | withheld | enforceability,context_required |
 
-An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains the counts, denominators, and project fractions used by the plots.
+An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains the counts, denominators, and project fractions used by the plots. `validate_figures.py` checks embedded fonts, placeholder text, and snapshot metadata against the actual PDFs. Its optional raster previews stay outside git for visual inspection.
 
 ## Paper-ready paragraph
 

@@ -236,7 +236,7 @@ def main():
         f'python scope_files.py --workers {cfg["post_core_optional_scope_workers"]}',
         'python analyze.py', 'python figures.py',
         'python audit_runs.py', 'python validate.py --require-complete',
-        'python validate_figures.py', 'python report.py', '```', '',
+        'python validate_figures.py --previews', 'python report.py', '```', '',
         '`restore_sources.py` verifies the committed source hashes and Git blob hashes, downloads missing or corrupt cached files from their immutable commit URLs, and records every outcome in `source_restore_validation.csv`. It does not overwrite collection metadata or rediscover repositories. `collect.py` is the separate discovery command for a new dated snapshot. Model regeneration can vary even with the same named endpoint and fixed prompts, so the committed accepted labels remain the record of this run.', '',
         'Committed artifacts include immutable historical provenance, historical labels, model labels, calibration confusion tables, search queries, corpus/file manifests, extraction status, repository categories, summary tables, and the figures corresponding to the paper’s plots. GitHub requests are sequential, cached, and honor retry/reset feedback. Model concurrency stays within the operator’s endpoint limits.', '',
         'The repository-requested `oss-change-workflow` skill was unavailable in the installed skill catalog and filesystem search. Work follows the explicit repository scope, validation, and documentation instructions. The operator’s updated handoff rule is to commit and push only to `experiments/corpus-scale-20261028`, with no further PR activity. No paper source, kernel code, cluster deployment, or other lane is changed.', '',
@@ -245,7 +245,7 @@ def main():
         table = ['## Figure handoff', '', '| Paper figure | PDF | Status | Unvalidated axes |', '|---|---|---|---|']
         for r in read_csv(HERE / 'figure_manifest.csv'):
             table.append(f'| {r["paper_figure"]} | [{r["file"].split("/")[-1]}]({r["file"]}) | {r["status"]} | {r["failed_dimensions"]} |')
-        table += ['', 'An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains the counts, denominators, and project fractions used by the plots.', '']
+        table += ['', 'An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains the counts, denominators, and project fractions used by the plots. `validate_figures.py` checks embedded fonts, placeholder text, and snapshot metadata against the actual PDFs. Its optional raster previews stay outside git for visual inspection.', '']
         lines[-2:-2] = table
     if overall and coverage.get('analyzed_repositories') == coverage.get('collected_repositories'):
         valid = {k: r for k, r in overall.items() if r['status'] == 'ok'}
