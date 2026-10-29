@@ -1,0 +1,7 @@
+task,dataset,dataset_commit,condition_order,agent_timeout_sec,verifier_timeout_sec,instruction_sha256,docker_image
+cancel-async-tasks,terminal-bench@2.0,69671fbaac6d67a7ef0dfec016cc38a64ef7a77c,"a,b,c",900.0,900.0,23d22f7039b50682941652c716f96dac314b8585c32c133614cac77dc067f47e,alexgshaw/cancel-async-tasks:20251031
+git-leak-recovery,terminal-bench@2.0,69671fbaac6d67a7ef0dfec016cc38a64ef7a77c,"b,c,a",900.0,900.0,54ac693fd26a4c003f610d62c4b2671f1d1d04ac5b1286f780605e385a9a5861,alexgshaw/git-leak-recovery:20251031
+log-summary-date-ranges,terminal-bench@2.0,69671fbaac6d67a7ef0dfec016cc38a64ef7a77c,"c,a,b",900.0,900.0,c1d4516ad4ec2238209740eaf01291df9ab48b0028a3fc5df383c6f831453484,alexgshaw/log-summary-date-ranges:20251031
+openssl-selfsigned-cert,terminal-bench@2.0,69671fbaac6d67a7ef0dfec016cc38a64ef7a77c,"a,b,c",900.0,900.0,38054a3371f7c2c853478a2f9af0bff858437d5b28a9a07483238f06e566921f,alexgshaw/openssl-selfsigned-cert:20251031
+sanitize-git-repo,terminal-bench@2.0,69671fbaac6d67a7ef0dfec016cc38a64ef7a77c,"b,c,a",900.0,900.0,d9e10a56e94e51592c6016efb02adef852d4fd08f9ba23dc304d2673d1478e8a,alexgshaw/sanitize-git-repo:20251031
+vulnerable-secret,terminal-bench@2.0,69671fbaac6d67a7ef0dfec016cc38a64ef7a77c,"c,a,b",900.0,900.0,d43c72e6c39cdeb1141a9c8eae8357df1b0901383ee2beedacf828bf017d7a2f,alexgshaw/vulnerable-secret:20251031

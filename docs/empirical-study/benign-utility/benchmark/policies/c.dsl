@@ -1,0 +1,17 @@
+source COMMAND = exec "**"
+source SECRET = file "/app/.env"
+source SECRET = file "/app/.env.local"
+source SECRET = file "/app/.env.production"
+source SECRET = file "/app/repo/.env"
+source SECRET = file "/app/repo/.env.local"
+source SECRET = file "/app/repo/.env.production"
+source SECRET = file "/app/ssl/server.key"
+source SECRET = file "/app/ssl/server.pem"
+source SECRET = file "/root/.ssh/id_rsa"
+source SECRET = file "/root/.ssh/id_ed25519"
+source SECRET = file "/root/.aws/credentials"
+source SECRET = file "/root/.gemini/oauth_creds.json"
+source SECRET = file "/etc/secrets/**"
+rule secret-no-network:
+  kill connect endpoint "*" if SECRET
+  because "A process that opened an explicitly scoped credential file may not use the network"

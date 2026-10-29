@@ -1,0 +1,11 @@
+{
+  "harbor": "0.25.0",
+  "terminus_2": "2.0.0",
+  "dataset": "terminal-bench@2.0",
+  "commit": "69671fbaac6d67a7ef0dfec016cc38a64ef7a77c",
+  "model": "qwen3.8-27b-nvfp4",
+  "model_url": "http://qwen38-vllm.models.svc.cluster.local:8000/v1",
+  "seed": "unset official default",
+  "repetitions": 1,
+  "selection": "purposive software/data and secret-handling tasks, not a representative estimate of full benchmark"
+}
