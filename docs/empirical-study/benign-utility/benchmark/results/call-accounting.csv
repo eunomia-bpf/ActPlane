@@ -34,3 +34,5 @@ openssl-selfsigned-cert,b,1,openssl-selfsigned-cert__ZTBzU3T,3,3,0,0
 openssl-selfsigned-cert,b,block-1,openssl-selfsigned-cert__mdqQLrR,4,4,0,0
 openssl-selfsigned-cert,c,1,openssl-selfsigned-cert__nEhyN3t,3,3,0,0
 openssl-selfsigned-cert,c,block-1,openssl-selfsigned-cert__wf73aFQ,2,2,0,0
+sanitize-git-repo,b,block-1,sanitize-git-repo__wxorDvg,29,29,0,0
+sanitize-git-repo,c,block-1,sanitize-git-repo__Ytx8Mj8,29,29,0,0

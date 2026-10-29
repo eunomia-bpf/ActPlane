@@ -10,6 +10,8 @@ lock.write(str(os.getpid()));lock.flush()
 
 def export():
  subprocess.run([sys.executable,'-B','benchmark/analyze.py'],check=True)
+ subprocess.run([sys.executable,'-B','benchmark/scope_audit.py'],check=True)
+ subprocess.run([sys.executable,'-B','benchmark/analyze.py'],check=True)
  return list(csv.DictReader((OUT/'trials.csv').open()))
 env={**os.environ,'DOCKER_HOST':'unix://'+str(RAW/'docker.sock'),'DOCKER_CONFIG':str(RAW/'docker-config')}
 for task in csv.DictReader((OUT/'tasks.csv').open()):
