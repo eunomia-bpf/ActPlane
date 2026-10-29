@@ -1,0 +1,5 @@
+framework,model,calls,true_positive,false_positive,false_negative,true_negative,precision,recall,unresolved_calls
+Claude Code,fable-5,410,59,36,6,309,0.6210526315789474,0.9076923076923077,0
+Codex,gpt-5.6-sol,180,49,1,130,0,0.98,0.2737430167597765,0
+mini-SWE-agent,claude-opus-4-6,377,100,31,42,204,0.7633587786259542,0.704225352112676,0
+mini-SWE-agent,gpt-5.2-high,368,39,3,66,260,0.9285714285714286,0.37142857142857144,0

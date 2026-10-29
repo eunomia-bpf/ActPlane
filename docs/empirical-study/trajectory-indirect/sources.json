@@ -1,0 +1,7 @@
+{
+  "seed": "actplane-trajectory-indirect-20261028",
+  "nebius": {"repo": "nebius/SWE-agent-trajectories", "revision": "68195a1450865274106246d0d0296a1d6807b88e", "framework": "SWE-agent", "shards": 2, "per_model": 1000},
+  "openhands": {"repo": "SWE-Gym/OpenHands-SFT-Trajectories", "revision": "4aaa5a4a4b5861f4799d2336908760c190ac3b17", "framework": "OpenHands", "model": "unattributed GPT-4o / Claude-3.5-Sonnet mixture"},
+  "mini": {"repo": "SWE-bench/experiments", "revision": "40f164d5b8f1d249bf95a6df8b74b577fd8e519d", "framework": "mini-SWE-agent", "per_model": 200, "runs": {"20260217_mini-v2.0.0_claude-4-6-opus": "claude-opus-4-6", "20260217_mini-v2.0.0_gpt-5-2-high": "gpt-5.2-high"}},
+  "native": {"repo": "ibragim-bad/swe_rebench_07_2026_trajectories", "revision": "cdae27cdd16673f0c682871ad55d325f24cc7020", "participants": ["claude-code", "codex"], "run": 0}
+}

@@ -1,0 +1,10 @@
+framework,model,classification,trajectories,recorded_calls,executed_calls,successful_calls,failed_calls,timed_out_calls,invalid_trace_calls,any_unnamed_effect_calls,write_events,unnamed_write_events,strict_unnamed_write_events,unknown_write_events,write_objects,unnamed_write_objects,unknown_write_objects,unnamed_write_pct,unnamed_write_object_pct,exec_events,unnamed_exec_events,strict_unnamed_exec_events,unknown_exec_events,exec_objects,unnamed_exec_objects,unknown_exec_objects,unnamed_exec_pct,unnamed_exec_object_pct,truncate_events,unnamed_truncate_events,strict_unnamed_truncate_events,unknown_truncate_events,truncate_objects,unnamed_truncate_objects,unknown_truncate_objects,unnamed_truncate_pct,unnamed_truncate_object_pct
+ALL,ALL,ALL,13,460,439,394,45,1,83,92,1002145,983030,990336,3,280309,280231,1,98.0925913914653,99.97217356560081,3661,2807,2807,0,947,355,0,76.67304015296367,37.48680042238648,0,0,0,0,0,0,0,,
+ALL,ALL,direct_edit,10,61,61,61,0,0,4,0,61,0,0,0,61,0,0,0.0,0.0,0,0,0,0,0,0,0,,,0,0,0,0,0,0,0,,
+ALL,ALL,direct_shell,3,5,5,3,2,0,0,0,0,0,0,0,0,0,0,,,16,0,0,0,11,0,0,0.0,0.0,0,0,0,0,0,0,0,,
+ALL,ALL,indirect,13,107,102,78,24,1,22,64,873309,873294,873301,0,193915,193901,0,99.99828239489115,99.99278034190237,3195,2738,2738,0,603,296,0,85.69640062597809,49.08789386401327,0,0,0,0,0,0,0,,
+ALL,ALL,inline_code,3,10,10,7,3,0,0,0,0,0,0,0,0,0,0,,,25,0,0,0,21,0,0,0.0,0.0,0,0,0,0,0,0,0,,
+ALL,ALL,read_only,13,264,253,240,13,0,50,22,9,9,9,0,2,2,0,100.0,100.0,347,44,44,0,280,44,0,12.680115273775217,15.714285714285714,0,0,0,0,0,0,0,,
+ALL,ALL,unknown,5,13,8,5,3,0,7,6,128766,109727,117026,3,86331,86328,1,85.21426463507447,99.99652500260625,78,25,25,0,32,15,0,32.05128205128205,46.875,0,0,0,0,0,0,0,,
+Claude Code,fable-5,ALL,10,410,410,373,37,1,62,63,1002136,983021,990327,3,280307,280229,1,98.09257426137769,99.97217336705826,3481,2749,2749,0,801,297,0,78.97155989658144,37.07865168539326,0,0,0,0,0,0,0,,
+Codex,gpt-5.6-sol,ALL,3,50,29,21,8,0,21,29,9,9,9,0,2,2,0,100.0,100.0,180,58,58,0,146,58,0,32.22222222222222,39.726027397260275,0,0,0,0,0,0,0,,

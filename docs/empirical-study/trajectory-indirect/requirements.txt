@@ -1,0 +1,7 @@
+requests==2.34.2
+pyarrow==26.0.0
+pandas==3.1.0
+matplotlib==3.11.2
+bashlex==0.18
+pytest==9.2.0
+uv==0.13.6

@@ -1,0 +1,8 @@
+check,status,items
+unique_call_ids_and_trajectory_ids,passed,89176
+trajectory_counts_and_history_flags,passed,3156
+group_counts_and_percentages,passed,8
+adapter_action_slot_coverage,passed,3156
+pinned_source_sha256_and_size,passed,405
+sample_locators_and_argument_hashes,passed,189
+frozen_blind_validation_predictions,passed,100

@@ -1,0 +1,27 @@
+framework,model,path_scope,effect,events,unnamed_events,unknown_events,unnamed_pct,call_object_pairs,unnamed_call_object_pairs,unnamed_call_object_pct
+ALL,ALL,environment,exec,8,4,0,50.0,8,4,50.0
+ALL,ALL,home,exec,19,19,0,100.0,19,19,100.0
+ALL,ALL,home,write,214,214,0,100.0,205,205,100.0
+ALL,ALL,package_cache,exec,1098,1040,0,94.71766848816029,55,33,60.0
+ALL,ALL,package_cache,write,180599,180598,0,99.999446287078,81681,81680,99.99877572507683
+ALL,ALL,project_generated,exec,35,24,0,68.57142857142857,15,6,40.0
+ALL,ALL,project_generated,write,119215,119212,0,99.99748353814537,101383,101380,99.9970409240208
+ALL,ALL,project_other,write,96580,96519,0,99.9368399254504,81666,81605,99.92530551269806
+ALL,ALL,system_or_other,exec,2411,1681,0,69.72210700953961,801,254,31.7103620474407
+ALL,ALL,system_or_other,write,79,76,3,96.20253164556962,39,38,97.43589743589743
+ALL,ALL,temporary,exec,90,39,0,43.333333333333336,49,39,79.59183673469387
+ALL,ALL,temporary,write,605458,586411,0,96.8541170485814,15335,15323,99.92174763612651
+Claude Code,fable-5,environment,exec,8,4,0,50.0,8,4,50.0
+Claude Code,fable-5,home,exec,19,19,0,100.0,19,19,100.0
+Claude Code,fable-5,home,write,214,214,0,100.0,205,205,100.0
+Claude Code,fable-5,package_cache,exec,1098,1040,0,94.71766848816029,55,33,60.0
+Claude Code,fable-5,package_cache,write,180599,180598,0,99.999446287078,81681,81680,99.99877572507683
+Claude Code,fable-5,project_generated,exec,35,24,0,68.57142857142857,15,6,40.0
+Claude Code,fable-5,project_generated,write,119206,119203,0,99.99748334815362,101381,101378,99.99704086564543
+Claude Code,fable-5,project_other,write,96580,96519,0,99.9368399254504,81666,81605,99.92530551269806
+Claude Code,fable-5,system_or_other,exec,2231,1623,0,72.74764679515913,655,196,29.923664122137403
+Claude Code,fable-5,system_or_other,write,79,76,3,96.20253164556962,39,38,97.43589743589743
+Claude Code,fable-5,temporary,exec,90,39,0,43.333333333333336,49,39,79.59183673469387
+Claude Code,fable-5,temporary,write,605458,586411,0,96.8541170485814,15335,15323,99.92174763612651
+Codex,gpt-5.6-sol,project_generated,write,9,9,0,100.0,2,2,100.0
+Codex,gpt-5.6-sol,system_or_other,exec,180,58,0,32.22222222222222,146,58,39.726027397260275

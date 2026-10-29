@@ -1,0 +1,12 @@
+probe_case,kind,path,expected,observed,observed_bytes,passed,observer_sha256,evidence
+namespace-scalar-vector-pwrite-copy-truncate-descendants,1,/project/direct.txt,1,1,7,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl
+namespace-scalar-vector-pwrite-copy-truncate-descendants,1,/project/hidden.txt,1,1,5,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl
+namespace-scalar-vector-pwrite-copy-truncate-descendants,1,/project/vector.txt,2,2,3,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl
+namespace-scalar-vector-pwrite-copy-truncate-descendants,1,/project/copied.txt,1,1,1,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl
+namespace-scalar-vector-pwrite-copy-truncate-descendants,2,/usr/bin/python3,1,1,0,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl
+namespace-scalar-vector-pwrite-copy-truncate-descendants,2,/bin/true,1,1,0,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl
+namespace-scalar-vector-pwrite-copy-truncate-descendants,2,/bin/false,1,1,0,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl
+namespace-scalar-vector-pwrite-copy-truncate-descendants,3,/project/hidden.txt,1,1,0,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl
+namespace-scalar-vector-pwrite-copy-truncate-descendants,9,/bin/bash,1,1,0,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl
+preallocation-followed-by-stdout-is-not-data-write,1,allocated-only,0,0,0,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl
+zero-byte-and-rejected-regular-file-writes-are-excluded,1,failed-write.txt,0,0,0,1,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829,dynamic/calibration-repeat-20261028T091334Z/observer.jsonl

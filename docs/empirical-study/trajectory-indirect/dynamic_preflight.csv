@@ -1,0 +1,9 @@
+check,status,detail
+bpftrace_begin,passed,Host BPF programs can load.
+path_at_kprobe,failed,bpf_d_path is restricted at arbitrary VFS probes; moved path capture to security_file_permission.
+namespace_tid_builtin,failed,Namespace-relative tid emitted EINVAL outside the container; now use curtask->pid in the initial namespace.
+vectored_write_coverage,failed_then_corrected,"Added vfs_writev, copy_file_range, sendfile and clone hooks after calibration exposed missing writev."
+development_pilot_map_capacity,failed,A development pilot exceeded 65536 keys. Main capacity increased to 262144; overflow diagnostics retained in pilot outputs.
+development_pilot_cache_policy,corrected,Shared cache made paired cases warm. Main runs use private caches with disposable dependency trees.
+negative_preallocation_stdout,failed_then_corrected,Preallocation left a stale permission-path cache. File-identity guards prevent later stdout writes from being assigned to that file. Earlier replay batches are retained as diagnostics and the same fixed cohort is rerun.
+sandbox_calibration,passed,"Observed scalar, vectored, positioned, copied and truncated file effects and descendant execs in a fresh PID/mount namespace."

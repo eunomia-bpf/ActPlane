@@ -1,0 +1,48 @@
+component,exit_code,value
+host_kernel,0,Linux 7.3.0-070300rc3-generic #202609132247 SMP PREEMPT_DYNAMIC Sun Sep 13 23:07:09 UTC 2026 x86_64 GNU/Linux
+bpftrace,0,bpftrace v0.23.2
+bubblewrap,0,bubblewrap 0.12.0
+gcc,0,14.2.0
+legacy_python_gcc,0,12.4.0
+legacy_python_gxx,0,12.4.0
+git,0,git version 2.55.0
+system_python,0,Python 3.13.5
+node,0,v20.19.2
+npm,0,9.2.0
+java,0,"openjdk version ""21.0.13"" 2026-10-20
+OpenJDK Runtime Environment (build 21.0.13+9-1-deb13u2-Debian)
+OpenJDK 64-Bit Server VM (build 21.0.13+9-1-deb13u2-Debian, mixed mode, sharing)"
+maven,0,"[1mApache Maven 3.9.9[m
+Maven home: /usr/share/maven
+Java version: 21.0.13, vendor: Debian, runtime: /usr/lib/jvm/java-21-openjdk-amd64
+Default locale: en, platform encoding: UTF-8
+OS name: ""linux"", version: ""7.3.0-070300rc3-generic"", arch: ""amd64"", family: ""unix"""
+go,0,go version go1.24.4 linux/amd64
+rustc,0,rustc 1.98.1 (48a229cea 2026-09-01)
+cargo,0,cargo 1.98.1 (797e8a9bc 2026-08-05)
+source_sha256:analyze.py,0,edb4e5d336d077b1da16e6a8b6f1a407e0fed3a7a85ca5106fe405bfd63356a8
+source_sha256:calibration_check.py,0,450980b942352de4e74f5ced1fee2e2b98738f1a4450a2f85b50a68220d82664
+source_sha256:collect.py,0,fa613e61095f7aa58111bff2c65033ff09542414b7a7cb34e7ea5918817a09ee
+source_sha256:dynamic_attempts.py,0,6892a2c277654b501feb6c2562e5e93e20cd39900f2701a6b179f2f87586895d
+source_sha256:dynamic_calibrate.py,0,6f6f6c73ac6a81aabc1450a04a736c52e32618cead36b21133b92e7df6a44c5d
+source_sha256:dynamic_config.json,0,eaa045464b9500349355ffdd29a2839867315c66fc9b87f36b32537d9842158c
+source_sha256:dynamic_effects.py,0,cbef8d0604c923c81d1a61b9e1c6e1ebc7bba83668428afefec28b33f936a84a
+source_sha256:dynamic_prepare.py,0,0f9ad203480cc0a176b37a51ba5a4de15e7e21e2ce9c683a11be4eb1b48d4b5e
+source_sha256:dynamic_provenance.py,0,b03112fb77694869bbbb70254a7f1c75bd34f77ea948a36f2481b6409bdcabe1
+source_sha256:dynamic_report.py,0,b13164f834de84082c9adea349d7adee221eaee1304af29bdaf489bf362b236d
+source_sha256:dynamic_retry.py,0,1510d5d8deea4ee919b683e6d4beb1dd278974543319b0b1c256b348c60c4043
+source_sha256:dynamic_run.py,0,d6b029cb1caf2e09edee543cfa1ecf194b63c0762e4a8ac9bdf2db40ab42f6c3
+source_sha256:dynamic_verify.py,0,bd1294f184c020bc9fb480b97f203a4425ba66a3ee88d726e8a527f5b63043a6
+source_sha256:dynamic_watch.py,0,f0cde3435b0678fc5bad55b81a93882ea2d5007568f9dcfc2ad58ab090049057
+source_sha256:launch.c,0,77579003421d830e99e6ce22c36741e11697639603c153ac9b1dfca97e69519a
+source_sha256:observer.bt,0,bd16754dac000b09d7edbdd04eb55fc5097383b7826c40e10a00e96659f11829
+source_sha256:probe.py,0,1c009980199ffcd1e30d0bda92600304e32c10d592e342e1f4e53acdc08a4014
+source_sha256:replay_tools.py,0,45acfee26aa7b3fa562d56d6d04d0eca1e222d337059e40ff0dfd299edb96587
+source_sha256:replay_worker.py,0,82e383bcdfe63f0b18e235a9479f748e8fe6f47758dec97b03b6e0c603c25b4f
+source_sha256:report.py,0,3e109e1742eb8039b9c201954303f937b8c9f7685c9d62cb4b222c8d4d3d16f7
+source_sha256:sources.json,0,74de1f31e1d6c9d5de698983edcdb96b813404b1c5a51fd56168f9d36f205e30
+source_sha256:test_analyze.py,0,6e918ab6b7272c2b78861ccd893cbe5d0b426e5f938acee4eee73c19035bf7c4
+source_sha256:test_dynamic.py,0,2a066488f756a088b455eae3963d1b81e7df09cff98e2115b772914d90f5da62
+source_sha256:validate.py,0,a64273dd406fcdef297b6f130feed453f1b55bb03bef671515f9a3c0b8ff08c8
+source_sha256:verify.py,0,c864d500130ed24bd85414fba9185ad6bf17440899c5c8834b84bdb7aea0302e
+source_sha256:write_summary.py,0,ef332bcf9917f32fe37d4b1c6834922812e993ee4254e3f1bd2ef8240791ce64

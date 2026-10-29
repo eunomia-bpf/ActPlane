@@ -1,0 +1,11 @@
+framework,model,classification,trajectories,recorded_calls,executed_calls,successful_calls,failed_calls,timed_out_calls,any_unnamed_effect_calls,write_events,unnamed_write_events,strict_unnamed_write_events,unknown_write_events,write_objects,unnamed_write_objects,unnamed_write_pct,unnamed_write_object_pct,exec_events,unnamed_exec_events,strict_unnamed_exec_events,unknown_exec_events,exec_objects,unnamed_exec_objects,unnamed_exec_pct,unnamed_exec_object_pct,truncate_events,unnamed_truncate_events,strict_unnamed_truncate_events,unknown_truncate_events,truncate_objects,unnamed_truncate_objects,unnamed_truncate_pct,unnamed_truncate_object_pct
+ALL,ALL,ALL,4,118,118,109,9,0,39,75427,75413,75413,0,67221,67207,99.98143900725205,99.97917317504947,372,187,187,0,293,126,50.26881720430107,43.003412969283275,0,0,0,0,0,0,,
+ALL,ALL,direct_edit,1,7,7,7,0,0,0,7,0,0,0,7,0,0.0,0.0,0,0,0,0,0,0,,,0,0,0,0,0,0,,
+ALL,ALL,direct_shell,2,3,3,3,0,0,0,2,0,0,0,2,0,0.0,0.0,3,0,0,0,3,0,0.0,0.0,0,0,0,0,0,0,,
+ALL,ALL,indirect,4,28,28,21,7,0,25,75147,75143,75143,0,66944,66940,99.99467709955155,99.99402485659655,210,159,159,0,145,98,75.71428571428571,67.58620689655173,0,0,0,0,0,0,,
+ALL,ALL,inline_code,1,7,7,6,1,0,6,267,266,266,0,267,266,99.62546816479401,99.62546816479401,19,12,12,0,19,12,63.1578947368421,63.1578947368421,0,0,0,0,0,0,,
+ALL,ALL,read_only,4,73,73,72,1,0,8,4,4,4,0,1,1,100.0,100.0,140,16,16,0,126,16,11.428571428571429,12.698412698412698,0,0,0,0,0,0,,
+Claude Code,fable-5,ALL,1,21,21,21,0,0,1,73551,73544,73544,0,65499,65492,99.9904827942516,99.9893128139361,24,12,12,0,18,8,50.0,44.44444444444444,0,0,0,0,0,0,,
+Codex,gpt-5.6-sol,ALL,1,11,11,7,4,0,11,4,4,4,0,1,1,100.0,100.0,67,22,22,0,53,22,32.83582089552239,41.509433962264154,0,0,0,0,0,0,,
+mini-SWE-agent,claude-opus-4-6,ALL,1,33,33,29,4,0,16,1491,1486,1486,0,1340,1335,99.66465459423206,99.6268656716418,156,101,101,0,113,59,64.74358974358974,52.21238938053097,0,0,0,0,0,0,,
+mini-SWE-agent,gpt-5.2-high,ALL,1,53,53,52,1,0,11,381,379,379,0,381,379,99.4750656167979,99.4750656167979,125,52,52,0,109,37,41.6,33.944954128440365,0,0,0,0,0,0,,

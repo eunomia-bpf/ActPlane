@@ -1,0 +1,59 @@
+framework,model,path_scope,effect,events,unnamed_events,unknown_events,unnamed_pct,call_object_pairs,unnamed_call_object_pairs,unnamed_call_object_pct
+ALL,ALL,environment,exec,405,36,0,8.88888888888889,375,16,4.266666666666667
+ALL,ALL,environment,write,11858,11857,0,99.99156687468376,8046,8045,99.98757146408153
+ALL,ALL,home,exec,38,28,0,73.6842105263158,34,28,82.3529411764706
+ALL,ALL,home,write,39160,39150,0,99.97446373850869,2645,2635,99.62192816635161
+ALL,ALL,package_cache,exec,1652,1600,0,96.85230024213075,100,69,69.0
+ALL,ALL,package_cache,write,245671,244778,0,99.63650573327743,83987,83985,99.99761867908128
+ALL,ALL,project_dependency,exec,4,4,0,100.0,4,4,100.0
+ALL,ALL,project_dependency,write,120376,120372,0,99.99667707848741,95857,95854,99.99687033810781
+ALL,ALL,project_generated,exec,35,24,0,68.57142857142857,15,6,40.0
+ALL,ALL,project_generated,write,181028,181020,0,99.9955807941313,111564,111556,99.9928292280664
+ALL,ALL,project_other,write,8350,8227,0,98.52694610778443,631,511,80.98256735340729
+ALL,ALL,system_or_other,exec,7833,5522,0,70.49661687731393,3077,1346,43.74390640233994
+ALL,ALL,system_or_other,write,209,209,0,100.0,144,144,100.0
+ALL,ALL,temporary,exec,100,48,0,48.0,59,48,81.35593220338983
+ALL,ALL,temporary,write,1255669,1236508,0,98.47404053138207,28913,28856,99.80285684640127
+Claude Code,fable-5,environment,exec,8,4,0,50.0,8,4,50.0
+Claude Code,fable-5,home,exec,19,19,0,100.0,19,19,100.0
+Claude Code,fable-5,home,write,214,214,0,100.0,205,205,100.0
+Claude Code,fable-5,package_cache,exec,1100,1056,0,96.0,68,44,64.70588235294117
+Claude Code,fable-5,package_cache,write,192670,191777,0,99.53651320911403,81744,81742,99.997553337248
+Claude Code,fable-5,project_dependency,write,98697,98697,0,100.0,81414,81414,100.0
+Claude Code,fable-5,project_generated,exec,35,24,0,68.57142857142857,15,6,40.0
+Claude Code,fable-5,project_generated,write,115038,115035,0,99.99739216606686,101230,101227,99.99703645164477
+Claude Code,fable-5,project_other,write,353,292,0,82.71954674220963,339,278,82.00589970501476
+Claude Code,fable-5,system_or_other,exec,2206,1598,0,72.43880326382593,651,192,29.493087557603687
+Claude Code,fable-5,system_or_other,write,76,76,0,100.0,38,38,100.0
+Claude Code,fable-5,temporary,exec,93,41,0,44.086021505376344,52,41,78.84615384615384
+Claude Code,fable-5,temporary,write,694264,675217,0,97.25651913393176,15265,15251,99.90828693088766
+Codex,gpt-5.6-sol,home,exec,19,9,0,47.36842105263158,15,9,60.0
+Codex,gpt-5.6-sol,home,write,38912,38902,0,99.97430098684211,2411,2401,99.58523434259644
+Codex,gpt-5.6-sol,package_cache,exec,552,544,0,98.55072463768116,32,25,78.125
+Codex,gpt-5.6-sol,package_cache,write,52902,52902,0,100.0,2144,2144,100.0
+Codex,gpt-5.6-sol,project_dependency,exec,4,4,0,100.0,4,4,100.0
+Codex,gpt-5.6-sol,project_dependency,write,21679,21675,0,99.98154896443563,14443,14440,99.97922869209998
+Codex,gpt-5.6-sol,project_generated,write,53381,53381,0,100.0,6086,6086,100.0
+Codex,gpt-5.6-sol,project_other,write,10,10,0,100.0,10,10,100.0
+Codex,gpt-5.6-sol,system_or_other,exec,1645,767,0,46.62613981762918,1098,480,43.71584699453552
+Codex,gpt-5.6-sol,system_or_other,write,54,54,0,100.0,27,27,100.0
+Codex,gpt-5.6-sol,temporary,exec,7,7,0,100.0,7,7,100.0
+Codex,gpt-5.6-sol,temporary,write,397201,397201,0,100.0,1243,1243,100.0
+mini-SWE-agent,claude-opus-4-6,environment,exec,252,32,0,12.698412698412698,230,12,5.217391304347826
+mini-SWE-agent,claude-opus-4-6,environment,write,5836,5835,0,99.98286497601097,3787,3786,99.97359387377871
+mini-SWE-agent,claude-opus-4-6,home,write,15,15,0,100.0,14,14,100.0
+mini-SWE-agent,claude-opus-4-6,package_cache,write,46,46,0,100.0,46,46,100.0
+mini-SWE-agent,claude-opus-4-6,project_generated,write,10798,10793,0,99.95369512872755,2507,2502,99.80055843637814
+mini-SWE-agent,claude-opus-4-6,project_other,write,6946,6905,0,99.40973221998273,238,199,83.61344537815125
+mini-SWE-agent,claude-opus-4-6,system_or_other,exec,3186,2686,0,84.30634023854363,749,419,55.94125500667557
+mini-SWE-agent,claude-opus-4-6,system_or_other,write,65,65,0,100.0,65,65,100.0
+mini-SWE-agent,claude-opus-4-6,temporary,write,146228,146202,0,99.98221954755587,7341,7315,99.64582481950688
+mini-SWE-agent,gpt-5.2-high,environment,exec,145,0,0,0.0,137,0,0.0
+mini-SWE-agent,gpt-5.2-high,environment,write,6022,6022,0,100.0,4259,4259,100.0
+mini-SWE-agent,gpt-5.2-high,home,write,19,19,0,100.0,15,15,100.0
+mini-SWE-agent,gpt-5.2-high,package_cache,write,53,53,0,100.0,53,53,100.0
+mini-SWE-agent,gpt-5.2-high,project_generated,write,1811,1811,0,100.0,1741,1741,100.0
+mini-SWE-agent,gpt-5.2-high,project_other,write,1041,1020,0,97.98270893371757,44,24,54.54545454545455
+mini-SWE-agent,gpt-5.2-high,system_or_other,exec,796,471,0,59.17085427135678,579,255,44.04145077720207
+mini-SWE-agent,gpt-5.2-high,system_or_other,write,14,14,0,100.0,14,14,100.0
+mini-SWE-agent,gpt-5.2-high,temporary,write,17976,17888,0,99.51045838896306,5064,5047,99.66429699842023
