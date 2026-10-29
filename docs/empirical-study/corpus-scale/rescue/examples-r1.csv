@@ -1,0 +1,77 @@
+statement_id,repo,text,enforceability,context_required
+paper:Alishahryar1/free-claude-code:34,Alishahryar1/free-claude-code,"
+## TOOLS
+
+- Prefer built-in tools (grep, read_file, etc.) over manual workflows. Check tool availability before use.
+",semantic_only,
+paper:Donchitos/Claude-Code-Game-Studios:3,Donchitos/Claude-Code-Game-Studios,"## Project Structure
+
+@.claude/docs/directory-structure.md
+",semantic_only,
+paper:abhigyanpatwari/GitNexus:4,abhigyanpatwari/GitNexus,"
+## Execution Sequence (complex tasks)
+
+For multi-step work, state up front:
+1. Which rules in this file and **[GUARDRAILS.md](GUARDRAILS.md)** apply (and any relevant Signs).
+2. Current **Scope** boundaries.
+3. Which **validation commands** you will run (`cd gitnexus && npm test`, `npx tsc --noEmit`).
+
+On long threads, *""Remember: apply all AGENTS.md rules""* re-weights these instructions against context dilution.
+",semantic_only,
+paper:AlexsJones/llmfit:18,AlexsJones/llmfit,"
+## Conventions
+
+- No `unsafe` code.
+",content,none
+paper:chenhg5/cc-connect:3,chenhg5/cc-connect,"### Key Design Principles
+
+**`core/` is the nucleus.** It defines all interfaces (`Platform`, `Agent`, `AgentSession`, etc.) and contains the `Engine` that orchestrates message flow. The core package must **never** import from `agent/` or `platform/`.
+",content,project
+paper:Alishahryar1/free-claude-code:10,Alishahryar1/free-claude-code,"- Do not add `# type: ignore` or `# ty: ignore`; fix the underlying type issue.
+",content,none
+paper:AlexsJones/llmfit:4,AlexsJones/llmfit,"- Build with `cargo build`. Run with `cargo run`.
+",per_event,project
+paper:AlexsJones/llmfit:17,AlexsJones/llmfit,"
+Do not manually edit `hf_models.json`. Regenerate it by running the scraper:
+
+```sh
+python3 scripts/scrape_hf_models.py
+```
+
+The scraper has hardcoded fallback entries for gated models that require authentication.
+",per_event,project
+paper:AlexsJones/llmfit:32,AlexsJones/llmfit,"- `sysinfo` is the system detection crate. Do not replace it with raw platform calls.
+",per_event,project
+paper:czlonkowski/n8n-mcp:2,czlonkowski/n8n-mcp,"> **Note:** This file is committed to a public OSS repository. Never add sensitive information (API keys, internal URLs, credentials, private infrastructure details) here.
+",per_event,none
+paper:Donchitos/Claude-Code-Game-Studios:11,Donchitos/Claude-Code-Game-Studios,"- No commits without user instruction
+",per_event,task
+paper:AlexsJones/llmfit:27,AlexsJones/llmfit,"## Adding a new model to the database
+
+1. Add the model's HuggingFace repo ID to `TARGET_MODELS` in `scripts/scrape_hf_models.py`.
+2. If the model is gated (requires HF auth), add a fallback entry to the `FALLBACK` dict in the same script.
+3. Run `python3 scripts/scrape_hf_models.py`.
+4. Verify the output in `data/hf_models.json`.
+5. Run `cargo build` to verify compilation.
+",cross_event,project
+paper:Donchitos/Claude-Code-Game-Studios:10,Donchitos/Claude-Code-Game-Studios,"- Multi-file changes require explicit approval for the full changeset
+",cross_event,task
+paper:Alishahryar1/free-claude-code:31,Alishahryar1/free-claude-code,"6. **PROPAGATION**: Changes impact multiple files; propagate updates correctly.
+",cross_event,none
+paper:gastownhall/beads:26,gastownhall/beads,"
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+",per_event,task
+paper:chenhg5/cc-connect:27,chenhg5/cc-connect,"## Testing
+
+### Requirements
+
+- All new features must include unit tests
+",cross_event,project
+paper:ChromeDevTools/chrome-devtools-mcp:4,ChromeDevTools/chrome-devtools-mcp,"- Use `npm run test` to build and run tests, run all tests to verify correctness.
+",cross_event,project
+paper:Alishahryar1/free-claude-code:2,Alishahryar1/free-claude-code,"
+## CODING ENVIRONMENT
+
+- Install astral uv using ""curl -LsSf https://astral.sh/uv/install.sh | sh"" if not already installed and if already installed then update it to the latest version
+",per_event,none
