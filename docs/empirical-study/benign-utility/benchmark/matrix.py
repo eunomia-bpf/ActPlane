@@ -22,6 +22,8 @@ for task in csv.DictReader((OUT/'tasks.csv').open()):
    print('AUDITED_NONRETRYABLE_AGENT_ERROR',task['task'],condition,flush=True);continue
   if any(r['task']==task['task'] and r['condition']==condition and r['comparison_cohort']=='native_denial_primary' and r['verifier_status']=='collection_error_requires_audit' for r in rows):
    print('NEEDS_COLLECTION_AUDIT',task['task'],condition,flush=True);continue
+  if any(r['task']==task['task'] and r['condition']==condition and r['comparison_cohort']=='native_denial_primary' and r.get('outcome_valid')!='1' and r['verifier_valid']!='0' for r in rows):
+   print('NEEDS_OUTCOME_AUDIT',task['task'],condition,flush=True);continue
   prefix=f"{task['task']}-{condition}-"
   if condition!='a':
    previous=[int(p.name.split('-block-')[-1]) for p in (RAW/'jobs').glob(prefix+'block-*') if p.name.split('-block-')[-1].isdigit()]
