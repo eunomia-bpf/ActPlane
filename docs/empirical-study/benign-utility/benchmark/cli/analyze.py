@@ -1,6 +1,7 @@
 """Export native installed-CLI outcomes without copying transcripts or credentials."""
 import csv
 import json
+import re
 from pathlib import Path
 
 RAW = Path('/workspaces/exp/benign-utility/raw/benchmark-cli')
@@ -87,6 +88,7 @@ def main():
                 engine_sha256=scope['engine_sha256'], observer_sha256=scope['observer_sha256']))
         agent = result.get('agent_info') or {}
         exception = result.get('exception_info') or {}
+        exit_match = re.search(r'Command failed \(exit (-?\d+)\)', exception.get('exception_message', ''))
         tests = summary.get('tests', 0)
         passed, failed = summary.get('passed', 0), summary.get('failed', 0)
         stage = next((name for name in ('verifier', 'agent_execution', 'agent_setup', 'environment_setup')
@@ -94,6 +96,7 @@ def main():
         rows.append(dict(job=trial.parent.name, trial=trial.name, native_result=str(path),
             finished_at=result.get('finished_at'), stage=stage,
             exception_type=exception.get('exception_type', ''),
+            native_exit_code=int(exit_match[1]) if exit_match else '',
             official_reward=(verifier.get('rewards') or {}).get('reward', ''),
             ctrf_exists=int(native.exists()), tests=tests, passed=passed, failed=failed,
             skipped=summary.get('skipped', 0),

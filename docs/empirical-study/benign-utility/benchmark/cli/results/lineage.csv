@@ -1,4 +1,21 @@
 job,role,pid,root_reachable,root_to_actor
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4189860,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4189861,True,4189320 > 4189850 > 4189858 > 4189859 > 4189861
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4189862,True,4189320 > 4189850 > 4189858 > 4189859 > 4189862
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4189881,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4189881
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4189882,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4189882
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4189883,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4189883
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4189884,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4189884
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4189907,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4189907
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4189908,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4189908
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4190097,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4190097
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4190099,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4190099
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4190100,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4190100
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4190101,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4190101
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4190102,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4190102
+cancel-async-tasks-c-block-native-denial-1,CONNECT,4190499,True,4189320 > 4189850 > 4189858 > 4189859 > 4189860 > 4190499
+cancel-async-tasks-c-block-native-denial-1,INTERVENED_PROCESS,4189858,True,4189320 > 4189850 > 4189858
+cancel-async-tasks-c-block-native-denial-1,READ,4189859,True,4189320 > 4189850 > 4189858 > 4189859
 cancel-async-tasks-c-controller-1,CONNECT,3959199,True,3958411 > 3959105 > 3959114 > 3959115 > 3959116 > 3959199
 cancel-async-tasks-c-controller-1,INTERVENED_PROCESS,3959114,True,3958411 > 3959105 > 3959114
 cancel-async-tasks-c-controller-1,READ,3959115,True,3958411 > 3959105 > 3959114 > 3959115
