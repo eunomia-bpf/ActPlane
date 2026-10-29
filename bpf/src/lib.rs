@@ -3870,6 +3870,10 @@ os.execv({hit:?}, [{hit:?}])
     #[test]
     #[ignore = "requires root/CAP_BPF and BPF-LSM and loads live eBPF programs"]
     fn protected_controller_children_remain_enforced_smoke() {
+        if !bpf_lsm_active() {
+            eprintln!("skipping protected-controller write smoke: bpf LSM is not active");
+            return;
+        }
         let label = 1;
         // source ALLOWED = exec "__never__"
         // block write file "/**" if not ALLOWED
