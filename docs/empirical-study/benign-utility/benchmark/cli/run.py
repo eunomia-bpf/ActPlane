@@ -29,7 +29,7 @@ async def main():
     os.environ['DOCKER_HOST'] = 'unix://' + str(BASE / 'docker.sock')
     os.environ['DOCKER_CONFIG'] = str(BASE / 'docker-config')
     auth_home = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex')))
-    auth_path = auth_home / 'auth.json'
+    auth_path = (auth_home / 'auth.json').resolve(strict=True)
     if not auth_path.is_file():
         raise RuntimeError('Existing Workspace Codex auth.json is unavailable')
     os.environ['CODEX_AUTH_JSON_PATH'] = str(auth_path)
@@ -41,7 +41,7 @@ async def main():
         job_name=f'{args.task}-{args.condition}-{args.attempt}',
         jobs_dir=str(RAW / 'jobs'), n_concurrent_trials=1, n_attempts=1,
         verifier=dict(env=verifier_env()),
-        agents=[dict(name='codex', model_name='openai/gpt-6-astra')],
+        agents=[dict(name='codex', model_name='openai/gpt-6-astra', env={'METHOD': 'script'})],
         tasks=[dict(path=str(BASE / 'terminal-bench-2' / args.task),
                     source='terminal-bench@2.0')],
     ))
@@ -54,7 +54,7 @@ async def main():
         dataset_commit=subprocess.check_output(['git', '-C', str(BASE / 'terminal-bench-2'), 'rev-parse', 'HEAD'], text=True).strip(),
         disk_used_fraction=1 - stat.f_bavail / stat.f_blocks,
         auth_mode='native CODEX_AUTH_JSON_PATH from existing Workspace CODEX_HOME',
-        agent_defaults=True, official_verifier_bytes=True, config=config.model_dump(mode='json'))
+        cli_behavior_defaults=True, official_verifier_bytes=True, config=config.model_dump(mode='json'))
     (evidence / f'{config.job_name}-provenance.json').write_text(json.dumps(provenance, indent=2))
     job = await Job.create(config)
     result = await job.run()

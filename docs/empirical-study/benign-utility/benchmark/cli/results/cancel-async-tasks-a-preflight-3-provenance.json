@@ -1,0 +1,113 @@
+{
+  "harbor_version": "0.25.0",
+  "codex_agent_source_sha256": "3697e51e7b44447e965c83c56dec9197ae1021ea7087f804ca9451d568fbafa5",
+  "dataset_commit": "69671fbaac6d67a7ef0dfec016cc38a64ef7a77c",
+  "disk_used_fraction": 0.6409230505889991,
+  "auth_mode": "native CODEX_AUTH_JSON_PATH from existing Workspace CODEX_HOME",
+  "agent_defaults": true,
+  "official_verifier_bytes": true,
+  "config": {
+    "job_name": "cancel-async-tasks-a-preflight-3",
+    "jobs_dir": "/workspaces/exp/benign-utility/raw/benchmark-cli/jobs",
+    "n_attempts": 1,
+    "install_only": false,
+    "skip_credential_checks": false,
+    "timeout_multiplier": 1.0,
+    "agent_timeout_multiplier": null,
+    "verifier_timeout_multiplier": null,
+    "agent_setup_timeout_multiplier": null,
+    "environment_build_timeout_multiplier": null,
+    "debug": false,
+    "n_concurrent_trials": 1,
+    "quiet": false,
+    "retry": {
+      "max_retries": 0,
+      "include_exceptions": null,
+      "exclude_exceptions": [
+        "ApiUsageLimitError",
+        "RewardFileNotFoundError",
+        "UnsupportedModelParametersError",
+        "VerifierOutputParseError",
+        "AgentTimeoutError",
+        "AgentSafetyRefusalError",
+        "RewardFileEmptyError",
+        "ModelNotFoundError",
+        "VerifierTimeoutError",
+        "AgentAuthenticationError"
+      ],
+      "wait_multiplier": 1.0,
+      "min_wait_sec": 1.0,
+      "max_wait_sec": 60.0
+    },
+    "environment": {
+      "type": "docker",
+      "import_path": null,
+      "force_build": false,
+      "delete": true,
+      "stream": false,
+      "cpu_enforcement_policy": "auto",
+      "memory_enforcement_policy": "auto",
+      "override_cpus": null,
+      "override_memory_mb": null,
+      "override_storage_mb": null,
+      "override_gpus": null,
+      "override_tpu": null,
+      "mounts": null,
+      "extra_docker_compose": [],
+      "kwargs": {},
+      "extra_allowed_hosts": []
+    },
+    "verifier": {
+      "override_timeout_sec": null,
+      "max_timeout_sec": null,
+      "env": {
+        "UV_DOWNLOAD_URL": "http://172.29.77.1:38765"
+      },
+      "disable": false
+    },
+    "metrics": [],
+    "agents": [
+      {
+        "name": "codex",
+        "import_path": null,
+        "model_name": "openai/gpt-6-astra",
+        "base_url": null,
+        "model_api_key_name": null,
+        "model_api_format": null,
+        "skip_model_parsing": false,
+        "n_concurrent": null,
+        "concurrency_group": null,
+        "skills": [],
+        "override_timeout_sec": null,
+        "override_setup_timeout_sec": null,
+        "max_timeout_sec": null,
+        "resume_trajectory": false,
+        "load_trajectory": null,
+        "extra_allowed_hosts": [],
+        "kwargs": {},
+        "env": {
+          "METHOD": "script"
+        },
+        "mcp_servers": []
+      }
+    ],
+    "user_agent": null,
+    "datasets": [],
+    "tasks": [
+      {
+        "path": "/workspaces/exp/benign-utility/raw/benchmark/terminal-bench-2/cancel-async-tasks",
+        "git_url": null,
+        "git_commit_id": null,
+        "name": null,
+        "ref": null,
+        "overwrite": false,
+        "download_dir": null,
+        "source": "terminal-bench@2.0"
+      }
+    ],
+    "artifacts": [],
+    "extra_instruction_paths": [],
+    "extra_instructions": [],
+    "source_jobs": []
+  }
+}
