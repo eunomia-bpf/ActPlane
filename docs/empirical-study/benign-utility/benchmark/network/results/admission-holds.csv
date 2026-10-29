@@ -1,2 +1,3 @@
 utc,action,pid,starttime,reason,scope
 2026-10-29T11:59:39Z,pause,2686477,170572664,replay-t00-isolated-capacity-window,scheduler only; native child not signaled
+2026-10-29T12:14:18Z,resume,2686477,170572664,replay-t00-capacity-window-complete,scheduler only; native child not signaled
