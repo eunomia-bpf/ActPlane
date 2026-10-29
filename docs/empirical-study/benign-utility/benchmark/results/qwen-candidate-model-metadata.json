@@ -4,7 +4,7 @@
     {
       "id": "qwen3.8-27b-nvfp4",
       "object": "model",
-      "created": 1793262969,
+      "created": 1793264441,
       "owned_by": "sglang",
       "root": "qwen3.8-27b-nvfp4",
       "parent": null,
