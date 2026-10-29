@@ -23,7 +23,7 @@ sys.path.insert(0, str(HARNESS))
 runner = importlib.import_module('dynamic_run')
 LOADER = ROOT / 'engine/process'
 CLI = Path('/workspaces/lanes/translation-models/target/release/actplane')
-BROAD = ['**/.env', '**/.env.local', '**/.env.production', '**/*.pem', '**/*.key', '**/id_rsa', '**/id_ed25519', '**/credentials.json',
+BROAD = ['**/*.env', '**/*.env.local', '**/*.env.production', '**/*.pem', '**/*.key', '**/*id_rsa', '**/*id_ed25519', '**/*credentials.json',
          '/root/.aws/credentials', '/root/.gemini/oauth_creds.json', '/etc/secrets/**']
 
 
@@ -129,6 +129,7 @@ def main():
     def sandbox(*values):
         output = original_sandbox(*values)
         worker_state['pid'] = output[0].pid
+        worker_state['worker'] = output[0]
         return output
     runner.sandbox = sandbox
     original_materialize = runner.materialize
@@ -146,7 +147,7 @@ def main():
     def observer_start(run):
         plan=plan_state['plan']
         env=os.environ.copy()
-        env.update(BPFTRACE_MAX_STRLEN='256', BPFTRACE_MAX_MAP_KEYS='262144')
+        env.update(BPFTRACE_MAX_STRLEN='128', BPFTRACE_MAX_MAP_KEYS='262144')
         instruments=[]
         try:
             source=(HERE/'source_observer.bt').read_text().replace('strncmp(comm, "apti6e", 6)',
@@ -154,6 +155,21 @@ def main():
             (run/'source-observer.bt').write_text(source)
             instruments.append(process_ready(['bpftrace','-f','json',str(run/'source-observer.bt'),'0'],
                 run/'sources.jsonl',run/'sources.stderr','SOURCE_OBSERVER_READY',env))
+            marker='apti6emap'+plan['dynamic_id'][1:]
+            mapping=runner.request(worker_state['worker'],dict(tag=marker,command=['/usr/bin/true'],shell=False,
+                cwd=plan['sandbox_workdir'],timeout_s=30,log_path='/replay/logs/root-mapping.log',log_limit=4096))
+            start=time.monotonic();host_root=None
+            while time.monotonic()-start<15:
+                for line in (run/'sources.jsonl').read_text(errors='replace').splitlines():
+                    try:message=json.loads(line).get('data','')
+                    except json.JSONDecodeError:continue
+                    if isinstance(message,str) and message.startswith('MAPROOT|'):
+                        fields=message.strip().split('|')
+                        if fields[2]==marker:host_root=int(fields[4]);break
+                if host_root:break
+                time.sleep(.1)
+            if not host_root or mapping.get('exit_code')!=0:raise RuntimeError('initial-namespace worker-root mapping failed')
+            (run/'root-mapping.json').write_text(json.dumps(dict(marker=marker,workspace_popen_pid=worker_state['pid'],initial_namespace_worker_pid=host_root,mapper_result=mapping),indent=2))
             if args.condition != 'none':
                 text=policy(plan,args.condition)
                 (run/'policy.dsl').write_text(text)
@@ -168,12 +184,12 @@ def main():
                 for i,(label,kind,pattern) in enumerate(patterns):
                     op,mode,literal,arg,add,delete,gates,invals,ip,mask,exit_code,domain=struct.unpack_from('<BB64s24s6xQQQQIIiI',data,8+i*144)
                     literal=literal.split(b'\0')[0].decode()
-                    if pattern.startswith('**/*.') and (mode!=2 or literal!=pattern[4:]):raise RuntimeError('unsupported source suffix')
+                    if pattern.startswith('**/*') and (mode!=2 or literal!=pattern[4:]):raise RuntimeError('unsupported source suffix')
                     compiled.append(dict(label=label,source_kind=kind,pattern=pattern,compiled_op=op,compiled_match_mode=mode,compiled_literal=literal,add_mask=add))
                 (run/'compiled-sources.json').write_text(json.dumps(compiled,indent=2))
-                instruments.append(process_ready([str(LOADER),'--config',str(run/'policy.bin'),'--seed-pid',str(worker_state['pid']),'--seed-label','0'],
+                instruments.append(process_ready([str(LOADER),'--config',str(run/'policy.bin'),'--seed-pid',str(host_root),'--seed-label','0'],
                     run/'engine.jsonl',run/'engine.stderr','ActPlane: ready'))
-            metadata=dict(condition=args.condition,root_pid=worker_state['pid'],loader_sha256=hashlib.sha256(LOADER.read_bytes()).hexdigest(),
+            metadata=dict(condition=args.condition,root_pid=host_root,root_pid_namespace='initial-kernel-worker',workspace_popen_pid=worker_state['pid'],source_observer_string_bytes=128,loader_sha256=hashlib.sha256(LOADER.read_bytes()).hexdigest(),
                 source_observer_sha256=hashlib.sha256((run/'source-observer.bt').read_bytes()).hexdigest(),kernel=os.uname().release)
             (run/'utility-metadata.json').write_text(json.dumps(metadata,indent=2))
             worker_state['instruments'] = instruments
@@ -203,6 +219,26 @@ def main():
             if row['trajectory_id'] in calls: calls[row['trajectory_id']].append(row)
     for plan in plans:
         worker_state.pop('instruments',None)
+        run=raw/'dynamic/runs'/plan['dynamic_id']
+        if (run/'done.json').exists():
+            done=json.loads((run/'done.json').read_text())
+            metadata=json.loads((run/'utility-metadata.json').read_text()) if (run/'utility-metadata.json').exists() else {}
+            expected=(HERE/'source_observer.bt').read_text().replace('strncmp(comm, "apti6e", 6)',
+                'strncmp(comm, '+json.dumps('apti6e'+plan['dynamic_id'][1:])+', 8)')
+            reasons=[]
+            if done.get('fatal'): reasons.append('fatal replay/instrumentation failure')
+            if done.get('executed_calls')!=len(calls[plan['trajectory_id']]):reasons.append('incomplete recorded-call replay')
+            if metadata.get('source_observer_sha256')!=hashlib.sha256(expected.encode()).hexdigest():reasons.append('observer protocol changed before fixed full matrix')
+            if args.condition!='none' and metadata.get('root_pid_namespace')!='initial-kernel-worker':reasons.append('unvalidated namespace root')
+            source_log=(run/'sources.jsonl').read_text(errors='replace') if (run/'sources.jsonl').exists() else ''
+            if re.search(r'(?i)"type"\s*:\s*"[^"\n]*(?:error|lost|drop|overflow)[^"\n]*"',source_log):reasons.append('observer helper failure/event loss')
+            exits=json.loads((run/'instrument-exits.json').read_text()) if (run/'instrument-exits.json').exists() else []
+            if not exits or any(e['exit_code'] not in (0,-2) for e in exits):reasons.append('per-instrument exit receipt missing/nonzero')
+            if reasons:
+                attempts=ROOT/'attempts';attempts.mkdir(exist_ok=True)
+                target=attempts/(args.condition+'-'+plan['dynamic_id']+'-'+str(time.time_ns()))
+                shutil.move(str(run),target)
+                (target/'exclusion-reason.json').write_text(json.dumps(dict(reasons=reasons),indent=2))
         runner.replay(raw,plan,sorted(calls[plan['trajectory_id']],key=lambda c:c['call_index']))
 
 

@@ -2,6 +2,16 @@
 # Four disjoint model-group shards. Each trajectory retains sequential calls
 # and its original two-core execution affinity, with independent process roots.
 set -euo pipefail
+if [ "${1:-}" = --after ]; then
+  previous=$2
+  [[ "$previous" =~ ^[1-9][0-9]*$ ]] && [ "$previous" != "$$" ] || exit 2
+  previous_start=$(awk '{print $22}' "/proc/$previous/stat" 2>/dev/null || true)
+  while [ -n "$previous_start" ] && [ "$(awk '{print $22}' "/proc/$previous/stat" 2>/dev/null || true)" = "$previous_start" ]; do
+    [ "$(awk '{print $3}' "/proc/$previous/stat")" != Z ] || break
+    sleep 5
+  done
+  shift 2
+fi
 python3 replay/prepare.py
 raw="$WS_RAW/replay"
 mkdir -p "$raw/attempts"

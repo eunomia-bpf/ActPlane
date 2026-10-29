@@ -2,6 +2,7 @@
 """Copy immutable replay inputs, retain provenance, and audit instructions."""
 import csv
 import hashlib
+import gzip
 import json
 import os
 from pathlib import Path
@@ -48,6 +49,18 @@ def main():
     write('provenance.csv',manifest)
     plans=list(csv.DictReader((ROOT/'harness/dynamic_plan.csv').open()))
     write('cohort.csv',plans)
+    coral={r['trajectory_id']:r['dynamic_id'] for r in plans if r['repository']=='withcoral/coral'}
+    scope_calls=[]
+    with gzip.open(ROOT/'input/classified_calls.jsonl.gz','rt') as stream:
+        for line in stream:
+            call=json.loads(line)
+            if call['trajectory_id'] not in coral:continue
+            args=call['args'];encoded=json.dumps(args,sort_keys=True)
+            target=args.get('command',args.get('cmd',args.get('file_path',args.get('path',''))))
+            scope_calls.append(dict(dynamic_id=coral[call['trajectory_id']],call_index=call['call_index'],tool=call['tool'],
+                command_or_path=str(target),arguments_sha256=hashlib.sha256(encoded.encode()).hexdigest()))
+    write('instruction_scope_calls.csv',scope_calls)
+    for call in scope_calls:print('INSTRUCTION_SCOPE',call['dynamic_id'],call['call_index'],call['tool'],call['command_or_path'][:500])
     inventory=[];directives=[];full=[]
     for row in plans:
         base=['git','--git-dir',str(ROOT/'input/dynamic/git-cache'/row['repository'].replace('/','__'))]
@@ -62,9 +75,13 @@ def main():
                 if any(t in line.lower() for t in ('never','do not','must not','always','before committing','before commit')):
                     reason='source-content-or-workflow requirement, not a syscall-level action predicate'
                     if 'pull request autonomously' in line.lower():reason='requires external human authorization context; compound gh subcommands not exactly expressible'
-                    if 'make check' in line.lower():reason='requires successful compound make check argv gate; exec gate cannot match both executable and check argument'
+                    if 'make check' in line.lower():reason='requires the compound make check invocation; exec gate cannot match both executable and check argument'
                     if name.startswith(('adapters/','docs/','frontend/','marimo/','crates/','packages/','ui/','apps/')):reason='nested instruction scope; '+reason
-                    directives.append(dict(**record,line=i,directive=line.strip(),disposition='not_lowered',reason=reason))
+                    disposition='not_lowered'
+                    if row['repository']=='withcoral/coral' and name=='ui/tests/ui/AGENTS.md':
+                        disposition='out_of_scope'
+                        reason='nested UI-test instructions; selected trajectories only inspect/edit/test Rust crates/coral-spec (instruction_scope_calls.csv)'
+                    directives.append(dict(**record,line=i,directive=line.strip(),disposition=disposition,reason=reason))
     (ROOT/'instruction-audit.json').write_text(json.dumps(full,indent=2))
     write('instruction_inventory.csv',inventory)
     write('instruction_exclusions.csv',directives)

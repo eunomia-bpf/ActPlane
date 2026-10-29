@@ -1,0 +1,92 @@
+"""Export independent intervention evidence; keep uncertain competing flows unknown."""
+import csv
+import gzip
+import hashlib
+import json
+import os
+from pathlib import Path
+import urllib.request
+import zipfile
+
+ROOT = Path(os.environ['WS_RAW']) / 'replay'
+OUT = ROOT.parent.parent / 'replay/results'
+
+
+def review(events, sources):
+    if not events:
+        return []
+    by_trajectory = {}
+    wanted = {r['trajectory_id'] for r in events}
+    with gzip.open(ROOT / 'input/classified_calls.jsonl.gz', 'rt') as stream:
+        for line in stream:
+            row = json.loads(line)
+            if row['trajectory_id'] in wanted:
+                by_trajectory[(row['trajectory_id'], row['call_index'])] = row
+    bundles = {}
+    published = {}
+    for wheel in (ROOT / 'input/dynamic/toolchains').glob('*/lib/python*/ensurepip/_bundled/pip-*.whl'):
+        version = wheel.name.split('-')[1]
+        if version not in published:
+            url = 'https://pypi.org/pypi/pip/' + version + '/json'
+            cache = ROOT / ('pip-' + version + '-pypi.json')
+            if not cache.exists():
+                with urllib.request.urlopen(url, timeout=30) as response:
+                    cache.write_bytes(response.read())
+            published[version] = {r['filename']: dict(sha256=r['digests']['sha256'], url=r['url'],
+                metadata_url=url, metadata_sha256=hashlib.sha256(cache.read_bytes()).hexdigest())
+                for r in json.loads(cache.read_text())['urls']}
+        proof = published[version][wheel.name]
+        wheel_digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        assert wheel_digest == proof['sha256'], 'Bundled wheel differs from the official published artifact'
+        with zipfile.ZipFile(wheel) as archive:
+            for name in archive.namelist():
+                if name.endswith('certifi/cacert.pem'):
+                    data = archive.read(name)
+                    digest = hashlib.sha256(data).hexdigest()
+                    bundles.setdefault(digest, []).append(dict(wheel=str(wheel.relative_to(ROOT)), member=name,
+                        wheel_sha256=wheel_digest, **proof))
+    rows = []
+    for event in events:
+        condition, dynamic_id = event['condition'], event['dynamic_id']
+        prior = [r for r in sources if r['condition'] == condition and r['dynamic_id'] == dynamic_id
+                 and int(r['timestamp_ns']) <= int(event['timestamp_ns'])]
+        paths = sorted({(r['path'], r['classification'], r['sha256']) for r in prior})
+        original = by_trajectory.get((event['trajectory_id'], int(event['call_index'])), {}) if event['call_index'] else {}
+        row = dict(condition=condition, dynamic_id=dynamic_id, timestamp_ns=event['timestamp_ns'],
+            call_index=event['call_index'], pid=event['pid'], source_path=event['source_path'],
+            source_sha256=event['source_sha256'], matching_bundled_wheel=json.dumps(bundles.get(event['source_sha256'], []), sort_keys=True),
+            prior_source_paths=json.dumps(paths), original_args=json.dumps(original.get('args', {}), sort_keys=True),
+            adjudication='unknown', evidence='Independent provenance/context review pending')
+        if (event['coverage'] == 'complete' and int(event['intervened']) == 1 and prior
+                and event['source_sha256'] in bundles
+                and all(r['classification'] == 'public_certificate' and r['sha256'] in bundles
+                        and int(r['path_maybe_truncated']) == 0 for r in prior)):
+            row.update(adjudication='false_intervention', evidence=(
+                'Observed provenance bytes equal the certifi public CA bundle in a pip wheel whose SHA256 '
+                'matches official PyPI release metadata. Every independently observed prior declared-source '
+                'read in this trajectory is a verified public CA bundle; no competing private/unknown source '
+                'was observed. The original action installs ordinary task dependencies. Judgment is limited '
+                'to the declared tracked file-source policy; model-context/implicit channels are not covered.'))
+        rows.append(row)
+        print(dynamic_id, event['call_index'], 'source paths', paths, 'bundled proof', bool(bundles.get(event['source_sha256'])),
+              'args', json.dumps(original.get('args', {}))[:1000], flush=True)
+    return rows
+
+
+def save(rows):
+    fields = list(rows[0]) if rows else ['condition', 'dynamic_id', 'timestamp_ns', 'call_index', 'pid', 'source_path',
+        'source_sha256', 'matching_bundled_wheel', 'prior_source_paths', 'original_args', 'adjudication', 'evidence']
+    with (OUT / 'adjudication_evidence.csv').open('w', newline='') as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def main():
+    events = list(csv.DictReader((OUT / 'interventions.csv').open()))
+    sources = list(csv.DictReader((OUT / 'source_read_accesses.csv').open()))
+    save(review(events, sources))
+
+
+if __name__ == '__main__':
+    main()

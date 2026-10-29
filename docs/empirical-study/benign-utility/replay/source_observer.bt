@@ -5,11 +5,13 @@ BEGIN {
 }
 tracepoint:syscalls:sys_enter_execve
 {
+    if (strncmp(comm, "apti6emap", 9) == 0) {
+        printf("MAPROOT|%llu|%s|%d|%d\n", nsecs, comm, curtask->tgid, curtask->real_parent->tgid);
+    }
     if ($1 == 0 && strncmp(comm, "apti6e", 6) == 0 && @owner[curtask->pid] == "") {
         @owner[curtask->pid] = comm;
     }
     if (@owner[curtask->pid] != "") {
-        @pid_owner[curtask->pid, @owner[curtask->pid]] = count();
         printf("EXEC|%llu|%s|%d|%s\n", nsecs, @owner[curtask->pid], curtask->pid, str(args.filename));
     }
 }
@@ -17,7 +19,6 @@ tracepoint:sched:sched_process_fork
 /@owner[curtask->pid] != ""/
 {
     @owner[args.child_pid] = @owner[curtask->pid];
-    @pid_owner[args.child_pid, @owner[curtask->pid]] = count();
     printf("FORK|%llu|%s|%d|%d\n", nsecs, @owner[curtask->pid], curtask->pid, args.child_pid);
 }
 fentry:security_file_permission
@@ -26,11 +27,18 @@ fentry:security_file_permission
     if ((args.file->f_inode->i_mode & 0170000) == 0100000) {
         $entry = args.file->f_path.dentry;
         $name = str($entry->d_name.name, 64);
-        $p = path(args.file->f_path);
-        $suffix = "";
-        if ($entry->d_name.len >= 4) { $suffix = str($entry->d_name.name + $entry->d_name.len - 4, 5); }
-        if (strncmp($p, "/etc/secrets/", 13) == 0 || $name == ".env" || $name == ".env.local" || $name == ".env.production" || $suffix == ".pem" || $suffix == ".key" || $name == "credentials" || $name == "credentials.json" || $name == "id_rsa" || $name == "id_ed25519" || $name == "secret.txt" || $name == "oauth_creds.json") {
-            @source_reads[@owner[curtask->pid], curtask->pid, $p] = count();
+        $p = path(args.file->f_path, 256);
+        $match = 0;
+        if ($entry->d_name.len >= 4) {
+            $tail = *(uint32*)($entry->d_name.name + $entry->d_name.len - 4);
+            if ($tail == 0x766e652e || $tail == 0x6d65702e || $tail == 0x79656b2e) { $match = 1; }
+        }
+        if ($entry->d_name.len >= 10 && *(uint64*)($entry->d_name.name + $entry->d_name.len - 10) == 0x636f6c2e766e652e && *(uint16*)($entry->d_name.name + $entry->d_name.len - 2) == 0x6c61) { $match = 1; }
+        if ($entry->d_name.len >= 15 && *(uint64*)($entry->d_name.name + $entry->d_name.len - 15) == 0x6f72702e766e652e && *(uint64*)($entry->d_name.name + $entry->d_name.len - 8) == 0x6e6f69746375646f) { $match = 1; }
+        if ($entry->d_name.len >= 6 && *(uint32*)($entry->d_name.name + $entry->d_name.len - 6) == 0x725f6469 && *(uint16*)($entry->d_name.name + $entry->d_name.len - 2) == 0x6173) { $match = 1; }
+        if ($entry->d_name.len >= 10 && *(uint64*)($entry->d_name.name + $entry->d_name.len - 10) == 0x35353264655f6469 && *(uint16*)($entry->d_name.name + $entry->d_name.len - 2) == 0x3931) { $match = 1; }
+        if ($entry->d_name.len >= 16 && *(uint64*)($entry->d_name.name + $entry->d_name.len - 16) == 0x69746e6564657263 && *(uint64*)($entry->d_name.name + $entry->d_name.len - 8) == 0x6e6f736a2e736c61) { $match = 1; }
+        if (strncmp($p, "/etc/secrets/", 13) == 0 || $match || $name == "credentials" || $name == "secret.txt" || $name == "oauth_creds.json") {
             printf("READ|%llu|%s|%d|%s\n", nsecs, @owner[curtask->pid], curtask->pid, $p);
         }
     }
@@ -38,7 +46,6 @@ fentry:security_file_permission
 tracepoint:syscalls:sys_enter_connect
 /@owner[curtask->pid] != ""/
 {
-    @network_calls[@owner[curtask->pid], curtask->pid] = count();
     printf("CONNECT|%llu|%s|%d|%d\n", nsecs, @owner[curtask->pid], curtask->pid, *(uint16*)args.uservaddr);
 }
 tracepoint:sched:sched_process_exit
