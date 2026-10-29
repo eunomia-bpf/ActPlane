@@ -128,10 +128,8 @@ def main(a):
                             r.get('returned_model') != expected_model for r in primary if r['status'] == 'ok'))
                         if a.require_complete:
                             record(model + '_primary_successful_rows', len(rows), sum(r['status'] == 'ok' for r in primary))
-                enabled = {r['dimension'] for r in read_csv(HERE / 'calibration_gates.csv') if r['passed'] == 'True'}
-                format_path = HERE / 'format_calibration_gates.csv'
-                if format_path.exists():
-                    enabled &= {r['dimension'] for r in read_csv(format_path) if r['passed'] == 'True'}
+                from effective_gates import load_gates
+                enabled = {d for d, passed in load_gates().items() if passed}
                 invalid = sum(r.get(d, '') not in ALLOWED[d] for r in labels if r['status'] == 'ok' for d in enabled)
                 record('invalid_scaled_label_values', 0, invalid)
                 record('values_in_withheld_dimensions', 0,

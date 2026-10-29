@@ -79,10 +79,8 @@ def waterfall(name, counts, labels, colors, title):
 
 def main():
     rows = read_csv(HERE / 'analysis_statements.csv')
-    gates = {r['dimension']: r['passed'] == 'True' for r in read_csv(HERE / 'calibration_gates.csv')}
-    if (HERE / 'format_calibration_gates.csv').exists():
-        for r in read_csv(HERE / 'format_calibration_gates.csv'):
-            gates[r['dimension']] = gates.get(r['dimension'], False) and r['passed'] == 'True'
+    from effective_gates import load_gates
+    gates = load_gates()
     policies = [r for r in rows if r['type'] == 'directive']
     system = [r for r in policies if r['enforceability'] in LEVELS[1:]]
     repos = defaultdict(list)

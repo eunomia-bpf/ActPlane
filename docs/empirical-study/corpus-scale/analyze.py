@@ -163,10 +163,8 @@ def compare(summary, draws, baseline, baseline_draws):
 
 
 def analyze():
-    gates = {r['dimension']: r['passed'] == 'True' for r in read_csv(HERE / 'calibration_gates.csv')}
-    if (HERE / 'format_calibration_gates.csv').exists():
-        for r in read_csv(HERE / 'format_calibration_gates.csv'):
-            gates[r['dimension']] = gates.get(r['dimension'], False) and r['passed'] == 'True'
+    from effective_gates import load_gates
+    gates = load_gates()
     paper = read_csv(HERE / 'paper_labels.csv')
     paper_repos = {r['repo']: r for r in read_csv(HERE / 'paper_files.csv')}
     baseline, baseline_draws = summarize(paper, paper_repos, source='paper_artifact', seed=SEED + 1)

@@ -7,7 +7,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from common import HERE,DEFAULT_RAW,read_csv,write_csv,digest,log,now
 from label import complete,parse_json
 DIMS=['enforceability','context_required']
-FIELDS=['statement_id',*DIMS,'model','returned_model','status','adjudicated','error','guide_sha256','context_sha256','revision']
+FIELDS=['statement_id',*DIMS,'model','returned_model','status','adjudicated','error','guide_sha256','context_sha256','revision','completion_token_ceiling']
 
 def valid(p):
  return p.get('enforceability') in ['semantic_only','content','per_event','cross_event'] and (p.get('context_required')=='' if p.get('enforceability')=='semantic_only' else p.get('context_required') in ['none','project','task'])
@@ -25,7 +25,7 @@ def classify(a,batch,guide,other,repair=0):
  system+='\nReturn JSON only: {"labels": [[id, enforceability, context_required], ...]}. Return every id once. No explanations. Use the empty context string only for semantic_only. Keep reasoning brief.'
  if repair:system+='\nSchema repair: use only semantic_only/content/per_event/cross_event, and none/project/task (or empty only for semantic_only). Reapply unchanged definitions.'
  try:
-  response=complete(a,system,dict(statements=entries),budget=max(2048,len(batch)*80) if a.model=='qwen3.8-27b-nvfp4' else 10000)
+  response=complete(a,system,dict(statements=entries),budget=max(2048,len(batch)*80) if a.model=='qwen3.8-27b-nvfp4' else a.remote_tokens)
   assert response.get('model')==a.model,'unexpected_returned_model'
   obj=parse_json(response['choices'][0]['message']['content'])
   parsed=obj['labels'] if isinstance(obj,dict) else obj
@@ -37,7 +37,7 @@ def classify(a,batch,guide,other,repair=0):
    if isinstance(i,str) and i.isdigit():i=int(i)
    if not isinstance(i,int) or i not in range(len(batch)) or i in seen:raise ValueError('ambiguous_id')
    seen.add(i);p=dict(enforceability=enf,context_required=ctx)
-   if valid(p):result[i]=dict(statement_id=batch[i]['statement_id'],**p,model=a.model,returned_model=response['model'],status='ok',adjudicated=other is not None,error='',guide_sha256=a.guide_hash,context_sha256=batch[i]['context_sha256'],revision=a.revision)
+   if valid(p):result[i]=dict(statement_id=batch[i]['statement_id'],**p,model=a.model,returned_model=response['model'],status='ok',adjudicated=other is not None,error='',guide_sha256=a.guide_hash,context_sha256=batch[i]['context_sha256'],revision=a.revision,completion_token_ceiling=max(2048,len(batch)*80) if a.model=='qwen3.8-27b-nvfp4' else a.remote_tokens)
   missing=[i for i in range(len(batch)) if i not in result]
   if not missing:return [result[i] for i in range(len(batch))]
   log(a.raw/'rescue-label-events.jsonl',dict(at=now(),stage=a.stage,revision=a.revision,model=a.model,event='invalid_or_missing_ids',ids=[batch[i]['statement_id'] for i in missing],repair=repair))
@@ -95,6 +95,6 @@ if __name__=='__main__':
  p.add_argument('--guide',type=Path,required=True);p.add_argument('--examples',type=Path,required=True)
  p.add_argument('--revision',required=True);p.add_argument('--stage',required=True)
  p.add_argument('--model',required=True);p.add_argument('--workers',type=int,default=4);p.add_argument('--batch-size',type=int,default=32)
- p.add_argument('--max-chars',type=int,default=30000);p.add_argument('--raw',type=Path,default=DEFAULT_RAW);p.add_argument('--retries',type=int,default=3);p.add_argument('--thinking',action='store_true')
+ p.add_argument('--remote-tokens',type=int,default=10000);p.add_argument('--remote-timeout',type=int,default=600);p.add_argument('--max-chars',type=int,default=30000);p.add_argument('--raw',type=Path,default=DEFAULT_RAW);p.add_argument('--retries',type=int,default=3);p.add_argument('--thinking',action='store_true')
  p.add_argument('--primary',type=Path);p.add_argument('--other',type=Path)
  a=p.parse_args();assert 1<=a.workers<=8;main(a)

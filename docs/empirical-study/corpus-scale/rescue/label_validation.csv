@@ -1,0 +1,5 @@
+check,passed
+permuted_ids_and_applicability,True
+retains_valid_rows_and_retries_subset,True
+transport_failure_preserves_every_id,True
+schema_repairs_and_splits_are_bounded,True

@@ -22,10 +22,8 @@ def main():
     if not args.allow_interim:
         record('complete_snapshot', True, complete)
         record('at_least_300_analyzed_repositories', True, int(coverage['analyzed_repositories']) >= 300)
-    gates = {r['dimension']: r['passed'] == 'True' for r in read_csv(HERE / 'calibration_gates.csv')}
-    if (HERE / 'format_calibration_gates.csv').exists():
-        for row in read_csv(HERE / 'format_calibration_gates.csv'):
-            gates[row['dimension']] = gates.get(row['dimension'], False) and row['passed'] == 'True'
+    from effective_gates import load_gates
+    gates = load_gates()
     dependencies = {2: ['type'], 3: ['type', 'topic'], 4: ['type', 'enforceability'],
                     5: ['type', 'topic', 'enforceability'],
                     6: ['type', 'enforceability', 'context_required'],
