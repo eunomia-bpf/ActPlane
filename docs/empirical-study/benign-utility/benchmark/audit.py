@@ -26,5 +26,6 @@ with (OUT/'binaries.csv').open('w',newline='') as f:
 try:
  model=json.load(urllib.request.urlopen('http://qwen38-vllm.models.svc.cluster.local:8000/v1/models',timeout=20))
  (OUT/'qwen-candidate-model-metadata.json').write_text(json.dumps(model,indent=2)+'\n')
+ if (OUT/'model-metadata.json').exists():(OUT/'model-metadata.json').unlink()
 except Exception as e:print('Model metadata unavailable',repr(e))
 print('Audited',len(rows),'sources')

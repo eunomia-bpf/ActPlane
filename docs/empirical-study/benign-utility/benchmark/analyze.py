@@ -38,7 +38,9 @@ for job in sorted((RAW/'jobs').glob('*')):
   def index(ts):
    pos=bisect.bisect_right(starts,int(ts))-1
    return ordered[pos] if pos>=0 else 0
-  events=[x for x in records(agent/'engine.log') if x.get('event')=='TAINT_VIOLATION']
+  matches=[x for x in records(agent/'engine.log') if x.get('event')=='TAINT_VIOLATION']
+  events=[x for x in matches if x.get('killed') is True or x.get('blocked') is True]
+  failed_enforcement=[x for x in matches if x.get('effect') in ('kill','block') and not (x.get('killed') is True or x.get('blocked') is True)]
   # Root-mode observer prints only owner=benchmark. Older exploratory observers
   # also recorded disjoint replay tags; those records never enter these counts.
   observer=records(agent/'observer.jsonl');reads=[];connects=[]
@@ -56,6 +58,7 @@ for job in sorted((RAW/'jobs').glob('*')):
   scope=json.loads((agent/'scope.json').read_text()) if (agent/'scope.json').exists() else {}
   if not scope.get('kernel_root_verified'):coverage='incomplete'
   if condition!='a' and 'engine' not in status:coverage='incomplete'
+  if failed_enforcement:coverage='incomplete'
   infrastructure=exception.get('exception_type','')
   if not infrastructure:run_status='complete'
   elif infrastructure in ('AgentTimeoutError','VerifierTimeoutError'):run_status='official_timeout'
@@ -68,12 +71,13 @@ for job in sorted((RAW/'jobs').glob('*')):
   for i in ordered:
    call=calls[i];bin_start=((i-1)//10)*10+1
    calls_out.append(dict(**common,call_index=i,native_tool_call_id=call.get('native_tool_call_id',''),bin_start=bin_start,bin_end=bin_start+9,start_ns=call['start_ns'],end_ns=call.get('end_ns',''),intervention_events=fired_by_index[i],intervened=int(fired_by_index[i]>0),confirmed_false=0,unknown=int(fired_by_index[i]>0),source_read_accesses=sum(r['call_index']==i for r in reads),connect_attempts=sum(r['call_index']==i for r in connects),coverage=coverage))
-  trials[-1].update(atif_logged_tool_calls=len(native),dispatched_tool_calls=len(calls),unexecuted_or_unmapped_atif_calls=max(0,len(native)-len(calls)),kernel_root_verified=int(bool(scope.get('kernel_root_verified'))),kernel_root_pid=scope.get('root_host_pid',''),workspace_root_pid=scope.get('root_workspace_pid',''),observer_sha256=hashlib.sha256((agent/'observer.bt').read_bytes()).hexdigest() if (agent/'observer.bt').exists() else '',policy_sha256=hashlib.sha256((agent/'policy.bin').read_bytes()).hexdigest() if (agent/'policy.bin').exists() else '')
-  for number,e in enumerate(events,1):
-   events_out.append(dict(**common,event_id=number,call_index=index(e['timestamp']),timestamp_ns=e['timestamp'],pid=e['pid'],session_root=e.get('session_root',''),effect=e.get('effect',''),killed=e.get('killed',''),blocked=e.get('blocked',''),target=e.get('target',''),provenance=json.dumps(e.get('provenance'),sort_keys=True),adjudication='unknown',evidence='Independent semantic adjudication pending'))
+  trials[-1].update(atif_logged_tool_calls=len(native),dispatched_tool_calls=len(calls),unexecuted_or_unmapped_atif_calls=max(0,len(native)-len(calls)),kernel_root_verified=int(bool(scope.get('kernel_root_verified'))),kernel_root_pid=scope.get('root_host_pid',''),workspace_root_pid=scope.get('root_workspace_pid',''),observer_sha256=hashlib.sha256((agent/'observer.bt').read_bytes()).hexdigest() if (agent/'observer.bt').exists() else '',policy_sha256=hashlib.sha256((agent/'policy.bin').read_bytes()).hexdigest() if (agent/'policy.bin').exists() else '',raw_rule_matches=len(matches),failed_enforcement_events=len(failed_enforcement),unattributed_intervention_events=sum(index(e['timestamp'])==0 for e in events))
+  for number,e in enumerate(matches,1):
+   actual=e.get('killed') is True or e.get('blocked') is True
+   events_out.append(dict(**common,event_id=number,call_index=index(e['timestamp']),timestamp_ns=e['timestamp'],pid=e['pid'],session_root=e.get('session_root',''),effect=e.get('effect',''),killed=e.get('killed',''),blocked=e.get('blocked',''),is_intervention=int(actual),target=e.get('target',''),provenance=json.dumps(e.get('provenance'),sort_keys=True),adjudication='unknown' if actual else 'not_an_intervention',evidence='Independent semantic adjudication pending' if actual else 'No successful kill/block receipt'))
   reads_out.extend(dict(**common,**r) for r in reads)
-write('trials.csv',trials,['task','condition','attempt','trial_id','main_matrix','model','run_status','official_reward','official_success','exception_type','exception_message','wall_s','environment_setup_s','agent_setup_s','agent_execution_s','verifier_s','tool_calls','call_unit','atif_logged_tool_calls','dispatched_tool_calls','unexecuted_or_unmapped_atif_calls','intervention_events','killed_events','intervened_calls','confirmed_false_events','confirmed_true_events','unknown_events','source_read_accesses','source_read_processes','source_paths','connect_attempts','coverage','kernel_root_verified','kernel_root_pid','workspace_root_pid','observer_sha256','policy_sha256','raw_result'])
+write('trials.csv',trials,['task','condition','attempt','trial_id','main_matrix','model','run_status','official_reward','official_success','exception_type','exception_message','wall_s','environment_setup_s','agent_setup_s','agent_execution_s','verifier_s','tool_calls','call_unit','atif_logged_tool_calls','dispatched_tool_calls','unexecuted_or_unmapped_atif_calls','raw_rule_matches','intervention_events','killed_events','intervened_calls','confirmed_false_events','confirmed_true_events','unknown_events','failed_enforcement_events','unattributed_intervention_events','source_read_accesses','source_read_processes','source_paths','connect_attempts','coverage','kernel_root_verified','kernel_root_pid','workspace_root_pid','observer_sha256','policy_sha256','raw_result'])
 write('calls.csv',calls_out,['task','condition','attempt','trial_id','main_matrix','call_index','native_tool_call_id','bin_start','bin_end','start_ns','end_ns','intervention_events','intervened','confirmed_false','unknown','source_read_accesses','connect_attempts','coverage'])
-write('interventions.csv',events_out,['task','condition','attempt','trial_id','main_matrix','event_id','call_index','timestamp_ns','pid','session_root','effect','killed','blocked','target','provenance','adjudication','evidence'])
+write('interventions.csv',events_out,['task','condition','attempt','trial_id','main_matrix','event_id','call_index','timestamp_ns','pid','session_root','effect','killed','blocked','is_intervention','target','provenance','adjudication','evidence'])
 write('source-read-accesses.csv',reads_out,['task','condition','attempt','trial_id','main_matrix','timestamp_ns','pid','path','path_truncated','call_index'])
 print('Trials',len(trials),'official outcomes',sum(r['official_reward']!='' for r in trials),'events',len(events_out))
