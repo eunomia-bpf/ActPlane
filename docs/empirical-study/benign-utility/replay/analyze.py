@@ -103,6 +103,15 @@ def main():
                 root_pid=metadata.get('root_pid',''),root_pid_namespace=metadata.get('root_pid_namespace',''),source_observer_sha256=metadata.get('source_observer_sha256',''),
                 engine_environment=json.dumps(metadata.get('engine_environment','unknown'),sort_keys=True))
             runrow.update(replay_batch_serialized=metadata.get('replay_batch_serialized','unknown'),batch_admission_s=metadata.get('batch_admission_s',''))
+            runrow['resource_failure_observation']=json.dumps(load(run/'resource-failure.json',{}),sort_keys=True)
+            backing=metadata.get('cache_backing','disk')
+            runrow.update(cache_backing=backing,cache_backing_provenance=metadata.get('cache_backing_provenance','inferred_frozen_sandbox_default'),
+                timing_stratum=metadata.get('timing_stratum','tmpfs_cache' if backing=='tmpfs' else 'disk_cache'),
+                cache_tmpfs_limit_bytes=metadata.get('cache_tmpfs_limit_bytes',0),memory_headroom_before_bytes=metadata.get('memory_headroom_before_bytes',''))
+            samples=lines(run/'resource-samples.jsonl')
+            for name in ('cache','repo','venv'):
+                measured=[r.get(name+'_bytes') for r in samples if isinstance(r.get(name+'_bytes'),int)]
+                runrow[name+'_peak_observed_bytes']=max(measured) if measured else ''
             runs.append(runrow)
             percall=defaultdict(list)
             for event in lines(run/'engine.jsonl'):
@@ -153,6 +162,7 @@ def main():
     for event in interventions:
         annotation=reviewed[(event['condition'],event['dynamic_id'],str(event['timestamp_ns']))]
         event['adjudication']=annotation['adjudication'];event['adjudication_reason']=annotation['evidence']
+        for name in ('project_verdict','project_evidence','secret_source_provenance','public_source_artifact','retained_system_source_path','retained_system_source_sha256','retained_system_source_ctime_ns','retained_system_source_mapping'):event[name]=annotation[name]
         perrun[(event['condition'],event['dynamic_id'])].append(event)
         if event['call_index']!='':percall[(event['condition'],event['dynamic_id'],event['call_index'])].append(event)
     for call in calls:
@@ -168,7 +178,7 @@ def main():
             confirmed_true_events=sum(e['intervened'] and e['adjudication']=='true_violation' for e in matched),
             unknown_intervention_events=sum(e['intervened'] and e['adjudication']=='unknown' for e in matched))
     write('runs.csv',runs);write('calls.csv',calls)
-    write('interventions.csv',interventions,['condition','dynamic_id','trajectory_id','enforcement_effect','raw_condition','call_index','timestamp_ns','pid','rule_id','effect','intervened','target','source_path','source_classification','compiled_rule_match','adjudication','adjudication_reason','source_sha256','coverage'])
+    write('interventions.csv',interventions,['condition','dynamic_id','trajectory_id','enforcement_effect','raw_condition','call_index','timestamp_ns','pid','rule_id','effect','intervened','target','source_path','source_classification','compiled_rule_match','adjudication','adjudication_reason','source_sha256','coverage','project_verdict','project_evidence','secret_source_provenance','public_source_artifact','retained_system_source_path','retained_system_source_sha256','retained_system_source_ctime_ns','retained_system_source_mapping'])
     write('source_read_accesses.csv',sources,['condition','dynamic_id','trajectory_id','enforcement_effect','call_index','timestamp_ns','pid','path','path_maybe_truncated','classification','sha256','evidence_reason','coverage'])
     write('compiled_sources.csv',compiled,['condition','dynamic_id','label','source_kind','pattern','compiled_op','compiled_match_mode','compiled_literal','add_mask'])
     bins=[];summary=[]

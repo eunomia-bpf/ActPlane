@@ -14,20 +14,24 @@ from pathlib import Path
 rows=list(csv.DictReader((Path(os.environ['WS_RAW']).parent/'replay/results/runs.csv').open()))
 cores=sorted(os.sched_getaffinity(0))
 for shard in range(4):
-    ids=[r['dynamic_id'] for r in rows if r['condition']=='broad' and r['coverage']=='complete'
-         and int(r['intervention_events'])>0 and int(r['dynamic_id'][1:])//10==shard]
+    selected=[r for r in rows if r['condition']=='broad' and r['coverage']=='complete'
+              and int(r['intervention_events'])>0 and int(r['dynamic_id'][1:])//10==shard]
+    disk=[r['dynamic_id'] for r in selected if r.get('cache_backing','disk')!='tmpfs']
+    ram=[r['dynamic_id'] for r in selected if r.get('cache_backing')=='tmpfs']
     cpu=','.join(map(str,cores[shard*len(cores)//4:(shard+1)*len(cores)//4]))
-    print(cpu+' '+','.join(ids))
+    print(cpu+'|'+','.join(disk)+'|'+','.join(ram))
 PY
 )
 pids=()
 for shard in 0 1 2 3; do
-  read -r cpu ids <<< "${batches[$shard]}"
-  [ -n "${ids:-}" ] || continue
-  taskset -c "$cpu" bash replay/run.sh --condition broad --effect block --open-audit --ids "$ids" \
-    > "$WS_RAW/replay/open-audit-shard-$shard.log" 2>&1 &
+  IFS='|' read -r cpu disk ram <<< "${batches[$shard]}"
+  [ -n "${disk:-}${ram:-}" ] || continue
+  (
+    if [ -n "$disk" ]; then taskset -c "$cpu" bash replay/run.sh --condition broad --effect block --open-audit --ids "$disk"; fi
+    if [ -n "$ram" ]; then taskset -c "$cpu" bash replay/run.sh --condition broad --effect block --open-audit --cache-tmpfs --ids "$ram"; fi
+  ) > "$WS_RAW/replay/open-audit-shard-$shard.log" 2>&1 &
   pids+=("$!")
-  echo "forensic shard=$shard pid=$! ids=$ids"
+  echo "forensic shard=$shard pid=$! disk=$disk tmpfs=$ram"
 done
 status=0
 for pid in "${pids[@]}"; do wait "$pid" || status=1; done

@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import re
 import tarfile
+import codecs
+import gzip
 from collections import defaultdict
 from adjudicate import reviewed_annotations
 
@@ -48,8 +50,17 @@ def main():
     published={r['member_sha256']:r for r in csv.DictReader((OUT/'public-artifacts.csv').open())} if (OUT/'public-artifacts.csv').exists() else {}
     for run in sorted(ROOT.glob('open-audit-*/dynamic/runs/t*')):
         trace = run / 'successful-opens.strace'
+        if not trace.exists():trace=run/'successful-opens.strace.gz'
         if not trace.exists():
             continue
+        try:
+            if trace.suffix=='.gz':
+                with gzip.open(trace,'rb') as stream:trace_data=stream.read()
+            else:trace_data=trace.read_bytes()
+        except FileNotFoundError:
+            trace=run/'successful-opens.strace.gz'
+            if not trace.exists():continue
+            with gzip.open(trace,'rb') as stream:trace_data=stream.read()
         plan = plans[run.name]
         done = json.loads((run / 'done.json').read_text()) if (run / 'done.json').exists() else {}
         metadata=json.loads((run/'utility-metadata.json').read_text()) if (run/'utility-metadata.json').exists() else {}
@@ -64,9 +75,9 @@ def main():
                  if r['label'] == 'SECRET'] if (run / 'compiled-sources.json').exists() else []
         pending, parsed, unparsed, failed = {}, 0, 0, 0
         selected = []
-        archive = None
+        archives = {}
         retained_data = {}
-        for number, line in enumerate(trace.read_text(errors='replace').splitlines(), 1):
+        for number, line in enumerate(trace_data.decode(errors='replace').splitlines(), 1):
             header = re.match(r'^(\d+)\s+(\d+\.\d+)\s+(.*)$', line)
             if not header:
                 if any(word + '(' in line for word in SYSCALLS):
@@ -99,6 +110,10 @@ def main():
                         line=number,reason='return format',record=body))
                 continue
             syscall, arguments, result_fd, resolved = call.groups()
+            resolved_rendered=resolved
+            if resolved:
+                try:resolved=codecs.escape_decode(resolved.encode())[0].decode(errors='surrogateescape')
+                except (UnicodeError,ValueError):pass
             parsed += 1
             names = list(re.finditer(r'"(?:[^"\\]|\\.)*"', arguments))
             if not names:
@@ -134,17 +149,18 @@ def main():
                         data = file.read_bytes() if file and file.is_file() else None
                     except OSError:
                         data = None
-                    if data is None and file and file.is_relative_to(run) and (run/'runtime.tar.gz').exists():
-                        if archive is None:archive=tarfile.open(run/'runtime.tar.gz','r:gz')
+                    archive_path=run/('runtime-cache.tar.gz' if file and file.is_relative_to(run/'cache') and (run/'runtime-cache.tar.gz').exists() else 'runtime.tar.gz')
+                    if data is None and file and file.is_relative_to(run) and archive_path.exists():
+                        if archive_path not in archives:archives[archive_path]=tarfile.open(archive_path,'r:gz')
                         try:
-                            member=archive.extractfile(file.relative_to(run).as_posix())
+                            member=archives[archive_path].extractfile(file.relative_to(run).as_posix())
                             data=member.read() if member else None
                         except (KeyError,OSError):pass
                     retained_data[file]=data
                 selected.append(dict(audit_condition=run.parents[2].name, dynamic_id=run.name,
                     line=number, pid=pid, timestamp_epoch=timestamp, stage=stage, syscall=syscall, name_index=name_index,
                     raw_path=path, engine_path=engine_path.decode(errors='replace'),
-                    resolved_path=resolved or '', source_patterns=json.dumps(matching),
+                    resolved_path=resolved or '', resolved_path_rendered=resolved_rendered or '', source_patterns=json.dumps(matching),
                     resolved_source_patterns=json.dumps(resolved_matching),
                     flags=arguments[quoted.end():].lstrip(', '), result=result_fd,
                     retained_sha256=hashlib.sha256(data).hexdigest() if data is not None else '',
@@ -154,7 +170,7 @@ def main():
                     published_artifact=json.dumps(published.get(hashlib.sha256(data).hexdigest(),{}),sort_keys=True) if data is not None else '',
                     evidence_limit='Retained end-of-replay bytes; no automatic primary-event adjudication'))
         candidates.extend(selected)
-        if archive is not None:archive.close()
+        for archive in archives.values():archive.close()
         owners = defaultdict(list)
         prefix = 'apti6e' + run.name[1:]
         if (run / 'sources.jsonl').exists():
@@ -194,19 +210,21 @@ def main():
         summaries.append(dict(audit_condition=run.parents[2].name, dynamic_id=run.name,
             terminal=int(bool(done)), recorded_calls=done.get('recorded_calls', ''),
             executed_calls=done.get('executed_calls', ''), fatal=done.get('fatal', ''),
-            trace_bytes=trace.stat().st_size, trace_sha256=hashlib.sha256(trace.read_bytes()).hexdigest(),
+            trace_bytes=len(trace_data), trace_sha256=hashlib.sha256(trace_data).hexdigest(),
             parsed_successful_file_calls=parsed, unparsed_file_records=unparsed,
             failed_file_calls=failed, unfinished_file_records=len(pending), candidate_file_names=len(selected),
             candidate_paths=len({r['raw_path'] for r in selected}),
+            mapped_interval_candidate_names=sum(r['stage']!='setup-before-root-mapping' for r in selected),
+            mapped_interval_unverified_paths=json.dumps(sorted({r['raw_path'] for r in selected if r['stage']!='setup-before-root-mapping' and r['published_artifact'] in ('','{}')})),
             evidence_limit='Separate verification replay; its timings and events excluded from primary cohort'))
     write('open-audit-candidates.csv', candidates, list(candidates[0]) if candidates else [
         'audit_condition', 'dynamic_id', 'line', 'pid', 'timestamp_epoch', 'stage', 'syscall', 'name_index', 'raw_path',
-        'engine_path', 'resolved_path', 'source_patterns', 'resolved_source_patterns', 'flags',
+        'engine_path', 'resolved_path', 'resolved_path_rendered', 'source_patterns', 'resolved_source_patterns', 'flags',
         'result', 'retained_sha256', 'retained_bytes', 'retained_public_certificates', 'published_artifact', 'evidence_limit'])
     write('open-audit-summary.csv', summaries, list(summaries[0]) if summaries else [
         'audit_condition', 'dynamic_id', 'terminal', 'recorded_calls', 'executed_calls', 'fatal',
         'trace_bytes', 'trace_sha256', 'parsed_successful_file_calls', 'unparsed_file_records', 'failed_file_calls',
-        'unfinished_file_records', 'candidate_file_names', 'candidate_paths', 'evidence_limit'])
+        'unfinished_file_records', 'candidate_file_names', 'candidate_paths', 'mapped_interval_candidate_names', 'mapped_interval_unverified_paths', 'evidence_limit'])
     write('open-audit-interventions.csv', interventions, list(interventions[0]) if interventions else [
         'audit_condition', 'dynamic_id', 'call_index', 'timestamp_ns', 'pid', 'blocked', 'killed',
         'intervened', 'source_path', 'target', 'adjudication', 'evidence'])

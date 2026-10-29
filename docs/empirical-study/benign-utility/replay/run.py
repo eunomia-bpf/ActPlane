@@ -16,7 +16,7 @@ import subprocess
 import struct
 import sys
 import time
-from prepare import compact_closed_tool, compact_closed_runtime
+from prepare import compact_closed_tool, compact_closed_runtime, compact_closed_trace
 
 HERE = Path(__file__).resolve().parent
 ROOT = Path(os.environ['WS_RAW']) / 'replay'
@@ -27,6 +27,43 @@ LOADER = ROOT / 'engine/process'
 CLI = Path('/workspaces/lanes/translation-models/target/release/actplane')
 BROAD = ['**/*.env', '**/*.env.local', '**/*.env.production', '**/*.pem', '**/*.key', '**/*id_rsa', '**/*id_ed25519', '**/*credentials.json',
          '/root/.aws/credentials', '/root/.gemini/oauth_creds.json', '/etc/secrets/**']
+TMPFS_LIMIT_BYTES=24*1024**3
+
+
+def memory_snapshot():
+    mem={line.split(':',1)[0]:int(line.split()[1])*1024 for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith(('MemAvailable:','MemTotal:'))}
+    membership=next(line.split('::',1)[1] for line in Path('/proc/self/cgroup').read_text().splitlines() if line.startswith('0::'))
+    root=Path('/sys/fs/cgroup');group=root/membership.lstrip('/')
+    if not (group/'memory.current').exists():group=root
+    current=group/'memory.current';maximum=group/'memory.max'
+    if not current.exists() or not maximum.exists():raise RuntimeError('actual cgroup memory budget unavailable')
+    used=int(current.read_text());limit=maximum.read_text().strip()
+    headroom=min(mem['MemAvailable'],int(limit)-used) if limit!='max' else mem['MemAvailable']
+    constraints=[]
+    for ancestor in (group,*group.parents):
+        if not ancestor.is_relative_to(root):break
+        if not (ancestor/'memory.max').exists():continue
+        bound=(ancestor/'memory.max').read_text().strip();consumed=int((ancestor/'memory.current').read_text())
+        constraints.append(dict(path=str(ancestor),maximum=bound,current=consumed))
+        if bound!='max':headroom=min(headroom,int(bound)-consumed)
+    return dict(memory_available_bytes=mem['MemAvailable'],cgroup_memory_current_bytes=used,
+        cgroup_memory_max_bytes=limit,memory_headroom_bytes=headroom,
+        cgroup_path=membership,cgroup_memory_file=str(maximum),ancestor_constraints=constraints)
+
+
+def mount_memory_cache(path):
+    path=path.resolve()
+    if not path.is_relative_to(ROOT.resolve()) or path.name!='cache':raise ValueError('cache mount escaped owned raw directory')
+    if os.readlink('/proc/self/ns/mnt')==os.readlink('/proc/1/ns/mnt'):raise RuntimeError('tmpfs cache requires run.sh private mount namespace')
+    path.mkdir(parents=True,exist_ok=True)
+    if any(path.iterdir()) or os.path.ismount(path):raise RuntimeError('cache mount target is not fresh/unmounted')
+    snapshot=memory_snapshot()
+    if snapshot['memory_headroom_bytes']<TMPFS_LIMIT_BYTES+8*1024**3:raise RuntimeError('insufficient actual RAM headroom for bounded cache plus concurrent-process reserve')
+    subprocess.run(['mount','-t','tmpfs','-o',f'size={TMPFS_LIMIT_BYTES},mode=0755','tmpfs',str(path)],check=True)
+    return dict(cache_backing='tmpfs',cache_backing_provenance='recorded_private_namespace_tmpfs_mount',
+        timing_stratum='tmpfs_cache',cache_tmpfs_limit_bytes=TMPFS_LIMIT_BYTES,
+        memory_headroom_before_bytes=snapshot['memory_headroom_bytes'],memory_before=snapshot,
+        controller_mount_namespace=os.readlink('/proc/self/ns/mnt'),cache_controller_workspace_pid=os.getpid(),cache_directory=str(path))
 
 
 def policy(plan, condition, effect='kill'):
@@ -62,15 +99,27 @@ def source_evidence(run,plan):
         except json.JSONDecodeError:continue
         if isinstance(message,str) and message.startswith('READ|'):
             paths.add(message.strip().split('|',4)[4])
+    if (run/'engine.jsonl').exists():
+        for line in (run/'engine.jsonl').read_text(errors='replace').splitlines():
+            try:event=json.loads(line)
+            except json.JSONDecodeError:continue
+            target=(event.get('provenance') or {}).get('target','')
+            if target.startswith('/'):paths.add(target)
+    metadata=json.loads((run/'utility-metadata.json').read_text()) if (run/'utility-metadata.json').exists() else {}
     evidence=[]
     for path in sorted(paths):
         host=Path(path)
         for prefix,directory in [(plan['sandbox_workdir'],'repo'),('/venv','venv'),('/root','home'),('/tmp','tmp'),('/cache','cache')]:
             if path==prefix or path.startswith(prefix+'/'):
                 host=run/directory/path[len(prefix):].lstrip('/');break
-        row=dict(path=path,sha256='',bytes='',classification='unknown',reason='observed read-access path unavailable after command')
+        row=dict(path=path,sha256='',bytes='',classification='unknown',reason='observed source/provenance path unavailable after command')
         try:
             data=host.read_bytes();row.update(sha256=hashlib.sha256(data).hexdigest(),bytes=len(data))
+            if metadata.get('cache_backing')=='tmpfs' and host.is_relative_to(run):
+                retained=run/'retained-source-bytes';retained.mkdir(exist_ok=True)
+                snapshot=retained/row['sha256']
+                if not snapshot.exists():shutil.copy2(host,snapshot)
+                row['retained_bytes_path']=str(snapshot.relative_to(run))
             if host.is_relative_to(run/'repo'):
                 relative=str(host.relative_to(run/'repo'))
                 base=subprocess.run(['git','show',plan['base_commit']+':'+relative],cwd=run/'repo',capture_output=True)
@@ -112,6 +161,7 @@ def main():
     parser.add_argument('--condition', choices=['none', 'broad', 'scoped'], required=True)
     parser.add_argument('--effect', choices=['kill','block'], default='kill')
     parser.add_argument('--open-audit',action='store_true',help='Separate untimed verification replay with standard successful-open tracing')
+    parser.add_argument('--cache-tmpfs',action='store_true',help='Bounded RAM backing at the unchanged disposable /cache path')
     parser.add_argument('--ids', default='')
     args = parser.parse_args()
     admission_started=time.monotonic()
@@ -146,6 +196,13 @@ def main():
     original_sandbox = runner.sandbox
     worker_state = {}
     def sandbox(*values):
+        run=values[2]
+        backing=dict(cache_backing='disk',cache_backing_provenance='recorded_original_sandbox_directory',timing_stratum='disk_cache',cache_tmpfs_limit_bytes=0)
+        if args.cache_tmpfs:
+            backing=mount_memory_cache(run/'cache')
+            worker_state['mounted_cache']=run/'cache'
+        worker_state['backing']=backing
+        (run/'utility-metadata.json').write_text(json.dumps(backing,indent=2))
         old_popen=subprocess.Popen
         def traced_popen(argv,*positional,**named):
             if argv[0]=='bwrap':
@@ -160,10 +217,26 @@ def main():
         finally:subprocess.Popen=old_popen
         worker_state['pid'] = output[0].pid
         worker_state['worker'] = output[0]
+        (run/'utility-metadata.json').write_text(json.dumps(dict(backing,workspace_popen_pid=output[0].pid,open_audit=args.open_audit),indent=2))
         return output
     runner.sandbox = sandbox
     original_materialize = runner.materialize
     plan_state = {}
+    original_guard=runner.disk_guard
+    def resource_guard(directory):
+        try:return original_guard(directory)
+        except RuntimeError as error:
+            if 'workspace disk limit reached' in str(error) and plan_state.get('run'):
+                usage=shutil.disk_usage(directory)
+                current=plan_state['run']
+                measured=subprocess.run(['du','-s','-B1',str(current)],capture_output=True,text=True)
+                observation=dict(utc=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),
+                    workspace_total=usage.total,workspace_used=usage.used,workspace_free=usage.free,
+                    run_disk_bytes=int(measured.stdout.split()[0]) if measured.stdout.split() else '',
+                    run=str(current),raw_condition=raw_name)
+                (current/'resource-failure.json').write_text(json.dumps(observation,indent=2))
+            raise
+    runner.disk_guard=resource_guard
     def materialize(raw, plan, run):
         plan_state['plan'] = plan
         repo = original_materialize(raw, plan, run)
@@ -226,6 +299,7 @@ def main():
             metadata['engine_environment']={name:os.environ.get(name) for name in (
                 'ACTPLANE_HOOK_PROFILE','ACTPLANE_ENABLE_ADVANCED_HOOKS','ACTPLANE_ADVANCED_TRACEPOINTS','ACTPLANE_RESERVE_FILE_FLOW')}
             metadata['enforcement_effect']='none' if args.condition=='none' else args.effect
+            metadata.update(worker_state.get('backing',{}))
             metadata.update(replay_batch_serialized=True,batch_admission_s=batch_admission_s)
             metadata.update(open_audit=args.open_audit,clock_epoch_ns=time.time_ns(),clock_monotonic_ns=time.monotonic_ns())
             if args.open_audit:
@@ -247,6 +321,25 @@ def main():
         result=original_request(worker,job)
         if any(p.poll() is not None for p,_,_ in instruments):
             raise RuntimeError('instrumentation exited unexpectedly during call')
+        if args.cache_tmpfs and worker_state.get('mounted_cache'):
+            current=plan_state['run'];usage=shutil.disk_usage(raw)
+            observation=dict(utc=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),tag=job.get('tag','setup'),
+                workspace_total=usage.total,workspace_used=usage.used,workspace_free=usage.free,memory=memory_snapshot())
+            for name in ('cache','repo','venv'):
+                measured=subprocess.run(['du','-s','-B1',str(current/name)],capture_output=True,text=True)
+                observation[name+'_bytes']=int(measured.stdout.split()[0]) if measured.stdout.split() else ''
+            installed=list((current/'repo/.venv').glob('lib/python*/site-packages/certifi/cacert.pem'))
+            if installed:
+                destination=installed[0];digest=hashlib.sha256(destination.read_bytes()).hexdigest()
+                for source in (current/'cache/uv/archive-v0').glob('*/certifi/cacert.pem'):
+                    if hashlib.sha256(source.read_bytes()).hexdigest()!=digest:continue
+                    left,right=source.stat(),destination.stat()
+                    observation['actual_uv_copy']=dict(source=str(source),destination=str(destination),sha256=digest,
+                        source_device=left.st_dev,destination_device=right.st_dev,source_inode=left.st_ino,destination_inode=right.st_ino,
+                        same_inode=left.st_dev==right.st_dev and left.st_ino==right.st_ino,
+                        source_mode=left.st_mode,destination_mode=right.st_mode)
+                    break
+            with (current/'resource-samples.jsonl').open('a') as stream:stream.write(json.dumps(observation)+'\n')
         return result
     runner.request=request
     runner.CFG['run_phase']='benign-utility-'+('open-audit-' if args.open_audit else '')+args.effect+'-'+args.condition
@@ -260,6 +353,7 @@ def main():
     for plan in plans:
         worker_state.pop('instruments',None)
         run=raw/'dynamic/runs'/plan['dynamic_id']
+        plan_state.update(run=run,plan=plan)
         if (run/'done.json').exists():
             done=json.loads((run/'done.json').read_text())
             metadata=json.loads((run/'utility-metadata.json').read_text()) if (run/'utility-metadata.json').exists() else {}
@@ -273,6 +367,7 @@ def main():
             if args.condition!='none' and metadata.get('root_pid_namespace')!='initial-kernel-worker':reasons.append('unvalidated namespace root')
             if args.condition!='none' and metadata.get('enforcement_effect', 'kill')!=args.effect:reasons.append('enforcement effect differs from selected cohort')
             if bool(metadata.get('open_audit'))!=args.open_audit:reasons.append('independent audit status differs from selected cohort')
+            if args.cache_tmpfs and metadata.get('cache_backing')!='tmpfs':reasons.append('requested RAM cache backing differs from prior run')
             source_log=(run/'sources.jsonl').read_text(errors='replace') if (run/'sources.jsonl').exists() else ''
             if re.search(r'(?i)"type"\s*:\s*"[^"\n]*(?:error|lost|drop|overflow)[^"\n]*"',source_log):reasons.append('observer helper failure/event loss')
             exits=json.loads((run/'instrument-exits.json').read_text()) if (run/'instrument-exits.json').exists() else []
@@ -282,9 +377,21 @@ def main():
                 target=attempts/(args.condition+'-'+plan['dynamic_id']+'-'+str(time.time_ns()))
                 shutil.move(str(run),target)
                 (target/'exclusion-reason.json').write_text(json.dumps(dict(reasons=reasons),indent=2))
-        runner.replay(raw,plan,sorted(calls[plan['trajectory_id']],key=lambda c:c['call_index']),cleanup=not args.open_audit)
-        compact_closed_tool(run)
-        if args.open_audit:compact_closed_runtime(run)
+        try:
+            runner.replay(raw,plan,sorted(calls[plan['trajectory_id']],key=lambda c:c['call_index']),cleanup=not args.open_audit)
+            compact_closed_tool(run)
+            if args.open_audit:
+                compact_closed_trace(run);compact_closed_runtime(run)
+        finally:
+            mounted=worker_state.pop('mounted_cache',None)
+            if mounted:
+                if args.open_audit:
+                    while not (run/'runtime-cache.tar.gz').exists():
+                        compact_closed_runtime(run)
+                        if (run/'runtime-cache.tar.gz').exists():break
+                        print('Persisting RAM cache before unmount:',plan['dynamic_id'],flush=True);time.sleep(5)
+                subprocess.run(['umount',str(mounted)],check=True)
+                shutil.rmtree(mounted,ignore_errors=True)
 
 
 if __name__=='__main__': main()

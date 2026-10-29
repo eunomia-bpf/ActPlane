@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import urllib.request
 import zipfile
+import datetime
 
 ROOT = Path(os.environ['WS_RAW']) / 'replay'
 OUT = ROOT.parent.parent / 'replay/results'
@@ -15,6 +16,36 @@ OUT = ROOT.parent.parent / 'replay/results'
 def reviewed_annotations():
     path=Path(__file__).with_name('reviewed_interventions.csv')
     return {(r['raw_condition'],r['dynamic_id'],r['timestamp_ns']):r for r in csv.DictReader(path.open())} if path.exists() else {}
+
+def project_reviews():
+    path=Path(__file__).with_name('project_action_review.csv')
+    return {r['dynamic_id']:r for r in csv.DictReader(path.open())} if path.exists() else {}
+
+def readonly_system_origin(raw_path, started_utc, published):
+    """Resolve only unchanged readonly OS sources, preserving raw engine spelling."""
+    if not started_utc:return {}
+    began=int(datetime.datetime.strptime(started_utc,'%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=datetime.timezone.utc).timestamp()*1000000000)
+    names=[(raw_path,'verbatim')]
+    try:
+        decoded=raw_path.encode('latin1').decode('utf8')
+        if decoded!=raw_path and not Path(raw_path).exists() and not Path(raw_path).is_symlink():
+            names.append((decoded,'Latin1-to-UTF8 alternate spelling; verbatim path absent'))
+    except (UnicodeError,AttributeError):pass
+    for name,mapping in names:
+        path=Path(name)
+        if not name.startswith(('/usr/','/etc/','/lib/')):continue
+        try:
+            target=path.resolve()
+            if not any(target.is_relative_to(Path(prefix)) for prefix in ('/usr','/etc','/lib')):continue
+            if not target.is_file():continue
+            ctime=max(path.lstat().st_ctime_ns,target.stat().st_ctime_ns)
+            if ctime>=began:continue
+            digest=hashlib.sha256(target.read_bytes()).hexdigest()
+            if digest not in published:continue
+            return dict(retained_system_source_path=str(path),retained_system_source_sha256=digest,
+                retained_system_source_ctime_ns=ctime,retained_system_source_mapping=mapping)
+        except OSError:continue
+    return {}
 
 def sealed_inputs(event, original, calls, plan):
     run=ROOT/event.get('raw_condition',event['condition'])/'dynamic/runs'/event['dynamic_id']
@@ -81,6 +112,9 @@ def review(events, sources):
                         wheel_sha256=wheel_digest, **proof))
     rows = []
     reviewed=reviewed_annotations()
+    projects=project_reviews()
+    published={r['member_sha256']:r for r in csv.DictReader((OUT/'public-artifacts.csv').open())} if (OUT/'public-artifacts.csv').exists() else {}
+    system_cache={}
     for event in events:
         condition, dynamic_id = event['condition'], event['dynamic_id']
         prior = [r for r in sources if r['condition'] == condition and r['dynamic_id'] == dynamic_id
@@ -93,6 +127,21 @@ def review(events, sources):
             prior_source_paths=json.dumps(paths), original_args=json.dumps(original.get('args', {}), sort_keys=True),
             sealed_input_evidence=json.dumps(sealed_inputs(event,original,by_trajectory,plans[dynamic_id]),sort_keys=True) if event['call_index'] else '',
             adjudication='unknown', evidence='Independent provenance/context review pending')
+        project=projects.get(dynamic_id,{})
+        applicable=str(event['call_index']) in project.get('call_indices','').split(';')
+        row.update(project_verdict=project.get('project_verdict','unknown') if applicable else 'unknown',
+            project_evidence=project.get('evidence','') if applicable else 'Actual action not covered by current project review',
+            secret_source_provenance='verified_public_artifact' if event['source_sha256'] in published else 'unresolved',
+            public_source_artifact=json.dumps(published.get(event['source_sha256'],{}),sort_keys=True))
+        run=ROOT/event.get('raw_condition',condition)/'dynamic/runs'/dynamic_id
+        done=json.loads((run/'done.json').read_text()) if (run/'done.json').exists() else {}
+        key=(event.get('raw_condition',condition),dynamic_id,event['source_path'])
+        if key not in system_cache:system_cache[key]=readonly_system_origin(event['source_path'],done.get('started_utc',''),published)
+        system=system_cache[key]
+        for name in ('retained_system_source_path','retained_system_source_sha256','retained_system_source_ctime_ns','retained_system_source_mapping'):row[name]=system.get(name,'')
+        if system:
+            row.update(secret_source_provenance='verified_public_readonly_system_artifact',
+                public_source_artifact=json.dumps(published[system['retained_system_source_sha256']],sort_keys=True))
         if (event['coverage'] == 'complete' and int(event['intervened']) == 1 and prior
                 and event['source_sha256'] in bundles
                 and all(r['classification'] == 'public_certificate' and r['sha256'] in bundles
