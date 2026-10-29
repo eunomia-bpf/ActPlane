@@ -1,7 +1,7 @@
 condition,enforcement_effect,position_start,position_end,recorded_calls,executed_calls,valid_covered_calls,intervened_calls,intervention_events,fp_events,unknown_intervention_events,intervention_rate
-none,none,1,10,396,396,386,0,0,0,0,0.0
-none,none,11,20,337,337,327,0,0,0,0,0.0
-none,none,21,30,238,237,237,0,0,0,0,0.0
+none,none,1,10,396,396,396,0,0,0,0,0.0
+none,none,11,20,337,337,337,0,0,0,0,0.0
+none,none,21,30,238,238,238,0,0,0,0,0.0
 none,none,31,40,140,140,140,0,0,0,0,0.0
 none,none,41,50,87,87,87,0,0,0,0,0.0
 none,none,51,60,68,68,68,0,0,0,0,0.0

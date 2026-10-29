@@ -1,0 +1,5 @@
+log,status,reason,scored_trial
+20261029T124421Z.log,dependency_failure,wrong interpreter; replay dependency bashlex unavailable,0
+20261029T124550Z.log,dependency_failure,cgroup mount root queried instead of actual process membership path,0
+20261029T125409Z.log,failed,actual uv cache control failed: ,0
+20261029T125931Z.log,passed,,0

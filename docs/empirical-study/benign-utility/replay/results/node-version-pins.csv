@@ -1,0 +1,5 @@
+dynamic_id,repository,base_commit,sandbox_workdir,source_path,literal,source_sha256,applicability
+t07,ubugeeei-prod/vize,f110960b5311c150831079eeddccc6cbb548606b,/vize,.node-version,24.14.0,75daa0bc10dae1f22b2d13386b55b232adf16930d4325902f37b5033b3a7ca93,Version-file presence only; instruction applicability/action scope independently reviewed
+t08,vuejs/core,86ad0764fd9f7b01cef75b4fc941b03419306bf8,/core,.node-version,lts/*,a784a891ee985530f25d616fa372d1b360fc9d4ef38932ab8dc2f45edfa5b01d,Version-file presence only; instruction applicability/action scope independently reviewed
+t17,ubugeeei-prod/vize,f110960b5311c150831079eeddccc6cbb548606b,/vize,.node-version,24.14.0,75daa0bc10dae1f22b2d13386b55b232adf16930d4325902f37b5033b3a7ca93,Version-file presence only; instruction applicability/action scope independently reviewed
+t18,vuejs/core,86ad0764fd9f7b01cef75b4fc941b03419306bf8,/core,.node-version,lts/*,a784a891ee985530f25d616fa372d1b360fc9d4ef38932ab8dc2f45edfa5b01d,Version-file presence only; instruction applicability/action scope independently reviewed

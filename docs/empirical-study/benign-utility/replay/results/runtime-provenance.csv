@@ -1,0 +1,2 @@
+binary,resolved_path,sha256,bytes,version,mtime_ns,ctime_ns,observed_utc,scope
+/usr/bin/node,/usr/bin/node,ca0728526aa1cc4e3056decec848ecc6d2c5391cecdd4e21a0ebd221d665c84e,26704,v20.19.2,1790097138000000000,1791698279972135762,2026-10-29T11:53:50.412026+00:00,Current host binary mounted read-only as /usr in copied replay; ctime compared against recorded run timestamps

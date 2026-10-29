@@ -1,0 +1,59 @@
+hardlink_errno,reflink_errno,uv_version,source_device,destination_device,source_inode,destination_inode,uv_used_same_inode,cache_filesystem,source_sha256,destination_sha256,uv_copy_log,backing,mount_namespace,tmpfs_limit_bytes,memory_headroom_before_bytes,memory_snapshot,uv_binary_sha256,harness_sha256,scope
+18,95,uv 0.13.6 (x86_64-unknown-linux-gnu),16656,16656,2677303,2677328,False,ext2/ext3,2ef52ad56b4803e264045c915e55c236cbfa045b84b81efefc218a19eb44bd2b,2ef52ad56b4803e264045c915e55c236cbfa045b84b81efefc218a19eb44bd2b,"Using CPython 3.13.5 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+DEBUG Found workspace root: /harbor
+DEBUG Adding root workspace member: /harbor
+DEBUG Adding discovered workspace member: /harbor/packages/rewardkit
+DEBUG Found workspace configuration at `/harbor/pyproject.toml`
+DEBUG Searching for user configuration in: /root/.config/uv/uv.toml
+DEBUG uv 0.13.6 (x86_64-unknown-linux-gnu)
+DEBUG Checking for Python interpreter at path `.venv/bin/python`
+DEBUG Using Python 3.13.5 environment at: .venv
+DEBUG At least one requirement is not satisfied: file:///replay/certifi-2026.10.23-py3-none-any.whl
+DEBUG Using request connect timeout of 10s and read timeout of 30s
+DEBUG Solving with installed Python version: 3.13.5
+DEBUG Solving with target Python version: >=3.13.5
+DEBUG Adding direct dependency: certifi*
+DEBUG Searching for a compatible version of certifi @ `file:///replay/certifi-2026.10.23-py3-none-any.whl` (*)
+DEBUG Tried 1 versions: certifi 1
+DEBUG marker environment resolution took 0.000s
+Resolved 1 package in 0.74ms
+DEBUG Identified uncached distribution: certifi @ file:///replay/certifi-2026.10.23-py3-none-any.whl
+Prepared 1 package in 2ms
+DEBUG Failed to reflink `/cache/uv/archive-v0/0Bw5todJ2nmua7O6/certifi-2026.10.23.dist-info/licenses/LICENSE` to `/harbor/.venv/lib/python3.13/site-packages/certifi-2026.10.23.dist-info/licenses/LICENSE`: Operation not supported (os error 95), falling back
+DEBUG Failed to hard link `/cache/uv/archive-v0/0Bw5todJ2nmua7O6/certifi-2026.10.23.dist-info/licenses/LICENSE` to `/harbor/.venv/lib/python3.13/site-packages/certifi-2026.10.23.dist-info/licenses/LICENSE`: failed to hardlink file from /harbor/.venv/lib/python3.13/site-packages/certifi-2026.10.23.dist-info/licenses/LICENSE to /cache/uv/archive-v0/0Bw5todJ2nmua7O6/certifi-2026.10.23.dist-info/licenses/LICENSE: Invalid cross-device link (os error 18); falling back to copy
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 1 package in 1ms
+ + certifi==2026.10.23 (from file:///replay/certifi-2026.10.23-py3-none-any.whl)
+",disk,mnt:[4026536312],0,97988546560,"{""ancestor_constraints"": [{""current"": 7747547136, ""maximum"": ""max"", ""path"": ""/sys/fs/cgroup/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod13a924ca_172a_467f_9f86_11d21ec22b05.slice/cri-containerd-044cedc430b6bc6ea0392e875c0c8e2eb9f22b5ce3f3fbffbeaae985a56adca6.scope""}, {""current"": 7747825664, ""maximum"": ""max"", ""path"": ""/sys/fs/cgroup/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod13a924ca_172a_467f_9f86_11d21ec22b05.slice""}, {""current"": 33233006592, ""maximum"": ""max"", ""path"": ""/sys/fs/cgroup/kubepods.slice/kubepods-besteffort.slice""}, {""current"": 36501999616, ""maximum"": ""134490546176"", ""path"": ""/sys/fs/cgroup/kubepods.slice""}], ""cgroup_memory_current_bytes"": 7747547136, ""cgroup_memory_file"": ""/sys/fs/cgroup/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod13a924ca_172a_467f_9f86_11d21ec22b05.slice/cri-containerd-044cedc430b6bc6ea0392e875c0c8e2eb9f22b5ce3f3fbffbeaae985a56adca6.scope/memory.max"", ""cgroup_memory_max_bytes"": ""max"", ""cgroup_path"": ""/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod13a924ca_172a_467f_9f86_11d21ec22b05.slice/cri-containerd-044cedc430b6bc6ea0392e875c0c8e2eb9f22b5ce3f3fbffbeaae985a56adca6.scope"", ""memory_available_bytes"": 109225168896, ""memory_headroom_bytes"": 97988546560}",23803452c0fbe125033054cd9ff245f1d649fb65b4b73f68429f4abda432436d,d6b029cb1caf2e09edee543cfa1ecf194b63c0762e4a8ac9bdf2db40ab42f6c3,"Resource-only control; not a public trajectory, task score, or policy metric"
+18,18,uv 0.13.6 (x86_64-unknown-linux-gnu),3145871,16656,47,2763803,False,tmpfs,2ef52ad56b4803e264045c915e55c236cbfa045b84b81efefc218a19eb44bd2b,2ef52ad56b4803e264045c915e55c236cbfa045b84b81efefc218a19eb44bd2b,"Using CPython 3.13.5 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+DEBUG Found workspace root: /harbor
+DEBUG Adding root workspace member: /harbor
+DEBUG Adding discovered workspace member: /harbor/packages/rewardkit
+DEBUG Found workspace configuration at `/harbor/pyproject.toml`
+DEBUG Searching for user configuration in: /root/.config/uv/uv.toml
+DEBUG uv 0.13.6 (x86_64-unknown-linux-gnu)
+DEBUG Checking for Python interpreter at path `.venv/bin/python`
+DEBUG Using Python 3.13.5 environment at: .venv
+DEBUG At least one requirement is not satisfied: file:///replay/certifi-2026.10.23-py3-none-any.whl
+DEBUG Using request connect timeout of 10s and read timeout of 30s
+DEBUG Solving with installed Python version: 3.13.5
+DEBUG Solving with target Python version: >=3.13.5
+DEBUG Adding direct dependency: certifi*
+DEBUG Searching for a compatible version of certifi @ `file:///replay/certifi-2026.10.23-py3-none-any.whl` (*)
+DEBUG Tried 1 versions: certifi 1
+DEBUG marker environment resolution took 0.000s
+Resolved 1 package in 0.69ms
+DEBUG Identified uncached distribution: certifi @ file:///replay/certifi-2026.10.23-py3-none-any.whl
+Prepared 1 package in 1ms
+DEBUG Failed to reflink `/cache/uv/archive-v0/lIyevPEGX8tkhhAZ/certifi-2026.10.23.dist-info/RECORD` to `/harbor/.venv/lib/python3.13/site-packages/certifi-2026.10.23.dist-info/RECORD`: Invalid cross-device link (os error 18), falling back
+DEBUG Failed to hard link `/cache/uv/archive-v0/lIyevPEGX8tkhhAZ/certifi-2026.10.23.dist-info/top_level.txt` to `/harbor/.venv/lib/python3.13/site-packages/certifi-2026.10.23.dist-info/top_level.txt`: failed to hardlink file from /harbor/.venv/lib/python3.13/site-packages/certifi-2026.10.23.dist-info/top_level.txt to /cache/uv/archive-v0/lIyevPEGX8tkhhAZ/certifi-2026.10.23.dist-info/top_level.txt: Invalid cross-device link (os error 18); falling back to copy
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 1 package in 0.77ms
+ + certifi==2026.10.23 (from file:///replay/certifi-2026.10.23-py3-none-any.whl)
+",tmpfs,mnt:[4026536312],25769803776,97752780800,"{""ancestor_constraints"": [{""current"": 7835926528, ""maximum"": ""max"", ""path"": ""/sys/fs/cgroup/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod13a924ca_172a_467f_9f86_11d21ec22b05.slice/cri-containerd-044cedc430b6bc6ea0392e875c0c8e2eb9f22b5ce3f3fbffbeaae985a56adca6.scope""}, {""current"": 7836205056, ""maximum"": ""max"", ""path"": ""/sys/fs/cgroup/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod13a924ca_172a_467f_9f86_11d21ec22b05.slice""}, {""current"": 33466118144, ""maximum"": ""max"", ""path"": ""/sys/fs/cgroup/kubepods.slice/kubepods-besteffort.slice""}, {""current"": 36737765376, ""maximum"": ""134490546176"", ""path"": ""/sys/fs/cgroup/kubepods.slice""}], ""cgroup_memory_current_bytes"": 7835926528, ""cgroup_memory_file"": ""/sys/fs/cgroup/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod13a924ca_172a_467f_9f86_11d21ec22b05.slice/cri-containerd-044cedc430b6bc6ea0392e875c0c8e2eb9f22b5ce3f3fbffbeaae985a56adca6.scope/memory.max"", ""cgroup_memory_max_bytes"": ""max"", ""cgroup_path"": ""/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod13a924ca_172a_467f_9f86_11d21ec22b05.slice/cri-containerd-044cedc430b6bc6ea0392e875c0c8e2eb9f22b5ce3f3fbffbeaae985a56adca6.scope"", ""memory_available_bytes"": 109016412160, ""memory_headroom_bytes"": 97752780800}",23803452c0fbe125033054cd9ff245f1d649fb65b4b73f68429f4abda432436d,d6b029cb1caf2e09edee543cfa1ecf194b63c0762e4a8ac9bdf2db40ab42f6c3,"Resource-only control; not a public trajectory, task score, or policy metric"
