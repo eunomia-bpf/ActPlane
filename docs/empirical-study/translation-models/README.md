@@ -13,7 +13,7 @@ model-generation trial. The behavioral sample covers
 15 repositories, while compilation covers
 62. The corpora share
 10 repository/statement identifiers and
-1 exact directive text matches. They are not disjoint
+1 exact directive text match. They are not disjoint
 held-out sets, and no semantic deduplication is claimed.
 
 | Model | Sample compile@1 / @3 | Corpus compile@1 / @3 | Detection | False trigger | F1 | Access failures (sample / corpus) | Sample USD/policy |
@@ -141,7 +141,7 @@ and up to two compiler-feedback revisions. Only a surrounding Markdown fence is
 removed. There is no syntax repair, policy tuning against traces, agent recovery,
 or LLM judge. Every response must identify the requested model. Gateway identifiers
 are response assertions, not independent verification of deployed weights.
-API calls use deterministic temperature and an output-token cap. CLI wrapper
+API calls use the temperature and output-token cap recorded in `model-settings.csv`. CLI wrapper
 defaults differ and add context overhead. On compiler revisions, API adapters
 send native chat history, while stateless CLI adapters serialize the same history
 as JSON in user text. These adapter formats are part of the measured configurations.

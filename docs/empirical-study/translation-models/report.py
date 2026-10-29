@@ -134,7 +134,7 @@ model-generation trial. The behavioral sample covers
 {overlap['behavioral_repositories']} repositories, while compilation covers
 {overlap['compilation_repositories']}. The corpora share
 {overlap['matching_repo_statement_ids']} repository/statement identifiers and
-{overlap['matching_directive_text']} exact directive text matches. They are not disjoint
+{overlap['matching_directive_text']} exact directive text {'match' if int(overlap['matching_directive_text']) == 1 else 'matches'}. They are not disjoint
 held-out sets, and no semantic deduplication is claimed.
 
 {chr(10).join(table)}
@@ -217,7 +217,7 @@ and up to two compiler-feedback revisions. Only a surrounding Markdown fence is
 removed. There is no syntax repair, policy tuning against traces, agent recovery,
 or LLM judge. Every response must identify the requested model. Gateway identifiers
 are response assertions, not independent verification of deployed weights.
-API calls use deterministic temperature and an output-token cap. CLI wrapper
+API calls use the temperature and output-token cap recorded in `model-settings.csv`. CLI wrapper
 defaults differ and add context overhead. On compiler revisions, API adapters
 send native chat history, while stateless CLI adapters serialize the same history
 as JSON in user text. These adapter formats are part of the measured configurations.
