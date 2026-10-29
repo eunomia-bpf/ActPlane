@@ -3,6 +3,7 @@ from pathlib import Path
 raw=Path('/workspaces/exp/benign-utility/raw/benchmark')
 print('TIME',time.strftime('%FT%TZ',time.gmtime()),'DISK',shutil.disk_usage('/workspaces'))
 for p in sorted((raw/'jobs').glob('*')):
+ if not p.name.endswith('-1'):continue
  results=list(p.glob('*/result.json'))
  print('JOB',p.name)
  for r in results:
@@ -17,4 +18,4 @@ for p in sorted((raw/'jobs').glob('*')):
    if step.get('tool_calls'):
     first=step['tool_calls'][0];print('ATIF_FORMAT',list(first),list((first.get('arguments') or {}).keys()));break
 for line in subprocess.check_output(['ps','-eo','pid,args'],text=True).splitlines():
- if any(x in line for x in ['benchmark.run','bpftrace','/engine/process','/bounded-loader/process']):print('PROC',line[:350])
+ if any(x in line for x in ['benchmark.run','benchmark.matrix','benchmark/matrix.py',str(raw/'engine/process')]):print('PROC',line[:350])
