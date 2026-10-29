@@ -180,8 +180,8 @@ rq1,zai/glm-4.7-flash,Usagi-org__ai-goofish-monitor::5,access_failure,rate_limit
 rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::17,access_failure,transport_timeout
 rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::18,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::19,access_failure,transport_timeout
-rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::21,access_failure,ok
-rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::22,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::21,compiler_failure,syntax_or_lowering
+rq1,zai/glm-4.7-flash,abhigyanpatwari__GitNexus::22,access_failure,transport_timeout
 rq1,zai/glm-4.7-flash,aden-hive__hive::10,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,aden-hive__hive::11,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,aden-hive__hive::13,access_failure,provider_capacity

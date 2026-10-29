@@ -378,13 +378,16 @@ derived outputs. No script opens or updates a pull request.
 {paragraph}
 '''
     (HERE / 'README.md').write_text(text)
-    latex = ['\\begin{tabular}{lrrrrrr}', '\\toprule',
-             'Model & Compile@1 & Compile@3 & Detect. & FTR & F1 & Traces \\\\', '\\midrule']
+    latex = ['\\begin{tabular}{lrrrrrrr}', '\\toprule',
+             'Model & Compile@1 & Compile@3 & Access fails & Detect. & FTR & F1 & Outcomes \\\\', '\\midrule']
     for r in rows:
         comp = [pct(r['rq1_compile_at_1_rate']), pct(r['rq1_compile_at_3_rate'])] if r['model'] != 'reference' else ['n/a', 'n/a']
         scores = [pct(r['detection_rate']), pct(r['false_trigger_rate']), f"{float(r['f1']):.3f}" if r['f1'] != '' else 'unavailable']
-        latex.append(' & '.join([NAMES[r['model']]] + comp + scores + [r['replay_valid'] + '/' + str(len(traces))]).replace('%', '\\%') + ' \\\\')
-    latex += ['\\bottomrule', '\\end{tabular}', '% Compilation yield includes access failures. Traces gives usable replay coverage. See README for exclusions.']
+        access_count = r['rq1_access_failures'] + '/' + r['rq1_completed'] if r['model'] != 'reference' else 'n/a'
+        latex.append(' & '.join([NAMES[r['model']]] + comp + [access_count] + scores + [r['replay_valid'] + '/' + str(len(traces))]).replace('%', '\\%') + ' \\\\')
+    latex += ['\\bottomrule', '\\end{tabular}',
+              '\\par\\smallskip{\\footnotesize Compilation yield uses recorded corpus trials, including access failures.',
+              'Outcomes include absent-policy nondetections. See README for method and exclusions.\\par}']
     (HERE / 'table.tex').write_text('\n'.join(latex) + '\n')
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
     plotted = []
