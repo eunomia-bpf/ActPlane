@@ -1,0 +1,6 @@
+metric,numerator,denominator,recomputed_value,published_value,status
+policy_fraction,16350,30846,0.5300525189651819,0.5300525189651819,exact_match
+system_state_fraction,12493,16350,0.7640978593272171,0.7640978593272171,exact_match
+context_required_fraction,10007,12493,0.8010085647962859,0.8010085647962859,exact_match
+cross_event_project_share,281,325,0.8646153846153846,0.8646153846153846,exact_match
+os_enforceable_count,,,7118,7118.0,exact_match

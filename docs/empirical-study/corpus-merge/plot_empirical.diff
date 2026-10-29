@@ -1,0 +1,15 @@
+--- actplane-atc/scripts/plot_empirical.py
++++ corpus-merge/plot_empirical.py
+@@ -24,9 +24,11 @@
+     'ytick.labelsize': 12,
+     'legend.fontsize': 11,
+     'figure.dpi': 300,
++    'pdf.fonttype': 42,
++    'ps.fonttype': 42,
+ })
+ 
+-OUTDIR = os.path.join(os.path.dirname(__file__), '..', 'figures')
++OUTDIR = os.path.join(os.path.dirname(__file__), 'figures')
+ 
+ COLLAPSE = {
+     'Debugging': 'Development Process',
