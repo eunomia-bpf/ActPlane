@@ -176,6 +176,8 @@ Compiled-only scores use successfully compiled and replayed policies. This
 selection can bias comparisons. Coverage-conditioned end-to-end scores are
 also retained in the CSV. Headline end-to-end scores require complete outcomes.
 A final compiler failure supplies no policy and is an end-to-end nondetection.
+Rows without a compiled policy are bookkeeping outcomes rather than kernel
+replays. Compiled-rule trace counts identify actual successful replay attempts.
 An API/identity failure or failed kernel load has an unknown behavioral outcome.
 
 The reference replay currently has {reference['replay_valid']} usable outcomes
