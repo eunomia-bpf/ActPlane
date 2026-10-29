@@ -1,6 +1,10 @@
 task,condition,attempt,trial_id,terminal_submission_attempts,atif_logged_command_calls,native_commands_without_dispatch_receipt,dispatch_receipts_without_native_command
 adaptive-rejection-sampler,a,1,adaptive-rejection-sampler__qM4Z2oR,8,8,0,0
 adaptive-rejection-sampler,b,block-1,adaptive-rejection-sampler__BKXhgFF,13,13,0,0
+adaptive-rejection-sampler,c,block-1,adaptive-rejection-sampler__zzx6EMb,31,30,0,1
+fix-code-vulnerability,a,1,fix-code-vulnerability__KS96ZfW,9,9,0,0
+fix-code-vulnerability,b,block-1,fix-code-vulnerability__gjNh7FY,15,15,0,0
+fix-code-vulnerability,c,block-1,fix-code-vulnerability__oEborA8,11,11,0,0
 modernize-scientific-stack,a,1,modernize-scientific-stack__WTW3pnb,7,7,0,0
 modernize-scientific-stack,b,block-1,modernize-scientific-stack__K2PPydF,6,6,0,0
 modernize-scientific-stack,c,block-1,modernize-scientific-stack__S3s84NZ,8,8,0,0

@@ -8,19 +8,23 @@ Terminal-Bench,b,21,30,7,1,0,0,0,0,0,0.0
 Terminal-Bench,c,1,10,34,1,0,0,0,0,0,17.0
 Terminal-Bench,c,11,20,10,1,0,0,0,0,0,0.0
 Terminal-Bench,c,21,30,9,1,0,0,0,0,0,0.0
-Terminal-Bench added cohort,a,1,10,12,1,0,0,0,0,0,0.0
-Terminal-Bench added cohort,b,1,10,12,1,0,0,0,0,0,0.0
-Terminal-Bench added cohort,b,11,20,3,1,0,0,0,0,0,0.0
-Terminal-Bench added cohort,c,1,10,7,1,0,0,0,0,0,0.0
-Terminal-Bench combined,a,1,10,62,1,0,0,0,0,0,20.0
+Terminal-Bench added cohort,a,1,10,21,1,0,0,0,0,0,0.0
+Terminal-Bench added cohort,b,1,10,22,1,0,0,0,0,0,0.0
+Terminal-Bench added cohort,b,11,20,8,1,0,0,0,0,0,0.0
+Terminal-Bench added cohort,c,1,10,25,1,0,0,0,0,0,0.0
+Terminal-Bench added cohort,c,11,20,11,1,0,0,0,0,0,0.0
+Terminal-Bench added cohort,c,21,30,10,1,0,0,0,0,0,0.0
+Terminal-Bench added cohort,c,31,40,1,1,0,0,0,0,0,0.0
+Terminal-Bench combined,a,1,10,71,1,0,0,0,0,0,20.0
 Terminal-Bench combined,a,11,20,10,1,0,0,0,0,0,0.0
 Terminal-Bench combined,a,21,30,8,1,0,0,0,0,0,0.0
-Terminal-Bench combined,b,1,10,54,1,0,0,0,0,0,15.0
-Terminal-Bench combined,b,11,20,14,1,0,0,0,0,0,0.0
+Terminal-Bench combined,b,1,10,64,1,0,0,0,0,0,15.0
+Terminal-Bench combined,b,11,20,19,1,0,0,0,0,0,0.0
 Terminal-Bench combined,b,21,30,7,1,0,0,0,0,0,0.0
-Terminal-Bench combined,c,1,10,41,1,0,0,0,0,0,17.0
-Terminal-Bench combined,c,11,20,10,1,0,0,0,0,0,0.0
-Terminal-Bench combined,c,21,30,9,1,0,0,0,0,0,0.0
+Terminal-Bench combined,c,1,10,59,1,0,0,0,0,0,17.0
+Terminal-Bench combined,c,11,20,21,1,0,0,0,0,0,0.0
+Terminal-Bench combined,c,21,30,19,1,0,0,0,0,0,0.0
+Terminal-Bench combined,c,31,40,1,1,0,0,0,0,0,0.0
 Terminal-Bench network stratum,a,1,10,20,1,0,0,0,0,0,0.0
 Terminal-Bench network stratum,a,11,20,16,1,0,0,0,0,0,576.0
 Terminal-Bench network stratum,a,21,30,7,1,0,0,0,0,0,0.0
