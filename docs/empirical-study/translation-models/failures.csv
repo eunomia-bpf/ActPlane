@@ -84,7 +84,7 @@ rq1,zai/glm-4.7-flash,AlexsJones__llmfit::31,compiler_failure,generation_output_
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::24,compiler_failure,syntax_or_lowering
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::31,compiler_failure,model_declared_unobservable
 rq1,zai/glm-4.7-flash,Alishahryar1__free-claude-code::9,compiler_failure,generation_output_limit
-rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::5,access_failure,ok
+rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::5,compiler_failure,generation_output_limit
 rq1,zai/glm-4.7-flash,CoplayDev__unity-mcp::22,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,CoplayDev__unity-mcp::24,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,CoplayDev__unity-mcp::27,access_failure,provider_capacity
@@ -132,7 +132,7 @@ rq1,zai/glm-4.7-flash,NVIDIA__NemoClaw::24,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,NVIDIA__NemoClaw::25,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,NVIDIA__NemoClaw::26,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,NVIDIA__NemoClaw::4,access_failure,rate_limited
-rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::10,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::10,access_failure,ok
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::18,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::24,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::29,access_failure,provider_capacity

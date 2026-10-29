@@ -4815,6 +4815,8 @@ rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::5,ChromeDevTools__chr
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::5,ChromeDevTools__chrome-devtools-mcp__5,attempt-1,3,http_error,rate_limited,30,,,,,0,429,10.532523538917303,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::5,ChromeDevTools__chrome-devtools-mcp__5,attempt-1,4,http_error,provider_capacity,60,1793183087.4001522,,,,0,429,11.174687514081597,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::5,ChromeDevTools__chrome-devtools-mcp__5,attempt-1,5,ok,,0,1793250370.210045,,zai/glm-4.7-flash,stop,1,,147.62702398211695,1,7489,6398,227,0,6346
+rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::5,ChromeDevTools__chrome-devtools-mcp__5,attempt-2,1,ok,,0,1793250703.7743876,,zai/glm-4.7-flash,stop,1,,333.54742572200485,1,7576,4854,7574,0,4800
+rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::5,ChromeDevTools__chrome-devtools-mcp__5,attempt-3,1,ok,,0,1793250877.1546562,,zai/glm-4.7-flash,length,1,,173.37260316708125,1,7672,8192,7574,0,8192
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::6,ChromeDevTools__chrome-devtools-mcp__6,attempt-1,1,ok,,0,,,zai/glm-4.7-flash,stop,1,,53.578124125953764,1,7470,2961,3,0,2917
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::6,ChromeDevTools__chrome-devtools-mcp__6,attempt-2,1,ok,,0,,,zai/glm-4.7-flash,stop,1,,59.460225010989234,1,7549,3281,7468,0,3237
 rq1,zai/glm-4.7-flash,CoplayDev__unity-mcp::22,CoplayDev__unity-mcp__22,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.35465717408806,0,0,0,0,0,0
@@ -5056,7 +5058,8 @@ rq1,zai/glm-4.7-flash,NVIDIA__NemoClaw::4,NVIDIA__NemoClaw__4,attempt-1,4,http_e
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::10,NousResearch__hermes-agent__10,attempt-1,1,http_error,rate_limited,0,,,,,0,429,11.47460307693109,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::10,NousResearch__hermes-agent__10,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,11.106181961949915,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::10,NousResearch__hermes-agent__10,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.14680638210848,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::10,NousResearch__hermes-agent__10,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,11.228802741970867,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::10,NousResearch__hermes-agent__10,attempt-1,4,http_error,provider_capacity,60,1793183225.6669116,,,,0,429,11.228802741970867,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::10,NousResearch__hermes-agent__10,attempt-1,5,ok,,0,1793250943.9231832,,zai/glm-4.7-flash,stop,1,,66.57208946696483,1,20972,3442,3,0,3377
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::18,NousResearch__hermes-agent__18,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,10.415494204964489,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::18,NousResearch__hermes-agent__18,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,11.214286298956722,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,NousResearch__hermes-agent::18,NousResearch__hermes-agent__18,attempt-1,3,http_error,rate_limited,30,,,,,0,429,11.572299496037886,0,0,0,0,0,0
