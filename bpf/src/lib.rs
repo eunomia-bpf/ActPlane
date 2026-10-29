@@ -2092,8 +2092,9 @@ impl Loader {
         self.enforce
     }
 
-    /// Mark a loader/control process as protected from subjects that are
-    /// already bound to an ActPlane runtime domain. Host processes outside a
+    /// Exempt a trusted loader/control process from policy execution, without
+    /// exempting its children or changing capability admission. Also protect it
+    /// from signals/ptrace by runtime-domain subjects. Host processes outside a
     /// domain are not denied, including root/admin unload paths.
     pub fn protect_pid(&mut self, pid: i32) -> io::Result<()> {
         if pid <= 0 {
@@ -3864,6 +3865,36 @@ os.execv({hit:?}, [{hit:?}])
             .expect("join ring thread")
             .expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    #[ignore = "requires root/CAP_BPF and BPF-LSM and loads live eBPF programs"]
+    fn protected_controller_children_remain_enforced_smoke() {
+        let label = 1;
+        let policy = block_write_paths_and_prefix_config_blob(&[], "/", label);
+        let pid = std::process::id() as i32;
+        let tmp = std::env::temp_dir().join(format!("actplane-protected-fork-{pid}"));
+        std::fs::create_dir_all(&tmp).expect("create temp dir");
+        let mut loader = Loader::load(&policy).expect("load eBPF engine");
+        assert!(loader.enforce_mode(), "requires BPF-LSM enforcement");
+        loader.protect_pid(pid).expect("protect controller");
+        loader
+            .seed_label(pid, label)
+            .expect("bind controller domain");
+        let marker = tmp.join("marker");
+        std::fs::write(&marker, "controller").expect("controller write is exempt");
+        let mut child = spawn_stopped_shell(&format!(
+            "if echo forbidden > {}; then exit 1; fi",
+            marker.display()
+        ));
+        // No explicit child bind: fork must inherit membership, not exemption.
+        resume_and_wait(&mut child);
+        assert_eq!(
+            std::fs::read_to_string(&marker).expect("read marker"),
+            "controller",
+            "controller exemption leaked to its forked child"
+        );
+        std::fs::remove_dir_all(&tmp).expect("controller cleanup is exempt");
     }
 
     #[test]

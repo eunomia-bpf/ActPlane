@@ -170,22 +170,6 @@ struct {
 	__uint(max_entries, 256 * 1024);
 } rb SEC(".maps");
 
-/* Loader/control pids protected from in-domain subjects. Host administrators
- * outside any ActPlane runtime domain remain able to signal or debug them. */
-struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 64);
-	__type(key, pid_t);
-	__type(value, __u32);
-} te_protected_pids SEC(".maps");
-
-static __always_inline int te_pid_protected(pid_t pid)
-{
-	__u32 *v = bpf_map_lookup_elem(&te_protected_pids, &pid);
-
-	return v && *v;
-}
-
 static __always_inline int te_pid_can_control_bpf(pid_t pid)
 {
 	if (te_pid_protected(pid))
@@ -978,7 +962,7 @@ static __always_inline void te_copy_fd_to_pid(pid_t from, pid_t to, int fd)
 
 static __noinline void te_copy_fork_fds(pid_t from, pid_t to)
 {
-	if (!te_pid_active(from) || !te_pid_active(to))
+	if (!cap_task_bound(from) || !te_pid_active(to))
 		return;
 	for (int fd = 0; fd < TE_FORK_FD_SCAN; fd++) {
 		te_copy_fd_to_pid(from, to, fd);

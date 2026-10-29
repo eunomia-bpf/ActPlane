@@ -38,7 +38,10 @@ Because argv tokens are observed after exec, argv-sensitive exec rules should
 use `notify` or `kill`; they are not pre-exec `block` rules.
 
 When BPF-LSM is active, the loader can also mark its own control pid as
-protected. Runtime-domain subjects, including uid 0 subjects, cannot signal or
+protected. That registered control process is exempt from policy execution even
+while bound to a domain for runtime admission, so policy cannot block its lock
+files, map access, reporting, or cleanup. The exemption is not inherited by
+agent children. Runtime-domain subjects, including uid 0 subjects, cannot signal or
 ptrace that protected pid, and they cannot use the `bpf()` syscall to create,
 load, attach, pin, or fetch BPF programs, maps, or links. Lookup, update,
 delete, and fd-info operations on already-held map fds remain available for

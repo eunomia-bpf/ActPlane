@@ -688,9 +688,31 @@ static __always_inline struct proc_state *te_get_domain(pid_t pid, __u32 domain_
 	return bpf_map_lookup_elem(&ts_proc_domains, &key);
 }
 
+/* Trusted loader/control TGIDs are outside policy execution even while bound
+ * for capability admission. This exemption is not inherited by forked agents;
+ * handle_exit removes it when the registered process exits. */
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 64);
+	__type(key, pid_t);
+	__type(value, __u32);
+} te_protected_pids SEC(".maps");
+
+static __always_inline int te_pid_protected(pid_t pid)
+{
+	__u32 *v = bpf_map_lookup_elem(&te_protected_pids, &pid);
+
+	return v && *v;
+}
+
 static __always_inline int te_pid_active(pid_t pid)
 {
-	return cap_task_bound(pid);
+	/* Share one stack key to keep deep file-flow call chains within budget. */
+	__u32 *protected = bpf_map_lookup_elem(&te_protected_pids, &pid);
+	if (protected && *protected)
+		return 0;
+	__u32 *target = bpf_map_lookup_elem(&cap_task, &pid);
+	return target && *target != 0;
 }
 
 static __always_inline __u32 te_domain_for_depth(pid_t pid, int depth)
@@ -1294,7 +1316,8 @@ static __always_inline void te_copy_proc_domain_state(pid_t from, pid_t to,
 /* fork: child inherits labels + lineage gates in every active domain; root carries down. */
 static __always_inline void te_fork(pid_t ppid, pid_t cpid)
 {
-	if (!te_pid_active(ppid))
+	/* A protected controller's children still inherit its runtime domain. */
+	if (!cap_task_bound(ppid))
 		return;
 	cap_fork(ppid, cpid);
 	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
