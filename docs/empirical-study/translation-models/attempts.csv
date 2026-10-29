@@ -2857,6 +2857,7 @@ rq1,qwen3.8-27b-nvfp4,code-yeongyu__oh-my-openagent::59,code-yeongyu__oh-my-open
 rq1,qwen3.8-27b-nvfp4,code-yeongyu__oh-my-openagent::59,code-yeongyu__oh-my-openagent__59,attempt-1,5,transport_error,transport_timeout,0,1793239615.9161615,,,,0,,360.0289501058869,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,code-yeongyu__oh-my-openagent::59,code-yeongyu__oh-my-openagent__59,attempt-1,6,ok,,239.9995939731598,1793239960.2666907,,qwen3.8-27b-nvfp4,length,1,,104.35000556195155,1,15067,8192,0,0,0
 rq1,qwen3.8-27b-nvfp4,code-yeongyu__oh-my-openagent::59,code-yeongyu__oh-my-openagent__59,attempt-2,1,ok,,0,1793240066.2292273,,qwen3.8-27b-nvfp4,length,1,,105.95598715520464,1,15114,8192,0,0,0
+rq1,qwen3.8-27b-nvfp4,code-yeongyu__oh-my-openagent::59,code-yeongyu__oh-my-openagent__59,attempt-3,1,ok,,0,1793240180.9060543,,qwen3.8-27b-nvfp4,stop,1,,114.66794788418338,1,15161,7495,0,0,0
 rq1,qwen3.8-27b-nvfp4,code-yeongyu__oh-my-openagent::62,code-yeongyu__oh-my-openagent__62,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,284.86667216196656,1,15053,5088,0,0,0
 rq1,qwen3.8-27b-nvfp4,code-yeongyu__oh-my-openagent::63,code-yeongyu__oh-my-openagent__63,attempt-1,1,transport_error,transport_timeout,0,,,,,0,,360.12702695606276,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,code-yeongyu__oh-my-openagent::63,code-yeongyu__oh-my-openagent__63,attempt-1,2,ok,,15,,,qwen3.8-27b-nvfp4,length,1,,341.3207698490005,1,15057,8192,256,0,0
@@ -5804,11 +5805,14 @@ rq1,zai/glm-4.7-flash,earendil-works__pi::42,earendil-works__pi__42,attempt-3,1,
 rq1,zai/glm-4.7-flash,earendil-works__pi::50,earendil-works__pi__50,attempt-1,1,http_error,rate_limited,0,,,,,0,429,11.093621421139687,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,earendil-works__pi::50,earendil-works__pi__50,attempt-1,2,http_error,rate_limited,15,,,,,0,429,11.05502538383007,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,earendil-works__pi::50,earendil-works__pi__50,attempt-1,3,http_error,rate_limited,30,,,,,0,429,10.874607366044074,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,earendil-works__pi::50,earendil-works__pi__50,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,11.15115277399309,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,earendil-works__pi::50,earendil-works__pi__50,attempt-1,4,http_error,provider_capacity,60,1793181589.934634,,,,0,429,11.15115277399309,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,earendil-works__pi::50,earendil-works__pi__50,attempt-1,5,ok,,0,1793240154.9618657,,zai/glm-4.7-flash,stop,1,,143.7419245049823,1,9504,1617,3,0,1562
 rq1,zai/glm-4.7-flash,earendil-works__pi::54,earendil-works__pi__54,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.170996468979865,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,earendil-works__pi::54,earendil-works__pi__54,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.779845747863874,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,earendil-works__pi::54,earendil-works__pi__54,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.25143133313395,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,earendil-works__pi::54,earendil-works__pi__54,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,10.905425305943936,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,earendil-works__pi::54,earendil-works__pi__54,attempt-1,4,http_error,provider_capacity,60,1793181697.3420348,,,,0,429,10.905425305943936,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,earendil-works__pi::54,earendil-works__pi__54,attempt-1,5,ok,,0,1793240300.6103432,,zai/glm-4.7-flash,stop,1,,145.53040159097873,1,10041,7733,3,0,7564
+rq1,zai/glm-4.7-flash,earendil-works__pi::54,earendil-works__pi__54,attempt-2,1,ok,,0,1793240575.068334,,zai/glm-4.7-flash,stop,1,,274.4422412540298,1,10246,4685,2,0,4524
 rq1,zai/glm-4.7-flash,earendil-works__pi::7,earendil-works__pi__7,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.404010031139478,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,earendil-works__pi::7,earendil-works__pi__7,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.90730814402923,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,earendil-works__pi::7,earendil-works__pi__7,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.635897649917752,0,0,0,0,0,0
