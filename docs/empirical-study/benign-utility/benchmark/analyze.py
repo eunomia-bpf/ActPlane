@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 RAW=Path('/workspaces/exp/benign-utility/raw/benchmark');HERE=Path(__file__).parent;OUT=RAW.parent.parent/'benchmark/results';OUT.mkdir(parents=True,exist_ok=True)
 tasks=[r['task'] for r in csv.DictReader((OUT/'tasks.csv').open())]
+audits={r['trial_id']:r for r in csv.DictReader((OUT/'error-audit.csv').open())} if (OUT/'error-audit.csv').exists() else {}
 def write(name,rows,fields):
  with (OUT/name).open('w',newline='') as f:
   w=csv.DictWriter(f,fieldnames=fields,extrasaction='ignore');w.writeheader();w.writerows(rows)
@@ -102,18 +103,22 @@ for job in sorted((RAW/'jobs').glob('*')):
   if engine_diagnostic:coverage='incomplete'
   if failed_enforcement:coverage='incomplete'
   if network_effect=='block' and (not engine_mode or engine_mode[1]!='enforce'):coverage='incomplete'
+  trial_id=result_path.parent.name
+  audit=audits.get(trial_id)
+  if audit and audit['audit']=='agent_induced_shell_exit' and coverage=='complete':coverage='partial_agent_scope_exit'
   infrastructure=exception.get('exception_type','')
   if not infrastructure:run_status='complete'
   elif infrastructure in ('AgentTimeoutError','VerifierTimeoutError'):run_status='official_timeout'
   else:run_status='infrastructure_failure'
-  trial_id=result_path.parent.name
   common=dict(task=task,condition=condition,attempt=attempt,trial_id=trial_id,main_matrix=int(attempt=='1' or re.fullmatch(r'(?:repair|block)-\d+',attempt) is not None))
   fired_by_index={i:sum(index(e['timestamp'])==i for e in events) for i in ordered}
   killed=sum(bool(e.get('killed')) for e in events)
   trials.append(dict(**common,model=(d.get('agent_info',{}).get('model_info') or {}).get('name',''),run_status=run_status,official_reward=reward,official_success=int(reward==1) if reward!='' else '',exception_type=infrastructure,exception_message=exception.get('exception_message','')[:300],wall_s=seconds(d),environment_setup_s=seconds(d.get('environment_setup')),agent_setup_s=seconds(d.get('agent_setup')),agent_execution_s=seconds(d.get('agent_execution')),verifier_s=seconds(d.get('verifier')),tool_calls=len(calls),call_unit='tool_call' if calls and all(c.get('unit')=='tool_call' for c in calls.values()) else 'command_batch',intervention_events=len(events),killed_events=killed,intervened_calls=sum(v>0 for v in fired_by_index.values()),confirmed_false_events=0,confirmed_true_events=0,unknown_events=len(events),source_read_accesses=len(reads),source_read_processes=len({r['pid'] for r in reads}),source_paths=len({r['path'] for r in reads}),connect_attempts=len(connects),coverage=coverage,raw_result=str(result_path)))
   for i in ordered:
    call=calls[i];bin_start=((i-1)//10)*10+1
-   calls_out.append(dict(**common,call_index=i,native_tool_call_id=call.get('native_tool_call_id',''),bin_start=bin_start,bin_end=bin_start+9,start_ns=call['start_ns'],end_ns=call.get('end_ns',''),intervention_events=fired_by_index[i],intervened=int(fired_by_index[i]>0),confirmed_false=0,unknown=int(fired_by_index[i]>0),source_read_accesses=sum(r['call_index']==i for r in reads),connect_attempts=sum(r['call_index']==i for r in connects),coverage=coverage))
+   call_coverage=coverage
+   if coverage=='partial_agent_scope_exit':call_coverage='complete' if i<=int(audit['security_coverage_end_call']) else 'out_of_scope'
+   calls_out.append(dict(**common,call_index=i,native_tool_call_id=call.get('native_tool_call_id',''),bin_start=bin_start,bin_end=bin_start+9,start_ns=call['start_ns'],end_ns=call.get('end_ns',''),intervention_events=fired_by_index[i],intervened=int(fired_by_index[i]>0),confirmed_false=0,unknown=int(fired_by_index[i]>0),source_read_accesses=sum(r['call_index']==i for r in reads),connect_attempts=sum(r['call_index']==i for r in connects),coverage=call_coverage))
   trials[-1].update(atif_logged_tool_calls=len(native),atif_logged_command_calls=len(native_commands),atif_nonterminal_tool_calls=len(native)-len(native_commands),dispatched_tool_calls=len(calls),unexecuted_or_unmapped_command_calls=max(0,len(native_commands)-len({c['native_tool_call_id'] for c in calls.values() if c.get('native_tool_call_id')})),kernel_root_verified=int(bool(scope.get('kernel_root_verified'))),kernel_root_pid=scope.get('root_host_pid',''),workspace_root_pid=scope.get('root_workspace_pid',''),observer_sha256=hashlib.sha256((agent/'observer.bt').read_bytes()).hexdigest() if (agent/'observer.bt').exists() else '',policy_sha256=hashlib.sha256((agent/'policy.bin').read_bytes()).hexdigest() if (agent/'policy.bin').exists() else '',raw_rule_matches=len(matches),failed_enforcement_events=len(failed_enforcement),unattributed_intervention_events=sum(index(e['timestamp'])==0 for e in events),inet4_connect_attempts=sum(r['family']=='2' for r in connects),inet6_connect_attempts=sum(r['family']=='10' for r in connects),unix_connect_attempts=sum(r['family']=='1' for r in connects),engine_diagnostic_error=int(engine_diagnostic),observer_helper_errors=sum(e.get('type')=='helper_error' for e in observer))
   trials[-1].update(observer_configured_string_bytes=string_bytes,observer_explicit_path_bytes=path_bytes,observer_effective_path_bytes=effective_bytes,observer_configuration_source='recorded_at_launch' if 'observer_string_bytes' in scope else 'inferred_from_legacy_adapter',engine_hook_environment=json.dumps(scope.get('engine_hook_environment','not_recorded_at_launch'),sort_keys=True),engine_reported_mode=engine_mode[1] if engine_mode else 'not_recorded_or_not_applicable')
   matched_ids={c['native_tool_call_id'] for c in calls.values() if c.get('native_tool_call_id')}
@@ -122,6 +127,12 @@ for job in sorted((RAW/'jobs').glob('*')):
   root_killed=any(e.get('killed') is True and e.get('pid')==scope.get('root_host_pid') for e in events)
   effective=run_status if valid=='1' else ('infrastructure_failure' if valid=='0' else 'verifier_unverified')
   if valid=='1' and root_killed and scope.get('kernel_root_verified') and run_status=='infrastructure_failure':effective='defense_forced_failure'
+  outcome_valid=valid
+  outcome_score=reward if valid=='1' else ''
+  outcome_source='official_verifier_reward' if valid=='1' else 'unestablished'
+  if audit and audit['audit']=='agent_induced_shell_exit':
+   outcome_valid='1';outcome_score=float(audit['official_job_mean']);outcome_source='official_default_mean_agent_error';effective='agent_error'
+  trials[-1].update(outcome_valid=outcome_valid,outcome_score=outcome_score,outcome_success=int(outcome_score==1) if outcome_score!='' else '',outcome_source=outcome_source,security_coverage_end_call=audit.get('security_coverage_end_call','') if audit else '',visibly_dispatched_calls=audit.get('visibly_dispatched_calls','unverified') if audit else 'unverified')
   trials[-1].update(native_run_status=run_status,effective_run_status=effective,verifier_valid=valid,verifier_status=verifier_status,verifier_observed_tests=test_count,verifier_report_path=report_path,verifier_evidence=verification,trial_started_at=d.get('started_at',''),trial_finished_at=d.get('finished_at',''),selected_for_comparison=0)
   trial_config=d.get('config') or {}
   download_url=((job_config.get('verifier') or {}).get('env') or {}).get('UV_DOWNLOAD_URL',((trial_config.get('verifier') or {}).get('env') or {}).get('UV_DOWNLOAD_URL',''))
@@ -133,10 +144,10 @@ for job in sorted((RAW/'jobs').glob('*')):
   if string_bytes!=1024 or effective_bytes!=1024:exclusions.append('legacy_observer_configuration')
   if condition!='a' and network_effect=='kill':exclusions.append('kill_mode_supporting_only')
   elif condition!='a' and network_effect!='block':exclusions.append('network_effect_unverified_or_not_denial')
-  if valid!='1':exclusions.append(verifier_status)
-  if coverage!='complete':exclusions.append('instrumentation_incomplete')
-  if run_status=='infrastructure_failure' and effective!='defense_forced_failure':exclusions.append('native_infrastructure_failure')
-  if reward=='':exclusions.append('native_reward_unavailable')
+  if outcome_valid!='1':exclusions.append(verifier_status)
+  if coverage not in ('complete','partial_agent_scope_exit'):exclusions.append('instrumentation_incomplete')
+  if run_status=='infrastructure_failure' and effective not in ('defense_forced_failure','agent_error'):exclusions.append('native_infrastructure_failure')
+  if outcome_score=='':exclusions.append('native_outcome_unavailable')
   cohort='legacy_or_preflight_supporting'
   if corrected and common['main_matrix']:cohort='native_denial_primary' if condition=='a' or network_effect=='block' else 'corrected_kill_supporting'
   trials[-1].update(comparison_cohort=cohort,comparison_exclusion_reason=';'.join(exclusions),verifier_download_url=download_url,defense_root_killed=int(root_killed),network_effect=network_effect)
@@ -147,12 +158,12 @@ for job in sorted((RAW/'jobs').glob('*')):
 selected=set()
 for row in sorted(trials,key=lambda r:(r['trial_started_at'],r['trial_id'])):
  key=(row['task'],row['condition'])
- if row['comparison_cohort']=='native_denial_primary' and key not in selected and row['verifier_valid']=='1' and row['coverage']=='complete' and row['effective_run_status'] in ('complete','official_timeout','defense_forced_failure') and row['official_reward']!='':
+ if row['comparison_cohort']=='native_denial_primary' and key not in selected and row['outcome_valid']=='1' and row['coverage'] in ('complete','partial_agent_scope_exit') and row['effective_run_status'] in ('complete','official_timeout','defense_forced_failure','agent_error') and row['outcome_score']!='':
   row['selected_for_comparison']=1;selected.add(key)
  elif row['comparison_cohort']=='native_denial_primary' and not row['comparison_exclusion_reason']:row['comparison_exclusion_reason']='later_valid_corrected_attempt'
 selection={r['trial_id']:r['selected_for_comparison'] for r in trials}
 for row in calls_out:row['selected_for_comparison']=selection[row['trial_id']]
-write('trials.csv',trials,['task','condition','attempt','trial_id','main_matrix','selected_for_comparison','comparison_cohort','comparison_exclusion_reason','network_effect','model','run_status','native_run_status','effective_run_status','verifier_valid','verifier_status','verifier_observed_tests','verifier_report_path','verifier_evidence','verifier_download_url','trial_started_at','trial_finished_at','official_reward','official_success','exception_type','exception_message','wall_s','environment_setup_s','agent_setup_s','agent_execution_s','verifier_s','tool_calls','call_unit','atif_logged_tool_calls','atif_logged_command_calls','atif_nonterminal_tool_calls','dispatched_tool_calls','unexecuted_or_unmapped_command_calls','raw_rule_matches','intervention_events','killed_events','intervened_calls','confirmed_false_events','confirmed_true_events','unknown_events','failed_enforcement_events','unattributed_intervention_events','defense_root_killed','source_read_accesses','source_read_processes','source_paths','connect_attempts','inet4_connect_attempts','inet6_connect_attempts','unix_connect_attempts','coverage','engine_diagnostic_error','observer_helper_errors','kernel_root_verified','kernel_root_pid','workspace_root_pid','observer_sha256','observer_configured_string_bytes','observer_explicit_path_bytes','observer_effective_path_bytes','observer_configuration_source','engine_hook_environment','engine_reported_mode','policy_sha256','raw_result'])
+write('trials.csv',trials,['task','condition','attempt','trial_id','main_matrix','selected_for_comparison','comparison_cohort','comparison_exclusion_reason','network_effect','model','run_status','native_run_status','effective_run_status','verifier_valid','verifier_status','verifier_observed_tests','verifier_report_path','verifier_evidence','verifier_download_url','trial_started_at','trial_finished_at','official_reward','official_success','exception_type','exception_message','wall_s','environment_setup_s','agent_setup_s','agent_execution_s','verifier_s','tool_calls','call_unit','atif_logged_tool_calls','atif_logged_command_calls','atif_nonterminal_tool_calls','dispatched_tool_calls','unexecuted_or_unmapped_command_calls','raw_rule_matches','intervention_events','killed_events','intervened_calls','confirmed_false_events','confirmed_true_events','unknown_events','failed_enforcement_events','unattributed_intervention_events','defense_root_killed','source_read_accesses','source_read_processes','source_paths','connect_attempts','inet4_connect_attempts','inet6_connect_attempts','unix_connect_attempts','coverage','engine_diagnostic_error','observer_helper_errors','kernel_root_verified','kernel_root_pid','workspace_root_pid','observer_sha256','observer_configured_string_bytes','observer_explicit_path_bytes','observer_effective_path_bytes','observer_configuration_source','engine_hook_environment','engine_reported_mode','policy_sha256','raw_result','outcome_valid','outcome_score','outcome_success','outcome_source','security_coverage_end_call','visibly_dispatched_calls'])
 write('call-accounting.csv',[{k:r[k] for k in ('task','condition','attempt','trial_id','terminal_submission_attempts','atif_logged_command_calls','native_commands_without_dispatch_receipt','dispatch_receipts_without_native_command')} for r in trials],['task','condition','attempt','trial_id','terminal_submission_attempts','atif_logged_command_calls','native_commands_without_dispatch_receipt','dispatch_receipts_without_native_command'])
 write('calls.csv',calls_out,['task','condition','attempt','trial_id','main_matrix','selected_for_comparison','call_index','native_tool_call_id','bin_start','bin_end','start_ns','end_ns','intervention_events','intervened','confirmed_false','unknown','source_read_accesses','connect_attempts','coverage'])
 write('interventions.csv',events_out,['task','condition','attempt','trial_id','main_matrix','event_id','call_index','timestamp_ns','pid','session_root','effect','killed','blocked','is_intervention','target','provenance','adjudication','evidence'])

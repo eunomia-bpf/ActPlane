@@ -23,6 +23,11 @@ assert native['exception_info']['exception_type']=='RuntimeError'
 assert 'no server' in native['exception_info']['exception_message']
 assert not native.get('verifier_result')
 assert 'TAINT_VIOLATION' not in (directory/'agent/engine.log').read_text()
+calls={}
+for line in (directory/'agent/calls.jsonl').read_text().splitlines():
+ record=json.loads(line);calls.setdefault(record['index'],{}).update(record)
+assert len(calls)==10 and 'actual=$(git prune -n | sort)' in calls[8]['keystrokes']
+assert 'if grep' in calls[9]['keystrokes'] and 'exit 1' in calls[9]['keystrokes']
 stats=summary['stats']
 evals=list(stats['evals'].values())
 assert len(evals)==1 and evals[0]['n_errors']==1
@@ -31,7 +36,8 @@ assert mean==0
 row=dict(task='git-leak-recovery',condition='c',attempt='block-1',trial_id=trial,
  audit='agent_induced_shell_exit',retry_allowed=0,native_reward_available=0,
  official_job_mean=mean,official_job_errors=evals[0]['n_errors'],
- verifier_tests_executed=0,policy_interventions=0,
+ verifier_tests_executed=0,policy_interventions=0,security_coverage_end_call=8,
+ terminal_submission_attempts=len(calls),visibly_dispatched_calls=9,
  evidence='Agent compared bare object hashes with git-prune hash-plus-type output, executed exit1, then exited outer shell; subsequent send_keys failed because tmux server exited.',
  pane_path=str(directory/'agent/terminus_2.pane'),
  pane_sha256=hashlib.sha256((directory/'agent/terminus_2.pane').read_bytes()).hexdigest(),
