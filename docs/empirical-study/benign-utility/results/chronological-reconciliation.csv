@@ -1,0 +1,10 @@
+dataset,condition,actual_intervention_events,chronological_events
+Terminal-Bench,a,0,0
+Terminal-Bench,b,0,0
+Terminal-Bench,c,0,0
+Terminal-Bench network stratum,a,0,0
+Terminal-Bench network stratum,b,44,44
+Terminal-Bench network stratum,c,5,5
+Public replay,broad,614,614
+Public replay,none,0,0
+Public replay,scoped,0,0

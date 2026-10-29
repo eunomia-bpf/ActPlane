@@ -6,5 +6,8 @@
   "reason": "Completed benchmark Python dependency environment; reinstall with benchmark/setup.sh. No job directories, task outputs, engine binaries, logs or result exports removed.",
   "disk_free_before": 12261490688,
   "status": "removed",
-  "disk_free_after": 12654956544
+  "disk_free_after": 12654956544,
+  "preserved_cited_source": "/workspaces/exp/benign-utility/raw/benchmark/venv/lib/python3.13/site-packages/harbor/metrics/base.py",
+  "preserved_cited_source_sha256": "373de596294fde446c1b2d73cd7af7f35852407b63cb852def14c63584c11236",
+  "source_restored_utc": "2026-10-29T17:36:47.791683+00:00"
 }
