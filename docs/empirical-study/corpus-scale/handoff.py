@@ -95,7 +95,9 @@ def main():
         lines.extend(f'| {r["paper_figure"]} | {r["status"]} | {r["file"]} |' for r in read_csv(figure_path))
         lines += ['', 'Withheld PDFs are placeholders and must not be inserted as updated results.']
     for filename, label in [('validation.csv', 'Source, label, and metadata checks'),
-                            ('figure_production_validation.csv', 'Actual-PDF font and snapshot checks')]:
+                            ('figure_production_validation.csv', 'Actual-PDF font and snapshot checks'),
+                            ('rescue/validation.csv', 'Frozen rescue protocol and provenance checks'),
+                            ('rescue/correction_validation.csv', 'Known-answer correction checks')]:
         path = HERE / filename
         if path.exists():
             checks = read_csv(path)
