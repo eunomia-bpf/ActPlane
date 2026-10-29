@@ -11,6 +11,11 @@ RUNTIME = Path('/tmp/benign-utility-vm')
 RECEIPTS = Path('/workspaces/exp/benign-utility/raw/benchmark/expanded/vm')
 RUNTIME.mkdir(exist_ok=True)
 RECEIPTS.mkdir(parents=True, exist_ok=True)
+pidfile = RUNTIME / 'qemu.pid'
+if pidfile.exists() and Path('/proc/' + pidfile.read_text().strip()).exists():
+    raise RuntimeError('Existing guest process; do not modify an active VM seed or launch a competitor')
+if any(Path('/proc/' + file.read_text().strip()).exists() for file in RUNTIME.glob('worker*.pid')):
+    raise RuntimeError('Existing benchmark workers; do not modify their runtime')
 BASE = 'https://cloud.debian.org/images/cloud/trixie/latest/'
 NAME = 'debian-13-genericcloud-amd64.qcow2'
 
@@ -104,9 +109,6 @@ overlay = RUNTIME / 'guest.qcow2'
 if not overlay.exists():
     run(['qemu-img', 'create', '-f', 'qcow2', '-F', 'qcow2', '-b', str(image), str(overlay)])
     run(['qemu-img', 'resize', str(overlay), '500G'])
-pidfile = RUNTIME / 'qemu.pid'
-if pidfile.exists() and Path('/proc/' + pidfile.read_text().strip()).exists():
-    raise RuntimeError('Existing guest process; do not launch a competing VM')
 args = ['qemu-system-x86_64', '-name', 'benign-utility-expanded', '-enable-kvm', '-cpu', 'host',
     '-smp', '16', '-m', '65536', '-drive', f'file={overlay},if=virtio,format=qcow2',
     '-drive', f'file={RUNTIME}/seed.img,if=virtio,format=raw,readonly=on',

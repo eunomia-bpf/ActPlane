@@ -1,0 +1,4 @@
+worker,port,pid,vcpus,memory_mib,template_sha256,started_utc,network_repair
+1,2247,98061,8,24576,bea5c4f3ac05e685f4298d08071b91340cd0c60d5485105caee68272fcb00c0a,2026-10-29T19:26:55Z,Same template MAC on separate isolated user-net backends; persistent guest network config unchanged
+2,2248,98077,8,24576,bea5c4f3ac05e685f4298d08071b91340cd0c60d5485105caee68272fcb00c0a,2026-10-29T19:26:55Z,Same template MAC on separate isolated user-net backends; persistent guest network config unchanged
+3,2249,98093,8,24576,bea5c4f3ac05e685f4298d08071b91340cd0c60d5485105caee68272fcb00c0a,2026-10-29T19:26:55Z,Same template MAC on separate isolated user-net backends; persistent guest network config unchanged

@@ -1,0 +1,7 @@
+{
+  "path": "/tmp/benign-utility-vm/template.qcow2",
+  "sha256": "bea5c4f3ac05e685f4298d08071b91340cd0c60d5485105caee68272fcb00c0a",
+  "bytes": 2246639616,
+  "frozen_utc": "2026-10-29T19:22:59Z",
+  "reason": "Setup-only template; no benchmark model ran. Cloud-init disabled after provisioning. One enforcing loader per independent worker kernel."
+}

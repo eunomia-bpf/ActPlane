@@ -1,0 +1,40 @@
+{
+  "environment_id": "workspace_kvm_guest_20261029",
+  "kernel": "6.12.113+deb13-amd64",
+  "boot_id": "fcd9bcbf-7494-429a-9653-b997fc8638a3",
+  "kernel_cmdline": "BOOT_IMAGE=/boot/vmlinuz-6.12.113+deb13-amd64 root=PARTUUID=84fd0772-d38a-4fe7-b574-dcb86f5e263f ro console=tty0 console=ttyS0,115200 earlyprintk=ttyS0,115200 consoleblank=0 lsm=landlock,lockdown,yama,integrity,apparmor,bpf",
+  "lsm": "lockdown,capability,landlock,yama,apparmor,bpf,ima,evm",
+  "kernel_capability_config": [
+    "CONFIG_BPF_LSM=y",
+    "CONFIG_NET_9P=m",
+    "CONFIG_9P_FS=m",
+    "CONFIG_DEBUG_INFO_BTF=y"
+  ],
+  "vcpus": 8,
+  "memory_kib": 24615144,
+  "lane_mount": {
+    "target": "/workspaces/exp/benign-utility",
+    "source": "lane",
+    "fstype": "9p",
+    "options": "rw,relatime,access=client,trans=virtio"
+  },
+  "translation_mount": {
+    "target": "/workspaces/lanes/translation-models",
+    "source": "translation",
+    "fstype": "9p",
+    "options": "ro,relatime,access=client,trans=virtio"
+  },
+  "tool_sha256": {
+    "engine": "981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520",
+    "compiler": "564ce43b9caa85117e630b7c0931da112e25e43e89fff065540f5ddd1443de01"
+  },
+  "bpftrace": "bpftrace v0.23.2",
+  "strace": "strace -- version 6.13",
+  "docker_version": "Docker version 26.1.5+dfsg1, build a72d7cd",
+  "package_versions": "bpftrace\t0.23.2-1\ndocker.io\t26.1.5+dfsg1-9+deb13u1\nlinux-image-amd64\t6.12.113-1\npython3-venv\t3.13.5-1\nstrace\t6.13+ds-1",
+  "captured_utc": "2026-10-29T19:28:53Z",
+  "host_kernel": "7.3.0-070300rc3-generic",
+  "host_lsm": "lockdown,capability,landlock,yama,apparmor,ima,evm",
+  "capture_stage": "isolated_primary_worker",
+  "worker": 1
+}
