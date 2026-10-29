@@ -79,7 +79,7 @@ def main():
             unknown_calls = sum(number(r, 'unknown' if benchmark else 'unknown_count') > 0 for r in selected_calls)
             potential_false_calls = sum(number(r, 'confirmed_false' if benchmark else 'fp_count') > 0 or number(r, 'unknown' if benchmark else 'unknown_count') > 0 for r in selected_calls)
             intervened_calls = sum(number(r, 'intervened') > 0 if benchmark else number(r, 'intervention_count') > 0 for r in selected_calls)
-            lengths = [number(r, 'tool_calls' if benchmark else 'executed_calls') for r in selected]
+            lengths = [sum(c[call_identity] == r[call_identity] for c in selected_calls) for r in selected]
             selected_events = [r for r in event_data[dataset]
                 if r['condition'] == condition and (r[call_identity], condition) in valid_keys
                 and (any(str(r.get(k, '')).lower() in ('true', '1') for k in ('killed', 'blocked'))
@@ -130,10 +130,15 @@ def main():
                 potential_false_calls=potential_false_calls,
                 intervention_rate_pct=100 * intervened_calls / len(selected_calls) if selected_calls else '',
                 confirmed_false_rate_pct=100 * false_calls / len(selected_calls) if selected_calls else '',
+                false_rate_upper_pct=100 * potential_false_calls / len(selected_calls)
+                    if selected_calls and len(selected_events) == int(attributed) else '',
+                false_rate_point_pct=100 * false_calls / len(selected_calls)
+                    if selected_calls and not unknown_calls and len(selected_events) == int(attributed) else '',
+                intervention_adjudication_complete=int(bool(selected_calls) and not unknown_calls and len(selected_events) == int(attributed)),
                 unknown_rate_pct=100 * unknown_calls / len(selected_calls) if selected_calls else '',
-                min_calls_per_session=min(lengths) if lengths else '',
-                median_calls_per_session=median(lengths) if lengths else '',
-                max_calls_per_session=max(lengths) if lengths else '',
+                min_covered_calls_per_session=min(lengths) if lengths else '',
+                median_covered_calls_per_session=median(lengths) if lengths else '',
+                max_covered_calls_per_session=max(lengths) if lengths else '',
                 source_read_accesses=sum(number(r, 'source_read_accesses') for r in selected_calls),
                 ipv4_connect_attempts=sum(number(r, 'inet4_connect_attempts') for r in selected)
                     if benchmark else sum(number(r, 'ipv4_connect_attempts') for r in selected_calls),
