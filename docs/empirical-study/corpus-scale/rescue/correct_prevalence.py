@@ -101,9 +101,9 @@ def main(a):
    draws=np.asarray(draws);valid=np.isfinite(draws).all(axis=1);valid_count=int(valid.sum())
    diagnostics.append(dict(group_type=group_type,group=group,axis=axis,test_repositories=len(test_repos),target_repositories=len(source_names),target_directives=int(nc.sum()),matrix_rank=np.linalg.matrix_rank(mat) if mat is not None else '',condition_number=condition,point_status=flag or 'ok',successful_bootstraps=valid_count,total_bootstraps=a.bootstraps,boundary_bootstraps=boundary,failures=str(dict(failures))))
    def add(metric,value,ds,gate):
-    enough=np.isfinite(ds).sum()>=.8*a.bootstraps
+    enough=value is not None and np.isfinite(ds).sum()>=.8*a.bootstraps
     low,high=np.nanquantile(ds,[.025,.975]) if enough else ('','')
-    results.append(dict(group_type=group_type,group=group,metric=metric,value=value if value is not None else '',ci_low=low,ci_high=high,method='test_confusion_constrained_multinomial_mixture',status=('corrected_estimate' if gate else 'exploratory_corrected_estimate') if value is not None else 'not_identifiable',point_flag=flag,successful_bootstraps=int(np.isfinite(ds).sum()),bootstrap_replicates=a.bootstraps,interval_status='ok' if enough else 'insufficient_identifiable_bootstrap_draws',test_repositories=len(test_repos),repositories=len(source_names),directives=len(source),revision=selected))
+    results.append(dict(group_type=group_type,group=group,metric=metric,value=value if value is not None else '',ci_low=low,ci_high=high,method='test_confusion_constrained_multinomial_mixture',status=('corrected_estimate' if gate else 'exploratory_corrected_estimate') if value is not None else 'not_identifiable',point_flag=flag,successful_bootstraps=int(np.isfinite(ds).sum()),bootstrap_replicates=a.bootstraps,interval_status='ok' if enough else 'point_not_identifiable' if value is None else 'insufficient_identifiable_bootstrap_draws',test_repositories=len(test_repos),repositories=len(source_names),directives=len(source),revision=selected))
    if axis=='enforcement':
     for i,c in enumerate(classes):add('enforcement_'+c,None if point is None else point[i],draws[:,i],gates['enforceability'])
     add('system_state_fraction',None if point is None else 1-point[0],1-draws[:,0],gates['enforceability'])
@@ -133,7 +133,7 @@ def main(a):
    draws.append(bp[1] if bp is not None else np.nan)
    if bp is None:fails[bflag]+=1
    draw_audit.append(dict(group_type=group_type,group=group,axis='project_cross_event',replicate=b,status='ok' if bp is not None else 'failed',reason=bflag,observed_directives=''))
-  arr=np.asarray(draws);enough=np.isfinite(arr).sum()>=.8*a.bootstraps
+  arr=np.asarray(draws);enough=point is not None and np.isfinite(arr).sum()>=.8*a.bootstraps
   lo,hi=np.nanquantile(arr,[.025,.975]) if enough else ('','')
   results.append(dict(group_type=group_type,group=group,metric='cross_event_project_share',value=point[1] if point is not None else '',ci_low=lo,ci_high=hi,method='test_repository_binary_confusion_mixture',status=('corrected_estimate' if gates['enforceability'] else 'exploratory_corrected_estimate') if point is not None else 'not_identifiable',point_flag=flag or 'project_size_transport_unverified',successful_bootstraps=int(np.isfinite(arr).sum()),bootstrap_replicates=a.bootstraps,interval_status='ok' if enough else 'insufficient_identifiable_bootstrap_draws',test_repositories=len(test_repos),repositories=len(source_names),directives=len(source),revision=selected))
   for i,p in enumerate(['no_cross_event','has_cross_event']):

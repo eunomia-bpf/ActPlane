@@ -9,7 +9,7 @@ The initial codebook was withheld because enforcement agreement fell below its g
 | dev | 21 | 505 |
 | test | 43 | 1611 |
 
-Few-shot examples and error inspection use development repositories only. The protocol and split were committed before development inference. Codebook selection stops at the prespecified dev criterion or revision cap, then the guide, examples, contextual inputs and inference configuration are frozen before a single test evaluation. Original type/topic labels remain fixed. See `rescue/PROTOCOL.md`, `rescue/repository_split.csv`, and the versioned codebooks/examples.
+Few-shot examples and error inspection use development repositories only. The protocol and split were committed before development inference. Codebook selection stops at the prespecified dev criterion or revision cap, then the guide, examples, contextual inputs and inference configuration are frozen before a single test evaluation. Original type/topic labels remain fixed. Calibration conditions on known historical directives, while deployment uses the frozen automated directive set. Definitions, supplied context and axis conditioning all change, so gains cannot be attributed to the codebook alone. See `rescue/PROTOCOL.md`, `rescue/repository_split.csv`, and the versioned codebooks/examples.
 
 | Revision | Dimension | Dev kappa | Test kappa | Test status |
 |---|---|---:|---:|---|

@@ -309,7 +309,10 @@ def main():
                 paragraph += f'Among policies, {fmt(valid["system_state_fraction"])} are system-observable, with {fmt(valid["os_enforceable_count"])} OS-tier candidates. Cross-event requirements appear in {fmt(valid["cross_event_project_share"])} of repositories. '
             if 'context_required_fraction' in valid:
                 paragraph += f'Of system-observable policies, {fmt(valid["context_required_fraction"])} require project or task binding. '
-            paragraph += 'A repository split was held out from codebook revision, although the reference had earlier aggregate diagnostic exposure. Failed dimensions remain withheld. Scope includes exploratory noncoding instructions. Convenience sampling, automated segmentation, reference conventions, and correlated adjudication limit generalization.'
+            paragraph += 'A repository split was held out from codebook revision, although the reference had earlier aggregate diagnostic exposure. '
+            if 'system_state_fraction' not in valid or 'context_required_fraction' not in valid:
+                paragraph += 'Dimensions failing the test gate remain withheld. '
+            paragraph += 'Scope includes exploratory noncoding instructions. Convenience sampling, automated segmentation, reference conventions, and correlated adjudication limit generalization.'
         assert len(paragraph.split()) <= 150
         lines.append(paragraph)
     else:
