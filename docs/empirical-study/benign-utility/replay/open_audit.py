@@ -70,8 +70,9 @@ def main():
                 archive=archive['name'],bytes=archive['bytes'],sha256=archive['sha256'],verification=archive['verification'],
                 completed_tool_actions=retention['completed_tool_actions'],
                 all_original_bytes_persisted=retention.get('all_original_bytes_persisted',False),
+                archive_retained_now=int((run/archive['name']).exists()),
                 finished_utc=retention.get('finished_utc',''),
-                evidence_limit='Post-execution lossless retention only; excluded from primary timing'))
+                evidence_limit='Historical post-execution lossless retention receipt; current archive availability is separate; excluded from primary timing'))
         mapping_epoch=None
         if (run/'sources.jsonl').exists() and metadata.get('clock_epoch_ns'):
             for line in (run/'sources.jsonl').read_text(errors='replace').splitlines():
@@ -85,6 +86,7 @@ def main():
         selected = []
         archives = {}
         retained_data = {}
+        retained_manifest=json.loads((run/'retained-audit-source-manifest.json').read_text()) if (run/'retained-audit-source-manifest.json').exists() else {}
         for number, line in enumerate(trace_data.decode(errors='replace').splitlines(), 1):
             header = re.match(r'^(\d+)\s+(\d+\.\d+)\s+(.*)$', line)
             if not header:
@@ -157,6 +159,12 @@ def main():
                         data = file.read_bytes() if file and file.is_file() else None
                     except OSError:
                         data = None
+                    if data is None and file and file.is_relative_to(run):
+                        retained=retained_manifest.get(file.relative_to(run).as_posix())
+                        if retained:
+                            data=(run/retained['retained']).read_bytes()
+                            if hashlib.sha256(data).hexdigest()!=retained['sha256']:
+                                raise RuntimeError('Retained audit source hash mismatch')
                     archive_path=run/('runtime-cache.tar.gz' if file and file.is_relative_to(run/'cache') and (run/'runtime-cache.tar.gz').exists() else 'runtime.tar.gz')
                     if data is None and file and file.is_relative_to(run) and archive_path.exists():
                         if archive_path not in archives:archives[archive_path]=tarfile.open(archive_path,'r:gz')
@@ -226,6 +234,7 @@ def main():
             mapped_interval_unverified_paths=json.dumps(sorted({r['raw_path'] for r in selected if r['stage']!='setup-before-root-mapping' and r['published_artifact'] in ('','{}')})),
             cache_backing=metadata.get('cache_backing','disk'),
             ram_retention_persisted=retention.get('all_original_bytes_persisted',''),
+            runtime_archives_retained_now=json.dumps({a['name']: (run/a['name']).exists() for a in retention.get('archives',[])},sort_keys=True),
             evidence_limit='Separate verification replay; its timings and events excluded from primary cohort'))
     write('open-audit-candidates.csv', candidates, list(candidates[0]) if candidates else [
         'audit_condition', 'dynamic_id', 'line', 'pid', 'timestamp_epoch', 'stage', 'syscall', 'name_index', 'raw_path',
@@ -240,7 +249,7 @@ def main():
         'intervened', 'source_path', 'target', 'adjudication', 'evidence'])
     write('open-audit-unparsed.csv',unparsed_rows,['audit_condition','dynamic_id','line','reason','record'])
     write('ram-retention.csv',retention_rows,['audit_condition','dynamic_id','archive','bytes','sha256','verification',
-        'completed_tool_actions','all_original_bytes_persisted','finished_utc','evidence_limit'])
+        'completed_tool_actions','all_original_bytes_persisted','archive_retained_now','finished_utc','evidence_limit'])
     print('Separate open audits:', len(summaries), 'candidate opens:', len(candidates))
 
 

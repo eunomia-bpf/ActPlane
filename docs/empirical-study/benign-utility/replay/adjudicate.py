@@ -133,6 +133,9 @@ def review(events, sources):
     projects=project_reviews()
     published={r['member_sha256']:r for r in csv.DictReader((OUT/'public-artifacts.csv').open())} if (OUT/'public-artifacts.csv').exists() else {}
     system_cache={}
+    receipt_file=OUT/'readonly-system-source-receipts.csv'
+    system_receipts={(r['raw_condition'],r['dynamic_id'],r['source_path']):r for r in csv.DictReader(receipt_file.open())} if receipt_file.exists() else {}
+    checked_system_logs={}
     for event in events:
         condition, dynamic_id = event['condition'], event['dynamic_id']
         prior = [r for r in sources if r['condition'] == condition and r['dynamic_id'] == dynamic_id
@@ -156,6 +159,20 @@ def review(events, sources):
         key=(event.get('raw_condition',condition),dynamic_id,event['source_path'])
         if key not in system_cache:system_cache[key]=readonly_system_origin(event['source_path'],done.get('started_utc',''),published)
         system=system_cache[key]
+        frozen=system_receipts.get(key)
+        row['system_source_revalidation']=''
+        if frozen:
+            # Validate live bytes without replacing the earlier observation's
+            # inode timestamps with those of a recreated container filesystem.
+            log=run/'engine.jsonl'
+            if log not in checked_system_logs:checked_system_logs[log]=hashlib.sha256(log.read_bytes()).hexdigest()
+            if checked_system_logs[log]!=frozen['engine_sha256']:
+                raise RuntimeError('Frozen readonly source engine log differs')
+            for field in ('retained_system_source_sha256','retained_system_source_path','retained_system_source_mapping'):
+                if system.get(field)!=frozen[field]:
+                    raise RuntimeError('Frozen readonly system source differs from live revalidation: '+field)
+            row['system_source_revalidation']='Live bytes/mapped path spelling/mapping match; original pre-restart inode timestamp retained from engine-bound committed receipt'
+            system={name:value for name,value in frozen.items() if name.startswith('retained_system_source_')}
         for name in ('retained_system_source_path','retained_system_source_sha256','retained_system_source_ctime_ns','retained_system_source_mapping'):row[name]=system.get(name,'')
         if system:
             row.update(secret_source_provenance='verified_public_readonly_system_artifact',

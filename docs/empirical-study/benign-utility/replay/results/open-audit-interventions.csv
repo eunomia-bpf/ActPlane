@@ -1,4 +1,6 @@
 audit_condition,dynamic_id,call_index,timestamp_ns,pid,blocked,killed,intervened,source_path,target,adjudication,evidence
+open-audit-block-broad,t00,20,1711686571674793,1040878,1,0,1,/harbor/.venv/lib/python3.13/site-packages/certifi/cacert.pem,10.43.0.10,unknown,Separate forensic replay; source/configuration evidence requires individual review
+open-audit-block-broad,t00,20,1711686571722049,1040878,1,0,1,/harbor/.venv/lib/python3.13/site-packages/certifi/cacert.pem,10.43.0.10,unknown,Separate forensic replay; source/configuration evidence requires individual review
 open-audit-block-broad,t05,20,1700901542576632,479393,1,0,1,/cache/uv/archive-v0/znE51phI7drDu2Lc/certifi/cacert.pem,10.43.0.10,unknown,Separate forensic replay; source/configuration evidence requires individual review
 open-audit-block-broad,t05,20,1700901542732026,479393,1,0,1,/cache/uv/archive-v0/znE51phI7drDu2Lc/certifi/cacert.pem,10.43.0.10,unknown,Separate forensic replay; source/configuration evidence requires individual review
 open-audit-block-broad,t05,20,1700901542831606,479393,1,0,1,/cache/uv/archive-v0/znE51phI7drDu2Lc/certifi/cacert.pem,10.43.0.10,unknown,Separate forensic replay; source/configuration evidence requires individual review

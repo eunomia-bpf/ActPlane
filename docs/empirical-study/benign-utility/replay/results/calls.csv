@@ -1354,7 +1354,7 @@ broad,t00,native:claude-code__run-0__harbor-framework__harbor-1764,block,native:
 broad,t00,native:claude-code__run-0__harbor-framework__harbor-1764,block,native:claude-code__run-0__harbor-framework__harbor-1764:39,17,18,Write,1,0,0,0.0331,0,0,0,0,0,0,0,complete
 broad,t00,native:claude-code__run-0__harbor-framework__harbor-1764,block,native:claude-code__run-0__harbor-framework__harbor-1764:41,18,19,Bash,1,0,0,56.9944,1179,624,10,0,0,0,0,complete
 broad,t00,native:claude-code__run-0__harbor-framework__harbor-1764,block,native:claude-code__run-0__harbor-framework__harbor-1764:44,19,20,Bash,1,0,0,1.4707,2,0,0,0,0,0,0,complete
-broad,t00,native:claude-code__run-0__harbor-framework__harbor-1764,block,native:claude-code__run-0__harbor-framework__harbor-1764:46,20,21,Bash,1,0,0,38.6257,40,2,3212,2,0,0,2,complete
+broad,t00,native:claude-code__run-0__harbor-framework__harbor-1764,block,native:claude-code__run-0__harbor-framework__harbor-1764:46,20,21,Bash,1,0,0,38.6257,40,2,3212,2,2,0,0,complete
 broad,t01,native:claude-code__run-0__ivov__lisette-491,block,native:claude-code__run-0__ivov__lisette-491:1,0,1,Bash,1,0,0,0.0042,2,0,0,0,0,0,0,complete
 broad,t01,native:claude-code__run-0__ivov__lisette-491,block,native:claude-code__run-0__ivov__lisette-491:3,1,2,Glob,1,0,0,0.0653,0,0,0,0,0,0,0,complete
 broad,t01,native:claude-code__run-0__ivov__lisette-491,block,native:claude-code__run-0__ivov__lisette-491:5,2,3,Read,1,0,0,0.033,0,0,0,0,0,0,0,complete
