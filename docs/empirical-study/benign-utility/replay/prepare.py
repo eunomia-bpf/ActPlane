@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import uuid
 
 HERE=Path(__file__).resolve().parent
 ROOT=Path(os.environ['WS_RAW'])/'replay'
@@ -16,12 +17,39 @@ ORIGINAL=Path('/workspaces/lanes/trajectory-indirect/docs/empirical-study/trajec
 PREVIOUS=Path('/workspaces/.agent-state/actplane-research/raw/trajectory-indirect-20261028')
 ENGINE=Path('/workspaces/.agent-state/actplane-research/raw/translation-models-20261028/bounded-loader')
 
+def compact_closed_tool(run):
+    """Share identical retained tool bytes only after the actual worker exited."""
+    if not (run/'done.json').exists() or not (run/'utility-metadata.json').exists():return 0
+    metadata=json.loads((run/'utility-metadata.json').read_text())
+    pid=metadata.get('workspace_popen_pid')
+    # Never use an initial-kernel PID to inspect namespaced /proc. Older
+    # attempts without an explicit Workspace PID remain untouched.
+    if not pid or Path(f'/proc/{pid}').exists():return 0
+    tool=run/'replay/bin/uv'
+    if tool.is_symlink() or not tool.is_file():return 0
+    if not tool.resolve().is_relative_to(ROOT.resolve()):raise ValueError('tool outside owned raw directory')
+    state=tool.stat();digest=hashlib.sha256(tool.read_bytes()).hexdigest()
+    shared=ROOT/'retained-tools';shared.mkdir(exist_ok=True)
+    canonical=shared/('uv-'+digest)
+    try:os.link(tool,canonical)
+    except FileExistsError:pass
+    stored=canonical.stat()
+    if state.st_ino==stored.st_ino:return 0
+    if (state.st_mode,state.st_mtime_ns)!=(stored.st_mode,stored.st_mtime_ns):return 0
+    if hashlib.sha256(canonical.read_bytes()).hexdigest()!=digest:raise ValueError('retained tool checksum mismatch')
+    temporary=tool.with_name('.uv-retained-'+uuid.uuid4().hex)
+    os.link(canonical,temporary);os.replace(temporary,tool)
+    return state.st_size if state.st_nlink==1 else 0
+
 def write(name,rows):
     with (OUTPUT/name).open('w',newline='') as f:
         writer=csv.DictWriter(f,fieldnames=list(rows[0]));writer.writeheader();writer.writerows(rows)
 
 def main():
     OUTPUT.mkdir(parents=True,exist_ok=True)
+    closed=list(ROOT.glob('*/dynamic/runs/t*/done.json'))+list((ROOT/'attempts').glob('*/done.json'))
+    saved=sum(compact_closed_tool(p.parent) for p in closed)
+    print('Retained closed-tool bytes deduplicated:',saved,flush=True)
     (ROOT/'input/dynamic').mkdir(parents=True,exist_ok=True)
     for source,target in [(ORIGINAL,ROOT/'harness'),(ENGINE,ROOT/'engine'),
         (PREVIOUS/'dynamic/git-cache',ROOT/'input/dynamic/git-cache'),

@@ -15,6 +15,7 @@ import subprocess
 import struct
 import sys
 import time
+from prepare import compact_closed_tool
 
 HERE = Path(__file__).resolve().parent
 ROOT = Path(os.environ['WS_RAW']) / 'replay'
@@ -243,6 +244,7 @@ def main():
                 shutil.move(str(run),target)
                 (target/'exclusion-reason.json').write_text(json.dumps(dict(reasons=reasons),indent=2))
         runner.replay(raw,plan,sorted(calls[plan['trajectory_id']],key=lambda c:c['call_index']))
+        compact_closed_tool(run)
 
 
 if __name__=='__main__': main()
