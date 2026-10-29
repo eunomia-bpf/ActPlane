@@ -42,6 +42,13 @@ def delta_fmt(row):
     return f'{point}{"" if count else " pp"} [{low}, {high}]'
 
 
+def interval_fmt(row):
+    value = fmt(row)
+    if row and row.get('status') == 'ok':
+        value += f' [{fmt(row, "ci_low")}, {fmt(row, "ci_high")}]'
+    return value
+
+
 def main():
     config = [('snapshot_date', '2026-10-28'), ('stars_min', 100), ('pushed_since', '2025-01-01'),
               ('search_results_per_query', 100), ('paths_per_family', 1), ('max_file_bytes', 128000),
@@ -55,6 +62,7 @@ def main():
                ('historical_and_focused_local_workers', 4), ('remote_workers', 2),
                ('scale_primary_local_workers', 6), ('scale_interim_adjudication_workers', 2),
                ('scale_final_adjudication_workers', 4), ('deferred_optional_scope_workers', 3),
+               ('post_core_optional_scope_workers', 5),
                ('reduced_and_scale_local_batch_size', 48), ('reduced_and_scale_remote_batch_size', 24)]
     config += [('max_schema_repairs_before_split', 2), ('schema_repair_mode', 'batch')]
     config += [('quota_' + k, v) for k, v in QUOTAS.items()]
@@ -174,7 +182,7 @@ def main():
         'Repository-purpose groups are defined in `categorize.py`: agent_frameworks includes reusable agent infrastructure, coding agents, editors, and developer-agent tools; applications includes general software, libraries, services, and educational collections; noncoding_agents covers assistants primarily advertised for personal, office, research, browser, or finance tasks. Mixed systems are assigned by their primary advertised purpose. These categories have not received independent human reliability validation.', '',
         'A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used. The optional OpenCode routes also reject requests with the requested session header, as recorded in `gateway_probes.csv`. A named GLM flash route was used only for a throughput pilot and is not part of the primary calibration.', '',
         '`noncoding_manifest.csv` and `noncoding_statements.csv` materialize the analyzed sources classified as `noncoding_assistance`. Mixed, unclear, unclassified, and software-development sources remain visible in the main tables rather than entering this exploratory subset.', '',
-        'Optional scope classification initially ran alongside primary labeling. Observed local request latency motivated deferring its remaining work until primary labeling completes, allocating the bounded local concurrency to primary labels and interim adjudication. Scope work resumes alongside final adjudication and ends when the primary analysis is ready. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis. This changes client request scheduling without changing the coding guide, accepted labels, or thresholds.', '',
+        'Optional scope classification initially ran alongside primary labeling. Observed local request latency motivated deferring its remaining work until primary labeling completes, allocating the bounded local concurrency to primary labels and interim adjudication. Scope work resumes alongside final adjudication and pauses when the primary analysis is ready. The separate finalization pass resumes any remaining scope judgments after other local clients exit. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis. This changes client request scheduling without changing the coding guide, accepted labels, or thresholds.', '',
         f'Intervals are central {100*cfg["confidence_level"]:.0f}% percentile intervals using {BOOTSTRAPS:,} bootstrap replicates resampling repositories within discovery strata, with new-corpus seed {SEED} and historical seed {cfg["historical_bootstrap_seed"]}. '
         'They describe sensitivity within this convenience sample. Sparse groups can yield degenerate intervals without establishing population precision. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.', '',
         'Headline analysis requires every selected source file in a repository to have complete model pairs and final labels. Incomplete repositories remain in the collection and coverage tables rather than entering project-level denominators with unobserved files treated as negative. This makes interim checkpoints subsets of the final snapshot, not final results.', '',
@@ -205,13 +213,13 @@ def main():
         subset = [r for r in summary if r['group_type'] == kind]
         if not subset:
             continue
-        lines += ['', '| ' + kind.capitalize() + ' | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |',
+        lines += ['', '| ' + kind.capitalize() + ' | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |',
                   '|---|---:|---:|---:|---:|---:|---:|---:|']
         for group in sorted({r['group'] for r in subset}):
             records = {r['metric']: r for r in subset if r['group'] == group}
             first = next(iter(records.values()))
             lines.append('| ' + ' | '.join([group, first['repositories'], first['statements'],
-                                          *[fmt(records.get(k)) for k in NAMES]]) + ' |')
+                                          *[interval_fmt(records.get(k)) for k in NAMES]]) + ' |')
     lines += ['', '## Reproduction and artifacts', '',
         'Use an isolated Python environment with `requirements.txt`. Set `GH_TOKEN`, `LITELLM_BASE_URL`, and `LITELLM_API_KEY` in the environment. Never pass secrets as command-line arguments. Raw responses, cached prompts/completions, source files, retries, and HTTP logs stay in the operator-specified raw directory. Set `ACTPLANE_CORPUS_RAW` to reproduce in a different raw-data location. Access to the named model endpoints is required.', '',
         '```bash',
@@ -223,7 +231,10 @@ def main():
         'python label.py --model qwen3.8-27b-nvfp4 --retry-policy batch --primary calibration_qwen.csv --other calibration_glm.csv --output calibration_adjudicated.csv',
         'python analyze.py --calibration-only',
         '# Scale only the dimensions that passed. See run_scale.py for the gate-controlled pipeline.',
-        'python run_scale.py', 'python analyze.py', 'python figures.py',
+        'python run_scale.py',
+        '# Finish optional scope work sequentially after the core model clients exit.',
+        f'python scope_files.py --workers {cfg["post_core_optional_scope_workers"]}',
+        'python analyze.py', 'python figures.py',
         'python audit_runs.py', 'python validate.py --require-complete',
         'python validate_figures.py', 'python report.py', '```', '',
         '`restore_sources.py` verifies the committed source hashes and Git blob hashes, downloads missing or corrupt cached files from their immutable commit URLs, and records every outcome in `source_restore_validation.csv`. It does not overwrite collection metadata or rediscover repositories. `collect.py` is the separate discovery command for a new dated snapshot. Model regeneration can vary even with the same named endpoint and fixed prompts, so the committed accepted labels remain the record of this run.', '',

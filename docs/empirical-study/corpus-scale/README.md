@@ -117,7 +117,7 @@ A separate `scope_files.py` classifier examines source excerpts to identify actu
 
 `noncoding_manifest.csv` and `noncoding_statements.csv` materialize the analyzed sources classified as `noncoding_assistance`. Mixed, unclear, unclassified, and software-development sources remain visible in the main tables rather than entering this exploratory subset.
 
-Optional scope classification initially ran alongside primary labeling. Observed local request latency motivated deferring its remaining work until primary labeling completes, allocating the bounded local concurrency to primary labels and interim adjudication. Scope work resumes alongside final adjudication and ends when the primary analysis is ready. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis. This changes client request scheduling without changing the coding guide, accepted labels, or thresholds.
+Optional scope classification initially ran alongside primary labeling. Observed local request latency motivated deferring its remaining work until primary labeling completes, allocating the bounded local concurrency to primary labels and interim adjudication. Scope work resumes alongside final adjudication and pauses when the primary analysis is ready. The separate finalization pass resumes any remaining scope judgments after other local clients exit. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis. This changes client request scheduling without changing the coding guide, accepted labels, or thresholds.
 
 Intervals are central 95% percentile intervals using 2,000 bootstrap replicates resampling repositories within discovery strata, with new-corpus seed 20261028 and historical seed 20261029. They describe sensitivity within this convenience sample. Sparse groups can yield degenerate intervals without establishing population precision. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories.
 
@@ -169,29 +169,29 @@ The collected repositories have a star range of 12,209–458,063, with median 40
 | Zig | 1 |
 | unspecified | 4 |
 
-| Family | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
+| Family | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| .cursor/rules/* | 4 | 40 | 62.5% | withheld | withheld | withheld | withheld |
-| .cursorrules | 5 | 40 | 45.0% | withheld | withheld | withheld | withheld |
-| AGENTS.md | 97 | 4932 | 57.4% | withheld | withheld | withheld | withheld |
-| CLAUDE.md | 57 | 1005 | 53.6% | withheld | withheld | withheld | withheld |
-| GEMINI.md | 3 | 6 | 50.0% | withheld | withheld | withheld | withheld |
-| SKILL.md | 93 | 4980 | 55.4% | withheld | withheld | withheld | withheld |
-| copilot-instructions.md | 20 | 618 | 54.4% | withheld | withheld | withheld | withheld |
+| .cursor/rules/* | 4 | 40 | 62.5% [38.2%, 80.4%] | withheld | withheld | withheld | withheld |
+| .cursorrules | 5 | 40 | 45.0% [20.0%, 47.1%] | withheld | withheld | withheld | withheld |
+| AGENTS.md | 97 | 4932 | 57.4% [52.1%, 62.7%] | withheld | withheld | withheld | withheld |
+| CLAUDE.md | 57 | 1005 | 53.6% [44.0%, 62.5%] | withheld | withheld | withheld | withheld |
+| GEMINI.md | 3 | 6 | 50.0% [0.0%, 66.7%] | withheld | withheld | withheld | withheld |
+| SKILL.md | 93 | 4980 | 55.4% [50.2%, 59.9%] | withheld | withheld | withheld | withheld |
+| copilot-instructions.md | 20 | 618 | 54.4% [48.7%, 62.2%] | withheld | withheld | withheld | withheld |
 
-| Category | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
+| Category | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| agent_frameworks | 51 | 4065 | 58.4% | withheld | withheld | withheld | withheld |
-| applications | 76 | 5770 | 55.8% | withheld | withheld | withheld | withheld |
-| noncoding_agents | 19 | 1778 | 51.4% | withheld | withheld | withheld | withheld |
+| agent_frameworks | 51 | 4065 | 58.4% [54.3%, 62.2%] | withheld | withheld | withheld | withheld |
+| applications | 76 | 5770 | 55.8% [50.2%, 60.6%] | withheld | withheld | withheld | withheld |
+| noncoding_agents | 19 | 1778 | 51.4% [42.8%, 59.8%] | withheld | withheld | withheld | withheld |
 
-| File_scope | Repositories | Statements | Policy | System | Context | Cross-event projects | OS-tier count |
+| File_scope | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| general_agent_operations | 8 | 102 | 71.6% | withheld | withheld | withheld | withheld |
-| noncoding_assistance | 17 | 805 | 46.7% | withheld | withheld | withheld | withheld |
-| software_development | 115 | 8144 | 57.8% | withheld | withheld | withheld | withheld |
-| unclassified | 43 | 2522 | 52.6% | withheld | withheld | withheld | withheld |
-| unclear | 30 | 40 | 45.0% | withheld | withheld | withheld | withheld |
+| general_agent_operations | 8 | 102 | 71.6% [41.4%, 77.6%] | withheld | withheld | withheld | withheld |
+| noncoding_assistance | 17 | 805 | 46.7% [36.4%, 58.0%] | withheld | withheld | withheld | withheld |
+| software_development | 115 | 8144 | 57.8% [53.9%, 61.7%] | withheld | withheld | withheld | withheld |
+| unclassified | 43 | 2522 | 52.6% [44.3%, 58.9%] | withheld | withheld | withheld | withheld |
+| unclear | 30 | 40 | 45.0% [29.3%, 60.0%] | withheld | withheld | withheld | withheld |
 
 ## Reproduction and artifacts
 
@@ -207,6 +207,8 @@ python label.py --model qwen3.8-27b-nvfp4 --retry-policy batch --primary calibra
 python analyze.py --calibration-only
 # Scale only the dimensions that passed. See run_scale.py for the gate-controlled pipeline.
 python run_scale.py
+# Finish optional scope work sequentially after the core model clients exit.
+python scope_files.py --workers 5
 python analyze.py
 python figures.py
 python audit_runs.py
