@@ -15,12 +15,14 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 | --- | --- | ---: | ---: | ---: |
 | Added | No AgPlane | 5/18 | 4/5 | 4/5 |
 | Added | Broad sources | 5/18 | 3/5 | 3/5 |
-| Added | Narrowed sources | 5/18 | 4/5 | 4/5 |
+| Added | Narrowed sources | 6/18 | 4/6 | 4/5 |
 | Combined | No AgPlane | 11/24 | 8/11 | 8/11 |
 | Combined | Broad sources | 11/24 | 9/11 | 9/11 |
-| Combined | Narrowed sources | 11/24 | 8/11 | 8/11 |
+| Combined | Narrowed sources | 12/24 | 8/12 | 8/11 |
 
 Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `fix-code-vulnerability`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `nginx-request-logging`, `openssl-selfsigned-cert`, `sanitize-git-repo`, `vulnerable-secret`.
+
+Additional completed cells outside that matched set: Narrowed sources: `pytorch-model-cli`.
 
 
 <!-- expansion-status:end -->

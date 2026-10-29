@@ -14,6 +14,7 @@ modernize-scientific-stack,c,block-1,modernize-scientific-stack__S3s84NZ,8,8,0,0
 nginx-request-logging,a,1,nginx-request-logging__djUXvNr,3,3,0,0
 nginx-request-logging,b,block-1,nginx-request-logging__BqNztAZ,1,1,0,0
 nginx-request-logging,c,block-1,nginx-request-logging__6tQsdoX,3,3,0,0
+pytorch-model-cli,c,block-1,pytorch-model-cli__awVAHvX,36,36,0,0
 qemu-alpine-ssh,a,1,qemu-alpine-ssh__sDcYMH6,29,29,0,0
 qemu-alpine-ssh,b,block-1,qemu-alpine-ssh__mSmv6Dn,33,33,0,0
 qemu-alpine-ssh,c,block-1,qemu-alpine-ssh__koaPaTj,30,30,0,0

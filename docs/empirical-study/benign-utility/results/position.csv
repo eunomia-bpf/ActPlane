@@ -15,10 +15,10 @@ Terminal-Bench added cohort,b,11,20,16,0,108,0,0,0,0,288.0
 Terminal-Bench added cohort,b,21,30,10,0,108,0,0,0,0,576.0
 Terminal-Bench added cohort,b,31,40,10,0,108,0,0,0,0,1152.0
 Terminal-Bench added cohort,b,41,50,5,0,108,0,0,0,0,576.0
-Terminal-Bench added cohort,c,1,10,37,1,0,0,0,0,0,288.0
-Terminal-Bench added cohort,c,11,20,13,1,0,0,0,0,0,0.0
-Terminal-Bench added cohort,c,21,30,10,1,0,0,0,0,0,0.0
-Terminal-Bench added cohort,c,31,40,1,1,0,0,0,0,0,0.0
+Terminal-Bench added cohort,c,1,10,47,1,0,0,0,0,0,288.0
+Terminal-Bench added cohort,c,11,20,23,1,0,0,0,0,0,0.0
+Terminal-Bench added cohort,c,21,30,18,1,0,0,0,0,0,0.0
+Terminal-Bench added cohort,c,31,40,7,1,0,0,0,0,0,0.0
 Terminal-Bench combined,a,1,10,82,1,0,0,0,0,0,884.0
 Terminal-Bench combined,a,11,20,11,1,0,0,0,0,0,0.0
 Terminal-Bench combined,a,21,30,8,1,0,0,0,0,0,0.0
@@ -27,10 +27,10 @@ Terminal-Bench combined,b,11,20,27,0,108,0,0,0,0,288.0
 Terminal-Bench combined,b,21,30,17,0,108,0,0,0,0,576.0
 Terminal-Bench combined,b,31,40,10,0,108,0,0,0,0,1152.0
 Terminal-Bench combined,b,41,50,5,0,108,0,0,0,0,576.0
-Terminal-Bench combined,c,1,10,71,1,0,0,0,0,0,305.0
-Terminal-Bench combined,c,11,20,23,1,0,0,0,0,0,0.0
-Terminal-Bench combined,c,21,30,19,1,0,0,0,0,0,0.0
-Terminal-Bench combined,c,31,40,1,1,0,0,0,0,0,0.0
+Terminal-Bench combined,c,1,10,81,1,0,0,0,0,0,305.0
+Terminal-Bench combined,c,11,20,33,1,0,0,0,0,0,0.0
+Terminal-Bench combined,c,21,30,27,1,0,0,0,0,0,0.0
+Terminal-Bench combined,c,31,40,7,1,0,0,0,0,0,0.0
 Terminal-Bench network stratum,a,1,10,20,1,0,0,0,0,0,0.0
 Terminal-Bench network stratum,a,11,20,16,1,0,0,0,0,0,576.0
 Terminal-Bench network stratum,a,21,30,7,1,0,0,0,0,0,0.0
