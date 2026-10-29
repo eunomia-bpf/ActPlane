@@ -4,6 +4,14 @@ Public replay,broad,11,20,observed_execution_interval_including_idle,126,114,12,
 Public replay,broad,21,30,observed_execution_interval_including_idle,304,304,0,0,chronological event counts; not causal action counts or rates
 Public replay,broad,41,50,observed_execution_interval_including_idle,34,18,0,16,chronological event counts; not causal action counts or rates
 Public replay,broad,61,70,observed_execution_interval_including_idle,24,24,0,0,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,1,10,idle_after_submission,4,0,0,4,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,1,10,wait,16,0,0,16,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,11,20,command,20,0,0,20,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,11,20,idle_after_submission,4,0,0,4,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,11,20,wait,4,0,0,4,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,21,30,command,27,0,0,27,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,31,40,command,29,0,0,29,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,41,50,wait,4,0,0,4,chronological event counts; not causal action counts or rates
 Terminal-Bench network stratum,b,1,10,command,9,6,3,0,chronological event counts; not causal action counts or rates
 Terminal-Bench network stratum,b,11,20,command,6,6,0,0,chronological event counts; not causal action counts or rates
 Terminal-Bench network stratum,b,21,30,command,25,25,0,0,chronological event counts; not causal action counts or rates
