@@ -25,3 +25,7 @@ The reviewer independently inspected the fixed benchmark instructions and noted 
 ## Namespace scope failure found in real preflight
 
 The benchmark worker found actual agent command evidence with no corresponding root-mode observer activity. Workspace `/proc` PIDs differ from the initial-namespace PIDs used by eBPF. Thus readiness of a loader seeded with a Workspace PID did not establish protection. The replay worker confirmed the same issue affected its preliminary defended run, despite working comm-tagged observation. Those defended receipts are invalid for intervention rates and utility. Both workers are mapping each actual retained shell/worker to its kernel PID through an independent marker, then requiring a separate enforcement engagement check. Calibration actions are excluded from benchmark and replay outcomes and do not alter official tasks to force source exposure.
+
+## ATIF interpretation correction during execution
+
+The initial comparison of ATIF totals with dispatch counts incorrectly treated nonterminal completion markers as undispatched commands. Inspection of actual function names showed the surplus records were `mark_task_complete`, while native `bash_command` counts matched dispatches in the audited completed main trials. The unsupported causal explanation for failures is retracted. Annotation documentation and the benchmark producer now distinguish total logged calls, command calls, nonterminal markers and genuinely unmatched command records. Official verifier scores and actual-dispatch denominators are unchanged.
