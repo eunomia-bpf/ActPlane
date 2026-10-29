@@ -17,8 +17,10 @@ class ExpandedTerminus(InstrumentedTerminus):
   seal=json.loads((ROOT/'task-seals'/f'{self.bu_task}.json').read_text())
   frozen=json.loads((ROOT/'environment-freeze.json').read_text())
   assert seal['environment_id']==frozen['environment_id']=='workspace_kvm_guest_20261029'
-  assert Path('/proc/sys/kernel/random/boot_id').read_text().strip()==frozen['boot_id']
-  assert os.uname().release==frozen['kernel_release']
+  worker=frozen['workers'][os.environ['BU_EXPANDED_WORKER']]
+  assert seal['worker_id']==os.environ['BU_EXPANDED_WORKER']
+  assert Path('/proc/sys/kernel/random/boot_id').read_text().strip()==worker['boot_id']
+  assert os.uname().release==worker['kernel_release']
   assert 'bpf' in Path('/sys/kernel/security/lsm').read_text().strip().split(',')
   for relative,expected in seal['files'].items():
    assert hashlib.sha256((ROOT/relative).read_bytes()).hexdigest()==expected,'Frozen cohort artifact changed'
@@ -29,8 +31,8 @@ class ExpandedTerminus(InstrumentedTerminus):
   if self.bu_condition!='a':assert 'ActPlane: enforce mode' in (self.bu_logs/'engine.log').read_text(),'Native denial unavailable: stop before model generation'
   scope=json.loads((self.bu_logs/'scope.json').read_text())
   daemon=json.loads(subprocess.check_output(['docker','info','--format','{{json .}}'],text=True))
-  assert daemon['DockerRootDir']==frozen['docker_data_root'] and daemon['Driver']==frozen['docker_driver']
-  scope.update(runtime_environment_id=frozen['environment_id'],runtime_storage_backing='kvm_guest_ext4_'+daemon['Driver'],runtime_storage_data_root=daemon['DockerRootDir'],kernel_release=frozen['kernel_release'],boot_id=frozen['boot_id'])
+  assert daemon['DockerRootDir']==worker['docker_data_root'] and daemon['Driver']==worker['docker_driver']
+  scope.update(runtime_environment_id=frozen['environment_id'],runtime_worker_id=os.environ['BU_EXPANDED_WORKER'],runtime_storage_backing='kvm_guest_ext4_'+daemon['Driver'],runtime_storage_data_root=daemon['DockerRootDir'],kernel_release=worker['kernel_release'],boot_id=worker['boot_id'])
   images=list(__import__('csv').DictReader((ROOT/'results/image-inventory.csv').open()))
   expected=next(r['image_id'] for r in images if r['task']==self.bu_task)
   actual=subprocess.check_output(['docker','inspect','--format','{{.Image}}',scope['container_id']],text=True).strip()

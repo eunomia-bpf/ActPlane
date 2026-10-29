@@ -22,7 +22,7 @@ trials=read('trials.csv');calls=read('calls.csv');events=read('interventions.csv
 for trial in trials:
  directory=Path(trial['raw_result']).parent/'agent'
  scope=json.loads((directory/'scope.json').read_text()) if (directory/'scope.json').exists() else {}
- trial.update(runtime_environment_id=scope.get('runtime_environment_id','pre_amendment_host_supporting'),runtime_storage_backing=scope.get('runtime_storage_backing','not_recorded'),runtime_storage_data_root=scope.get('runtime_storage_data_root','not_recorded'))
+ trial.update(runtime_environment_id=scope.get('runtime_environment_id','pre_amendment_host_supporting'),runtime_worker_id=scope.get('runtime_worker_id','not_recorded'),runtime_storage_backing=scope.get('runtime_storage_backing','not_recorded'),runtime_storage_data_root=scope.get('runtime_storage_data_root','not_recorded'))
  if trial['task']=='fix-code-vulnerability':
   verifier=Path(trial['raw_result']).parent/'verifier';reports=[]
   for name in ('original-repo-ctrf.json','ctrf.json'):
@@ -87,7 +87,7 @@ for trial in trials:
  actual=[e for e in events if e['trial_id']==trial['trial_id'] and e['is_intervention']=='1']
  eligible=[c for c in calls if c['trial_id']==trial['trial_id'] and c['coverage']=='complete' and c['action_kind'] in ('command','interrupt')]
  trial.update(unattributed_intervention_events=sum(e['call_index']=='0' for e in actual),intervened_calls=sum(int(c['intervened']) for c in eligible),confirmed_false_events=sum(e['adjudication']=='false_intervention' for e in actual),confirmed_true_events=sum(e['adjudication']=='true_violation' for e in actual),unknown_events=sum(e['adjudication']=='unknown' for e in actual),action_attribution_method='independent origin verification; otherwise explicit unassigned')
-extras={'trials.csv':['action_attribution_method','policy_fields_verified','runtime_environment_id','runtime_storage_backing','runtime_storage_data_root','required_verifier_reports'],'calls.csv':['attribution_method'],'interventions.csv':['temporal_call_index','temporal_action_kind','action_attribution','origin_evidence']}
+extras={'trials.csv':['action_attribution_method','policy_fields_verified','runtime_environment_id','runtime_worker_id','runtime_storage_backing','runtime_storage_data_root','required_verifier_reports'],'calls.csv':['attribution_method'],'interventions.csv':['temporal_call_index','temporal_action_kind','action_attribution','origin_evidence']}
 for name,rows in [('trials.csv',trials),('calls.csv',calls),('interventions.csv',events)]:write(name,rows,fields(name)+extras[name])
 for row in read('protected-results.csv'):
  path=OUT.parent.parent/row['path']

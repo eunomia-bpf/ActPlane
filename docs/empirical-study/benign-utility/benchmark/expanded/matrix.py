@@ -1,55 +1,61 @@
-"""Run predeclared groups concurrently with serialized shared metadata exports."""
-import csv,fcntl,json,os,subprocess,sys,time,threading
+"""One host coordinator; each kernel runs one fixed matched task group at a time."""
+import csv,fcntl,json,os,shlex,subprocess,sys,time,threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from benchmark.expanded.preflight import BASE,RAW,OUT,ENV,docker,receipt
+from pathlib import Path
+BASE=Path('/workspaces/exp/benign-utility/raw/benchmark');RAW=BASE/'expanded-vm'
+ROOT=BASE.parent.parent/'benchmark/expanded';OUT=ROOT/'results'
 RAW.mkdir(exist_ok=True)
 lock=(RAW/'matrix.lock').open('a+');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 lock.seek(0);lock.truncate();lock.write(str(os.getpid()));lock.flush()
-state=threading.RLock()
-deadline=datetime.fromisoformat('2026-10-30T06:00:00+00:00').timestamp()
+state=threading.RLock();deadline=datetime.fromisoformat('2026-10-30T06:00:00+00:00').timestamp()
+frozen=json.loads((ROOT/'environment-freeze.json').read_text())
+assert set(frozen['workers'])=={'worker1','worker2','worker3'}
+tasks=list(csv.DictReader((OUT/'tasks.csv').open()))
 
 def export():
  with state:
   subprocess.run([sys.executable,'-B','benchmark/expanded/export.py'],check=True)
   return list(csv.DictReader((OUT/'trials.csv').open()))
 
-def group(task):
- name=task['task']
- condition='';attempt=''
- try:
-  rows=export()
-  pending=[c for c in task['condition_order'].split(',') if not any(r['task']==name and r['condition']==c and r['selected_for_comparison']=='1' for r in rows)]
-  if not pending or time.time()>=deadline:return
-  with state:
-   subprocess.run([sys.executable,'-B','-m','benchmark.expanded.prepare',name],check=True)
-   preflight=RAW/'instrumentation-preflights'
-   if not list(preflight.glob('*/*/agent/instrumentation-preflight.json')):
-    subprocess.run([sys.executable,'-B','-m','benchmark.expanded.run',name,'a','--attempt','setup-'+time.strftime('%Y%m%dT%H%M%SZ',time.gmtime()),'--preflight-only'],check=True)
-    assert list(preflight.glob('*/*/agent/instrumentation-preflight.json'))
-  for condition in task['condition_order'].split(','):
-   rows=export()
-   if any(r['task']==name and r['condition']==condition and r['selected_for_comparison']=='1' for r in rows):continue
-   unresolved=[r for r in rows if r['task']==name and r['condition']==condition and r['outcome_valid']!='1' and r['verifier_valid']!='0']
-   if unresolved:print('NEEDS_OUTCOME_AUDIT',name,condition,flush=True);continue
-   if time.time()>=deadline:print('REPORTING_CUTOFF_PARTIAL',name,condition,flush=True);break
-   attempts=[p.name for p in (RAW/'jobs').glob(f'{name}-{condition}-*')]
-   attempt=('1' if condition=='a' else 'block-1') if not attempts else ('repair-' if condition=='a' else 'block-')+str(len(attempts)+1)
-   receipt(name,'before_model_'+condition)
-   print('MODEL_START',name,condition,attempt,time.strftime('%FT%TZ',time.gmtime()),flush=True)
-   subprocess.run([sys.executable,'-B','-m','benchmark.expanded.run',name,condition,'--attempt',attempt],check=True)
-   export()
- except Exception as error:
-  print('TASK_INFRA_OR_AUDIT_PAUSE',name,repr(error),flush=True)
-  with state:
-   with (RAW/'matrix-errors.jsonl').open('a') as f:f.write(json.dumps(dict(task=name,condition=condition,attempt=attempt,utc=time.strftime('%FT%TZ',time.gmtime()),error=repr(error)))+'\n')
- finally:
-  result=docker(['image','ls','-q',task['official_image']],capture_output=True,text=True)
-  if result.stdout.strip():
-   # Explicit tag removal never prunes another group's prepared image.
-   subprocess.run(['docker','image','rm',task['official_image']],env=ENV,check=False)
+def remote(worker,args,**kwargs):
+ port=str(frozen['workers'][worker]['ssh_port'])
+ cmd=['ssh','-i','/tmp/benign-utility-vm/id_ed25519','-p',port,'-o','StrictHostKeyChecking=no','-o','UserKnownHostsFile=/dev/null','root@127.0.0.1',shlex.join(args)]
+ return subprocess.run(cmd,**kwargs)
 
-tasks=list(csv.DictReader((OUT/'tasks.csv').open()))
-with ThreadPoolExecutor(max_workers=3) as pool:list(pool.map(group,tasks))
-rows=export();docker(['image','prune','-af']);docker(['builder','prune','-af'])
-print('EXPANDED_MATRIX_STATUS',sum(r['selected_for_comparison']=='1' for r in rows),'of',54,flush=True)
+def run_worker(worker):
+ assigned=[t for i,t in enumerate(tasks) if 'worker'+str(i%3+1)==worker]
+ for task in assigned:
+  name=task['task']
+  try:
+   rows=export();pending=[c for c in task['condition_order'].split(',') if not any(r['task']==name and r['condition']==c and r['selected_for_comparison']=='1' for r in rows)]
+   if not pending or time.time()>=deadline:continue
+   seal=json.loads((ROOT/'task-seals'/f'{name}.json').read_text());assert seal['worker_id']==worker
+   preflight=RAW/'instrumentation-preflights'
+   done=[]
+   for receipt in preflight.glob(f'*-setup-{worker}-*/*/agent/instrumentation-preflight.json'):
+    scope=json.loads((receipt.parent/'scope.json').read_text())
+    if scope.get('runtime_worker_id')==worker and scope.get('boot_id')==frozen['workers'][worker]['boot_id'] and json.loads(receipt.read_text()).get('passed'):done.append(receipt)
+   if not done:
+    attempt='setup-'+worker+'-'+time.strftime('%Y%m%dT%H%M%SZ',time.gmtime())
+    remote(worker,['bash','/workspaces/exp/benign-utility/src/benchmark/expanded/guest_cell.sh',worker,name,'a',attempt,'preflight'],check=True)
+    assert list(preflight.glob(f'{name}-a-{attempt}/*/agent/instrumentation-preflight.json'))
+   for condition in task['condition_order'].split(','):
+    rows=export()
+    if any(r['task']==name and r['condition']==condition and r['selected_for_comparison']=='1' for r in rows):continue
+    unresolved=[r for r in rows if r['task']==name and r['condition']==condition and r['outcome_valid']!='1' and r['verifier_valid']!='0']
+    if unresolved:print('NEEDS_OUTCOME_AUDIT',name,condition,flush=True);continue
+    if time.time()>=deadline:print('REPORTING_CUTOFF_PARTIAL',name,condition,flush=True);break
+    attempts=[p.name for p in (RAW/'jobs').glob(f'{name}-{condition}-*')]
+    attempt=('1' if condition=='a' else 'block-1') if not attempts else ('repair-' if condition=='a' else 'block-')+str(len(attempts)+1)
+    print('MODEL_START',worker,name,condition,attempt,time.strftime('%FT%TZ',time.gmtime()),flush=True)
+    remote(worker,['bash','/workspaces/exp/benign-utility/src/benchmark/expanded/guest_cell.sh',worker,name,condition,attempt,'model'],check=True)
+    export()
+  except Exception as error:
+   print('TASK_INFRA_OR_AUDIT_PAUSE',worker,name,repr(error),flush=True)
+   with state:
+    with (RAW/'matrix-errors.jsonl').open('a') as f:f.write(json.dumps(dict(worker=worker,task=name,utc=time.strftime('%FT%TZ',time.gmtime()),error=repr(error)))+'\n')
+  finally:
+   remote(worker,['docker','image','rm',task['official_image']],check=False)
+with ThreadPoolExecutor(max_workers=3) as pool:list(pool.map(run_worker,sorted(frozen['workers'])))
+rows=export();print('EXPANDED_MATRIX_STATUS',sum(r['selected_for_comparison']=='1' for r in rows),'of',54,flush=True)
