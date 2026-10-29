@@ -59,7 +59,8 @@ class ModelBackend:
                                          data=json.dumps(payload).encode(), headers=headers)
         start = time.monotonic()
         try:
-            with urllib.request.urlopen(request, timeout=240) as response:
+            # Match the pinned official OllamaBackend request deadline.
+            with urllib.request.urlopen(request, timeout=600) as response:
                 raw = response.read().decode()
             stem.with_suffix(".response.json").write_text(raw)
             obj = json.loads(raw)
