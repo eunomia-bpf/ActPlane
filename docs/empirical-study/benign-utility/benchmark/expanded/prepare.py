@@ -27,8 +27,13 @@ def prepare(task):
     pull(task,chosen['official_image'])
     info=json.loads(docker(['image','inspect',chosen['official_image']],capture_output=True,text=True).stdout)[0]
     directory=RAW/'inventory'/task;directory.mkdir(parents=True,exist_ok=True)
-    script=ROOT/'inventory_image.py'
-    result=docker(['run','--rm','--read-only','--network','none','--entrypoint','python3','--volume',str(script)+':/inventory/inventory_image.py:ro',chosen['official_image'],'-B','/inventory/inventory_image.py'],capture_output=True,text=True)
+    script=Path(__file__).with_name('inventory_image.py').resolve()
+    assert script.is_file()
+    try:result=docker(['run','--rm','--read-only','--network','none','--entrypoint','python3','--volume',str(script)+':/inventory/inventory_image.py:ro',chosen['official_image'],'-B','/inventory/inventory_image.py'],capture_output=True,text=True)
+    except subprocess.CalledProcessError as error:
+        (directory/'inventory-error.stdout').write_text(error.stdout or '')
+        (directory/'inventory-error.stderr').write_text(error.stderr or '')
+        raise
     files=json.loads(result.stdout)
     for item in files:
         encoded=item.pop('public_file_base64',None)
@@ -63,8 +68,8 @@ def prepare(task):
     inventory_receipt=ROOT/'results/per-task'/f'{task}.json';inventory_receipt.parent.mkdir(exist_ok=True)
     inventory_receipt.write_text(json.dumps(dict(image=image,sources=files,known_private_sources=private),indent=2)+'\n')
     seal_files.extend([OUT/'tasks.csv',inventory_receipt])
-    code_root=ROOT.parent
-    code_files=[code_root/'adapter.py',ROOT/'adapter.py',ROOT/'run.py',ROOT/'collect_public.py']
+    code_root=Path(__file__).parent.parent
+    code_files=[code_root/'adapter.py',Path(__file__).parent/'adapter.py',Path(__file__).parent/'run.py',Path(__file__).parent/'collect_public.py']
     target.parent.mkdir(exist_ok=True)
     seal=dict(cohort='expanded_20261029',model='zai/glm-5.3',agent='Harbor0.25.0 Terminus2 official defaults',repetitions=1,files={str(p.relative_to(ROOT)):digest(p) for p in seal_files},runtime_code={str(p.relative_to(code_root)):digest(p) for p in code_files},engine_sha256=digest(BASE/'engine/process'),compiler_sha256=digest(Path(COMPILER)),frozen_before_model_utc=time.strftime('%FT%TZ',time.gmtime()))
     target.write_text(json.dumps(seal,indent=2)+'\n')

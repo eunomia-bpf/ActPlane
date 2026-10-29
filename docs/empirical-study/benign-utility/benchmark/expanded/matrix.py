@@ -17,6 +17,7 @@ def export():
 
 def group(task):
  name=task['task']
+ condition='';attempt=''
  try:
   rows=export()
   pending=[c for c in task['condition_order'].split(',') if not any(r['task']==name and r['condition']==c and r['selected_for_comparison']=='1' for r in rows)]
@@ -42,7 +43,7 @@ def group(task):
  except Exception as error:
   print('TASK_INFRA_OR_AUDIT_PAUSE',name,repr(error),flush=True)
   with state:
-   with (RAW/'matrix-errors.jsonl').open('a') as f:f.write(json.dumps(dict(task=name,utc=time.strftime('%FT%TZ',time.gmtime()),error=repr(error)))+'\n')
+   with (RAW/'matrix-errors.jsonl').open('a') as f:f.write(json.dumps(dict(task=name,condition=condition,attempt=attempt,utc=time.strftime('%FT%TZ',time.gmtime()),error=repr(error)))+'\n')
  finally:
   result=docker(['image','ls','-q',task['official_image']],capture_output=True,text=True)
   if result.stdout.strip():

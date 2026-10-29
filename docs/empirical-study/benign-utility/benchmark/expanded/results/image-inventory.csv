@@ -1,0 +1,2 @@
+task,image,image_id,repo_digests,image_size_bytes,architecture,os,project_instruction_files,utc
+protein-assembly,alexgshaw/protein-assembly:20251031,sha256:910129dce5e537266cd7570ab1894c9ba4112acc63f1863bb393b9a91bdd368d,alexgshaw/protein-assembly@sha256:94de701b57e7ecfdbada6044f8534876e4b58874f8f313184dadc4d7533e0818,120317909,amd64,linux,0,2026-10-29T18:39:01Z

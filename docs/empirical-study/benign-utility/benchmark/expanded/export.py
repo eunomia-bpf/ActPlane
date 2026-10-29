@@ -1,11 +1,13 @@
 """Use shared, unchanged-default CSV logic with explicit separate cohort paths."""
-import csv,hashlib,os,runpy
+import csv,fcntl,hashlib,os,runpy
 from pathlib import Path
 import json
 HERE=Path(__file__).resolve().parent
 abi_helpers=runpy.run_path(str(HERE.parent/'network/freeze.py'))
 canonical=abi_helpers['canonical'];abi_fields=abi_helpers['fields']
 os.environ.update(BU_ANALYSIS_RAW='/workspaces/exp/benign-utility/raw/benchmark/expanded',BU_ANALYSIS_OUT='/workspaces/exp/benign-utility/benchmark/expanded/results',BU_ANALYSIS_COHORT='expanded_20261029')
+_guard=(Path(os.environ['BU_ANALYSIS_OUT'])/'.export.lock').open('a+')
+fcntl.flock(_guard,fcntl.LOCK_EX)
 for filename in ('analyze.py','scope_audit.py','analyze.py'):runpy.run_path(str(HERE.parent/filename),run_name='__main__')
 OUT=Path(os.environ['BU_ANALYSIS_OUT'])
 def read(name):return list(csv.DictReader((OUT/name).open())) if (OUT/name).exists() else []
@@ -89,3 +91,7 @@ for name,rows in [('trials.csv',trials),('calls.csv',calls),('interventions.csv'
 for row in read('protected-results.csv'):
  path=OUT.parent.parent/row['path']
  assert hashlib.sha256(path.read_bytes()).hexdigest()==row['sha256'],'Frozen original outputs changed: '+str(path)
+errors=[]
+error_file=Path(os.environ['BU_ANALYSIS_RAW'])/'matrix-errors.jsonl'
+if error_file.exists():errors=[json.loads(line) for line in error_file.read_text().splitlines() if line.strip()]
+write('execution-errors.csv',errors,['task','condition','attempt','utc','error'])
