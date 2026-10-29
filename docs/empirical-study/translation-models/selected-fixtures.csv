@@ -1,0 +1,16 @@
+repo,commit,edit_preconditions,edit_matches,read_preconditions,read_matches,selected
+Alishahryar1__free-claude-code,dc089df3171beb3e53a8632ffa1ac329c02552ea,0,0,6,6,1
+NVIDIA__NemoClaw,8d9c573149e080640e59b697691f191ded9e5d4a,0,0,6,6,1
+NousResearch__hermes-agent,d165933c560caeb0d6dbf12cd71b1f987e198e1b,1,1,17,17,1
+OpenPipe__ART,b3cff55cc90f9186a9d08bb5edb40a60fe33e02d,4,4,10,10,1
+alibaba__OpenSandbox,9ca9909396dbfe3bb220ef20bc7d4a4578df0910,4,4,14,14,1
+browser-use__browser-harness,a2443d1d5166288b698ee8ac3f77191239006e26,1,1,5,5,1
+code-yeongyu__oh-my-openagent,c64f9288f157996dc56fb6eec82ed55d3133b185,1,1,12,12,1
+czlonkowski__n8n-mcp,9e30942e71c4a746da0769239ba82214776d79e1,3,3,5,5,1
+google__adk-python,9670ce2644f422892997c65940e7330f1a26f799,2,2,5,5,1
+openai__codex,b89ce9a2bcedcfddf3a48f387b7912d602d6d87c,2,2,7,7,1
+openai__openai-agents-python,8eaa4b98722882421b6ea13f20fbc06bbb7149e1,1,1,5,5,1
+openclaw__openclaw,ecc5601b2a4cd4f3e32d862c2ae9aa7097f77bb8,4,4,5,5,1
+rohitg00__agentmemory,a323fb0b96a730df9d417b7313450c571740941b,1,1,5,5,1
+ruvnet__ruflo,d065b15927c6ba7318623e8af123e7980e4c6681,2,2,7,7,1
+yusufkaraaslan__Skill_Seekers,4cd5140b56b44a42cc3c5be0a0c1ba81e20a4af1,2,2,9,7,1

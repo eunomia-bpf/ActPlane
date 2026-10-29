@@ -1,0 +1,3 @@
+baseline,basis,violation_traces,compliant_traces,true_positives,false_positives,detection_rate,false_trigger_rate,f1
+always_trigger,analytic_constant_classifier,114,76,114,76,1.0,1.0,0.75
+never_trigger,analytic_constant_classifier,114,76,0,0,0.0,0.0,0.0

@@ -1,0 +1,4 @@
+model,corpus,maximum_transports,worker_limit,cutoff_utc,trigger,selection,quiescent_s
+zai/glm-4.7-flash,rq2,6,1,2026-10-29T08:30:00+00:00,original corpus model queue complete,access failures only; returned answers cached,0
+zai/glm-4.7-flash,rq1,6,1,2026-10-29T08:30:00+00:00,original corpus model queue complete,access failures only; returned answers cached,0
+qwen3.8-27b-nvfp4,rq1,6,4,2026-10-29T08:30:00+00:00,original corpus model queue complete,access failures only; returned answers cached,600

@@ -1,0 +1,3 @@
+repo,commit,basis,url,archive_sha256
+yusufkaraaslan__Skill_Seekers,4cd5140b56b44a42cc3c5be0a0c1ba81e20a4af1,"v3.6.0 release commit, matching the version literal in trace Edit inputs",https://codeload.github.com/yusufkaraaslan/Skill_Seekers/tar.gz/4cd5140b56b44a42cc3c5be0a0c1ba81e20a4af1,92ce0e5e6a178a5bb7d4b8be499b54f1e530162e117b490aaf15476023e4f554
+openclaw__openclaw,ecc5601b2a4cd4f3e32d862c2ae9aa7097f77bb8,"last upstream commit before 2026-05-30, intermediate source candidate",https://codeload.github.com/openclaw/openclaw/tar.gz/ecc5601b2a4cd4f3e32d862c2ae9aa7097f77bb8,0723e0834d4000317d5aa387312117e3e3d2f060ca7b7869f1870767cddcf687
