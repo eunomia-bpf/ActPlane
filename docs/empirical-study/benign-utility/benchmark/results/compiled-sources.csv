@@ -5,9 +5,9 @@ b,SECRET,file,**/*.env.local,1,2,.env.local,2
 b,SECRET,file,**/*.env.production,1,2,.env.production,2
 b,SECRET,file,**/*.pem,1,2,.pem,2
 b,SECRET,file,**/*.key,1,2,.key,2
-b,SECRET,file,*id_rsa,1,4,id_rsa,2
-b,SECRET,file,*id_ed25519,1,4,id_ed25519,2
-b,SECRET,file,*credentials.json,1,4,credentials.json,2
+b,SECRET,file,**/*id_rsa,1,2,id_rsa,2
+b,SECRET,file,**/*id_ed25519,1,2,id_ed25519,2
+b,SECRET,file,**/*credentials.json,1,2,credentials.json,2
 b,SECRET,file,/root/.aws/credentials,1,0,/root/.aws/credentials,2
 b,SECRET,file,/root/.gemini/oauth_creds.json,1,0,/root/.gemini/oauth_creds.json,2
 b,SECRET,file,/etc/secrets/**,1,1,/etc/secrets/,2

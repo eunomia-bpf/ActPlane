@@ -1,7 +1,7 @@
 """Inspect actual compiler output and record engine/model provenance."""
 import csv,hashlib,json,re,struct,subprocess,urllib.request
 from pathlib import Path
-RAW=Path('/workspaces/exp/benign-utility/raw/benchmark');HERE=Path(__file__).parent;OUT=HERE/'results'
+RAW=Path('/workspaces/exp/benign-utility/raw/benchmark');HERE=Path(__file__).parent;OUT=RAW.parent.parent/'benchmark/results'
 OUT.mkdir(exist_ok=True);rows=[]
 act='/workspaces/lanes/translation-models/target/release/actplane'
 for condition in ['b','c']:
@@ -25,6 +25,6 @@ with (OUT/'binaries.csv').open('w',newline='') as f:
  w=csv.DictWriter(f,fieldnames=['component','path','sha256']);w.writeheader();w.writerows(provenance)
 try:
  model=json.load(urllib.request.urlopen('http://qwen38-vllm.models.svc.cluster.local:8000/v1/models',timeout=20))
- (OUT/'model-metadata.json').write_text(json.dumps(model,indent=2)+'\n')
+ (OUT/'qwen-candidate-model-metadata.json').write_text(json.dumps(model,indent=2)+'\n')
 except Exception as e:print('Model metadata unavailable',repr(e))
 print('Audited',len(rows),'sources')

@@ -1,8 +1,8 @@
 """Export official Harbor rewards and separately labeled security diagnostics."""
-import bisect,csv,json,re,shutil
+import bisect,csv,hashlib,json,re
 from datetime import datetime
 from pathlib import Path
-RAW=Path('/workspaces/exp/benign-utility/raw/benchmark');HERE=Path(__file__).parent;OUT=HERE/'results';OUT.mkdir(exist_ok=True)
+RAW=Path('/workspaces/exp/benign-utility/raw/benchmark');HERE=Path(__file__).parent;OUT=RAW.parent.parent/'benchmark/results';OUT.mkdir(parents=True,exist_ok=True)
 tasks=[r['task'] for r in csv.DictReader((OUT/'tasks.csv').open())]
 def write(name,rows,fields):
  with (OUT/name).open('w',newline='') as f:
@@ -26,6 +26,14 @@ for job in sorted((RAW/'jobs').glob('*')):
   d=json.loads(result_path.read_text());agent=result_path.parent/'agent';exception=d.get('exception_info') or {};reward=((d.get('verifier_result') or {}).get('rewards') or {}).get('reward','')
   call_records=records(agent/'calls.jsonl');calls={}
   for r in call_records:calls.setdefault(r['index'],{}).update(r)
+  trajectory=json.loads((agent/'trajectory.json').read_text()) if (agent/'trajectory.json').exists() else {}
+  native=[tc for step in trajectory.get('steps',[]) for tc in step.get('tool_calls',[])]
+  native_cursor=0
+  for i,call in sorted(calls.items()):
+   if call.get('unit')!='tool_call':continue
+   for pos in range(native_cursor,len(native)):
+    if native[pos].get('arguments',{}).get('keystrokes')==call.get('keystrokes'):
+     call['native_tool_call_id']=native[pos].get('tool_call_id','');native_cursor=pos+1;break
   ordered=sorted(calls);starts=[calls[i]['start_ns'] for i in ordered]
   def index(ts):
    pos=bisect.bisect_right(starts,int(ts))-1
@@ -59,13 +67,13 @@ for job in sorted((RAW/'jobs').glob('*')):
   trials.append(dict(**common,model=(d.get('agent_info',{}).get('model_info') or {}).get('name',''),run_status=run_status,official_reward=reward,official_success=int(reward==1) if reward!='' else '',exception_type=infrastructure,exception_message=exception.get('exception_message','')[:300],wall_s=seconds(d),environment_setup_s=seconds(d.get('environment_setup')),agent_setup_s=seconds(d.get('agent_setup')),agent_execution_s=seconds(d.get('agent_execution')),verifier_s=seconds(d.get('verifier')),tool_calls=len(calls),call_unit='tool_call' if calls and all(c.get('unit')=='tool_call' for c in calls.values()) else 'command_batch',intervention_events=len(events),killed_events=killed,intervened_calls=sum(v>0 for v in fired_by_index.values()),confirmed_false_events=0,confirmed_true_events=0,unknown_events=len(events),source_read_accesses=len(reads),source_read_processes=len({r['pid'] for r in reads}),source_paths=len({r['path'] for r in reads}),connect_attempts=len(connects),coverage=coverage,raw_result=str(result_path)))
   for i in ordered:
    call=calls[i];bin_start=((i-1)//10)*10+1
-   calls_out.append(dict(**common,call_index=i,bin_start=bin_start,bin_end=bin_start+9,start_ns=call['start_ns'],end_ns=call.get('end_ns',''),intervention_events=fired_by_index[i],intervened=int(fired_by_index[i]>0),confirmed_false=0,unknown=int(fired_by_index[i]>0),source_read_accesses=sum(r['call_index']==i for r in reads),connect_attempts=sum(r['call_index']==i for r in connects),coverage=coverage))
+   calls_out.append(dict(**common,call_index=i,native_tool_call_id=call.get('native_tool_call_id',''),bin_start=bin_start,bin_end=bin_start+9,start_ns=call['start_ns'],end_ns=call.get('end_ns',''),intervention_events=fired_by_index[i],intervened=int(fired_by_index[i]>0),confirmed_false=0,unknown=int(fired_by_index[i]>0),source_read_accesses=sum(r['call_index']==i for r in reads),connect_attempts=sum(r['call_index']==i for r in connects),coverage=coverage))
+  trials[-1].update(atif_logged_tool_calls=len(native),dispatched_tool_calls=len(calls),unexecuted_or_unmapped_atif_calls=max(0,len(native)-len(calls)),kernel_root_verified=int(bool(scope.get('kernel_root_verified'))),kernel_root_pid=scope.get('root_host_pid',''),workspace_root_pid=scope.get('root_workspace_pid',''),observer_sha256=hashlib.sha256((agent/'observer.bt').read_bytes()).hexdigest() if (agent/'observer.bt').exists() else '',policy_sha256=hashlib.sha256((agent/'policy.bin').read_bytes()).hexdigest() if (agent/'policy.bin').exists() else '')
   for number,e in enumerate(events,1):
    events_out.append(dict(**common,event_id=number,call_index=index(e['timestamp']),timestamp_ns=e['timestamp'],pid=e['pid'],session_root=e.get('session_root',''),effect=e.get('effect',''),killed=e.get('killed',''),blocked=e.get('blocked',''),target=e.get('target',''),provenance=json.dumps(e.get('provenance'),sort_keys=True),adjudication='unknown',evidence='Independent semantic adjudication pending'))
   reads_out.extend(dict(**common,**r) for r in reads)
-write('trials.csv',trials,['task','condition','attempt','trial_id','main_matrix','model','run_status','official_reward','official_success','exception_type','exception_message','wall_s','environment_setup_s','agent_setup_s','agent_execution_s','verifier_s','tool_calls','call_unit','intervention_events','killed_events','intervened_calls','confirmed_false_events','confirmed_true_events','unknown_events','source_read_accesses','source_read_processes','source_paths','connect_attempts','coverage','raw_result'])
-write('calls.csv',calls_out,['task','condition','attempt','trial_id','main_matrix','call_index','bin_start','bin_end','start_ns','end_ns','intervention_events','intervened','confirmed_false','unknown','source_read_accesses','connect_attempts','coverage'])
+write('trials.csv',trials,['task','condition','attempt','trial_id','main_matrix','model','run_status','official_reward','official_success','exception_type','exception_message','wall_s','environment_setup_s','agent_setup_s','agent_execution_s','verifier_s','tool_calls','call_unit','atif_logged_tool_calls','dispatched_tool_calls','unexecuted_or_unmapped_atif_calls','intervention_events','killed_events','intervened_calls','confirmed_false_events','confirmed_true_events','unknown_events','source_read_accesses','source_read_processes','source_paths','connect_attempts','coverage','kernel_root_verified','kernel_root_pid','workspace_root_pid','observer_sha256','policy_sha256','raw_result'])
+write('calls.csv',calls_out,['task','condition','attempt','trial_id','main_matrix','call_index','native_tool_call_id','bin_start','bin_end','start_ns','end_ns','intervention_events','intervened','confirmed_false','unknown','source_read_accesses','connect_attempts','coverage'])
 write('interventions.csv',events_out,['task','condition','attempt','trial_id','main_matrix','event_id','call_index','timestamp_ns','pid','session_root','effect','killed','blocked','target','provenance','adjudication','evidence'])
 write('source-read-accesses.csv',reads_out,['task','condition','attempt','trial_id','main_matrix','timestamp_ns','pid','path','path_truncated','call_index'])
 print('Trials',len(trials),'official outcomes',sum(r['official_reward']!='' for r in trials),'events',len(events_out))
-shutil.copytree(OUT,RAW.parent.parent/'benchmark/results',dirs_exist_ok=True)

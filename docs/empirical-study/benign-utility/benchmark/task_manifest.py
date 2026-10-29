@@ -2,7 +2,7 @@
 import csv,hashlib,json,tomllib,importlib.metadata
 from pathlib import Path
 RAW=Path('/workspaces/exp/benign-utility/raw/benchmark')
-OUT=Path(__file__).parent/'results'
+OUT=RAW.parent.parent/'benchmark/results'
 TASKS=['cancel-async-tasks','git-leak-recovery','log-summary-date-ranges','openssl-selfsigned-cert','sanitize-git-repo','vulnerable-secret']
 OUT.mkdir(exist_ok=True)
 rows=[]
@@ -13,4 +13,7 @@ for index,name in enumerate(TASKS):
  print('Frozen',name)
 with (OUT/'tasks.csv').open('w',newline='') as f:
  w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
-(OUT/'versions.json').write_text(json.dumps({'harbor':importlib.metadata.version('harbor'),'terminus_2':'2.0.0','dataset':'terminal-bench@2.0','commit':rows[0]['dataset_commit'],'model':'zai/glm-5.3','model_url':'Workspace LITELLM_BASE_URL','candidate_preflight_model':'qwen3.8-27b-nvfp4','seed':'unset official default','repetitions':1,'selection':'purposive software/data and secret-handling tasks, not a representative estimate of full benchmark'},indent=2)+'\n')
+versions={'harbor':importlib.metadata.version('harbor'),'terminus_2':'2.0.0','dataset':'terminal-bench@2.0','commit':rows[0]['dataset_commit'],'model':'zai/glm-5.3','model_url':'Workspace LITELLM_BASE_URL','candidate_preflight_model':'qwen3.8-27b-nvfp4','seed':'unset official default','repetitions':1,'selection':'purposive software/data and secret-handling tasks, not a representative estimate of full benchmark'}
+(OUT/'versions.json').write_text(json.dumps(versions,indent=2)+'\n')
+with (OUT/'versions.csv').open('w',newline='') as f:
+ w=csv.DictWriter(f,fieldnames=['component','value']);w.writeheader();w.writerows(dict(component=k,value=v) for k,v in versions.items())
