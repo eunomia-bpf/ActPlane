@@ -1,0 +1,43 @@
+{
+  "path": "/workspaces/exp/benign-utility/raw/benchmark/expanded/vm/recovery-20261029T2005/golden-standalone.qcow2",
+  "sha256": "f4ffb01bb6effef9cbe1b405fc6db350d4b8601b99f81217d1c8162ccbdb553d",
+  "bytes": 1384972288,
+  "frozen_utc": "2026-10-29T20:12:16Z",
+  "image_info": {
+    "children": [
+      {
+        "name": "file",
+        "info": {
+          "children": [],
+          "virtual-size": 1384972288,
+          "filename": "/workspaces/exp/benign-utility/raw/benchmark/expanded/vm/recovery-20261029T2005/golden-standalone.qcow2",
+          "format": "file",
+          "actual-size": 1379844096,
+          "format-specific": {
+            "type": "file",
+            "data": {}
+          },
+          "dirty-flag": false
+        }
+      }
+    ],
+    "virtual-size": 536870912000,
+    "filename": "/workspaces/exp/benign-utility/raw/benchmark/expanded/vm/recovery-20261029T2005/golden-standalone.qcow2",
+    "cluster-size": 65536,
+    "format": "qcow2",
+    "actual-size": 1379844096,
+    "format-specific": {
+      "type": "qcow2",
+      "data": {
+        "compat": "1.1",
+        "compression-type": "zlib",
+        "lazy-refcounts": false,
+        "refcount-bits": 16,
+        "corrupt": false,
+        "extended-l2": false
+      }
+    },
+    "dirty-flag": false
+  },
+  "reason": "Clean setup-only standalone durable golden after group OOM; zero valid primary outcomes before recovery"
+}

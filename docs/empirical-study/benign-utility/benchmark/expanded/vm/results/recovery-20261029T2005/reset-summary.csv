@@ -1,0 +1,2 @@
+captured_utc,host_boot_id,mem_total_kib,mem_available_kib,previous_guest_memory_mib,recovery_guest_memory_mib,recovery_workers,global_oom_confirmed,own_pod_group_kill_confirmed,old_runtime_exists,kubernetes_status_available,source_receipt
+2026-10-29T20:04:43.472606+00:00,b9f36ea8-4684-4f84-ac3c-1c076ccf4931,63879676,20623252,73728,8192,1,True,True,False,False,/workspaces/exp/benign-utility/raw/benchmark/expanded/vm/reset-20261029T1954/diagnostic.json

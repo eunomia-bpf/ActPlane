@@ -1,0 +1,2 @@
+worker,port,pid,vcpus,memory_mib,template_sha256,started_utc,environment_id
+1,2247,7324,8,8192,f4ffb01bb6effef9cbe1b405fc6db350d4b8601b99f81217d1c8162ccbdb553d,2026-10-29T20:12:16Z,workspace_kvm_recovery_20261029T2005

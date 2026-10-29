@@ -1,0 +1,43 @@
+[
+  {
+    "worker": 1,
+    "port": 2247,
+    "pid": 7324,
+    "vcpus": 8,
+    "memory_mib": 8192,
+    "command": [
+      "qemu-system-x86_64",
+      "-name",
+      "benign-utility-worker1-recovery",
+      "-enable-kvm",
+      "-cpu",
+      "host",
+      "-smp",
+      "8",
+      "-m",
+      "8192",
+      "-drive",
+      "file=/tmp/benign-utility-vm/worker1.qcow2,if=virtio,format=qcow2",
+      "-netdev",
+      "user,id=n1,hostfwd=tcp:127.0.0.1:2247-:22",
+      "-device",
+      "virtio-net-pci,netdev=n1,mac=52:54:00:12:34:56",
+      "-virtfs",
+      "local,path=/workspaces/exp/benign-utility,mount_tag=lane,security_model=none,multidevs=remap,id=lane",
+      "-virtfs",
+      "local,path=/workspaces/lanes/translation-models,mount_tag=translation,security_model=none,readonly=on,multidevs=remap,id=translation",
+      "-display",
+      "none",
+      "-serial",
+      "file:/workspaces/exp/benign-utility/raw/benchmark/expanded/vm/recovery-20261029T2005/worker1-serial.log",
+      "-daemonize",
+      "-pidfile",
+      "/tmp/benign-utility-vm/worker1.pid",
+      "-monitor",
+      "unix:/tmp/benign-utility-vm/worker1-monitor.sock,server,nowait"
+    ],
+    "template_sha256": "f4ffb01bb6effef9cbe1b405fc6db350d4b8601b99f81217d1c8162ccbdb553d",
+    "started_utc": "2026-10-29T20:12:16Z",
+    "environment_id": "workspace_kvm_recovery_20261029T2005"
+  }
+]

@@ -50,7 +50,8 @@ for name, path in [('engine',ROOT/'raw/benchmark/engine/process'),
     assert hashlib.sha256(path.read_bytes()).hexdigest()==data['tool_sha256'][name]
 data['captured_utc']=time.strftime('%FT%TZ',time.gmtime())
 data['host_kernel']=subprocess.check_output(['uname','-r'],text=True).strip()
-data['host_lsm']=Path('/sys/kernel/security/lsm').read_text().strip()
+host_lsm=Path('/sys/kernel/security/lsm')
+data['host_lsm']=host_lsm.read_text().strip() if host_lsm.exists() else 'unavailable: host securityfs not mounted in restarted container'
 data['capture_stage']='isolated_primary_worker' if args.worker else 'preparation_before_worker_cloning'
 if args.worker:
     data['worker']=args.worker
