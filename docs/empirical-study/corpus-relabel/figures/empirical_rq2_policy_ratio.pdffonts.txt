@@ -1,0 +1,4 @@
+name                                 type              encoding         emb sub uni object ID
+------------------------------------ ----------------- ---------------- --- --- --- ---------
+FISDGX+DejaVuSans                    CID TrueType      Identity-H       yes yes yes     15  0
+CPUQYB+DejaVuSans                    CID TrueType      Identity-H       yes yes yes     22  0

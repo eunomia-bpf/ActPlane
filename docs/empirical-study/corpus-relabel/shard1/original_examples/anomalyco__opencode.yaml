@@ -1,0 +1,398 @@
+file: "anomalyco/opencode/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 2]
+    text: |
+      - To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 2
+    lines: [2, 3]
+    text: |
+      - ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 3
+    lines: [3, 4]
+    text: |
+      - The default branch in this repo is `dev`.
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [4, 5]
+    text: |
+      - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 5
+    lines: [5, 6]
+    text: |
+      - Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety/irreversibility.
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 6
+    lines: [6, 14]
+    text: |
+
+      ## Commits and PR Titles
+
+      Use conventional commit-style messages and PR titles: `type(scope): summary`.
+
+      Valid types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`. Scopes are optional; use the affected package or area when helpful, e.g. `core`, `opencode`, `tui`, `app`, `desktop`, `sdk`, or `plugin`.
+
+      Examples: `fix(tui): simplify thinking toggle styling`, `docs: update contributing guide`, `chore(sdk): regenerate types`.
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 7
+    lines: [14, 20]
+    text: |
+
+      ## Style Guide
+
+      ### General Principles
+
+      - Keep things in one function unless composable or reusable
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 8
+    lines: [20, 21]
+    text: |
+      - Do not extract single-use helpers preemptively. Inline the logic at the call site unless the helper is reused, hides a genuinely complex boundary, or has a clear independent name that improves the caller.
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 9
+    lines: [21, 22]
+    text: |
+      - Avoid `try`/`catch` where possible
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 10
+    lines: [22, 23]
+    text: |
+      - Avoid using the `any` type
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 11
+    lines: [23, 24]
+    text: |
+      - Use Bun APIs when possible, like `Bun.file()`
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 12
+    lines: [24, 25]
+    text: |
+      - Rely on type inference when possible; avoid explicit type annotations or interfaces unless necessary for exports or clarity
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 13
+    lines: [25, 26]
+    text: |
+      - Prefer functional array methods (flatMap, filter, map) over for loops; use type guards on filter to maintain type inference downstream
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 14
+    lines: [26, 28]
+    text: |
+      - In `src/config`, follow the existing self-export pattern at the top of the file (for example `export * as ConfigAgent from "./agent"`) when adding a new config module.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 15
+    lines: [28, 39]
+    text: |
+      Reduce total variable count by inlining when a value is only used once.
+
+      ```ts
+      // Good
+      const journal = await Bun.file(path.join(dir, "journal.json")).json()
+
+      // Bad
+      const journalPath = path.join(dir, "journal.json")
+      const journal = await Bun.file(journalPath).json()
+      ```
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 16
+    lines: [39, 52]
+    text: |
+      ### Destructuring
+
+      Avoid unnecessary destructuring. Use dot notation to preserve context.
+
+      ```ts
+      // Good
+      obj.a
+      obj.b
+
+      // Bad
+      const { a, b } = obj
+      ```
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 17
+    lines: [52, 66]
+    text: |
+
+      ### Variables
+
+      Prefer `const` over `let`. Use ternaries or early returns instead of reassignment.
+
+      ```ts
+      // Good
+      const foo = condition ? 1 : 2
+
+      // Bad
+      let foo
+      if (condition) foo = 1
+      else foo = 2
+      ```
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 18
+    lines: [66, 84]
+    text: |
+
+      ### Control Flow
+
+      Avoid `else` statements. Prefer early returns.
+
+      ```ts
+      // Good
+      function foo() {
+        if (condition) return 1
+        return 2
+      }
+
+      // Bad
+      function foo() {
+        if (condition) return 1
+        else return 2
+      }
+      ```
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 19
+    lines: [84, 101]
+    text: |
+
+      ### Complex Logic
+
+      When a function has several validation branches or supporting details, make the main function read as the happy path and move supporting details into small helpers below it.
+
+      ```ts
+      // Good
+      export function loadThing(input: unknown) {
+        const config = requireConfig(input)
+        const metadata = readMetadata(input)
+        return createThing({ config, metadata })
+      }
+
+      function requireConfig(input: unknown) {
+        ...
+      }
+      ```
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 20
+    lines: [101, 102]
+    text: |
+      - Keep helpers close to the code they support, below the main export when that improves readability.
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 21
+    lines: [102, 103]
+    text: |
+      - Do not over-abstract simple expressions into many single-use helpers; extract only when it names a real concept like `requireConfig` or `readMetadata`.
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 22
+    lines: [103, 104]
+    text: |
+      - Do not return `Effect` from helpers unless they actually perform effectful work. Synchronous parsing, validation, and option building should stay synchronous.
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 23
+    lines: [104, 105]
+    text: |
+      - Prefer Effect schema helpers such as `Schema.UnknownFromJsonString` and `Schema.decodeUnknownOption` over manual `JSON.parse` wrapped in `Effect.try` when parsing untrusted JSON strings.
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 24
+    lines: [105, 107]
+    text: |
+      - Add comments for non-obvious constraints and surprising behavior, not for obvious assignments or control flow.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 25
+    lines: [107, 127]
+    text: |
+      ### Schema Definitions (Drizzle)
+
+      Use snake_case for field names so column names don't need to be redefined as strings.
+
+      ```ts
+      // Good
+      const table = sqliteTable("session", {
+        id: text().primaryKey(),
+        project_id: text().notNull(),
+        created_at: integer().notNull(),
+      })
+
+      // Bad
+      const table = sqliteTable("session", {
+        id: text("id").primaryKey(),
+        projectID: text("project_id").notNull(),
+        createdAt: integer("created_at").notNull(),
+      })
+      ```
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 26
+    lines: [127, 130]
+    text: |
+      ## Testing
+
+      - Avoid mocks as much as possible
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 27
+    lines: [130, 131]
+    text: |
+      - Test actual implementation, do not duplicate logic into tests
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 28
+    lines: [131, 133]
+    text: |
+      - Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/opencode`.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 29
+    lines: [133, 136]
+    text: |
+      ## Type Checking
+
+      - Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high

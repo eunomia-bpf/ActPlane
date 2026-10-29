@@ -1,0 +1,322 @@
+file: "rohitg00/agentmemory/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 12]
+    text: |
+      # agentmemory — Agent Instructions
+
+      ## Architecture
+
+      agentmemory is a persistent memory system for AI coding agents, built on iii-engine's three primitives (Worker/Function/Trigger). Everything goes through `registerFunction`/`registerTrigger`/`sdk.trigger()` — never bypass iii-engine with standalone SQLite or in-process alternatives.
+
+      - **Engine**: iii-sdk (WebSocket to iii-engine on port 49134)
+      - **State**: File-based SQLite via iii-engine's StateModule (`./data/state_store.db`)
+      - **Build**: TypeScript → ESM via tsdown, output to `dist/`
+      - **Test**: vitest (`npm test` excludes integration tests)
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [12, 23]
+    text: |
+      ## Consistency Rules
+
+      **When adding or removing MCP tools, you MUST update ALL of the following:**
+      1. `src/mcp/tools-registry.ts` — tool definition + `getAllTools()` array
+      2. `src/mcp/server.ts` — handler case in the `mcp::tools::call` switch
+      3. `src/triggers/api.ts` — REST endpoint registration
+      4. `src/index.ts` — function registration + endpoint count in the log line
+      5. `test/mcp-standalone.test.ts` — tool count assertion
+      6. `README.md` — tool counts (search for "MCP tools")
+      7. `plugin/.claude-plugin/plugin.json` — tool count in description
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 3
+    lines: [23, 28]
+    text: |
+      **When adding REST endpoints, you MUST update:**
+      1. `src/triggers/api.ts` — endpoint registration
+      2. `src/index.ts` — endpoint count in the log line
+      3. `README.md` — endpoint count (search for "REST endpoints" and "endpoints on port")
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 4
+    lines: [28, 36]
+    text: |
+      **When bumping version, you MUST update ALL of the following:**
+      1. `package.json` — version field
+      2. `src/version.ts` — VERSION constant and type union
+      3. `src/types.ts` — ExportData version union
+      4. `src/functions/export-import.ts` — supportedVersions set
+      5. `test/export-import.test.ts` — version assertion
+      6. `plugin/.claude-plugin/plugin.json` — version field
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 5
+    lines: [36, 40]
+    text: |
+      **When adding new KV scopes:**
+      1. `src/state/schema.ts` — add to the KV object
+      2. `src/types.ts` — add the corresponding interface
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 6
+    lines: [40, 43]
+    text: |
+      **When adding new audit operations:**
+      1. `src/types.ts` — add to AuditEntry.operation union type
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 7
+    lines: [43, 57]
+    text: |
+      ## Code Patterns
+
+      ### Function Registration
+      ```typescript
+      sdk.registerFunction(
+        "mem::your-function",
+        async (data: { ... }) => {
+          // validate inputs
+          // do work via kv.get/kv.set/kv.list
+          // record audit via recordAudit()
+          return { success: true, ... };
+        },
+      );
+      ```
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [57, 77]
+    text: |
+
+      ### REST Endpoint Registration
+      ```typescript
+      sdk.registerFunction("api::your-endpoint", async (req: ApiRequest) => {
+        const denied = checkAuth(req, secret);
+        if (denied) return denied;
+        const body = req.body as Record<string, unknown>;
+        // validate + whitelist fields (never pass raw body to sdk.trigger)
+        const result = await sdk.trigger({
+          function_id: "mem::your-function",
+          payload: { ... },
+        });
+        return { status_code: 200, body: result };
+      });
+      sdk.registerTrigger({
+        type: "http",
+        function_id: "api::your-endpoint",
+        config: { api_path: "/agentmemory/your-path", http_method: "POST" },
+      });
+      ```
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [77, 90]
+    text: |
+
+      ### MCP Tool Handler
+      ```typescript
+      case "memory_your_tool": {
+        // validate args with typeof checks
+        // parse CSV args: args.field.split(",").map(t => t.trim()).filter(Boolean)
+        const result = await sdk.trigger({
+          function_id: "mem::your-function",
+          payload: { ... },
+        });
+        return { status_code: 200, body: { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] } };
+      }
+      ```
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [90, 94]
+    text: |
+
+      ### Hook Scripts
+      Hook scripts in `src/hooks/` are standalone Node.js scripts (no iii-sdk import). They read JSON from stdin, make HTTP calls to the REST API, and exit. Always use `try/catch` with `AbortSignal.timeout()` for best-effort calls.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 11
+    lines: [94, 97]
+    text: |
+      ## Coding Standards
+
+      - TypeScript, ESM only (`"type": "module"`)
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 12
+    lines: [97, 98]
+    text: |
+      - No code comments explaining WHAT — use clear naming instead
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 13
+    lines: [98, 99]
+    text: |
+      - Use `fingerprintId()` for content-addressable dedup, `generateId()` for unique IDs
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 14
+    lines: [99, 100]
+    text: |
+      - Parallel operations where possible (`Promise.all` for independent kv writes/reads)
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 15
+    lines: [100, 101]
+    text: |
+      - Input validation at system boundaries (MCP handlers, REST endpoints)
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 16
+    lines: [101, 102]
+    text: |
+      - REST endpoints must whitelist fields — never pass raw request body to `sdk.trigger()`
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 17
+    lines: [102, 103]
+    text: |
+      - Use `recordAudit()` for state-changing operations
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 18
+    lines: [103, 105]
+    text: |
+      - Timestamps: capture once with `new Date().toISOString()` and reuse
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 19
+    lines: [105, 108]
+    text: |
+      ## Testing
+
+      - All tests must pass before PR: `npm test` (950+ tests)
+    type: directive
+    topic: Testing
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 20
+    lines: [108, 109]
+    text: |
+      - Mock pattern: `vi.mock("iii-sdk")` with mock `sdk.trigger`, `kv.get/set/list`
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 21
+    lines: [109, 110]
+    text: |
+      - Test files go in `test/` with `.test.ts` extension
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 22
+    lines: [110, 112]
+    text: |
+      - Follow existing patterns in `test/crystallize.test.ts` for function tests
+
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 23
+    lines: [112, 120]
+    text: |
+      ## Current Stats (v0.9.16)
+
+      - 53 MCP tools (8 visible by default, `AGENTMEMORY_TOOLS=all` for all)
+      - 124 REST endpoints
+      - 6 MCP resources, 3 MCP prompts
+      - 12 hooks, 4 skills
+      - 50+ iii functions
+      - 950+ tests
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high

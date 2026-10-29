@@ -1,0 +1,937 @@
+file: "yusufkaraaslan/Skill_Seekers/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 5]
+    text: |
+      # AGENTS.md - Skill Seekers
+
+      Comprehensive reference for AI coding agents. Skill Seekers is a Python CLI tool (v3.5.0) that converts documentation sites, GitHub repos, PDFs, videos, notebooks, wikis, and more into AI-ready skills for 21+ LLM platforms and RAG pipelines.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [5, 9]
+    text: |
+      ## Project Overview
+
+      **Skill Seekers** is a universal preprocessing layer that transforms raw documentation and code into structured knowledge assets. It supports 17+ source types and exports to 21+ AI platforms including Claude, Gemini, OpenAI, LangChain, LlamaIndex, and various vector databases.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [9, 11]
+    text: |
+      ### Key Capabilities
+      - **Source Types (17):** Documentation websites, GitHub repos, PDFs, Word docs, EPUBs, videos, local codebases, Jupyter notebooks, HTML, OpenAPI specs, AsciiDoc, PowerPoint, Confluence, Notion, RSS feeds, man pages, chat exports
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [11, 12]
+    text: |
+      - **Export Targets (21):** Claude, Gemini, OpenAI, MiniMax, OpenCode, Kimi, DeepSeek, Qwen, OpenRouter, Together AI, Fireworks AI, Markdown, LangChain, LlamaIndex, Haystack, Weaviate, ChromaDB, FAISS, Qdrant, Pinecone
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [12, 14]
+    text: |
+      - **MCP Server:** FastMCP-based Model Context Protocol server for AI assistant integration
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [14, 35]
+    text: |
+      ## Setup
+
+      ```bash
+      # REQUIRED before running tests (src/ layout — tests hard-exit if package not installed)
+      pip install -e .
+
+      # With dev tools (pytest, ruff, mypy, coverage)
+      pip install -e ".[dev]"
+
+      # With specific LLM platform support
+      pip install -e ".[gemini]"      # Google Gemini
+      pip install -e ".[openai]"      # OpenAI ChatGPT
+      pip install -e ".[all-llms]"    # All LLM platforms
+
+      # With all optional dependencies (except video-full)
+      pip install -e ".[all]"
+
+      # Full video processing (heavy dependencies)
+      pip install -e ".[video-full]"
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [35, 37]
+    text: |
+      Note: `tests/conftest.py` checks that `skill_seekers` is importable and calls `sys.exit(1)` if not. Always install in editable mode first.
+
+    type: directive
+    topic: Build and Run
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 8
+    lines: [37, 47]
+    text: |
+      ### Environment Variables
+
+      Create a `.env` file or export these variables:
+      ```bash
+      ANTHROPIC_API_KEY      # For Claude AI enhancement
+      GOOGLE_API_KEY         # For Gemini support
+      OPENAI_API_KEY         # For OpenAI support
+      GITHUB_TOKEN           # For GitHub repo scraping (higher rate limits)
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [47, 80]
+    text: |
+      ## Build / Test / Lint Commands
+
+      ```bash
+      # Run ALL tests (never skip tests — all must pass before commits)
+      pytest tests/ -v
+
+      # Run a single test file
+      pytest tests/test_scraper_features.py -v
+
+      # Run a single test function
+      pytest tests/test_scraper_features.py::test_detect_language -v
+
+      # Run a single test class method
+      pytest tests/test_adaptors/test_claude_adaptor.py::TestClaudeAdaptor::test_package -v
+
+      # Skip slow/integration tests
+      pytest tests/ -v -m "not slow and not integration"
+
+      # With coverage
+      pytest tests/ --cov=src/skill_seekers --cov-report=term
+
+      # Lint (ruff)
+      ruff check src/ tests/
+      ruff check src/ tests/ --fix
+
+      # Format (ruff)
+      ruff format --check src/ tests/
+      ruff format src/ tests/
+
+      # Type check (mypy)
+      mypy src/skill_seekers --show-error-codes --pretty
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [80, 82]
+    text: |
+      **Pytest config** (from pyproject.toml): `addopts = "-v --tb=short --strict-markers"`, `asyncio_mode = "auto"`, `asyncio_default_fixture_loop_scope = "function"`.
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [82, 84]
+    text: |
+      **Test markers:** `slow`, `integration`, `e2e`, `venv`, `bootstrap`, `benchmark`, `asyncio`.
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [84, 86]
+    text: |
+      **Async tests:** use `@pytest.mark.asyncio`; asyncio_mode is `auto` so the decorator is often implicit.
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [86, 88]
+    text: |
+      **Test count:** 160 test files (138 in `tests/`, 22 in `tests/test_adaptors/`).
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [88, 92]
+    text: |
+      ## Code Style
+
+      ### Formatting Rules (ruff — from pyproject.toml)
+      - **Line length:** 100 characters
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [92, 93]
+    text: |
+      - **Target Python:** 3.10+
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [93, 94]
+    text: |
+      - **Enabled lint rules:** E, W, F, I, B, C4, UP, ARG, SIM
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [94, 96]
+    text: |
+      - **Ignored rules:** E501 (line length handled by formatter), F541 (f-string style), ARG002 (unused method args for interface compliance), B007 (intentional unused loop vars), I001 (formatter handles imports), SIM114 (readability preference)
+
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [96, 98]
+    text: |
+      ### Imports
+      - Sort with isort (via ruff); `skill_seekers` is first-party
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 19
+    lines: [98, 99]
+    text: |
+      - Standard library → third-party → first-party, separated by blank lines
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 20
+    lines: [99, 100]
+    text: |
+      - Use `from __future__ import annotations` only if needed for forward refs
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 21
+    lines: [100, 110]
+    text: |
+      - Guard optional imports with try/except ImportError (see `adaptors/__init__.py` pattern):
+        ```python
+        try:
+            from .claude import ClaudeAdaptor
+            from .minimax import MiniMaxAdaptor
+        except ImportError:
+            ClaudeAdaptor = None
+            MiniMaxAdaptor = None
+        ```
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 22
+    lines: [110, 112]
+    text: |
+      ### Naming Conventions
+      - **Files:** `snake_case.py` (e.g., `source_detector.py`, `config_validator.py`)
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 23
+    lines: [112, 113]
+    text: |
+      - **Classes:** `PascalCase` (e.g., `SkillAdaptor`, `ClaudeAdaptor`, `SourceDetector`)
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 24
+    lines: [113, 114]
+    text: |
+      - **Functions/methods:** `snake_case` (e.g., `get_adaptor()`, `detect_language()`)
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 25
+    lines: [114, 115]
+    text: |
+      - **Constants:** `UPPER_CASE` (e.g., `ADAPTORS`, `DEFAULT_CHUNK_TOKENS`, `VALID_SOURCE_TYPES`)
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 26
+    lines: [115, 117]
+    text: |
+      - **Private:** prefix with `_` (e.g., `_read_existing_content()`, `_validate_unified()`)
+
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 27
+    lines: [117, 119]
+    text: |
+      ### Type Hints
+      - Gradual typing — add hints where practical, not enforced everywhere
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 28
+    lines: [119, 120]
+    text: |
+      - Use modern syntax: `str | None` not `Optional[str]`, `list[str]` not `List[str]`
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 29
+    lines: [120, 121]
+    text: |
+      - MyPy config: `disallow_untyped_defs = false`, `check_untyped_defs = true`, `ignore_missing_imports = true`
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 30
+    lines: [121, 123]
+    text: |
+      - Tests are excluded from strict type checking (`disallow_untyped_defs = false`, `check_untyped_defs = false` for `tests.*`)
+
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 31
+    lines: [123, 125]
+    text: |
+      ### Docstrings
+      - Module-level docstring on every file (triple-quoted, describes purpose)
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 32
+    lines: [125, 126]
+    text: |
+      - Google-style docstrings for public functions/classes
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 33
+    lines: [126, 128]
+    text: |
+      - Include `Args:`, `Returns:`, `Raises:` sections where useful
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 34
+    lines: [128, 130]
+    text: |
+      ### Error Handling
+      - Use specific exceptions, never bare `except:`
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 35
+    lines: [130, 131]
+    text: |
+      - Provide helpful error messages with context
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 36
+    lines: [131, 132]
+    text: |
+      - Use `raise ValueError(...)` for invalid arguments, `raise RuntimeError(...)` for state errors
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 37
+    lines: [132, 133]
+    text: |
+      - Guard optional dependency imports with try/except and give clear install instructions on failure
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 38
+    lines: [133, 135]
+    text: |
+      - Chain exceptions with `raise ... from e` when wrapping
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 39
+    lines: [135, 138]
+    text: |
+      ### Suppressing Lint Warnings
+      - Use inline `# noqa: XXXX` comments (e.g., `# noqa: F401` for re-exports, `# noqa: ARG001` for required but unused params)
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 40
+    lines: [138, 169]
+    text: |
+      ## Project Layout
+
+      ```
+      src/skill_seekers/           # Main package (src/ layout)
+        cli/                       # CLI commands and entry points (100+ files)
+          adaptors/                # Platform adaptors (Strategy pattern, inherit SkillAdaptor)
+          arguments/               # CLI argument definitions (one per source type)
+          parsers/                 # Subcommand parsers (one per source type)
+          storage/                 # Cloud storage (inherit BaseStorageAdaptor)
+          main.py                  # Unified CLI entry point (COMMAND_MODULES dict)
+          source_detector.py       # Auto-detects source type from user input
+          create_command.py        # Unified `create` command routing
+          config_validator.py      # VALID_SOURCE_TYPES set + per-type validation
+          unified_scraper.py       # Multi-source orchestrator (scraped_data + dispatch)
+          unified_skill_builder.py # Pairwise synthesis + generic merge
+        mcp/                       # MCP server (FastMCP + legacy)
+          tools/                   # MCP tool implementations by category (10 files)
+          server_fastmcp.py        # FastMCP server implementation
+          server_legacy.py         # Legacy MCP server
+        sync/                      # Sync monitoring (Pydantic models)
+        benchmark/                 # Benchmarking framework
+        embedding/                 # FastAPI embedding server
+        workflows/                 # 67 YAML workflow presets
+        _version.py                # Reads version from pyproject.toml
+      tests/                       # 160 test files (pytest)
+        test_adaptors/             # 22 adaptor-specific test files
+        conftest.py                # Test configuration with package check
+      configs/                     # Preset JSON scraping configs
+      docs/                        # Documentation (guides, integrations, architecture)
+      ```
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 41
+    lines: [169, 173]
+    text: |
+      ## Key Patterns
+
+      **Adaptor (Strategy) pattern** — all platform logic in `cli/adaptors/`. Inherit `SkillAdaptor`, implement `format_skill_md()`, `package()`, `upload()`. Register in `adaptors/__init__.py` ADAPTORS dict.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 42
+    lines: [173, 175]
+    text: |
+      **Scraper pattern** — each source type has: `cli/<type>_scraper.py` (with `<Type>ToSkillConverter` class + `main()`), `arguments/<type>.py`, `parsers/<type>_parser.py`. Register in `parsers/__init__.py` PARSERS list, `main.py` COMMAND_MODULES dict, `config_validator.py` VALID_SOURCE_TYPES set.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 43
+    lines: [175, 177]
+    text: |
+      **Unified pipeline** — `unified_scraper.py` dispatches to per-type `_scrape_<type>()` methods. `unified_skill_builder.py` uses pairwise synthesis for docs+github+pdf combos and `_generic_merge()` for all other combinations.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 44
+    lines: [177, 179]
+    text: |
+      **MCP tools** — grouped in `mcp/tools/` by category. `scrape_generic_tool` handles all new source types.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 45
+    lines: [179, 181]
+    text: |
+      **CLI subcommands** — git-style in `cli/main.py`. Each delegates to a module's `main()` function.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 46
+    lines: [181, 183]
+    text: |
+      **Supported source types (17):** documentation (web), github, pdf, local, word, video, epub, jupyter, html, openapi, asciidoc, pptx, confluence, notion, rss, manpage, chat. Each detected automatically by `source_detector.py`.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 47
+    lines: [183, 185]
+    text: |
+      **Supported platforms (21):** claude, gemini, openai, minimax, opencode, kimi, deepseek, qwen, openrouter, together, fireworks, markdown, langchain, llama-index, haystack, weaviate, chroma, faiss, qdrant, pinecone.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 48
+    lines: [185, 208]
+    text: |
+      ## CLI Commands
+
+      ```bash
+      # Core commands
+      skill-seekers create <source>              # Create skill from any source (auto-detects type)
+      skill-seekers enhance <directory>          # AI-powered enhancement
+      skill-seekers package <directory>          # Package skill for target platform
+      skill-seekers upload <file>                # Upload skill to target platform
+      skill-seekers install <source>             # One-command workflow (scrape + enhance + package + upload)
+
+      # Utilities
+      skill-seekers estimate <source>            # Estimate page count before scraping
+      skill-seekers doctor                       # Health check for dependencies
+      skill-seekers config                       # Configure API keys and settings
+      skill-seekers workflows                    # List and apply workflow presets
+      skill-seekers resume <job_id>              # Resume interrupted scraping
+
+      # Advanced
+      skill-seekers stream <source>              # Streaming ingestion
+      skill-seekers update <directory>           # Incremental update
+      skill-seekers multilang <directory>        # Multi-language support
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 49
+    lines: [208, 212]
+    text: |
+      ## Testing Instructions
+
+      ### Test Structure
+      - Unit tests: `tests/test_*.py` — test individual modules
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 50
+    lines: [212, 213]
+    text: |
+      - Adaptor tests: `tests/test_adaptors/test_*_adaptor.py` — test platform adaptors
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 51
+    lines: [213, 215]
+    text: |
+      - E2E tests: `tests/test_*_e2e.py` — end-to-end integration tests
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 52
+    lines: [215, 232]
+    text: |
+      ### Running Tests
+      ```bash
+      # Fast test run (skip slow/integration tests)
+      pytest tests/ -v -m "not slow and not integration"
+
+      # Full test suite
+      pytest tests/ -v
+
+      # With coverage report
+      pytest tests/ --cov=src/skill_seekers --cov-report=term-missing
+
+      # Specific test categories
+      pytest tests/ -v -m "slow"           # Only slow tests
+      pytest tests/ -v -m "integration"    # Only integration tests
+      pytest tests/ -v -m "e2e"            # Only E2E tests
+      ```
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 53
+    lines: [232, 235]
+    text: |
+      ### Test Fixtures
+      Test fixtures are located in `tests/fixtures/` and include sample configs, HTML files, and mock data.
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 54
+    lines: [235, 238]
+    text: |
+      ## Git Workflow
+
+      - **`main`** — production, protected
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 55
+    lines: [238, 239]
+    text: |
+      - **`development`** — default PR target, active dev
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 56
+    lines: [239, 241]
+    text: |
+      - Feature branches created from `development`
+
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 57
+    lines: [241, 249]
+    text: |
+      ## Pre-commit Checklist
+
+      ```bash
+      ruff check src/ tests/
+      ruff format --check src/ tests/
+      pytest tests/ -v -x   # stop on first failure
+      ```
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 58
+    lines: [249, 251]
+    text: |
+      Never commit API keys. Use env vars: `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`.
+
+    type: directive
+    topic: Security
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 59
+    lines: [251, 255]
+    text: |
+      ## CI/CD
+
+      GitHub Actions (7 workflows in `.github/workflows/`):
+      - **tests.yml** — ruff + mypy lint job, then pytest matrix (Ubuntu + macOS, Python 3.10-3.12) with Codecov upload
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 60
+    lines: [255, 256]
+    text: |
+      - **release.yml** — tag-triggered: tests → version verification → PyPI publish via `uv build`
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 61
+    lines: [256, 257]
+    text: |
+      - **test-vector-dbs.yml** — tests vector DB adaptors (weaviate, chroma, faiss, qdrant)
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 62
+    lines: [257, 258]
+    text: |
+      - **docker-publish.yml** — multi-platform Docker builds (amd64, arm64) for CLI + MCP images
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 63
+    lines: [258, 259]
+    text: |
+      - **quality-metrics.yml** — quality analysis with configurable threshold
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 64
+    lines: [259, 260]
+    text: |
+      - **scheduled-updates.yml** — weekly skill updates for popular frameworks
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 65
+    lines: [260, 262]
+    text: |
+      - **vector-db-export.yml** — weekly vector DB exports
+
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 66
+    lines: [262, 277]
+    text: |
+      ## Deployment
+
+      ### Docker
+      Multi-stage Dockerfile with Python 3.12 slim base:
+      ```bash
+      # Build image
+      docker build -t skill-seekers .
+
+      # Run CLI
+      docker run -v $(pwd)/output:/output skill-seekers create https://docs.example.com
+
+      # Run MCP server
+      docker run -p 8765:8765 skill-seekers skill-seekers-mcp
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 67
+    lines: [277, 287]
+    text: |
+      ### MCP Server
+      The MCP server provides Model Context Protocol integration:
+      ```bash
+      # Start FastMCP server
+      skill-seekers-mcp
+
+      # Or use the Python module
+      python -m skill_seekers.mcp.server_fastmcp
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 68
+    lines: [287, 290]
+    text: |
+      ## Security Considerations
+
+      - **API Keys:** Never commit API keys to version control. Use environment variables or `.env` files (already in `.gitignore`)
+    type: directive
+    topic: Security
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 69
+    lines: [290, 291]
+    text: |
+      - **Docker:** Runs as non-root user (`skillseeker`, UID 1000)
+    type: description
+    topic: Security
+    enforceability: null
+    confidence: high
+
+  - id: 70
+    lines: [291, 292]
+    text: |
+      - **Dependencies:** Regular security updates via `pip audit` or `safety check`
+    type: description
+    topic: Security
+    enforceability: null
+    confidence: high
+
+  - id: 71
+    lines: [292, 294]
+    text: |
+      - **Sandboxing:** Video processing uses optional dependencies that can be heavy; install `[video-full]` only when needed
+
+    type: description
+    topic: Security
+    enforceability: null
+    confidence: high
+
+  - id: 72
+    lines: [294, 297]
+    text: |
+      ## Additional Resources
+
+      - **Website:** https://skillseekersweb.com/
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 73
+    lines: [297, 298]
+    text: |
+      - **Documentation:** https://skillseekersweb.com/
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 74
+    lines: [298, 299]
+    text: |
+      - **PyPI:** https://pypi.org/project/skill-seekers/
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 75
+    lines: [299, 300]
+    text: |
+      - **Repository:** https://github.com/yusufkaraaslan/Skill_Seekers
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 76
+    lines: [300, 301]
+    text: |
+      - **Config Browser:** https://skillseekersweb.com/
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 77
+    lines: [301, 302]
+    text: |
+      - **Project Board:** https://github.com/users/yusufkaraaslan/projects/2
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high

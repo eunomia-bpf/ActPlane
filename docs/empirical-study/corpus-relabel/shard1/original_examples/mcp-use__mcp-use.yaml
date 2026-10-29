@@ -1,0 +1,355 @@
+file: "mcp-use/mcp-use/CLAUDE.md"
+statements:
+  - id: 1
+    lines: [1, 4]
+    text: |
+      # CLAUDE.md
+
+      This is the root configuration for Claude Code in the mcp-use monorepo.
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [4, 8]
+    text: |
+
+      ## Project Overview
+
+      **mcp-use** is a full-stack MCP (Model Context Protocol) framework providing clients, agents, and servers in both Python and TypeScript. This is a widely-used open-source library.
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [8, 21]
+    text: |
+
+      ## Repository Structure
+
+      ```
+      mcp-use/
+      ├── libraries/
+      │   ├── python/      → Python library (PyPI: mcp-use)
+      │   └── typescript/  → TypeScript monorepo (npm: mcp-use, @mcp-use/*)
+      ├── docs/            → Documentation
+      └── .github/         → CI/CD workflows
+      ```
+
+      See language-specific CLAUDE.md files in `libraries/python/` and `libraries/typescript/` for detailed guidance.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [21, 27]
+    text: |
+
+      ---
+
+      ## CRITICAL: Workflow for Non-Trivial Tasks
+
+      **YOU MUST follow this workflow for any task beyond simple fixes:**
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 5
+    lines: [27, 35]
+    text: |
+
+      ### 1. Plan Before Implementing
+
+      Before writing any code for a non-trivial task:
+      - Use plan mode to reason through the approach
+      - Identify files that need changes
+      - Consider edge cases and potential issues
+      - Get explicit user approval before proceeding
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 6
+    lines: [35, 43]
+    text: |
+
+      ### 2. Context Management
+
+      When exploring the codebase:
+      - Read only files directly relevant to the task
+      - Avoid loading entire directories or large numbers of files
+      - Use targeted grep/glob searches first
+      - Summarize findings rather than dumping file contents
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 7
+    lines: [43, 55]
+    text: |
+
+      ### 3. Breaking Changes & Backward Compatibility
+
+      **This is a library used by many people. Breaking changes have real impact.**
+
+      Before implementing ANY change that modifies public APIs:
+      - Explicitly identify if it's a breaking change
+      - Present options to the user in plan mode:
+        - Option A: Breaking change (cleaner, but requires user migration)
+        - Option B: Backward compatible (may add complexity)
+      - **DO NOT** automatically add backward compatibility shims, re-exports, or deprecation wrappers
+      - Let the user decide - often breaking changes are acceptable and preferred over code duplication
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 8
+    lines: [55, 63]
+    text: |
+
+      ### 4. Implementation Requirements
+
+      After plan approval:
+      - Write clean, minimal code that solves the problem
+      - **Tests are MANDATORY** for new functions/methods/classes
+      - Tests must verify actual behavior, not just mock everything
+      - Avoid over-engineering - solve the current problem, not hypothetical future ones
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 9
+    lines: [63, 71]
+    text: |
+
+      ### 5. Post-Implementation Checklist
+
+      After implementation is complete:
+      1. Run the test suite and verify tests pass
+      2. Check if documentation needs updates (`docs/`, README files, docstrings)
+      3. Check if examples need updates (`examples/` directories)
+      4. Prepare a PR description following `.github/pull_request_template.md`
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 10
+    lines: [71, 77]
+    text: |
+
+      ---
+
+      ## Testing Standards
+
+      **Tests are not optional. Fake tests are worse than no tests.**
+    type: directive
+    topic: Testing
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 11
+    lines: [77, 79]
+    text: |
+
+      - Unit tests: Test actual logic, not mocked implementations
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 12
+    lines: [79, 80]
+    text: |
+      - Integration tests: Test real component interactions
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 13
+    lines: [80, 81]
+    text: |
+      - If you're mocking everything, you're testing nothing
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 14
+    lines: [81, 83]
+    text: |
+      - Cover happy paths AND edge cases
+
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 16
+    lines: [83, 117]
+    text: |
+      ---
+
+      ## PR Description Format
+
+      After completing work, provide a PR description following this format:
+
+      ```markdown
+      ## Changes
+      [Concise description of what changed]
+
+      ## Implementation Details
+      1. [Specific changes made]
+      2. [Architectural decisions]
+      3. [Dependencies added/modified]
+
+      ## Example Usage (Before)
+      [If applicable]
+
+      ## Example Usage (After)
+      [Show the new usage]
+
+      ## Documentation Updates
+      - [List updated docs]
+
+      ## Testing
+      - [Tests added/modified]
+      - [How you verified the changes]
+
+      ## Backwards Compatibility
+      [Is this breaking? What do users need to do?]
+
+      ## Related Issues
+      Closes #[issue_number]
+      ```
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 17
+    lines: [117, 119]
+    text: |
+
+      ---
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [119, 127]
+    text: |
+
+      ## Language-Specific Commands
+
+      ### Python (`libraries/python/`)
+      ```bash
+      ruff check --fix && ruff format    # Lint and format
+      pytest tests/unit                   # Run unit tests
+      ```
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 19
+    lines: [127, 134]
+    text: |
+
+      ### TypeScript (`libraries/typescript/`)
+      ```bash
+      pnpm build                          # Build all packages
+      pnpm test                           # Run tests
+      pnpm changeset                      # Create changeset for PR
+      ```
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 20
+    lines: [134, 139]
+    text: |
+
+      ---
+
+      ## What NOT to Do
+
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [139, 140]
+    text: |
+      - Don't implement features without explicit approval
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 22
+    lines: [140, 141]
+    text: |
+      - Don't add backward compatibility code without asking first
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 23
+    lines: [141, 142]
+    text: |
+      - Don't create tests that only test mocks
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 24
+    lines: [142, 143]
+    text: |
+      - Don't skip documentation updates
+    type: directive
+    topic: Documentation
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 25
+    lines: [143, 144]
+    text: |
+      - Don't make sweeping refactors alongside feature work
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 26
+    lines: [144, 145]
+    text: |
+      - Don't guess at requirements - ask for clarification
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high

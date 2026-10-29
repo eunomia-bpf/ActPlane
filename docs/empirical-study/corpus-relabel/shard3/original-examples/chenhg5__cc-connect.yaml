@@ -1,0 +1,588 @@
+file: "chenhg5/cc-connect/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 6]
+    text: |
+      # CC-Connect Development Guide
+
+      ## Project Overview
+
+      CC-Connect is a bridge that connects AI coding agents (Claude Code, Codex, Gemini CLI, Cursor, etc.) with messaging platforms (Feishu/Lark, Telegram, Discord, Slack, DingTalk, WeChat Work, QQ, LINE). Users interact with their coding agent through their preferred messaging app.
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [6, 34]
+    text: |
+
+      ## Architecture
+
+      ```
+      ┌─────────────────────────────────────────────────┐
+      │                   cmd/cc-connect                │  ← entry point, CLI, daemon
+      ├─────────────────────────────────────────────────┤
+      │                     config/                     │  ← TOML config parsing
+      ├─────────────────────────────────────────────────┤
+      │                      core/                      │  ← engine, interfaces, i18n,
+      │                                                 │     cards, sessions, registry
+      ├──────────────────────┬──────────────────────────┤
+      │     agent/           │      platform/           │
+      │  ├── claudecode/     │  ├── feishu/             │
+      │  ├── codex/          │  ├── telegram/           │
+      │  ├── cursor/         │  ├── discord/            │
+      │  ├── gemini/         │  ├── slack/              │
+      │  ├── iflow/          │  ├── dingtalk/           │
+      │  ├── opencode/       │  ├── wecom/              │
+      │  ├── acp/            │  ├── qq/                 │
+      │  └── qoder/          │  ├── qqbot/              │
+      │                      │  ├── line/               │
+      │                      │  └── weibo/              │
+      ├──────────────────────┴──────────────────────────┤
+      │                     daemon/                     │  ← systemd/launchd service
+      └─────────────────────────────────────────────────┘
+      ```
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [34, 38]
+    text: |
+      ### Key Design Principles
+
+      **`core/` is the nucleus.** It defines all interfaces (`Platform`, `Agent`, `AgentSession`, etc.) and contains the `Engine` that orchestrates message flow. The core package must **never** import from `agent/` or `platform/`.
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 4
+    lines: [38, 40]
+    text: |
+      **Plugin architecture via registries.** Agents and platforms register themselves through `core.RegisterAgent()` and `core.RegisterPlatform()` in their `init()` functions. The engine creates instances via `core.CreateAgent()` / `core.CreatePlatform()` using string names from config.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [40, 48]
+    text: |
+      **Dependency direction:**
+      ```
+      cmd/ → config/, core/, agent/*, platform/*
+      agent/*   → core/   (never other agents or platforms)
+      platform/* → core/  (never other platforms or agents)
+      core/     → stdlib only (never agent/ or platform/)
+      ```
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [48, 62]
+    text: |
+      ### Core Interfaces
+
+      - **`Platform`** — messaging platform adapter (Start, Reply, Send, Stop)
+      - **`Agent`** — AI coding agent adapter (StartSession, ListSessions, Stop)
+      - **`AgentSession`** — a running bidirectional session (Send, RespondPermission, Events)
+      - **`Engine`** — the central orchestrator that routes messages between platforms and agents
+
+      Optional capability interfaces (implement only when needed):
+      - `CardSender` — rich card messages
+      - `InlineButtonSender` — inline keyboard buttons
+      - `ProviderSwitcher` — multi-model switching
+      - `DoctorChecker` — agent-specific health checks
+      - `AgentDoctorInfo` — CLI binary metadata for diagnostics
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [62, 84]
+    text: |
+
+      ## Development Rules
+
+      ### 1. No Hardcoding Platform or Agent Names in Core
+
+      The `core/` package must remain agnostic. Never write `if p.Name() == "feishu"` or `CreateAgent("claudecode", ...)` in core. Use interfaces and capability checks instead:
+
+      ```go
+      // BAD — hardcodes platform knowledge in core
+      if p.Name() == "feishu" && supportsCards(p) {
+
+      // GOOD — capability-based check
+      if supportsCards(p) {
+      ```
+
+      ```go
+      // BAD — hardcodes agent type
+      agent, _ := CreateAgent("claudecode", opts)
+
+      // GOOD — derives from current agent
+      agent, _ := CreateAgent(e.agent.Name(), opts)
+      ```
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 8
+    lines: [84, 105]
+    text: |
+      ### 2. Prefer Interfaces Over Type Switches
+
+      When behavior differs across platforms/agents, define an optional interface in core and let implementations opt in:
+
+      ```go
+      // In core/
+      type AgentDoctorInfo interface {
+          CLIBinaryName() string
+          CLIDisplayName() string
+      }
+
+      // In agent/claudecode/
+      func (a *Agent) CLIBinaryName() string  { return "claude" }
+      func (a *Agent) CLIDisplayName() string { return "Claude" }
+
+      // In core/ — query via interface, fallback gracefully
+      if info, ok := agent.(AgentDoctorInfo); ok {
+          bin = info.CLIBinaryName()
+      }
+      ```
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 9
+    lines: [105, 108]
+    text: |
+      ### 3. Configuration Over Code
+
+      - Features that may vary per deployment should be configurable in `config.toml`
+    type: directive
+    topic: Configuration & Environment
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 10
+    lines: [108, 109]
+    text: |
+      - Use `map[string]any` options for agent/platform factories to stay flexible
+    type: directive
+    topic: Configuration & Environment
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 11
+    lines: [109, 111]
+    text: |
+      - Add new config fields with sensible defaults so existing configs don't break
+
+    type: directive
+    topic: Configuration & Environment
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 12
+    lines: [111, 117]
+    text: |
+      ### 4. High Cohesion, Low Coupling
+
+      - Each `agent/X/` package is self-contained: it handles process lifecycle, output parsing, and session management for agent X
+      - Each `platform/X/` package is self-contained: it handles API connection, message receiving/sending, and card rendering for platform X
+      - Cross-cutting concerns (i18n, cards, streaming, rate limiting) live in `core/`
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [117, 120]
+    text: |
+      ### 5. Error Handling
+
+      - Always wrap errors with context: `fmt.Errorf("feishu: reply card: %w", err)`
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 14
+    lines: [120, 121]
+    text: |
+      - Never silently swallow errors; at minimum log them with `slog.Error` / `slog.Warn`
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 15
+    lines: [121, 122]
+    text: |
+      - Use `slog` (structured logging) consistently; never `log.Printf` or `fmt.Printf` for runtime logs
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 16
+    lines: [122, 124]
+    text: |
+      - Redact tokens/secrets in error messages using `core.RedactToken()`
+
+    type: directive
+    topic: Security
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 17
+    lines: [124, 127]
+    text: |
+      ### 6. Concurrency Safety
+
+      - Agent sessions are accessed from multiple goroutines; protect shared state with `sync.Mutex` or `atomic` types
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 18
+    lines: [127, 128]
+    text: |
+      - Use `context.Context` for cancellation propagation
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 19
+    lines: [128, 129]
+    text: |
+      - Channels should have clear ownership; document who closes them
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 20
+    lines: [129, 131]
+    text: |
+      - Prefer `sync.Once` for one-time teardown (`pendingPermission.resolve()`)
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 21
+    lines: [131, 138]
+    text: |
+      ### 7. i18n
+
+      All user-facing strings must go through `core/i18n.go`:
+      - Define a `MsgKey` constant
+      - Add translations for all supported languages (EN, ZH, ZH-TW, JA, ES)
+      - Use `e.i18n.T(MsgKey)` or `e.i18n.Tf(MsgKey, args...)`
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 22
+    lines: [138, 141]
+    text: |
+      ## Code Style
+
+      - Follow standard Go conventions (`gofmt`, `go vet`)
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 23
+    lines: [141, 142]
+    text: |
+      - Use `strings.EqualFold` for case-insensitive comparisons
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 24
+    lines: [142, 143]
+    text: |
+      - Avoid `init()` for anything other than platform/agent registration
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 25
+    lines: [143, 144]
+    text: |
+      - Keep functions focused; extract helpers when a function exceeds ~80 lines
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 26
+    lines: [144, 146]
+    text: |
+      - Naming: `New()` for constructors, `Get/Set` for accessors, avoid stuttering (`feishu.FeishuPlatform` → `feishu.Platform`)
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 27
+    lines: [146, 151]
+    text: |
+      ## Testing
+
+      ### Requirements
+
+      - All new features must include unit tests
+    type: directive
+    topic: Testing
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 28
+    lines: [151, 152]
+    text: |
+      - All bug fixes should include a regression test
+    type: directive
+    topic: Testing
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 29
+    lines: [152, 154]
+    text: |
+      - Tests must pass before committing: `go test ./...`
+
+    type: directive
+    topic: Testing
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 30
+    lines: [154, 170]
+    text: |
+      ### Running Tests
+
+      ```bash
+      # Full test suite
+      go test ./...
+
+      # Specific package
+      go test ./core/ -v
+
+      # Run specific test
+      go test ./core/ -run TestHandlePendingPermission -v
+
+      # With race detector (CI)
+      go test -race ./...
+      ```
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 31
+    lines: [170, 173]
+    text: |
+      ### Test Patterns
+
+      - Use stub types for `Platform` and `Agent` in core tests (see `core/engine_test.go`)
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 32
+    lines: [173, 174]
+    text: |
+      - Test card rendering by inspecting the returned `*Card` struct, not JSON
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 33
+    lines: [174, 176]
+    text: |
+      - For agent session tests, simulate event streams via channels
+
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 34
+    lines: [176, 182]
+    text: |
+      ## Selective Compilation
+
+      Each agent and platform is imported via a separate `plugin_*.go` file with a
+      build tag (e.g. `//go:build !no_feishu`). By default **all** agents and
+      platforms are compiled in.
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 35
+    lines: [182, 192]
+    text: |
+      ### Include only specific agents/platforms
+
+      ```bash
+      # Only Claude Code agent + Feishu and Telegram platforms
+      make build AGENTS=claudecode PLATFORMS_INCLUDE=feishu,telegram
+
+      # Multiple agents
+      make build AGENTS=claudecode,codex PLATFORMS_INCLUDE=feishu,telegram,discord
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 36
+    lines: [192, 199]
+    text: |
+      ### Exclude specific agents/platforms
+
+      ```bash
+      # Exclude some platforms you don't need
+      make build EXCLUDE=discord,dingtalk,qq,qqbot,line
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 37
+    lines: [199, 210]
+    text: |
+      ### Direct build tag usage (without Make)
+
+      ```bash
+      go build -tags 'no_discord no_dingtalk no_qq no_qqbot no_line' ./cmd/cc-connect
+      ```
+
+      Available tags: `no_acp`, `no_claudecode`, `no_codex`, `no_cursor`, `no_gemini`,
+      `no_iflow`, `no_opencode`, `no_qoder`, `no_feishu`, `no_telegram`,
+      `no_discord`, `no_slack`, `no_dingtalk`, `no_wecom`, `no_weixin`, `no_qq`, `no_qqbot`,
+      `no_line`, `no_weibo`.
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 38
+    lines: [210, 218]
+    text: |
+      ## Pre-Commit Checklist
+
+      1. **Build passes**: `go build ./...`
+      2. **Tests pass**: `go test ./...`
+      3. **No new hardcoded platform/agent names in core**: grep for platform names in `core/*.go`
+      4. **i18n complete**: all new user-facing strings have translations for all languages
+      5. **No secrets in code**: no API keys, tokens, or credentials in source files
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 39
+    lines: [218, 228]
+    text: |
+      ## Adding a New Platform
+
+      1. Create `platform/newplatform/newplatform.go`
+      2. Implement `core.Platform` interface (and optional interfaces as needed)
+      3. Register in `init()`: `core.RegisterPlatform("newplatform", factory)`
+      4. Create `cmd/cc-connect/plugin_platform_newplatform.go` with `//go:build !no_newplatform` tag
+      5. Add `newplatform` to `ALL_PLATFORMS` in `Makefile`
+      6. Add config example in `config.example.toml`
+      7. Add unit tests
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 40
+    lines: [228, 238]
+    text: |
+      ## Adding a New Agent
+
+      1. Create `agent/newagent/newagent.go`
+      2. Implement `core.Agent` and `core.AgentSession` interfaces
+      3. Register in `init()`: `core.RegisterAgent("newagent", factory)`
+      4. Create `cmd/cc-connect/plugin_agent_newagent.go` with `//go:build !no_newagent` tag
+      5. Add `newagent` to `ALL_AGENTS` in `Makefile`
+      6. Optionally implement `AgentDoctorInfo` for `cc-connect doctor` support
+      7. Add config example in `config.example.toml`
+      8. Add unit tests
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high

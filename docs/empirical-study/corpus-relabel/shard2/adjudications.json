@@ -1,0 +1,26 @@
+[
+  {
+    "id": "007726511bffacb9d7d2:27:28",
+    "t": "directive",
+    "p": "DevOps",
+    "e": "per_event",
+    "c": "none",
+    "r": "Explicit file-write prohibitions are per-event; compound rules take the strongest subconstraint."
+  },
+  {
+    "id": "007726511bffacb9d7d2:35:36",
+    "t": "directive",
+    "p": "Documentation",
+    "e": "per_event",
+    "c": "none",
+    "r": "External file reference is a directive; its literal path is self-contained."
+  },
+  {
+    "id": "27b33db27181827a0993:75:76",
+    "t": "directive",
+    "p": "Documentation",
+    "e": "per_event",
+    "c": "none",
+    "r": "External reference requires file access with an explicit path; boundary: reference detached from its heading."
+  }
+]

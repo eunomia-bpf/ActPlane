@@ -1,0 +1,361 @@
+file: "tirth8205/code-review-graph/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 5]
+    text: |
+      # Agent Instructions
+
+      This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [5, 15]
+    text: |
+      ## Quick Reference
+
+      ```bash
+      bd ready              # Find available work
+      bd show <id>          # View issue details
+      bd update <id> --claim  # Claim work atomically
+      bd close <id>         # Complete work
+      bd dolt push          # Push beads data to remote
+      ```
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 3
+    lines: [15, 21]
+    text: |
+      ## Non-Interactive Shell Commands
+
+      **ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
+
+      Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode on some systems, causing the agent to hang indefinitely waiting for y/n input.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 4
+    lines: [21, 33]
+    text: |
+      **Use these forms instead:**
+      ```bash
+      # Force overwrite without prompting
+      cp -f source dest           # NOT: cp source dest
+      mv -f source dest           # NOT: mv source dest
+      rm -f file                  # NOT: rm file
+
+      # For recursive operations
+      rm -rf directory            # NOT: rm -r directory
+      cp -rf source dest          # NOT: cp -r source dest
+      ```
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 5
+    lines: [33, 35]
+    text: |
+      **Other commands that may prompt:**
+      - `scp` - use `-o BatchMode=yes` for non-interactive
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 6
+    lines: [35, 36]
+    text: |
+      - `ssh` - use `-o BatchMode=yes` to fail instead of prompting
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 7
+    lines: [36, 37]
+    text: |
+      - `apt-get` - use `-y` flag
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 8
+    lines: [37, 39]
+    text: |
+      - `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 9
+    lines: [39, 44]
+    text: |
+      <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
+      ## Beads Issue Tracker
+
+      This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [44, 53]
+    text: |
+      ### Quick Reference
+
+      ```bash
+      bd ready              # Find available work
+      bd show <id>          # View issue details
+      bd update <id> --claim  # Claim work
+      bd close <id>         # Complete work
+      ```
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 11
+    lines: [53, 56]
+    text: |
+      ### Rules
+
+      - Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 12
+    lines: [56, 57]
+    text: |
+      - Run `bd prime` for detailed command reference and session close protocol
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 13
+    lines: [57, 59]
+    text: |
+      - Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 14
+    lines: [59, 79]
+    text: |
+      ## Session Completion
+
+      **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+      **MANDATORY WORKFLOW:**
+
+      1. **File issues for remaining work** - Create issues for anything that needs follow-up
+      2. **Run quality gates** (if code changed) - Tests, linters, builds
+      3. **Update issue status** - Close finished work, update in-progress items
+      4. **PUSH TO REMOTE** - This is MANDATORY:
+         ```bash
+         git pull --rebase
+         bd dolt push
+         git push
+         git status  # MUST show "up to date with origin"
+         ```
+      5. **Clean up** - Clear stashes, prune remote branches
+      6. **Verify** - All changes committed AND pushed
+      7. **Hand off** - Provide context for next session
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 15
+    lines: [79, 81]
+    text: |
+      **CRITICAL RULES:**
+      - Work is NOT complete until `git push` succeeds
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 16
+    lines: [81, 82]
+    text: |
+      - NEVER stop before pushing - that leaves work stranded locally
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 17
+    lines: [82, 83]
+    text: |
+      - NEVER say "ready to push when you are" - YOU must push
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 18
+    lines: [83, 86]
+    text: |
+      - If push fails, resolve and retry until it succeeds
+      <!-- END BEADS INTEGRATION -->
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 19
+    lines: [86, 95]
+    text: |
+      <!-- code-review-graph MCP tools -->
+      ## MCP Tools: code-review-graph
+
+      **IMPORTANT: This project has a knowledge graph. ALWAYS use the
+      code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
+      the codebase.** The graph is faster, cheaper (fewer tokens), and gives
+      you structural context (callers, dependents, test coverage) that file
+      scanning cannot.
+
+    type: directive
+    topic: AI Integration
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 20
+    lines: [95, 98]
+    text: |
+      ### When to use graph tools FIRST
+
+      - **Exploring code**: `semantic_search_nodes` or `query_graph` instead of Grep
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 21
+    lines: [98, 99]
+    text: |
+      - **Understanding impact**: `get_impact_radius` instead of manually tracing imports
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 22
+    lines: [99, 100]
+    text: |
+      - **Code review**: `detect_changes` + `get_review_context` instead of reading entire files
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 23
+    lines: [100, 101]
+    text: |
+      - **Finding relationships**: `query_graph` with callers_of/callees_of/imports_of/tests_for
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 24
+    lines: [101, 103]
+    text: |
+      - **Architecture questions**: `get_architecture_overview` + `list_communities`
+
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 25
+    lines: [103, 105]
+    text: |
+      Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
+
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 26
+    lines: [105, 118]
+    text: |
+      ### Key Tools
+
+      | Tool | Use when |
+      |------|----------|
+      | `detect_changes` | Reviewing code changes — gives risk-scored analysis |
+      | `get_review_context` | Need source snippets for review — token-efficient |
+      | `get_impact_radius` | Understanding blast radius of a change |
+      | `get_affected_flows` | Finding which execution paths are impacted |
+      | `query_graph` | Tracing callers, callees, imports, tests, dependencies |
+      | `semantic_search_nodes` | Finding functions/classes by name or keyword |
+      | `get_architecture_overview` | Understanding high-level codebase structure |
+      | `refactor_tool` | Planning renames, finding dead code |
+
+    type: description
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 27
+    lines: [118, 124]
+    text: |
+      ### Workflow
+
+      1. The graph auto-updates on file changes (via hooks).
+      2. Use `detect_changes` for code review.
+      3. Use `get_affected_flows` to understand impact.
+      4. Use `query_graph` pattern="tests_for" to check coverage.
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high

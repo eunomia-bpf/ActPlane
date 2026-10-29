@@ -1,0 +1,530 @@
+file: "nearai/ironclaw/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 6]
+    text: |
+      # Agent Rules
+
+      ## Purpose and Precedence
+
+      - `AGENTS.md` is the quick-start contract for coding agents. It is not the full architecture spec.
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [6, 19]
+    text: |
+      - Read the relevant subsystem spec before changing a complex area. When a repo spec exists, treat it as authoritative.
+      Start with these deeper docs as needed:
+      - `CLAUDE.md`
+      - `src/agent/CLAUDE.md`
+      - `src/channels/web/CLAUDE.md`
+      - `src/db/CLAUDE.md`
+
+      - `crates/ironclaw_llm/CLAUDE.md`
+      - `src/setup/README.md`
+      - `src/tools/README.md`
+      - `src/workspace/README.md`
+      - `src/NETWORK_SECURITY.md`
+      - `tests/e2e/CLAUDE.md`
+
+    type: directive
+    topic: Documentation
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 3
+    lines: [19, 22]
+    text: |
+      ## Architecture Mental Model
+
+      - Channels normalize external input into `IncomingMessage`; `ChannelManager` merges all active channel streams.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [22, 23]
+    text: |
+      - `Agent` owns session/thread/turn handling, submission parsing, the LLM/tool loop, approvals, routines, and background runtime behavior.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [23, 24]
+    text: |
+      - `AppBuilder` is the composition root that wires database, secrets, LLMs, tools, workspace, extensions, skills, hooks, and cost controls before the agent starts.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [24, 26]
+    text: |
+      - The web gateway is a browser-facing API/UI layered on top of the same agent/session/tool systems, not a separate product path.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [26, 29]
+    text: |
+      ## Where to Work
+
+      - Agent/runtime behavior: `src/agent/`
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [29, 30]
+    text: |
+      - Web gateway/API/SSE/WebSocket: `src/channels/web/`
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [30, 31]
+    text: |
+      - Persistence and DB abstractions: `src/db/`
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [31, 32]
+    text: |
+      - Setup/onboarding/configuration flow: `src/setup/`
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [32, 33]
+    text: |
+      - LLM providers and routing: `crates/ironclaw_llm/`
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [33, 34]
+    text: |
+      - Workspace, memory, embeddings, search: `src/workspace/`
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [34, 36]
+    text: |
+      - Extensions, tools, channels, MCP, WASM: `src/extensions/`, `src/tools/`, `src/channels/`
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [36, 39]
+    text: |
+      ## Ownership and Composition Rules
+
+      - Keep `src/main.rs` and `src/app.rs` orchestration-focused. Do not move module-owned logic into entrypoints.
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 15
+    lines: [39, 40]
+    text: |
+      - Module-specific initialization should live in the owning module behind a public factory/helper, not be reimplemented ad hoc.
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 16
+    lines: [40, 41]
+    text: |
+      - Keep feature-flag branching inside the module that owns the abstraction whenever possible.
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 17
+    lines: [41, 43]
+    text: |
+      - Prefer extending existing traits and registries over hardcoding one-off integration paths.
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 18
+    lines: [43, 46]
+    text: |
+      ## Repo-Wide Coding Rules
+
+      - Avoid `.unwrap()` and `.expect()` in production; prefer proper error handling. They are fine in tests, and in production only for truly infallible invariants (e.g., literals/regexes) with a safety comment.
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 19
+    lines: [46, 47]
+    text: |
+      - Keep clippy clean with zero warnings.
+    type: directive
+    topic: Implementation Details
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 20
+    lines: [47, 48]
+    text: |
+      - Prefer `crate::` imports for cross-module references.
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 21
+    lines: [48, 50]
+    text: |
+      - Use strong types and enums over stringly-typed control flow when the shape is known.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 22
+    lines: [50, 53]
+    text: |
+      ## Database, Setup, and Config Rules
+
+      - New persistence behavior must support both PostgreSQL and libSQL.
+    type: directive
+    topic: Configuration & Environment
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 23
+    lines: [53, 54]
+    text: |
+      - Add new DB operations to the shared DB trait first, then implement both backends.
+    type: directive
+    topic: Configuration & Environment
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 24
+    lines: [54, 55]
+    text: |
+      - Treat bootstrap config, DB-backed settings, and encrypted secrets as distinct layers; do not collapse them casually.
+    type: directive
+    topic: Configuration & Environment
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 25
+    lines: [55, 56]
+    text: |
+      - If onboarding or setup behavior changes, update `src/setup/README.md` in the same branch.
+    type: directive
+    topic: Configuration & Environment
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 26
+    lines: [56, 58]
+    text: |
+      - Do not break config precedence, bootstrap env loading, DB-backed config reload, or post-secrets LLM re-resolution.
+
+    type: directive
+    topic: Configuration & Environment
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 27
+    lines: [58, 61]
+    text: |
+      ## Security and Runtime Invariants
+
+      - Review any change touching listeners, routes, auth, secrets, sandboxing, approvals, or outbound HTTP with a security mindset.
+    type: directive
+    topic: Security
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 28
+    lines: [61, 62]
+    text: |
+      - Do not weaken bearer-token auth, webhook auth, CORS/origin checks, body limits, rate limits, allowlists, or secret-handling guarantees.
+    type: directive
+    topic: Security
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 29
+    lines: [62, 63]
+    text: |
+      - Treat Docker containers and external services as untrusted.
+    type: directive
+    topic: Security
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 30
+    lines: [63, 64]
+    text: |
+      - Session/thread/turn state matters. Submission parsing happens before normal chat handling.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 31
+    lines: [64, 65]
+    text: |
+      - Skills are selected deterministically. Tool approval and auth flows are special paths and must not be mixed into normal chat history carelessly.
+    type: directive
+    topic: Security
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 32
+    lines: [65, 67]
+    text: |
+      - Persistent memory is the workspace system, not just transcript storage; preserve file-like semantics, chunking/search behavior, and identity/system-prompt loading.
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 33
+    lines: [67, 70]
+    text: |
+      ## Tools, Channels, and Extensions
+
+      - Use a built-in Rust tool for core internal capabilities tightly coupled to the runtime.
+    type: directive
+    topic: Architecture
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 34
+    lines: [70, 71]
+    text: |
+      - Use WASM tools or WASM channels for sandboxed extensions and plugin-style integrations.
+    type: directive
+    topic: Architecture
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 35
+    lines: [71, 72]
+    text: |
+      - Use MCP for external server integrations when the capability belongs outside the main binary.
+    type: directive
+    topic: Architecture
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 36
+    lines: [72, 74]
+    text: |
+      - Preserve extension lifecycle expectations: install, authenticate/configure, activate, remove.
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 37
+    lines: [74, 77]
+    text: |
+      ## Docs, Parity, and Testing
+
+      - If behavior changes, update the relevant docs/specs in the same branch.
+    type: directive
+    topic: Documentation
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 38
+    lines: [77, 78]
+    text: |
+      - If you change implementation status for any feature tracked in `FEATURE_PARITY.md`, update that file in the same branch.
+    type: directive
+    topic: Documentation
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 39
+    lines: [78, 79]
+    text: |
+      - Do not open a PR that changes feature behavior without checking `FEATURE_PARITY.md` for needed status updates (`❌`, `🚧`, `✅`, notes, and priorities).
+    type: directive
+    topic: Documentation
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 40
+    lines: [79, 80]
+    text: |
+      - Add the narrowest tests that validate the change: unit tests for local logic, integration tests for runtime/DB/routing behavior, and E2E or trace coverage for gateway, approvals, extensions, or other user-visible flows.
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 41
+    lines: [80, 82]
+    text: |
+      - **Test through the caller, not just the helper.** When a predicate/classifier/transform helper gates a side effect (HTTP, DB write, OAuth flow, UI mutation, tool execution) and has any wrapper or computed input between it and that side effect, a unit test on the helper alone is not sufficient regression coverage. Add a test that drives the actual call site (`*_handler`, `factory::create_*`, `manager::*`) at the integration tier or higher. Mocks of multi-arg runtime APIs must capture every argument the production caller passes. See `.claude/rules/testing.md` for the full rule and bug examples.
+
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 42
+    lines: [82, 85]
+    text: |
+      ## Risk and Change Discipline
+
+      - Keep changes scoped; avoid broad refactors unless the task truly requires them.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 43
+    lines: [85, 86]
+    text: |
+      - Security, database schema, runtime, worker, CI, and secrets changes are high-risk. Call out rollback risks, compatibility concerns, and hidden side effects.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 44
+    lines: [86, 87]
+    text: |
+      - Preserve existing defaults unless the task explicitly changes them.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 45
+    lines: [87, 88]
+    text: |
+      - Avoid unrelated file churn and generated-file edits unless required.
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 46
+    lines: [88, 90]
+    text: |
+      - Respect a dirty worktree and never revert user changes you did not make.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 47
+    lines: [90, 93]
+    text: |
+      ## Before Finishing
+
+      - Confirm whether behavior changes require updates to `FEATURE_PARITY.md`, specs, API docs, or `CHANGELOG.md`.
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 48
+    lines: [93, 94]
+    text: |
+      - Run the most targeted tests/checks that cover the change.
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 49
+    lines: [94, 95]
+    text: |
+      - Re-check security-sensitive paths when touching auth, secrets, network listeners, sandboxing, or approvals.
+    type: directive
+    topic: Security
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 50
+    lines: [95, 96]
+    text: |
+      - Keep the final diff scoped to the task.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high

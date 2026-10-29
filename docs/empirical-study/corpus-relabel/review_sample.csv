@@ -1,0 +1,469 @@
+statement_id,repo,file_path,start_line,end_line,text,type,topic,enforceability,context_required,verdict
+f7ae33ad1ae18d0c6daa:571:573,xerj-org/xerj,tools/xerj-code/SKILL.md,571,573,"## Migration from the wrapper scripts (#977)
+
+",description,Maintenance,,,
+f061064366095fc7233b:208:209,microsoft/ML-For-Beginners,AGENTS.md,208,209,"- Uses Azure AI/OpenAI services for translation
+",description,AI Integration,,,
+51d1ced1307c955afbd8:87:90,cockroachdb/cockroach,.claude/skills/drt-analyze/SKILL.md,87,90,"Save each query's JSON output to a temp file, then run:
+  python3 <skill-dir>/scripts/parse_events.py run.json cleanup.json failed.json depcheck.json
+
+",directive,DevOps,cross_event,project,
+e90b0682145d7563cc22:22:29,valkey-io/valkey,AGENTS.md,22,29,"## Unit tests
+- Unit tests live under `src/unit/` and use GoogleTest (gtest/gmock).
+- Build and run all unit tests: `make -C src test-unit`
+- Unit tests cover data-structure and low-level logic changes.
+- A single test filter can be run with: `make -C src test-unit && ./src/unit/valkey-unit-gtests --gtest_filter='<TestSuite>.<TestName>'`
+- **Write tests in minimal C++.** GTest provides the test runner, but test code should look like C. No STL containers (`std::vector`, `std::string`, `std::set`), no STL algorithms, no `auto`, no lambdas, no templates, no RAII. Use fixed-size C arrays, `sds`, `qsort`, and explicit types. See `src/unit/README.md` for full guidelines and examples.
+
+",directive,Testing,per_event,project,
+61dba30122ddcb05482d:114:116,rohitg00/ai-engineering-from-scratch,AGENTS.md,114,116,"Keep the distractors comparable in length to the correct option. When the correct answer is the longest by a wide margin, a reader can guess it without knowing the material. `scripts/check_quiz_bias.py --check` gates this, and `scripts/debias_quizzes.py` spreads the correct option across positions.
+
+",directive,Testing,content,none,
+48d75a4df1db9e25542e:9:10,langgenius/dify,AGENTS.md,9,10,"- Keep `docker/.env.example` limited to variables required for a default Docker Compose deployment to start. Put optional and provider-specific settings in the matching `docker/envs/*.env.example` file; `docker/.env` overrides those service-specific env files.
+",directive,Configuration & Environment,content,project,
+f7ae33ad1ae18d0c6daa:83:85,xerj-org/xerj,tools/xerj-code/SKILL.md,83,85,"A folder indexed with `xerj autoindex --prefix <p>` is the local path in that table, not a `xerj code` corpus: `xerj corpus list` reads `~/.xerj-code` and does not list `<p>` until `xerj corpus add` registers the folder, and the commands that search it are `xerj search --prefix <p>` and `xerj def --prefix <p>`.
+
+",description,Configuration & Environment,,,
+9cb55fc52b1c970c607f:60:62,Significant-Gravitas/AutoGPT,.github/copilot-instructions.md,60,62,"**Node.js Version:** Use Node.js 21+ with pnpm package manager
+
+",directive,Configuration & Environment,per_event,none,
+ee2f9a84e40d66cd1f4c:147:156,photoprism/photoprism,.claude/CLAUDE.md,147,156,"### Config & Flags
+
+Verify config option names before using them:
+```bash
+./photoprism --help
+./photoprism show config-options
+./photoprism show config-yaml
+```
+
+",directive,Configuration & Environment,cross_event,none,
+62722e502f1b7ebb073e:35:37,can1357/oh-my-pi,AGENTS.md,35,37,"When authorized to create or edit a contributor-submitted PR, follow the checklist below. RoboOMP-managed PRs follow their dedicated workflow and enforced body format in `python/robomp/src/prompts/system_append.md` instead.
+
+",directive,Development Process,cross_event,task,
+7174f219d691eef85cf8:54:60,LibreChat-AI/LibreChat,.claude/skills/codebase-design/SKILL.md,54,60,"When designing an interface, ask:
+
+- Can I reduce the number of methods?
+- Can I simplify the parameters?
+- Can I hide more complexity inside?
+
+",directive,Architecture,semantic_only,,
+14f0da4e57dce984e294:228:230,semantica-agi/semantica,plugins/skills/embed/SKILL.md,228,230,"Show as a heatmap summary — top-5 most similar pairs and bottom-5 most dissimilar pairs. Full matrix on request.
+
+",directive,AI Integration,content,none,
+08bbec27e0aa5c65199b:102:104,apache/airflow,AGENTS.md,102,104,"9. Each of the distributions should declare other needed distributions: `uv --project <FOLDER> sync` command acts on the selected project in the monorepo with only dependencies that it has
+
+",directive,Build and Run,content,project,
+f3a668ea9e3c997d06b1:176:181,rust-lang/rust,AGENTS.md,176,181,"Soundness-sensitive areas include, but are not limited to, the query system,
+type checking, trait solving, MIR construction or optimization, borrow checking,
+const evaluation, normalization and semantic caches, layout and validity, and
+codegen. Explain the concern and direct the user to [#llm-mentoring Zulip].
+
+",directive,Security,semantic_only,,
+9a9829ed34daa4537df1:101:102,aaif-goose/goose,AGENTS.md,101,102,"- Test: Prefer tests/ folder, e.g. crates/goose/tests/
+",directive,Testing,content,none,
+48e06622270e5d37fcaf:9:11,novuhq/novu,AGENTS.md,9,11,"Run `pnpm build` after changes to `packages/` or `enterprise/`. Direct changes to `apps/` do not require a rebuild.
+
+",directive,Build and Run,cross_event,none,
+2598c40a1aec29c5838c:15:17,browser-use/browser-use,AGENTS.md,15,17,"- Type-safe coding: Use Pydantic v2 models for all internal action schemas, task inputs/outputs, and tools I/O. This ensures robust validation and LLM-call integrity.
+
+",directive,Implementation Details,content,project,
+cb78f2ea07e25900d5c4:22:24,NanmiCoder/cc-haha,.agents/skills/release-announcement/SKILL.md,22,24,"## 图像与环境
+
+",description,Implementation Details,,,
+906b6c52b1e0839fb409:1:6,PaddlePaddle/Paddle,.agents/skills/ai-review/SKILL.md,1,6,"---
+name: ai-review
+description: 使用 PaddlePaddle 仓库规则评审 Pull Request 和全仓库代码变更，覆盖正确性、兼容性、算子、分布式、数值、性能、安全、测试、构建和 PR 信息。当需要审查 Paddle 的代码、测试、算子 YAML、C++/CUDA/XPU kernel、Python API、分布式逻辑或 CI 配置时使用。
+---
+
+",description,Development Process,,,
+5fb9613e1672a6e3bdca:226:230,coreyhaines31/marketingskills,AGENTS.md,226,230,"1. **Once per session**, on first skill use, check for updates:
+   - Fetch `VERSIONS.md` from GitHub: https://raw.githubusercontent.com/coreyhaines31/marketingskills/main/VERSIONS.md
+   - Compare versions against local skill files
+
+",directive,Maintenance,cross_event,project,
+9eb76bbd7ff76163919d:64:93,github/github-mcp-server,.github/copilot-instructions.md,64,93,"### Directory Layout
+
+```
+.
+├── cmd/
+│   ├── github-mcp-server/    # Main MCP server entry point (PRIMARY FOCUS)
+│   └── mcpcurl/              # MCP testing utility (secondary - don't break it)
+├── pkg/                      # Public API packages
+│   ├── github/               # GitHub API MCP tools implementation
+│   │   └── __toolsnaps__/    # Tool schema snapshots (*.snap files)
+│   ├── toolsets/             # Toolset configuration & management
+│   ├── errors/               # Error handling utilities
+│   ├── sanitize/             # HTML/content sanitization
+│   ├── log/                  # Logging utilities
+│   ├── raw/                  # Raw data handling
+│   ├── buffer/               # Buffer utilities
+│   └── translations/         # i18n translation support
+├── internal/                 # Internal implementation packages
+│   ├── ghmcp/                # GitHub MCP server core logic
+│   ├── githubv4mock/         # GraphQL API mocking for tests
+│   ├── toolsnaps/            # Toolsnap validation system
+│   └── profiler/             # Performance profiling
+├── e2e/                      # End-to-end tests (require GitHub PAT)
+├── script/                   # Build and maintenance scripts
+├── docs/                     # Documentation
+├── .github/workflows/        # CI/CD workflows
+└── [config files]            # See below
+```
+
+",description,Architecture,,,
+db825a2bf33db0bdcc99:35:36,microsoft/playwright-mcp,CLAUDE.md,35,36,"2. Create a branch: `git checkout -b roll-pw-<version-suffix>`.
+",directive,Development Process,per_event,project,
+e34b9af56877b39755ae:295:300,mukul975/Anthropic-Cybersecurity-Skills,.github/copilot-instructions.md,295,300,"1. **Create skill directory** (kebab-case):
+   ```bash
+   mkdir -p skills/your-skill-name
+   ```
+
+",directive,Development Process,per_event,none,
+e3d420356ccd1896ec5a:136:137,ZhuLinsen/daily_stock_analysis,AGENTS.md,136,137,"6. 如果发现文档、脚本、工作流描述不一致，优先信任实际代码与工作流，再决定是否顺手修正文档。
+",directive,Documentation,semantic_only,,
+56ddbf5f7e30a0c67848:125:127,deepseek-ai/deepseek-harness,AGENTS.md,125,127,"Windows packaging/signing: [required reading](apps/desktop/windows-signing/README.md).
+
+",directive,DevOps,per_event,none,
+96d6a65dca74b53f5795:3:9,pubkey/rxdb,AGENTS.md,3,9,"## Project Overview
+- **Database**: RxDB (local-first, NoSQL)
+- **Language**: TypeScript
+- **State Management**: Reactive (RxJS Observables)
+- **Paths**: Source code in `src/`, tests in `test/`, documentation in `docs-src/`.
+
+",description,System Overview,,,
+43a673a7510330268d3e:121:125,xerj-org/xerj,AGENTS.md,121,125,"4. **Close the loop.** Wait for the single `xerj-done ok=… exit=… reason=…
+   wall=…s` line (it is printed in every progress mode except `none`), then
+   tell the user the **real** elapsed time and what landed.
+
+",directive,AI Integration,cross_event,none,
+11952764c7b0f9cffb1f:18:20,qdrant/qdrant,lib/edge/tools/shard_query/SKILL.md,18,20,"Connection flags must come **before** the subcommand; request flags come after it. For repeated use, build once (`cargo build -p edge-shard-query --release`) and call `target/release/edge-shard-query` directly.
+
+",directive,Build and Run,per_event,none,
+517484ce50aec9086d99:12:14,wavetermdev/waveterm,.github/copilot-instructions.md,12,14,"This project uses a set of ""skill"" guides — focused how-to documents for common implementation tasks. When your task matches one of the descriptions below, **read the linked SKILL.md file before proceeding** and follow its instructions precisely.
+
+",directive,Documentation,cross_event,task,
+5b271856822f1ec2ba73:54:55,mukul975/Anthropic-Cybersecurity-Skills,AGENTS.md,54,55,"See [SCOPE.md](SCOPE.md). This repository holds skills. Runtimes, engines and applications belong elsewhere.
+",directive,System Overview,per_event,none,
+fb9f71873fb7b4b1145f:342:344,JuliusBrussee/caveman,CLAUDE.md,342,344,"### Auto-clarity rule
+
+",description,AI Integration,,,
+cf22e436737158684a84:291:299,openbq-org/OpenBB,openbb_platform/extensions/mcp_server/openbb_mcp_server/skills/use_openbb_cli/SKILL.md,291,299,"The MCP server synthesizes a FastAPI proxy app from the spec's commands;
+FastMCP exposes the routes as MCP tools; per-tool dispatch forwards to the
+spec's `base_url` over `aiohttp`. See `configure_mcp_server` for multi-spec
+mounts (`[mcp.spec.NAME]`), per-spec auth/middleware hooks, and the
+`content_sha256` provenance pin.
+
+---
+
+",directive,Architecture,per_event,project,
+241777e84b59cac767aa:121:123,alibaba/page-agent,AGENTS.md,121,123,"3. Tool calls `this.pageController.methodName()` for DOM interactions
+
+",directive,Architecture,content,none,
+faa5924fde9518aab085:7:11,alirezarezvani/claude-skills,CLAUDE.md,7,11,"This is a **comprehensive skills library** for Claude AI and Claude Code - reusable, production-ready skill packages that bundle domain expertise, best practices, analysis tools, and strategic frameworks. The repository provides modular skills that teams can download and use directly in their workflows.
+
+**Current Scope:** 398 production-ready skills across 20 domains with 766 Python automation tools, 877 reference guides, 123 agents (cs-* + 7 personas), and 157 slash commands, distributed as 104 marketplace plugins. Headline counters are derived from the tree by `scripts/derive_counters.py` (run with `--check` to verify the docs still match). **v2.11.2 (current)** vendors **engineering/skillopt-sleep/** — started as a verbatim, byte-for-byte copy of `microsoft/SkillOpt`'s `skillopt_sleep` engine (stdlib-only, zero third-party deps) and its Claude Code plugin surface (`skills/`, `hooks/`, `commands/`, `scripts/`), then received 23 targeted patches after ten rounds of adversarial review (see `engineering/skillopt-sleep/README.md`'s numbered ""Deviations from upstream"" list, the authoritative source — re-apply all 23 on re-vendor). Gives a local agent a nightly ""sleep cycle"": read-only harvest of past Claude Code session transcripts → mine recurring tasks → replay offline on the user's own API budget → consolidate into `CLAUDE.md`/`SKILL.md` edits behind a held-out validation gate → stage for review; nothing live changes until an explicit `/skillopt-sleep adopt` (which backs up first). Default `mock` backend spends no API budget. The heavier `skillopt` *training* package (benchmark-driven, needs `numpy`/`openai`/`azure-*` + hand-labeled train/val/test data per task) was deliberately **not** vendored — it optimizes one narrow, scoreable task at a time, which doesn't fit this repo's broad domain-expertise skills or its no-ML-in-scripts/no-test-framework conventions; `skillopt_sleep` mines its ""benchmark"" from real usage instead, which does fit. Attribution preserved in `.claude-plugin/authoring-notes.json` + `LICENSE` + `README.md` (MIT, © Microsoft Corporation / Yifan Yang), following the same verbatim-vendor pattern as `loop-library/`. **Unreleased (post-v2.11.2, PR #961 merged)** adds the **agent-launcher/** top-level domain — a plugin re-implementation of Anthropic's `launch-your-agent` reference skill (Apache-2.0; independent, not a fork) for building **Claude Managed Agents (CMA)** in the user's own account. Every session starts with a goal (`./my-agent/goal.json`, surfaced by an opt-in `AGENT_LAUNCHER_SESSION=1` SessionStart hook + `/cs-goal`); `loop_compiler.py` compiles that goal into a **bounded grade→iterate loop** (CMA `user.define_outcome` self-grading, `max_iterations` 1..20), a **recurring POSIX-cron scheduled-deployment loop**, or a **single-pass interview→stage→launch workflow**. 6 skills (orchestrator `context: fork` + interview + stage-launch + grade-iterate + run-without-you + wrap-up), 18 stdlib-only deterministic scaffolder tools (NO network/API calls — live launches emitted as BYOK curl that never prints the key), 4 agents, 8 `/cs-*` commands, opt-in hooks, 5 shared references, 4 assets; validators enforce CMA limits (≤20 skills/session, ≤8 memory stores, depth-1 multiagent, `max_iterations` ≤20, ≤1000 deployments/org). Distinct from `engineering/agent-harness` (generic bounded loop over any domain) and `engineering/write-a-skill` (authors Claude Code skills, not CMAs). **Unreleased (post-v2.11.2)** ships the **productivity coverage expansion** — public audit record `audit/productivity-2026-07/` (all 7 legacy skills scored, 24/24 scripts smoke-tested, coverage map vs the personal-productivity canon) + 3 gap-filling plugins, each with a cs-* agent, /cs-* commands, 3 stdlib scripts and 3 cited references: **weekly-review** (GTD loop; review-gate refuses COMPLETE while a mandatory GET CURRENT step is missing), **deep-work** (time-block planner refusing >4h deep demand, shallow-work budget auditor, focus-session logger), **meetings** (MEET/ASYNC/NOT-READY cost gate, outcome-required agenda builder, action-item extractor with ORPHAN/NO-DUE flags). **Unreleased (post-v2.11.1)** added **productivity/fable-goal** — converts a rambling description of a desired outcome into one polished, copy-paste `/goal` prompt for a fresh autonomous session (ported from `duncan-buildroom/freeskills`). **v2.11.1 (complete)** upgrades **product-team/** and **project-management/** into agent-harness domains: both prose routers rebuilt as `context: fork` orchestrators with deterministic goal routers (exit-code route/ask/refuse), a Jira MCP snapshot bridge (Kanban-Guide-2025 flow metrics + seeded Monte Carlo forecasts, verified end-to-end into velocity_analyzer), a delegation-governance loop gate (human owner / reviewer / machine-checkable acceptance / close refusal), a Torres continuous-discovery cadence tracker + Opportunity Solution Tree linter, cs-pm-orchestrator + cs-product-orchestrator agents, and /cs-pm|grill-pm|pm-loop + /cs-product|grill-product|product-loop commands — plus the public audit record `audit/pm-product-agentic-2026-07/` (AR-rubric scores for all 26 skills, research-backed improvement fields, executable verification criteria). **v2.9.0 (complete)** added the **research-ops/** top-level domain — enterprise Research Operations (orchestrator + clinical-research + research-finance + market-research + product-research), the managed counterpart to the academic research/ domain, with `context: fork` orchestration and a Matt Pocock ""Forcing-question library"" in every SKILL.md plus `/cs-grill-research-ops`. **v2.8.0 (complete)** added 2 new top-level domains — **business-operations/** (7 internal-ops skills: orchestrator + process-mapper + vendor-management + capacity-planner + internal-comms + knowledge-ops + procurement-optimizer) and **commercial/** (8 per-deal-economics skills: orchestrator + pricing-strategist + deal-desk + partnerships-architect + channel-economics + commercial-policy + rfp-responder + commercial-forecaster) — with orchestrator skills using `context: fork` for chaining, Matt Pocock docs-anchored ""Forcing-question library"" in every SKILL.md, plus `/cs-grill-bizops` and `/cs-grill-commercial`. **v2.8.2** adds a productivity-shaped `handoff` skill (sibling to engineering/handoff) inspired by Matt Pocock — first-run setup with configurable save location, redaction linter, SessionStart + SessionEnd hooks, fidelity self-check, `--refresh` flag. **v2.8.1** upgraded the engineering role-skills (senior-fullstack / senior-frontend / senior-backend) with karpathy-coder + Matt Pocock decision engines + per-role forcing questions. v2.7.3 ports `alirezarezvani/aeo-box` — AEO (Answer Engine Optimization) skill into marketing-skill/ + security-guidance PreToolUse hook into engineering/. v2.7.0 added 13 Path-B skills across 3 top-level domains (productivity, marketing, research). v2.6.0 added 4 Matt Pocock-derived productivity skills.
+
+",directive,System Overview,cross_event,project,
+ef90a8051e621d5d2f8a:43:45,supabase/supabase,AGENTS.md,43,45,"## CI
+
+",description,DevOps,,,
+89dfbc1d40628466698e:310:311,thedaviddias/Front-End-Checklist,AGENTS.md,310,311,"- Do not apply client-side bot protection (e.g. Vercel BotID) to programmatic API endpoints like MCP; use it only for browser-originated form and mutation endpoints.
+",directive,Security,content,project,
+9eb76bbd7ff76163919d:190:191,github/github-mcp-server,.github/copilot-instructions.md,190,191,"1. Add tool implementation in `pkg/github/` (e.g., `foo_tools.go`)
+",directive,Development Process,content,project,
+b77274d2d7bc39fbcf6e:171:173,googleapis/mcp-toolbox,skills/maintainer/review-prs/SKILL.md,171,173,"### Step 7: Report CI, don't re-derive it
+
+",directive,DevOps,semantic_only,,
+25def2ab9d215610dae7:188:189,kestra-io/kestra,AGENTS.md,188,189,"- new behavior is introduced, or a bug is fixed. The test should fail on the commit before yours; if it passes there, it is testing something else
+",directive,Testing,cross_event,task,
+8015a21f447c11aaaa32:181:185,photoprism/photoprism,AGENTS.md,181,185,"- **Never mix Debian and Ubuntu `apt` repositories in the same image:**
+  - Don't add a Debian source to an Ubuntu base (or vice versa) to install a single missing package — the transitive deps drift, apt's solver pulls newer libraries from the foreign distro, and other build steps in the same `RUN` (e.g. `install-libheif.sh` running `apt-get install libavcodec-dev`) silently link against the wrong soname.
+  - Symptoms surface much later as `dlopen: libfoo.so.N: cannot open shared object file` at image runtime, with the binary referencing a soname that exists only in the foreign distro.
+  - If a package isn't available in the host distro's repos, prefer (a) a same-distro PPA / backports source, (b) a vendor-supplied .deb (e.g. Google Chrome from `dl.google.com`), or (c) a from-source build pinned to a known version.
+",directive,DevOps,content,none,
+06915d3a6044cca419c5:7:8,crewAIInc/crewAI,lib/cli/src/crewai_cli/templates/CLAUDE.md,7,8,"@AGENTS.md
+",directive,Documentation,per_event,none,
+37e3926494d2d3e1561a:676:683,topoteretes/cognee,CLAUDE.md,676,683,"1. **New Task Type**: Create task function in `cognee/tasks/`, return Task object, register in pipeline
+2. **New Database Backend**: Implement `GraphDBInterface` or `VectorDBInterface` in `cognee/infrastructure/databases/`
+3. **New LLM Provider**: Add configuration in LLM config (uses litellm)
+4. **New Document Processor**: Implement `LoaderInterface` in `cognee/infrastructure/loaders/` and register it in `supported_loaders.py` there
+5. **New Search Type**: Add to `SearchType` enum and implement retriever in `cognee/modules/retrieval/`
+6. **Custom Graph Models**: Define Pydantic models extending `DataPoint` in your code
+
+",directive,Architecture,cross_event,project,
+4c93b2d71a1899c08549:22:27,deepspeedai/DeepSpeed,.agents/skills/pr-checklist/SKILL.md,22,27,"This is intended to be used with a human in the loop. When running programmatically, prepare notes
+on every section to produce a thorough report, with a clear header summarizing findings and areas
+needing attention. When running interactively, present that report with a concrete list of
+actionable follow-ups and design decisions to make, then iterate.
+
+",directive,AI Integration,semantic_only,,
+b7fd6e195e8fa5e1c849:409:414,zhayujie/CowAgent,skills/skill-creator/SKILL.md,409,414,"**Best practices**:
+- Keep SKILL.md under 500 lines
+- Split complex content into `references/` files
+- Reference these files clearly in SKILL.md
+
+",directive,Documentation,content,none,
+f511bffe69c1abe92f21:29:30,infiniflow/ragflow,AGENTS.md,29,30,"- `api/`, `rag/`, `deepdoc/`, and `agent/`: legacy Python implementation pending deletion. Do not add features or extend dependencies there.
+",directive,Maintenance,content,none,
+40ef264bd53cba8bad27:90:95,lidge-jun/opencodex,skills/ocx/SKILL.md,90,95,"For request/injection follow, timeline exclusions and scoped usage, start with
+[observation recipes](references/03_recipes.md#25-follow-observed-windows-without-claiming-lossless-history).
+Use versioned log events to reconstruct observed windows; row JSONL cannot express
+removals. Neither stream guarantees lossless traffic history.
+
+",directive,AI Integration,cross_event,project,
+c940abacdc88825f9df6:32:41,rqlite/rqlite,CLAUDE.md,32,41,"## End-to-End Tests
+
+E2E tests require building the binaries first:
+```bash
+go install ./...
+RQLITED_PATH=$(go env GOPATH)/bin/rqlited python3 system_test/e2e/single_node.py
+RQLITED_PATH=$(go env GOPATH)/bin/rqlited python3 system_test/e2e/multi_node.py
+```
+
+",directive,Testing,cross_event,none,
+33b74b7c69beba3baaf8:1:6,multica-ai/andrej-karpathy-skills,.cursor/rules/karpathy-guidelines.mdc,1,6,"---
+description: Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, make surgical changes, surface assumptions, and define verifiable success criteria.
+alwaysApply: true
+---
+
+",description,Documentation,,,
+71779e4c268671772683:53:55,tt-a1i/archify,archify/SKILL.md,53,55,"`finalize` and standalone `deliver` include `update` in their receipts. Do not run a separate check for the same delivery. If `update.noticeRequired` is true, read `references/update-awareness.md` and keep one compact update notice in your final response to the user, even after a quality gate fails. For a task with several diagrams, mention the update once in the final response. Snooze or ignore a reminder only when the user explicitly asks; never install or update on your own initiative.
+
+",directive,Maintenance,cross_event,task,
+9a9829ed34daa4537df1:122:123,aaif-goose/goose,AGENTS.md,122,123,"- Cargo.toml: For human-authored dependency changes, use `cargo add` instead of manually editing dependency entries unless there is a specific reason not to.
+",directive,Maintenance,per_event,task,
+fd46c3b005018bf3c685:577:582,garrytan/gstack,CLAUDE.md,577,582,"- **Durable means:** architecture choice, scope cut, tool/vendor choice, or a reversal
+  of a prior call. NOT a turn-level edit, a phrasing tweak, or anything trivially
+  re-derivable. Capture is curated at the source — log durable decisions only, or the
+  store becomes noise.
+
+",directive,AI Integration,content,task,
+95607284678719991117:47:70,ultralytics/ultralytics,AGENTS.md,47,70,"```bash
+# Dev install (editable) inside an activated virtualenv; tests also need export/solutions extras.
+# [dev] does not include ruff — install it explicitly.
+uv pip install -e "".[dev,export-base,export-openvino,solutions]"" ruff
+
+# Default (non-slow) suite with the base export environment, matching ci.yml's Tests job
+# (CI restores the assets tests/cache_test_assets.py downloads, sets YOLO_AUTOINSTALL=false, caps macOS at 2 workers, and runs ARM single-process)
+pytest -n auto --dist=loadfile --cov=ultralytics/ --cov-report=xml tests/ --export-env base
+
+# Single file / single test
+pytest tests/test_python.py
+pytest tests/test_python.py::test_predict_img -v
+
+# Include slow tests (excluded by default in tests/conftest.py)
+pytest --slow tests/ --export-env base
+
+# Format and lint (source of truth: [tool.ruff] in pyproject.toml, line length 120)
+ruff format . && ruff check --fix .
+
+# Fastest end-to-end smoke test (auto-downloads yolo26n.pt, runs on 2 local asset images)
+yolo predict model=yolo26n.pt
+```
+
+",directive,Build and Run,per_event,project,
+e34b9af56877b39755ae:483:485,mukul975/Anthropic-Cybersecurity-Skills,.github/copilot-instructions.md,483,485,"## Testing & Quality
+
+",description,Testing,,,
+2fbdb33c335e5588f61a:25:27,langchain-ai/langgraph,AGENTS.md,25,27,"Other pytest arguments can also be supplied inside the `TEST` variable.
+
+",description,Testing,,,
+2fbdb33c335e5588f61a:9:13,langchain-ai/langgraph,AGENTS.md,9,13,"When Corridor's `analyzePlan` tool is available, create a plan and use the tool to analyze it before generating or modifying code. Apply the resulting security guidance before writing code.
+
+</corridor>
+
+",directive,Security,cross_event,project,
+ee409fb09d06f7afc42b:70:72,googleapis/mcp-toolbox,GEMINI.md,70,72,"3.  **Generate Search Index:** Because Pagefind requires physical files, `hugo server` alone will not populate the search bar. Build the local index first (using the development environment to block analytics) by running:
+    `hugo --environment development && npx pagefind --site public --output-path static/pagefind`
+",directive,Build and Run,cross_event,none,
+51d1ced1307c955afbd8:291:293,cockroachdb/cockroach,.claude/skills/drt-analyze/SKILL.md,291,293,"You may run Python/bash scripts autonomously — do not ask the user.
+
+",directive,AI Integration,per_event,none,
+470555d991d302774982:124:133,twbs/bootstrap,skills/bootstrap-npm/SKILL.md,124,133,"4. `stylelint.config.mjs`:
+
+   ```js
+   /** @type {import('stylelint').Config} */
+   export default {
+     extends: 'stylelint-config-twbs-bootstrap'
+   }
+   ```
+
+",directive,Configuration & Environment,content,none,
+f3c44a8e304d76f9db22:249:251,microsoft/generative-ai-for-beginners,AGENTS.md,249,251,"5. Document any new environment variables in lesson README
+
+",directive,Documentation,cross_event,project,
+6f68305201cf86cfdbb9:309:315,facebook/rocksdb,CLAUDE.md,309,315,"### Cross-platform / portability
+Local `make` only exercises Linux with GCC/Clang, but CI
+(`.github/workflows/pr-jobs.yml` and `nightly.yml`) gates on a much wider
+matrix, so portability breaks are invisible locally until CI fails. Code must
+build (and where noted, run tests) across:
+
+",directive,DevOps,cross_event,project,
+5e8e7c500d90f87a1c78:19:21,The-Vibe-Company/quivr,AGENTS.md,19,21,"### Implementation dashboard
+
+",description,Development Process,,,
+c18037d52deb78d2a083:9:15,google-gemini/gemini-cli,.gemini/skills/ci/SKILL.md,9,15,"# CI Replicate & Status
+
+This skill enables the agent to efficiently monitor GitHub Actions, triage
+failures, and bridge remote CI errors to local development. It defaults to
+**automatic replication** of failures to streamline the fix cycle.
+
+",description,DevOps,,,
+56844081c554978375dd:11:12,sickn33/agentic-awesome-skills,AGENTS.md,11,12,"- `npm run security:docs`: run safety checks for command, install, credential, and network guidance.
+",description,Security,,,
+b101e1aebc64f74a1f88:213:215,bytedance/deer-flow,.github/copilot-instructions.md,213,215,"- Use an extension when the capability is self-contained and expressible through those
+  contribution points.
+",directive,Architecture,content,project,
+8101c6a9f382e4fc52a1:78:80,phuryn/pm-skills,CLAUDE.md,78,80,"- Semver: breaking = major; new skills/commands or changed behavior = minor; fixes/docs = patch.
+
+",directive,DevOps,content,project,
+dd2d5779276a2b100b28:25:37,affaan-m/ECC,skills/ck/SKILL.md,25,37,"## Data Layout
+
+```
+~/.claude/ck/
+├── projects.json              ← path → {name, contextDir, lastUpdated}
+└── contexts/<name>/
+    ├── context.json           ← SOURCE OF TRUTH (structured JSON, v2)
+    └── CONTEXT.md             ← generated view — do not hand-edit
+```
+
+---
+
+",directive,Architecture,per_event,none,
+a939b5152b5a2aa15655:106:109,cockroachdb/cockroach,CLAUDE.md,106,109,"When adding or reviewing a newly added file with a license header the year on
+the header should be the current year.
+
+",directive,Implementation Details,content,none,
+4c0203637fc524587d3d:24:26,koala73/worldmonitor,AGENTS.md,24,26,"Never run repository scripts from an unreviewed third-party PR checkout. Run trusted tooling with `--root` and `--skip-bootstrap` as described in the worktree guidance.
+
+",directive,Security,cross_event,project,
+c6be36400ebe20a4ee9d:100:101,blader/humanizer,SKILL.md,100,101,"**Problem:** An ordinary point is dressed as a hidden truth or an aphorism, and the dressing adds no detail. Replace the saying with the specific claim.
+",directive,Documentation,content,none,
+54296fbcddfd0098675b:311:314,lidge-jun/opencodex,AGENTS.md,311,314,"`bun run test` has five known environment-only failures in such containers.
+They are not regressions; do not re-investigate them:
+
+",directive,Testing,semantic_only,,
+311bf3166d9259f55057:29:31,JuliaLang/julia,AGENTS.md,29,31,"## Building Julia
+
+",description,Build and Run,,,
+11ed534dd943786f5c14:200:201,clockworklabs/SpacetimeDB,skills/cli/SKILL.md,200,201,"**CLI `generate` targets:** TypeScript, C#, Rust, Unreal C++
+",description,Architecture,,,
+e554d7ce57e1d92a65c9:115:119,electron/electron,CLAUDE.md,115,119,"Electron patches upstream dependencies (Chromium, Node.js, V8, etc.) to add features or modify behavior.
+
+**How patches work:**
+
+",description,Maintenance,,,
+78e7331f30cf80dafa70:85:86,apache/doris,.claude/skills/code-review/SKILL.md,85,86,"- Are configuration items added?
+",directive,Configuration & Environment,semantic_only,,
+9e33b338294bfaa332b2:1:7,agno-agi/agno,CLAUDE.md,1,7,"# Agno - Agent Instructions
+
+Instructions for AI coding agents (Claude Code, Codex, Cursor, etc.) working on this codebase.
+
+---
+
+",description,System Overview,,,
+36e63fce7d9ca61e5265:102:103,ComposioHQ/composio,AGENTS.md,102,103,"- `@composio/cli` is excluded from Changesets; use `cli-release` for CLI binaries and never target that package in a changeset while it remains ignored.
+",directive,DevOps,per_event,project,
+dd2d5779276a2b100b28:91:95,affaan-m/ECC,skills/ck/SKILL.md,91,95,"If user reports changes → run `/ck:save` immediately.
+
+---
+
+",directive,AI Integration,per_event,task,
+953a636acdae0b964889:196:199,h4ckf0r0day/obscura,AGENTS.md,196,199,"The targeting options (country, region, session id) live in the proxy username,
+so a sticky session keeps the same exit IP across requests.
+
+",description,Configuration & Environment,,,
+5e8e7c500d90f87a1c78:21:23,The-Vibe-Company/quivr,AGENTS.md,21,23,"Program progress is shown at https://quivr-v2-dashboard.vercel.app (private: Vercel Authentication, The Vibe Company team). It is derived entirely from Linear, so every ticket you create or update must stay readable by it:
+
+",directive,Development Process,content,project,
+4c93b2d71a1899c08549:402:405,deepspeedai/DeepSpeed,.agents/skills/pr-checklist/SKILL.md,402,405,"- Watch for auto-formatter damage from editing tools. For format-sensitive edits, use `sed`,
+  `python`, or a heredoc rather than an editor that silently rewrites quotes, blank lines, or
+  wrapping.
+",directive,Implementation Details,per_event,task,
+bff4dd73ffde295d813e:176:177,calesthio/OpenMontage,.agents/skills/ltx2/SKILL.md,176,177,"**Important:** HuggingFace token needs read-access scope. Accept the [Gemma 3 license](https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized) before deploying. Unauthenticated downloads are severely rate-limited.
+",directive,Configuration & Environment,cross_event,none,
+04ff6e471c44766464dc:520:522,Leonxlnx/taste-skill,skills/taste-skill/SKILL.md,520,522,"## Files
+
+",description,Documentation,,,
+b8c83e0a3e675382f893:51:53,stablyai/orca,AGENTS.md,51,53,"Support remote execution as well as local. Clients and servers update independently; preserve compatibility across mixed versions.
+
+",directive,Architecture,cross_event,project,
+3aa1e8fbd4aac1ef9c42:131:137,directus/directus,.github/copilot-instructions.md,131,137,"- Follow the PR template provided in `.github/pull_request_template.md`
+- Include scope, risks, tested scenarios, and review notes
+- Add or update tests for new features
+- Update documentation if needed
+- Ensure all checks pass (lint, format, tests)
+
+",directive,Development Process,cross_event,project,
+2d149cdb04b07171894a:172:176,OtterMind/Chat2DB,AGENTS.md,172,176,"- Keep desktop and host-published listeners on loopback unless remote exposure
+  is explicitly requested and documented with its security impact. Do not
+  change the container's required internal `0.0.0.0` binding to enforce a host
+  publication policy.
+",directive,Security,per_event,task,
+fb8380a70d6de1df31a9:35:36,dagger/dagger,engine/ebpf/AGENTS.md,35,36,"3. **Add `go:generate` bpf2go lines** in `tracer.go` (see existing packages).
+",directive,Build and Run,content,project,
+11ed534dd943786f5c14:99:112,clockworklabs/SpacetimeDB,skills/cli/SKILL.md,99,112,"### Database Management
+
+```bash
+# List databases
+spacetime list
+
+# Delete database
+spacetime delete my-database
+
+# Rename database
+spacetime rename <database-identity> --to new-name
+```
+
+",description,Implementation Details,,,
+26ba2295ff3450ff2972:47:57,github/spec-kit,AGENTS.md,47,57,"## PowerShell Compatibility
+
+All PowerShell scripts in the repository and all generated PowerShell
+functionality MUST target Windows PowerShell 5.1, the version included with
+Windows. When adding or changing PowerShell code, use only syntax, cmdlets,
+parameters, and .NET APIs available in Windows PowerShell 5.1. Account for
+encoding and other runtime differences, preserve the required behavioral
+parity with Bash and Python implementations, and provide Windows PowerShell
+5.1 validation evidence for behavioral changes.
+
+",directive,Implementation Details,cross_event,project,
+caeac72c73e5810922a5:92:94,freeCodeCamp/freeCodeCamp,.github/copilot-instructions.md,92,94,"When reviewing pull requests, verify compliance with [freeCodeCamp's contribution standards](https://contribute.freecodecamp.org/how-to-open-a-pull-request).
+
+",directive,Development Process,semantic_only,,
+7e3dbe504dec692dbe24:16:24,dragonflydb/dragonfly,.claude/skills/benchmark/SKILL.md,16,24,"# Benchmark Dragonfly
+
+Drive a benchmark of Dragonfly (optionally side-by-side with Valkey or Redis) on
+local or remote instances, collect throughput / latency / memory numbers, and
+assemble a report that mirrors the team's published format: a narrative TLDR,
+per-instance metric tables, charts, and an appendix with the exact commands and
+raw output so anyone can reproduce it.
+
+",directive,System Overview,cross_event,project,
+39b05d9d1ae66381add5:20:22,Comfy-Org/ComfyUI,AGENTS.md,20,22,"- Preserve existing APIs, node names, model-loading behavior, file layout, and
+  workflow compatibility unless the change is explicitly about replacing them.
+",directive,Maintenance,content,task,
+f061064366095fc7233b:328:329,microsoft/ML-For-Beginners,AGENTS.md,328,329,"- **Solutions provided** but learners should attempt exercises first
+",directive,System Overview,semantic_only,,
+47e2e8006bba125bae7f:17:18,ZhuLinsen/daily_stock_analysis,.github/copilot-instructions.md,17,18,"- Do not hardcode secrets, accounts, ports, model names, absolute environment-specific paths, or environment-specific branches.
+",directive,Security,content,none,
+a433f81dd70ca3cbb4f1:153:154,pingcap/tidb,AGENTS.md,153,154,"- Because TiDB is a complex system, code SHOULD remain maintainable for future readers with basic TiDB familiarity, including readers who are not experts in the specific subsystem/feature.
+",directive,Implementation Details,semantic_only,,
+5618bc808959644ef9c6:17:19,metabase/metabase,.github/copilot-instructions.md,17,19,"### Security Critical Issues
+
+",description,Security,,,
+a79bafc294ea7679f9cd:61:63,browser-use/browser-use,skills/qa/SKILL.md,61,63,"**Last resort only** — if you genuinely can't install it (no network, no Python): stop and have the user open **https://www.browser-harness.com/** and paste its **""prompt for LLMs""** into an agent:
+
+",directive,Build and Run,semantic_only,,
+505e7e3c01c8acf049bd:95:97,xbtlin/ai-berkshire,CLAUDE.md,95,97,"## 常用命令
+
+",description,Build and Run,,,
+ff073a0b1596390ce38b:368:369,K-Dense-AI/scientific-agent-skills,AGENTS.md,368,369,"- `metadata.version` exists, is quoted, and is bumped if you changed an existing skill.
+",directive,Implementation Details,cross_event,project,
+1e8b3f6e2fdbd01b5e37:59:61,op7418/guizang-ppt-skill,SKILL.md,59,61,"如果返回值大于 `0`,告诉用户检测到上游更新数量,询问是否先执行:
+
+",directive,Maintenance,semantic_only,,
+2598c40a1aec29c5838c:952:956,browser-use/browser-use,AGENTS.md,952,956,"## Opting Out
+
+You can disable telemetry by setting the environment variable:
+
+",directive,Configuration & Environment,per_event,project,

@@ -1,0 +1,538 @@
+file: "rtk-ai/rtk/CLAUDE.md"
+statements:
+  - id: 1
+    lines: [1, 5]
+    text: |
+      # CLAUDE.md
+
+      This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [5, 11]
+    text: |
+      ## Project Overview
+
+      **rtk (Rust Token Killer)** is a high-performance CLI proxy that minimizes LLM token consumption by filtering and compressing command outputs. It achieves 60-90% token savings on common development operations through smart filtering, grouping, truncation, and deduplication.
+
+      This is a fork with critical fixes for git argument parsing and modern JavaScript stack support (pnpm, vitest, Next.js, TypeScript, Playwright, Prisma).
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [11, 25]
+    text: |
+      ### Name Collision Warning
+
+      **Two different "rtk" projects exist:**
+      - This project: Rust Token Killer (rtk-ai/rtk)
+      - reachingforthejack/rtk: Rust Type Kit (DIFFERENT - generates Rust types)
+
+      **Verify correct installation:**
+      ```bash
+      rtk --version  # Should show "rtk 0.28.2" (or newer)
+      rtk gain       # Should show token savings stats (NOT "command not found")
+      ```
+
+      If `rtk gain` fails, you have the wrong package installed.
+
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [25, 30]
+    text: |
+      ## Development Commands
+
+      > **Note**: If rtk is installed, prefer `rtk <cmd>` over raw commands for token-optimized output.
+      > All commands work with passthrough support even for subcommands rtk doesn't specifically handle.
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 5
+    lines: [30, 39]
+    text: |
+      ### Build & Run
+      ```bash
+      cargo build                   # raw
+      rtk cargo build               # preferred (token-optimized)
+      cargo build --release         # release build (optimized)
+      cargo run -- <command>        # run directly
+      cargo install --path .        # install locally
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [39, 49]
+    text: |
+      ### Testing
+      ```bash
+      cargo test                    # all tests
+      rtk cargo test                # preferred (token-optimized)
+      cargo test <test_name>        # specific test
+      cargo test <module_name>::    # module tests
+      cargo test -- --nocapture     # with stdout
+      bash scripts/test-all.sh      # smoke tests (installed binary required)
+      ```
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [49, 57]
+    text: |
+      ### Linting & Quality
+      ```bash
+      cargo check                   # check without building
+      cargo fmt                     # format code
+      cargo clippy --all-targets    # all clippy lints
+      rtk cargo clippy --all-targets # preferred
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [57, 62]
+    text: |
+      ### Pre-commit Gate
+      ```bash
+      cargo fmt --all && cargo clippy --all-targets && cargo test --all
+      ```
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 9
+    lines: [62, 68]
+    text: |
+      ### Package Building
+      ```bash
+      cargo deb                     # DEB package (needs cargo-deb)
+      cargo generate-rpm            # RPM package (needs cargo-generate-rpm, after release build)
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [68, 72]
+    text: |
+      ## Architecture
+
+      rtk uses a **command proxy architecture**: `main.rs` routes CLI commands via a Clap `Commands` enum to specialized filter modules in `src/cmds/*/`, each of which executes the underlying command and compresses its output. Token savings are tracked in SQLite via `src/core/tracking.rs`.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [72, 76]
+    text: |
+      For the full architecture, component details, and module development patterns, see:
+      - [ARCHITECTURE.md](docs/contributing/ARCHITECTURE.md) — System design, module organization, filtering strategies, error handling
+      - [docs/contributing/TECHNICAL.md](docs/contributing/TECHNICAL.md) — End-to-end flow, folder map, hook system, filter pipeline
+
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [76, 78]
+    text: |
+      Module responsibilities are documented in each folder's `README.md` and each file's `//!` doc header. Browse `src/cmds/*/` to discover available filters.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [78, 80]
+    text: |
+      Supported ecosystems: git/gh/gt, cargo, go/golangci-lint, npm/pnpm/npx, ruff/pytest/pip/mypy, rspec/rubocop/rake, dotnet, playwright/vitest/jest, docker/kubectl/aws.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [80, 86]
+    text: |
+      ### Proxy Mode
+
+      **Purpose**: Execute commands without filtering but track usage for metrics.
+
+      **Usage**: `rtk proxy <command> [args...]`
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [86, 88]
+    text: |
+      **Benefits**:
+      - **Bypass RTK filtering**: Workaround bugs or get full unfiltered output
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [88, 89]
+    text: |
+      - **Track usage metrics**: Measure which commands Claude uses most (visible in `rtk gain --history`)
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [89, 91]
+    text: |
+      - **Guaranteed compatibility**: Always works even if RTK doesn't implement the command
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [91, 98]
+    text: |
+      **Examples**:
+      ```bash
+      rtk proxy git log --oneline -20    # Full git log output (no truncation)
+      rtk proxy npm install express      # Raw npm output (no filtering)
+      rtk proxy curl https://api.example.com/data  # Any command works
+      ```
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 19
+    lines: [98, 100]
+    text: |
+      All proxy commands appear in `rtk gain --history` with 0% savings (input = output).
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [100, 105]
+    text: |
+      ## Coding Rules
+
+      Rust patterns, error handling, and anti-patterns are defined in `.claude/rules/rust-patterns.md` (auto-loaded into context). Key points:
+
+      - **anyhow::Result** everywhere, always `.context("description")?`
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 22
+    lines: [105, 106]
+    text: |
+      - **No unwrap()** in production code
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 23
+    lines: [106, 107]
+    text: |
+      - **lazy_static!** for all regex (never compile inside a function)
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 24
+    lines: [107, 108]
+    text: |
+      - **Fallback pattern**: if filter fails, execute raw command unchanged
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 25
+    lines: [108, 109]
+    text: |
+      - **No async**: single-threaded by design (startup <10ms)
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 26
+    lines: [109, 111]
+    text: |
+      - **Exit code propagation**: `std::process::exit(code)` on child failure
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 27
+    lines: [111, 113]
+    text: |
+      Testing strategy and performance targets are defined in `.claude/rules/cli-testing.md` (auto-loaded). Key targets: <10ms startup, <5MB memory, 60-90% token savings.
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 28
+    lines: [113, 115]
+    text: |
+      For contribution workflow and design philosophy, see [CONTRIBUTING.md](CONTRIBUTING.md). For the step-by-step filter implementation checklist, see [src/cmds/README.md](src/cmds/README.md#adding-a-new-command-filter).
+
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 29
+    lines: [115, 123]
+    text: |
+      ## Build Verification (Mandatory)
+
+      **CRITICAL**: After ANY Rust file edits, ALWAYS run the full quality check pipeline before committing:
+
+      ```bash
+      cargo fmt --all && cargo clippy --all-targets && cargo test --all
+      ```
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 30
+    lines: [123, 125]
+    text: |
+      **Rules**:
+      - Never commit code that hasn't passed all 3 checks
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 31
+    lines: [125, 126]
+    text: |
+      - Fix ALL clippy warnings before moving on (zero tolerance)
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 32
+    lines: [126, 128]
+    text: |
+      - If build fails, fix it immediately before continuing to next task
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 33
+    lines: [128, 135]
+    text: |
+      **Performance verification** (for filter changes):
+      ```bash
+      hyperfine 'rtk git log -10' --warmup 3          # before
+      cargo build --release
+      hyperfine 'target/release/rtk git log -10' --warmup 3  # after (should be <10ms)
+      ```
+
+    type: directive
+    topic: Implementation Details
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 34
+    lines: [135, 144]
+    text: |
+      ## Working Directory Confirmation
+
+      **ALWAYS confirm working directory before starting any work**:
+
+      ```bash
+      pwd  # Verify you're in the rtk project root
+      git branch  # Verify correct branch (main, feature/*, etc.)
+      ```
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 35
+    lines: [144, 146]
+    text: |
+      **Never assume** which project to work in. Always verify before file operations.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 36
+    lines: [146, 150]
+    text: |
+      ## Avoiding Rabbit Holes
+
+      **Stay focused on the task**. Do not make excessive operations to verify external APIs, documentation, or edge cases unless explicitly asked.
+
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 37
+    lines: [150, 152]
+    text: |
+      **Rule**: If verification requires more than 3-4 exploratory commands, STOP and ask the user whether to continue or trust available info.
+
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 38
+    lines: [152, 154]
+    text: |
+      **Examples of rabbit holes to avoid**:
+      - Excessive regex pattern testing (trust snapshot tests, don't manually verify 20 edge cases)
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 39
+    lines: [154, 155]
+    text: |
+      - Deep diving into external command documentation (use fixtures, don't research git/cargo internals)
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 40
+    lines: [155, 156]
+    text: |
+      - Over-testing cross-platform behavior (test macOS + Linux, trust CI for Windows)
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 41
+    lines: [156, 158]
+    text: |
+      - Verifying API signatures across multiple crate versions (use docs.rs if needed, don't clone repos)
+
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 42
+    lines: [158, 160]
+    text: |
+      **When to stop and ask**:
+      - "Should I research X external API behavior?" → ASK if it requires >3 commands
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 43
+    lines: [160, 161]
+    text: |
+      - "Should I test Y edge case?" → ASK if not mentioned in requirements
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 44
+    lines: [161, 163]
+    text: |
+      - "Should I verify Z across N platforms?" → ASK if N > 2
+
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 45
+    lines: [163, 172]
+    text: |
+      ## Plan Execution Protocol
+
+      When user provides a numbered plan (QW1-QW4, Phase 1-5, sprint tasks, etc.):
+
+      1. **Execute sequentially**: Follow plan order unless explicitly told otherwise
+      2. **Commit after each logical step**: One commit per completed phase/task
+      3. **Never skip or reorder**: If a step is blocked, report it and ask before proceeding
+      4. **Track progress**: Use task list (TaskCreate/TaskUpdate) for plans with 3+ steps
+      5. **Validate assumptions**: Before starting, verify all referenced file paths exist and working directory is correct
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high

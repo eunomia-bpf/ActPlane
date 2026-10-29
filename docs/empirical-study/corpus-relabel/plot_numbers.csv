@@ -1,0 +1,46 @@
+cohort,metric,label,unit,paper_value,numerator,denominator,value,ci_low,ci_high
+primary,repositories,1. Repositories,count,64,,,362,,
+primary,instruction_files,1. Instruction files (inventory),count,84,,,775,,
+primary,annotated_files,1. Files with statement labels,count,unavailable,,,755,,
+primary,statements,1. Statements,count,"2,116",,,29717,,
+primary,median_stars,1. Median GitHub stars,stars,20K,,,34881.5,,
+primary,policy_fraction,2. Policies / statements,fraction,64%,17041,29717,0.5734428105125012,0.5502511818046465,0.5954673031273144
+primary,description_fraction,2. Descriptions / statements,fraction,36%,12676,29717,0.4265571894874987,0.4045326968726856,0.44974881819535356
+primary,majority_policy_repos,2. Repositories with more policy than description,fraction,70.1%,245,362,0.6767955801104972,0.6298342541436464,0.7237569060773481
+primary,min_repo_policy_fraction,2. Minimum repository policy share,fraction_extreme,0%,,,0.0,,
+primary,max_repo_policy_fraction,2. Maximum repository policy share,fraction_extreme,97%,,,1.0,,
+primary,topic_policy:Development Process,3. Policy share: Development Process,fraction,87%,2882,3939,0.7316577811627316,0.7098884522881208,0.7524967560110887
+primary,topic_policy:Implementation Details,3. Policy share: Implementation Details,fraction,85%,3479,5049,0.6890473361061596,0.6462599272082649,0.728116769474384
+primary,topic_policy:Architecture,3. Policy share: Architecture,fraction,23%,595,3108,0.19144144144144143,0.15584852607306504,0.2297474945042906
+primary,topic_policy:Build and Run,3. Policy share: Build and Run,fraction,unavailable,1121,1980,0.5661616161616162,0.5228975925745216,0.6090706826757624
+primary,topic_policy:AI Integration,3. Policy share: AI Integration,fraction,unavailable,2649,3965,0.6680958385876419,0.6351280484796863,0.7006184641940247
+primary,topic_policy:Testing,3. Policy share: Testing,fraction,unavailable,2008,2882,0.6967383761276891,0.6648289639055939,0.7270797918394503
+primary,topic_policy:System Overview,3. Policy share: System Overview,fraction,unavailable,41,1174,0.03492333901192504,0.011777253436986004,0.06901416904390986
+primary,topic_policy:Documentation,3. Policy share: Documentation,fraction,unavailable,1970,3622,0.5438983986747653,0.49662332478717525,0.5890791028205
+primary,topic_policy:Configuration & Environment,3. Policy share: Configuration & Environment,fraction,unavailable,674,1567,0.43012125079770264,0.3737768661007784,0.4872575757063559
+primary,topic_policy:Security,3. Policy share: Security,fraction,unavailable,686,962,0.7130977130977131,0.6641295968205324,0.7576381085594338
+primary,topic_policy:DevOps,3. Policy share: DevOps,fraction,unavailable,537,949,0.565858798735511,0.49733905387298727,0.6278282292298363
+primary,topic_policy:Maintenance,3. Policy share: Maintenance,fraction,unavailable,399,520,0.7673076923076924,0.7086934926576447,0.818000097847358
+primary,policies,4. Policies,count,"1,361",,,17041,,
+primary,semantic_only_fraction,4. semantic_only / policies,fraction,17%,2229,17041,0.13080218297048296,0.11678903127156545,0.14560254292494093
+primary,content_fraction,4. content / policies,fraction,38%,5620,17041,0.3297928525321284,0.30133122045069777,0.35802740160112656
+primary,per_event_fraction,4. per_event / policies,fraction,29%,4182,17041,0.24540813332550906,0.2265234526475883,0.26513140944075686
+primary,cross_event_fraction,4. cross_event / policies,fraction,16%,5010,17041,0.2939968311718796,0.2746475673903908,0.3142450799560713
+primary,system_observable_fraction,4. System-observable / policies,fraction,83%,14812,17041,0.869197817029517,0.854397457075059,0.8832109687284345
+primary,development_share_cross_event,5. Development Process / all cross-event policies,fraction,39.5%,1103,5010,0.22015968063872254,0.19161275715168663,0.25100554547488796
+primary,cross_event_repo_share,5. Repositories with at least one cross-event policy,fraction,81%,334,362,0.9226519337016574,0.8950276243093923,0.9502762430939227
+primary,all_four_tiers_repo_share,5. Repositories spanning all four tiers,fraction,43%,239,362,0.6602209944751382,0.6104972375690608,0.7071823204419889
+primary,system_observable,6. System-observable policies,count,"1,127",,,14812,,
+primary,context_none_fraction,6. Self-contained / system-observable,fraction,26.4%,5823,14812,0.39312719416689174,0.3680895736781562,0.4187393756990453
+primary,context_project_fraction,6. Project context / system-observable,fraction,64.2%,6199,14812,0.4185120172832838,0.39443890488751854,0.44283676879493744
+primary,context_task_fraction,6. Task context / system-observable,fraction,9.4%,2790,14812,0.18836078854982446,0.1697934405952611,0.2076211692027545
+primary,context_dependent_fraction,6. Not self-contained / system-observable,fraction,73.6%,8989,14812,0.6068728058331083,0.5812606243009546,0.6319104263218438
+primary,cross_event_context_project_task,7. Context-dependent / cross-event,fraction,95%,4131,5010,0.8245508982035928,0.8033573301471313,0.8438989191961855
+primary,cross_event_context_project,7. Project context / cross-event,fraction,77%,2872,5010,0.5732534930139721,0.5443893344224515,0.6006602446974724
+primary,cross_event_context_task,7. Task context / cross-event,fraction,19%,1259,5010,0.25129740518962074,0.22562477847908663,0.27715161395954585
+primary,content_context_project_task,7. Context-dependent / content,fraction,58%,2575,5620,0.4581850533807829,0.41853029988500234,0.4984882048072293
+primary,content_context_none,7. Self-contained / content,fraction,42%,3045,5620,0.541814946619217,0.5015117951927707,0.5814697001149977
+primary,os_enforceable,8. OS-enforceable policy candidates,count,607,,,9192,,
+primary,os_enforceable_fraction,8. (Per-event + cross-event) / policies,fraction,45%,9192,17041,0.5394049644973886,0.5119740684617463,0.5674735551824882
+primary,max_repo_policies,8. Largest per-repository policy count (all tiers),count,unavailable,,,229,,
+primary,max_repo_os_policies,8. Largest per-repository OS-tier policy count,count,66,,,141,,

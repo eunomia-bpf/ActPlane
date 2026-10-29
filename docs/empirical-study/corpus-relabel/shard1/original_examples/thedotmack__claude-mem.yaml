@@ -1,0 +1,306 @@
+file: "thedotmack/claude-mem/CLAUDE.md"
+statements:
+  - id: 1
+    lines: [1, 4]
+    text: |
+      # Claude-Mem: AI Development Instructions
+
+      Claude-mem is a Claude Code plugin providing persistent memory across sessions. It captures tool usage, compresses observations using the Claude Agent SDK, and injects relevant context into future sessions.
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [4, 24]
+    text: |
+
+      ## Architecture
+
+      **6 Lifecycle Hooks**: Setup → SessionStart → UserPromptSubmit → PreToolUse (Read) → PostToolUse → Stop
+
+      **Hooks** - Entries in `plugin/hooks/hooks.json` dispatch to the unified worker (`plugin/scripts/worker-service.cjs`, built from `src/services/worker-service.ts` via `scripts/build-hooks.js`) through `bun-runner.js`, invoking subcommands like `context`, `session-init`, `observation`, `file-context`, and `summarize`. The Setup-phase `version-check.js` is the only standalone hook script.
+
+      **Worker Service** (`src/services/worker-service.ts`) - Express API on the per-user worker port (default `37700 + (uid % 100)`, configurable via `CLAUDE_MEM_WORKER_PORT`), Bun-managed, handles AI processing asynchronously
+
+      **Database** (`src/services/sqlite/`) - SQLite3 at `~/.claude-mem/claude-mem.db`
+
+      **Search Skill** (`plugin/skills/mem-search/SKILL.md`) - HTTP API for searching past work, auto-invoked when users ask about history
+
+      **Planning Skill** (`plugin/skills/make-plan/SKILL.md`) - Orchestrator instructions for creating phased implementation plans with documentation discovery
+
+      **Execution Skill** (`plugin/skills/do/SKILL.md`) - Orchestrator instructions for executing phased plans using subagents
+
+      **Chroma** (`src/services/sync/ChromaSync.ts`) - Vector embeddings for semantic search
+
+      **Viewer UI** (`src/ui/viewer/`) - React interface served by the worker on its configured port (default `http://127.0.0.1:<worker-port>`), built to `plugin/ui/viewer.html`
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [24, 27]
+    text: |
+
+      ## Privacy Tags
+      - `<private>content</private>` - User-level privacy control (manual, prevents storage)
+    type: description
+    topic: Security
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [27, 29]
+    text: |
+
+      **Implementation**: Tag stripping happens at hook layer (edge processing) before data reaches worker/database. See `src/utils/tag-stripping.ts` for shared utilities.
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [29, 35]
+    text: |
+
+      ## Build Commands
+
+      ```bash
+      npm run build-and-sync        # Build, sync to marketplace, restart worker
+      ```
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [35, 39]
+    text: |
+
+      ## Configuration
+
+      Settings are managed in `~/.claude-mem/settings.json`. The file is auto-created with defaults on first run.
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [39, 49]
+    text: |
+
+      ## Multi-account
+
+      Claude-mem supports running multiple isolated profiles on the same machine (e.g. work vs personal accounts) via environment variables. No CLI subcommand needed — set the env vars in the shell where you run Claude Code.
+
+      - **Switch profiles per shell:** Set `CLAUDE_MEM_DATA_DIR=<path>` and every claude-mem path (database, chroma, logs, settings.json, worker.pid, transcripts config) derives from it. Example:
+
+        ```bash
+        export CLAUDE_MEM_DATA_DIR="$HOME/.claude-mem-work"
+        ```
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [49, 55]
+    text: |
+
+      - **Port collisions are auto-handled:** The default worker port is `37700 + (uid % 100)`, so two different OS users on the same box get different ports for free. If you want fixed ports per profile (e.g. you run two profiles as the same UID), set `CLAUDE_MEM_WORKER_PORT` too:
+
+        ```bash
+        export CLAUDE_MEM_WORKER_PORT=37800
+        ```
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [55, 57]
+    text: |
+
+      - **All paths and ports derive from these two env vars.** Hooks, npx-cli (`install`/`uninstall`/`start`/`search`), the OpenCode plugin, the OpenClaw installer, and the timeline-report skill all honor them. The settings file itself lives at `$CLAUDE_MEM_DATA_DIR/settings.json`.
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [57, 59]
+    text: |
+
+      - See `src/shared/SettingsDefaultsManager.ts` for the canonical port/data-dir defaults and `plugin/skills/timeline-report/SKILL.md` for the shell snippet that resolves the port for arbitrary skills.
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [59, 67]
+    text: |
+
+      ## File Locations
+
+      - **Source**: `<project-root>/src/`
+      - **Built Plugin**: `<project-root>/plugin/`
+      - **Installed Plugin**: `~/.claude/plugins/marketplaces/thedotmack/`
+      - **Database**: `~/.claude-mem/claude-mem.db`
+      - **Chroma**: `~/.claude-mem/chroma/`
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [67, 77]
+    text: |
+
+      ## Exit Code Strategy
+
+      Claude-mem hooks use specific exit codes per Claude Code's hook contract:
+
+      - **Exit 0**: Success or graceful shutdown (Windows Terminal closes tabs)
+      - **Exit 1**: Non-blocking error (stderr shown to user, continues)
+      - **Exit 2**: Blocking error (stderr fed to Claude for processing)
+
+      **Philosophy**: Worker/hook errors exit with code 0 to prevent Windows Terminal tab accumulation. The wrapper/plugin layer handles restart logic. ERROR-level logging is maintained for diagnostics.
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [77, 83]
+    text: |
+
+      ## Requirements
+
+      - **Bun** (all platforms - auto-installed if missing)
+      - **uv** (all platforms - auto-installed if missing, provides Python for Chroma)
+      - Node.js
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [83, 89]
+    text: |
+
+      ## Documentation
+
+      **Public Docs**: https://docs.claude-mem.ai (Mintlify)
+      **Source**: `docs/public/` - MDX files, edit `docs.json` for navigation
+      **Deploy**: Auto-deploys from GitHub on push to main
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [89, 109]
+    text: |
+
+      ## Pro Features Architecture
+
+      Claude-mem is designed with a clean separation between open-source core functionality and optional Pro features.
+
+      **Open-Source Core** (this repository):
+
+      - All local worker HTTP API endpoints (per-user port — see Architecture above) remain fully open and accessible
+      - Pro features are headless - no proprietary UI elements in this codebase
+      - Pro integration points are minimal: settings for license keys, tunnel provisioning logic
+      - The architecture ensures Pro features extend rather than replace core functionality
+
+      **Pro Features** (coming soon, external):
+
+      - Enhanced UI (Memory Stream) connects to the same local worker endpoints as the open viewer
+      - Additional features like advanced filtering, timeline scrubbing, and search tools
+      - Access gated by license validation, not by modifying core endpoints
+      - Users without Pro licenses continue using the full open-source viewer UI without limitation
+
+      This architecture preserves the open-source nature of the project while enabling sustainable development through optional paid features.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [109, 113]
+    text: |
+
+      ## Important
+
+      No need to edit the changelog ever, it's generated automatically.
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 17
+    lines: [113, 118]
+    text: |
+
+      ## Daily Maintenance
+
+      Run a daily version check across all package manifests and upgrade every dependency to its latest version — including major version bumps. Staying on the latest is the goal; do not skip majors.
+
+    type: directive
+    topic: Maintenance
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 18
+    lines: [118, 119]
+    text: |
+      - Check `package.json` (root) and all nested `package.json` files (e.g. `plugin/`, `openclaw/`) for outdated dependencies via `npm outdated`.
+    type: directive
+    topic: Maintenance
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 19
+    lines: [119, 120]
+    text: |
+      - Upgrade every package to `latest` (use `npm install <pkg>@latest` for each, or `npx npm-check-updates -u && npm install`). Bump majors too.
+    type: directive
+    topic: Maintenance
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 20
+    lines: [120, 121]
+    text: |
+      - Run `npm audit fix` to resolve advisories.
+    type: directive
+    topic: Maintenance
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 21
+    lines: [121, 122]
+    text: |
+      - After upgrades, run `npm run build-and-sync` and verify the worker starts and tests pass. Fix any breakage caused by major bumps in the same change.
+    type: directive
+    topic: Maintenance
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 22
+    lines: [122, 123]
+    text: |
+      - Commit the updated `package.json` and `package-lock.json` files.
+    type: directive
+    topic: Maintenance
+    enforceability: cross_event
+    context_required: none
+    confidence: high

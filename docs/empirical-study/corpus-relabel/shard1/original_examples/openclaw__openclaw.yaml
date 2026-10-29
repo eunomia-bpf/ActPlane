@@ -1,0 +1,1621 @@
+file: "openclaw/openclaw/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 5]
+    text: |
+      # AGENTS.MD
+
+      Telegraph style. Root rules only. Read scoped `AGENTS.md` before subtree work.
+      Skills own workflows; root owns hard policy and routing.
+
+    type: description
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [5, 9]
+    text: |
+
+      ## Start
+
+      - Repo: `https://github.com/openclaw/openclaw`
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [9, 10]
+    text: |
+      - Replies: repo-root refs only: `extensions/telegram/src/index.ts:80`. No absolute paths, no `~/`.
+
+    type: directive
+    topic: AI Integration
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 4
+    lines: [10, 11]
+    text: |
+      - Docs/user-visible work: `pnpm docs:list`, then read relevant docs only.
+
+    type: directive
+    topic: Documentation
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 5
+    lines: [11, 12]
+    text: |
+      - Fix/triage answers need source, tests, current/shipped behavior, and dependency contract proof.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 6
+    lines: [12, 13]
+    text: |
+      - Dependency-backed behavior: read upstream docs/source/types first. No API/default/error/timing guesses.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 7
+    lines: [13, 14]
+    text: |
+      - Live-verify when feasible. Never print secrets.
+
+    type: directive
+    topic: Security
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 8
+    lines: [14, 15]
+    text: |
+      - Missing deps: `pnpm install`, retry once, then report first actionable error.
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 9
+    lines: [15, 16]
+    text: |
+      - CODEOWNERS: maint/refactor/tests ok. Larger behavior/product/security/ownership: owner ask/review.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 10
+    lines: [16, 17]
+    text: |
+      - Product/docs/UI/changelog wording: "plugin/plugins"; `extensions/` is internal.
+
+    type: directive
+    topic: Documentation
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 11
+    lines: [17, 18]
+    text: |
+      - New channel/plugin/app/doc surface: update `.github/labeler.yml` + GH labels.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 12
+    lines: [18, 19]
+    text: |
+      - New `AGENTS.md`: add sibling `CLAUDE.md` symlink; edit `AGENTS.md` only.
+
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 13
+    lines: [19, 23]
+    text: |
+
+      ## Map
+
+      - Core TS: `src/`, `ui/`, `packages/`; plugins: `extensions/`; SDK: `src/plugin-sdk/*`; channels: `src/channels/*`; loader: `src/plugins/*`; protocol: `src/gateway/protocol/*`; docs/apps: `docs/`, `apps/`.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [23, 24]
+    text: |
+      - Installers: sibling `../openclaw.ai`.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [24, 25]
+    text: |
+      - Scoped guides: `extensions/`, `src/{plugin-sdk,channels,plugins,gateway,gateway/protocol,agents}/`, `test/helpers*/`, `docs/`, `ui/`, `scripts/`.
+
+    type: description
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [25, 29]
+    text: |
+
+      ## Architecture
+
+      - Core stays plugin-agnostic. No bundled ids/defaults/policy in core when manifest/registry/capability contracts work.
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 17
+    lines: [29, 30]
+    text: |
+      - Plugins cross into core only via `openclaw/plugin-sdk/*`, manifest metadata, injected runtime helpers, documented barrels (`api.ts`, `runtime-api.ts`).
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 18
+    lines: [30, 31]
+    text: |
+      - Plugin prod code: no core `src/**`, `src/plugin-sdk-internal/**`, other plugin `src/**`, or relative outside package.
+
+    type: directive
+    topic: Architecture
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 19
+    lines: [31, 32]
+    text: |
+      - Core/tests: no deep plugin internals (`extensions/*/src/**`, `onboard.js`). Use public barrels, SDK facade, generic contracts.
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 20
+    lines: [32, 33]
+    text: |
+      - Owner boundary: owner-specific repair/detection/onboarding/auth/defaults/provider behavior lives in owner plugin. Shared/core gets generic seams only.
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 21
+    lines: [33, 34]
+    text: |
+      - Dependency ownership follows runtime ownership: plugin-only deps stay plugin-local; root deps only for core imports or intentionally internalized bundled plugin runtime.
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 22
+    lines: [34, 35]
+    text: |
+      - Internal bundled plugins ship in core dist; bundled-only facade loader ok only for them.
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 23
+    lines: [35, 36]
+    text: |
+      - External official plugins own package/deps and are excluded from core dist; core uses registry-aware `facade-runtime` or generic contracts.
+
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 24
+    lines: [36, 37]
+    text: |
+      - Externalizing a bundled plugin: update package excludes, official catalogs, docs, tests, and prove core runtime paths resolve installed plugin roots before root-dep removal.
+
+    type: directive
+    topic: Architecture
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 25
+    lines: [37, 38]
+    text: |
+      - Legacy config repair belongs in `openclaw doctor --fix`, not startup/load-time core migrations. Runtime paths use canonical contracts.
+
+    type: directive
+    topic: Architecture
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 26
+    lines: [38, 39]
+    text: |
+      - Fix shape: default to clean bounded refactor, not smallest patch. Move ownership to right boundary; delete stale abstractions, duplicate policy, dead branches, wrappers, fallback stacks.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 27
+    lines: [39, 40]
+    text: |
+      - Lean code is a goal. No internal shims, aliases, legacy names, broad fallbacks, or defensive branches just to reduce diff or handle unrealistic edge cases.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 28
+    lines: [40, 41]
+    text: |
+      - Handle real production states, shipped upgrade paths, security boundaries, and dependency contracts. Public/hostile/observed malformed input gets care; hypothetical malformed input does not.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 29
+    lines: [41, 42]
+    text: |
+      - Public plugin SDK/API is the compat exception. New API first, old path only via named compat/deprecation metadata, docs, warnings when useful, tests for old+new, planned removal.
+
+    type: directive
+    topic: Architecture
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 30
+    lines: [42, 43]
+    text: |
+      - Migrate internal/bundled callers to modern API in the same change. Do not let internal compat become permanent architecture.
+
+    type: directive
+    topic: Architecture
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 31
+    lines: [43, 44]
+    text: |
+      - Channels are implementation under `src/channels/**`; plugin authors get SDK seams. Providers own auth/catalog/runtime hooks; core owns generic loop.
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 32
+    lines: [44, 45]
+    text: |
+      - Hot paths should carry prepared facts forward: provider id, model ref, channel id, target, capability family, attachment class. Do not rediscover with broad plugin/provider/channel/capability loaders.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 33
+    lines: [45, 46]
+    text: |
+      - Do not fix repeated request-time discovery with scattered caches. Move the canonical fact earlier; reuse prepared runtime objects; delete duplicate lookup branches.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 34
+    lines: [46, 47]
+    text: |
+      - Inline code comments: brief notes for tricky, bug-prone, or previously buggy logic.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 35
+    lines: [47, 48]
+    text: |
+      - Gateway protocol changes: additive first; incompatible needs versioning/docs/client follow-through.
+
+    type: directive
+    topic: Architecture
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 36
+    lines: [48, 49]
+    text: |
+      - Protocol version bumps: explicit owner confirmation only; never automatic/generated.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 37
+    lines: [49, 50]
+    text: |
+      - Config contract: exported types, schema/help, metadata, baselines, docs aligned. Retired public keys stay retired; compat in raw migration/doctor only.
+
+    type: directive
+    topic: Architecture
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 38
+    lines: [50, 51]
+    text: |
+      - Prompt cache: deterministic ordering for maps/sets/registries/plugin lists/files/network results before model/tool payloads. Preserve old transcript bytes when possible.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 39
+    lines: [51, 52]
+    text: |
+      - Agent tool schema cleanup: remove stale args cleanly; no hidden compat for model-facing params just to avoid churn.
+
+    type: directive
+    topic: AI Integration
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 40
+    lines: [52, 56]
+    text: |
+
+      ## Commands
+
+      - Runtime: Node 22.19+; Node 24 recommended. Keep Node + Bun paths working.
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 41
+    lines: [56, 57]
+    text: |
+      - Package manager/runtime: repo defaults only. No swaps without approval.
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 42
+    lines: [57, 58]
+    text: |
+      - Install: `pnpm install` (keep Bun lock/patches aligned if touched).
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 43
+    lines: [58, 59]
+    text: |
+      - Sharp/Homebrew libvips source-build fail: `SHARP_IGNORE_GLOBAL_LIBVIPS=1 pnpm install`.
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 44
+    lines: [59, 60]
+    text: |
+      - CLI: `pnpm openclaw ...` or `pnpm dev`; build: `pnpm build`.
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 45
+    lines: [60, 61]
+    text: |
+      - Tests in a normal source checkout: `pnpm test <path-or-filter> [vitest args...]`, `pnpm test:changed`, `pnpm test:serial`, `pnpm test:coverage`; never raw `vitest`.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 46
+    lines: [61, 62]
+    text: |
+      - Tests in a Codex worktree or linked/sparse checkout: avoid direct local `pnpm test*`; use `node scripts/run-vitest.mjs <path-or-filter>` for tiny explicit-file proof, or Crabbox/Testbox for anything broader.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 47
+    lines: [62, 63]
+    text: |
+      - Checks in a normal source checkout: `pnpm check:changed`; lanes: `pnpm changed:lanes --json`; staged: `pnpm check:changed --staged`; full: `pnpm check`.
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 48
+    lines: [63, 64]
+    text: |
+      - Checks in a Codex worktree or linked/sparse checkout: avoid direct local `pnpm check*`; use `node scripts/crabbox-wrapper.mjs run ... --shell -- "pnpm check:changed"` so pnpm runs inside Testbox, not locally.
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 49
+    lines: [64, 65]
+    text: |
+      - Extension tests: `pnpm test:extensions`, `pnpm test extensions`, `pnpm test extensions/<id>`.
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 50
+    lines: [65, 66]
+    text: |
+      - Typecheck: `tsgo` lanes only (`pnpm tsgo*`, `pnpm check:test-types`); never add `tsc --noEmit`, `typecheck`, `check:types`.
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 51
+    lines: [66, 67]
+    text: |
+      - Formatting: `oxfmt`, not Prettier. Use repo wrappers (`pnpm format:*`, `pnpm lint:*`, `scripts/run-oxlint.mjs`).
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 52
+    lines: [67, 68]
+    text: |
+      - Build before push when build output, packaging, lazy/module boundaries, dynamic imports, or published surfaces can change.
+
+    type: directive
+    topic: Build and Run
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 53
+    lines: [68, 72]
+    text: |
+
+      ## Validation
+
+      - Use `$openclaw-testing` for test/CI choice and `$crabbox` for remote/full/E2E proof.
+
+    type: directive
+    topic: Testing
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 54
+    lines: [72, 73]
+    text: |
+      - Crabbox request means real scenario proof: install/update/call/repro user path; not just copy tests and run them remotely.
+
+    type: directive
+    topic: Testing
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 55
+    lines: [73, 74]
+    text: |
+      - Small/narrow tests, lints, format checks, and type probes are fine locally only in a healthy normal checkout.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 56
+    lines: [74, 75]
+    text: |
+      - In Codex worktrees, direct local `pnpm test*`, `pnpm check*`, `pnpm crabbox:run`, and `scripts/committer` can trigger pnpm dependency reconciliation or install prompts. Prefer `node` wrappers locally and Crabbox/Testbox for pnpm-gated proof.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 57
+    lines: [75, 76]
+    text: |
+      - Full suites, broad changed gates, Docker/package/E2E/live/cross-OS proof, or anything that bogs down the Mac: Crabbox/Testbox.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 58
+    lines: [76, 77]
+    text: |
+      - One/few files local. If a local command fans out, stop and move broad proof to Crabbox/Testbox.
+
+    type: directive
+    topic: Testing
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 59
+    lines: [77, 78]
+    text: |
+      - Before handoff/push: prove touched surface. Before landing to `main`: issue proof plus appropriate full/broad proof unless scope is clearly narrow.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 60
+    lines: [78, 79]
+    text: |
+      - Pre-land/pre-commit code changes: use `$autoreview` until no accepted/actionable findings remain, unless equivalent manual review already done, trivial/docs-only, or user opts out.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 61
+    lines: [79, 80]
+    text: |
+      - If proof is blocked, say exactly what is missing and why.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 62
+    lines: [80, 81]
+    text: |
+      - Do not land related failing format/lint/type/build/tests. If unrelated on latest `origin/main`, say so with scoped proof.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 63
+    lines: [81, 82]
+    text: |
+      - Docs/changelog-only and CI/workflow metadata-only: `git diff --check` plus relevant docs/workflow sanity; escalate only if scripts/config/generated/package/runtime behavior changed.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 64
+    lines: [82, 83]
+    text: |
+      - Prompt snapshots: CI truth is Linux Node 24. If macOS local passes but CI drifts, reproduce/generate in Linux before rerun.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 65
+    lines: [83, 87]
+    text: |
+
+      ## GitHub / PRs
+
+      - Use `$openclaw-pr-maintainer` immediately for maintainer-side OpenClaw issue/PR review, triage, duplicates, labels, comments, close, land, or evidence. Contributor PR creation/refresh follows the requested contributor workflow; linked refs alone do not require maintainer archive tooling.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 66
+    lines: [87, 88]
+    text: |
+      - Pasted GitHub issue/PR: first `git status -sb`; if dirty, yell; then `git push` + `git pull --ff-only`.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 67
+    lines: [88, 89]
+    text: |
+      - PR refs: `gh pr view/diff` or `gh api`, not web search. Prefer `gitcrawl` for maintainer discovery; missing/stale `gitcrawl` falls through to live `gh`, not contributor setup. Verify live with `gh` before mutation.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 68
+    lines: [89, 90]
+    text: |
+      - Bare issue/PR URL/number means review/report in chat. Suggest comment/close/merge when appropriate; mutate only when asked.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 69
+    lines: [90, 91]
+    text: |
+      - No unsolicited PR comments/reviews/labels/retitles/rebases/fixups/landing. Exception: close/duplicate action that needs a reason comment after explicit close/sweep/landing request.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 70
+    lines: [91, 92]
+    text: |
+      - Maintainer decision closes the cluster: if deciding reported behavior/proposed fix is not planned, comment+close all directly associated open issues/PRs unless explicitly told to keep one open. Associated means linked PRs/issues, duplicates, companion workaround PRs, and the canonical issue for the rejected behavior.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 71
+    lines: [92, 93]
+    text: |
+      - Do not leave associated issues open for hypothetical future repros. Close with rationale; ask for a new issue or reopen only if concrete new evidence appears. Close comment states: decision, why, supported alternative, and what evidence would change the decision.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 72
+    lines: [93, 94]
+    text: |
+      - PR review answer: bug/behavior, URL(s), affected surface, provenance for regressions when traceable, best-fix judgment, evidence from code/tests/CI/current or shipped behavior.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 73
+    lines: [94, 95]
+    text: |
+      - Issue/PR final answer: last line is the full GitHub URL.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 74
+    lines: [95, 96]
+    text: |
+      - Changelog: PR landings/fixes need one unless pure test/internal. Do not mention missing changelog as a review finding; Codex handles it during fix/landing.
+
+    type: directive
+    topic: Documentation
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 75
+    lines: [96, 97]
+    text: |
+      - PR verification: before merge, post exact local commands, CI/Testbox run IDs, before/after proof when used, and known proof gaps.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 76
+    lines: [97, 98]
+    text: |
+      - Issue fixed on `main` with proof: comment proof + commit/PR, then close.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 77
+    lines: [98, 99]
+    text: |
+      - After landing or requested close/sweep: search duplicates; comment proof + canonical commit/PR/release before closing.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 78
+    lines: [99, 100]
+    text: |
+      - After landing/ship final: include 2-5 sentence recap of what landed: behavior change, key files/surface, proof run, issue/PR state. Do not answer with only status/links.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 79
+    lines: [100, 101]
+    text: |
+      - `ship` that fixes an issue: after push, comment proof + commit link, then close the issue.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 80
+    lines: [101, 102]
+    text: |
+      - GH comments with backticks, `$`, or shell snippets: use heredoc/body file, not inline double-quoted `--body`.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 81
+    lines: [102, 103]
+    text: |
+      - PR create: real body required. Include Summary + Verification; mention refs, behavior, and proof.
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 82
+    lines: [103, 104]
+    text: |
+      - Real behavior proof section is parsed. Use exact `field: value` labels: `Behavior addressed`, `Real environment tested`, `Exact steps or command run after this patch`, `Evidence after fix`, `Observed result after fix`, `What was not tested`.
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 83
+    lines: [104, 105]
+    text: |
+      - PR artifacts/screenshots: attach to PR/comment/external artifact store. Do not commit `.github/pr-assets`.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 84
+    lines: [105, 106]
+    text: |
+      - CI polling: exact SHA, relevant checks only, minimal fields. Skip routine noise (`Auto response`, `Labeler`, docs agents, performance/stale). Logs only after failure/completion or concrete need.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 85
+    lines: [106, 107]
+    text: |
+      - Maintainers: may skip/ignore `Real behavior proof` when local tests or Crabbox verified behavior; record proof in PR verification.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 86
+    lines: [107, 108]
+    text: |
+      - `/landpr`: use `~/.codex/prompts/landpr.md`; do not idle on `auto-response` or `check-docs`.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 87
+    lines: [108, 112]
+    text: |
+
+      ## Code
+
+      - TS ESM, strict. Avoid `any`; prefer real types, `unknown`, narrow adapters.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 88
+    lines: [112, 113]
+    text: |
+      - No `@ts-nocheck`. Lint suppressions only intentional + explained.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 89
+    lines: [113, 114]
+    text: |
+      - External boundaries: prefer `zod` or existing schema helpers.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 90
+    lines: [114, 115]
+    text: |
+      - Runtime branching: discriminated unions/closed codes over freeform strings. Avoid semantic sentinels (`?? 0`, empty object/string).
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 91
+    lines: [115, 116]
+    text: |
+      - Formatter-friendly shape: when oxfmt explodes an expression vertically, extract named booleans, payloads, or small helpers. Do not change width or use format-ignore for local compactness.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 92
+    lines: [116, 117]
+    text: |
+      - Calls should be boring: complex decisions happen above; call args/object fields are names, literals, or simple property reads.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 93
+    lines: [117, 118]
+    text: |
+      - Prefer early returns over nested condition pyramids. Split code into gather -> normalize -> decide -> act.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 94
+    lines: [118, 119]
+    text: |
+      - Use named intermediates only for domain meaning or readability; avoid temp-variable soup.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 95
+    lines: [119, 120]
+    text: |
+      - Dynamic import: no static+dynamic import for same prod module. Use `*.runtime.ts` lazy boundary. After edits: `pnpm build`; check `[INEFFECTIVE_DYNAMIC_IMPORT]`.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 96
+    lines: [120, 121]
+    text: |
+      - Cycles: keep `pnpm check:import-cycles` + architecture/madge green.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 97
+    lines: [121, 122]
+    text: |
+      - Classes: no prototype mixins/mutations. Prefer inheritance/composition. Tests prefer per-instance stubs.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 98
+    lines: [122, 123]
+    text: |
+      - Comments: brief, only non-obvious logic.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 99
+    lines: [123, 124]
+    text: |
+      - Split files around ~700 LOC when clarity/testability improves.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 100
+    lines: [124, 125]
+    text: |
+      - Naming: **OpenClaw** product/docs; `openclaw` CLI/package/path/config.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 101
+    lines: [125, 126]
+    text: |
+      - English: American spelling.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 102
+    lines: [126, 130]
+    text: |
+
+      ## Tests
+
+      - Vitest. Colocated `*.test.ts`; e2e `*.e2e.test.ts`; example models `sonnet-4.6`, `gpt-5.5`; test GPT with 5.5 preferred, 5.4 ok; no GPT-4.x agent-smoke defaults.
+
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 103
+    lines: [130, 131]
+    text: |
+      - Prefer behavior tests over workflow/docs string greps. Put operator policy reminders in AGENTS/docs.
+
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 104
+    lines: [131, 132]
+    text: |
+      - Clean timers/env/globals/mocks/sockets/temp dirs/module state; `--isolate=false` safe.
+
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 105
+    lines: [132, 133]
+    text: |
+      - Prefer injection and narrow `*.runtime.ts` mocks over broad barrels or `openclaw/plugin-sdk/*`.
+
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 106
+    lines: [133, 134]
+    text: |
+      - Do not edit baseline/inventory/ignore/snapshot/expected-failure files to silence checks without explicit approval.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 107
+    lines: [134, 135]
+    text: |
+      - Do not run independent `pnpm test`/Vitest commands concurrently in one worktree; Vitest cache races with `ENOTEMPTY`. Group one command or use distinct `OPENCLAW_VITEST_FS_MODULE_CACHE_PATH`.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 108
+    lines: [135, 136]
+    text: |
+      - Test workers max 16. Memory pressure: `OPENCLAW_VITEST_MAX_WORKERS=1 pnpm test`.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 109
+    lines: [136, 137]
+    text: |
+      - Live: `OPENCLAW_LIVE_TEST=1 pnpm test:live`; verbose `OPENCLAW_LIVE_TEST_QUIET=0`.
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 110
+    lines: [137, 138]
+    text: |
+      - Guide: `docs/reference/test.md`.
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 111
+    lines: [138, 142]
+    text: |
+
+      ## Docs / Changelog
+
+      - Use `$openclaw-docs` for docs writing/review. Docs change with behavior/API.
+
+    type: directive
+    topic: Documentation
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 112
+    lines: [142, 143]
+    text: |
+      - Codex harness upgrade (`extensions/codex/package.json` `@openai/codex`): refresh `docs/plugins/codex-harness.md` model snapshot from the new harness `model/list`.
+
+    type: directive
+    topic: Documentation
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 113
+    lines: [143, 144]
+    text: |
+      - Docs final answers: include relevant full `https://docs.openclaw.ai/...` URL(s). If issue/PR work too, GitHub URL last.
+
+    type: directive
+    topic: Documentation
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 114
+    lines: [144, 145]
+    text: |
+      - Changelog entries: active version `### Changes`/`### Fixes`; single-line bullets only.
+
+    type: directive
+    topic: Documentation
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 115
+    lines: [145, 146]
+    text: |
+      - Contributor PR authors should not edit `CHANGELOG.md`; maintainer/AI adds entries during landing/merge.
+
+    type: directive
+    topic: Documentation
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 116
+    lines: [146, 147]
+    text: |
+      - Contributor-facing changelog entries thank credited human `@author`. Never thank bots, `@openclaw`, `@clawsweeper`, or `@steipete`; if unknown, omit thanks.
+
+    type: directive
+    topic: Documentation
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 117
+    lines: [147, 151]
+    text: |
+
+      ## Git
+
+      - Commit via `scripts/committer "<msg>" <file...>`; stage intended files only.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 118
+    lines: [151, 152]
+    text: |
+      - Commits: conventional-ish, concise, grouped.
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 119
+    lines: [152, 153]
+    text: |
+      - No manual stash/autostash unless explicit. No branch/worktree changes unless requested.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 120
+    lines: [153, 154]
+    text: |
+      - `main`: no merge commits; rebase on latest `origin/main` before push. After one green run plus clean rebase sanity, do not chase moving `main` with repeated full gates.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 121
+    lines: [154, 155]
+    text: |
+      - User says `commit`: your changes only. `commit all`: all changes in grouped chunks. `push`: may `git pull --rebase` first.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 122
+    lines: [155, 156]
+    text: |
+      - User says `ship it`: changelog if needed, commit intended changes, pull --rebase, push.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 123
+    lines: [156, 157]
+    text: |
+      - Do not delete/rename unexpected files; ask if blocking, else ignore.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 124
+    lines: [157, 158]
+    text: |
+      - Bulk PR close/reopen >5: ask with count/scope.
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 125
+    lines: [158, 162]
+    text: |
+
+      ## Security / Release
+
+      - Never commit real phone numbers, videos, credentials, live config.
+
+    type: directive
+    topic: Security
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 126
+    lines: [162, 163]
+    text: |
+      - Secrets: channel/provider creds in `~/.openclaw/credentials/`; model auth profiles in `~/.openclaw/agents/<agentId>/agent/auth-profiles.json`.
+
+    type: description
+    topic: Security
+    enforceability: null
+    confidence: high
+
+  - id: 127
+    lines: [163, 164]
+    text: |
+      - Dependency patches/overrides/vendor changes need explicit approval. `pnpm-workspace.yaml` patched dependencies use exact versions only.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 128
+    lines: [164, 165]
+    text: |
+      - Lockfiles/shrinkwrap are security surface: review `pnpm-lock.yaml`, `npm-shrinkwrap.json`, `package-lock.json`; root/plugin npm packages ship shrinkwrap, not package-lock.
+
+    type: directive
+    topic: Security
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 129
+    lines: [165, 166]
+    text: |
+      - Carbon pins owner-only: do not change `@buape/carbon` unless Shadow (`@thewilloftheshadow`, verified by `gh`) asks.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 130
+    lines: [166, 167]
+    text: |
+      - Releases/publish/version bumps need explicit approval. Use `$openclaw-release-maintainer`.
+
+    type: directive
+    topic: DevOps
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 131
+    lines: [167, 168]
+    text: |
+      - GHSA/advisories: `$openclaw-ghsa-maintainer` / `$security-triage`. Secret scanning: `$openclaw-secret-scanning-maintainer`.
+
+    type: description
+    topic: Security
+    enforceability: null
+    confidence: high
+
+  - id: 132
+    lines: [168, 169]
+    text: |
+      - Beta tag/version match: `vYYYY.M.D-beta.N` -> npm `YYYY.M.D-beta.N --tag beta`.
+
+    type: directive
+    topic: DevOps
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 133
+    lines: [169, 173]
+    text: |
+
+      ## Platform / Ops
+
+      - Before simulator/emulator testing, check real iOS/Android devices.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 134
+    lines: [173, 174]
+    text: |
+      - "restart iOS/Android apps" = rebuild/reinstall/relaunch, not kill/launch.
+
+    type: directive
+    topic: DevOps
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 135
+    lines: [174, 175]
+    text: |
+      - SwiftUI: Observation (`@Observable`, `@Bindable`) over new `ObservableObject`.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 136
+    lines: [175, 176]
+    text: |
+      - Mac gateway: dev watch = `pnpm gateway:watch`; managed installs = `openclaw gateway restart/status --deep`; logs = `./scripts/clawlog.sh`. No launchd/ad-hoc tmux.
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 137
+    lines: [176, 177]
+    text: |
+      - Mac app permission testing: stable app path + real signing identity required. No `--no-sign`, `SIGN_IDENTITY=-`, or raw debug binary; TCC prompts/listing won't stick.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 138
+    lines: [177, 178]
+    text: |
+      - Version bump surfaces live in `$openclaw-release-maintainer`.
+
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 139
+    lines: [178, 179]
+    text: |
+      - Parallels: `$openclaw-parallels-smoke`; Discord roundtrip: `$parallels-discord-roundtrip`.
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 140
+    lines: [179, 180]
+    text: |
+      - Crabbox/WebVNC human demos: keep remote desktop visible/windowed; no fullscreen remote browser unless video/capture-style output.
+
+    type: directive
+    topic: Testing
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 141
+    lines: [180, 181]
+    text: |
+      - ClawSweeper ops: `$clawsweeper`. Deployed hook sessions may post one concise `#clawsweeper` note only when surprising/actionable/risky; if using message tool, reply exactly `NO_REPLY`.
+
+    type: directive
+    topic: DevOps
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 142
+    lines: [181, 182]
+    text: |
+      - Memory wiki prompt digest stays tiny; prefer `wiki_search` / `wiki_get`; verify contact data before use; source-class provenance for generated people facts.
+
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 143
+    lines: [182, 183]
+    text: |
+      - Rebrand/migration/config warnings: run `openclaw doctor`.
+
+    type: directive
+    topic: Maintenance
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 144
+    lines: [183, 184]
+    text: |
+      - Never edit `node_modules`.
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 145
+    lines: [184, 185]
+    text: |
+      - Local-only `.agents` ignores: `.git/info/exclude`, not repo `.gitignore`.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 146
+    lines: [185, 186]
+    text: |
+      - Provider tool schemas: prefer flat string enum helpers over `Type.Union([Type.Literal(...)])`; some providers reject `anyOf`.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 147
+    lines: [186, 187]
+    text: |
+      - External messaging: no token-delta channel messages. Follow `docs/concepts/streaming.md`.
+
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+

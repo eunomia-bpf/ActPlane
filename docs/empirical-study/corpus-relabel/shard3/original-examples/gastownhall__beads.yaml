@@ -1,0 +1,646 @@
+file: "gastownhall/beads/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 12]
+    text: |
+      # Agent Instructions
+
+      <!-- bd-doctor-divergence: ok -->
+
+      See [AGENT_INSTRUCTIONS.md](AGENT_INSTRUCTIONS.md) for full instructions.
+
+      This file exists for compatibility with tools that look for AGENTS.md.
+
+      The marker above tells `bd doctor` that the intentional divergence between
+      this file and `CLAUDE.md` (different audiences, different reading orders) is
+      expected and should not be flagged.
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [12, 16]
+    text: |
+
+      ## Key Sections
+
+      - **Issue Tracking** - How to use bd for work management
+    type: directive
+    topic: Documentation
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 3
+    lines: [16, 17]
+    text: |
+      - **Development Guidelines** - Code standards and testing
+    type: directive
+    topic: Documentation
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 4
+    lines: [17, 18]
+    text: |
+      - **Project Scope** - Read [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md) before adding new feature surface area
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 5
+    lines: [18, 19]
+    text: |
+      - **Visual Design System** - Status icons, colors, and semantic styling for CLI output
+    type: directive
+    topic: Implementation Details
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 6
+    lines: [19, 20]
+    text: |
+      - **Contributor Protection** - Read [CONTRIBUTING.md](CONTRIBUTING.md) before handling external PRs
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 7
+    lines: [20, 21]
+    text: |
+      - **Maintainer PR Guidelines** - Read [PR_MAINTAINER_GUIDELINES.md](PR_MAINTAINER_GUIDELINES.md) before triaging, landing, or closing PRs
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 8
+    lines: [21, 28]
+    text: |
+
+      ## Project Scope
+
+      Before adding new feature surface area, read
+      [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md). Beads owns issue tracking
+      primitives and should not encode orchestration-layer policy, become a storage
+      engine, or casually expand the database schema when metadata would work.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 9
+    lines: [28, 36]
+    text: |
+
+      ## PR Safety for Agents
+
+      Before triaging, reviewing, landing, closing, or otherwise maintaining PRs, read
+      [PR_MAINTAINER_GUIDELINES.md](PR_MAINTAINER_GUIDELINES.md). The maintainer
+      policy is to maximize community throughput: find useful contributor value,
+      absorb or transform it locally when practical, preserve attribution, and use
+      request-changes only as a last resort.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 10
+    lines: [36, 43]
+    text: |
+
+      Before implementing work, opening a PR, or merging/closing a PR, run the PR
+      preflight:
+      ```bash
+      scripts/pr-preflight.sh --search "<topic keywords>" --repo gastownhall/beads
+      scripts/pr-preflight.sh <pr-number> --repo gastownhall/beads
+      ```
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 11
+    lines: [43, 48]
+    text: |
+
+      External contributor PRs have priority. Review and build on their branch when
+      possible, preserve their tests and attribution, and never close or supersede
+      their PR silently. If a rewrite is unavoidable, explain why on the original PR
+      and credit their design/tests.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 12
+    lines: [48, 57]
+    text: |
+
+      ## Visual Design Anti-Patterns
+
+      **NEVER use emoji-style icons** (🔴🟠🟡🔵⚪) in CLI output. They cause cognitive overload.
+
+      **ALWAYS use small Unicode symbols** with semantic colors:
+      - Status: `○ ◐ ● ✓ ❄`
+      - Priority: `● P0` (filled circle with color)
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 13
+    lines: [57, 58]
+    text: |
+      See [AGENT_INSTRUCTIONS.md](AGENT_INSTRUCTIONS.md) for full development guidelines.
+    type: directive
+    topic: Documentation
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 14
+    lines: [58, 68]
+    text: |
+
+      ## Storage Boundary
+
+      The canonical storage boundary is in
+      [docs/PROJECT_CHARTER.md](docs/PROJECT_CHARTER.md#storage-boundary). In short:
+      Beads talks to storage through a driver interface (`dolthub/driver` for Dolt).
+      Do not add beads-side flocks, engine introspection, storage-specific retry or
+      crash-recovery logic, or public SDK return types that leak driver internals.
+      If the boundary is too narrow, widen the interface or route the issue to the
+      driver instead of patching around it in beads.
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 15
+    lines: [68, 85]
+    text: |
+
+      ## Agent Warning: Interactive Commands
+
+      **DO NOT use `bd edit`** - it opens an interactive editor ($EDITOR) which AI agents cannot use.
+
+      Use `bd update` with flags instead:
+      ```bash
+      bd update <id> --description "new description"
+      bd update <id> --title "new title"
+      bd update <id> --design "design notes"
+      bd update <id> --notes "additional notes"
+      bd update <id> --acceptance "acceptance criteria"
+
+      # Use stdin for descriptions with special characters (backticks, !, nested quotes)
+      echo 'Description with `backticks` and "quotes"' | bd create "Title" --description=-
+      echo 'Updated text' | bd update <id> --description=-
+      ```
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 16
+    lines: [85, 89]
+    text: |
+
+      ## Testing Commands (No Ambiguity)
+
+      - Default local test command: `make test` (or `./scripts/test.sh`).
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 17
+    lines: [89, 90]
+    text: |
+      - Opt-in ICU regex path: `make test-icu-path` (or `./scripts/test-icu-path.sh ./...`).
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 18
+    lines: [90, 91]
+    text: |
+      - This ICU path is maintainer-only and not part of normal validation; `make test-full-cgo` and `./scripts/test-cgo.sh` are deprecated aliases.
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 19
+    lines: [91, 96]
+    text: |
+      - For package- or test-scoped shipped-config CGO runs, prefer:
+      ```bash
+      CGO_ENABLED=1 go test -tags gms_pure_go ./cmd/bd/...
+      CGO_ENABLED=1 go test -tags gms_pure_go -run '^TestName$' ./cmd/bd/...
+      ```
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 20
+    lines: [96, 115]
+    text: |
+
+      ## Non-Interactive Shell Commands
+
+      **ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
+
+      Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode on some systems, causing the agent to hang indefinitely waiting for y/n input.
+
+      **Use these forms instead:**
+      ```bash
+      # Force overwrite without prompting
+      cp -f source dest           # NOT: cp source dest
+      mv -f source dest           # NOT: mv source dest
+      rm -f file                  # NOT: rm file
+
+      # For recursive operations
+      rm -rf directory            # NOT: rm -r directory
+      cp -rf source dest          # NOT: cp -r source dest
+      ```
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 21
+    lines: [115, 117]
+    text: |
+      **Other commands that may prompt:**
+      - `scp` - use `-o BatchMode=yes` for non-interactive
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 22
+    lines: [117, 118]
+    text: |
+      - `ssh` - use `-o BatchMode=yes` to fail instead of prompting
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 23
+    lines: [118, 119]
+    text: |
+      - `apt-get` - use `-y` flag
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 24
+    lines: [119, 120]
+    text: |
+      - `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 25
+    lines: [120, 139]
+    text: |
+
+      ## Landing the Plane (Session Completion)
+
+      **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+      **MANDATORY WORKFLOW:**
+
+      1. **File issues for remaining work** - Create issues for anything that needs follow-up
+      2. **Run quality gates** (if code changed) - Tests, linters, builds
+      3. **Update issue status** - Close finished work, update in-progress items
+      4. **PUSH TO REMOTE** - This is MANDATORY:
+         ```bash
+         git pull --rebase
+         git push
+         git status  # MUST show "up to date with origin"
+         ```
+      5. **Clean up** - Clear stashes, prune remote branches
+      6. **Verify** - All changes committed AND pushed
+      7. **Hand off** - Provide context for next session
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 26
+    lines: [139, 142]
+    text: |
+
+      **CRITICAL RULES:**
+      - Work is NOT complete until `git push` succeeds
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 27
+    lines: [142, 143]
+    text: |
+      - NEVER stop before pushing - that leaves work stranded locally
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 28
+    lines: [143, 144]
+    text: |
+      - NEVER say "ready to push when you are" - YOU must push
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 29
+    lines: [144, 145]
+    text: |
+      - If push fails, resolve and retry until it succeeds
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 30
+    lines: [145, 150]
+    text: |
+
+      <!-- BEGIN BEADS INTEGRATION -->
+      ## Issue Tracking with bd (beads)
+
+      **IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 31
+    lines: [150, 157]
+    text: |
+
+      ### Why bd?
+
+      - Dependency-aware: Track blockers and relationships between issues
+      - Git-friendly: Dolt-powered version control with native sync
+      - Agent-optimized: JSON output, ready work detection, discovered-from links
+      - Prevents duplicate tracking systems and confusion
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 32
+    lines: [157, 166]
+    text: |
+
+      ### Quick Start
+
+      **Check for ready work:**
+
+      ```bash
+      bd ready --json
+      ```
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 33
+    lines: [166, 176]
+    text: |
+
+      **Create new issues:**
+
+      ```bash
+      bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
+      bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
+
+      # Use stdin for descriptions with special characters (backticks, !, nested quotes)
+      echo 'Description with `backticks` and "quotes"' | bd create "Title" --description=- --json
+      ```
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 34
+    lines: [176, 183]
+    text: |
+
+      **Claim and update:**
+
+      ```bash
+      bd update <id> --claim --json
+      bd update bd-42 --priority 1 --json
+      ```
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 35
+    lines: [183, 188]
+    text: |
+
+      **Complete work:**
+
+      ```bash
+      bd close bd-42 --reason "Completed" --json
+      ```
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 36
+    lines: [188, 196]
+    text: |
+
+      ### Issue Types
+
+      - `bug` - Something broken
+      - `feature` - New functionality
+      - `task` - Work item (tests, docs, refactoring)
+      - `epic` - Large feature with subtasks
+      - `chore` - Maintenance (dependencies, tooling)
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 37
+    lines: [196, 204]
+    text: |
+
+      ### Priorities
+
+      - `0` - Critical (security, data loss, broken builds)
+      - `1` - High (major features, important bugs)
+      - `2` - Medium (default, nice-to-have)
+      - `3` - Low (polish, optimization)
+      - `4` - Backlog (future ideas)
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 38
+    lines: [204, 218]
+    text: |
+
+      ### Workflow for AI Agents
+
+      1. **Check ready work**: `bd ready` shows unblocked issues
+      2. **Read execution metadata first**: before deciding local vs delegated work, model, or reasoning level, inspect structured metadata:
+         ```bash
+         bd show <id> --json | jq '.[0] | {id,title,metadata,description,notes}'
+         ```
+         The execution metadata keys `execution_agent_type`, `execution_suggested_model`, `execution_reasoning_effort`, `execution_mode`, and `execution_parallel_group` are authoritative hints when present. Use description and notes as fallback context.
+      3. **Claim your task atomically**: `bd update <id> --claim`
+      4. **Work on it**: Implement, test, document
+      5. **Discover new work?** Create linked issue:
+         - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
+      6. **Complete**: `bd close <id> --reason "Done"`
+    type: directive
+    topic: AI Integration
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 39
+    lines: [218, 226]
+    text: |
+
+      ### Auto-Sync
+
+      bd automatically syncs via Dolt:
+
+      - Each write auto-commits to Dolt history
+      - Use `bd dolt push`/`bd dolt pull` for remote sync
+      - No manual export/import needed!
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 40
+    lines: [226, 230]
+    text: |
+
+      ### Important Rules
+
+      - ✅ Use bd for ALL task tracking
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 41
+    lines: [230, 231]
+    text: |
+      - ✅ Always use `--json` flag for programmatic use
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 42
+    lines: [231, 232]
+    text: |
+      - ✅ Link discovered work with `discovered-from` dependencies
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 43
+    lines: [232, 233]
+    text: |
+      - ✅ Check `bd ready` before asking "what should I work on?"
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 44
+    lines: [233, 234]
+    text: |
+      - ❌ Do NOT create markdown TODO lists
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 45
+    lines: [234, 235]
+    text: |
+      - ❌ Do NOT use external issue trackers
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 46
+    lines: [235, 236]
+    text: |
+      - ❌ Do NOT duplicate tracking systems
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 47
+    lines: [236, 240]
+    text: |
+
+      For more details, see README.md and docs/QUICKSTART.md.
+
+      <!-- END BEADS INTEGRATION -->
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high

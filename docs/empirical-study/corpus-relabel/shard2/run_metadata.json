@@ -1,0 +1,12 @@
+{
+  "started_epoch": 1793314653.2141073,
+  "parallel": 24,
+  "batches": 62,
+  "rows": 9200,
+  "codebook_characters": 73031,
+  "example_counts": [
+    64,
+    2116,
+    129
+  ]
+}

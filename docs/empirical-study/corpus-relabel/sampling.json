@@ -1,0 +1,8 @@
+{
+  "seed": 20261029,
+  "allocation": "equal populated type/enforceability/topic strata; repository round robin within strata; without replacement",
+  "original_eligible": 1895,
+  "excluded_original_texts": 213,
+  "added_repositories": 298,
+  "original_repositories": 64
+}

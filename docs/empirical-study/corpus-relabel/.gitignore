@@ -1,0 +1,8 @@
+__pycache__/
+.inputs/
+layout/
+src/
+*.log
+*.log.unsupported-model
+shard1/batches/*.log
+checks/**/original-examples/

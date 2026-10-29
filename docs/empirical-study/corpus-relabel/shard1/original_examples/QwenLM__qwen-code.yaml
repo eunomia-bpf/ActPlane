@@ -1,0 +1,442 @@
+file: "QwenLM/qwen-code/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 6]
+    text: |
+      # AGENTS.md
+
+      This file provides guidance to Qwen Code when working with code in this
+      repository.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [6, 21]
+    text: |
+      ## Common Commands
+
+      ### Building
+
+      ```bash
+      npm install        # Install all dependencies
+      npm run build      # Build all packages (TypeScript compilation + asset copying)
+      npm run build:all  # Build everything including sandbox container
+      npm run bundle     # Bundle dist/ into a single dist/cli.js via esbuild
+                         # (requires build first)
+      ```
+
+      `npm run build` compiles TS into each package's `dist/`. `npm run bundle`
+      takes that output and produces a single `dist/cli.js` via esbuild. Bundle
+      requires build to have run first.
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [21, 31]
+    text: |
+      ### Development
+
+      ```bash
+      npm run dev        # Run CLI directly from TypeScript source (no build needed)
+      ```
+
+      Runs the CLI via `tsx` with `DEV=true`. Changes to `packages/core` or
+      `packages/cli` are reflected immediately without rebuilding.
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [31, 36]
+    text: |
+      ### Unit Testing
+
+      Tests must be run from within the specific package directory, not the project
+      root.
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 5
+    lines: [36, 43]
+    text: |
+      **Run individual test files** (always preferred):
+
+      ```bash
+      cd packages/core && npx vitest run src/path/to/file.test.ts
+      cd packages/cli && npx vitest run src/path/to/file.test.ts
+      ```
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 6
+    lines: [43, 49]
+    text: |
+      **Update snapshots:**
+
+      ```bash
+      cd packages/cli && npx vitest run src/path/to/file.test.ts --update
+      ```
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [49, 52]
+    text: |
+      **Avoid:**
+
+      - `npm run test -- --filter=...` — does NOT filter; runs the entire suite
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 8
+    lines: [52, 54]
+    text: |
+      - `npx vitest` from the project root — fails due to package-specific vitest
+        configs
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 9
+    lines: [54, 56]
+    text: |
+      - Running the whole test suite unless necessary (e.g., final PR verification)
+
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 10
+    lines: [56, 61]
+    text: |
+      **Test gotchas:**
+
+      - In CLI tests, use `vi.hoisted()` for mocks consumed by `vi.mock()` — the
+        mock factory runs at module load time, before test execution.
+
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 11
+    lines: [61, 79]
+    text: |
+      ### Integration Testing
+
+      Build the bundle first: `npm run build && npm run bundle`
+
+      Run from the project root using the dedicated npm scripts:
+
+      ```bash
+      npm run test:integration:cli:sandbox:none
+      npm run test:integration:interactive:sandbox:none
+      ```
+
+      Or combined in one command:
+
+      ```bash
+      cd integration-tests && \
+        cross-env QWEN_SANDBOX=false npx vitest run cli interactive
+      ```
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [79, 82]
+    text: |
+      **Gotcha:** In interactive tests, always call `session.idle()` between sends —
+      ANSI output streams asynchronously.
+
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 13
+    lines: [82, 93]
+    text: |
+      ### Linting & Formatting
+
+      ```bash
+      npm run lint       # ESLint check
+      npm run lint:fix   # Auto-fix lint issues
+      npm run format     # Prettier formatting
+      npm run typecheck  # TypeScript type checking
+      npm run preflight  # Full check: clean → install → format → lint → build
+                         # → typecheck → test
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [93, 96]
+    text: |
+      ## Code Conventions
+
+      - **Module system**: ESM throughout (`"type": "module"` in all packages)
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [96, 98]
+    text: |
+      - **TypeScript**: Strict mode with `noImplicitAny`, `strictNullChecks`,
+        `noUnusedLocals`, `verbatimModuleSyntax`
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [98, 100]
+    text: |
+      - **Formatting**: Prettier — single quotes, semicolons, trailing commas,
+        2-space indent, 80-char width
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [100, 102]
+    text: |
+      - **Linting**: No `any` types, consistent type imports, no relative imports
+        between packages
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 18
+    lines: [102, 104]
+    text: |
+      - **Tests**: Collocated with source (`file.test.ts` next to `file.ts`),
+        vitest framework
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 19
+    lines: [104, 105]
+    text: |
+      - **Commits**: Conventional Commits (e.g., `feat(cli): Add --json flag`)
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 20
+    lines: [105, 107]
+    text: |
+      - **Node.js**: Development and production both require `>=22` (Ink 7 + React 19.2 requirement)
+
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [107, 122]
+    text: |
+      ## Development Guidelines
+
+      ### General workflow
+
+      1. **Design doc for non-trivial work** — write one in `.qwen/design/` if the
+         change touches multiple files or involves design decisions. Skip for small
+         bugfixes.
+      2. **Test plan for behavioral changes** — write an E2E test plan in
+         `.qwen/e2e-tests/` when the change affects user-observable behavior. Dry-run
+         against the global `qwen` CLI first to confirm the baseline.
+      3. **Build + typecheck before declaring done**:
+         `npm run build && npm run typecheck`.
+      4. **Code review** — run `/review` when available. Triage each comment:
+         valid / false positive / overthinking.
+
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 22
+    lines: [122, 127]
+    text: |
+      ### Feature development
+
+      Use the `/feat-dev` skill for the full workflow: investigate, design, test plan,
+      dry-run, implement, verify, code review, and iterate.
+
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 23
+    lines: [127, 132]
+    text: |
+      ### Bugfix
+
+      Use the `/bugfix` skill for the reproduce-first workflow: reproduce, fix,
+      verify, test, and code review.
+
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 24
+    lines: [132, 139]
+    text: |
+      ## GitHub Operations
+
+      Use the `gh` CLI for all GitHub-related operations — issues, pull requests,
+      comments, CI checks, releases, and API calls. Prefer `gh issue view`,
+      `gh pr view`, `gh pr checks`, `gh run view`, `gh api`, etc. over web fetches
+      or manual REST calls.
+
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 25
+    lines: [139, 145]
+    text: |
+      ## Testing, Debugging, and Bug Fixes
+
+      - **Bug reproduction & verification**: spawn the `test-engineer` agent. It
+        reads code and docs to understand the bug, then reproduces it via E2E testing
+        (or a test-script fallback). It also handles post-fix verification. It cannot
+        edit source code — only observe and report.
+    type: directive
+    topic: Testing
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 26
+    lines: [145, 148]
+    text: |
+      - **Hard bugs**: use the `structured-debugging` skill when debugging requires
+        more than a quick glance — especially when the first attempt at a fix didn't
+        work or the behavior seems impossible.
+    type: directive
+    topic: Testing
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 27
+    lines: [148, 153]
+    text: |
+      - **E2E testing**: the `e2e-testing` skill covers headless mode, interactive
+        (tmux) mode, MCP server testing, and API traffic inspection. The
+        `test-engineer` agent invokes this skill internally — you typically don't
+        need to use it directly.
+
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 28
+    lines: [153, 159]
+    text: |
+      ## Submitting PRs
+
+      When creating a PR, follow the template at `.github/pull_request_template.md`.
+      After the PR is submitted, post a separate comment with the E2E test report if
+      applicable.
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 29
+    lines: [159, 161]
+    text: |
+      - **PR description**: explain the motivation and changes in prose. Avoid
+        referencing file names or function names.
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 30
+    lines: [161, 164]
+    text: |
+      - **Reviewer Test Plan**: describe behaviors a reviewer should verify and what
+        to expect, not scripted test commands.
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 31
+    lines: [164, 177]
+    text: |
+      ## Project Directories
+
+      Project artifacts live under `.qwen/`:
+
+      | Directory               | Purpose                              |
+      | ----------------------- | ------------------------------------ |
+      | `.qwen/design/`         | Design docs for planned features     |
+      | `.qwen/e2e-tests/`      | E2E test plans and results           |
+      | `.qwen/issues/`         | Issue drafts before filing on GitHub |
+      | `.qwen/pr-drafts/`      | PR drafts before submitting          |
+      | `.qwen/pr-reviews/`     | PR review notes                      |
+      | `.qwen/investigations/` | Structured debugging journals        |
+      | `.qwen/scripts/`        | Utility scripts                      |
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high

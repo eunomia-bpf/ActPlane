@@ -1,0 +1,425 @@
+file: "abhigyanpatwari/GitNexus/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 7]
+    text: |
+      <!-- version: 1.7.0 -->
+      <!-- Last updated: 2026-04-23 -->
+
+      Last reviewed: 2026-04-23
+
+      **Project:** GitNexus · **Environment:** dev · **Maintainer:** repository maintainers (see GitHub)
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [7, 16]
+    text: |
+
+      ## Scope
+
+      | Boundary | Rule |
+      |----------|------|
+      | **Reads** | `gitnexus/`, `gitnexus-web/`, `eval/`, plugin packages, `.github/`, `.gitnexus/`, docs. |
+      | **Writes** | Only paths required for the change; keep diffs minimal. Update lockfiles when deps change. |
+      | **Executes** | `npm`, `npx`, `node` under `gitnexus/` and `gitnexus-web/`; `uv run` for Python under `eval/`; documented CI/dev workflows. |
+      | **Off-limits** | Real `.env` / secrets, production credentials, unrelated repos, destructive git ops without confirmation. |
+    type: directive
+    topic: Configuration & Environment
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 3
+    lines: [16, 21]
+    text: |
+
+      ## Model Configuration
+
+      - **Primary:** Use a named model (e.g. Claude Sonnet 4.x). Avoid `Auto` or unversioned `latest` when reproducibility matters.
+      - **Notes:** The GitNexus CLI indexer does not call an LLM.
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 4
+    lines: [21, 30]
+    text: |
+
+      ## Execution Sequence (complex tasks)
+
+      For multi-step work, state up front:
+      1. Which rules in this file and **[GUARDRAILS.md](GUARDRAILS.md)** apply (and any relevant Signs).
+      2. Current **Scope** boundaries.
+      3. Which **validation commands** you will run (`cd gitnexus && npm test`, `npx tsc --noEmit`).
+
+      On long threads, *"Remember: apply all AGENTS.md rules"* re-weights these instructions against context dilution.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 5
+    lines: [30, 34]
+    text: |
+
+      ## Claude Code hooks
+
+      **PreToolUse** hooks can block tools (e.g. `git_commit`) until checks pass. Adapt to this repo: `cd gitnexus && npm test` before commit.
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 6
+    lines: [34, 38]
+    text: |
+
+      ## Context budget
+
+      Commands and gotchas live under **Repo reference** below and in **[CONTRIBUTING.md](CONTRIBUTING.md)**. If always-on rules grow, split into **`.cursor/rules/*.mdc`** (globs). **Cursor:** project-wide rules in `.cursor/index.mdc`. **Claude Code:** load `STANDARDS.md` only when needed.
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 7
+    lines: [38, 42]
+    text: |
+
+      ## Reference docs
+
+      - **[ARCHITECTURE.md](ARCHITECTURE.md)**, **[CONTRIBUTING.md](CONTRIBUTING.md)**, **[GUARDRAILS.md](GUARDRAILS.md)**
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [42, 43]
+    text: |
+      - **Call-resolution DAG (legacy path):** See ARCHITECTURE.md § Call-Resolution DAG. Typed 6-stage DAG inside the `parse` phase; language-specific behavior behind `inferImplicitReceiver` / `selectDispatch` hooks on `LanguageProvider`. Shared code in `gitnexus/src/core/ingestion/` must not name languages. Types: `gitnexus/src/core/ingestion/call-types.ts`.
+    type: directive
+    topic: Architecture
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 9
+    lines: [43, 44]
+    text: |
+      - **Scope-resolution pipeline (RFC #909 Ring 3):** See ARCHITECTURE.md § Scope-Resolution Pipeline. Replaces the legacy DAG for languages in `MIGRATED_LANGUAGES` (see `registry-primary-flag.ts`). A language plugs in by implementing `ScopeResolver` (`scope-resolution/contract/scope-resolver.ts`) and registering it in `SCOPE_RESOLVERS`. CI parity gate runs BOTH paths per migrated language on every PR.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [44, 45]
+    text: |
+      - **Cursor:** `.cursor/index.mdc` (always-on); `.cursor/rules/*.mdc` (glob-scoped). Legacy `.cursorrules` deprecated.
+    type: description
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [45, 46]
+    text: |
+      - **GitNexus:** skills in `.claude/skills/gitnexus/`; MCP rules in `gitnexus:start` block below.
+    type: description
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [46, 60]
+    text: |
+
+      ## Changelog
+
+      | Date | Version | Change |
+      |------|---------|--------|
+      | 2026-05-22 | 1.8.0 | Kotlin added to `MIGRATED_LANGUAGES` (registry-primary call resolution by default). Closes #1756 (companion-vs-instance dispatch) and #1757 (lambda scopes); refs #1746. RFC §6.4 corpus criterion waived (corpus-mode wiring is #927-scope); fixture criterion met. |
+      | 2026-04-23 | 1.7.0 | TypeScript added to `MIGRATED_LANGUAGES` (registry-primary call resolution by default). |
+      | 2026-04-20 | 1.6.0 | Added scope-resolution pipeline pointer (RFC #909 Ring 3); Python migrated to registry-primary. |
+      | 2026-04-19 | 1.5.0 | Cross-repo impact (#794): `impact`/`query`/`context` accept `repo: "@<group>"` + `service`. Removed `group_query`/`group_contracts`/`group_status` MCP tools; added `gitnexus://group/{name}/contracts` and `gitnexus://group/{name}/status` resources. |
+      | 2026-04-16 | 1.4.0 | Fixed: web UI description, pre-commit behavior, MCP tools (7->16), added gitnexus-shared, removed stale vite-plugin-wasm gotcha. |
+      | 2026-04-13 | 1.3.0 | Updated GitNexus index stats after DAG refactor. |
+      | 2026-03-24 | 1.2.0 | Fixed gitnexus:start block duplication. |
+      | 2026-03-23 | 1.1.0 | Updated agent instructions, references, Cursor layout. |
+      | 2026-03-22 | 1.0.0 | Initial structured header and changelog. |
+    type: description
+    topic: Maintenance
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [60, 69]
+    text: |
+
+      ---
+
+      <!-- gitnexus:start -->
+      # GitNexus — Code Intelligence
+
+      This project is indexed by GitNexus as **GitNexus** (26675 symbols, 35395 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+
+      > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+    type: description
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [69, 73]
+    text: |
+
+      ## Always Do
+
+      - **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 15
+    lines: [73, 74]
+    text: |
+      - **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: task
+    confidence: high
+
+  - id: 16
+    lines: [74, 75]
+    text: |
+      - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 17
+    lines: [75, 76]
+    text: |
+      - When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 18
+    lines: [76, 78]
+    text: |
+      - When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+
+    type: directive
+    topic: AI Integration
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 19
+    lines: [78, 81]
+    text: |
+      ## Never Do
+
+      - NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 20
+    lines: [81, 82]
+    text: |
+      - NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 21
+    lines: [82, 83]
+    text: |
+      - NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 22
+    lines: [83, 84]
+    text: |
+      - NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 23
+    lines: [84, 93]
+    text: |
+
+      ## Resources
+
+      | Resource | Use for |
+      |----------|---------|
+      | `gitnexus://repo/GitNexus/context` | Codebase overview, check index freshness |
+      | `gitnexus://repo/GitNexus/clusters` | All functional areas |
+      | `gitnexus://repo/GitNexus/processes` | All execution flows |
+      | `gitnexus://repo/GitNexus/process/{name}` | Step-by-step execution trace |
+    type: description
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 24
+    lines: [93, 125]
+    text: |
+
+      ## CLI
+
+      | Task | Read this skill file |
+      |------|---------------------|
+      | Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+      | Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+      | Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+      | Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+      | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+      | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+      | Work in the Ingestion area (239 symbols) | `.claude/skills/generated/ingestion/SKILL.md` |
+      | Work in the Extractors area (135 symbols) | `.claude/skills/generated/extractors/SKILL.md` |
+      | Work in the Components area (112 symbols) | `.claude/skills/generated/components/SKILL.md` |
+      | Work in the Lbug area (96 symbols) | `.claude/skills/generated/lbug/SKILL.md` |
+      | Work in the Group area (94 symbols) | `.claude/skills/generated/group/SKILL.md` |
+      | Work in the Cli area (92 symbols) | `.claude/skills/generated/cli/SKILL.md` |
+      | Work in the Configs area (92 symbols) | `.claude/skills/generated/configs/SKILL.md` |
+      | Work in the Type-extractors area (90 symbols) | `.claude/skills/generated/type-extractors/SKILL.md` |
+      | Work in the Hooks area (88 symbols) | `.claude/skills/generated/hooks/SKILL.md` |
+      | Work in the Unit area (80 symbols) | `.claude/skills/generated/unit/SKILL.md` |
+      | Work in the Cpp area (73 symbols) | `.claude/skills/generated/cpp/SKILL.md` |
+      | Work in the Scope-resolution area (72 symbols) | `.claude/skills/generated/scope-resolution/SKILL.md` |
+      | Work in the Server area (66 symbols) | `.claude/skills/generated/server/SKILL.md` |
+      | Work in the Local area (61 symbols) | `.claude/skills/generated/local/SKILL.md` |
+      | Work in the Wiki area (60 symbols) | `.claude/skills/generated/wiki/SKILL.md` |
+      | Work in the Workers area (57 symbols) | `.claude/skills/generated/workers/SKILL.md` |
+      | Work in the Embeddings area (56 symbols) | `.claude/skills/generated/embeddings/SKILL.md` |
+      | Work in the Typescript area (53 symbols) | `.claude/skills/generated/typescript/SKILL.md` |
+      | Work in the Storage area (51 symbols) | `.claude/skills/generated/storage/SKILL.md` |
+      | Work in the Php area (48 symbols) | `.claude/skills/generated/php/SKILL.md` |
+
+    type: description
+    topic: AI Integration
+    enforceability: null
+    confidence: high
+
+  - id: 25
+    lines: [125, 139]
+    text: |
+      <!-- gitnexus:end -->
+
+      ## Repo reference
+
+      ### Packages
+
+      | Package | Path | Purpose |
+      |---------|------|---------|
+      | **CLI/Core** | `gitnexus/` | TypeScript CLI, indexing pipeline, MCP server. Published to npm. |
+      | **Web UI** | `gitnexus-web/` | React/Vite thin client. All queries via `gitnexus serve` HTTP API. |
+      | **Shared** | `gitnexus-shared/` | Shared TypeScript types and constants. |
+      | Claude Plugin | `gitnexus-claude-plugin/` | Static config for Claude marketplace. |
+      | Cursor Integration | `gitnexus-cursor-integration/` | Static config for Cursor editor. |
+      | Eval | `eval/` | Python evaluation harness (Docker + LLM API keys). |
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 26
+    lines: [139, 147]
+    text: |
+
+      ### Running services
+
+      ```bash
+      cd gitnexus && npm run dev                 # CLI: tsx watch mode
+      cd gitnexus-web && npm run dev             # Web UI: Vite on port 5173
+      npx gitnexus serve                         # HTTP API on port 4747 (from any indexed repo)
+      ```
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 27
+    lines: [147, 155]
+    text: |
+
+      ### Testing
+
+      **CLI / Core (`gitnexus/`)**
+      - `npm test` — full vitest suite (~2000 tests)
+      - `npm run test:unit` — unit tests only
+      - `npm run test:integration` — integration (~1850 tests). LadybugDB file-locking tests may fail in containers (known env issue).
+      - `npx tsc --noEmit` — typecheck
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 28
+    lines: [155, 162]
+    text: |
+
+      **Web UI (`gitnexus-web/`)**
+      - `npm test` — vitest (~200 tests)
+      - `npm run test:e2e` — Playwright (7 spec files; requires `gitnexus serve` + `npm run dev`)
+      - `npx tsc -b --noEmit` — typecheck
+
+      **Pre-commit hook** (`.husky/pre-commit`): formatting (prettier via lint-staged) + typecheck for staged packages. Tests do **not** run in pre-commit — CI only.
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 29
+    lines: [162, 166]
+    text: |
+
+      ### Gotchas
+
+      - `npm install` in `gitnexus/` triggers `prepare` (builds via `tsc`) and `postinstall` (patches tree-sitter-swift, builds tree-sitter-proto). Native bindings need `python3`, `make`, `g++`.
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 30
+    lines: [166, 167]
+    text: |
+      - `tree-sitter-kotlin` and `tree-sitter-swift` are optional — install warnings expected.
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 31
+    lines: [167, 168]
+    text: |
+      - ESLint configured via `eslint.config.mjs` (TS, React Hooks, unused-imports). No `npm run lint` script; use `npx eslint .`. Prettier runs via lint-staged. CI checks both in `ci-quality.yml`.
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high

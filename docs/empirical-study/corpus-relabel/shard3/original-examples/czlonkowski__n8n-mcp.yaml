@@ -1,0 +1,604 @@
+file: "czlonkowski/n8n-mcp/CLAUDE.md"
+statements:
+  - id: 1
+    lines: [1, 5]
+    text: |
+      # CLAUDE.md
+
+      This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [5, 7]
+    text: |
+      > **Note:** This file is committed to a public OSS repository. Never add sensitive information (API keys, internal URLs, credentials, private infrastructure details) here.
+
+    type: directive
+    topic: Security
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 3
+    lines: [7, 11]
+    text: |
+      ## Project Overview
+
+      n8n-mcp is a comprehensive documentation and knowledge server that provides AI assistants with complete access to n8n node information through the Model Context Protocol (MCP). It serves as a bridge between n8n's workflow automation platform and AI models, enabling them to understand and work with n8n nodes effectively.
+
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [11, 77]
+    text: |
+      ### Current Architecture:
+      ```
+      src/
+      ├── loaders/
+      │   └── node-loader.ts         # NPM package loader for both packages
+      ├── parsers/
+      │   ├── node-parser.ts         # Enhanced parser with version support
+      │   └── property-extractor.ts  # Dedicated property/operation extraction
+      ├── mappers/
+      │   └── docs-mapper.ts         # Documentation mapping with fixes
+      ├── database/
+      │   ├── schema.sql             # SQLite schema
+      │   ├── node-repository.ts     # Data access layer
+      │   └── database-adapter.ts    # Universal database adapter (NEW in v2.3)
+      ├── services/
+      │   ├── property-filter.ts     # Filters properties to essentials (NEW in v2.4)
+      │   ├── example-generator.ts   # Generates working examples (NEW in v2.4)
+      │   ├── task-templates.ts      # Pre-configured node settings (NEW in v2.4)
+      │   ├── config-validator.ts    # Configuration validation (NEW in v2.4)
+      │   ├── enhanced-config-validator.ts # Operation-aware validation (NEW in v2.4.2)
+      │   ├── node-specific-validators.ts  # Node-specific validation logic (NEW in v2.4.2)
+      │   ├── property-dependencies.ts # Dependency analysis (NEW in v2.4)
+      │   ├── type-structure-service.ts # Type structure validation (NEW in v2.22.21)
+      │   ├── expression-validator.ts # n8n expression syntax validation (NEW in v2.5.0)
+      │   └── workflow-validator.ts  # Complete workflow validation (NEW in v2.5.0)
+      ├── types/
+      │   ├── type-structures.ts      # Type structure definitions (NEW in v2.22.21)
+      │   ├── instance-context.ts     # Multi-tenant instance configuration
+      │   └── session-state.ts        # Session persistence types (NEW in v2.24.1)
+      ├── constants/
+      │   └── type-structures.ts      # 22 complete type structures (NEW in v2.22.21)
+      ├── templates/
+      │   ├── template-fetcher.ts    # Fetches templates from n8n.io API (NEW in v2.4.1)
+      │   ├── template-repository.ts # Template database operations (NEW in v2.4.1)
+      │   └── template-service.ts    # Template business logic (NEW in v2.4.1)
+      ├── scripts/
+      │   ├── rebuild.ts             # Database rebuild with validation
+      │   ├── validate.ts            # Node validation
+      │   ├── test-nodes.ts          # Critical node tests
+      │   ├── test-essentials.ts     # Test new essentials tools (NEW in v2.4)
+      │   ├── test-enhanced-validation.ts # Test enhanced validation (NEW in v2.4.2)
+      │   ├── test-structure-validation.ts # Test type structure validation (NEW in v2.22.21)
+      │   ├── test-workflow-validation.ts # Test workflow validation (NEW in v2.5.0)
+      │   ├── test-ai-workflow-validation.ts # Test AI workflow validation (NEW in v2.5.1)
+      │   ├── test-mcp-tools.ts      # Test MCP tool enhancements (NEW in v2.5.1)
+      │   ├── test-n8n-validate-workflow.ts # Test n8n_validate_workflow tool (NEW in v2.6.3)
+      │   ├── test-typeversion-validation.ts # Test typeVersion validation (NEW in v2.6.1)
+      │   ├── test-workflow-diff.ts  # Test workflow diff engine (NEW in v2.7.0)
+      │   ├── test-tools-documentation.ts # Test tools documentation (NEW in v2.7.3)
+      │   ├── fetch-templates.ts     # Fetch workflow templates from n8n.io (NEW in v2.4.1)
+      │   └── test-templates.ts      # Test template functionality (NEW in v2.4.1)
+      ├── mcp/
+      │   ├── server.ts              # MCP server with enhanced tools
+      │   ├── tools.ts               # Tool definitions including new essentials
+      │   ├── tools-documentation.ts # Tool documentation system (NEW in v2.7.3)
+      │   └── index.ts               # Main entry point with mode selection
+      ├── utils/
+      │   ├── console-manager.ts     # Console output isolation (NEW in v2.3.1)
+      │   └── logger.ts              # Logging utility with HTTP awareness
+      ├── http-server-single-session.ts  # Single-session HTTP server (NEW in v2.3.1)
+      │                                   # Session persistence API (NEW in v2.24.1)
+      ├── mcp-engine.ts              # Clean API for service integration (NEW in v2.3.1)
+      │                                # Session persistence wrappers (NEW in v2.24.1)
+      └── index.ts                   # Library exports
+      ```
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [77, 119]
+    text: |
+      ## Common Development Commands
+
+      ```bash
+      # Build and Setup
+      npm run build          # Build TypeScript (always run after changes)
+      npm run rebuild        # Rebuild node database from n8n packages
+      npm run validate       # Validate all node data in database
+
+      # Testing
+      npm test               # Run all tests
+      npm run test:unit      # Run unit tests only
+      npm run test:integration # Run integration tests
+      npm run test:coverage  # Run tests with coverage report
+      npm run test:watch     # Run tests in watch mode
+      npm run test:structure-validation # Test type structure validation (Phase 3)
+
+      # Run a single test file
+      npm test -- tests/unit/services/property-filter.test.ts
+
+      # Linting and Type Checking
+      npm run lint           # Check TypeScript types (alias for typecheck)
+      npm run typecheck      # Check TypeScript types
+
+      # Running the Server
+      npm start              # Start MCP server in stdio mode
+      npm run start:http     # Start MCP server in HTTP mode
+      npm run dev            # Build, rebuild database, and validate
+      npm run dev:http       # Run HTTP server with auto-reload
+
+      # Update n8n Dependencies
+      npm run update:n8n:check  # Check for n8n updates (dry run)
+      npm run update:n8n        # Update n8n packages to latest
+
+      # Database Management
+      npm run db:rebuild     # Rebuild database from scratch
+      npm run migrate:fts5   # Migrate to FTS5 search (if needed)
+
+      # Template Management
+      npm run fetch:templates  # Fetch latest workflow templates from n8n.io
+      npm run test:templates   # Test template functionality
+      ```
+
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 6
+    lines: [119, 128]
+    text: |
+      ## High-Level Architecture
+
+      ### Core Components
+
+      1. **MCP Server** (`mcp/server.ts`)
+         - Implements Model Context Protocol for AI assistants
+         - Provides tools for searching, validating, and managing n8n nodes
+         - Supports both stdio (Claude Desktop) and HTTP modes
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [128, 133]
+    text: |
+      2. **Database Layer** (`database/`)
+         - SQLite database storing all n8n node information
+         - Universal adapter pattern supporting both better-sqlite3 and sql.js
+         - Full-text search capabilities with FTS5
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [133, 139]
+    text: |
+      3. **Node Processing Pipeline**
+         - **Loader** (`loaders/node-loader.ts`): Loads nodes from n8n packages
+         - **Parser** (`parsers/node-parser.ts`): Extracts node metadata and structure
+         - **Property Extractor** (`parsers/property-extractor.ts`): Deep property analysis
+         - **Docs Mapper** (`mappers/docs-mapper.ts`): Maps external documentation
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [139, 146]
+    text: |
+      4. **Service Layer** (`services/`)
+         - **Property Filter**: Reduces node properties to AI-friendly essentials
+         - **Config Validator**: Multi-profile validation system
+         - **Type Structure Service**: Validates complex type structures (filter, resourceMapper, etc.)
+         - **Expression Validator**: Validates n8n expression syntax
+         - **Workflow Validator**: Complete workflow structure validation
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [146, 151]
+    text: |
+      5. **Template System** (`templates/`)
+         - Fetches and stores workflow templates from n8n.io
+         - Provides pre-built workflow examples
+         - Supports template search and validation
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [151, 154]
+    text: |
+      ### Key Design Patterns
+
+      1. **Repository Pattern**: All database operations go through repository classes
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [154, 155]
+    text: |
+      2. **Service Layer**: Business logic separated from data access
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [155, 156]
+    text: |
+      3. **Validation Profiles**: Different validation strictness levels (minimal, runtime, ai-friendly, strict)
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [156, 158]
+    text: |
+      4. **Diff-Based Updates**: Efficient workflow updates using operation diffs
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [158, 163]
+    text: |
+      ### MCP Tools Architecture
+
+      The MCP server exposes tools in several categories:
+
+      1. **Discovery Tools**: Finding and exploring nodes
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [163, 164]
+    text: |
+      2. **Configuration Tools**: Getting node details and examples
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [164, 165]
+    text: |
+      3. **Validation Tools**: Validating configurations before deployment
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 19
+    lines: [165, 166]
+    text: |
+      4. **Workflow Tools**: Complete workflow validation
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 20
+    lines: [166, 168]
+    text: |
+      5. **Management Tools**: Creating and updating workflows (requires API config)
+
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [168, 172]
+    text: |
+      ## Memories and Notes for Development
+
+      ### Development Workflow Reminders
+      - When you make changes to MCP server, you need to ask the user to reload it before you test
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 22
+    lines: [172, 173]
+    text: |
+      - When the user asks to review issues, you should use GH CLI to get the issue and all the comments
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 23
+    lines: [173, 174]
+    text: |
+      - When the task can be divided into separated subtasks, you should spawn separate sub-agents to handle them in parallel
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 24
+    lines: [174, 176]
+    text: |
+      - Use the best sub-agent for the task as per their descriptions
+
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 25
+    lines: [176, 178]
+    text: |
+      ### Testing Best Practices
+      - Always run `npm run build` before testing changes
+    type: directive
+    topic: Build and Run
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 26
+    lines: [178, 179]
+    text: |
+      - Use `npm run dev` to rebuild database after package updates
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 27
+    lines: [179, 180]
+    text: |
+      - Check coverage with `npm run test:coverage`
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 28
+    lines: [180, 182]
+    text: |
+      - Integration tests require a clean database state
+
+    type: directive
+    topic: Build and Run
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 29
+    lines: [182, 184]
+    text: |
+      ### Common Pitfalls
+      - The MCP server needs to be reloaded in Claude Desktop after changes
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 30
+    lines: [184, 185]
+    text: |
+      - HTTP mode requires proper CORS and auth token configuration
+    type: directive
+    topic: Configuration & Environment
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 31
+    lines: [185, 186]
+    text: |
+      - Database rebuilds can take 2-3 minutes due to n8n package size
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 32
+    lines: [186, 188]
+    text: |
+      - Always validate workflows before deployment to n8n
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 33
+    lines: [188, 190]
+    text: |
+      ### Performance Considerations
+      - Use `get_node_essentials()` instead of `get_node_info()` for faster responses
+    type: directive
+    topic: Implementation Details
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 34
+    lines: [190, 191]
+    text: |
+      - Batch validation operations when possible
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 35
+    lines: [191, 193]
+    text: |
+      - The diff-based update system saves 80-90% tokens on workflow updates
+
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 36
+    lines: [193, 195]
+    text: |
+      ### Agent Interaction Guidelines
+      - Sub-agents are not allowed to spawn further sub-agents
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 37
+    lines: [195, 197]
+    text: |
+      - When you use sub-agents, do not allow them to commit and push. That should be done by you
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 38
+    lines: [197, 200]
+    text: |
+      ### Development Best Practices
+      - Run typecheck and lint after every code change
+
+    type: directive
+    topic: Build and Run
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 39
+    lines: [200, 202]
+    text: |
+      # important-instruction-reminders
+      Do what has been asked; nothing more, nothing less.
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 40
+    lines: [202, 203]
+    text: |
+      NEVER create files unless they're absolutely necessary for achieving your goal.
+    type: directive
+    topic: Maintenance
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 41
+    lines: [203, 204]
+    text: |
+      ALWAYS prefer editing an existing file to creating a new one.
+    type: directive
+    topic: Maintenance
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 42
+    lines: [204, 205]
+    text: |
+      NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+    type: directive
+    topic: Maintenance
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 43
+    lines: [205, 206]
+    text: |
+      - When you make changes to MCP server, you need to ask the user to reload it before you test
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 44
+    lines: [206, 207]
+    text: |
+      - When the user asks to review issues, you should use GH CLI to get the issue and all the comments
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 45
+    lines: [207, 208]
+    text: |
+      - When the task can be divided into separated subtasks, you should spawn separate sub-agents to handle them in paralel
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 46
+    lines: [208, 209]
+    text: |
+      - Use the best sub-agent for the task as per their descriptions
+    type: directive
+    topic: Development Process
+    enforceability: semantic_only
+    confidence: high
+
+  - id: 47
+    lines: [209, 210]
+    text: |
+      - Do not use hyperbolic or dramatic language in comments and documentation
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 48
+    lines: [210, 211]
+    text: |
+      - Add to every commit and PR: Concieved by Romuald Członkowski - and then link to www.aiadvisors.pl/en. Don't add it in conversations
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high

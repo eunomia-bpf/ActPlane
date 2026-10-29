@@ -1,0 +1,247 @@
+file: "InsForge/InsForge/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 6]
+    text: |
+      ---
+      description: Instructions building apps with MCP
+      globs: *
+      alwaysApply: true
+      ---
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [6, 18]
+    text: |
+
+      # InsForge SDK Documentation - Overview
+
+      ## What is InsForge?
+
+      Backend-as-a-service (BaaS) platform providing:
+
+      - **Database**: PostgreSQL with PostgREST API
+      - **Authentication**: Email/password + OAuth (Google, GitHub)
+      - **Storage**: File upload/download
+      - **AI**: OpenRouter key provisioning and model catalog for direct OpenAI-compatible integrations
+      - **Functions**: Serverless function deployment
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [18, 26]
+    text: |
+
+      ## Installation
+
+      ### 🚨 CRITICAL: Follow these steps in order
+
+      ### Step 1: Download Template
+
+      Use the `download-template` MCP tool to create a new project with your backend URL and anon key pre-configured.
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 4
+    lines: [26, 32]
+    text: |
+
+      ### Step 2: Install SDK
+
+      ```bash
+      npm install @insforge/sdk@latest
+      ```
+    type: directive
+    topic: Build and Run
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 5
+    lines: [32, 48]
+    text: |
+
+      ### Step 3: Create SDK Client
+
+      You must create a client instance using `createClient()` with your base URL and anon key:
+
+      ```javascript
+      import { createClient } from '@insforge/sdk';
+
+      const client = createClient({
+        baseUrl: 'https://your-app.region.insforge.app',  // Your InsForge backend URL
+        anonKey: 'your-anon-key-here'       // Get this from backend metadata
+      });
+
+      ```
+
+      **API BASE URL**: Your API base URL is `https://your-app.region.insforge.app`.
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 6
+    lines: [48, 54]
+    text: |
+
+      ## Getting Detailed Documentation
+
+      ### 🚨 CRITICAL: Always Fetch Documentation Before Writing Code
+
+      Before writing or editing any InsForge integration code, you **MUST** call the `fetch-docs` MCP tool to get the latest SDK documentation. This ensures you have accurate, up-to-date implementation patterns.
+    type: directive
+    topic: AI Integration
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 7
+    lines: [54, 70]
+    text: |
+
+      ### Use the InsForge `fetch-docs` MCP tool to get specific SDK documentation:
+
+      Available documentation types:
+
+      - `"instructions"` - Essential backend setup (START HERE)
+      - `"db-sdk"` - Database operations with SDK
+      - **Authentication** - Choose based on implementation:
+        - `"auth-sdk"` - Direct SDK methods for custom auth flows
+        - `"auth-components-react"` - Pre-built auth UI for React+Vite (singlepage App)
+        - `"auth-components-react-router"` - Pre-built auth UI for React(Vite+React Router) (Multipage App)
+        - `"auth-components-nextjs"` - Pre-built auth UI for Nextjs (SSR App)
+      - `"storage-sdk"` - File storage operations
+      - `"functions-sdk"` - Serverless functions invocation
+      - `"ai-integration-sdk"` - AI integration with the provisioned OpenRouter key and OpenAI SDK
+      - `"real-time"` - Real-time pub/sub (database + client events) via WebSockets
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [70, 72]
+    text: |
+
+      For InsForge Cloud projects, InsForge provisions the OpenRouter key and admins can copy the active key from Model Gateway into a server-only `OPENROUTER_API_KEY`. For self-hosted projects, configure `OPENROUTER_API_KEY` in the backend environment.
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [72, 82]
+    text: |
+
+      ## When to Use SDK vs MCP Tools
+
+      ### Always SDK for Application Logic:
+
+      - Authentication (register, login, logout, profiles)
+      - Database CRUD (select, insert, update, delete)
+      - Storage operations (upload, download files)
+      - AI integration via the provisioned OpenRouter key with the OpenAI SDK or OpenRouter HTTP API
+      - Serverless function invocation
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 10
+    lines: [82, 90]
+    text: |
+
+      ### Use MCP Tools for Infrastructure:
+
+      - Project scaffolding (`download-template`) - Download starter templates with InsForge integration
+      - Backend setup and metadata (`get-backend-metadata`)
+      - Database schema management (`run-raw-sql`, `get-table-schema`)
+      - Storage bucket creation (`create-bucket`, `list-buckets`, `delete-bucket`)
+      - Serverless function deployment (`create-function`, `update-function`, `delete-function`)
+    type: directive
+    topic: Implementation Details
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 11
+    lines: [90, 94]
+    text: |
+
+      ## Important Notes
+
+      - For auth: use `auth-sdk` for custom UI, or framework-specific components for pre-built UI
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 12
+    lines: [94, 95]
+    text: |
+      - SDK returns `{data, error}` structure for all operations
+    type: description
+    topic: Implementation Details
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [95, 96]
+    text: |
+      - Database inserts require array format: `[{...}]`
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 14
+    lines: [96, 97]
+    text: |
+      - Serverless functions have single endpoint (no subpaths)
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [97, 98]
+    text: |
+      - Storage: Upload files to buckets, store URLs in database
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 16
+    lines: [98, 99]
+    text: |
+      - AI integrations should call OpenRouter directly with `baseURL: "https://openrouter.ai/api/v1"` and a server-side `OPENROUTER_API_KEY`
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 17
+    lines: [99, 100]
+    text: |
+      - **EXTRA IMPORTANT**: Use Tailwind CSS 3.4 (do not upgrade to v4). Lock these dependencies in `package.json`
+    type: directive
+    topic: Maintenance
+    enforceability: per_event
+    context_required: project
+    confidence: high

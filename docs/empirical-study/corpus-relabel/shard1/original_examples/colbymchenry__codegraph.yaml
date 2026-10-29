@@ -1,0 +1,596 @@
+file: "colbymchenry/codegraph/CLAUDE.md"
+statements:
+  - id: 1
+    lines: [1, 4]
+    text: |
+      # CLAUDE.md
+
+      This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+    type: description
+    topic: Documentation
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [4, 8]
+    text: |
+
+      ## Project Overview
+
+      CodeGraph is a local-first code intelligence library + CLI + MCP server. It parses any supported codebase with tree-sitter, stores symbols/edges/files in SQLite (FTS5), and exposes a knowledge graph to AI agents (Claude Code, Cursor, Codex CLI, opencode) over MCP. Per-project data lives in `.codegraph/`. Extraction is deterministic — derived from AST, not LLM-summarized.
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 3
+    lines: [8, 10]
+    text: |
+
+      Distributed as `@colbymchenry/codegraph` on npm; same binary serves as installer, indexer, and MCP server.
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 4
+    lines: [10, 29]
+    text: |
+
+      ## Build, Test, Run
+
+      ```bash
+      npm run build           # tsc + copy schema.sql and *.wasm into dist/; chmods dist/bin/codegraph.js
+      npm run dev             # tsc --watch
+      npm run clean           # rm -rf dist
+
+      npm test                # vitest run (all)
+      npm run test:watch
+      npm run test:eval       # only __tests__/evaluation/
+      npm run eval            # build then run __tests__/evaluation/runner.ts via tsx
+
+      npm run cli             # build then run the local dist binary
+
+      # Single test file / pattern
+      npx vitest run __tests__/installer-targets.test.ts
+      npx vitest run __tests__/extraction.test.ts -t "TypeScript"
+      ```
+    type: description
+    topic: Build and Run
+    enforceability: null
+    confidence: high
+
+  - id: 5
+    lines: [29, 31]
+    text: |
+
+      `copy-assets` (called from `build`) copies `src/db/schema.sql` and all `src/extraction/wasm/*.wasm` files into `dist/`. **Any new SQL or grammar wasm must be copied or it won't ship.**
+    type: directive
+    topic: Build and Run
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 6
+    lines: [31, 33]
+    text: |
+
+      Node engines: `>=18.0.0 <25.0.0`. There is a hard exit on Node 25.x (see `src/bin/node-version-check.ts`).
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 7
+    lines: [33, 47]
+    text: |
+
+      ## Architecture
+
+      ### Layered pipeline
+
+      ```
+      files → ExtractionOrchestrator (tree-sitter) → DB (nodes/edges/files)
+                    ↓
+             ReferenceResolver (imports, name-matching, framework patterns)
+                    ↓
+             GraphQueryManager / GraphTraverser (callers, callees, impact)
+                    ↓
+             ContextBuilder (markdown/JSON for AI consumption)
+      ```
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 8
+    lines: [47, 49]
+    text: |
+
+      The public API surface is `src/index.ts` — the `CodeGraph` class wires all the layers and re-exports types. Library users only touch this file; the MCP server and CLI also drive it.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 9
+    lines: [49, 53]
+    text: |
+
+      ### Module layout
+
+      - `src/index.ts` — `CodeGraph` class: `init`/`open`/`close`, `indexAll`, `sync`, `searchNodes`, `getCallers`/`getCallees`, `getImpactRadius`, `buildContext`, `watch`/`unwatch`.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 10
+    lines: [53, 54]
+    text: |
+      - `src/db/` — `DatabaseConnection`, `QueryBuilder` (prepared statements), `schema.sql`. Backed by `better-sqlite3` (native) when available, transparently falls back to `node-sqlite3-wasm`. `codegraph status` surfaces which backend is live; wasm is the slow path.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 11
+    lines: [54, 55]
+    text: |
+      - `src/extraction/` — `ExtractionOrchestrator`, tree-sitter wrappers, per-language extractors under `languages/` (one file per language), plus standalone extractors for non-tree-sitter formats (`svelte-extractor.ts`, `vue-extractor.ts`, `liquid-extractor.ts`, `dfm-extractor.ts` for Delphi). `parse-worker.ts` runs heavy parsing off the main thread.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 12
+    lines: [55, 56]
+    text: |
+      - `src/resolution/` — `ReferenceResolver` orchestrates `import-resolver.ts` (with `path-aliases.ts` for tsconfig path aliases + cargo workspace member globs), `name-matcher.ts`, and `frameworks/` (Express, Laravel, Rails, FastAPI, Django, Flask, Spring, Gin, Axum, ASP.NET, Vapor, React Router, SvelteKit, Vue/Nuxt, Cargo workspaces). Frameworks emit `route` nodes and `references` edges.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 13
+    lines: [56, 57]
+    text: |
+      - `src/graph/` — `GraphTraverser` (BFS/DFS, impact radius, path finding) and `GraphQueryManager` (high-level queries).
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 14
+    lines: [57, 58]
+    text: |
+      - `src/context/` — `ContextBuilder` + formatter for markdown/JSON output.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 15
+    lines: [58, 59]
+    text: |
+      - `src/search/` — full-text query parser and helpers for FTS5.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 16
+    lines: [59, 60]
+    text: |
+      - `src/sync/` — `FileWatcher` (native FSEvents/inotify/RDCW) with debounce + filter, and git-hook helpers.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [60, 61]
+    text: |
+      - `src/mcp/` — MCP server (`MCPServer`, `tools.ts`, `transport.ts`). `server-instructions.ts` is what the server returns in the MCP `initialize` response — keep it in sync with the user-facing tool guidance.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [61, 62]
+    text: |
+      - `src/installer/` — see below.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 19
+    lines: [62, 63]
+    text: |
+      - `src/bin/codegraph.ts` — CLI (commander). Subcommands: `install`, `init`, `uninit`, `index`, `sync`, `status`, `query`, `files`, `context`, `affected`, `serve --mcp`.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 20
+    lines: [63, 64]
+    text: |
+      - `src/ui/` — terminal UI (shimmer progress, worker).
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [64, 71]
+    text: |
+
+      ### NodeKind / EdgeKind
+
+      Defined in `src/types.ts`. Both extractors and resolvers must use these exact strings.
+
+      - **NodeKind**: `file`, `module`, `class`, `struct`, `interface`, `trait`, `protocol`, `function`, `method`, `property`, `field`, `variable`, `constant`, `enum`, `enum_member`, `type_alias`, `namespace`, `parameter`, `import`, `export`, `route`, `component`.
+      - **EdgeKind**: `contains`, `calls`, `imports`, `exports`, `extends`, `implements`, `references`, `type_of`, `returns`, `instantiates`, `overrides`, `decorates`.
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 23
+    lines: [71, 77]
+    text: |
+
+      ### Multi-agent installer
+
+      `src/installer/` is the entry point for `codegraph install` (and the bare `codegraph`/`npx @colbymchenry/codegraph` invocation). Architecture:
+
+      - `targets/registry.ts` lists every supported agent.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 24
+    lines: [77, 78]
+    text: |
+      - `targets/types.ts` defines the `AgentTarget` interface — adding a 5th agent (Continue, Zed, Windsurf…) is **one new file in `targets/` + one entry in `registry.ts`**. Each target owns its config-file location, MCP-server JSON/TOML/JSONC writing, and instructions-file path.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 25
+    lines: [78, 79]
+    text: |
+      - Current targets: `claude.ts`, `cursor.ts`, `codex.ts`, `opencode.ts`.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 26
+    lines: [79, 80]
+    text: |
+      - `targets/toml.ts` is a hand-rolled TOML serializer scoped to `[mcp_servers.codegraph]` (used by Codex). Sibling tables and `[[array_of_tables]]` are preserved verbatim. No new dependency.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 27
+    lines: [80, 81]
+    text: |
+      - opencode reads `opencode.jsonc` by default; the installer prefers existing `.jsonc`, falls back to `.json`, and creates `.jsonc` for greenfield installs. Edits are surgical via `jsonc-parser` so user comments and formatting survive install/re-install/uninstall round-trips.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 28
+    lines: [81, 82]
+    text: |
+      - `instructions-template.ts` is the agent-agnostic instructions file written to each target (e.g. `CLAUDE.md`, `.cursor/rules/codegraph.mdc`, `~/.codex/AGENTS.md`, `~/.config/opencode/AGENTS.md`). It explicitly says "trust codegraph results, don't re-verify with grep" — earlier versions prescribed Claude-specific "spawn an Explore agent" and confused other agents.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 29
+    lines: [82, 83]
+    text: |
+      - `claude-md-template.ts` is the legacy Claude-only template, retained for compatibility paths.
+    type: description
+    topic: Architecture
+    enforceability: null
+    confidence: high
+
+  - id: 30
+    lines: [83, 84]
+    text: |
+      - All installer changes need matching coverage in `__tests__/installer-targets.test.ts` — there are ~47 parameterized contract tests covering install idempotency, sibling preservation, uninstall reverses install, byte-equal re-runs returning `unchanged`, and partial-state recovery for Codex.
+    type: directive
+    topic: Testing
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 31
+    lines: [84, 88]
+    text: |
+
+      ### Cursor MCP working-directory quirk
+
+      Cursor launches MCP subprocesses with the wrong cwd and doesn't pass `rootUri` in `initialize`. The installer injects `--path` into Cursor's MCP args — absolute path for local installs, `${workspaceFolder}` for global installs. If you touch Cursor wiring, preserve this.
+    type: directive
+    topic: Implementation Details
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 32
+    lines: [88, 92]
+    text: |
+
+      ### MCP server instructions
+
+      `src/mcp/server-instructions.ts` is sent back to the agent in the MCP `initialize` response. This is the *first* thing every agent sees about how to use the tools — treat it as the authoritative tool guidance and keep it in sync with `instructions-template.ts` and `.cursor/rules/codegraph.mdc`.
+    type: directive
+    topic: Documentation
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 34
+    lines: [92, 98]
+    text: |
+
+      ## Tests
+
+      Tests live in `__tests__/` and mirror the module they cover. Notable ones beyond the obvious:
+
+      - `installer-targets.test.ts` — parameterized contract suite across all 4 agent targets (see installer notes above).
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 35
+    lines: [98, 99]
+    text: |
+      - `evaluation/` — `runner.ts` + `test-cases.ts` exercise codegraph against synthetic projects and score the results; run via `npm run eval` (builds first). Not part of `npm test`.
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 36
+    lines: [99, 100]
+    text: |
+      - `sqlite-backend.test.ts` — covers native + wasm backend selection and fallback.
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 37
+    lines: [100, 101]
+    text: |
+      - `pr19-improvements.test.ts`, `frameworks-integration.test.ts` — regression coverage for specific past PRs/incidents; don't rename these, the names anchor to git history.
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 38
+    lines: [101, 103]
+    text: |
+
+      Tests create temp dirs with `fs.mkdtempSync` and clean up in `afterEach`. They write real files and exercise real SQLite — there is no DB mocking.
+    type: description
+    topic: Testing
+    enforceability: null
+    confidence: high
+
+  - id: 39
+    lines: [103, 107]
+    text: |
+
+      ### Windows-gated tests
+
+      Behavior that differs by platform (path resolution, drive letters, `SENSITIVE_PATHS`, `%APPDATA%` config dirs, CRLF) must be gated, not assumed. Use `it.runIf(process.platform === 'win32')(...)` for Windows-only assertions and `it.runIf(process.platform !== 'win32')(...)` for POSIX-only ones — e.g. `/etc` is sensitive on POSIX but resolves to `C:\etc` (non-existent) on Windows, so an ungated `/etc` assertion fails on Windows. Validate the Windows side for real (see below); don't merge a Windows-gated test you haven't seen run.
+    type: directive
+    topic: Testing
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 40
+    lines: [107, 112]
+    text: |
+
+      ## Windows validation (Parallels + SSH)
+
+      For any Windows-specific PR, bug, or implementation, validate it on the real Windows VM rather than guessing. Connection details live in the gitignored **`.parallels`** file at the repo root (VM name, guest IP, SSH user/key). `prlctl exec` needs Parallels Pro and is unavailable, so SSH is the bridge.
+
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 41
+    lines: [112, 119]
+    text: |
+      - Connect / run from the Mac host: `ssh <user>@<guest_ip> "..."`. For multi-line work, pipe PowerShell over stdin and **refresh PATH from the registry** first (sshd's session has a stale PATH after winget installs):
+        ```
+        ssh colby@10.211.55.3 "powershell -NoProfile -ExecutionPolicy Bypass -Command -" <<'PS'
+        $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
+        Set-Location C:\dev\codegraph
+        PS
+        ```
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 42
+    lines: [119, 120]
+    text: |
+      - Clone fresh into a **Windows-local** path (`C:\dev\codegraph`) and `npm ci` there — never run npm against the shared Mac repo, since `esbuild`/`rollup` ship platform-specific binaries.
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 43
+    lines: [120, 121]
+    text: |
+      - Guest toolchain (winget): Node LTS, Git, and the **VC++ ARM64 redistributable** (required by `@rollup/rollup-win32-arm64-msvc`, which vitest pulls in).
+    type: description
+    topic: Configuration & Environment
+    enforceability: null
+    confidence: high
+
+  - id: 44
+    lines: [121, 122]
+    text: |
+      - Fetch a contributor PR head straight from their fork to dodge `pull/<n>/head` lag: `git fetch <fork-url> <branch>` then `git checkout -f FETCH_HEAD`.
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 45
+    lines: [122, 123]
+    text: |
+      - Known pre-existing Windows failure: `security.test.ts > Session marker symlink resistance > does not follow a pre-planted symlink` (symlink creation needs privileges on Windows). Unrelated to current work; don't let it mask new regressions.
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 46
+    lines: [123, 127]
+    text: |
+
+      ## Releases
+
+      Released to npm and mirrored as [GitHub Releases](https://github.com/colbymchenry/codegraph/releases). `CHANGELOG.md` is the source of truth; GitHub Release notes are extracted from it.
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 47
+    lines: [127, 136]
+    text: |
+
+      ### Writing changelog entries
+
+      When asked for an entry for a new version:
+
+      1. Add a new `## [X.Y.Z] - YYYY-MM-DD` block at the **top** of `CHANGELOG.md` (under the intro, above the previous version).
+      2. Group under `### Added`, `### Changed`, `### Fixed`, `### Removed`, `### Deprecated`, `### Security` — omit empty sections.
+      3. Write from the **user's perspective**, not the implementation's. Lead with the observable symptom or capability; mention internals only if a user needs them (e.g., to work around an existing bad install).
+      4. Add the link reference at the bottom: `[X.Y.Z]: https://github.com/colbymchenry/codegraph/releases/tag/vX.Y.Z`.
+    type: directive
+    topic: Documentation
+    enforceability: content
+    context_required: task
+    confidence: high
+
+  - id: 48
+    lines: [136, 145]
+    text: |
+
+      ### Release flow (the user runs these)
+
+      Releases are built and published by the **GitHub Actions "Release" workflow**
+      (`.github/workflows/release.yml`). It bundles a Node runtime per platform
+      (`scripts/build-bundle.sh`) and publishes both the GitHub Release and the npm
+      thin-installer (`scripts/pack-npm.sh`: a shim package + per-platform packages).
+      Publishing manually is **wrong** now — a plain `npm publish` ships the root
+      package (non-bundled), which breaks anyone on Node < 22.5.
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 49
+    lines: [145, 153]
+    text: |
+
+      After the changelog entry is written and `package.json` is bumped:
+
+      ```bash
+      git add package.json package-lock.json CHANGELOG.md
+      git commit -m "release: X.Y.Z (<one-line summary>)"
+      git push
+      ```
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 50
+    lines: [153, 158]
+    text: |
+
+      Then trigger **Actions → Release → Run workflow** (on `main`). It reads the
+      version from `package.json`, builds every platform bundle on one runner, creates
+      the GitHub Release with notes from the matching `CHANGELOG.md` section, and
+      publishes to npm. Requires the `NPM_TOKEN` repo secret.
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 51
+    lines: [158, 161]
+    text: |
+
+      **Do not run `npm publish`, `git push`, or `git tag` yourself** — these are
+      publish actions on shared state. Write the files, hand the user the commands.
+    type: directive
+    topic: DevOps
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 52
+    lines: [161, 165]
+    text: |
+
+      ## House rules
+
+      - The `0.7.x` line is in active multi-agent rollout. Any change to `src/installer/` (especially `targets/`) needs corresponding test coverage and a CHANGELOG entry — installer regressions break every new install silently.
+    type: directive
+    topic: Maintenance
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 53
+    lines: [165, 166]
+    text: |
+      - When changing what the MCP tools do or how agents should use them, update **all three** of `src/mcp/server-instructions.ts`, `src/installer/instructions-template.ts`, and `.cursor/rules/codegraph.mdc` — they're written to different places but say the same thing.
+    type: directive
+    topic: Maintenance
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 54
+    lines: [166, 167]
+    text: |
+      - CodeGraph provides **code context**, not product requirements. For new features, ask the user about UX, edge cases, and acceptance criteria — the graph won't tell you.
+    type: directive
+    topic: AI Integration
+    enforceability: semantic_only
+    confidence: high

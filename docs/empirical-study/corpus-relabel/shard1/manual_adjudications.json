@@ -1,0 +1,237 @@
+{
+  "0405086ca307b15bd80c:1:2": [
+    "per_event",
+    "none",
+    "Reading the explicitly named instruction file is an observable file access."
+  ],
+  "23f026cb560458bd0b41:1:2": [
+    "per_event",
+    "none",
+    "The explicit external instruction-file reference requires a file access."
+  ],
+  "29cadf63b03aa2a07d00:24:28": [
+    "per_event",
+    "none",
+    "The directive names the reference files to read explicitly."
+  ],
+  "29cadf63b03aa2a07d00:326:327": [
+    "per_event",
+    "none",
+    "Consulting the explicitly named reference is an observable file access."
+  ],
+  "29cadf63b03aa2a07d00:327:328": [
+    "per_event",
+    "none",
+    "Consulting the explicitly named reference is an observable file access."
+  ],
+  "29cadf63b03aa2a07d00:328:329": [
+    "per_event",
+    "none",
+    "The external instruction-file reference explicitly names FORMS.md."
+  ],
+  "29cadf63b03aa2a07d00:329:330": [
+    "per_event",
+    "none",
+    "Consulting the explicitly named reference is an observable file access."
+  ],
+  "2b9f5dfafca3c27b3c58:304:306": [
+    "per_event",
+    "none",
+    "The workflow reference explicitly identifies the file to consult."
+  ],
+  "2c781648b19a68ece051:155:157": [
+    "per_event",
+    "none",
+    "The instruction explicitly names the reference file to consult."
+  ],
+  "2e26cc49fccabab37407:1:2": [
+    "per_event",
+    "none",
+    "Reading the explicitly named instruction file is an observable file access."
+  ],
+  "32358a1554f4aa5cf29a:3:5": [
+    "per_event",
+    "none",
+    "The external instruction-file reference is an observable file access."
+  ],
+  "32358a1554f4aa5cf29a:5:6": [
+    "per_event",
+    "none",
+    "The explicit external instruction-file reference requires a file access."
+  ],
+  "409dbcb513f7a1ceffde:73:74": [
+    "per_event",
+    "none",
+    "Consulting the explicitly linked process is an observable network access."
+  ],
+  "470555d991d302774982:173:174": [
+    "per_event",
+    "none",
+    "The instruction explicitly links the external example project to consult."
+  ],
+  "47aa69fa24e6d1f50603:120:121": [
+    "per_event",
+    "none",
+    "Consulting the three explicitly named reference files requires observable accesses."
+  ],
+  "7cc37ef16c0313bca002:1:2": [
+    "per_event",
+    "none",
+    "The explicit external instruction-file reference requires a file access."
+  ],
+  "97eb676eb3639369602d:166:171": [
+    "per_event",
+    "none",
+    "The directive explicitly identifies the reference file to consult."
+  ],
+  "97eb676eb3639369602d:184:188": [
+    "per_event",
+    "none",
+    "Consulting the explicitly linked workflow reference requires a file access."
+  ],
+  "9a9829ed34daa4537df1:28:30": [
+    "per_event",
+    "none",
+    "Consulting the explicitly linked discussion is an observable network access."
+  ],
+  "9e89d83c637ef47fba44:130:134": [
+    "per_event",
+    "none",
+    "The directive explicitly identifies the reference file to consult."
+  ],
+  "6acb730eedd45a09311f:1:5": [
+    "per_event",
+    "project",
+    "The actionable clause requires executing the project-provided check command."
+  ],
+  "9e89d83c637ef47fba44:177:179": [
+    "per_event",
+    "none",
+    "The directive explicitly identifies the targeting reference file to consult."
+  ],
+  "9e89d83c637ef47fba44:219:221": [
+    "per_event",
+    "none",
+    "The directive explicitly identifies both platform playbook reference files."
+  ],
+  "9e89d83c637ef47fba44:322:324": [
+    "per_event",
+    "none",
+    "Consulting the named ab-testing skill is observable reference or tool access."
+  ],
+  "9e89d83c637ef47fba44:390:392": [
+    "per_event",
+    "none",
+    "The setup reference and conversion-tracking skill are explicitly named."
+  ],
+  "9e89d83c637ef47fba44:454:458": [
+    "per_event",
+    "none",
+    "The implementation reference URL is explicit and consulting it is observable."
+  ],
+  "9e89d83c637ef47fba44:465:469": [
+    "per_event",
+    "none",
+    "The tracking skill and linked tool guides are explicit observable references."
+  ],
+  "af55d5ab4d2d2ecc9954:36:38": [
+    "per_event",
+    "project",
+    "The directive requires running a help command; the command tool needs project lookup."
+  ],
+  "af55d5ab4d2d2ecc9954:417:418": [
+    "per_event",
+    "none",
+    "The directive explicitly requires executing officecli help."
+  ],
+  "bae730bef3cd072be2c1:1:2": [
+    "per_event",
+    "none",
+    "The explicit instruction-file reference requires a file access."
+  ],
+  "c5c00b545ccd5003ca5d:128:129": [
+    "per_event",
+    "none",
+    "The directive explicitly names the configuration-schema reference file."
+  ],
+  "d0ff5ec7f29ae497f187:5:6": [
+    "per_event",
+    "none",
+    "The explicit instruction-file reference requires a file access."
+  ],
+  "d242c9937cc8d964d377:26:30": [
+    "per_event",
+    "none",
+    "The policy reference explicitly identifies AI_POLICY.md."
+  ],
+  "d45d1b849356eeeca2e2:1:2": [
+    "per_event",
+    "none",
+    "The explicit instruction-file reference requires a file access."
+  ],
+  "d672a39d192e116b8818:6:7": [
+    "per_event",
+    "none",
+    "The explicit REASONIX.md reference requires a file access."
+  ],
+  "dcd6f232daf605d1363f:6:7": [
+    "per_event",
+    "none",
+    "The explicit REASONIX.md reference requires a file access."
+  ],
+  "e4e728991e5179e7165b:1:2": [
+    "per_event",
+    "none",
+    "The explicit instruction-file reference requires a file access."
+  ],
+  "e6919f8ee5b5f3518e0e:1:2": [
+    "per_event",
+    "none",
+    "Reading the explicitly named instruction file is observable."
+  ],
+  "eff3382f42fdadf67b63:119:121": [
+    "per_event",
+    "none",
+    "Consulting the explicitly linked per-stack documentation is an observable network access."
+  ],
+  "ee409fb09d06f7afc42b:201:205": [
+    "content",
+    "project",
+    "Documentation must satisfy project-specific CI content rules; boundary: this lead-in should accompany the following rules."
+  ],
+  "f70eab86f7ab54c30d2b:1:2": [
+    "per_event",
+    "none",
+    "The explicit instruction-file reference requires a file access."
+  ],
+  "f731eb322d67a2a2ba24:125:127": [
+    "per_event",
+    "none",
+    "The methodology reference explicitly names both files to consult."
+  ],
+  "f978c3a6b932d930de53:49:51": [
+    "per_event",
+    "none",
+    "Consulting the two explicitly linked testing references requires file accesses."
+  ],
+  "f9acb887fc0843edabd3:68:70": [
+    "per_event",
+    "none",
+    "The development-environment reference explicitly identifies the file to consult."
+  ],
+  "f9acb887fc0843edabd3:70:72": [
+    "per_event",
+    "none",
+    "The build reference explicitly identifies the file to consult."
+  ],
+  "f9acb887fc0843edabd3:72:74": [
+    "per_event",
+    "none",
+    "The contribution-process reference explicitly identifies CONTRIBUTING.md."
+  ],
+  "de87092972388acb8c83:1:2": [
+    "per_event",
+    "none",
+    "The explicit instruction-file reference requires a file access."
+  ]
+}

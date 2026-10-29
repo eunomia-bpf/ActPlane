@@ -1,0 +1,388 @@
+file: "OthmanAdi/planning-with-files/AGENTS.md"
+statements:
+  - id: 1
+    lines: [1, 6]
+    text: |
+      # AGENTS.md — planning-with-files agent reference card
+
+      This file is the canonical, session-portable reference for how every agent working in this repo must handle commits, releases, version bumps, CHANGELOG entries, and issue/PR communication.
+
+      ---
+    type: description
+    topic: System Overview
+    enforceability: null
+    confidence: high
+
+  - id: 2
+    lines: [6, 10]
+    text: |
+
+      ## Commit rules
+
+      - **Author**: OthmanAdi only. NEVER add `Co-Authored-By:` trailers.
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 3
+    lines: [10, 11]
+    text: |
+      - **Format**: Conventional Commits — `fix:`, `feat:`, `release:`, `docs:` prefixes.
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 4
+    lines: [11, 12]
+    text: |
+      - **One squashed commit per release or PR merge.**
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 5
+    lines: [12, 13]
+    text: |
+      - No `--no-verify`. No force push to master except tag ref updates.
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: none
+    confidence: high
+
+  - id: 6
+    lines: [13, 16]
+    text: |
+      - Contributors are credited in CHANGELOG `### Thanks` and `CONTRIBUTORS.md`, never in commit trailers.
+
+      ---
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 7
+    lines: [16, 32]
+    text: |
+
+      ## Release checklist (12 steps)
+
+      1. `gh issue view N` and `gh pr view N` — read both in full.
+      2. Verify the bug is real: find the exact file/line, grep for the pattern, confirm reporter is correct.
+      3. `python -m pytest tests/ -q` — all tests pass before touching anything.
+      4. Squash merge: `git fetch origin branch && git merge --squash origin/branch`, then a single commit as OthmanAdi.
+      5. CHANGELOG — new version entry at top, `### Fixed`/`### Added`/`### Changed`, sachlich, no em-dashes.
+      6. CONTRIBUTORS.md — add reporter/contributor, bump "Total Contributors: N+", update "Last updated" date.
+      7. Version bump across all 19 files (see table below).
+      8. README — update version badge and add row to releases table.
+      9. `git commit`, `git tag vX.Y.Z`, `git push origin master`, `git push origin vX.Y.Z`.
+      10. `gh release create vX.Y.Z --title "vX.Y.Z - <short description>" --notes "<release notes>"`.
+      11. Post comment on PR and/or issue via `gh issue comment N --body "..."` (run through /humanizer first).
+      12. `gh issue close N` if applicable.
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 8
+    lines: [32, 37]
+    text: |
+      ---
+
+      ## Version bump scope
+
+      All 19 files must be bumped to the same version string every release.
+    type: directive
+    topic: Development Process
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 9
+    lines: [37, 60]
+    text: |
+
+      | File | Notes |
+      |------|-------|
+      | `skills/planning-with-files/SKILL.md` | Primary English |
+      | `skills/planning-with-files-ar/SKILL.md` | Arabic |
+      | `skills/planning-with-files-de/SKILL.md` | German |
+      | `skills/planning-with-files-es/SKILL.md` | Spanish |
+      | `skills/planning-with-files-zh/SKILL.md` | Simplified Chinese |
+      | `skills/planning-with-files-zht/SKILL.md` | Traditional Chinese |
+      | `.codebuddy/skills/planning-with-files/SKILL.md` | CodeBuddy IDE |
+      | `.codex/skills/planning-with-files/SKILL.md` | Codex IDE |
+      | `.cursor/skills/planning-with-files/SKILL.md` | Cursor IDE |
+      | `.factory/skills/planning-with-files/SKILL.md` | Factory IDE |
+      | `.hermes/skills/planning-with-files/SKILL.md` | Hermes adapter |
+      | `.kiro/skills/planning-with-files/SKILL.md` | Kiro IDE |
+      | `.mastracode/skills/planning-with-files/SKILL.md` | Mastra Code |
+      | `.opencode/skills/planning-with-files/SKILL.md` | OpenCode IDE |
+      | `.pi/skills/planning-with-files/SKILL.md` | Pi IDE |
+      | `clawhub-upload/SKILL.md` | ClawHub marketplace upload |
+      | `.claude-plugin/plugin.json` | Plugin manifest |
+      | `.claude-plugin/marketplace.json` | Marketplace metadata |
+      | `CITATION.cff` | Citation file |
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 10
+    lines: [60, 63]
+    text: |
+      **NOT bumped automatically**: `.continue/`, `.gemini/` — intentionally behind. Do not bump without an explicit scope decision.
+
+      ---
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: task
+    confidence: high
+
+  - id: 11
+    lines: [63, 81]
+    text: |
+
+      ## CHANGELOG format
+
+      ```
+      ## [X.Y.Z] - YYYY-MM-DD
+
+      ### Fixed
+      - Short description of what was wrong and how it was fixed.
+
+      ### Thanks
+      - @handle — what they contributed (issue #N / PR #N)
+      ```
+
+      Rules:
+      - Sachlich (matter-of-fact). No em-dashes. No hype.
+      - Contributor line: first name or @handle, one sentence, issue/PR reference.
+      - Run any prose through /humanizer before publishing anywhere public.
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 12
+    lines: [81, 97]
+    text: |
+      ---
+
+      ## CONTRIBUTORS.md format
+
+      ```markdown
+      ### Other Contributors
+
+      **[Name](https://github.com/handle)** — [PR #N](link) / [Issue #N](link)
+      - What they did (one bullet per contribution)
+      - Impact or context
+      ```
+
+      - Update "Total Contributors: N+" count.
+      - Update "Last updated: YYYY-MM-DD" date.
+      - Scope determines section: "Other Contributors" for single-issue fix, "Major Contributions" for larger work.
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 13
+    lines: [97, 108]
+    text: |
+      ---
+
+      ## Issue/PR comment style
+
+      After a fix ships, comment on the issue or PR:
+
+      - Address by `@handle`.
+      - One sentence: fix confirmed in vX.Y.Z.
+      - Specific: what the root cause was, what mechanism changed.
+      - If they are now in CONTRIBUTORS.md, say so.
+      - Run through /humanizer before posting.
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 14
+    lines: [108, 116]
+    text: |
+
+      NOT acceptable in any public comment:
+      - "Great report!"
+      - "Thank you so much!"
+      - Em-dashes (do not use — this style)
+      - "I'd like to"
+      - Performative warmth of any kind
+
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 15
+    lines: [116, 132]
+    text: |
+      ---
+
+      ## Release notes format (gh release create --notes)
+
+      ```
+      What changed:
+
+      - <Bug description> — <what the fix does>
+      - <Feature description> — <how it works>
+
+      Thanks: @handle for reporting issue #N.
+      ```
+
+      - Start with what changed, not who did it.
+      - No em-dashes.
+      - Thanks at the bottom.
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: project
+    confidence: high
+
+  - id: 16
+    lines: [132, 137]
+    text: |
+
+      ---
+
+      ## ClawHub distribution
+
+    type: description
+    topic: Development Process
+    enforceability: null
+    confidence: high
+
+  - id: 17
+    lines: [137, 138]
+    text: |
+      - ClawHub does NOT auto-sync with GitHub.
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 18
+    lines: [138, 139]
+    text: |
+      - After every release: manually upload `clawhub-upload/SKILL.md` at clawhub.io.
+    type: directive
+    topic: DevOps
+    enforceability: cross_event
+    context_required: project
+    confidence: high
+
+  - id: 19
+    lines: [139, 140]
+    text: |
+      - SSL cert on clawhub.io may be expired — proceed through the browser warning.
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 20
+    lines: [140, 141]
+    text: |
+      - skills.sh / `npx skills`: pulls from GitHub master automatically on next crawl.
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 21
+    lines: [141, 144]
+    text: |
+      - Anthropic plugin marketplace: requires ClawHub upload to reflect the new version.
+
+      ---
+    type: description
+    topic: DevOps
+    enforceability: null
+    confidence: high
+
+  - id: 22
+    lines: [144, 148]
+    text: |
+
+      ## Quick reference: what NOT to do
+
+      - Do not add Co-Authored-By to any commit.
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 23
+    lines: [148, 149]
+    text: |
+      - Do not bump .continue or .gemini without explicit instruction.
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: task
+    confidence: high
+
+  - id: 24
+    lines: [149, 150]
+    text: |
+      - Do not edit `task_plan.md` or `DESIGN.md` directly (user-owned contracts).
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 25
+    lines: [150, 151]
+    text: |
+      - Do not log subagent returns into `task_plan.md` — use `progress.md`.
+    type: directive
+    topic: Development Process
+    enforceability: per_event
+    context_required: project
+    confidence: high
+
+  - id: 26
+    lines: [151, 152]
+    text: |
+      - Do not use em-dashes in any user-facing prose.
+    type: directive
+    topic: Development Process
+    enforceability: content
+    context_required: none
+    confidence: high
+
+  - id: 27
+    lines: [152, 153]
+    text: |
+      - Do not skip ClawHub upload after a release.
+    type: directive
+    topic: DevOps
+    enforceability: cross_event
+    context_required: project
+    confidence: high

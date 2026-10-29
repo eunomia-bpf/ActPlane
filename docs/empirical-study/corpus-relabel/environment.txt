@@ -1,0 +1,9 @@
+Python 3.13.5
+numpy 2.5.4
+matplotlib 3.11.2
+PyYAML 6.0.3
+bootstrap seed 20261029
+bootstrap replicates 10000
+execution: actplane-dev /workspaces/exp/corpus-merge/src
+
+Recomputed in actplane-dev /workspaces/exp/corpus-relabel/src
