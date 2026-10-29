@@ -1,0 +1,7 @@
+task,test_sha256,uv_version,python,pytest,ctrf_plugin,extra,ctrf_path
+cancel-async-tasks,79600a6b863def31b4daa008297423010cd2d6243e689d67503e118e4dc53397,0.9.5,3.13,8.4.1,0.3.5,,/logs/verifier/ctrf.json
+git-leak-recovery,4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334,0.9.5,3.13,8.4.1,0.3.5,,/logs/verifier/ctrf.json
+log-summary-date-ranges,4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334,0.9.5,3.13,8.4.1,0.3.5,,/logs/verifier/ctrf.json
+openssl-selfsigned-cert,4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334,0.9.5,3.13,8.4.1,0.3.5,,/logs/verifier/ctrf.json
+sanitize-git-repo,16014722171ae4479112051d2e8af7d0c5bb231bae6aff1b80cfa19e718c814f,0.9.5,3.13,8.4.1,0.3.5,gitpython==3.1.44,/logs/verifier/ctrf.json
+vulnerable-secret,d9e46bae71e0b119bdc8aaf689de9a780db29741cb5d46bfcc9090ad8943e08e,0.9.5,3.13,8.4.1,0.3.5,,/logs/verifier/ctrf.json

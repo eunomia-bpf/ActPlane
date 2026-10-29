@@ -1,0 +1,9 @@
+{
+  "version": "0.9.5",
+  "archive": "uv-x86_64-unknown-linux-gnu.tar.gz",
+  "official_release": "https://github.com/astral-sh/uv/releases/download/0.9.5",
+  "sha256": "2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66",
+  "official_checksum_url": "https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-unknown-linux-gnu.tar.gz.sha256",
+  "installer_url": "https://astral.sh/uv/0.9.5/install.sh",
+  "installer_sha256": "8402ab80d2ef54d7044a71ea4e4e1e8db3b20c87c7bffbc30bff59f1e80ebbd5"
+}

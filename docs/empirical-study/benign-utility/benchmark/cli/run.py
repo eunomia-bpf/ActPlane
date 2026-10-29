@@ -12,6 +12,7 @@ from pathlib import Path
 
 from harbor.job import Job
 from harbor.models.job.config import JobConfig
+from benchmark.dependencies import verifier_env
 
 BASE = Path('/workspaces/exp/benign-utility/raw/benchmark')
 RAW = BASE.parent / 'benchmark-cli'
@@ -39,6 +40,7 @@ async def main():
     config = JobConfig.model_validate(dict(
         job_name=f'{args.task}-{args.condition}-{args.attempt}',
         jobs_dir=str(RAW / 'jobs'), n_concurrent_trials=1, n_attempts=1,
+        verifier=dict(env=verifier_env()),
         agents=[dict(name='codex', model_name='openai/gpt-6-astra')],
         tasks=[dict(path=str(BASE / 'terminal-bench-2' / args.task),
                     source='terminal-bench@2.0')],
@@ -52,7 +54,7 @@ async def main():
         dataset_commit=subprocess.check_output(['git', '-C', str(BASE / 'terminal-bench-2'), 'rev-parse', 'HEAD'], text=True).strip(),
         disk_used_fraction=1 - stat.f_bavail / stat.f_blocks,
         auth_mode='native CODEX_AUTH_JSON_PATH from existing Workspace CODEX_HOME',
-        official_defaults=True, config=config.model_dump(mode='json'))
+        agent_defaults=True, official_verifier_bytes=True, config=config.model_dump(mode='json'))
     (evidence / f'{config.job_name}-provenance.json').write_text(json.dumps(provenance, indent=2))
     job = await Job.create(config)
     result = await job.run()
