@@ -1,6 +1,7 @@
 """Boot an official Debian cloud guest inside the Workspace; never alter host boot."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -8,7 +9,7 @@ import time
 import urllib.request
 
 RUNTIME = Path('/tmp/benign-utility-vm')
-RECEIPTS = Path('/workspaces/exp/benign-utility/raw/benchmark/expanded/vm')
+RECEIPTS = Path(os.environ.get('BU_VM_RECEIPTS', '/workspaces/exp/benign-utility/raw/benchmark/expanded/vm'))
 RUNTIME.mkdir(exist_ok=True)
 RECEIPTS.mkdir(parents=True, exist_ok=True)
 pidfile = RUNTIME / 'qemu.pid'
@@ -17,6 +18,11 @@ if pidfile.exists() and Path('/proc/' + pidfile.read_text().strip()).exists():
 if any(Path('/proc/' + file.read_text().strip()).exists() for file in RUNTIME.glob('worker*.pid')):
     raise RuntimeError('Existing benchmark workers; do not modify their runtime')
 BASE = 'https://cloud.debian.org/images/cloud/trixie/20261026-2643/'
+MEMORY_MIB = int(os.environ.get('BU_VM_MEMORY_MIB', '8192'))
+VCPUS = int(os.environ.get('BU_VM_VCPUS', '8'))
+assert MEMORY_MIB <= 8192, 'Observed shared-node budget requires a bounded single guest'
+available_kib = int(next(x.split()[1] for x in Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))
+assert available_kib > (MEMORY_MIB + 6144) * 1024, 'Insufficient actual memory for guest plus host headroom'
 NAME = 'debian-13-genericcloud-amd64-20261026-2643.qcow2'
 EXPECTED_SHA512 = '3ace18e33bdd036edb49d1f79342bd01d2ab980e35194edb0b410435cd543538d286a0bd13bbb0835f7862306e3d385ce2f6a70d8ecf0bd961111166adbc1b8e'
 
@@ -112,7 +118,7 @@ if not overlay.exists():
     run(['qemu-img', 'create', '-f', 'qcow2', '-F', 'qcow2', '-b', str(image), str(overlay)])
     run(['qemu-img', 'resize', str(overlay), '500G'])
 args = ['qemu-system-x86_64', '-name', 'benign-utility-expanded', '-enable-kvm', '-cpu', 'host',
-    '-smp', '16', '-m', '65536', '-drive', f'file={overlay},if=virtio,format=qcow2',
+    '-smp', str(VCPUS), '-m', str(MEMORY_MIB), '-drive', f'file={overlay},if=virtio,format=qcow2',
     '-drive', f'file={RUNTIME}/seed.img,if=virtio,format=raw,readonly=on',
     '-netdev', 'user,id=n1,hostfwd=tcp:127.0.0.1:2247-:22', '-device', 'virtio-net-pci,netdev=n1',
     '-virtfs', 'local,path=/workspaces/exp/benign-utility,mount_tag=lane,security_model=none,multidevs=remap,id=lane',
@@ -122,6 +128,6 @@ args = ['qemu-system-x86_64', '-name', 'benign-utility-expanded', '-enable-kvm',
 run(args)
 (RECEIPTS / 'launch.json').write_text(json.dumps(dict(command=args, pid=int(pidfile.read_text()),
     started_utc=time.strftime('%FT%TZ', time.gmtime()), host_kernel=subprocess.check_output(['uname','-r'], text=True).strip(),
-    guest_vcpus=16, guest_memory_mib=65536, root_backing='ephemeral_qcow2_on_workspace_root_overlay',
+    guest_vcpus=VCPUS, guest_memory_mib=MEMORY_MIB, root_backing='ephemeral_qcow2_on_workspace_root_overlay',
     durable_lane_share='/workspaces/exp/benign-utility'), indent=2))
 print('Guest launched; SSH root@127.0.0.1:2247 key='+str(key), flush=True)

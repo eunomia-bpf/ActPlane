@@ -3,12 +3,13 @@ import csv
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import time
 
 ROOT = Path('/workspaces/exp/benign-utility')
-OUT = ROOT / 'raw/benchmark/expanded/vm'
+OUT = Path(os.environ.get('BU_VM_RECEIPTS', str(ROOT / 'raw/benchmark/expanded/vm')))
 parser=argparse.ArgumentParser()
 parser.add_argument('--worker',type=int,choices=(1,2,3))
 args=parser.parse_args()
@@ -43,6 +44,7 @@ command = ['ssh','-i','/tmp/benign-utility-vm/id_ed25519','-p',str(2246+args.wor
     '-o','ConnectTimeout=5','root@127.0.0.1','python3','-']
 result = subprocess.run(command, input=remote, text=True, check=True, capture_output=True)
 data = json.loads(result.stdout)
+data['environment_id'] = os.environ.get('BU_VM_ENVIRONMENT_ID', data['environment_id'])
 for name, path in [('engine',ROOT/'raw/benchmark/engine/process'),
                    ('compiler',Path('/workspaces/lanes/translation-models/target/release/actplane'))]:
     assert hashlib.sha256(path.read_bytes()).hexdigest()==data['tool_sha256'][name]

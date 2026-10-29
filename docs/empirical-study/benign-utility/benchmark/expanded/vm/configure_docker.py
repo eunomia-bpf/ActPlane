@@ -1,5 +1,6 @@
 """Configure only the empty guest daemon, never the host's live daemon/socket."""
 import json
+import os
 from pathlib import Path
 import subprocess
 
@@ -24,7 +25,7 @@ args=['ssh','-i','/tmp/benign-utility-vm/id_ed25519','-p','2247','-o','StrictHos
       '-o','UserKnownHostsFile=/dev/null','root@127.0.0.1','python3','-']
 result=subprocess.run(args,input=remote,text=True,check=True,capture_output=True)
 data=json.loads(result.stdout)
-out=Path('/workspaces/exp/benign-utility/raw/benchmark/expanded/vm/guest-docker.json')
+out=Path(os.environ.get('BU_VM_RECEIPTS','/workspaces/exp/benign-utility/raw/benchmark/expanded/vm'))/'guest-docker.json'
 out.write_text(json.dumps(data,indent=2)+'\n')
 print(json.dumps(dict(data_root=data['info']['DockerRootDir'],driver=data['info']['Driver'],
                      gateway=data['bridge']['IPAM']['Config'][0]['Gateway'],filesystem=data['filesystem'])))
