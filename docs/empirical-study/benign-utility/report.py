@@ -123,6 +123,8 @@ def main():
             for start, group in sorted(grouped.items()):
                 positions.append(dict(dataset=dataset, condition=condition, bin_start=start,
                     bin_end=start + 9, calls=len(group),
+                    attribution_complete=int(len(selected_events) == int(attributed)),
+                    unassigned_intervention_events_in_condition=len(selected_events) - int(attributed),
                     intervened_calls=sum(number(r, 'intervened') > 0 if benchmark else number(r, 'intervention_count') > 0 for r in group),
                     confirmed_false_calls=sum(number(r, 'confirmed_false' if benchmark else 'fp_count') > 0 for r in group),
                     unknown_calls=sum(number(r, 'unknown' if benchmark else 'unknown_count') > 0 for r in group),
@@ -149,7 +151,9 @@ def main():
                 unattributed_intervention_events=len(selected_events) - int(attributed),
                 intervened_calls=intervened_calls, confirmed_false_calls=false_calls, unknown_calls=unknown_calls,
                 potential_false_calls=potential_false_calls,
-                intervention_rate_pct=100 * intervened_calls / len(selected_calls) if selected_calls else '',
+                attributed_intervention_rate_lower_pct=100 * intervened_calls / len(selected_calls) if selected_calls else '',
+                intervention_rate_pct=100 * intervened_calls / len(selected_calls)
+                    if selected_calls and len(selected_events) == int(attributed) else '',
                 confirmed_false_rate_pct=100 * false_calls / len(selected_calls) if selected_calls else '',
                 false_rate_upper_pct=100 * potential_false_calls / len(selected_calls)
                     if selected_calls and len(selected_events) == int(attributed) else '',
