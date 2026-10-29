@@ -2558,7 +2558,7 @@ rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::40,NousResearch__hermes-agent_
 rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::40,NousResearch__hermes-agent__40,attempt-2,2,transport_error,transport_timeout,15,,,,,0,,360.0819636899978,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::40,NousResearch__hermes-agent__40,attempt-2,3,ok,,30,,,qwen3.8-27b-nvfp4,length,1,,300.6919632370118,1,21943,8192,256,0,0
 rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::40,NousResearch__hermes-agent__40,attempt-3,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,322.4552465400193,1,21990,4230,256,0,0
-rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::41,NousResearch__hermes-agent__41,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,351.308689532103,1,21378,5238,256,0,0
+rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::41,NousResearch__hermes-agent__41,attempt-1,1,ok,,0,1793191739.449752,,qwen3.8-27b-nvfp4,stop,1,,351.308689532103,1,21378,5238,256,0,0
 rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::41,NousResearch__hermes-agent__41,attempt-2,1,transport_error,transport_timeout,0,,,,,0,,360.1150982819963,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::41,NousResearch__hermes-agent__41,attempt-2,2,transport_error,transport_timeout,15,,,,,0,,360.0618209319655,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,NousResearch__hermes-agent::41,NousResearch__hermes-agent__41,attempt-2,3,transport_error,transport_timeout,30,,,,,0,,360.15587563603185,0,0,0,0,0,0
@@ -3115,9 +3115,9 @@ rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::49,manaflow-ai__cmux__49,attempt-2,2,ok
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::5,manaflow-ai__cmux__5,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,331.29331120313145,1,18312,3906,256,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::5,manaflow-ai__cmux__5,attempt-2,1,transport_error,transport_timeout,0,,,,,0,,360.1215273619164,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::5,manaflow-ai__cmux__5,attempt-2,2,ok,,15,,,qwen3.8-27b-nvfp4,stop,1,,351.0797727070749,1,18405,6052,0,0,0
-rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,manaflow-ai__cmux__55,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,334.886568085989,1,18379,8192,256,0,0
+rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,manaflow-ai__cmux__55,attempt-1,1,ok,,0,1793196792.9705317,,qwen3.8-27b-nvfp4,length,1,,334.886568085989,1,18379,8192,256,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,manaflow-ai__cmux__55,attempt-2,1,transport_error,transport_timeout,0,,,,,0,,360.11244719615206,0,0,0,0,0,0
-rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,manaflow-ai__cmux__55,attempt-2,2,ok,,15,,,qwen3.8-27b-nvfp4,length,1,,346.20609016902745,1,18426,8192,256,0,0
+rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,manaflow-ai__cmux__55,attempt-2,2,ok,,15,1793197514.2977183,,qwen3.8-27b-nvfp4,length,1,,346.20609016902745,1,18426,8192,256,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,manaflow-ai__cmux__55,attempt-3,1,transport_error,transport_timeout,0,,,,,0,,360.11711415089667,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,manaflow-ai__cmux__55,attempt-3,2,transport_error,transport_timeout,15,,,,,0,,360.15532025299035,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::55,manaflow-ai__cmux__55,attempt-3,3,transport_error,transport_timeout,30,,,,,0,,360.0885518700816,0,0,0,0,0,0
@@ -3146,7 +3146,7 @@ rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-2,2,ok
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-3,1,transport_error,transport_timeout,0,,,,,0,,360.0620095569175,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-3,2,transport_error,transport_timeout,15,,,,,0,,360.12276808102615,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-3,3,ok,,30,,,qwen3.8-27b-nvfp4,stop,1,,272.8338543220889,1,18451,4285,256,0,0
-rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::74,manaflow-ai__cmux__74,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,341.5913751530461,1,18344,3276,256,0,0
+rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::74,manaflow-ai__cmux__74,attempt-1,1,ok,,0,1793197710.6883368,,qwen3.8-27b-nvfp4,stop,1,,341.5913751530461,1,18344,3276,256,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::74,manaflow-ai__cmux__74,attempt-2,1,transport_error,transport_timeout,0,,,,,0,,360.06741118384525,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::74,manaflow-ai__cmux__74,attempt-2,2,transport_error,transport_timeout,15,,,,,0,,360.1148438840173,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,manaflow-ai__cmux::74,manaflow-ai__cmux__74,attempt-2,3,transport_error,transport_timeout,30,,,,,0,,360.0370541650336,0,0,0,0,0,0
@@ -3209,7 +3209,7 @@ rq1,qwen3.8-27b-nvfp4,multica-ai__multica::12,multica-ai__multica__12,attempt-1,
 rq1,qwen3.8-27b-nvfp4,multica-ai__multica::6,multica-ai__multica__6,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,317.7574921119958,1,14503,8192,256,0,0
 rq1,qwen3.8-27b-nvfp4,multica-ai__multica::6,multica-ai__multica__6,attempt-2,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,337.38384131295606,1,14550,8192,14464,0,0
 rq1,qwen3.8-27b-nvfp4,multica-ai__multica::6,multica-ai__multica__6,attempt-3,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,343.4431766408961,1,14597,5814,14528,0,0
-rq1,qwen3.8-27b-nvfp4,multica-ai__multica::7,multica-ai__multica__7,attempt-1,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,267.61045928299427,1,14493,2214,256,0,0
+rq1,qwen3.8-27b-nvfp4,multica-ai__multica::7,multica-ai__multica__7,attempt-1,1,ok,,0,1793188934.0241735,,qwen3.8-27b-nvfp4,stop,1,,267.61045928299427,1,14493,2214,256,0,0
 rq1,qwen3.8-27b-nvfp4,multica-ai__multica::7,multica-ai__multica__7,attempt-2,1,transport_error,transport_timeout,0,,,,,0,,360.0900520118885,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,multica-ai__multica::7,multica-ai__multica__7,attempt-2,2,transport_error,transport_timeout,15,,,,,0,,360.1186948141549,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,multica-ai__multica::7,multica-ai__multica__7,attempt-2,3,transport_error,transport_timeout,30,,,,,0,,360.11334495292976,0,0,0,0,0,0
@@ -3777,6 +3777,7 @@ rq1,qwen3.8-27b-nvfp4,zeroclaw-labs__zeroclaw::8,zeroclaw-labs__zeroclaw__8,atte
 rq1,qwen3.8-27b-nvfp4,zeroclaw-labs__zeroclaw::9,zeroclaw-labs__zeroclaw__9,attempt-1,1,transport_error,transport_timeout,0,,,,,0,,360.1103645490948,0,0,0,0,0,0
 rq1,qwen3.8-27b-nvfp4,zeroclaw-labs__zeroclaw::9,zeroclaw-labs__zeroclaw__9,attempt-1,2,ok,,15,,,qwen3.8-27b-nvfp4,length,1,,198.98189932387322,1,10996,8192,0,0,0
 rq1,qwen3.8-27b-nvfp4,zeroclaw-labs__zeroclaw::9,zeroclaw-labs__zeroclaw__9,attempt-2,1,ok,,0,,,qwen3.8-27b-nvfp4,length,1,,109.70180092612281,1,11043,8192,0,0,0
+rq1,qwen3.8-27b-nvfp4,zeroclaw-labs__zeroclaw::9,zeroclaw-labs__zeroclaw__9,attempt-3,1,ok,,0,,,qwen3.8-27b-nvfp4,stop,1,,87.63262877403758,1,11090,2908,0,0,0
 rq1,zai/glm-4.5-air,AlexsJones__llmfit::17,AlexsJones__llmfit__17,attempt-1,1,ok,,0,,,zai/glm-4.5-air,stop,1,,110.5978535800241,1,9216,4090,0,0,4007
 rq1,zai/glm-4.5-air,AlexsJones__llmfit::27,AlexsJones__llmfit__27,attempt-1,1,ok,,0,,,zai/glm-4.5-air,length,1,,236.35642830096185,1,9278,8192,0,0,8192
 rq1,zai/glm-4.5-air,AlexsJones__llmfit::27,AlexsJones__llmfit__27,attempt-2,1,ok,,0,,,zai/glm-4.5-air,length,1,,237.94390594796278,1,9317,8192,9216,0,8190
@@ -5683,7 +5684,9 @@ rq1,zai/glm-4.7-flash,earendil-works__pi::25,earendil-works__pi__25,attempt-1,5,
 rq1,zai/glm-4.7-flash,earendil-works__pi::26,earendil-works__pi__26,attempt-1,1,http_error,rate_limited,0,,,,,0,429,10.713145371060818,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,earendil-works__pi::26,earendil-works__pi__26,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.900096338940784,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,earendil-works__pi::26,earendil-works__pi__26,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.777220133924857,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,earendil-works__pi::26,earendil-works__pi__26,attempt-1,4,http_error,rate_limited,60,,,,,0,429,11.082717316923663,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,earendil-works__pi::26,earendil-works__pi__26,attempt-1,4,http_error,rate_limited,60,1793180995.6482131,,,,0,429,11.082717316923663,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,earendil-works__pi::26,earendil-works__pi__26,attempt-1,5,ok,,0,1793237153.111307,,zai/glm-4.7-flash,length,1,,138.80134638701566,1,9508,8192,2,0,8192
+rq1,zai/glm-4.7-flash,earendil-works__pi::26,earendil-works__pi__26,attempt-2,1,ok,,0,1793237289.5546505,,zai/glm-4.7-flash,length,1,,136.43807020317763,1,9546,8192,3,0,8192
 rq1,zai/glm-4.7-flash,earendil-works__pi::27,earendil-works__pi__27,attempt-1,1,http_error,rate_limited,0,,,,,0,429,10.995623013935983,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,earendil-works__pi::27,earendil-works__pi__27,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.672340607037768,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,earendil-works__pi::27,earendil-works__pi__27,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.659881589002907,0,0,0,0,0,0
