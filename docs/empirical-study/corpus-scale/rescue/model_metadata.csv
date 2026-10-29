@@ -1,0 +1,2 @@
+observed_at,endpoint,id,owned_by,max_model_len
+2026-10-29T05:47:55+00:00,direct_qwen,qwen3.8-27b-nvfp4,sglang,200000

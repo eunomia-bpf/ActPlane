@@ -1,0 +1,22 @@
+dimension,label,statements,directives
+topic,AI Integration,4401,2666
+topic,Architecture,3085,460
+topic,Build and Run,1952,1056
+topic,Configuration & Environment,1660,629
+topic,DevOps,1070,531
+topic,Development Process,3895,2713
+topic,Documentation,3753,1785
+topic,Implementation Details,5295,3458
+topic,Maintenance,474,348
+topic,Security,1060,700
+topic,System Overview,1314,21
+topic,Testing,2887,1983
+enforceability,,14496,0
+enforceability,content,5375,5375
+enforceability,cross_event,2765,2765
+enforceability,per_event,4353,4353
+enforceability,semantic_only,3857,3857
+context_required,,18353,3857
+context_required,none,2486,2486
+context_required,project,9226,9226
+context_required,task,781,781

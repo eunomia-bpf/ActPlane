@@ -1,0 +1,4 @@
+check,expected,actual,passed
+full_calibration_prompt_unchanged,True,True,True
+reduced_prompt_excludes_rejected_axes,True,True,True
+reduced_prompt_retains_type_topic_examples,True,True,True

@@ -1,0 +1,5 @@
+source,immutable_reference,role,limitation
+paper,raw/02-motivation.tex,Table 1 and enforcement/context waterfalls and Q2/Q3 text,Written explicit-pattern definition conflicts with some reference labels
+artifact_guide,63db86945c9b8618a46aa68c8de214bc4b8343d9:docs/empirical.md,Sections 4.2 through 4.4 codebook and boundary cases,Explicit project-specific patterns are stated none despite reference project labels
+gold,docs/empirical-study/corpus-scale/paper_labels.csv,Immutable original labels,Full reference previously evaluated before this prospective split
+operator_followup,2026-10-29 supervisor follow-up,Project-binding interpretation and boundary diagnostics,Supplied before rescue split and explicitly acknowledged as prior aggregate exposure

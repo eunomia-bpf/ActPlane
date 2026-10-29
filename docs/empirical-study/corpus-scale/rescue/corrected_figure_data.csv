@@ -1,0 +1,5 @@
+group_type,group,metric,value,ci_low,ci_high,method,status,point_flag,successful_bootstraps,bootstrap_replicates,interval_status,test_repositories,repositories,directives,revision
+overall,all,system_state_fraction,0.7358635713633577,0.6643009402630718,0.8001893358720128,test_confusion_constrained_multinomial_mixture,corrected_estimate,,2000,2000,ok,43,325,16350,r1
+overall,all,context_required_fraction,0.7880334674205725,0.7385130269579194,0.8426935058031642,test_confusion_constrained_multinomial_mixture,corrected_estimate,,2000,2000,ok,43,325,16350,r1
+overall,all,cross_event_project_share,0.9252274607113317,0.745942315363137,1.0,test_repository_binary_confusion_mixture,corrected_estimate,project_size_transport_unverified,2000,2000,ok,43,325,16350,r1
+overall,all,os_enforceable_count,7061.736492689502,5857.769138113566,8499.877796624898,test_confusion_constrained_multinomial_mixture,corrected_estimate,,2000,2000,ok,43,325,16350,r1

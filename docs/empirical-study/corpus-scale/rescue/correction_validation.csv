@@ -1,0 +1,8 @@
+check,passed
+binary_known_prevalence,True
+identity_multiclass,True
+boundary_is_constrained,True
+missing_reference_class_retained,True
+rank_deficiency_retained,True
+empty_target_is_undefined,True
+matrix_orientation_prediction_by_gold,True

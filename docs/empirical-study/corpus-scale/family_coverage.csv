@@ -1,0 +1,9 @@
+family,discovered_paths,selected_paths,selected_repositories,unique_repo_content_pairs,excluded_paths
+.cursor/rules/*,117,19,19,19,98
+.cursorrules,8,7,7,7,1
+.windsurfrules,1,1,1,1,0
+AGENTS.md,1200,244,244,244,956
+CLAUDE.md,496,173,173,173,323
+GEMINI.md,100,20,20,20,80
+SKILL.md,18501,243,243,243,18258
+copilot-instructions.md,66,64,64,64,2

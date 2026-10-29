@@ -1,0 +1,18 @@
+parameter,value
+seed,20261029
+dev_repositories,21
+test_repositories,43
+maximum_codebook_revisions,3
+test_kappa_gate,0.6
+minimum_test_coverage,0.98
+dev_early_stop_kappa,0.65
+bootstrap_replicates,2000
+bootstrap_seed,20261030
+confidence_level,0.95
+minimum_identifiable_bootstrap_fraction,0.8
+ill_conditioned_threshold,100
+test_source_batch_size,48
+test_source_max_chars,60000
+test_source_remote_tokens,20000
+remote_timeout_seconds,600
+prior_test_exposure,all_original_rows_previously_evaluated; aggregate_diagnostics_previously_inspected; prospective_holdout_only

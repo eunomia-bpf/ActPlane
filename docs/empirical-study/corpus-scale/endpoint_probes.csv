@@ -1,0 +1,5 @@
+endpoint,port,authentication,status,models
+glm53-flash.models.svc.cluster.local,8000,unauthenticated,401,
+glm53-flash.models.svc.cluster.local,8000,gateway_key,401,
+qwen38-flash-next.models.svc.cluster.local,8000,unauthenticated,401,
+qwen38-flash-next.models.svc.cluster.local,8000,gateway_key,401,

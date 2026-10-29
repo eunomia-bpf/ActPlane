@@ -1,0 +1,5 @@
+at,model,statement_id,error,type,topic,enforceability,context_required
+2026-10-28T07:12:37+00:00,qwen3.8-27b-nvfp4,paper:OthmanAdi/planning-with-files:13,inconsistent_context_applicability,directive,AI Integration,semantic_only,none
+2026-10-28T07:12:37+00:00,qwen3.8-27b-nvfp4,paper:rtk-ai/rtk:42,inconsistent_context_applicability,directive,AI Integration,semantic_only,task
+2026-10-28T07:12:37+00:00,qwen3.8-27b-nvfp4,paper:rtk-ai/rtk:43,inconsistent_context_applicability,directive,Testing,semantic_only,task
+2026-10-28T07:12:37+00:00,qwen3.8-27b-nvfp4,paper:rtk-ai/rtk:44,inconsistent_context_applicability,directive,Testing,semantic_only,task

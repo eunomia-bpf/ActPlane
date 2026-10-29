@@ -1,0 +1,7 @@
+mode,check,expected,actual,passed
+all_dimensions,pdf_count,6,6,True
+all_dimensions,type3_fonts,0,0,True
+all_dimensions,withheld_count,0,0,True
+type_only,pdf_count,6,6,True
+type_only,type3_fonts,0,0,True
+type_only,withheld_count,5,5,True

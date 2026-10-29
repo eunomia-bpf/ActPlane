@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-29T06:19:52+00:00",
+  "revision": "r1",
+  "prediction_hashes": {
+    "test-r1-qwen.csv": "cea37c6c0de91fbf51be7576540b79b6e81867c24075160d489a1938f740ec8e",
+    "test-r1-glm.csv": "21074df61dd87281d125d378f98cf7a2c805474c2d95c2084ea1c671d3bdac55",
+    "test-r1-adjudicated.csv": "06dfa376361bcc1476460fcf62ba77ba3e60b10fbdea70dc6abaaf5ddee1343d"
+  }
+}

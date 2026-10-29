@@ -1,0 +1,2 @@
+# CSV text fields preserve source whitespace for auditability.
+*.csv -whitespace

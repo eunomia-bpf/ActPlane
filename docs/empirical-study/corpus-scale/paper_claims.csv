@@ -1,0 +1,10 @@
+metric,value,note,source
+repositories,64,,actplane-atc/main:sections/02-motivation.tex (retrieved 2026-10-28); operator brief for OS count
+instruction_files,84,,actplane-atc/main:sections/02-motivation.tex (retrieved 2026-10-28); operator brief for OS count
+statements,2116,,actplane-atc/main:sections/02-motivation.tex (retrieved 2026-10-28); operator brief for OS count
+median_stars,20000,rounded,actplane-atc/main:sections/02-motivation.tex (retrieved 2026-10-28); operator brief for OS count
+policy_fraction,0.64,rounded,actplane-atc/main:sections/02-motivation.tex (retrieved 2026-10-28); operator brief for OS count
+system_state_fraction,0.83,rounded,actplane-atc/main:sections/02-motivation.tex (retrieved 2026-10-28); operator brief for OS count
+context_required_fraction,0.74,rounded,actplane-atc/main:sections/02-motivation.tex (retrieved 2026-10-28); operator brief for OS count
+cross_event_project_share,0.81,rounded,actplane-atc/main:sections/02-motivation.tex (retrieved 2026-10-28); operator brief for OS count
+os_enforceable_count,607,,actplane-atc/main:sections/02-motivation.tex (retrieved 2026-10-28); operator brief for OS count

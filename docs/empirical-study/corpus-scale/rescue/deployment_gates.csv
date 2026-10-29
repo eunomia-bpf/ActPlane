@@ -1,0 +1,3 @@
+dimension,passed,revision,test_kappa,reason
+enforceability,True,r1,0.6942327324310916,passed_test_gate
+context_required,True,r1,0.6793331311261643,passed_test_gate
