@@ -25,6 +25,7 @@ def main():
   if scale==100:ax.set_xlim(0,100);ax.set_xlabel('Corrected prevalence (%)')
   else:ax.set_xlabel('Corrected count')
   label='Exploratory correction' if r['status'].startswith('exploratory') else 'Test-confusion correction'
+  if 'simplex_boundary' in r['point_flag']:label+=' (boundary fit)'
   ax.text(.5,.88,label,ha='center',transform=ax.transAxes,fontsize=7,color='#8c2d04' if r['status'].startswith('exploratory') else '#444444')
   data.append(r)
  fig.suptitle('Misclassification-corrected estimates; transfer assumptions unverified\n95% repository-bootstrap intervals',fontsize=9)
