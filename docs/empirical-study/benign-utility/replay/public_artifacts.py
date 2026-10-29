@@ -10,6 +10,7 @@ import subprocess
 import tarfile
 import io
 import re
+import tomllib
 
 ROOT=Path(os.environ['WS_RAW'])/'replay'
 OUT=ROOT.parent.parent/'replay/results'
@@ -28,7 +29,18 @@ def capacity(needed=0):
 def main():
     directory=ROOT/'public-artifacts';directory.mkdir(exist_ok=True)
     rows=[]
-    for package,version,member in RELEASES:
+    # t00's pinned uv.lock supplies the versions for its distinct public trust
+    # bundles and packaged test/public keys. Public provenance alone does not
+    # establish the eventual action-level intervention judgment.
+    plan=next(r for r in csv.DictReader((ROOT/'harness/dynamic_plan.csv').open()) if r['dynamic_id']=='t00')
+    lock=subprocess.check_output(['git','--git-dir',str(ROOT/'input/dynamic/git-cache'/plan['repository'].replace('/','__')),
+                                  'show',plan['base_commit']+':uv.lock'])
+    versions={r['name']:r['version'] for r in tomllib.loads(lock.decode())['package']}
+    members={'certifi':'certifi/cacert.pem','grpcio':'grpc/_cython/_credentials/roots.pem',
+             'botocore':'botocore/cacert.pem','litellm':'litellm/proxy/auth/public_key.pem',
+             'tornado':'tornado/test/test.key'}
+    releases=list(RELEASES)+[(package,versions[package],member) for package,member in members.items()]
+    for package,version,member in releases:
         url=f'https://pypi.org/pypi/{package}/{version}/json'
         metadata=directory/f'{package}-{version}.json'
         if not metadata.exists():
