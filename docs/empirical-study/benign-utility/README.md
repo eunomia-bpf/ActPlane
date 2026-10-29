@@ -1,5 +1,7 @@
 # Benign utility and filename-source over-tainting
 
+Disk cleanup on resumption removed only the completed benchmark's reinstallable Python dependency environment (`raw/benchmark/venv`), using [cleanup_runtime.py](cleanup_runtime.py). [runtime-cleanup.csv](results/runtime-cleanup.csv) records the exact path, bytes and reason. Job outputs, traces, observer receipts, logs, manifests and result exports were retained. Evidence-bearing replay archives are being reduced only after preserving their cited source bytes separately.
+
 **Initial official benchmark complete; natural-network follow-up, public replay and intervention verification continuing.** The machine-readable `matrix_complete` field in [headline.csv](results/headline.csv) distinguishes complete utility comparisons from partial observations. `security_matrix_complete` separately records complete protected-root coverage. Do not use a partial replay prefix as the completed cohort result.
 
 | Terminal-Bench condition | Official success | Covered OS-action calls | Intervened calls | Median paired total-time change |

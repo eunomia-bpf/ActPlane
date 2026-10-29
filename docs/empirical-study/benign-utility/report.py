@@ -216,7 +216,7 @@ def render(rows, positions, out):
                 axes[1].plot(x, [100*r['potential_false_calls']/r['calls'] for r in data], ls=':', color=color, label=label+' upper')
     replay_complete = all(r['matrix_complete'] for r in rows if r['dataset'] == 'Public replay')
     replay_title = 'Public replay' if replay_complete else 'Public replay (partial)'
-    axes[1].set(xlabel='Within-session call position (bins of ten)', ylabel='False-intervention rate bounds (%)', title=replay_title)
+    axes[1].set(xlabel='Originating tool-call position (bins of ten)', ylabel='False-intervention rate bounds (%)', title=replay_title)
     axes[1].set_ylim(bottom=0)
     if axes[1].lines:
         if not any(any(y > 0 for y in line.get_ydata()) for line in axes[1].lines):

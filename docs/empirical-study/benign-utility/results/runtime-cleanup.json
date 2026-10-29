@@ -1,0 +1,10 @@
+{
+  "utc": "2026-10-29T17:28:24.974872+00:00",
+  "path": "/workspaces/exp/benign-utility/raw/benchmark/venv",
+  "logical_bytes": 353031662,
+  "files": 18417,
+  "reason": "Completed benchmark Python dependency environment; reinstall with benchmark/setup.sh. No job directories, task outputs, engine binaries, logs or result exports removed.",
+  "disk_free_before": 12261490688,
+  "status": "removed",
+  "disk_free_after": 12654956544
+}
