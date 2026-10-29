@@ -16,6 +16,10 @@ The initial claim that host BPF-LSM was unavailable is withdrawn. Actual kernel 
 
 Other runnable benchmark, policy-scoping and replay work continues. Setup/preflight failures and unsupported repository directives are retained in their respective machine-readable result files rather than silently removed.
 
+## Complete network-egress confinement is not established
+
+Independent retained-source review confirms that the executed policies deny SECRET-conditioned new IPv4 `connect` attempts in the mapped process subtree. Their compiled sink is `TOP_CONNECT`; the retained native block hook checks AF_INET socket connection creation. These observations do not cover existing or inherited socket writes, accepted-socket server responses, IPv6 or unconnected UDP sends. In enforce mode, the alternative tracepoint send-address path does not supply a native block for those operations. A server's private-key read therefore does not guarantee engagement of the tested sink. The measurements must not be described as complete enforcement of all secret-to-network traffic.
+
 ## Shared disk pressure
 
 During setup the shared volume rose from its initial low utilization toward the user's ceiling, while this lane retained only its first benchmark image. The matrix checks capacity before each cell and prunes only images in its own isolated Docker daemon. Another lane's state will not be removed. If the next official image cannot fit below the ceiling, that cell must remain pending until capacity becomes available. Raw capacity receipts are retained remotely by the benchmark worker.

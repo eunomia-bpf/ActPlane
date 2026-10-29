@@ -23,37 +23,48 @@ def write(path, rows):
         writer.writerows(rows)
 
 
+def benchmark_inputs(path, cohort):
+    trials = read(path / 'trials.csv')
+    if trials and not {'selected_for_comparison', 'comparison_cohort', 'outcome_valid'} <= trials[0].keys():
+        raise ValueError(f'Native outcome audit is required: {path}')
+    selected = [r for r in trials if r['selected_for_comparison'] == '1' and r['comparison_cohort'] == cohort]
+    if any(r.get('outcome_valid') != '1' for r in selected):
+        raise ValueError(f'An unestablished native outcome was selected: {path}')
+    count = len(read(path / 'tasks.csv'))
+    if not count:
+        raise ValueError(f'Frozen task manifest is required: {path}')
+    return selected, read(path / 'calls.csv'), read(path / 'interventions.csv'), count
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--benchmark', type=Path, default=Path('benchmark/results'))
     parser.add_argument('--replay', type=Path, default=Path('replay/results'))
+    parser.add_argument('--network', type=Path, help='Separately frozen natural-network follow-up results')
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
-    all_trials = read(args.benchmark / 'trials.csv')
-    if all_trials and ('selected_for_comparison' not in all_trials[0] or 'comparison_cohort' not in all_trials[0]):
-        raise ValueError('Verifier availability audit is required before utility aggregation')
-    trials = [r for r in all_trials if r['main_matrix'] == '1' and r['selected_for_comparison'] == '1'
-              and r['comparison_cohort'] == 'native_denial_primary']
-    if any(r.get('outcome_valid') != '1' for r in trials):
-        raise ValueError('An unestablished native outcome was selected for comparison')
-    benchmark_calls = [r for r in read(args.benchmark / 'calls.csv') if r['main_matrix'] == '1']
+    trials, benchmark_calls, benchmark_events, task_count = benchmark_inputs(args.benchmark, 'native_denial_primary')
     replay_runs = read(args.replay / 'runs.csv')
     replay_calls = read(args.replay / 'calls.csv')
     event_data = {
-        'Terminal-Bench': [r for r in read(args.benchmark / 'interventions.csv') if r['main_matrix'] == '1'],
+        'Terminal-Bench': benchmark_events,
         'Public replay': read(args.replay / 'interventions.csv'),
     }
-    task_count = len(read(args.benchmark / 'tasks.csv'))
     cohort_count = len(read(args.replay / 'cohort.csv'))
     if not task_count or not cohort_count:
         raise ValueError('Both frozen benchmark and replay manifests are required')
     rows, positions = [], []
-    for dataset, conditions, runs, calls, planned in [
+    datasets = [
         ('Terminal-Bench', ['a', 'b', 'c'], trials, benchmark_calls, task_count),
         ('Public replay', ['none', 'broad', 'scoped'], replay_runs, replay_calls, cohort_count),
-    ]:
-        benchmark = dataset == 'Terminal-Bench'
+    ]
+    if args.network:
+        network_runs, network_calls, network_events, network_count = benchmark_inputs(args.network, 'network_exposure_followup')
+        datasets.insert(1, ('Terminal-Bench network stratum', ['a', 'b', 'c'], network_runs, network_calls, network_count))
+        event_data['Terminal-Bench network stratum'] = network_events
+    for dataset, conditions, runs, calls, planned in datasets:
+        benchmark = dataset != 'Public replay'
         identity = 'task' if benchmark else 'dynamic_id'
         call_identity = 'trial_id' if benchmark else identity
         valid_runs = []
@@ -129,6 +140,9 @@ def main():
                 covered_terminal_submissions=sum(r['condition'] == condition for r in covered_calls) if benchmark else '',
                 covered_empty_wait_submissions=sum(r['condition'] == condition and r.get('action_kind') == 'wait' for r in covered_calls) if benchmark else '',
                 intervention_events=len(selected_events),
+                confirmed_false_events=sum(r.get('adjudication') == 'false_intervention' for r in selected_events),
+                confirmed_true_events=sum(r.get('adjudication') == 'true_violation' for r in selected_events),
+                unknown_events=sum(r.get('adjudication') == 'unknown' for r in selected_events),
                 unattributed_intervention_events=len(selected_events) - int(attributed),
                 intervened_calls=intervened_calls, confirmed_false_calls=false_calls, unknown_calls=unknown_calls,
                 potential_false_calls=potential_false_calls,
@@ -163,17 +177,24 @@ def render(rows, positions, out):
     import matplotlib.pyplot as plt
     plt.rcParams.update({'pdf.fonttype': 42, 'ps.fonttype': 42, 'font.size': 9})
     fig, axes = plt.subplots(1, 2, figsize=(8, 3.1))
-    bench = [r for r in rows if r['dataset'] == 'Terminal-Bench']
-    values = [r['official_success_pct'] if r['official_success_pct'] != '' else 0 for r in bench]
-    bars = axes[0].bar(['No AgPlane', 'Broad', 'Scoped'], values, color=['#777777', '#ca6828', '#2577a2'])
-    for bar, row in zip(bars, bench):
-        n = row['official_scored_trials']
-        label = f"{int(row['official_successes'])}/{n}" if n else 'pending'
-        if not row['matrix_complete']:
-            label += '\npartial'
-            bar.set_hatch('//')
-        axes[0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2, label, ha='center')
-    axes[0].set(ylim=(0, 120), yticks=range(0, 101, 20), ylabel='Official task success (%)', title='Terminal-Bench subset')
+    cohorts = [('Terminal-Bench', 'Initial subset')]
+    if any(r['dataset'] == 'Terminal-Bench network stratum' for r in rows):
+        cohorts.append(('Terminal-Bench network stratum', 'Network stratum'))
+    for i, (condition, color, name) in enumerate([('a', '#777777', 'No AgPlane'), ('b', '#ca6828', 'Broad'), ('c', '#2577a2', 'Scoped')]):
+        bench = [next(r for r in rows if r['dataset'] == dataset and r['condition'] == condition) for dataset, _ in cohorts]
+        values = [r['official_success_pct'] if r['official_success_pct'] != '' else 0 for r in bench]
+        x = [j + (i-1)*.24 for j in range(len(cohorts))]
+        bars = axes[0].bar(x, values, width=.23, color=color, label=name)
+        for bar, row in zip(bars, bench):
+            n = row['official_scored_trials']
+            label = f"{int(row['official_successes'])}/{n}" if n else 'pending'
+            if not row['matrix_complete']:
+                label += '\npartial'
+                bar.set_hatch('//')
+            axes[0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2, label, ha='center', fontsize=8)
+    axes[0].set_xticks(range(len(cohorts)), [label for _, label in cohorts])
+    axes[0].legend(loc='upper center', ncol=3, fontsize=7, frameon=False)
+    axes[0].set(ylim=(0, 120), yticks=range(0, 101, 20), ylabel='Official task success (%)', title='Terminal-Bench task success')
     for condition, color, label in [('none', '#777777', 'None'), ('broad', '#ca6828', 'Broad'), ('scoped', '#2577a2', 'Scoped')]:
         data = [r for r in positions if r['dataset'] == 'Public replay' and r['condition'] == condition]
         if data:
