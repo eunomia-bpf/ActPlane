@@ -1,1 +1,13 @@
 task,condition,attempt,trial_id,main_matrix,timestamp_ns,pid,path,path_truncated,call_index
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687774811890339,3498995,/app/secret.txt,0,4
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687774811894487,3498995,/app/secret.txt,0,4
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687774811914658,3498995,/app/secret.txt,0,4
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687774811915292,3498995,/app/secret.txt,0,4
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687856902366621,3504073,/app/secret.txt,0,9
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687856902369821,3504073,/app/secret.txt,0,9
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687856902382250,3504073,/app/secret.txt,0,9
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687856902383886,3504073,/app/secret.txt,0,9
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687883008642468,3505802,/app/secret.txt,0,10
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687883008645303,3505802,/app/secret.txt,0,10
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687883008660576,3505802,/app/secret.txt,0,10
+git-leak-recovery,b,1,git-leak-recovery__SCuVauU,1,1687883008661181,3505802,/app/secret.txt,0,10

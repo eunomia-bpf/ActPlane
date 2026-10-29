@@ -29,3 +29,31 @@ try:
  if (OUT/'model-metadata.json').exists():(OUT/'model-metadata.json').unlink()
 except Exception as e:print('Model metadata unavailable',repr(e))
 print('Audited',len(rows),'sources')
+
+# repr(C) padding bytes can differ between compilations. Compare every active
+# ABI field as well as retaining hashes, rather than treating padding as policy.
+def fields(data):
+ updates,rules=struct.unpack_from('<II',data)
+ assert len(data)==74760
+ return ([struct.unpack_from('<BB64s24s6xQQQQIIiI',data,8+i*144) for i in range(updates)],
+         [struct.unpack_from('<6B64s24s64s2xQQQ7I4xQ',data,46088+i*224) for i in range(rules)])
+equivalence=[]
+for job in sorted((RAW/'jobs').glob('*-1')):
+ condition=job.name.rsplit('-',2)[1]
+ if condition not in ('b','c'):continue
+ retained=RAW/'enforcement-control'/f'{condition}.bin'
+ control=(retained if retained.exists() else RAW/f'policy-{condition}.bin').read_bytes()
+ text=(HERE/'policies'/f'{condition}.dsl').read_text()
+ for policy in job.glob('*/agent/policy.bin'):
+  data=policy.read_bytes()
+  row=dict(job=job.name,trial_id=policy.parent.parent.name,condition=condition,
+           trial_binary_sha256=hashlib.sha256(data).hexdigest(),
+           control_binary_sha256=hashlib.sha256(control).hexdigest(),
+           dsl_text_matches_current=int((policy.parent/'policy.dsl').read_text()==text),
+           active_abi_fields_equal=int(fields(data)==fields(control)))
+  equivalence.append(row)
+if equivalence:
+ with (OUT/'compiled-policy-equivalence.csv').open('w',newline='') as f:
+  w=csv.DictWriter(f,fieldnames=list(equivalence[0]));w.writeheader();w.writerows(equivalence)
+ assert all(r['dsl_text_matches_current'] and r['active_abi_fields_equal'] for r in equivalence)
+ print('Verified active policy fields for',len(equivalence),'main trials')

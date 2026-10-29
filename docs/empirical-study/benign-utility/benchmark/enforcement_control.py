@@ -1,5 +1,5 @@
 """Separate mechanism control, never included in official benchmark scores."""
-import csv,hashlib,json,os,re,signal,socket,subprocess,sys,time,uuid
+import csv,hashlib,json,os,re,shutil,signal,socket,subprocess,sys,time,uuid
 from pathlib import Path
 RAW=Path('/workspaces/exp/benign-utility/raw/benchmark')
 if len(sys.argv)>1 and sys.argv[1]=='--child':
@@ -36,7 +36,9 @@ def main():
     root=int(re.search(r'HOST_PID\|(\d+)',log.read_text())[1]);assert root>0 and 'helper_error' not in log.read_text()
     until(lambda:Path(f'/proc/{child.pid}/stat').read_text().rsplit(')',1)[1].split()[0]=='T')
     if condition!='a':
-     engine=subprocess.Popen([str(RAW/'engine/process'),'--config',str(RAW/f'policy-{condition}.bin'),'--seed-pid',str(root)],stdout=engine_stream,stderr=subprocess.STDOUT)
+     shutil.copyfile(RAW/f'policy-{condition}.bin',folder/f'{condition}.bin')
+     shutil.copyfile(Path(__file__).parent/'policies'/f'{condition}.dsl',folder/f'{condition}.dsl')
+     engine=subprocess.Popen([str(RAW/'engine/process'),'--config',str(folder/f'{condition}.bin'),'--seed-pid',str(root)],stdout=engine_stream,stderr=subprocess.STDOUT)
      until(lambda:'ActPlane: ready' in (folder/f'{condition}-engine.log').read_text())
     os.kill(child.pid,signal.SIGCONT);code=child.wait(timeout=15)
     time.sleep(.2)
@@ -51,7 +53,7 @@ def main():
     if data.get('event')=='TAINT_VIOLATION':events.append(data)
    except ValueError:pass
   killed=sum(bool(e.get('killed')) for e in events)
-  row=dict(condition=condition,namespace_pid=child.pid,kernel_root_pid=root,returncode=code,events=len(events),killed_events=killed,expected_returncode=0 if condition=='a' else -9,passed=int(code==(0 if condition=='a' else -9) and (condition=='a' or killed>0)),engine_sha256=hashlib.sha256((RAW/'engine/process').read_bytes()).hexdigest(),policy_sha256='' if condition=='a' else hashlib.sha256((RAW/f'policy-{condition}.bin').read_bytes()).hexdigest())
+  row=dict(condition=condition,namespace_pid=child.pid,kernel_root_pid=root,returncode=code,events=len(events),killed_events=killed,expected_returncode=0 if condition=='a' else -9,passed=int(code==(0 if condition=='a' else -9) and (condition=='a' or killed>0)),engine_sha256=hashlib.sha256((RAW/'engine/process').read_bytes()).hexdigest(),policy_sha256='' if condition=='a' else hashlib.sha256((folder/f'{condition}.bin').read_bytes()).hexdigest())
   rows.append(row);print(row,flush=True)
  out=RAW.parent.parent/'benchmark/results/enforcement-control.csv'
  with out.open('w',newline='') as f:
