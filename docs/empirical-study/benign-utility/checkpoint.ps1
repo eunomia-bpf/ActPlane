@@ -5,6 +5,7 @@ $lane=$PSScriptRoot
 $repo=(Resolve-Path (Join-Path $lane '../../..')).Path
 $gitbash='C:\Program Files\Git\bin\bash.exe'
 $wrapper='C:/Users/10678/actplane-tools/ws.sh'
+$publish=@('docs/empirical-study/benign-utility/README.md','docs/empirical-study/benign-utility/SUMMARY.md','docs/empirical-study/benign-utility/results','docs/empirical-study/benign-utility/benchmark/expanded/results')
 Set-Location $repo
 if((& git branch --show-current) -ne 'experiments/mlsys27'){throw 'Unexpected publication branch'}
 do {
@@ -34,11 +35,11 @@ do {
       $resolved=(Resolve-Path -LiteralPath $source).Path
       if($resolved -ne (Join-Path $lane 'checkpoint')){throw 'Unexpected checkpoint path'}
       Remove-Item -LiteralPath $resolved -Recurse -Force
-      & git add -- docs/empirical-study/benign-utility
-      if($LASTEXITCODE -ne 0){Start-Sleep -Seconds 3; & git add -- docs/empirical-study/benign-utility}
-      & git diff --cached --quiet -- docs/empirical-study/benign-utility
+      & git add -- $publish
+      if($LASTEXITCODE -ne 0){Start-Sleep -Seconds 3; & git add -- $publish}
+      & git diff --cached --quiet -- $publish
       if($LASTEXITCODE -eq 1) {
-        & git commit -m 'Checkpoint official expansion outcomes and honest partial report' -- docs/empirical-study/benign-utility
+        & git commit -m 'Checkpoint official expansion outcomes and honest partial report' -- $publish
         if($LASTEXITCODE -ne 0){throw 'Checkpoint commit failed'}
       }
       Write-Output ('Published snapshot '+[DateTime]::UtcNow.ToString('o'))
