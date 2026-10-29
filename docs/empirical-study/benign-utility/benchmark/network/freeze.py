@@ -32,7 +32,7 @@ def main():
  assert read('external-repository-inventory.csv')[0]['instruction_files']=='0'
  assert not any(r['classification'] in ('unclassified_key_candidate','inaccessible','public_header_content_scan_truncated','project_instruction') for r in inventory)
  private=[r for r in inventory if r['classification'] in ('private_key_header','credential_path_candidate')]
- tasks=[];policies=[];coverage=[]
+ tasks=[];policies=[];coverage=[];compiled_sources=[]
  shared=['**/*.env','**/*.env.local','**/*.env.production','**/*id_rsa','**/*id_ed25519','**/*credentials.json','/root/.aws/credentials','/root/.gemini/oauth_creds.json','/etc/secrets/**','/etc/ssl/private/**']
  for number,candidate in enumerate(candidates):
   task=candidate['task'];image=images[task]
@@ -55,12 +55,13 @@ def main():
    blob=RAW/'frozen'/task/f'{condition}.bin';blob.parent.mkdir(parents=True,exist_ok=True)
    if not blob.exists() or args.revise_preflight:subprocess.run([COMPILER,'--rule',text,'compile','--out',str(blob),'--force'],check=True,capture_output=True)
    active[condition]=fields(blob.read_bytes())
+   compiled_sources.extend(dict(task=task,condition=condition,op=u[0],match_mode=u[1],literal=u[2].split(b'\0')[0].decode(),add_mask=u[4]) for u in active[condition][0])
    assert {r[5] for r in active[condition][1] if r[0]==3}=={1}
    assert all(len(update[2].split(b'\0')[0])<=16 for update in active[condition][0] if update[1]==2),'Compiled suffix exceeds retained engine limit'
-   policies.append(dict(task=task,condition=condition,effect='block',dsl_sha256=digest(path),binary_sha256=digest(blob),active_abi_sha256=hashlib.sha256(json.dumps([canonical(x) for x in active[condition]],sort_keys=True).encode()).hexdigest(),dsl_path=str(path),binary_path=str(blob),sources=len(patterns),source_method='exact actual private paths plus bare/dot-relative literals and private directory; shared credential families; c removes generic pem/key'))
+   policies.append(dict(task=task,condition=condition,effect='block',dsl_sha256=digest(path),binary_sha256=digest(blob),active_abi_sha256=hashlib.sha256(json.dumps([canonical(x) for x in active[condition]],sort_keys=True).encode()).hexdigest(),dsl_path=str(path),binary_path=str(blob),sources=len(patterns),compiled_updates=len(active[condition][0]),source_method='exact actual private paths plus bare/dot-relative literals and private directory; shared credential families; c removes generic pem/key'))
   assert set(active['c'][0])<=set(active['b'][0]) and active['b'][1]==active['c'][1]
   for item in actual:coverage.append(dict(task=task,path=item['path'],realpath=item['realpath'],classification=item['classification'],narrow_patterns=json.dumps([item['path'],Path(item['path']).name,'./'+Path(item['path']).name]),broad_and_scoped_known_source=1))
- write('tasks.csv',tasks);write('policies.csv',policies)
+ write('tasks.csv',tasks);write('policies.csv',policies);write('compiled-sources.csv',compiled_sources)
  if coverage:write('known-private-source-coverage.csv',coverage)
  frozen=OUT/'primary-freeze.csv'
  if not frozen.exists():write('primary-freeze.csv',[dict(file=name,sha256=digest(BASE.parent.parent/'benchmark/results'/name)) for name in ('trials.csv','calls.csv','interventions.csv','source-read-accesses.csv','scope-audit.csv','scope-call-audit.csv','compiled-policy-equivalence.csv','tasks.csv')])
@@ -69,7 +70,24 @@ def main():
   controls=read('source-alias-controls.csv')
   required=[r for r in controls if r['coverage_requirement']=='required']
   assert required and all(r['passed']=='1' for r in required)
-  files=[OUT/'tasks.csv',OUT/'policies.csv',OUT/'image-inventory.csv',OUT/'secret-inventory.csv',OUT/'external-repository-inventory.csv',OUT/'source-alias-controls.csv',*POLICIES.glob('*/*.dsl')]
+  validations=[]
+  for control in controls:
+   folder=Path(control['raw_path']);assert folder.resolve().is_relative_to(RAW.resolve())
+   log=(folder/'engine.log').read_text();pid=int(control['kernel_root']);events=[]
+   for line in log.splitlines():
+    try:
+     event=json.loads(line)
+     if event.get('event')=='TAINT_VIOLATION':events.append(event)
+    except ValueError:pass
+   if control['condition']!='a':
+    assert f'seeded pid {pid} label 0x0' in log and 'ActPlane: enforce mode' in log
+    assert all(e['pid']==pid and e['session_root']==pid and e['blocked'] is True and e['killed'] is False and e['matched_label']==2 and e['provenance']['pid']==pid and e['provenance']['op']==1 for e in events)
+    policy=RAW/'frozen'/control['task']/f"{control['condition']}.bin"
+    assert digest(policy)==control['policy_sha256']
+   assert sum(e.get('blocked') is True for e in events)==int(control['blocked_events'])
+   validations.append(dict(task=control['task'],condition=control['condition'],source_path=control['source_path'],spelling=control['spelling'],zero_seed_and_actor_provenance_verified=1,coverage_requirement=control['coverage_requirement'],renamed_alias_gap=control['renamed_alias_gap'],raw_path=control['raw_path']))
+  write('source-control-validation.csv',validations)
+  files=[OUT/'tasks.csv',OUT/'policies.csv',OUT/'compiled-sources.csv',OUT/'image-inventory.csv',OUT/'secret-inventory.csv',OUT/'external-repository-inventory.csv',OUT/'source-alias-controls.csv',OUT/'source-control-validation.csv',*POLICIES.glob('*/*.dsl')]
   code_root=Path(__file__).parent.parent
   seal=dict(cohort='network_exposure_followup',model='zai/glm-5.3',agent='Harbor0.25.0 Terminus2 official defaults',repetitions=1,selection='earliest infrastructure-valid outcome; genuine failures/timeouts never resampled; unknown failures require audit',files={str(p.relative_to(ROOT)):digest(p) for p in files},runtime_code={str(p.relative_to(code_root)):digest(p) for p in (code_root/'adapter.py',code_root/'network/adapter.py',code_root/'network/run.py')},engine_sha256=digest(BASE/'engine/process'),compiler_sha256=digest(Path(COMPILER)))
   target=ROOT/'cohort-freeze.json'
