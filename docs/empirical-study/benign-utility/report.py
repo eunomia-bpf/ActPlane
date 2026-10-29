@@ -30,6 +30,8 @@ def benchmark_inputs(path, cohort):
     selected = [r for r in trials if r['selected_for_comparison'] == '1' and r['comparison_cohort'] == cohort]
     if any(r.get('outcome_valid') != '1' for r in selected):
         raise ValueError(f'An unestablished native outcome was selected: {path}')
+    if any(r.get('outcome_score') in ('', None) or r.get('outcome_success') in ('', None) for r in selected):
+        raise ValueError(f'A selected native outcome has no official score: {path}')
     count = len(read(path / 'tasks.csv'))
     if not count:
         raise ValueError(f'Frozen task manifest is required: {path}')
@@ -126,6 +128,7 @@ def main():
             timing = []
             total_timing = []
             timing_excluded_storage = 0
+            timing_excluded_backing_mismatch = 0
             success_differences = []
             for run in selected:
                 control = baseline.get(run[identity])
@@ -135,6 +138,9 @@ def main():
                 total_key = 'wall_s' if benchmark else 'elapsed_s'
                 if not benchmark and control and (run.get('cache_backing') == 'tmpfs' or control.get('cache_backing') == 'tmpfs'):
                     timing_excluded_storage += 1
+                    continue
+                if benchmark and control and run.get('runtime_storage_backing') and control.get('runtime_storage_backing') and run['runtime_storage_backing'] != control['runtime_storage_backing']:
+                    timing_excluded_backing_mismatch += 1
                     continue
                 if control and number(control, execution_key) > 0 and number(run, execution_key) > 0:
                     timing.append(number(run, execution_key) / number(control, execution_key))
@@ -200,6 +206,8 @@ def main():
                     if benchmark else sum(number(r, 'ipv4_connect_attempts') for r in selected_calls),
                 paired_sessions=len(timing),
                 paired_sessions_excluded_cache_tmpfs=timing_excluded_storage,
+                paired_sessions_excluded_storage_backing_mismatch=timing_excluded_backing_mismatch,
+                runtime_storage_backings=';'.join(sorted({r.get('runtime_storage_backing') or 'not_recorded' for r in selected})) if benchmark else '',
                 median_paired_execution_difference_pct=100 * (median(timing) - 1) if timing else '',
                 median_paired_total_difference_pct=100 * (median(total_timing) - 1) if total_timing else '',
                 security_matrix_complete=int(sum(r.get('coverage') == 'complete' for r in selected) == planned),
@@ -207,7 +215,34 @@ def main():
     write(args.out / 'headline.csv', rows)
     if positions:
         write(args.out / 'position.csv', positions)
+    expansion_progress(rows, args.out)
     render(rows, positions, args.out)
+
+
+def expansion_progress(rows, out):
+    selected = [r for r in rows if r['dataset'] in ('Terminal-Bench added cohort', 'Terminal-Bench combined')]
+    if not selected:
+        return
+    names = {'a': 'No AgPlane', 'b': 'Broad sources', 'c': 'Narrowed sources'}
+    lines = ['Expansion snapshot from `results/headline.csv`; pending cells are not failures.', '',
+             '| Cohort | Condition | Completed / planned | Official successes / completed | Matched successes / common tasks |',
+             '| --- | --- | ---: | ---: | ---: |']
+    for row in selected:
+        cohort = 'Added' if row['dataset'].endswith('added cohort') else 'Combined'
+        n, common = row['official_scored_trials'], row['complete_triplet_tasks']
+        official = f"{int(row['official_successes'])}/{n}" if n else 'pending'
+        matched = f"{int(row['complete_triplet_successes'])}/{common}" if common else 'pending'
+        lines.append(f"| {cohort} | {names[row['condition']]} | {row['outcome_valid_sessions']}/{row['planned_sessions']} | {official} | {matched} |")
+    lines += ['', 'Available-condition scores can have different task mixes. The matched column uses the same tasks completed in every condition.', '',
+              '| Cohort | Condition | Covered calls | False calls | Unknown calls | Unassigned events | False-call bounds |',
+              '| --- | --- | ---: | ---: | ---: | ---: | ---: |']
+    for row in selected:
+        cohort = 'Added' if row['dataset'].endswith('added cohort') else 'Combined'
+        lower, upper = row['confirmed_false_rate_pct'], row['false_rate_upper_pct']
+        bounds = 'pending' if lower == '' else f'{lower:.2f}% lower; upper unavailable' if upper == '' else f'{lower:.2f}–{upper:.2f}%'
+        lines.append(f"| {cohort} | {names[row['condition']]} | {row['calls']} | {row['confirmed_false_calls']} | {row['unknown_calls']} | {row['unattributed_intervention_events']} | {bounds} |")
+    lines += ['', 'The added/combined matrices are complete only when every frozen task has valid outcomes in every condition. Security coverage and adjudication completeness remain separate fields.', '']
+    (out / 'expansion-progress.md').write_text('\n'.join(lines))
 
 
 def render(rows, positions, out):
@@ -224,19 +259,19 @@ def render(rows, positions, out):
         cohorts.append(('Terminal-Bench network stratum', 'Network stratum'))
     for i, (condition, color, name) in enumerate([('a', '#777777', 'No AgPlane'), ('b', '#ca6828', 'Broad'), ('c', '#2577a2', 'Scoped')]):
         bench = [next(r for r in rows if r['dataset'] == dataset and r['condition'] == condition) for dataset, _ in cohorts]
-        values = [r['official_success_pct'] if r['official_success_pct'] != '' else 0 for r in bench]
+        values = [100*r['complete_triplet_mean_reward'] if r['complete_triplet_mean_reward'] != '' else 0 for r in bench]
         x = [j + (i-1)*.24 for j in range(len(cohorts))]
         bars = axes[0].bar(x, values, width=.23, color=color, label=name)
         for bar, row in zip(bars, bench):
-            n = row['official_scored_trials']
-            label = f"{int(row['official_successes'])}/{n}" if n else 'pending'
+            n = row['complete_triplet_tasks']
+            label = f"{int(row['complete_triplet_successes'])}/{n}" if n else 'pending'
             if not row['matrix_complete']:
                 label += '\npartial'
                 bar.set_hatch('//')
             axes[0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2, label, ha='center', fontsize=8)
     axes[0].set_xticks(range(len(cohorts)), [label for _, label in cohorts])
     axes[0].legend(loc='upper center', ncol=3, fontsize=7, frameon=False)
-    axes[0].set(ylim=(0, 120), yticks=range(0, 101, 20), ylabel='Official task success (%)', title='Terminal-Bench task success')
+    axes[0].set(ylim=(0, 120), yticks=range(0, 101, 20), ylabel='Official task success (%)', title='Terminal-Bench matched task success')
     for condition, color, label in [('none', '#777777', 'None'), ('broad', '#ca6828', 'Broad'), ('scoped', '#2577a2', 'Scoped')]:
         data = [r for r in positions if r['dataset'] == 'Public replay' and r['condition'] == condition]
         if data:
@@ -256,8 +291,12 @@ def render(rows, positions, out):
         axes[1].text(.5, .5, 'Replay results pending', transform=axes[1].transAxes, ha='center')
     initial = [r for r in rows if r['dataset'] == 'Terminal-Bench']
     context = 'Initial subset: no tracked IPv4 connects. ' if all(r['ipv4_connect_attempts'] == 0 for r in initial) else ''
-    fig.text(.5, .01, context+'Process-subtree scope; scoped narrows sources; trusted declassification unmeasured.', ha='center', fontsize=7)
-    fig.tight_layout(rect=(0, .05, 1, 1))
+    partial = any(not r['matrix_complete'] for r in rows if r['dataset'] != 'Public replay')
+    footer = context+'Process-subtree scope; scoped narrows sources; trusted declassification unmeasured.'
+    if partial:
+        footer = 'Hatching marks partial matrices; bars use tasks completed in all conditions.\n' + footer
+    fig.text(.5, .01, footer, ha='center', fontsize=7)
+    fig.tight_layout(rect=(0, .1 if partial else .05, 1, 1))
     fig.savefig(out / 'benign-utility.pdf')
     fig.savefig(out / 'benign-utility.png', dpi=180)
     plt.close(fig)
