@@ -45,12 +45,21 @@ def main():
     plans = {r['dynamic_id']: r for r in csv.DictReader((OUT / 'cohort.csv').open())}
     candidates, summaries, interventions, unparsed_rows = [], [], [], []
     reviewed=reviewed_annotations()
+    published={r['member_sha256']:r for r in csv.DictReader((OUT/'public-artifacts.csv').open())} if (OUT/'public-artifacts.csv').exists() else {}
     for run in sorted(ROOT.glob('open-audit-*/dynamic/runs/t*')):
         trace = run / 'successful-opens.strace'
         if not trace.exists():
             continue
         plan = plans[run.name]
         done = json.loads((run / 'done.json').read_text()) if (run / 'done.json').exists() else {}
+        metadata=json.loads((run/'utility-metadata.json').read_text()) if (run/'utility-metadata.json').exists() else {}
+        mapping_epoch=None
+        if (run/'sources.jsonl').exists() and metadata.get('clock_epoch_ns'):
+            for line in (run/'sources.jsonl').read_text(errors='replace').splitlines():
+                try:message=json.loads(line).get('data','')
+                except json.JSONDecodeError:continue
+                if isinstance(message,str) and message.startswith('MAPROOT|'):
+                    mapping_epoch=int(message.split('|')[1])+metadata['clock_epoch_ns']-metadata['clock_monotonic_ns'];break
         rules = [r for r in json.loads((run / 'compiled-sources.json').read_text())
                  if r['label'] == 'SECRET'] if (run / 'compiled-sources.json').exists() else []
         pending, parsed, unparsed, failed = {}, 0, 0, 0
@@ -113,6 +122,10 @@ def main():
                 if not matching and not resolved_matching:
                     continue
                 path = raw.decode(errors='surrogateescape')
+                seconds,fraction=timestamp.split('.')
+                entry_epoch=int(seconds)*1000000000+int(fraction.ljust(9,'0'))
+                stage=('unknown' if mapping_epoch is None else 'setup-before-root-mapping' if entry_epoch<mapping_epoch
+                       else 'between-mapping-and-first-call' if entry_epoch<metadata['clock_epoch_ns'] else 'recorded-call-interval')
                 file = host_path(run, plan, resolved or path)
                 if file in retained_data:
                     data=retained_data[file]
@@ -129,7 +142,7 @@ def main():
                         except (KeyError,OSError):pass
                     retained_data[file]=data
                 selected.append(dict(audit_condition=run.parents[2].name, dynamic_id=run.name,
-                    line=number, pid=pid, timestamp_epoch=timestamp, syscall=syscall, name_index=name_index,
+                    line=number, pid=pid, timestamp_epoch=timestamp, stage=stage, syscall=syscall, name_index=name_index,
                     raw_path=path, engine_path=engine_path.decode(errors='replace'),
                     resolved_path=resolved or '', source_patterns=json.dumps(matching),
                     resolved_source_patterns=json.dumps(resolved_matching),
@@ -138,6 +151,7 @@ def main():
                     retained_bytes=len(data) if data is not None else '',
                     retained_public_certificates=int(bool(data and b'-----BEGIN CERTIFICATE-----' in data
                         and b'PRIVATE KEY-----' not in data)),
+                    published_artifact=json.dumps(published.get(hashlib.sha256(data).hexdigest(),{}),sort_keys=True) if data is not None else '',
                     evidence_limit='Retained end-of-replay bytes; no automatic primary-event adjudication'))
         candidates.extend(selected)
         if archive is not None:archive.close()
@@ -186,9 +200,9 @@ def main():
             candidate_paths=len({r['raw_path'] for r in selected}),
             evidence_limit='Separate verification replay; its timings and events excluded from primary cohort'))
     write('open-audit-candidates.csv', candidates, list(candidates[0]) if candidates else [
-        'audit_condition', 'dynamic_id', 'line', 'pid', 'timestamp_epoch', 'syscall', 'name_index', 'raw_path',
+        'audit_condition', 'dynamic_id', 'line', 'pid', 'timestamp_epoch', 'stage', 'syscall', 'name_index', 'raw_path',
         'engine_path', 'resolved_path', 'source_patterns', 'resolved_source_patterns', 'flags',
-        'result', 'retained_sha256', 'retained_bytes', 'retained_public_certificates', 'evidence_limit'])
+        'result', 'retained_sha256', 'retained_bytes', 'retained_public_certificates', 'published_artifact', 'evidence_limit'])
     write('open-audit-summary.csv', summaries, list(summaries[0]) if summaries else [
         'audit_condition', 'dynamic_id', 'terminal', 'recorded_calls', 'executed_calls', 'fatal',
         'trace_bytes', 'trace_sha256', 'parsed_successful_file_calls', 'unparsed_file_records', 'failed_file_calls',
