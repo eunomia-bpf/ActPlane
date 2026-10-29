@@ -1,5 +1,5 @@
 """Materialize one official image at a time and inventory it before agent outcomes."""
-import argparse,csv,json,os,shutil,signal,subprocess,time
+import argparse,csv,hashlib,json,os,shutil,signal,subprocess,time
 from pathlib import Path
 BASE=Path('/workspaces/exp/benign-utility/raw/benchmark')
 RAW=BASE/'network';OUT=BASE.parent.parent/'benchmark/network/results'
@@ -50,13 +50,16 @@ def export():
     writer=csv.DictWriter(handle,fieldnames=fields);writer.writeheader();writer.writerows(rows)
 
 def main():
- parser=argparse.ArgumentParser();parser.add_argument('--task');args=parser.parse_args()
+ parser=argparse.ArgumentParser();parser.add_argument('--task');parser.add_argument('--refresh',action='store_true');args=parser.parse_args()
  candidates=list(csv.DictReader((BASE.parent.parent/'benchmark/results/network-task-candidates.csv').open()))
  for candidate in candidates:
   task=candidate['task']
   if candidate['decision']!='propose' or args.task and args.task!=task:continue
   directory=RAW/'inventory'/task;directory.mkdir(parents=True,exist_ok=True)
-  if (directory/'receipt.json').exists():print('INVENTORY_RETAINED',task,flush=True);continue
+  if (directory/'receipt.json').exists():
+   if not args.refresh:print('INVENTORY_RETAINED',task,flush=True);continue
+   archive=directory/('prior-'+time.strftime('%Y%m%dT%H%M%SZ',time.gmtime()));archive.mkdir()
+   for name in ('receipt.json','files.json','manifest.json'):shutil.copyfile(directory/name,archive/name)
   image=candidate['official_image']
   # A manifest lookup downloads no layers and records the exact public descriptor.
   receipt(task,'before_manifest')
@@ -69,7 +72,7 @@ def main():
    result=docker(['run','--rm','--read-only','--network','none','--entrypoint','python3','--volume',str(HERE/'inventory_image.py')+':/inventory/inventory_image.py:ro',image,'-B','/inventory/inventory_image.py'],capture_output=True,text=True)
    files=json.loads(result.stdout)
    (directory/'files.json').write_text(json.dumps(files,indent=2)+'\n')
-   row=dict(task=task,image=image,image_id=info['Id'],repo_digests=';'.join(info.get('RepoDigests',[])),image_size_bytes=info['Size'],architecture=info['Architecture'],os=info['Os'],dataset_commit=candidate['dataset_commit'],instruction_sha256=candidate['instruction_sha256'],inventory_mode='readonly image; network none; no services or agent',utc=time.strftime('%FT%TZ',time.gmtime()))
+   row=dict(task=task,image=image,image_id=info['Id'],repo_digests=';'.join(info.get('RepoDigests',[])),image_size_bytes=info['Size'],architecture=info['Architecture'],os=info['Os'],dataset_commit=candidate['dataset_commit'],instruction_sha256=candidate['instruction_sha256'],inventory_mode='readonly image; network none; no services or agent',inventory_script_sha256=hashlib.sha256((HERE/'inventory_image.py').read_bytes()).hexdigest(),project_instruction_files=sum(x['classification']=='project_instruction' for x in files),utc=time.strftime('%FT%TZ',time.gmtime()))
    (directory/'receipt.json').write_text(json.dumps(row,indent=2)+'\n');export()
    print('INVENTORIED',json.dumps(row),flush=True)
   finally:
