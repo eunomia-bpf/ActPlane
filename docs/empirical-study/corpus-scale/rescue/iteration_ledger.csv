@@ -1,3 +1,3 @@
 revision,dimension,dev_kappa,dev_coverage,test_kappa,test_coverage,test_status
-r1,enforceability,0.7716561566544973,1.0,,,not_evaluated
-r1,context_required,0.6539177424196938,1.0,,,not_evaluated
+r1,enforceability,0.7716561566544973,1.0,0.6942327324310916,1.0,evaluated_once
+r1,context_required,0.6539177424196938,1.0,0.6793331311261643,1.0,evaluated_once
