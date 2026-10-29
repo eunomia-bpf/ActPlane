@@ -63,6 +63,9 @@ def main():
                   '| Rescue test dimension | Kappa | Coverage | Passed |', '|---|---:|---:|---|']
         for r in read_csv(HERE / 'rescue/test_gates.csv'):
             lines.append(f'| {r["dimension"]} | {float(r["test_kappa"]):.3f} | {100*float(r["coverage"]):.1f}% | {r["passed"]} |')
+        lines += ['', 'Context uses the operational project-binding convention supported by the development labels. '
+                  'The recovered written guide and the paper prose about fully named targets conflict with that convention. '
+                  'The operator should reconcile that wording when integrating the context result. No paper source was changed in this lane.']
         corrected = HERE / 'rescue/corrected_summary.csv'
         if corrected.exists():
             lines += ['', '| Corrected overall metric | Estimate | Bootstrap interval | Status |', '|---|---:|---:|---|']
