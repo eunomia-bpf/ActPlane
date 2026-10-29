@@ -123,7 +123,7 @@ Repository-purpose groups are defined in `categorize.py`: agent_frameworks inclu
 
 A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used. The optional OpenCode routes also reject requests with the requested session header, as recorded in `gateway_probes.csv`. A named GLM flash route was used only for a throughput pilot and is not part of the primary calibration.
 
-`noncoding_manifest.csv` and `noncoding_statements.csv` materialize the analyzed sources classified as `noncoding_assistance`. Mixed, unclear, unclassified, and software-development sources remain visible in the main tables rather than entering this exploratory subset.
+`noncoding_manifest.csv` and `noncoding_statements.csv` materialize the analyzed sources classified as `noncoding_assistance`. Mixed, unclear, unclassified, and software-development sources remain visible in the main tables rather than entering this exploratory subset. File-scope groups can include different files from the same repository, so their repository counts overlap while their statement counts partition the analyzed corpus.
 
 Optional scope classification initially ran alongside primary labeling. Observed local request latency motivated deferring its remaining work until primary labeling completes, allocating the bounded local concurrency to primary labels and interim adjudication. Scope work resumes alongside final adjudication and pauses when the primary analysis is ready. The separate finalization pass resumes any remaining scope judgments after other local clients exit. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis. This changes client request scheduling without changing the coding guide, accepted labels, or thresholds.
 
@@ -196,17 +196,25 @@ The collected repositories have a star range of 12,209–458,063, with median 40
 
 | File_scope | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| descriptive_reference | 2 | 40 | 2.5% [2.5%, 2.5%] | withheld | withheld | withheld | withheld |
-| general_agent_operations | 30 | 569 | 66.1% [54.7%, 76.6%] | withheld | withheld | withheld | withheld |
+| descriptive_reference | 3 | 75 | 22.7% [22.7%, 22.7%] | withheld | withheld | withheld | withheld |
+| general_agent_operations | 43 | 1237 | 60.7% [54.1%, 67.3%] | withheld | withheld | withheld | withheld |
 | mixed | 1 | 7 | 42.9% [42.9%, 42.9%] | withheld | withheld | withheld | withheld |
-| noncoding_assistance | 37 | 2280 | 52.0% [44.1%, 59.0%] | withheld | withheld | withheld | withheld |
-| software_development | 275 | 22853 | 53.4% [50.5%, 56.1%] | withheld | withheld | withheld | withheld |
-| unclassified | 85 | 4982 | 50.9% [46.0%, 55.4%] | withheld | withheld | withheld | withheld |
-| unclear | 94 | 115 | 44.3% [35.5%, 53.1%] | withheld | withheld | withheld | withheld |
+| noncoding_assistance | 69 | 4315 | 50.0% [44.0%, 55.5%] | withheld | withheld | withheld | withheld |
+| software_development | 290 | 25096 | 53.3% [50.5%, 55.6%] | withheld | withheld | withheld | withheld |
+| unclear | 95 | 116 | 44.8% [35.9%, 53.4%] | withheld | withheld | withheld | withheld |
+
+Illustrative noncoding sources selected for email/calendar and meeting tasks are linked below. Scope judgments remain exploratory.
+
+| Pinned instruction file | Classifier rationale |
+|---|---|
+| [openclaw/openclaw: skills/gog/SKILL.md](https://github.com/openclaw/openclaw/blob/bf10fbe8acf1295bcf982e9d4b17a9a97d4a7bde/skills/gog/SKILL.md) | The file instructs the agent on how to use the 'gog' CLI to perform Google Workspace tasks such as sending emails, managing calendars, and accessing Drive/Sheets/Docs, which are personal productivity and office tasks rather than software development. |
+| [NousResearch/hermes-agent: plugins/google_meet/SKILL.md](https://github.com/NousResearch/hermes-agent/blob/07f075c291bac85a3ae0746ffbb9730b26b0ddc1/plugins/google_meet/SKILL.md) | The file instructs the agent on how to join Google Meet calls, transcribe conversations, and perform follow-up tasks like summarizing meetings and sending follow-ups, which are personal and office productivity tasks. |
 
 ## Reproduction and artifacts
 
 Use an isolated Python environment with `requirements.txt`. Set `GH_TOKEN`, `LITELLM_BASE_URL`, and `LITELLM_API_KEY` in the environment. Never pass secrets as command-line arguments. Raw responses, cached prompts/completions, source files, retries, and HTTP logs stay in the operator-specified raw directory. Set `ACTPLANE_CORPUS_RAW` to reproduce in a different raw-data location. Access to the named model endpoints is required.
+
+For offline recomputation from the committed accepted tables, run `analyze.py`, `figures.py`, and `report.py`. These commands issue no model requests. Source-fidelity validation additionally needs the immutable raw files restored by `restore_sources.py`. Regenerating model judgments requires the named endpoints, while reproducing the historical request audit requires the retained raw logs.
 
 ```bash
 python recover.py

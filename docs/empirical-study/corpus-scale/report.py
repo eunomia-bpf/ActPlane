@@ -2,6 +2,7 @@
 """Render the README using committed CSVs rather than hand-entered results."""
 from collections import Counter
 import math
+from urllib.parse import quote
 
 from analyze import BOOTSTRAPS, MIN_COVERAGE, MIN_KAPPA, MIN_PRIMARY_KAPPA, SEED
 from collect import QUOTAS
@@ -199,7 +200,7 @@ def main():
         'Overall analysis counts each byte-identical file once within a repository. Family analysis attributes shared text to each family in which it appears, so family counts are not additive. Repository categories come from a separate metadata classifier and are explicitly marked as model judgments. A noncoding-agent repository can still contain coding instructions. The category breakdown must not be described as a noncoding-policy slice without inspecting file scope.', '',
         'Repository-purpose groups are defined in `categorize.py`: agent_frameworks includes reusable agent infrastructure, coding agents, editors, and developer-agent tools; applications includes general software, libraries, services, and educational collections; noncoding_agents covers assistants primarily advertised for personal, office, research, browser, or finance tasks. Mixed systems are assigned by their primary advertised purpose. These categories have not received independent human reliability validation.', '',
         'A separate `scope_files.py` classifier examines source excerpts to identify actual noncoding task instructions. `file_scopes.csv` preserves its decisions and rationales, and file-scope summaries are reported separately from repository categories. These scope labels have no human reliability calibration and may be affected by omitted middle content, so this is an exploratory noncoding slice. Both optional direct flash endpoints reject the available authentication; their recorded probes are in `endpoint_probes.csv` and they are not used. The optional OpenCode routes also reject requests with the requested session header, as recorded in `gateway_probes.csv`. A named GLM flash route was used only for a throughput pilot and is not part of the primary calibration.', '',
-        '`noncoding_manifest.csv` and `noncoding_statements.csv` materialize the analyzed sources classified as `noncoding_assistance`. Mixed, unclear, unclassified, and software-development sources remain visible in the main tables rather than entering this exploratory subset.', '',
+        '`noncoding_manifest.csv` and `noncoding_statements.csv` materialize the analyzed sources classified as `noncoding_assistance`. Mixed, unclear, unclassified, and software-development sources remain visible in the main tables rather than entering this exploratory subset. File-scope groups can include different files from the same repository, so their repository counts overlap while their statement counts partition the analyzed corpus.', '',
         'Optional scope classification initially ran alongside primary labeling. Observed local request latency motivated deferring its remaining work until primary labeling completes, allocating the bounded local concurrency to primary labels and interim adjudication. Scope work resumes alongside final adjudication and pauses when the primary analysis is ready. The separate finalization pass resumes any remaining scope judgments after other local clients exit. Incomplete or failed scope judgments remain explicitly unclassified in the file-scope table and `scope_coverage.csv`. They do not remove repositories from the primary analysis. This changes client request scheduling without changing the coding guide, accepted labels, or thresholds.', '',
         f'Intervals are central {100*cfg["confidence_level"]:.0f}% percentile intervals using {BOOTSTRAPS:,} bootstrap replicates resampling repositories within discovery strata, with new-corpus seed {SEED} and historical seed {cfg["historical_bootstrap_seed"]}. '
         'They describe sensitivity within this convenience sample. Sparse groups can yield degenerate intervals without establishing population precision. They do not correct star/query selection bias, model labeling error, duplicated templates across repositories, or changed eligibility since the historical snapshot. Comparisons are descriptive rather than evidence of temporal change. CSV delta intervals use independently resampled historical and new repositories. They do not model pairing or covariance for repository identities shared between snapshots.', '',
@@ -238,8 +239,30 @@ def main():
             first = next(iter(records.values()))
             lines.append('| ' + ' | '.join([group, first['repositories'], first['statements'],
                                           *[interval_fmt(records.get(k)) for k in NAMES]]) + ' |')
+    if (HERE / 'noncoding_manifest.csv').exists() and (HERE / 'file_scopes.csv').exists():
+        illustrative = [('openclaw/openclaw', 'skills/gog/SKILL.md'),
+                        ('NousResearch/hermes-agent', 'plugins/google_meet/SKILL.md')]
+        scope_rows = {(r['repo'], r['content_sha256']): r for r in read_csv(HERE / 'file_scopes.csv')}
+        examples = []
+        for repo, path in illustrative:
+            f = next((r for r in read_csv(HERE / 'noncoding_manifest.csv')
+                      if (r['repo'], r['file_path']) == (repo, path)), None)
+            if f:
+                examples.append(dict(repo=repo, file_path=path, commit=f['commit'],
+                    content_sha256=f['content_sha256'],
+                    rationale=scope_rows[(repo, f['content_sha256'])]['rationale']))
+        write_csv(HERE / 'noncoding_examples.csv', examples,
+                  fields=['repo', 'file_path', 'commit', 'content_sha256', 'rationale'])
+        if examples:
+            lines += ['', 'Illustrative noncoding sources selected for email/calendar and meeting tasks are linked below. Scope judgments remain exploratory.', '',
+                      '| Pinned instruction file | Classifier rationale |', '|---|---|']
+            for r in examples:
+                url = f'https://github.com/{r["repo"]}/blob/{r["commit"]}/' + quote(r['file_path'], safe='/')
+                rationale = r['rationale'].replace('|', '\\|').replace('\n', ' ')
+                lines.append(f'| [{r["repo"]}: {r["file_path"]}]({url}) | {rationale} |')
     lines += ['', '## Reproduction and artifacts', '',
         'Use an isolated Python environment with `requirements.txt`. Set `GH_TOKEN`, `LITELLM_BASE_URL`, and `LITELLM_API_KEY` in the environment. Never pass secrets as command-line arguments. Raw responses, cached prompts/completions, source files, retries, and HTTP logs stay in the operator-specified raw directory. Set `ACTPLANE_CORPUS_RAW` to reproduce in a different raw-data location. Access to the named model endpoints is required.', '',
+        'For offline recomputation from the committed accepted tables, run `analyze.py`, `figures.py`, and `report.py`. These commands issue no model requests. Source-fidelity validation additionally needs the immutable raw files restored by `restore_sources.py`. Regenerating model judgments requires the named endpoints, while reproducing the historical request audit requires the retained raw logs.', '',
         '```bash',
         'python recover.py',
         '# Restore the pinned snapshot. collect.py instead discovers a new snapshot.',
