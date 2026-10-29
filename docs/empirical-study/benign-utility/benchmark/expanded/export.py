@@ -26,7 +26,7 @@ for trial in trials:
  trial.update(runtime_environment_id=scope.get('runtime_environment_id','pre_amendment_host_supporting'),runtime_worker_id=scope.get('runtime_worker_id','not_recorded'),runtime_storage_backing=scope.get('runtime_storage_backing','not_recorded'),runtime_storage_data_root=scope.get('runtime_storage_data_root','not_recorded'))
  if trial['trial_id'] in infrastructure:
   audit=infrastructure[trial['trial_id']]
-  trial.update(outcome_valid='0',outcome_score='',outcome_success='',outcome_source='confirmed_infrastructure_exclusion',verifier_valid='0',verifier_status='not_executed_model_transport_failure',infrastructure_evidence=audit['evidence'],comparison_exclusion_reason=trial['comparison_exclusion_reason']+';'+audit['reason'])
+  trial.update(outcome_valid='0',outcome_score='',outcome_success='',outcome_source='confirmed_infrastructure_exclusion',verifier_valid='0',verifier_status=audit.get('verifier_status','not_executed_model_transport_failure'),infrastructure_evidence=audit['evidence'],comparison_exclusion_reason=trial['comparison_exclusion_reason']+';'+audit['reason'])
  if trial['task']=='fix-code-vulnerability':
   verifier=Path(trial['raw_result']).parent/'verifier';reports=[]
   for name in ('original-repo-ctrf.json','ctrf.json'):

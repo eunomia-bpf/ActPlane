@@ -250,13 +250,13 @@ def render(rows, positions, out):
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     plt.rcParams.update({'pdf.fonttype': 42, 'ps.fonttype': 42, 'font.size': 9})
-    fig, axes = plt.subplots(1, 2, figsize=(8, 3.1))
-    cohorts = [('Terminal-Bench', 'Initial subset')]
+    fig, axes = plt.subplots(1, 2, figsize=(9, 3.6))
+    cohorts = [('Terminal-Bench', 'Initial\nsubset')]
     if any(r['dataset'] == 'Terminal-Bench combined' for r in rows):
         planned = next(r['planned_sessions'] for r in rows if r['dataset'] == 'Terminal-Bench combined')
-        cohorts.append(('Terminal-Bench combined', f'Combined ({planned} planned)'))
+        cohorts.append(('Terminal-Bench combined', f'Combined\n({planned} planned)'))
     if any(r['dataset'] == 'Terminal-Bench network stratum' for r in rows):
-        cohorts.append(('Terminal-Bench network stratum', 'Network stratum'))
+        cohorts.append(('Terminal-Bench network stratum', 'Network\nstratum'))
     for i, (condition, color, name) in enumerate([('a', '#777777', 'No AgPlane'), ('b', '#ca6828', 'Broad'), ('c', '#2577a2', 'Scoped')]):
         bench = [next(r for r in rows if r['dataset'] == dataset and r['condition'] == condition) for dataset, _ in cohorts]
         values = [100*r['complete_triplet_mean_reward'] if r['complete_triplet_mean_reward'] != '' else 0 for r in bench]
@@ -271,7 +271,7 @@ def render(rows, positions, out):
             axes[0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2, label, ha='center', fontsize=8)
     axes[0].set_xticks(range(len(cohorts)), [label for _, label in cohorts])
     axes[0].legend(loc='upper center', ncol=3, fontsize=7, frameon=False)
-    axes[0].set(ylim=(0, 120), yticks=range(0, 101, 20), ylabel='Official task success (%)', title='Terminal-Bench matched task success')
+    axes[0].set(ylim=(0, 140), yticks=range(0, 101, 20), ylabel='Official task success (%)', title='Terminal-Bench matched task success')
     for condition, color, label in [('none', '#777777', 'None'), ('broad', '#ca6828', 'Broad'), ('scoped', '#2577a2', 'Scoped')]:
         data = [r for r in positions if r['dataset'] == 'Public replay' and r['condition'] == condition]
         if data:

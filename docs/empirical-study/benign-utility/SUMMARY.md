@@ -4,7 +4,7 @@
 
 The [runtime amendment](benchmark/expanded/AMENDMENT.md) retains unsupported host attempts separately and restores native denial inside a KVM guest. Initial guest model requests failed DNS before tools/verifiers, so they are excluded from utility. A memory-group OOM then restarted the Workspace: the earlier allocation failed to account for the lower live shared limit. Recovery uses one bounded guest with preserved incident evidence and a durable rebuild template. These are infrastructure attempts, not failed benchmark scores; the snapshot below now contains valid added outcomes.
 
-Adjudication retains unknown cases; task success and intervention verification are distinct endpoints. [README.md](README.md) gives methods, exclusions, the paper-ready paragraph and scope limits. [headline.csv](results/headline.csv) is produced by [report.py](report.py).
+The revised supervisor cutoff stops new cells at 2026-10-30 14:00 UTC. Completed-cell snapshots are committed and pushed to experiments/mlsys27; unfinished cells remain partial. Adjudication retains unknown cases; task success and intervention verification are distinct endpoints. [README.md](README.md) gives methods, exclusions, the paper-ready paragraph and scope limits. [headline.csv](results/headline.csv) is produced by [report.py](report.py).
 
 <!-- expansion-status:start -->
 Expansion snapshot from `results/headline.csv`; pending cells are not failures.

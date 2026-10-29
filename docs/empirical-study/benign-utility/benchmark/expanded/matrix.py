@@ -8,7 +8,7 @@ ROOT=BASE.parent.parent/'benchmark/expanded';OUT=ROOT/'results'
 RAW.mkdir(exist_ok=True)
 lock=(RAW/'matrix.lock').open('a+');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 lock.seek(0);lock.truncate();lock.write(str(os.getpid()));lock.flush()
-state=threading.RLock();deadline=datetime.fromisoformat('2026-10-30T06:00:00+00:00').timestamp()
+state=threading.RLock();deadline=datetime.fromisoformat('2026-10-30T14:00:00+00:00').timestamp()
 frozen=json.loads((ROOT/'environment-freeze.json').read_text())
 assert set(frozen['workers'])=={'worker1'}
 tasks=list(csv.DictReader((OUT/'tasks.csv').open()))

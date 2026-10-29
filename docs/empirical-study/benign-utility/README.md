@@ -4,6 +4,8 @@
 
 The current host lacks active BPF LSM, so its attempted defended cells cannot enter the native-block comparison. The [runtime amendment](benchmark/expanded/AMENDMENT.md) places every primary added condition in the same guest environment. Pre-amendment [host attempts](benchmark/expanded/host-results/trials.csv), including valid baselines, are retained separately regardless of reward. Earlier guest attempts had model-transport errors before tools or verifiers and do not count as utility failures. A subsequent shared-memory OOM restarted the Workspace container; the earlier virtual-machine allocation was based on the brief without verifying the lower live shared limit. Recovery uses a bounded single guest, with incident and environment evidence in [VM records](benchmark/expanded/vm/README.md). The original completed cohorts remain unchanged. Added outcomes stay pending until valid model execution and native official scoring; see [BLOCKED.md](BLOCKED.md).
 
+The supervisor extended the launch cutoff to **2026-10-30 14:00 UTC**; already-started cells retain their official timeouts. [checkpoint.sh](checkpoint.sh) recomputes analysis and copies a coherent small-file snapshot under the exporter lock. [checkpoint.ps1](checkpoint.ps1) publishes those files and the generated tables, then commits and pushes only `experiments/mlsys27`. Windows performs file publication and Git; all experimental analysis remains in the Workspace.
+
 <!-- expansion-status:start -->
 Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 
