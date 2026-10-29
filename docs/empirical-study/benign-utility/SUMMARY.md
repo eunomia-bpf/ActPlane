@@ -27,6 +27,8 @@ Additional completed cells outside that matched set: No AgPlane: `pytorch-model-
 
 <!-- expansion-status:end -->
 
+A verified added-cohort case shows the cost of broad sources: `hf-model-inference` passed without defense and with narrowed sources, but failed under broad sources. In the broad run, public CA reads led to 108 actual false denial events across 14 covered commands, with no unknown or unassigned events. [Native event evidence](benchmark/expanded/results/hf-native-event-evidence.csv), [adjudications](benchmark/expanded/results/intervention-adjudications.csv), and [origin verification](benchmark/expanded/results/action-origin-verifications.csv) preserve the proof. System-CA content is inferred from frozen image bytes, runtime open/read evidence and no observed write-open; the runtime certifi bundle has a directly verified post-run hash. Tracing did not cover every filesystem mutation. The independent review verifies queued-command origins and separates thread identity uncertainty from the shared command origin. This observation supports a concrete over-tainting case; single stochastic attempts do not establish the average causal effect on success.
+
 | Cohort | No defense | Broad sources | Narrowed sources |
 | --- | ---: | ---: | ---: |
 | Initial official task success | 4/6 | 6/6 | 4/6 |
