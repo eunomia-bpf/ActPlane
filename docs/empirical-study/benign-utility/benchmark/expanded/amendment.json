@@ -1,0 +1,27 @@
+{
+  "environment_id": "workspace_kvm_guest_20261029",
+  "utc": "2026-10-29T19:12:16Z",
+  "rule": "ALL guest conditions only; ALL host attempts supporting regardless reward",
+  "old_host_raw": "/workspaces/exp/benign-utility/raw/benchmark/expanded",
+  "primary_raw": "/workspaces/exp/benign-utility/raw/benchmark/expanded-vm",
+  "tasks_sha256": "f6249c0c50562815914f3b14cf4d31362f09a617342246e407d9b1539f605b9b",
+  "original_host_task_seal_hashes": {
+    "nginx-request-logging.json": "854312fac2387b3ecad7ed9f0de3e55454064385e9a794b7a44f865a1860d7f2",
+    "adaptive-rejection-sampler.json": "a107063326e47316cf4708ffd8e56c1027528103e20557ff21771c2d5a8904e4",
+    "extract-moves-from-video.json": "dadce56bd40d23c199a3a446f9e0a32246812f9c5a3b51d2e503bee9c63c88ba",
+    "extract-elf.json": "f34ddb8e7a3d44c58daacaf0d55653466e520b5006628f8e441814ab303695cc",
+    "filter-js-from-html.json": "6ab560834b9b8391f72ead095c23677a1f8788d30aa1b12c2fb97380be884310",
+    "write-compressor.json": "4f8ea2eeab3eb63b5b2d834216e869a73e34b5ef52a015a70d72af013b9ea415",
+    "protein-assembly.json": "f8e7ad3a72b524dcc4176b2cc9ba2c835a20397a5fe0b191496436f02be463bb",
+    "path-tracing.json": "4b6a3a5e32dfc46cc88b37cc59fba83a1da20e6f968d812f181f1ec2d2c024fb",
+    "fix-git.json": "a303c5815a824bc410929bce1c98bd9a3ece57ca8bfc6ad0eeb44dc29d51a7aa",
+    "dna-assembly.json": "431485f67babf969d200faff3f527225c7d04bcb4b739a4a051c239c5aa43319",
+    "modernize-scientific-stack.json": "274673231641a4352cbd8cd51aaeb3c119b4af9ef0c378b27aa5675296702142",
+    "qemu-alpine-ssh.json": "9645047efd9f3c92877aba4326cd8e5f7c130bb64a2d3fc397c6d62d5d3c7838",
+    "hf-model-inference.json": "7221b3dd5e29178ae240fb932c0a4edf10573b9f9a3b9e6a34055b7a6cb738d2",
+    "video-processing.json": "c75040fcea78dfb57f38582b5b2f44f973aa11aba0525596c13ed86d6fc4645b",
+    "pytorch-model-cli.json": "f73b7de53c775c90092a067384ac16a444c584ff32ef225d1ed26451dd188cf1",
+    "caffe-cifar-10.json": "73b7a522324f8b485fd05d3fe644d67d795c66cd1a905db4a1f3293154025c3c",
+    "fix-code-vulnerability.json": "261afb5509bbd9d456fdbc09965abf18dba14b24f28b1e207c111df7484b1c6f"
+  }
+}

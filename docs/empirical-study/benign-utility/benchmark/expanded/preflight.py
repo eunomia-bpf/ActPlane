@@ -2,10 +2,10 @@
 import argparse,csv,hashlib,json,os,shutil,signal,subprocess,time
 from pathlib import Path
 BASE=Path('/workspaces/exp/benign-utility/raw/benchmark')
-RAW=BASE/'expanded';OUT=BASE.parent.parent /'benchmark/expanded/results'
+RAW=Path(os.environ.get('BU_EXPANDED_RAW',str(BASE/'expanded-vm')));OUT=Path(os.environ.get('BU_EXPANDED_OUT',str(BASE.parent.parent/'benchmark/expanded/results')))
 HERE=Path(__file__).parent
 RAW.mkdir(exist_ok=True);OUT.mkdir(parents=True,exist_ok=True)
-ENV={**os.environ,'DOCKER_HOST':'unix://'+str(BASE/'docker.sock'),'DOCKER_CONFIG':str(BASE/'docker-config')}
+ENV={**os.environ,'DOCKER_HOST':os.environ.get('BU_DOCKER_HOST','unix:///var/run/docker.sock'),'DOCKER_CONFIG':str(BASE/'docker-config')}
 
 def receipt(task,stage):
  disk=shutil.disk_usage('/workspaces')

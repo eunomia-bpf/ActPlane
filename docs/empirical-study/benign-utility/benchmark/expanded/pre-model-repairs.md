@@ -1,6 +1,6 @@
 # Pre-model infrastructure repairs
 
-No expansion model outcome preceded these changes.
+Initial bootstrap and resource parsing repairs preceded all host expansion models. Later image-inventory repairs preceded the affected tasks' first model attempts, after some other host pilot outcomes already existed. The VM environment amendment follows those host pilots and precedes every guest-primary outcome; no host defended attempt had valid native-denial instrumentation.
 
 - The dependency bootstrap initially passed an unsupported `--prepare` argument to the existing dependency helper. The native environment was installed, and the helper was rerun through its supported default entry point. The original log is retained.
 - The Workspace root filesystem rejected nested `overlay2`; the private empty daemon was restarted with native Docker `vfs`. Every added condition uses the same recorded backing. The failure and successful actual storage receipts are retained.

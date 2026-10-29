@@ -5,7 +5,8 @@ import json
 HERE=Path(__file__).resolve().parent
 abi_helpers=runpy.run_path(str(HERE.parent/'network/freeze.py'))
 canonical=abi_helpers['canonical'];abi_fields=abi_helpers['fields']
-os.environ.update(BU_ANALYSIS_RAW='/workspaces/exp/benign-utility/raw/benchmark/expanded',BU_ANALYSIS_OUT='/workspaces/exp/benign-utility/benchmark/expanded/results',BU_ANALYSIS_COHORT='expanded_20261029')
+os.environ.update(BU_ANALYSIS_RAW=os.environ.get('BU_EXPANDED_RAW','/workspaces/exp/benign-utility/raw/benchmark/expanded-vm'),BU_ANALYSIS_OUT=os.environ.get('BU_EXPANDED_OUT','/workspaces/exp/benign-utility/benchmark/expanded/results'),BU_ANALYSIS_COHORT='expanded_20261029')
+Path(os.environ['BU_ANALYSIS_RAW']).mkdir(parents=True,exist_ok=True)
 _guard=(Path(os.environ['BU_ANALYSIS_OUT'])/'.export.lock').open('a+')
 fcntl.flock(_guard,fcntl.LOCK_EX)
 for filename in ('analyze.py','scope_audit.py','analyze.py'):runpy.run_path(str(HERE.parent/filename),run_name='__main__')
@@ -21,7 +22,7 @@ trials=read('trials.csv');calls=read('calls.csv');events=read('interventions.csv
 for trial in trials:
  directory=Path(trial['raw_result']).parent/'agent'
  scope=json.loads((directory/'scope.json').read_text()) if (directory/'scope.json').exists() else {}
- trial.update(runtime_storage_backing=scope.get('runtime_storage_backing','not_recorded'),runtime_storage_data_root=scope.get('runtime_storage_data_root','not_recorded'))
+ trial.update(runtime_environment_id=scope.get('runtime_environment_id','pre_amendment_host_supporting'),runtime_storage_backing=scope.get('runtime_storage_backing','not_recorded'),runtime_storage_data_root=scope.get('runtime_storage_data_root','not_recorded'))
  if trial['task']=='fix-code-vulnerability':
   verifier=Path(trial['raw_result']).parent/'verifier';reports=[]
   for name in ('original-repo-ctrf.json','ctrf.json'):
@@ -56,7 +57,7 @@ if policy_audit:write('executed-policy-equivalence.csv',policy_audit,list(policy
 selected=set()
 for trial in sorted(trials,key=lambda r:(r['trial_started_at'],r['trial_id'])):
  key=trial['task'],trial['condition'];trial['selected_for_comparison']='0'
- if key not in selected and trial['comparison_cohort']=='expanded_20261029' and trial['outcome_valid']=='1' and trial['instrumentation_coverage']=='complete' and trial['effective_run_status'] in ('complete','official_timeout','defense_forced_failure','agent_error') and trial['outcome_score']!='' and str(trial['policy_fields_verified']) in ('not_applicable','1'):
+ if key not in selected and trial['runtime_environment_id']=='workspace_kvm_guest_20261029' and trial['comparison_cohort']=='expanded_20261029' and trial['outcome_valid']=='1' and trial['instrumentation_coverage']=='complete' and trial['effective_run_status'] in ('complete','official_timeout','defense_forced_failure','agent_error') and trial['outcome_score']!='' and str(trial['policy_fields_verified']) in ('not_applicable','1'):
   trial['selected_for_comparison']='1';selected.add(key)
 selection={r['trial_id']:r['selected_for_comparison'] for r in trials}
 for call in calls:call['selected_for_comparison']=selection[call['trial_id']]
@@ -86,7 +87,7 @@ for trial in trials:
  actual=[e for e in events if e['trial_id']==trial['trial_id'] and e['is_intervention']=='1']
  eligible=[c for c in calls if c['trial_id']==trial['trial_id'] and c['coverage']=='complete' and c['action_kind'] in ('command','interrupt')]
  trial.update(unattributed_intervention_events=sum(e['call_index']=='0' for e in actual),intervened_calls=sum(int(c['intervened']) for c in eligible),confirmed_false_events=sum(e['adjudication']=='false_intervention' for e in actual),confirmed_true_events=sum(e['adjudication']=='true_violation' for e in actual),unknown_events=sum(e['adjudication']=='unknown' for e in actual),action_attribution_method='independent origin verification; otherwise explicit unassigned')
-extras={'trials.csv':['action_attribution_method','policy_fields_verified','runtime_storage_backing','runtime_storage_data_root','required_verifier_reports'],'calls.csv':['attribution_method'],'interventions.csv':['temporal_call_index','temporal_action_kind','action_attribution','origin_evidence']}
+extras={'trials.csv':['action_attribution_method','policy_fields_verified','runtime_environment_id','runtime_storage_backing','runtime_storage_data_root','required_verifier_reports'],'calls.csv':['attribution_method'],'interventions.csv':['temporal_call_index','temporal_action_kind','action_attribution','origin_evidence']}
 for name,rows in [('trials.csv',trials),('calls.csv',calls),('interventions.csv',events)]:write(name,rows,fields(name)+extras[name])
 for row in read('protected-results.csv'):
  path=OUT.parent.parent/row['path']

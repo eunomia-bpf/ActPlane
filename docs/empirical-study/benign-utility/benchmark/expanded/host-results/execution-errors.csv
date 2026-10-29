@@ -1,0 +1,3 @@
+task,condition,attempt,utc,error
+extract-moves-from-video,,,2026-10-29T18:40:54Z,"CalledProcessError(127, ['docker', 'run', '--rm', '--read-only', '--network', 'none', '--entrypoint', 'python3', '--volume', '/workspaces/exp/benign-utility/src/benchmark/expanded/inventory_image.py:/inventory/inventory_image.py:ro', 'alexgshaw/extract-moves-from-video:20251031', '-B', '/inventory/inventory_image.py'])"
+adaptive-rejection-sampler,,,2026-10-29T18:40:59Z,"CalledProcessError(127, ['docker', 'run', '--rm', '--read-only', '--network', 'none', '--entrypoint', 'python3', '--volume', '/workspaces/exp/benign-utility/src/benchmark/expanded/inventory_image.py:/inventory/inventory_image.py:ro', 'alexgshaw/adaptive-rejection-sampler:20251031', '-B', '/inventory/inventory_image.py'])"

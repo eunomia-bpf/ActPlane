@@ -15,17 +15,22 @@ class ExpandedTerminus(InstrumentedTerminus):
   super().__init__(*args,**kwargs)
  async def _setup_measured(self,environment):
   seal=json.loads((ROOT/'task-seals'/f'{self.bu_task}.json').read_text())
+  frozen=json.loads((ROOT/'environment-freeze.json').read_text())
+  assert seal['environment_id']==frozen['environment_id']=='workspace_kvm_guest_20261029'
+  assert Path('/proc/sys/kernel/random/boot_id').read_text().strip()==frozen['boot_id']
+  assert os.uname().release==frozen['kernel_release']
+  assert 'bpf' in Path('/sys/kernel/security/lsm').read_text().strip().split(',')
   for relative,expected in seal['files'].items():
    assert hashlib.sha256((ROOT/relative).read_bytes()).hexdigest()==expected,'Frozen cohort artifact changed'
   for relative,expected in seal.get('runtime_code',{}).items():
    assert hashlib.sha256((Path(__file__).parent.parent/relative).read_bytes()).hexdigest()==expected,'Frozen runtime code changed'
   assert hashlib.sha256((BASE/'engine/process').read_bytes()).hexdigest()==seal['engine_sha256']
   await super()._setup_measured(environment)
+  if self.bu_condition!='a':assert 'ActPlane: enforce mode' in (self.bu_logs/'engine.log').read_text(),'Native denial unavailable: stop before model generation'
   scope=json.loads((self.bu_logs/'scope.json').read_text())
   daemon=json.loads(subprocess.check_output(['docker','info','--format','{{json .}}'],text=True))
-  assert daemon['DockerRootDir']=='/tmp/benign-utility-expanded-docker'
-  assert daemon['Driver']=='vfs'
-  scope.update(runtime_storage_backing='workspace_ephemeral_vfs',runtime_storage_data_root=daemon['DockerRootDir'])
+  assert daemon['DockerRootDir']==frozen['docker_data_root'] and daemon['Driver']==frozen['docker_driver']
+  scope.update(runtime_environment_id=frozen['environment_id'],runtime_storage_backing='kvm_guest_ext4_'+daemon['Driver'],runtime_storage_data_root=daemon['DockerRootDir'],kernel_release=frozen['kernel_release'],boot_id=frozen['boot_id'])
   images=list(__import__('csv').DictReader((ROOT/'results/image-inventory.csv').open()))
   expected=next(r['image_id'] for r in images if r['task']==self.bu_task)
   actual=subprocess.check_output(['docker','inspect','--format','{{.Image}}',scope['container_id']],text=True).strip()

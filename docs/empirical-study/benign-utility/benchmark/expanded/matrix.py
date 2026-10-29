@@ -2,7 +2,7 @@
 import csv,fcntl,json,os,subprocess,sys,time,threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from benchmark.expanded.preflight import BASE,RAW,OUT,docker,receipt
+from benchmark.expanded.preflight import BASE,RAW,OUT,ENV,docker,receipt
 RAW.mkdir(exist_ok=True)
 lock=(RAW/'matrix.lock').open('a+');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 lock.seek(0);lock.truncate();lock.write(str(os.getpid()));lock.flush()
@@ -47,7 +47,7 @@ def group(task):
   result=docker(['image','ls','-q',task['official_image']],capture_output=True,text=True)
   if result.stdout.strip():
    # Explicit tag removal never prunes another group's prepared image.
-   subprocess.run(['docker','image','rm',task['official_image']],env={**os.environ,'DOCKER_HOST':'unix://'+str(BASE/'docker.sock'),'DOCKER_CONFIG':str(BASE/'docker-config')},check=False)
+   subprocess.run(['docker','image','rm',task['official_image']],env=ENV,check=False)
 
 tasks=list(csv.DictReader((OUT/'tasks.csv').open()))
 with ThreadPoolExecutor(max_workers=3) as pool:list(pool.map(group,tasks))

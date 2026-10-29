@@ -1,0 +1,16 @@
+{
+  "image": {
+    "task": "extract-moves-from-video",
+    "image": "alexgshaw/extract-moves-from-video:20251031",
+    "image_id": "sha256:2c864464739e8dae1f4176727835ace7201402fb9dbdff25d177740e04ec05a3",
+    "repo_digests": "alexgshaw/extract-moves-from-video@sha256:14a9dcca7d08ce53c5a0ed9fbd663a996ef28f207c199ed69d9ccf6064f8b184",
+    "image_size_bytes": 78119250,
+    "architecture": "amd64",
+    "os": "linux",
+    "project_instruction_files": 0,
+    "inventory_interpreter": "read-only mounted official public CPython3.13.9; excluded from scanned image tree",
+    "utc": "2026-10-29T18:48:05Z"
+  },
+  "sources": [],
+  "known_private_sources": []
+}

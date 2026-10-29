@@ -1,0 +1,16 @@
+{
+  "image": {
+    "task": "write-compressor",
+    "image": "alexgshaw/write-compressor:20251031",
+    "image_id": "sha256:795a10ee52aa610a840b6587c5a1d2194175faa76c58879c8846a115b601902a",
+    "repo_digests": "alexgshaw/write-compressor@sha256:3618e1f8a997b437c09cd3dbaac736705809c05f6f12f584b65722175970ebe1",
+    "image_size_bytes": 777066819,
+    "architecture": "amd64",
+    "os": "linux",
+    "project_instruction_files": 0,
+    "inventory_interpreter": "read-only mounted official public CPython3.13.9; excluded from scanned image tree",
+    "utc": "2026-10-29T18:51:11Z"
+  },
+  "sources": [],
+  "known_private_sources": []
+}

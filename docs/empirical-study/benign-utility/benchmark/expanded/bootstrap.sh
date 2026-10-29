@@ -11,9 +11,9 @@ if [ ! -x "$RAW/expanded/venv/bin/python" ]; then
 fi
 "$RAW/expanded/venv/bin/pip" install harbor==0.25.0 > "$RAW/expanded/pip-install.log" 2>&1
 "$RAW/expanded/venv/bin/python" -m pip freeze > "$RAW/expanded/pip-freeze.txt"
-"$RAW/expanded/venv/bin/python" benchmark/install_compose.py
-bash benchmark/prepare_run.sh
-"$RAW/expanded/venv/bin/python" -m benchmark.dependencies
+"$RAW/expanded/venv/bin/python" benchmark/expanded/install_compose.py
+bash benchmark/expanded/daemon.sh
+"$RAW/expanded/venv/bin/python" -c 'from benchmark.expanded.dependencies import verifier_env; verifier_env()'
 bpftrace --version
 strace --version | head -1
 "$RAW/expanded/venv/bin/harbor" --version

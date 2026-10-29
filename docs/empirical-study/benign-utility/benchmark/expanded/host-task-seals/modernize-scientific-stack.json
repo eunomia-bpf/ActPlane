@@ -1,0 +1,21 @@
+{
+  "cohort": "expanded_20261029",
+  "model": "zai/glm-5.3",
+  "agent": "Harbor0.25.0 Terminus2 official defaults",
+  "repetitions": 1,
+  "files": {
+    "policies/modernize-scientific-stack/b.dsl": "d8abe36864526c91e5e014d80d486470eada3f68ade0b62d78f41efe4758c71a",
+    "policies/modernize-scientific-stack/c.dsl": "ca59cc065eb7e10c00e1422d1a877c054c9e1d79e8a4ec3be1730242ae8e4fb5",
+    "results/tasks.csv": "f6249c0c50562815914f3b14cf4d31362f09a617342246e407d9b1539f605b9b",
+    "results/per-task/modernize-scientific-stack.json": "89c48c8747e3e3212e8b743c5e83cbb27f61f53c2412b5a65a344d3284b810d2"
+  },
+  "runtime_code": {
+    "adapter.py": "5b17263abdf7feea554d631a3406c6ff50358b1b1bdb5c57fefbdd2c72e5ea28",
+    "expanded/adapter.py": "cf55e443973014b81973bd33e0747238b9d5342cb729b03b12947df0db0e6df2",
+    "expanded/run.py": "525a7bcd61ef4b68833b64d0e5cfa399a76efd2867bda2769fe972cfb5bd9735",
+    "expanded/collect_public.py": "f8220a9eedf076cb8d707733b4be9dd23a78e5ffe64a6790fe27a03421c7128d"
+  },
+  "engine_sha256": "981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520",
+  "compiler_sha256": "564ce43b9caa85117e630b7c0931da112e25e43e89fff065540f5ddd1443de01",
+  "frozen_before_model_utc": "2026-10-29T18:47:50Z"
+}

@@ -1,0 +1,9 @@
+task,condition,attempt,trial_id,terminal_submission_attempts,atif_logged_command_calls,native_commands_without_dispatch_receipt,dispatch_receipts_without_native_command
+fix-code-vulnerability,a,1,fix-code-vulnerability__VwSvwqK,11,11,0,0
+fix-code-vulnerability,b,block-1,fix-code-vulnerability__hYzKDTy,14,14,0,0
+fix-code-vulnerability,c,block-1,fix-code-vulnerability__pEPpzGT,13,13,0,0
+modernize-scientific-stack,a,1,modernize-scientific-stack__p5Nunaq,7,7,0,0
+modernize-scientific-stack,c,block-1,modernize-scientific-stack__6vy6iwX,7,7,0,0
+protein-assembly,a,1,protein-assembly__RBiY3fU,71,71,0,0
+qemu-alpine-ssh,a,1,qemu-alpine-ssh__sAqbyVM,36,36,0,0
+qemu-alpine-ssh,c,block-1,qemu-alpine-ssh__w5KFepp,32,32,0,0

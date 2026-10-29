@@ -1,0 +1,1 @@
+task,condition,attempt,trial_id,main_matrix,event_id,call_index,timestamp_ns,pid,session_root,effect,killed,blocked,is_intervention,target,provenance,adjudication,evidence,temporal_call_index,temporal_action_kind,action_attribution,origin_evidence
