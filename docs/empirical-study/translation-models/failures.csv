@@ -253,9 +253,8 @@ rq1,zai/glm-4.7-flash,langchain-ai__open-swe::28,access_failure,provider_capacit
 rq1,zai/glm-4.7-flash,langchain-ai__open-swe::29,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,langchain-ai__open-swe::30,access_failure,rate_limited
 rq1,zai/glm-4.7-flash,langchain-ai__open-swe::32,access_failure,rate_limited
-rq1,zai/glm-4.7-flash,manaflow-ai__cmux::38,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,manaflow-ai__cmux::4,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,manaflow-ai__cmux::40,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,manaflow-ai__cmux::4,compiler_failure,model_declared_unobservable
+rq1,zai/glm-4.7-flash,manaflow-ai__cmux::40,access_failure,ok
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::42,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::49,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::5,access_failure,provider_capacity
