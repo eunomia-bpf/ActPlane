@@ -45,7 +45,7 @@ def host_path(run, plan, path):
 
 def main():
     plans = {r['dynamic_id']: r for r in csv.DictReader((OUT / 'cohort.csv').open())}
-    candidates, summaries, interventions, unparsed_rows = [], [], [], []
+    candidates, summaries, interventions, unparsed_rows, retention_rows = [], [], [], [], []
     reviewed=reviewed_annotations()
     published={r['member_sha256']:r for r in csv.DictReader((OUT/'public-artifacts.csv').open())} if (OUT/'public-artifacts.csv').exists() else {}
     for run in sorted(ROOT.glob('open-audit-*/dynamic/runs/t*')):
@@ -64,6 +64,14 @@ def main():
         plan = plans[run.name]
         done = json.loads((run / 'done.json').read_text()) if (run / 'done.json').exists() else {}
         metadata=json.loads((run/'utility-metadata.json').read_text()) if (run/'utility-metadata.json').exists() else {}
+        retention=json.loads((run/'ram-retention-receipt.json').read_text()) if (run/'ram-retention-receipt.json').exists() else {}
+        for archive in retention.get('archives',[]):
+            retention_rows.append(dict(audit_condition=run.parents[2].name,dynamic_id=run.name,
+                archive=archive['name'],bytes=archive['bytes'],sha256=archive['sha256'],verification=archive['verification'],
+                completed_tool_actions=retention['completed_tool_actions'],
+                all_original_bytes_persisted=retention.get('all_original_bytes_persisted',False),
+                finished_utc=retention.get('finished_utc',''),
+                evidence_limit='Post-execution lossless retention only; excluded from primary timing'))
         mapping_epoch=None
         if (run/'sources.jsonl').exists() and metadata.get('clock_epoch_ns'):
             for line in (run/'sources.jsonl').read_text(errors='replace').splitlines():
@@ -216,6 +224,8 @@ def main():
             candidate_paths=len({r['raw_path'] for r in selected}),
             mapped_interval_candidate_names=sum(r['stage']!='setup-before-root-mapping' for r in selected),
             mapped_interval_unverified_paths=json.dumps(sorted({r['raw_path'] for r in selected if r['stage']!='setup-before-root-mapping' and r['published_artifact'] in ('','{}')})),
+            cache_backing=metadata.get('cache_backing','disk'),
+            ram_retention_persisted=retention.get('all_original_bytes_persisted',''),
             evidence_limit='Separate verification replay; its timings and events excluded from primary cohort'))
     write('open-audit-candidates.csv', candidates, list(candidates[0]) if candidates else [
         'audit_condition', 'dynamic_id', 'line', 'pid', 'timestamp_epoch', 'stage', 'syscall', 'name_index', 'raw_path',
@@ -229,6 +239,8 @@ def main():
         'audit_condition', 'dynamic_id', 'call_index', 'timestamp_ns', 'pid', 'blocked', 'killed',
         'intervened', 'source_path', 'target', 'adjudication', 'evidence'])
     write('open-audit-unparsed.csv',unparsed_rows,['audit_condition','dynamic_id','line','reason','record'])
+    write('ram-retention.csv',retention_rows,['audit_condition','dynamic_id','archive','bytes','sha256','verification',
+        'completed_tool_actions','all_original_bytes_persisted','finished_utc','evidence_limit'])
     print('Separate open audits:', len(summaries), 'candidate opens:', len(candidates))
 
 
