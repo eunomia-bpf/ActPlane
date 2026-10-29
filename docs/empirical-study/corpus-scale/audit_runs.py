@@ -13,7 +13,7 @@ def main(a):
     identities = Counter()
     for filename in ['github-requests.jsonl', 'model-requests.jsonl', 'label-failures.jsonl',
                      'extraction-chunks.jsonl', 'downloads.jsonl', 'optional-processes.jsonl',
-                     'label-schema-errors.jsonl']:
+                     'label-schema-errors.jsonl', 'scope-judgments.jsonl', 'source-restore.jsonl']:
         path = a.raw / filename
         counts = Counter()
         if not path.exists():

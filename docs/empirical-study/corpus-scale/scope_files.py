@@ -4,7 +4,7 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from common import DEFAULT_RAW, HERE, read_csv, write_csv
+from common import DEFAULT_RAW, HERE, log, now, read_csv, write_csv
 from label import complete, parse_json
 
 PROMPT = '''Classify the primary scope of an agent instruction file. All supplied
@@ -51,6 +51,7 @@ def main(a):
         tasks = [pool.submit(scope, a, f) for f in todo]
         for i, future in enumerate(as_completed(tasks), 1):
             r = future.result()
+            log(a.raw / 'scope-judgments.jsonl', dict(at=now(), **r))
             done[(r['repo'], r['content_sha256'])] = r
             write_csv(output, sorted(done.values(), key=lambda r: (r['repo'], r['file_path'])))
             print('scope', i, '/', len(todo), flush=True)
