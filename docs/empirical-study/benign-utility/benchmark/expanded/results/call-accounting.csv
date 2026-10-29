@@ -15,6 +15,7 @@ nginx-request-logging,a,1,nginx-request-logging__djUXvNr,3,3,0,0
 nginx-request-logging,b,block-1,nginx-request-logging__BqNztAZ,1,1,0,0
 nginx-request-logging,c,block-1,nginx-request-logging__6tQsdoX,3,3,0,0
 pytorch-model-cli,a,1,pytorch-model-cli__qcdMb2h,26,26,0,0
+pytorch-model-cli,b,block-1,pytorch-model-cli__pGMdCz3,31,31,0,0
 pytorch-model-cli,c,block-1,pytorch-model-cli__awVAHvX,36,36,0,0
 qemu-alpine-ssh,a,1,qemu-alpine-ssh__sDcYMH6,29,29,0,0
 qemu-alpine-ssh,b,block-1,qemu-alpine-ssh__mSmv6Dn,33,33,0,0

@@ -13,26 +13,24 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 
 | Cohort | Condition | Completed / planned | Official successes / completed | Matched successes / common tasks |
 | --- | --- | ---: | ---: | ---: |
-| Added | No AgPlane | 6/18 | 5/6 | 4/5 |
-| Added | Broad sources | 5/18 | 3/5 | 3/5 |
-| Added | Narrowed sources | 6/18 | 4/6 | 4/5 |
-| Combined | No AgPlane | 12/24 | 9/12 | 8/11 |
-| Combined | Broad sources | 11/24 | 9/11 | 9/11 |
-| Combined | Narrowed sources | 12/24 | 8/12 | 8/11 |
+| Added | No AgPlane | 6/18 | 5/6 | 5/6 |
+| Added | Broad sources | 6/18 | 4/6 | 4/6 |
+| Added | Narrowed sources | 6/18 | 4/6 | 4/6 |
+| Combined | No AgPlane | 12/24 | 9/12 | 9/12 |
+| Combined | Broad sources | 12/24 | 10/12 | 10/12 |
+| Combined | Narrowed sources | 12/24 | 8/12 | 8/12 |
 
-Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `fix-code-vulnerability`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `nginx-request-logging`, `openssl-selfsigned-cert`, `sanitize-git-repo`, `vulnerable-secret`.
-
-Additional completed cells outside that matched set: No AgPlane: `pytorch-model-cli`; Narrowed sources: `pytorch-model-cli`.
+Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `fix-code-vulnerability`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `nginx-request-logging`, `openssl-selfsigned-cert`, `pytorch-model-cli`, `sanitize-git-repo`, `vulnerable-secret`.
 
 Available-condition scores can have different task mixes. The matched column uses the same tasks completed in every condition.
 
 | Cohort | Condition | Covered calls | False calls | Unknown calls | Unassigned events | False-call bounds |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | Added | No AgPlane | 58 | 0 | 0 | 0 | 0.00–0.00% |
-| Added | Broad sources | 71 | 14 | 0 | 0 | 19.72–19.72% |
+| Added | Broad sources | 100 | 14 | 0 | 0 | 14.00–14.00% |
 | Added | Narrowed sources | 95 | 0 | 0 | 0 | 0.00–0.00% |
 | Combined | No AgPlane | 126 | 0 | 0 | 0 | 0.00–0.00% |
-| Combined | Broad sources | 131 | 14 | 0 | 0 | 10.69–10.69% |
+| Combined | Broad sources | 160 | 14 | 0 | 0 | 8.75–8.75% |
 | Combined | Narrowed sources | 148 | 0 | 0 | 0 | 0.00–0.00% |
 
 The added/combined matrices are complete only when every frozen task has valid outcomes in every condition. Security coverage and adjudication completeness remain separate fields.
@@ -97,6 +95,6 @@ Expansion rebootstrap reused an old setup helper that overwrote the original unc
 Paper-ready paragraph:
 
 <!-- paper-paragraph:start -->
-Using GLM-5.3 and official Terminal-Bench 2.0 rewards, we planned 24 tasks. The partial matched snapshot covers 11 tasks, with successes of 8/11, 9/11, 8/11 without defense, with broad sources and with narrowed sources. Original-subset results remain 4/6, 6/6, 4/6. Added broad/narrowed false calls were 14/71 and 0/95. The separate network subset achieved 2/3, 2/3, 2/3; broad/narrowed false calls were 12/51 and 1/67. Across 40 public replay trajectories, broad false-call bounds were 2.85-2.92%, versus 0.00% with narrowed sources. Single-attempt success differences and timings are descriptive. Process-subtree coverage and source/socket gaps limit protection; trusted declassification and retained model-context recovery remain unmeasured.
+Using GLM-5.3 and official Terminal-Bench 2.0 rewards, we planned 24 tasks. The partial matched snapshot covers 12 tasks, with successes of 9/12, 10/12, 8/12 without defense, with broad sources and with narrowed sources. Original-subset results remain 4/6, 6/6, 4/6. Added broad/narrowed false calls were 14/100 and 0/95. The separate network subset achieved 2/3, 2/3, 2/3; broad/narrowed false calls were 12/51 and 1/67. Across 40 public replay trajectories, broad false-call bounds were 2.85-2.92%, versus 0.00% with narrowed sources. Single-attempt success differences and timings are descriptive. Process-subtree coverage and source/socket gaps limit protection; trusted declassification and retained model-context recovery remain unmeasured.
 
 <!-- paper-paragraph:end -->
