@@ -47,6 +47,7 @@ do {
     if($LASTEXITCODE -ne 0){throw 'Branch push failed; next iteration will retry'}
     $Force=$false
   } catch {
+    $Force=$true
     Write-Output ('Checkpoint retry: '+$_)
     if(-not $Watch){throw}
   }
