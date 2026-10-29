@@ -1,10 +1,10 @@
 source,model,status,attempt,count
 github-requests.jsonl,,200,1,1085
-model-requests.jsonl,qwen3.8-27b-nvfp4,200,1,3289
+model-requests.jsonl,qwen3.8-27b-nvfp4,200,1,3810
 model-requests.jsonl,qwen3.8-27b-nvfp4,200,2,6
 model-requests.jsonl,qwen3.8-27b-nvfp4,ConnectionError,1,2
 model-requests.jsonl,qwen3.8-27b-nvfp4,ReadTimeout,1,4
-model-requests.jsonl,zai/glm-5.3,200,1,1639
+model-requests.jsonl,zai/glm-5.3,200,1,2145
 model-requests.jsonl,zai/glm-5.3,200,2,3
 model-requests.jsonl,zai/glm-5.3,429,1,2
 model-requests.jsonl,zai/glm-5.3,429,2,2
@@ -23,3 +23,11 @@ optional-processes.jsonl,,restart_to_apply_existing_schema_feedback_before_split
 optional-processes.jsonl,,restart_to_defer_optional_scope_and_use_six_primary_two_adjudication_slots,,1
 label-schema-errors.jsonl,qwen3.8-27b-nvfp4,inconsistent_context_applicability,,4
 scope-judgments.jsonl,qwen3.8-27b-nvfp4,ok,,131
+rescue-label-events.jsonl,qwen3.8-27b-nvfp4,"JSONDecodeError:Expecting ',' delimiter: line 1 column 18 (char 17)",,1
+rescue-label-events.jsonl,qwen3.8-27b-nvfp4,JSONDecodeError:Expecting property name enclosed in double quotes: line 1 column 3 (char 2),,1
+rescue-label-events.jsonl,qwen3.8-27b-nvfp4,JSONDecodeError:Expecting value: line 1 column 1 (char 0),,4
+rescue-label-events.jsonl,qwen3.8-27b-nvfp4,ValueError:bad_row_length,,1
+rescue-label-events.jsonl,qwen3.8-27b-nvfp4,invalid_or_missing_ids,,8
+rescue-label-events.jsonl,zai/glm-5.3,JSONDecodeError:Expecting value: line 1 column 1 (char 0),,117
+rescue-label-events.jsonl,zai/glm-5.3,invalid_or_missing_ids,,3
+rescue-controller.jsonl,,inference_completed,,1

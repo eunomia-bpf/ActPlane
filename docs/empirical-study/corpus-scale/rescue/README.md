@@ -34,7 +34,25 @@ Selected revision: `r1`. Frozen artifacts and hashes are recorded in `rescue/fro
 
 Predicted inapplicable context counts as disagreement on applicable-gold evaluation. Full confusion cells and missing predictions remain in the test CSVs. Earlier revisions have no test scores. Raw context headlines additionally require the enforcement gate because their denominator is system-observable policies.
 
-Expanded-corpus rescue inference is still in progress. A passing test gate permits deployment only after all frozen directives have complete paired predictions and adjudication. Until then, the headline table retains the previously accepted results and withholds the pending new axes.
+| Deployed axis | Passed | Evidence |
+|---|---|---|
+| enforceability | True | passed_test_gate |
+| context_required | True | passed_test_gate |
+
+Passing axes supersede the initial failed gates only through `rescue/deployment_gates.csv`. The initial calibration CSVs remain unchanged. Versioned source sidecars preserve named-model predictions and guide/context hashes. Original type/topic primary predictions are preserved, and `labels.csv` carries separate rescue provenance for the new axes.
+
+### Misclassification-corrected estimates
+
+These estimates use the frozen test confusion matrix and a constrained multinomial mixture fit. Repository bootstraps resample the test reference and the new corpus independently, preserving new discovery strata. They include confusion-matrix uncertainty but assume class-conditional error transfers to a different sample, additional file families and noncoding tasks. That assumption is unverified. A failed gate makes the corresponding correction exploratory. Corrections do not replace raw automatically labeled counts. They are conditional on the frozen directive set and do not correct segmentation or type-label errors.
+
+| Corrected overall metric | Estimate | Bootstrap interval | Status | Point diagnostic | Identifiable draws |
+|---|---:|---:|---|---|---:|
+| system_state_fraction | 73.6% | [66.4%, 80.0%] | corrected_estimate | ok | 2000/2000 |
+| os_enforceable_count | 7,062 | [5,858, 8,500] | corrected_estimate | ok | 2000/2000 |
+| context_required_fraction | 78.8% | [73.9%, 84.3%] | corrected_estimate | ok | 2000/2000 |
+| cross_event_project_share | 92.5% | [74.6%, 100.0%] | corrected_estimate | project_size_transport_unverified | 2000/2000 |
+
+All overall, file-family, repository-category and file-scope corrected estimates are in `rescue/corrected_summary.csv`. Project-share correction is limited to whole-project groups. Its sensitivity/specificity can change with the number of directives per repository, so project-size transport is especially uncertain. Matrix ranks, condition numbers, boundary solutions and missing classes are retained in the correction diagnostics. The committed bootstrap audit aggregates every status/reason, and the retained raw `rescue-correction-bootstrap.csv` records individual replicate outcomes including every failure. Intervals with insufficient identifiable fits are withheld. Independent enforcement and applicability/context matrices can imply different corrected system-observable denominators.
 
 ### Recompute accepted results
 

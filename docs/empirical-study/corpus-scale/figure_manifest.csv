@@ -1,7 +1,7 @@
 paper_figure,file,status,failed_dimensions,matplotlib_pdf_fonttype,repositories,statements
 2,figures/empirical_rq1_policy_fraction.pdf,ready,,42,325,30846
 3,figures/empirical_rq2_policy_ratio.pdf,ready,,42,325,30846
-4,figures/empirical-waterfall-enforcement-horizontal.pdf,withheld,enforceability,42,325,30846
-5,figures/empirical_rq3_enforcement_by_topic.pdf,withheld,enforceability,42,325,30846
-6,figures/empirical-waterfall-context-horizontal.pdf,withheld,"enforceability,context_required",42,325,30846
-7,figures/empirical_rq4_context_by_enforcement.pdf,withheld,"enforceability,context_required",42,325,30846
+4,figures/empirical-waterfall-enforcement-horizontal.pdf,ready,,42,325,30846
+5,figures/empirical_rq3_enforcement_by_topic.pdf,ready,,42,325,30846
+6,figures/empirical-waterfall-context-horizontal.pdf,ready,,42,325,30846
+7,figures/empirical_rq4_context_by_enforcement.pdf,ready,,42,325,30846

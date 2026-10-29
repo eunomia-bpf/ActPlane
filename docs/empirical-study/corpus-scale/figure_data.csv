@@ -336,7 +336,67 @@ empirical_rq2_policy_ratio,Configuration & Environment,policy,629,1660
 empirical_rq2_policy_ratio,Security,policy,700,1060
 empirical_rq2_policy_ratio,DevOps,policy,531,1070
 empirical_rq2_policy_ratio,Maintenance,policy,348,474
-empirical-waterfall-enforcement-horizontal,withheld,enforceability,,
-empirical_rq3_enforcement_by_topic,withheld,enforceability,,
-empirical-waterfall-context-horizontal,withheld,"enforceability,context_required",,
-empirical_rq4_context_by_enforcement,withheld,"enforceability,context_required",,
+empirical-waterfall-enforcement-horizontal,all,Semantic only,3857,16350
+empirical-waterfall-enforcement-horizontal,all,Content,5375,16350
+empirical-waterfall-enforcement-horizontal,all,Per event,4353,16350
+empirical-waterfall-enforcement-horizontal,all,Cross event,2765,16350
+empirical_rq3_enforcement_by_topic,Development Process,semantic_only,793,2713
+empirical_rq3_enforcement_by_topic,Implementation Details,semantic_only,493,3458
+empirical_rq3_enforcement_by_topic,Architecture,semantic_only,71,460
+empirical_rq3_enforcement_by_topic,Build and Run,semantic_only,54,1056
+empirical_rq3_enforcement_by_topic,AI Integration,semantic_only,1228,2666
+empirical_rq3_enforcement_by_topic,Testing,semantic_only,285,1983
+empirical_rq3_enforcement_by_topic,System Overview,semantic_only,17,21
+empirical_rq3_enforcement_by_topic,Documentation,semantic_only,608,1785
+empirical_rq3_enforcement_by_topic,Configuration & Environment,semantic_only,84,629
+empirical_rq3_enforcement_by_topic,Security,semantic_only,105,700
+empirical_rq3_enforcement_by_topic,DevOps,semantic_only,54,531
+empirical_rq3_enforcement_by_topic,Maintenance,semantic_only,65,348
+empirical_rq3_enforcement_by_topic,Development Process,content,543,2713
+empirical_rq3_enforcement_by_topic,Implementation Details,content,2445,3458
+empirical_rq3_enforcement_by_topic,Architecture,content,292,460
+empirical_rq3_enforcement_by_topic,Build and Run,content,20,1056
+empirical_rq3_enforcement_by_topic,AI Integration,content,416,2666
+empirical_rq3_enforcement_by_topic,Testing,content,482,1983
+empirical_rq3_enforcement_by_topic,System Overview,content,0,21
+empirical_rq3_enforcement_by_topic,Documentation,content,725,1785
+empirical_rq3_enforcement_by_topic,Configuration & Environment,content,130,629
+empirical_rq3_enforcement_by_topic,Security,content,182,700
+empirical_rq3_enforcement_by_topic,DevOps,content,57,531
+empirical_rq3_enforcement_by_topic,Maintenance,content,83,348
+empirical_rq3_enforcement_by_topic,Development Process,per_event,754,2713
+empirical_rq3_enforcement_by_topic,Implementation Details,per_event,315,3458
+empirical_rq3_enforcement_by_topic,Architecture,per_event,38,460
+empirical_rq3_enforcement_by_topic,Build and Run,per_event,806,1056
+empirical_rq3_enforcement_by_topic,AI Integration,per_event,792,2666
+empirical_rq3_enforcement_by_topic,Testing,per_event,519,1983
+empirical_rq3_enforcement_by_topic,System Overview,per_event,4,21
+empirical_rq3_enforcement_by_topic,Documentation,per_event,118,1785
+empirical_rq3_enforcement_by_topic,Configuration & Environment,per_event,326,629
+empirical_rq3_enforcement_by_topic,Security,per_event,335,700
+empirical_rq3_enforcement_by_topic,DevOps,per_event,239,531
+empirical_rq3_enforcement_by_topic,Maintenance,per_event,107,348
+empirical_rq3_enforcement_by_topic,Development Process,cross_event,623,2713
+empirical_rq3_enforcement_by_topic,Implementation Details,cross_event,205,3458
+empirical_rq3_enforcement_by_topic,Architecture,cross_event,59,460
+empirical_rq3_enforcement_by_topic,Build and Run,cross_event,176,1056
+empirical_rq3_enforcement_by_topic,AI Integration,cross_event,230,2666
+empirical_rq3_enforcement_by_topic,Testing,cross_event,697,1983
+empirical_rq3_enforcement_by_topic,System Overview,cross_event,0,21
+empirical_rq3_enforcement_by_topic,Documentation,cross_event,334,1785
+empirical_rq3_enforcement_by_topic,Configuration & Environment,cross_event,89,629
+empirical_rq3_enforcement_by_topic,Security,cross_event,78,700
+empirical_rq3_enforcement_by_topic,DevOps,cross_event,181,531
+empirical_rq3_enforcement_by_topic,Maintenance,cross_event,93,348
+empirical-waterfall-context-horizontal,all,Self-contained,2486,12493
+empirical-waterfall-context-horizontal,all,Project,9226,12493
+empirical-waterfall-context-horizontal,all,Task,781,12493
+empirical_rq4_context_by_enforcement,content,none,2068,5375
+empirical_rq4_context_by_enforcement,per_event,none,359,4353
+empirical_rq4_context_by_enforcement,cross_event,none,59,2765
+empirical_rq4_context_by_enforcement,content,project,3242,5375
+empirical_rq4_context_by_enforcement,per_event,project,3462,4353
+empirical_rq4_context_by_enforcement,cross_event,project,2522,2765
+empirical_rq4_context_by_enforcement,content,task,65,5375
+empirical_rq4_context_by_enforcement,per_event,task,532,4353
+empirical_rq4_context_by_enforcement,cross_event,task,184,2765

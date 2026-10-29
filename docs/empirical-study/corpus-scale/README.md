@@ -17,14 +17,14 @@ The new snapshot statement count includes all extracted sources, while the analy
 | Measure | Paper claim | Recovered labels | New automated labels (repository bootstrap interval) | Difference vs recovered |
 |---|---:|---:|---:|---:|
 | Policy / all statements | 64.0% | 64.3% | 53.0% [50.8%, 55.2%] | -11.3 pp [-18.8, -3.0] |
-| System-observable / policies | 83.0% | 82.8% | withheld | withheld |
-| Context needed / system-observable | 74.0% | 73.6% | withheld | withheld |
-| Repositories with cross-event policies | 81.0% | 79.7% | withheld | withheld |
-| OS-tier policy candidates (count) | 607 | 607 | withheld | withheld |
+| System-observable / policies | 83.0% | 82.8% | 76.4% [74.5%, 78.3%] | -6.4 pp [-11.3, -0.7] |
+| Context needed / system-observable | 74.0% | 73.6% | 80.1% [77.3%, 82.7%] | +6.5 pp [+0.6, +12.2] |
+| Repositories with cross-event policies | 81.0% | 79.7% | 86.5% [82.8%, 90.2%] | +6.8 pp [-3.5, +17.7] |
+| OS-tier policy candidates (count) | 607 | 607 | 7,118 [6,427, 7,897] | +6,511 [+5,768, +7,297] |
 
 The collected manifest covers 325 repositories and 771 selected instruction paths (761 distinct repository/content pairs). The analysis includes 325 repositories and 30,846 statements. 0 extracted files await complete model pairs or final adjudication. 0 repositories are withheld until every selected source is successfully extracted and labeled.
 
-The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes.
+The OS-tier count is the union of per-event and cross-event taxonomy labels. It is a count of candidate policies, not evidence that the current ActPlane engine implements every semantic predicate. The system-state fraction uses the paper’s system-observable definition, including content predicates. It does not measure actual executions or observed state changes. Cross-event project prevalence also depends on how many files and directives are observed in each repository, so expanded file coverage affects comparison with the historical primary-file annotations.
 
 ## Historical recovery and calibration
 
@@ -97,9 +97,11 @@ Agreement between the primary models on the analyzed new spans is reported separ
 
 | New-corpus intermodel dimension | Paired statements | Disagreements | Raw agreement | Kappa |
 |---|---:|---:|---:|---:|
+| context_required | 12493 | 2489 | 0.801 | 0.551 |
+| enforceability | 16350 | 3508 | 0.785 | 0.709 |
 | topic | 30846 | 9082 | 0.706 | 0.670 |
 | type | 30846 | 3149 | 0.898 | 0.795 |
-| any_scaled_axis | 30846 | 11126 | 0.639 | undefined |
+| any_scaled_axis | 30846 | 14420 | 0.533 | undefined |
 
 ## Enforcement and context rescue
 
@@ -137,7 +139,25 @@ Selected revision: `r1`. Frozen artifacts and hashes are recorded in `rescue/fro
 
 Predicted inapplicable context counts as disagreement on applicable-gold evaluation. Full confusion cells and missing predictions remain in the test CSVs. Earlier revisions have no test scores. Raw context headlines additionally require the enforcement gate because their denominator is system-observable policies.
 
-Expanded-corpus rescue inference is still in progress. A passing test gate permits deployment only after all frozen directives have complete paired predictions and adjudication. Until then, the headline table retains the previously accepted results and withholds the pending new axes.
+| Deployed axis | Passed | Evidence |
+|---|---|---|
+| enforceability | True | passed_test_gate |
+| context_required | True | passed_test_gate |
+
+Passing axes supersede the initial failed gates only through `rescue/deployment_gates.csv`. The initial calibration CSVs remain unchanged. Versioned source sidecars preserve named-model predictions and guide/context hashes. Original type/topic primary predictions are preserved, and `labels.csv` carries separate rescue provenance for the new axes.
+
+### Misclassification-corrected estimates
+
+These estimates use the frozen test confusion matrix and a constrained multinomial mixture fit. Repository bootstraps resample the test reference and the new corpus independently, preserving new discovery strata. They include confusion-matrix uncertainty but assume class-conditional error transfers to a different sample, additional file families and noncoding tasks. That assumption is unverified. A failed gate makes the corresponding correction exploratory. Corrections do not replace raw automatically labeled counts. They are conditional on the frozen directive set and do not correct segmentation or type-label errors.
+
+| Corrected overall metric | Estimate | Bootstrap interval | Status | Point diagnostic | Identifiable draws |
+|---|---:|---:|---|---|---:|
+| system_state_fraction | 73.6% | [66.4%, 80.0%] | corrected_estimate | ok | 2000/2000 |
+| os_enforceable_count | 7,062 | [5,858, 8,500] | corrected_estimate | ok | 2000/2000 |
+| context_required_fraction | 78.8% | [73.9%, 84.3%] | corrected_estimate | ok | 2000/2000 |
+| cross_event_project_share | 92.5% | [74.6%, 100.0%] | corrected_estimate | project_size_transport_unverified | 2000/2000 |
+
+All overall, file-family, repository-category and file-scope corrected estimates are in `rescue/corrected_summary.csv`. Project-share correction is limited to whole-project groups. Its sensitivity/specificity can change with the number of directives per repository, so project-size transport is especially uncertain. Matrix ranks, condition numbers, boundary solutions and missing classes are retained in the correction diagnostics. The committed bootstrap audit aggregates every status/reason, and the retained raw `rescue-correction-bootstrap.csv` records individual replicate outcomes including every failure. Intervals with insufficient identifiable fits are withheld. Independent enforcement and applicability/context matrices can imply different corrected system-observable denominators.
 
 ### Recompute accepted results
 
@@ -240,29 +260,29 @@ The collected repositories have a star range of 12,209–458,063, with median 40
 
 | Family | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| .cursor/rules/* | 19 | 298 | 63.1% [52.8%, 70.6%] | withheld | withheld | withheld | withheld |
-| .cursorrules | 7 | 69 | 31.9% [11.1%, 53.8%] | withheld | withheld | withheld | withheld |
-| .windsurfrules | 1 | 4 | 50.0% [50.0%, 50.0%] | withheld | withheld | withheld | withheld |
-| AGENTS.md | 244 | 12184 | 55.7% [52.7%, 58.7%] | withheld | withheld | withheld | withheld |
-| CLAUDE.md | 173 | 4343 | 44.3% [37.0%, 51.2%] | withheld | withheld | withheld | withheld |
-| GEMINI.md | 20 | 270 | 52.6% [41.0%, 60.9%] | withheld | withheld | withheld | withheld |
-| SKILL.md | 243 | 11708 | 53.1% [49.7%, 56.4%] | withheld | withheld | withheld | withheld |
-| copilot-instructions.md | 64 | 2004 | 53.3% [48.6%, 58.9%] | withheld | withheld | withheld | withheld |
+| .cursor/rules/* | 19 | 298 | 63.1% [52.8%, 70.6%] | 63.3% [46.2%, 77.2%] | 75.6% [50.7%, 89.3%] | 36.8% [15.8%, 57.9%] | 47 [26, 69] |
+| .cursorrules | 7 | 69 | 31.9% [11.1%, 53.8%] | 81.8% [33.3%, 92.2%] | 16.7% [5.9%, 100.0%] | 14.3% [0.0%, 42.9%] | 3 [1, 5] |
+| .windsurfrules | 1 | 4 | 50.0% [50.0%, 50.0%] | 100.0% [100.0%, 100.0%] | 100.0% [100.0%, 100.0%] | 100.0% [100.0%, 100.0%] | 2 [2, 2] |
+| AGENTS.md | 244 | 12184 | 55.7% [52.7%, 58.7%] | 81.1% [78.9%, 83.3%] | 80.3% [77.3%, 83.0%] | 76.2% [70.9%, 81.2%] | 2,910 [2,543, 3,319] |
+| CLAUDE.md | 173 | 4343 | 44.3% [37.0%, 51.2%] | 79.3% [73.9%, 84.0%] | 82.3% [77.4%, 87.1%] | 37.6% [30.6%, 45.1%] | 879 [634, 1,193] |
+| GEMINI.md | 20 | 270 | 52.6% [41.0%, 60.9%] | 81.7% [55.6%, 90.6%] | 81.9% [49.5%, 96.6%] | 20.0% [5.0%, 40.0%] | 53 [15, 99] |
+| SKILL.md | 243 | 11708 | 53.1% [49.7%, 56.4%] | 70.3% [66.5%, 73.7%] | 80.0% [74.2%, 85.1%] | 64.2% [58.4%, 69.5%] | 2,794 [2,406, 3,233] |
+| copilot-instructions.md | 64 | 2004 | 53.3% [48.6%, 58.9%] | 78.0% [73.4%, 82.0%] | 77.3% [66.7%, 85.8%] | 70.3% [59.4%, 81.2%] | 433 [300, 579] |
 
 | Category | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| agent_frameworks | 124 | 12920 | 52.9% [49.2%, 56.4%] | withheld | withheld | withheld | withheld |
-| applications | 156 | 13071 | 54.1% [50.6%, 57.3%] | withheld | withheld | withheld | withheld |
-| noncoding_agents | 45 | 4855 | 50.4% [45.6%, 55.4%] | withheld | withheld | withheld | withheld |
+| agent_frameworks | 124 | 12920 | 52.9% [49.2%, 56.4%] | 75.8% [72.8%, 78.9%] | 80.7% [76.0%, 84.6%] | 87.1% [81.5%, 92.7%] | 3,125 [2,642, 3,657] |
+| applications | 156 | 13071 | 54.1% [50.6%, 57.3%] | 78.0% [75.4%, 80.7%] | 78.9% [74.4%, 82.6%] | 85.3% [79.5%, 90.4%] | 2,948 [2,498, 3,422] |
+| noncoding_agents | 45 | 4855 | 50.4% [45.6%, 55.4%] | 73.6% [68.5%, 78.2%] | 82.2% [75.4%, 87.6%] | 88.9% [80.0%, 95.6%] | 1,045 [858, 1,242] |
 
 | File_scope | Repositories | Statements | Policy [interval] | System [interval] | Context [interval] | Cross-event projects [interval] | OS-tier count [interval] |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| descriptive_reference | 3 | 75 | 22.7% [22.7%, 22.7%] | withheld | withheld | withheld | withheld |
-| general_agent_operations | 43 | 1237 | 60.7% [54.1%, 67.3%] | withheld | withheld | withheld | withheld |
-| mixed | 1 | 7 | 42.9% [42.9%, 42.9%] | withheld | withheld | withheld | withheld |
-| noncoding_assistance | 69 | 4315 | 50.0% [44.0%, 55.5%] | withheld | withheld | withheld | withheld |
-| software_development | 290 | 25096 | 53.3% [50.5%, 55.6%] | withheld | withheld | withheld | withheld |
-| unclear | 95 | 116 | 44.8% [35.9%, 53.4%] | withheld | withheld | withheld | withheld |
+| descriptive_reference | 3 | 75 | 22.7% [22.7%, 22.7%] | 88.2% [88.2%, 88.2%] | 100.0% [100.0%, 100.0%] | 33.3% [33.3%, 33.3%] | 9 [9, 9] |
+| general_agent_operations | 43 | 1237 | 60.7% [54.1%, 67.3%] | 56.6% [44.2%, 68.1%] | 71.8% [52.8%, 87.6%] | 34.9% [20.9%, 48.8%] | 309 [177, 473] |
+| mixed | 1 | 7 | 42.9% [42.9%, 42.9%] | 33.3% [33.3%, 33.3%] | 100.0% [100.0%, 100.0%] | 0.0% [0.0%, 0.0%] | 1 [1, 1] |
+| noncoding_assistance | 69 | 4315 | 50.0% [44.0%, 55.5%] | 70.2% [62.2%, 76.6%] | 75.3% [61.4%, 86.7%] | 66.7% [55.1%, 78.3%] | 1,045 [750, 1,380] |
+| software_development | 290 | 25096 | 53.3% [50.5%, 55.6%] | 78.8% [77.0%, 80.5%] | 81.1% [78.6%, 83.3%] | 88.3% [84.5%, 91.7%] | 5,751 [5,132, 6,392] |
+| unclear | 95 | 116 | 44.8% [35.9%, 53.4%] | 5.8% [0.0%, 12.5%] | 100.0% [100.0%, 100.0%] | 1.1% [0.0%, 3.2%] | 3 [0, 7] |
 
 Illustrative noncoding sources selected for email/calendar and meeting tasks are linked below. Scope judgments remain exploratory.
 
@@ -309,13 +329,13 @@ The repository-requested `oss-change-workflow` skill was unavailable in the inst
 |---|---|---|---|
 | 2 | [empirical_rq1_policy_fraction.pdf](figures/empirical_rq1_policy_fraction.pdf) | ready |  |
 | 3 | [empirical_rq2_policy_ratio.pdf](figures/empirical_rq2_policy_ratio.pdf) | ready |  |
-| 4 | [empirical-waterfall-enforcement-horizontal.pdf](figures/empirical-waterfall-enforcement-horizontal.pdf) | withheld | enforceability |
-| 5 | [empirical_rq3_enforcement_by_topic.pdf](figures/empirical_rq3_enforcement_by_topic.pdf) | withheld | enforceability |
-| 6 | [empirical-waterfall-context-horizontal.pdf](figures/empirical-waterfall-context-horizontal.pdf) | withheld | enforceability,context_required |
-| 7 | [empirical_rq4_context_by_enforcement.pdf](figures/empirical_rq4_context_by_enforcement.pdf) | withheld | enforceability,context_required |
+| 4 | [empirical-waterfall-enforcement-horizontal.pdf](figures/empirical-waterfall-enforcement-horizontal.pdf) | ready |  |
+| 5 | [empirical_rq3_enforcement_by_topic.pdf](figures/empirical_rq3_enforcement_by_topic.pdf) | ready |  |
+| 6 | [empirical-waterfall-context-horizontal.pdf](figures/empirical-waterfall-context-horizontal.pdf) | ready |  |
+| 7 | [empirical_rq4_context_by_enforcement.pdf](figures/empirical_rq4_context_by_enforcement.pdf) | ready |  |
 
 An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains the counts, denominators, and project fractions used by the plots. `figure_intervals.csv` gives repository-bootstrap intervals for every enforcement/context figure cell, including count intervals and the number of defined draws. These are raw-label intervals, separate from misclassification correction. `validate_figures.py` checks embedded fonts, placeholder text, and snapshot metadata against the actual PDFs. Its optional raster previews stay outside git for visual inspection.
 
 ## Paper-ready paragraph
 
-We broadened the sample across applications and agent frameworks and included an exploratory slice of noncoding task instructions. We expanded the characterization to 325 repositories and 30,846 statements from 761 files after byte deduplication within each repository, using a dated, commit-pinned GitHub snapshot spanning 8 instruction-file families. The automated labels mark 53.0% of statements as policies (95% repository-bootstrap interval 50.8%–55.2%). We calibrated named Qwen and GLM annotators against the recovered paper labels and withheld dimensions that failed the prespecified agreement gate. The enlarged corpus broadens repository and file-family coverage, although query selection, automated segmentation, and correlated model judgments limit generalization.
+We characterized 325 repositories and 30,846 statements in 761 files after byte deduplication within repositories, across 8 instruction-file families. Named Qwen and GLM annotators label 53.0% of statements as policies (95% repository-bootstrap interval 50.8%–55.2%). Among policies, 76.4% are system-observable, with 7,118 OS-tier candidates. Cross-event requirements appear in 86.5% of repositories. Of system-observable policies, 80.1% require project or task binding. A repository split was held out from codebook revision, although the reference had earlier aggregate diagnostic exposure. Scope includes exploratory noncoding instructions. Convenience sampling, automated segmentation, reference conventions, and correlated adjudication limit generalization.

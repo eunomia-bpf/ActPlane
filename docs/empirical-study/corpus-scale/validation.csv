@@ -40,4 +40,6 @@ unexpected_glm_model_identity,0,0,True
 glm_primary_successful_rows,30846,30846,True
 invalid_scaled_label_values,0,0,True
 values_in_withheld_dimensions,0,0,True
+enforcement_applicability_errors,0,0,True
+context_applicability_errors,0,0,True
 scaled_successful_rows,30846,30846,True
