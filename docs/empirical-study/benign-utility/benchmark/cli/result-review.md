@@ -1,5 +1,7 @@
 # Official installed CLI preflight result
 
+Owner execution report. Independent final evidence review is pending with the parent reviewer.
+
 The native Harbor Codex path now runs end to end. The first model-executed trial used Terminal-Bench 2.0 `cancel-async-tasks`, Codex CLI 0.165.0 and `gpt-6-astra`. It returned official reward 1 after all six native pytest tests passed. ATIF records three agent steps and two tool calls. This one-task preflight establishes feasibility only; it is not an estimated benchmark success rate or a defended-utility result.
 
 | Attempt | Actual execution | Official reward | Native tests | Interpretation |

@@ -20,7 +20,7 @@ RAW = BASE.parent / 'benchmark-cli'
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('task')
-    parser.add_argument('condition', choices=['a'])
+    parser.add_argument('condition', choices=['a', 'c'])
     parser.add_argument('--attempt', default='preflight-1')
     args = parser.parse_args()
     stat = os.statvfs('/workspaces')
@@ -37,11 +37,16 @@ async def main():
     # entering the job configuration or reproducibility receipts.
     for name in ('OPENAI_API_KEY', 'CODEX_API_KEY', 'OPENAI_BASE_URL'):
         os.environ.pop(name, None)
+    agent = dict(model_name='openai/gpt-6-astra', env={'METHOD': 'script'})
+    if args.condition == 'a':
+        agent['name'] = 'codex'
+    else:
+        agent['import_path'] = 'benchmark.cli.adapter:ControllerCodex'
     config = JobConfig.model_validate(dict(
         job_name=f'{args.task}-{args.condition}-{args.attempt}',
         jobs_dir=str(RAW / 'jobs'), n_concurrent_trials=1, n_attempts=1,
         verifier=dict(env=verifier_env()),
-        agents=[dict(name='codex', model_name='openai/gpt-6-astra', env={'METHOD': 'script'})],
+        agents=[agent],
         tasks=[dict(path=str(BASE / 'terminal-bench-2' / args.task),
                     source='terminal-bench@2.0')],
     ))
