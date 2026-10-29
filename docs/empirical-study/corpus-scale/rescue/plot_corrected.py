@@ -27,7 +27,7 @@ def main():
   label='Exploratory correction' if r['status'].startswith('exploratory') else 'Test-confusion correction'
   ax.text(.5,.88,label,ha='center',transform=ax.transAxes,fontsize=7,color='#8c2d04' if r['status'].startswith('exploratory') else '#444444')
   data.append(r)
- fig.suptitle('Misclassification-corrected estimates; transfer assumptions unverified',fontsize=9)
+ fig.suptitle('Misclassification-corrected estimates; transfer assumptions unverified\n95% repository-bootstrap intervals',fontsize=9)
  fig.tight_layout(rect=(0,0,1,.94));(OUT/'figures').mkdir(exist_ok=True)
  fig.savefig(OUT/'figures/corrected-prevalence.pdf',bbox_inches='tight');plt.close(fig)
  write_csv(OUT/'corrected_figure_data.csv',data)

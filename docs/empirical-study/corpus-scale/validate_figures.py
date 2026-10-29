@@ -59,6 +59,21 @@ def main():
                     root = DEFAULT_RAW / 'figure-pdf-preview'
                     root.mkdir(parents=True, exist_ok=True)
                     document[0].get_pixmap(dpi=180).save(root / (path.stem + '.png'))
+    corrected = HERE / 'rescue/figures/corrected-prevalence.pdf'
+    if corrected.exists():
+        data = corrected.read_bytes()
+        types = re.findall(rb'/Subtype\s*/(\w+)', data)
+        record('corrected_type3_fonts', 0, types.count(b'Type3'))
+        record('corrected_embedded_truetype', True, b'CIDFontType2' in types and b'/FontFile2' in data)
+        with pymupdf.open(corrected) as document:
+            record('corrected_page_count', 1, len(document))
+            visible = document[0].get_text()
+            record('corrected_transfer_caveat', True, 'transfer assumptions unverified' in visible)
+            record('corrected_figure_metric_cells', 4, len(read_csv(HERE / 'rescue/corrected_figure_data.csv')))
+            if args.previews:
+                root = DEFAULT_RAW / 'figure-pdf-preview'
+                root.mkdir(parents=True, exist_ok=True)
+                document[0].get_pixmap(dpi=180).save(root / 'corrected-prevalence.png')
     write_csv(HERE / 'figure_production_validation.csv', results)
     if not all(row['passed'] for row in results):
         raise SystemExit('Production figure validation failed')

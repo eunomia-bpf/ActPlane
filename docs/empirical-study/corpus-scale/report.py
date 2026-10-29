@@ -286,7 +286,7 @@ def main():
         table = ['## Figure handoff', '', '| Paper figure | PDF | Status | Unvalidated axes |', '|---|---|---|---|']
         for r in read_csv(HERE / 'figure_manifest.csv'):
             table.append(f'| {r["paper_figure"]} | [{r["file"].split("/")[-1]}]({r["file"]}) | {r["status"]} | {r["failed_dimensions"]} |')
-        table += ['', 'An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains the counts, denominators, and project fractions used by the plots. `validate_figures.py` checks embedded fonts, placeholder text, and snapshot metadata against the actual PDFs. Its optional raster previews stay outside git for visual inspection.', '']
+        table += ['', 'An interim PDF describes an incomplete analyzed subset. A withheld PDF is an explicit placeholder and must not be inserted as an updated paper result. `figure_data.csv` contains the counts, denominators, and project fractions used by the plots. `figure_intervals.csv` gives repository-bootstrap intervals for every enforcement/context figure cell, including count intervals and the number of defined draws. These are raw-label intervals, separate from misclassification correction. `validate_figures.py` checks embedded fonts, placeholder text, and snapshot metadata against the actual PDFs. Its optional raster previews stay outside git for visual inspection.', '']
         lines[-2:-2] = table
     if overall and coverage.get('analyzed_repositories') == coverage.get('collected_repositories'):
         valid = {k: r for k, r in overall.items() if r['status'] == 'ok'}

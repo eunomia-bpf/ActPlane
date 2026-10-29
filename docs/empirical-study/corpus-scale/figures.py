@@ -180,6 +180,8 @@ def main():
             matplotlib_pdf_fonttype=plt.rcParams['pdf.fonttype'],
             repositories=len(repos), statements=len(rows)))
     write_csv(HERE / 'figure_manifest.csv', manifest)
+    from rescue.figure_intervals import main as figure_intervals
+    figure_intervals()
 
 
 if __name__ == '__main__':

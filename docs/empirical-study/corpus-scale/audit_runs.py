@@ -13,7 +13,8 @@ def main(a):
     identities = Counter()
     for filename in ['github-requests.jsonl', 'model-requests.jsonl', 'label-failures.jsonl',
                      'extraction-chunks.jsonl', 'downloads.jsonl', 'optional-processes.jsonl',
-                     'label-schema-errors.jsonl', 'scope-judgments.jsonl', 'source-restore.jsonl']:
+                     'label-schema-errors.jsonl', 'scope-judgments.jsonl', 'source-restore.jsonl',
+                     'rescue-label-events.jsonl', 'rescue-controller.jsonl']:
         path = a.raw / filename
         counts = Counter()
         if not path.exists():
@@ -27,7 +28,7 @@ def main(a):
             model = r.get('model', '')
             if filename == 'model-requests.jsonl' and r.get('returned_model'):
                 identities[(model, r['returned_model'])] += 1
-            status = str(r.get('http_status', r.get('status', r.get('error', 'recorded'))))
+            status = str(r.get('http_status', r.get('status', r.get('error', r.get('event', 'recorded')))))
             if filename == 'label-failures.jsonl':
                 status = 'invalid_response_or_failed_request'
             attempt = str(r.get('attempt', ''))
