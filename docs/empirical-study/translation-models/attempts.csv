@@ -4794,11 +4794,14 @@ rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::2,ChromeDevTools__chr
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::2,ChromeDevTools__chrome-devtools-mcp__2,attempt-2,1,http_error,rate_limited,0,,,,,0,429,10.369445899035782,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::2,ChromeDevTools__chrome-devtools-mcp__2,attempt-2,2,http_error,provider_capacity,15,,,,,0,429,11.071275119902566,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::2,ChromeDevTools__chrome-devtools-mcp__2,attempt-2,3,http_error,provider_capacity,30,,,,,0,429,11.486540987156332,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::2,ChromeDevTools__chrome-devtools-mcp__2,attempt-2,4,http_error,rate_limited,60,,,,,0,429,11.212495235959068,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::2,ChromeDevTools__chrome-devtools-mcp__2,attempt-2,4,http_error,rate_limited,60,1793183189.8015614,,,,0,429,11.212495235959068,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::2,ChromeDevTools__chrome-devtools-mcp__2,attempt-2,5,transport_error,transport_timeout,0,1793249303.9363377,,,,0,,360.10874401801266,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::2,ChromeDevTools__chrome-devtools-mcp__2,attempt-2,6,ok,,239.99958324432373,1793249654.1779869,,zai/glm-4.7-flash,stop,1,,110.24132023798302,1,7505,5351,3,0,5279
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::3,ChromeDevTools__chrome-devtools-mcp__3,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,10.435172360157594,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::3,ChromeDevTools__chrome-devtools-mcp__3,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,11.204881302081048,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::3,ChromeDevTools__chrome-devtools-mcp__3,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.404561614152044,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::3,ChromeDevTools__chrome-devtools-mcp__3,attempt-1,4,http_error,rate_limited,60,,,,,0,429,11.094489600043744,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::3,ChromeDevTools__chrome-devtools-mcp__3,attempt-1,4,http_error,rate_limited,60,1793183036.8963037,,,,0,429,11.094489600043744,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::3,ChromeDevTools__chrome-devtools-mcp__3,attempt-1,5,ok,,0,1793249761.1802983,,zai/glm-4.7-flash,stop,1,,106.87788065103814,1,7469,6976,223,0,6933
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::4,ChromeDevTools__chrome-devtools-mcp__4,attempt-1,1,http_error,rate_limited,0,,,,,0,429,11.240668240003288,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::4,ChromeDevTools__chrome-devtools-mcp__4,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,11.43329900689423,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,ChromeDevTools__chrome-devtools-mcp::4,ChromeDevTools__chrome-devtools-mcp__4,attempt-1,3,http_error,rate_limited,30,,,,,0,429,10.945435374043882,0,0,0,0,0,0
