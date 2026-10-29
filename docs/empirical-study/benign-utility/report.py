@@ -104,6 +104,7 @@ def main():
             scored = [r for r in selected if r.get('outcome_success', '') != ''] if benchmark else []
             timing = []
             total_timing = []
+            timing_excluded_storage = 0
             success_differences = []
             for run in selected:
                 control = baseline.get(run[identity])
@@ -111,6 +112,9 @@ def main():
                     success_differences.append(number(control, 'outcome_score') - number(run, 'outcome_score'))
                 execution_key = 'agent_execution_s' if benchmark else 'elapsed_s'
                 total_key = 'wall_s' if benchmark else 'elapsed_s'
+                if not benchmark and control and (run.get('cache_backing') == 'tmpfs' or control.get('cache_backing') == 'tmpfs'):
+                    timing_excluded_storage += 1
+                    continue
                 if control and number(control, execution_key) > 0 and number(run, execution_key) > 0:
                     timing.append(number(run, execution_key) / number(control, execution_key))
                 if control and number(control, total_key) > 0 and number(run, total_key) > 0:
@@ -168,6 +172,7 @@ def main():
                 ipv4_connect_attempts=sum(number(r, 'inet4_connect_attempts') for r in selected)
                     if benchmark else sum(number(r, 'ipv4_connect_attempts') for r in selected_calls),
                 paired_sessions=len(timing),
+                paired_sessions_excluded_cache_tmpfs=timing_excluded_storage,
                 median_paired_execution_difference_pct=100 * (median(timing) - 1) if timing else '',
                 median_paired_total_difference_pct=100 * (median(total_timing) - 1) if total_timing else '',
                 security_matrix_complete=int(sum(r.get('coverage') == 'complete' for r in selected) == planned),
@@ -219,7 +224,9 @@ def render(rows, positions, out):
         axes[1].legend(fontsize=7)
     else:
         axes[1].text(.5, .5, 'Replay results pending', transform=axes[1].transAxes, ha='center')
-    fig.text(.5, .01, 'Process-subtree scope. Scoped condition measures source narrowing; trusted declassification is unmeasured.', ha='center', fontsize=7)
+    initial = [r for r in rows if r['dataset'] == 'Terminal-Bench']
+    context = 'Initial subset: no tracked IPv4 connects. ' if all(r['ipv4_connect_attempts'] == 0 for r in initial) else ''
+    fig.text(.5, .01, context+'Process-subtree scope; scoped narrows sources; trusted declassification unmeasured.', ha='center', fontsize=7)
     fig.tight_layout(rect=(0, .05, 1, 1))
     fig.savefig(out / 'benign-utility.pdf')
     fig.savefig(out / 'benign-utility.png', dpi=180)
