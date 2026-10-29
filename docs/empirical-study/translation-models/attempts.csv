@@ -6280,7 +6280,9 @@ rq1,zai/glm-4.7-flash,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-1,1,ok
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-2,1,http_error,provider_capacity,0,,,,,0,429,10.674947272054851,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-2,2,http_error,provider_capacity,15,,,,,0,429,10.955955489072949,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-2,3,http_error,provider_capacity,30,,,,,0,429,10.929649726953357,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-2,4,http_error,rate_limited,60,,,,,0,429,11.28143523586914,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-2,4,http_error,rate_limited,60,1793185467.4615839,,,,0,429,11.28143523586914,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-2,5,ok,,0,1793262607.516964,,zai/glm-4.7-flash,stop,1,,130.2283408162184,1,17810,4388,222,0,4343
+rq1,zai/glm-4.7-flash,manaflow-ai__cmux::73,manaflow-ai__cmux__73,attempt-3,1,ok,,0,1793262708.1135893,,zai/glm-4.7-flash,stop,1,,100.58136489382014,1,17886,1924,3,0,1880
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::74,manaflow-ai__cmux__74,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,10.469914914807305,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::74,manaflow-ai__cmux__74,attempt-1,2,http_error,rate_limited,15,,,,,0,429,10.574076224118471,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::74,manaflow-ai__cmux__74,attempt-1,3,http_error,rate_limited,30,,,,,0,429,10.58026698906906,0,0,0,0,0,0
