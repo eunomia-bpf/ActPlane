@@ -1,0 +1,179 @@
+attempt,dynamic_id,recorded_calls,executed_calls,fatal,observer_exit,elapsed_s,exclusion
+broad-t00-1793256136835343019,t00,21,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,59.942,"{""reasons"": [""fatal replay/instrumentation failure"", ""observer protocol changed before fixed full matrix"", ""unvalidated namespace root""]}"
+broad-t00-1793261242590128329,t00,21,20,RuntimeError: workspace disk limit reached,0,130.612,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t01-1793261351960464832,t01,34,34,,0,15.786,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+broad-t02-1793261365873190049,t02,39,39,,0,336.135,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t03-1793261701726383792,t03,55,55,,0,390.832,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t04-1793262038823953716,t04,43,43,,0,156.576,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t05-1793262191466787600,t05,22,22,,0,38.455,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t06-1793262225687095548,t06,62,62,,0,409.996,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t07-1793262605231334793,t07,90,90,,0,36.126,"{""reasons"": [""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t08-1793262635200606257,t08,27,27,,0,16.42,"{""reasons"": [""observer buffer differs from final validated protocol""]}"
+broad-t09-1793262651107607293,t09,17,17,,0,12.327,"{""reasons"": [""observer buffer differs from final validated protocol""]}"
+broad-t10-1793260690355042332,t10,11,11,,0,46.112,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+broad-t11-1793260736945431279,t11,18,18,,0,14.049,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+broad-t12-1793260750439754793,t12,21,21,,0,398.798,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t13-1793261094699353370,t13,28,28,,0,599.83,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t14-1793261607142784752,t14,7,7,,0,57.684,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t15-1793261660872635280,t15,13,13,,0,23.292,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+broad-t16-1793261681614578589,t16,28,28,,0,174.794,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t17-1793261834686836770,t17,28,28,,0,15.47,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t18-1793261849522639230,t18,15,15,,0,13.452,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+broad-t19-1793261862479636271,t19,11,11,,0,12.939,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+broad-t20-1793260470696332071,t20,36,36,,0,310.453,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t21-1793260779489083312,t21,36,36,,0,165.007,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t22-1793260934101311359,t22,33,33,,0,59.074,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t23-1793260993989168521,t23,13,13,,0,35.961,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t24-1793261033898536185,t24,24,24,,0,45.094,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t25-1793261082044980790,t25,9,9,,0,38.233,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t26-1793261119931148599,t26,72,72,,0,54.129,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t27-1793261174128342266,t27,71,71,,0,66.382,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t28-1793261242674990137,t28,19,19,,0,39.576,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t29-1793261282510642377,t29,64,64,,0,77.457,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t30-1793260455446719645,t30,25,25,,0,135.863,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t31-1793260592781346092,t31,32,32,,0,327.072,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t32-1793260917321020157,t32,53,53,,0,46.884,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t33-1793260962414515712,t33,24,24,,0,36.259,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t34-1793260999615137549,t34,26,26,,0,40.54,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t35-1793261042335715798,t35,27,27,,0,37.031,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t36-1793261085485145805,t36,44,44,,0,40.653,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t37-1793261128181498658,t37,70,70,,0,49.274,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t38-1793261179085365038,t38,27,27,,0,221.04,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+broad-t39-1793261400597402678,t39,40,40,,0,47.956,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t00-1793259510474528505,t00,21,20,RuntimeError: workspace disk limit reached,0,128.752,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+none-t01-1793259615986341148,t01,34,34,,0,10.135,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+none-t02-1793259625136563158,t02,39,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,382.12,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t03-1793259969664828763,t03,55,55,,0,356.728,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t04-1793260300947145679,t04,43,43,,0,165.91,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t05-1793260443534659929,t05,22,22,,0,169.847,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t06-1793260596284120936,t06,62,62,,0,563.285,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t07-1793261187239710086,t07,90,90,,0,32.589,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t08-1793261215327429216,t08,27,27,,0,19.921,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t09-1793261234404836742,t09,17,17,,0,8.529,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+none-t10-1793259510483904572,t10,11,11,,0,61.837,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+none-t11-1793259548751759691,t11,18,18,,0,11.455,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+none-t12-1793259557271742892,t12,21,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,437.525,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t13-1793259895040865249,t13,28,28,,0,650.25,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t14-1793260402700222108,t14,7,7,,0,49.709,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t15-1793260450957184570,t15,13,13,,0,19.074,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+none-t16-1793260466782096379,t16,28,28,,0,152.929,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t17-1793260621136222140,t17,28,28,,0,13.208,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t18-1793260633929556211,t18,15,15,,0,61.489,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t19-1793260681358114232,t19,11,11,,0,8.726,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+none-t20-1793259510712520798,t20,36,36,,0,321.555,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+none-t21-1793259823815360473,t21,36,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,123.428,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t22-1793260091895294282,t22,33,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,30.429,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t23-1793260142385738549,t23,13,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,32.474,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t24-1793260173023458884,t24,24,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,25.437,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t25-1793260211331721903,t25,9,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,26.77,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t26-1793260240668050693,t26,72,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,29.84,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t27-1793260288934891353,t27,71,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,21.839,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t28-1793260354891035748,t28,19,19,,0,32.259,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t29-1793260387939351541,t29,64,64,,0,83.02,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t30-1793259510719891766,t30,25,0,RuntimeError: workspace disk limit reached,,125.248,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t31-1793259644493468712,t31,32,32,,0,320.788,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+none-t32-1793259982451636744,t32,53,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,30.471,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t33-1793260019747295541,t33,24,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,32.5,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t34-1793260049308557205,t34,26,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,26.526,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t35-1793260082914790027,t35,27,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,31.143,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t36-1793260114190354283,t36,44,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,29.709,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t37-1793260150624791775,t37,70,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,22.309,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay"", ""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""per-instrument exit receipt missing/nonzero""]}"
+none-t38-1793260193962358151,t38,27,27,,0,214.796,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+none-t39-1793260409376332638,t39,40,40,,0,45.964,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t00-1793262663927752813,t00,21,20,RuntimeError: workspace disk limit reached,0,219.472,"{""reasons"": [""fatal replay/instrumentation failure"", ""incomplete recorded-call replay""]}"
+scoped-t10-1793261875437153847,t10,11,11,,0,44.456,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+scoped-t11-1793261918062514953,t11,18,18,,0,12.626,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol""]}"
+scoped-t12-1793261930429464887,t12,21,21,,0,436.517,"{""reasons"": [""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t13-1793262273107159446,t13,28,28,,0,526.793,"{""reasons"": [""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t14-1793262783666758065,t14,7,7,,0,53.419,"{""reasons"": [""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t15-1793262835864450959,t15,13,13,,0,21.095,"{""reasons"": [""observer buffer differs from final validated protocol""]}"
+scoped-t16-1793262855811835433,t16,28,28,,0,155.235,"{""reasons"": [""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t17-1793263011787160714,t17,28,28,,0,17.718,"{""reasons"": [""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t18-1793263028968789390,t18,15,15,,0,55.405,"{""reasons"": [""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t19-1793263088550943459,t19,11,11,,0,11.594,"{""reasons"": [""observer buffer differs from final validated protocol""]}"
+scoped-t20-1793261339965268324,t20,36,36,,0,302.927,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t21-1793261339997318468,t21,36,36,,0,292.563,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t22-1793261340027138070,t22,33,33,,0,55.188,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t23-1793261340046691380,t23,13,13,,0,36.264,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t24-1793261340067326391,t24,24,24,,0,44.107,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t25-1793261340080714346,t25,9,9,,0,37.436,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t26-1793261340101935893,t26,72,72,,0,71.405,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t27-1793261340121502570,t27,71,71,,0,87.005,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t28-1793261340135144540,t28,19,19,,0,60.609,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t29-1793261340146604853,t29,64,64,,0,97.737,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t30-1793261447808013051,t30,25,25,,0,142.274,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t31-1793261581995670585,t31,32,32,,0,333.389,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t32-1793261902237960981,t32,53,53,,0,44.743,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t33-1793261945972564293,t33,24,24,,0,66.512,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t34-1793261982024367052,t34,26,26,,0,68.386,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t35-1793262022229106250,t35,27,27,,0,50.921,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t36-1793262061107986082,t36,44,44,,0,56.513,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t37-1793262102777245324,t37,70,70,,0,54.326,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t38-1793262151380952781,t38,27,27,,0,223.105,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+scoped-t39-1793262372696462058,t39,40,40,,0,55.495,"{""reasons"": [""observer protocol changed before fixed full matrix"", ""observer buffer differs from final validated protocol"", ""observer helper failure/event loss""]}"
+t00-mapper-prefix-rejected,t00,21,0,RuntimeError: initial-namespace worker-root mapping failed,,59.415,{}
+t00-observer-and-toolchain-failure,t00,21,0,"RuntimeError: instrumentation failed: ns($p, "".pem"") || strcontains($p, ""credentials"") || strcontains($p, ""id_rsa"") || strcontains($p, ""oauth_creds"")) {
+                                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspaces/exp/benign-utility/src/replay/source_observer.bt:28:130-160: WARNING: 
+strcontains() is known to have verifier complexity issues when the product of both string sizes is larger than ~2000 bytes.
+
+If you're seeing errors, try clamping the string sizes. For example:
+* `str($ptr, 16)`
+* `path($ptr, 16)`
+        if (strcontains($p, "".env"") || strcontains($p, "".pem"") || strcontains($p, ""credentials"") || strcontains($p, ""id_rsa"") || strcontains($p, ""oauth_creds"")) {
+                                                                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ERROR: Error loading BPF program for fentry_vmlinux_security_file_permission_4. Use -v for full kernel error log.
+ERROR: Loading BPF object(s) failed.
+",,2.721,{}
+t00-observer-and-toolchain-failure-20261029T060436Z,t00,21,0,"RuntimeError: instrumentation failed: ERROR: Error loading BPF program for fentry_vmlinux_security_file_permission_4. Use -v for full kernel error log.
+ERROR: Loading BPF object(s) failed.
+",,2.299,{}
+t00-valid-preflight,t00,21,21,,0,172.565,{}

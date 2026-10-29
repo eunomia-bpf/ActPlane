@@ -1,4 +1,4 @@
-condition,planned_trajectories,complete_trajectories,recorded_calls,executed_calls,valid_covered_calls,exit_zero_calls,intervened_calls,intervention_events,fp_events,true_events,unknown_intervention_events,unattributed_intervention_events,source_read_accesses,ipv4_connect_attempts,call_elapsed_s
-none,40,0,1335,747,0,0,0,0,0,0,0,0,0,0,0
-broad,40,0,1335,1334,0,0,0,0,0,0,0,0,0,0,0
-scoped,40,2,1335,950,73,68,0,0,0,0,0,0,0,55,50.2768
+condition,enforcement_effect,planned_trajectories,complete_trajectories,recorded_calls,executed_calls,valid_covered_calls,exit_zero_calls,intervened_calls,intervention_events,fp_events,true_events,unknown_intervention_events,unattributed_intervention_events,source_read_accesses,ipv4_connect_attempts,call_elapsed_s
+none,none,40,39,1335,1334,1314,1164,0,0,0,0,0,0,3628,5020,2258.3782
+broad,block,40,11,1335,398,308,265,3,262,0,0,262,0,108,2027,616.5486999999999
+scoped,block,40,20,1335,745,745,673,0,0,0,0,0,0,3355,576,969.8616
