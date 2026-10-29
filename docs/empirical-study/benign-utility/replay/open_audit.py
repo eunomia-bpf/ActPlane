@@ -6,7 +6,9 @@ import json
 import os
 from pathlib import Path
 import re
+import tarfile
 from collections import defaultdict
+from adjudicate import reviewed_annotations
 
 ROOT = Path(os.environ['WS_RAW']) / 'replay'
 OUT = ROOT.parent.parent / 'replay/results'
@@ -41,7 +43,8 @@ def host_path(run, plan, path):
 
 def main():
     plans = {r['dynamic_id']: r for r in csv.DictReader((OUT / 'cohort.csv').open())}
-    candidates, summaries, interventions = [], [], []
+    candidates, summaries, interventions, unparsed_rows = [], [], [], []
+    reviewed=reviewed_annotations()
     for run in sorted(ROOT.glob('open-audit-*/dynamic/runs/t*')):
         trace = run / 'successful-opens.strace'
         if not trace.exists():
@@ -52,11 +55,14 @@ def main():
                  if r['label'] == 'SECRET'] if (run / 'compiled-sources.json').exists() else []
         pending, parsed, unparsed, failed = {}, 0, 0, 0
         selected = []
+        archive = None
         for number, line in enumerate(trace.read_text(errors='replace').splitlines(), 1):
             header = re.match(r'^(\d+)\s+(\d+\.\d+)\s+(.*)$', line)
             if not header:
                 if any(word + '(' in line for word in SYSCALLS):
                     unparsed += 1
+                    unparsed_rows.append(dict(audit_condition=run.parents[2].name,dynamic_id=run.name,
+                        line=number,reason='header',record=line))
                 continue
             pid, timestamp, body = header.groups()
             if '<unfinished ...>' in body:
@@ -67,27 +73,35 @@ def main():
                 resumed = re.match(r'^<\.\.\. \w+ resumed>(.*)$', body)
                 if not previous or not resumed:
                     unparsed += 1
+                    unparsed_rows.append(dict(audit_condition=run.parents[2].name,dynamic_id=run.name,
+                        line=number,reason='resumed record without matching start',record=line))
                     continue
                 number, timestamp, start = previous
                 body = start + resumed.group(1)
             if re.match(r'^(' + '|'.join(SYSCALLS) + r')\(.*\)\s+=\s+-\d+', body):
                 failed += 1
                 continue
-            call = re.match(r'^(' + '|'.join(SYSCALLS) + r')\((.*)\)\s+=\s+(\d+)(?:<(.*)>)?$', body)
+            call = re.match(r'^(' + '|'.join(SYSCALLS) + r')\((.*)\)\s+=\s+(\d+)(?:<(.*)>)?(?:\(deleted\))?$', body)
             if not call:
                 if any(word + '(' in body for word in SYSCALLS):
                     unparsed += 1
+                    unparsed_rows.append(dict(audit_condition=run.parents[2].name,dynamic_id=run.name,
+                        line=number,reason='return format',record=body))
                 continue
             syscall, arguments, result_fd, resolved = call.groups()
             parsed += 1
             names = list(re.finditer(r'"(?:[^"\\]|\\.)*"', arguments))
             if not names:
                 unparsed += 1
+                unparsed_rows.append(dict(audit_condition=run.parents[2].name,dynamic_id=run.name,
+                    line=number,reason='no decoded pathname',record=body))
             for name_index, quoted in enumerate(names):
                 try:
                     raw = ast.literal_eval('b' + quoted.group())
                 except (SyntaxError, ValueError):
                     unparsed += 1
+                    unparsed_rows.append(dict(audit_condition=run.parents[2].name,dynamic_id=run.name,
+                        line=number,reason='pathname C-string syntax',record=body))
                     continue
                 engine_path = raw[:ENGINE_PATH_BYTES]
                 matching = [r['pattern'] for r in rules if match(engine_path, r)]
@@ -103,6 +117,12 @@ def main():
                     data = file.read_bytes() if file and file.is_file() else None
                 except OSError:
                     data = None
+                if data is None and file and file.is_relative_to(run) and (run/'runtime.tar.gz').exists():
+                    if archive is None:archive=tarfile.open(run/'runtime.tar.gz','r:gz')
+                    try:
+                        member=archive.extractfile(file.relative_to(run).as_posix())
+                        data=member.read() if member else None
+                    except (KeyError,OSError):pass
                 selected.append(dict(audit_condition=run.parents[2].name, dynamic_id=run.name,
                     line=number, pid=pid, timestamp_epoch=timestamp, syscall=syscall, name_index=name_index,
                     raw_path=path, engine_path=engine_path.decode(errors='replace'),
@@ -115,6 +135,7 @@ def main():
                         and b'PRIVATE KEY-----' not in data)),
                     evidence_limit='Retained end-of-replay bytes; no automatic primary-event adjudication'))
         candidates.extend(selected)
+        if archive is not None:archive.close()
         owners = defaultdict(list)
         prefix = 'apti6e' + run.name[1:]
         if (run / 'sources.jsonl').exists():
@@ -149,6 +170,8 @@ def main():
                     source_path=(event.get('provenance') or {}).get('target', ''),
                     target=event.get('target', ''), adjudication='unknown',
                     evidence='Separate forensic replay; source/configuration evidence requires individual review'))
+                annotation=reviewed.get((run.parents[2].name,run.name,str(timestamp)))
+                if annotation:interventions[-1].update(adjudication=annotation['adjudication'],evidence=annotation['evidence'])
         summaries.append(dict(audit_condition=run.parents[2].name, dynamic_id=run.name,
             terminal=int(bool(done)), recorded_calls=done.get('recorded_calls', ''),
             executed_calls=done.get('executed_calls', ''), fatal=done.get('fatal', ''),
@@ -168,6 +191,7 @@ def main():
     write('open-audit-interventions.csv', interventions, list(interventions[0]) if interventions else [
         'audit_condition', 'dynamic_id', 'call_index', 'timestamp_ns', 'pid', 'blocked', 'killed',
         'intervened', 'source_path', 'target', 'adjudication', 'evidence'])
+    write('open-audit-unparsed.csv',unparsed_rows,['audit_condition','dynamic_id','line','reason','record'])
     print('Separate open audits:', len(summaries), 'candidate opens:', len(candidates))
 
 

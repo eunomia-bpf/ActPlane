@@ -19,12 +19,20 @@ ENGINE=Path('/workspaces/.agent-state/actplane-research/raw/translation-models-2
 
 def compact_closed_tool(run):
     """Share identical retained tool bytes only after the actual worker exited."""
-    if not (run/'done.json').exists() or not (run/'utility-metadata.json').exists():return 0
-    metadata=json.loads((run/'utility-metadata.json').read_text())
+    if not (run/'done.json').exists():return 0
+    metadata=json.loads((run/'utility-metadata.json').read_text()) if (run/'utility-metadata.json').exists() else {}
     pid=metadata.get('workspace_popen_pid')
-    # Never use an initial-kernel PID to inspect namespaced /proc. Older
-    # attempts without an explicit Workspace PID remain untouched.
-    if not pid or Path(f'/proc/{pid}').exists():return 0
+    # Never use an initial-kernel PID to inspect namespaced /proc.
+    if pid:
+        if Path(f'/proc/{pid}').exists():return 0
+    else:
+        # The copied harness waits/kills+waits the worker before done.json, then
+        # removes these disposable runtime trees. Their absence is an older
+        # attempt's cleanup completion proof, without inventing a namespace PID.
+        done=json.loads((run/'done.json').read_text())
+        payload=[run/name for name in ('repo','venv','tmp','home','cache')]
+        if (not done.get('run_phase','').startswith('benign-utility') or metadata.get('open_audit')
+                or any(path.exists() or path.is_symlink() for path in payload)):return 0
     tool=run/'replay/bin/uv'
     if tool.is_symlink() or not tool.is_file():return 0
     if not tool.resolve().is_relative_to(ROOT.resolve()):raise ValueError('tool outside owned raw directory')
@@ -40,6 +48,35 @@ def compact_closed_tool(run):
     temporary=tool.with_name('.uv-retained-'+uuid.uuid4().hex)
     os.link(canonical,temporary);os.replace(temporary,tool)
     return state.st_size if state.st_nlink==1 else 0
+
+
+def compact_closed_runtime(run):
+    """Archive a closed forensic runtime, compare every byte, then free copies."""
+    receipt=run/'utility-metadata.json'
+    if not (run/'done.json').exists() or not receipt.exists():return 0
+    metadata=json.loads(receipt.read_text())
+    pid=metadata.get('workspace_popen_pid')
+    if not metadata.get('open_audit') or not pid or Path(f'/proc/{pid}').exists():return 0
+    if not run.resolve().is_relative_to(ROOT.resolve()):raise ValueError('runtime outside owned raw directory')
+    payload=[name for name in ('repo','venv','tmp','home','cache') if (run/name).exists()]
+    archive=run/'runtime.tar.gz'
+    if not payload or archive.exists():return 0
+    for name in payload:
+        path=run/name
+        if path.is_symlink() or not path.resolve().is_relative_to(run.resolve()):raise ValueError('runtime payload escaped owned run')
+    size=sum(int(subprocess.check_output(['du','-sb',str(run/name)],text=True).split()[0]) for name in payload)
+    space=os.statvfs(run);headroom=int(space.f_blocks*space.f_frsize*.85)-(space.f_blocks-space.f_bavail)*space.f_frsize
+    # Conservatively budget an uncompressed copy before writing the archive.
+    if size*1.02+1048576>headroom:
+        print('Closed forensic archive waits for capacity:',run.name,size,'bytes',flush=True);return 0
+    temporary=run/'runtime.tar.gz.partial'
+    subprocess.run(['tar','--acls','--xattrs','--numeric-owner','-czf',str(temporary),'--',*payload],cwd=run,check=True)
+    subprocess.run(['gzip','-t',str(temporary)],check=True)
+    subprocess.run(['tar','--compare','--gzip','--file',str(temporary)],cwd=run,check=True)
+    temporary.rename(archive)
+    for name in payload:shutil.rmtree(run/name)
+    print('Archived closed forensic payload:',run.name,size,'bytes to',archive.stat().st_size,flush=True)
+    return size-archive.stat().st_size
 
 def write(name,rows):
     with (OUTPUT/name).open('w',newline='') as f:

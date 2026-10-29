@@ -102,6 +102,7 @@ def main():
                 coverage_detail='; '.join(errors),setup_failed_steps=done.get('setup_failed_steps',''),elapsed_s=done.get('elapsed_s',''),
                 root_pid=metadata.get('root_pid',''),root_pid_namespace=metadata.get('root_pid_namespace',''),source_observer_sha256=metadata.get('source_observer_sha256',''),
                 engine_environment=json.dumps(metadata.get('engine_environment','unknown'),sort_keys=True))
+            runrow.update(replay_batch_serialized=metadata.get('replay_batch_serialized','unknown'),batch_admission_s=metadata.get('batch_admission_s',''))
             runs.append(runrow)
             percall=defaultdict(list)
             for event in lines(run/'engine.jsonl'):

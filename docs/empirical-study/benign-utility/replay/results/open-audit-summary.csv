@@ -1,0 +1,4 @@
+audit_condition,dynamic_id,terminal,recorded_calls,executed_calls,fatal,trace_bytes,trace_sha256,parsed_successful_file_calls,unparsed_file_records,failed_file_calls,unfinished_file_records,candidate_file_names,candidate_paths,evidence_limit
+open-audit-block-broad,t05,1,22,22,,31619352,7e8edd1d814a6ec9c7d64de2dbe752e42ae0a60249327ebab14420a566719ca4,147637,0,0,0,20,9,Separate verification replay; its timings and events excluded from primary cohort
+open-audit-block-broad,t06,0,,,,18935583,4359579a0df723c5ff9fc5e95e9a73b17db6c4d2437021abdd0ddbefd608911a,74156,0,0,0,199,183,Separate verification replay; its timings and events excluded from primary cohort
+open-audit-block-broad,t20,1,36,36,,38431096,613427153fbd2c7042e0a431e976e256bf83a0071b5ae56a26b4b02466868ca4,179471,0,0,0,16,4,Separate verification replay; its timings and events excluded from primary cohort

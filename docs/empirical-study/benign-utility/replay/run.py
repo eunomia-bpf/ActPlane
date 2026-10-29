@@ -3,6 +3,7 @@
 import argparse
 import csv
 import gzip
+import fcntl
 import hashlib
 import importlib
 import json
@@ -15,7 +16,7 @@ import subprocess
 import struct
 import sys
 import time
-from prepare import compact_closed_tool
+from prepare import compact_closed_tool, compact_closed_runtime
 
 HERE = Path(__file__).resolve().parent
 ROOT = Path(os.environ['WS_RAW']) / 'replay'
@@ -113,10 +114,23 @@ def main():
     parser.add_argument('--open-audit',action='store_true',help='Separate untimed verification replay with standard successful-open tracing')
     parser.add_argument('--ids', default='')
     args = parser.parse_args()
+    admission_started=time.monotonic()
+    # Materialized dependencies reached several GiB in actual runs. Serialize
+    # future owned replay batches instead of compounding those working sets.
+    capacity_lock=(ROOT/'runtime.lock').open('a')
+    fcntl.flock(capacity_lock,fcntl.LOCK_EX)
+    for closed in ROOT.glob('open-audit-*/dynamic/runs/t*'):
+        compact_closed_runtime(closed)
     raw_name=('block-'+args.condition) if args.effect=='block' and args.condition!='none' else args.condition
     if args.open_audit:raw_name='open-audit-'+raw_name
     raw = ROOT / raw_name
     (raw / 'dynamic').mkdir(parents=True, exist_ok=True)
+    while True:
+        try:runner.disk_guard(raw);break
+        except RuntimeError as error:
+            if 'workspace disk limit reached' not in str(error):raise
+            print('Waiting before lazy-copy/materialization:',str(error),flush=True);time.sleep(5)
+    batch_admission_s=time.monotonic()-admission_started
     for name in ('toolchains', 'git-cache'):
         target = raw / 'dynamic' / name
         if target.is_symlink(): target.unlink()
@@ -212,6 +226,7 @@ def main():
             metadata['engine_environment']={name:os.environ.get(name) for name in (
                 'ACTPLANE_HOOK_PROFILE','ACTPLANE_ENABLE_ADVANCED_HOOKS','ACTPLANE_ADVANCED_TRACEPOINTS','ACTPLANE_RESERVE_FILE_FLOW')}
             metadata['enforcement_effect']='none' if args.condition=='none' else args.effect
+            metadata.update(replay_batch_serialized=True,batch_admission_s=batch_admission_s)
             metadata.update(open_audit=args.open_audit,clock_epoch_ns=time.time_ns(),clock_monotonic_ns=time.monotonic_ns())
             if args.open_audit:
                 metadata.update(open_audit_argv=worker_state['open_audit_argv'],
@@ -269,6 +284,7 @@ def main():
                 (target/'exclusion-reason.json').write_text(json.dumps(dict(reasons=reasons),indent=2))
         runner.replay(raw,plan,sorted(calls[plan['trajectory_id']],key=lambda c:c['call_index']),cleanup=not args.open_audit)
         compact_closed_tool(run)
+        if args.open_audit:compact_closed_runtime(run)
 
 
 if __name__=='__main__': main()

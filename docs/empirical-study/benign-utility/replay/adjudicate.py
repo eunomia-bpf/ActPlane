@@ -12,6 +12,10 @@ import zipfile
 ROOT = Path(os.environ['WS_RAW']) / 'replay'
 OUT = ROOT.parent.parent / 'replay/results'
 
+def reviewed_annotations():
+    path=Path(__file__).with_name('reviewed_interventions.csv')
+    return {(r['raw_condition'],r['dynamic_id'],r['timestamp_ns']):r for r in csv.DictReader(path.open())} if path.exists() else {}
+
 def sealed_inputs(event, original, calls, plan):
     run=ROOT/event.get('raw_condition',event['condition'])/'dynamic/runs'/event['dynamic_id']
     environment=json.loads((run/'environment.json').read_text()).get('variables',{})
@@ -76,6 +80,7 @@ def review(events, sources):
                     bundles.setdefault(digest, []).append(dict(wheel=str(wheel.relative_to(ROOT)), member=name,
                         wheel_sha256=wheel_digest, **proof))
     rows = []
+    reviewed=reviewed_annotations()
     for event in events:
         condition, dynamic_id = event['condition'], event['dynamic_id']
         prior = [r for r in sources if r['condition'] == condition and r['dynamic_id'] == dynamic_id
@@ -98,6 +103,8 @@ def review(events, sources):
                 'read in this trajectory is a verified public CA bundle. This establishes a candidate false '
                 'taint, but the resolved-read filter does not exclude raw-name aliases or opened-but-unread '
                 'competing sources. Independent open/configuration audit is required before confirming false.'))
+        annotation=reviewed.get((event.get('raw_condition',condition),dynamic_id,str(event['timestamp_ns'])))
+        if annotation:row.update(adjudication=annotation['adjudication'],evidence=annotation['evidence'])
         rows.append(row)
     print('Adjudicated', len(rows), 'events:', sum(r['adjudication']=='false_intervention' for r in rows),
           'confirmed false;', sum(r['adjudication']=='unknown' for r in rows), 'unknown', flush=True)
