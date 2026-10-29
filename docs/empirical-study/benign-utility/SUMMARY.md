@@ -13,16 +13,14 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 
 | Cohort | Condition | Completed / planned | Official successes / completed | Matched successes / common tasks |
 | --- | --- | ---: | ---: | ---: |
-| Added | No AgPlane | 4/18 | 3/4 | 2/3 |
-| Added | Broad sources | 4/18 | 2/4 | 2/3 |
-| Added | Narrowed sources | 3/18 | 2/3 | 2/3 |
-| Combined | No AgPlane | 10/24 | 7/10 | 6/9 |
-| Combined | Broad sources | 10/24 | 8/10 | 8/9 |
-| Combined | Narrowed sources | 9/24 | 6/9 | 6/9 |
+| Added | No AgPlane | 4/18 | 3/4 | 3/4 |
+| Added | Broad sources | 4/18 | 2/4 | 2/4 |
+| Added | Narrowed sources | 4/18 | 3/4 | 3/4 |
+| Combined | No AgPlane | 10/24 | 7/10 | 7/10 |
+| Combined | Broad sources | 10/24 | 8/10 | 8/10 |
+| Combined | Narrowed sources | 10/24 | 7/10 | 7/10 |
 
-Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `fix-code-vulnerability`, `git-leak-recovery`, `log-summary-date-ranges`, `modernize-scientific-stack`, `openssl-selfsigned-cert`, `sanitize-git-repo`, `vulnerable-secret`.
-
-Additional completed cells outside that matched set: No AgPlane: `hf-model-inference`; Broad sources: `hf-model-inference`.
+Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `fix-code-vulnerability`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `openssl-selfsigned-cert`, `sanitize-git-repo`, `vulnerable-secret`.
 
 
 <!-- expansion-status:end -->
