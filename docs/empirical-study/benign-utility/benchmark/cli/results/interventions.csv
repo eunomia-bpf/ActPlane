@@ -1,0 +1,2 @@
+job,call_index,phase,timestamp_ns,pid,session_root,comm,target,killed,blocked,effect,source_path,source_pid,source_timestamp_ns,adjudication
+cancel-async-tasks-c-controller-1,0,pre-tool/bootstrap,1692029632446452,3959114,3958411,tokio-rt-worker,172.64.155.209,True,False,kill,/installed-agent/codex-home/auth.json,3959114,1692029514703169,true strict-policy violation
