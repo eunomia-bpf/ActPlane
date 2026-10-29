@@ -69,7 +69,7 @@ The primary annotators are the direct, identity-verified `qwen3.8-27b-nvfp4` end
 
 Before inspecting the complete calibration, the scaling gate was fixed at final kappa ≥0.60, each primary-model kappa ≥0.40, and coverage ≥98%. Type must pass for any dependent result. Enforcement must pass before context may scale. These are study decisions rather than universal reliability standards. The same historical set is used for calibration and evaluation, so agreement is not a held-out generalization estimate.
 
-| Dimension | Scale? | Reason |
+| Initial full-guide dimension | Initial scale gate | Reason |
 |---|---|---|
 | type | True | passed |
 | topic | True | passed |
@@ -91,7 +91,7 @@ When some axes fail, a focused prompt containing only the requested coding-guide
 | inter_model | type | 2116 | 0.792 |
 | inter_model | topic | 2116 | 0.766 |
 
-**Poor agreement:** qwen on context_required (κ=0.147); glm on context_required (κ=0.205); adjudicated on context_required (κ=0.191). These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.
+**Poor agreement:** qwen on context_required (κ=0.147); glm on context_required (κ=0.205); adjudicated on context_required (κ=0.191). Under the initial codebook, these results did not justify scaling the reference convention. The prospective rescue below is reported separately. No claim is made that the model or the historical label is necessarily correct in every disagreement.
 
 Agreement between the primary models on the analyzed new spans is reported separately below. These figures describe annotator consistency, and do not measure accuracy against a new human reference. `scaled_model_agreement.csv` also reports family and repository-category breakdowns and missing pairs.
 
@@ -136,6 +136,8 @@ Selected revision: `r1`. Frozen artifacts and hashes are recorded in `rescue/fro
 | adjudicated | context_required | 865 | 0.835 | 0.679 |
 
 Predicted inapplicable context counts as disagreement on applicable-gold evaluation. Full confusion cells and missing predictions remain in the test CSVs. Earlier revisions have no test scores. Raw context headlines additionally require the enforcement gate because their denominator is system-observable policies.
+
+Expanded-corpus rescue inference is still in progress. A passing test gate permits deployment only after all frozen directives have complete paired predictions and adjudication. Until then, the headline table retains the previously accepted results and withholds the pending new axes.
 
 ### Recompute accepted results
 

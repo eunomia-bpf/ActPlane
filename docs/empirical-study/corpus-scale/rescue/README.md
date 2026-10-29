@@ -34,6 +34,8 @@ Selected revision: `r1`. Frozen artifacts and hashes are recorded in `rescue/fro
 
 Predicted inapplicable context counts as disagreement on applicable-gold evaluation. Full confusion cells and missing predictions remain in the test CSVs. Earlier revisions have no test scores. Raw context headlines additionally require the enforcement gate because their denominator is system-observable policies.
 
+Expanded-corpus rescue inference is still in progress. A passing test gate permits deployment only after all frozen directives have complete paired predictions and adjudication. Until then, the headline table retains the previously accepted results and withholds the pending new axes.
+
 ### Recompute accepted results
 
 From the corpus-scale directory, with the pinned Python requirements installed, the following commands recompute the accepted rescue outputs without model requests. Source-fidelity checks require the immutable raw files and contextual inputs. The frozen selection and single test-evaluation lock must be retained. Do not rerun development selection or inference to obtain a more favorable test score.

@@ -40,6 +40,8 @@ def render():
   lines+=['', '| Deployed axis | Passed | Evidence |', '|---|---|---|']
   for r in read_csv(deployment):lines.append(f'| {r["dimension"]} | {r["passed"]} | {r["reason"]} |')
   lines+=['', 'Passing axes supersede the initial failed gates only through `rescue/deployment_gates.csv`. The initial calibration CSVs remain unchanged. Versioned source sidecars preserve named-model predictions and guide/context hashes. Original type/topic primary predictions are preserved, and `labels.csv` carries separate rescue provenance for the new axes.']
+ elif tests.exists():
+  lines+=['', 'Expanded-corpus rescue inference is still in progress. A passing test gate permits deployment only after all frozen directives have complete paired predictions and adjudication. Until then, the headline table retains the previously accepted results and withholds the pending new axes.']
  corrected=OUT/'corrected_summary.csv'
  if corrected.exists():
   lines+=['', '### Misclassification-corrected estimates', '',
