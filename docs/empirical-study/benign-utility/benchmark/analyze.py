@@ -1,8 +1,9 @@
 """Export official Harbor rewards and separately labeled security diagnostics."""
-import bisect,csv,hashlib,json,re,struct
+import bisect,csv,hashlib,json,os,re,struct
 from datetime import datetime
 from pathlib import Path
-RAW=Path('/workspaces/exp/benign-utility/raw/benchmark');HERE=Path(__file__).parent;OUT=RAW.parent.parent/'benchmark/results';OUT.mkdir(parents=True,exist_ok=True)
+RAW=Path(os.environ.get('BU_ANALYSIS_RAW','/workspaces/exp/benign-utility/raw/benchmark'));HERE=Path(__file__).parent;OUT=Path(os.environ.get('BU_ANALYSIS_OUT','/workspaces/exp/benign-utility/benchmark/results'));OUT.mkdir(parents=True,exist_ok=True)
+COHORT=os.environ.get('BU_ANALYSIS_COHORT','native_denial_primary')
 tasks=[r['task'] for r in csv.DictReader((OUT/'tasks.csv').open())]
 audits={r['trial_id']:r for r in csv.DictReader((OUT/'error-audit.csv').open())} if (OUT/'error-audit.csv').exists() else {}
 scope_audits={r['trial_id']:r for r in csv.DictReader((OUT/'scope-audit.csv').open())} if (OUT/'scope-audit.csv').exists() else {}
@@ -157,7 +158,7 @@ for job in sorted((RAW/'jobs').glob('*')):
   if run_status=='infrastructure_failure' and effective not in ('defense_forced_failure','agent_error'):exclusions.append('native_infrastructure_failure')
   if outcome_score=='':exclusions.append('native_outcome_unavailable')
   cohort='legacy_or_preflight_supporting'
-  if corrected and common['main_matrix']:cohort='native_denial_primary' if condition=='a' or network_effect=='block' else 'corrected_kill_supporting'
+  if corrected and common['main_matrix']:cohort=COHORT if condition=='a' or network_effect=='block' else 'corrected_kill_supporting'
   trials[-1].update(comparison_cohort=cohort,comparison_exclusion_reason=';'.join(exclusions),verifier_download_url=download_url,verifier_python_install_mirror=verifier_env_record.get('UV_PYTHON_INSTALL_MIRROR',''),defense_root_killed=int(root_killed),network_effect=network_effect)
   for number,e in enumerate(matches,1):
    actual=e.get('killed') is True or e.get('blocked') is True
@@ -166,9 +167,9 @@ for job in sorted((RAW/'jobs').glob('*')):
 selected=set()
 for row in sorted(trials,key=lambda r:(r['trial_started_at'],r['trial_id'])):
  key=(row['task'],row['condition'])
- if row['comparison_cohort']=='native_denial_primary' and key not in selected and row['outcome_valid']=='1' and row['instrumentation_coverage']=='complete' and row['effective_run_status'] in ('complete','official_timeout','defense_forced_failure','agent_error') and row['outcome_score']!='':
+ if row['comparison_cohort']==COHORT and key not in selected and row['outcome_valid']=='1' and row['instrumentation_coverage']=='complete' and row['effective_run_status'] in ('complete','official_timeout','defense_forced_failure','agent_error') and row['outcome_score']!='':
   row['selected_for_comparison']=1;selected.add(key)
- elif row['comparison_cohort']=='native_denial_primary' and not row['comparison_exclusion_reason']:row['comparison_exclusion_reason']='later_valid_corrected_attempt'
+ elif row['comparison_cohort']==COHORT and not row['comparison_exclusion_reason']:row['comparison_exclusion_reason']='later_valid_corrected_attempt'
 selection={r['trial_id']:r['selected_for_comparison'] for r in trials}
 for row in calls_out:row['selected_for_comparison']=selection[row['trial_id']]
 write('trials.csv',trials,['task','condition','attempt','trial_id','main_matrix','selected_for_comparison','comparison_cohort','comparison_exclusion_reason','network_effect','model','run_status','native_run_status','effective_run_status','verifier_valid','verifier_status','verifier_observed_tests','verifier_report_path','verifier_evidence','verifier_download_url','trial_started_at','trial_finished_at','official_reward','official_success','exception_type','exception_message','wall_s','environment_setup_s','agent_setup_s','agent_execution_s','verifier_s','tool_calls','call_unit','atif_logged_tool_calls','atif_logged_command_calls','atif_nonterminal_tool_calls','dispatched_tool_calls','unexecuted_or_unmapped_command_calls','raw_rule_matches','intervention_events','killed_events','intervened_calls','confirmed_false_events','confirmed_true_events','unknown_events','failed_enforcement_events','unattributed_intervention_events','defense_root_killed','source_read_accesses','source_read_processes','source_paths','connect_attempts','inet4_connect_attempts','inet6_connect_attempts','unix_connect_attempts','coverage','engine_diagnostic_error','observer_helper_errors','kernel_root_verified','kernel_root_pid','workspace_root_pid','observer_sha256','observer_configured_string_bytes','observer_explicit_path_bytes','observer_effective_path_bytes','observer_configuration_source','engine_hook_environment','engine_reported_mode','policy_sha256','raw_result','outcome_valid','outcome_score','outcome_success','outcome_source','security_coverage_end_call','visibly_dispatched_calls','terminal_submission_attempts','empty_input_waits','failed_submission_attempts','instrumentation_coverage','verifier_python_install_mirror'])

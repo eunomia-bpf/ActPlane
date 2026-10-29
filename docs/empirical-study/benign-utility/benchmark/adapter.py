@@ -69,14 +69,14 @@ class InstrumentedTerminus(Terminus2):
    await asyncio.sleep(.1)
   else:raise RuntimeError('Observer never became ready')
   if self.bu_condition!='a':
-   policy=(Path(__file__).parent/'policies'/f'{self.bu_condition}.dsl').read_text()
+   policy=(getattr(self,'bu_policy_directory',Path(__file__).parent/'policies')/f'{self.bu_condition}.dsl').read_text()
    if self.bu_effect=='block':
-    assert policy.count('  kill connect')==1
-    policy=policy.replace('  kill connect','  block connect')
+    if policy.count('  kill connect')==1:policy=policy.replace('  kill connect','  block connect')
+    else:assert policy.count('  block connect')==1
    (self.bu_logs/'policy.dsl').write_text(policy)
    subprocess.run(['/workspaces/lanes/translation-models/target/release/actplane','--rule',policy,'compile','--out',str(self.bu_logs/'policy.bin'),'--force'],check=True,capture_output=True)
    self.bu_loader_log=(self.bu_logs/'engine.log').open('w')
-   self.bu_loader=subprocess.Popen([str(RAW/'engine/process'),'--config',str(self.bu_logs/'policy.bin'),'--seed-pid',str(root)],stdout=self.bu_loader_log,stderr=subprocess.STDOUT)
+   self.bu_loader=subprocess.Popen([str(RAW/'engine/process'),'--config',str(self.bu_logs/'policy.bin'),'--seed-pid',str(root),'--seed-label','0'],stdout=self.bu_loader_log,stderr=subprocess.STDOUT)
    for _ in range(600):
     if 'ActPlane: ready' in (self.bu_logs/'engine.log').read_text():break
     if self.bu_loader.poll() is not None:raise RuntimeError('Engine failed: '+(self.bu_logs/'engine.log').read_text()[-500:])

@@ -2,14 +2,19 @@
 
 Does not change a running trial or infer root survival from silence.
 """
-import csv,json,re
+import csv,json,os,re
 from pathlib import Path
 
-RAW=Path('/workspaces/exp/benign-utility/raw/benchmark')
-OUT=RAW.parent.parent/'benchmark/results'
+RAW=Path(os.environ.get('BU_ANALYSIS_RAW','/workspaces/exp/benign-utility/raw/benchmark'))
+OUT=Path(os.environ.get('BU_ANALYSIS_OUT','/workspaces/exp/benign-utility/benchmark/results'))
 trials=[r for r in csv.DictReader((OUT/'trials.csv').open()) if r['selected_for_comparison']=='1']
 rows=[];call_rows=[];candidates=[]
 known_exits={'git-leak-recovery__N6UvkVs':8,'openssl-selfsigned-cert__a7wefSt':9}
+known_failed={'git-leak-recovery__N6UvkVs':{10}}
+if (OUT/'lifecycle-audits.csv').exists():
+ for audit in csv.DictReader((OUT/'lifecycle-audits.csv').open()):
+  known_exits[audit['trial_id']]=int(audit['security_coverage_end_call'])
+  known_failed[audit['trial_id']]={int(i) for i in audit.get('failed_submission_calls','').split(',') if i}
 for trial in trials:
  directory=Path(trial['raw_result']).parent/'agent'
  scope=json.loads((directory/'scope.json').read_text())
@@ -57,7 +62,7 @@ for trial in trials:
   else:
    position=inputs.find(input_code,cursor)
    if position>=0:input_status='recorded_asciicast_input';cursor=position+len(input_code);dispatches+=1
-   elif trial['trial_id']=='git-leak-recovery__N6UvkVs' and index==10:input_status='failed_before_dispatch';failed+=1
+   elif index in known_failed.get(trial['trial_id'],set()):input_status='failed_before_dispatch';failed+=1
    elif cutoff and index>cutoff:
     # Independently checked in retained pane: outer-shell commands are visible
     # after recording finished, although they cannot occur in the inner cast.
