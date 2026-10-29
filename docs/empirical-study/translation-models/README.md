@@ -22,7 +22,7 @@ held-out sets, and no semantic deduplication is claimed.
 | qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 301 / 544 of 607 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
 | zai/glm-5.3 | 34 / 38 of 38 | 469 / 605 of 607 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
 | zai/glm-5.3-flash | 33 / 38 of 38 | 411 / 606 of 607 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 27 / 37 of 38 | 126 / 233 of 607 | 56.1% | 30.3% | 0.637 | 0 / 327 | $0.0000 |
+| zai/glm-4.7-flash | 27 / 37 of 38 | 127 / 235 of 607 | 56.1% | 30.3% | 0.637 | 0 / 324 | $0.0000 |
 | zai/glm-4.5-air | 33 / 38 of 38 | 403 / 604 of 607 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
 | gpt-6-astra | 27 / 38 of 38 | 273 / 572 of 607 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
 | claude-opus-4-6 | 30 / 38 of 38 | 400 / 607 of 607 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
@@ -36,7 +36,7 @@ trajectories. Individual transport records are in `attempts.csv`.
 
 | Model with access failures | Sample completed trajectories | Sample conditional compile@1 / @3 | Corpus completed trajectories | Corpus conditional compile@1 / @3 |
 | --- | --- | --- | --- | --- |
-| zai/glm-4.7-flash | 38 / 38 | 71.1% / 97.4% | 280 / 607 | 45.0% / 83.2% |
+| zai/glm-4.7-flash | 38 / 38 | 71.1% / 97.4% | 283 / 607 | 44.9% / 83.0% |
 
 Corpus accounting means include completed trials and known transport usage.
 Active wall time includes provider waits and compiler revisions. It excludes
@@ -48,7 +48,7 @@ tokens, and time are retained for both corpora in the translation CSVs.
 | qwen3.8-27b-nvfp4 | 607 | 21868.5 | 10289.0 | 824.8 | unmeasured | 446 |
 | zai/glm-5.3 | 607 | 15399.9 | 3766.4 | 71.6 | $0.0381 | 0 |
 | zai/glm-5.3-flash | 607 | 16836.1 | 4264.9 | 121.3 | $0.0047 | 5 |
-| zai/glm-4.7-flash | 607 | 11689.4 | 4249.0 | 264.1 | $0.0000 | 2188 |
+| zai/glm-4.7-flash | 607 | 11836.6 | 4277.7 | 265.1 | $0.0000 | 2188 |
 | zai/glm-4.5-air | 607 | 17378.9 | 4406.3 | 120.3 | $0.0083 | 3 |
 | gpt-6-astra | 607 | 38384.5 | 223.7 | 41.8 | $0.3950 | 20 |
 | claude-opus-4-6 | 607 | 19990.9 | 1704.5 | 207.7 | $0.1426 | 0 |
