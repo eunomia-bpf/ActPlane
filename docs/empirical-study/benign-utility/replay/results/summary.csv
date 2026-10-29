@@ -1,0 +1,4 @@
+condition,planned_trajectories,complete_trajectories,recorded_calls,executed_calls,valid_covered_calls,exit_zero_calls,intervened_calls,intervention_events,fp_events,true_events,unknown_intervention_events,unattributed_intervention_events,source_read_accesses,ipv4_connect_attempts,call_elapsed_s
+none,40,0,1335,747,0,0,0,0,0,0,0,0,0,0,0
+broad,40,0,1335,1334,0,0,0,0,0,0,0,0,0,0,0
+scoped,40,2,1335,950,73,68,0,0,0,0,0,0,0,55,50.2768

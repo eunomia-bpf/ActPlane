@@ -68,8 +68,8 @@ def review(events, sources):
                 'was observed. The original action installs ordinary task dependencies. Judgment is limited '
                 'to the declared tracked file-source policy; model-context/implicit channels are not covered.'))
         rows.append(row)
-        print(dynamic_id, event['call_index'], 'source paths', paths, 'bundled proof', bool(bundles.get(event['source_sha256'])),
-              'args', json.dumps(original.get('args', {}))[:1000], flush=True)
+    print('Adjudicated', len(rows), 'events:', sum(r['adjudication']=='false_intervention' for r in rows),
+          'confirmed false;', sum(r['adjudication']=='unknown' for r in rows), 'unknown', flush=True)
     return rows
 
 

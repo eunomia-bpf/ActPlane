@@ -1,0 +1,23 @@
+attempt,dynamic_id,recorded_calls,executed_calls,fatal,observer_exit,elapsed_s,exclusion
+broad-t00-1793256136835343019,t00,21,0,"RuntimeError: instrumentation failed: error: <unknown>:0:0: in function fentry_vmlinux_security_file_permission_4 i64 (ptr): Looks like the BPF stack limit is exceeded. Please move large on stack variables into BPF per-cpu array map. For non-kernel uses, the stack can be increased using -mllvm -bpf-stack-size.
+
+
+",,59.942,"{""reasons"": [""fatal replay/instrumentation failure"", ""observer protocol changed before fixed full matrix"", ""unvalidated namespace root""]}"
+t00-mapper-prefix-rejected,t00,21,0,RuntimeError: initial-namespace worker-root mapping failed,,59.415,{}
+t00-observer-and-toolchain-failure,t00,21,0,"RuntimeError: instrumentation failed: ns($p, "".pem"") || strcontains($p, ""credentials"") || strcontains($p, ""id_rsa"") || strcontains($p, ""oauth_creds"")) {
+                                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspaces/exp/benign-utility/src/replay/source_observer.bt:28:130-160: WARNING: 
+strcontains() is known to have verifier complexity issues when the product of both string sizes is larger than ~2000 bytes.
+
+If you're seeing errors, try clamping the string sizes. For example:
+* `str($ptr, 16)`
+* `path($ptr, 16)`
+        if (strcontains($p, "".env"") || strcontains($p, "".pem"") || strcontains($p, ""credentials"") || strcontains($p, ""id_rsa"") || strcontains($p, ""oauth_creds"")) {
+                                                                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ERROR: Error loading BPF program for fentry_vmlinux_security_file_permission_4. Use -v for full kernel error log.
+ERROR: Loading BPF object(s) failed.
+",,2.721,{}
+t00-observer-and-toolchain-failure-20261029T060436Z,t00,21,0,"RuntimeError: instrumentation failed: ERROR: Error loading BPF program for fentry_vmlinux_security_file_permission_4. Use -v for full kernel error log.
+ERROR: Loading BPF object(s) failed.
+",,2.299,{}
+t00-valid-preflight,t00,21,21,,0,172.565,{}

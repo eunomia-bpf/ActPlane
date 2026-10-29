@@ -70,7 +70,7 @@ def main():
             expected=(HERE/'source_observer.bt').read_text().replace('strncmp(comm, "apti6e", 6)',
                 'strncmp(comm, '+json.dumps(prefix)+', 8)')
             if done and metadata.get('source_observer_sha256')!=hashlib.sha256(expected.encode()).hexdigest():errors.append('observer differs from frozen final protocol')
-            if done and metadata.get('source_observer_string_bytes')!=128:errors.append('observer buffer configuration differs from frozen final protocol')
+            if done and metadata.get('source_observer_string_bytes')!=1024:errors.append('observer buffer configuration differs from frozen final protocol')
             if done and (not exits or any(e['exit_code'] not in (0,-2) for e in exits)):errors.append('per-instrument exit receipt missing/nonzero')
             observed_indices={index for _,kind,_,index,_ in events if kind=='EXEC'}
             if done and any(index not in observed_indices for index in receipts):errors.append('executed call lacks independent tagged exec receipt')
@@ -82,7 +82,8 @@ def main():
             runrow=dict(condition=condition,dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],framework=plan['framework'],model=plan['model'],
                 recorded_calls=len(recorded),executed_calls=len(receipts),fatal=done.get('fatal',''),coverage=coverage,
                 coverage_detail='; '.join(errors),setup_failed_steps=done.get('setup_failed_steps',''),elapsed_s=done.get('elapsed_s',''),
-                root_pid=metadata.get('root_pid',''),root_pid_namespace=metadata.get('root_pid_namespace',''),source_observer_sha256=metadata.get('source_observer_sha256',''))
+                root_pid=metadata.get('root_pid',''),root_pid_namespace=metadata.get('root_pid_namespace',''),source_observer_sha256=metadata.get('source_observer_sha256',''),
+                engine_environment=json.dumps(metadata.get('engine_environment','unknown'),sort_keys=True))
             runs.append(runrow)
             percall=defaultdict(list)
             for event in lines(run/'engine.jsonl'):
@@ -112,7 +113,7 @@ def main():
                 sourcecounts[index]+=1
                 source=evidence.get(path,{})
                 sources.append(dict(condition=condition,dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],call_index=index,timestamp_ns=timestamp,pid=pid,
-                    path=path,path_maybe_truncated=int(len(path)>=127),classification=source.get('classification','unknown'),sha256=source.get('sha256',''),
+                    path=path,path_maybe_truncated=int(len(path)>=1023),classification=source.get('classification','unknown'),sha256=source.get('sha256',''),
                     evidence_reason=source.get('reason','no post-command content receipt'),coverage=coverage))
             for _,_,index,family in connections:
                 networkcounts[index]+=1

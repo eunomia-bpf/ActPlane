@@ -27,7 +27,7 @@ fentry:security_file_permission
     if ((args.file->f_inode->i_mode & 0170000) == 0100000) {
         $entry = args.file->f_path.dentry;
         $name = str($entry->d_name.name, 64);
-        $p = path(args.file->f_path, 256);
+        $p = path(args.file->f_path, 1024);
         $match = 0;
         if ($entry->d_name.len >= 4) {
             $tail = *(uint32*)($entry->d_name.name + $entry->d_name.len - 4);

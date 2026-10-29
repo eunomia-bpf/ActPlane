@@ -60,7 +60,6 @@ def main():
             scope_calls.append(dict(dynamic_id=coral[call['trajectory_id']],call_index=call['call_index'],tool=call['tool'],
                 command_or_path=str(target),arguments_sha256=hashlib.sha256(encoded.encode()).hexdigest()))
     write('instruction_scope_calls.csv',scope_calls)
-    for call in scope_calls:print('INSTRUCTION_SCOPE',call['dynamic_id'],call['call_index'],call['tool'],call['command_or_path'][:500])
     inventory=[];directives=[];full=[]
     for row in plans:
         base=['git','--git-dir',str(ROOT/'input/dynamic/git-cache'/row['repository'].replace('/','__'))]

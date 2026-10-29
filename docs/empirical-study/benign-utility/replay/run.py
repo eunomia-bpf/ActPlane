@@ -147,7 +147,7 @@ def main():
     def observer_start(run):
         plan=plan_state['plan']
         env=os.environ.copy()
-        env.update(BPFTRACE_MAX_STRLEN='128', BPFTRACE_MAX_MAP_KEYS='262144')
+        env.update(BPFTRACE_MAX_STRLEN='1024', BPFTRACE_MAX_MAP_KEYS='262144')
         instruments=[]
         try:
             source=(HERE/'source_observer.bt').read_text().replace('strncmp(comm, "apti6e", 6)',
@@ -189,8 +189,10 @@ def main():
                 (run/'compiled-sources.json').write_text(json.dumps(compiled,indent=2))
                 instruments.append(process_ready([str(LOADER),'--config',str(run/'policy.bin'),'--seed-pid',str(host_root),'--seed-label','0'],
                     run/'engine.jsonl',run/'engine.stderr','ActPlane: ready'))
-            metadata=dict(condition=args.condition,root_pid=host_root,root_pid_namespace='initial-kernel-worker',workspace_popen_pid=worker_state['pid'],source_observer_string_bytes=128,loader_sha256=hashlib.sha256(LOADER.read_bytes()).hexdigest(),
+            metadata=dict(condition=args.condition,root_pid=host_root,root_pid_namespace='initial-kernel-worker',workspace_popen_pid=worker_state['pid'],source_observer_string_bytes=1024,loader_sha256=hashlib.sha256(LOADER.read_bytes()).hexdigest(),
                 source_observer_sha256=hashlib.sha256((run/'source-observer.bt').read_bytes()).hexdigest(),kernel=os.uname().release)
+            metadata['engine_environment']={name:os.environ.get(name) for name in (
+                'ACTPLANE_HOOK_PROFILE','ACTPLANE_ENABLE_ADVANCED_HOOKS','ACTPLANE_ADVANCED_TRACEPOINTS','ACTPLANE_RESERVE_FILE_FLOW')}
             (run/'utility-metadata.json').write_text(json.dumps(metadata,indent=2))
             worker_state['instruments'] = instruments
             # The copied runner owns these extra file handles and closes them.
@@ -229,6 +231,7 @@ def main():
             if done.get('fatal'): reasons.append('fatal replay/instrumentation failure')
             if done.get('executed_calls')!=len(calls[plan['trajectory_id']]):reasons.append('incomplete recorded-call replay')
             if metadata.get('source_observer_sha256')!=hashlib.sha256(expected.encode()).hexdigest():reasons.append('observer protocol changed before fixed full matrix')
+            if metadata.get('source_observer_string_bytes')!=1024:reasons.append('observer buffer differs from final validated protocol')
             if args.condition!='none' and metadata.get('root_pid_namespace')!='initial-kernel-worker':reasons.append('unvalidated namespace root')
             source_log=(run/'sources.jsonl').read_text(errors='replace') if (run/'sources.jsonl').exists() else ''
             if re.search(r'(?i)"type"\s*:\s*"[^"\n]*(?:error|lost|drop|overflow)[^"\n]*"',source_log):reasons.append('observer helper failure/event loss')

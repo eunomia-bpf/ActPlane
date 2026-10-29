@@ -1,0 +1,3 @@
+path_bytes,ready,complete_long_source_path_seen,stderr,helper_errors
+512,True,False,,2
+1024,True,True,,0

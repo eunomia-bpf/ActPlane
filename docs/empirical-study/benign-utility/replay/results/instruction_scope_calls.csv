@@ -1,0 +1,29 @@
+dynamic_id,call_index,tool,command_or_path,arguments_sha256
+t09,0,Read,/coral/crates/coral-spec/src/v4/mod.rs,94803ad6ce87e590304f2146aa054cf51af55ccf8a4f194e6db56540df615168
+t09,1,Read,/coral/crates/coral-spec/src/v4/mod.rs,ee8894fb8da1f73a9a0b242ab7bd824a434b7f9b7127e3fb456d4be52f9f95cd
+t09,2,Read,/coral/crates/coral-spec/src/v4/mod.rs,9c7a8bda7cd701682884ede073f8afc7a97cc20e33020db4277f18db7d54cb5e
+t09,3,Grep,/coral/crates/coral-spec,1669ea3000602bdc4f8d319e91e506c75639426c0b56512f9b83263282b319eb
+t09,4,Read,/coral/crates/coral-spec/src/v4/surfaces/openapi/responses.rs,e9dbc59d5e4f6c7def872c9ec663b9ea1789e6f6c6ce3458adbcda7effee8136
+t09,5,Bash,ls /coral/crates/coral-spec/src/v4/surfaces/openapi/,a9f525de02e5113ddd8755e4f24faab03bc8b8c07e8677d30f0df1fa5fb2641c
+t09,6,Grep,/coral/crates/coral-spec/src/v4/surfaces/openapi,c7b3f367af6cacf0ef8bc3b3e3c5ede0f695f5fa6dbf16e934f2b6219bedce6e
+t09,7,Read,/coral/crates/coral-spec/src/v4/surfaces/openapi/import.rs,51702a96c6fdc5e95e1a950475775e6a9b18479fc944021fa8d59d898e159d3e
+t09,8,Bash,ls /coral/crates/coral-spec/src/v4/ && wc -l /coral/crates/coral-spec/src/v4/openapi_tests.rs /coral/crates/coral-spec/src/v4/test_support.rs,37e35359aebb407a19891809a0ea90baf1c3264c8b15f74ba571e1e436b5f9cc
+t09,9,Read,/coral/crates/coral-spec/src/v4/openapi_tests.rs,ec6c9b5a219b1bcea7b33d3a027d72f88fe97a59d51c873feb4f826a82b1f1b0
+t09,10,Read,/coral/crates/coral-spec/src/v4/test_support.rs,11c600d228c29d90a4abe8ab9cf51286114f038eaed62bab8d124377e7e494db
+t09,11,Edit,/coral/crates/coral-spec/src/v4/surfaces/openapi/responses.rs,8eab2f5829d0021c39c369222745c26e9c29a9528c1af4988a53dfd4ee50e06c
+t09,12,Edit,/coral/crates/coral-spec/src/v4/surfaces/openapi/responses.rs,480295bba9ce5ff9f86c78b7c72b24273c66fb7b90da6d5db925423cb475f756
+t09,13,Edit,/coral/crates/coral-spec/src/v4/surfaces/openapi/responses.rs,38bff913a1d827fc156cc3726fd20e28130e40675919b475fe8b3529480e532e
+t09,14,Edit,/coral/crates/coral-spec/src/v4/openapi_tests.rs,273e1a049f1def0dd034031098ccfd8963556105ff4d5118ffc5817f2988bdb8
+t09,15,Bash,cargo test -p coral-spec v4:: 2>&1 | tail -30,5b5bbd7ce97a47df159a12ac86f6fd2d8a7bdb2f3e87e822c28810bedad06f8b
+t09,16,Bash,cargo test -p coral-spec 2>&1 | tail -5 && cargo clippy -p coral-spec --all-targets 2>&1 | tail -5 && cargo fmt --check -p coral-spec && echo FMT_OK,c41256399ef503868eba1c072fcdcb4bd16d8f0d8436ee93a62840d9567de72c
+t19,0,shell,"/bin/bash -lc ""sed -n '900,1030p' crates/coral-spec/src/v4/mod.rs && sed -n '1230,1335p' crates/coral-spec/src/v4/mod.rs && rg -n \""resolve.*ref|external.*ref|parameter ref|schema ref|select_json_response|import_response\"" crates/coral-spec/src/v4 -S""",51573140077df39832377054a94c04119c560f1715adb5d1899081afd3b9e9df
+t19,1,shell,"/bin/bash -lc ""sed -n '900,1030p' crates/coral-spec/src/v4/mod.rs; sed -n '1230,1335p' crates/coral-spec/src/v4/mod.rs; grep -RInE \""resolve.*ref|external.*ref|parameter ref|schema ref|select_json_response|import_response\"" crates/coral-spec/src/v4""",cc2860b7655c485dcb700118d0efd6dd285199aa6841a10a0771866cacb8540b
+t19,2,shell,"/bin/bash -lc ""sed -n '1,150p' crates/coral-spec/src/v4/surfaces/openapi/import.rs; sed -n '1,180p' crates/coral-spec/src/v4/surfaces/openapi/responses.rs; sed -n '1,260p' crates/coral-spec/src/v4/surfaces/openapi/operations.rs; find crates/coral-spec -type f | grep -E '(test|openapi)' | sort""",c6896a54b824c7204c91781c7be0b8d02a9433b05a277644ff24c27bc94c1fff
+t19,3,shell,"/bin/bash -lc ""grep -nE \""projection|response|OPENAPI_REF|EXTERNAL_REF|components/responses\"" crates/coral-spec/src/v4/openapi_tests.rs crates/coral-spec/src/v4/projection_tests.rs | head -160; sed -n '1,260p' crates/coral-spec/src/v4/openapi_tests.rs; sed -n '1,220p' crates/coral-spec/src/v4/projection_tests.rs""",be0d0f8cb771767407095b0f4c6642193610159ef647e1914b205903ba6c8dab
+t19,4,shell,"/bin/bash -lc ""sed -n '240,360p' crates/coral-spec/src/v4/openapi_tests.rs; sed -n '180,280p' crates/coral-spec/src/v4/surfaces/openapi/responses.rs; grep -RIn \""OPENAPI_EXTERNAL_REF_UNSUPPORTED\\|OPENAPI_REF_NOT_FOUND\"" crates/coral-spec/src/v4/*_tests.rs""",f7bb310da75a91240de79c8b02c7d4d7d4d7a9a38bffa79a8763c976662c82ff
+t19,5,shell,"/bin/bash -lc ""sed -n '1,145p' crates/coral-spec/src/v4/surfaces/openapi/responses.rs; cargo fmt --all -- --check; cargo test -p coral-spec v4::openapi_tests::importer_publishes_projection_for_referenced_response""",6a42d1e5a7796cf9b7f96878765fcf8a4cf79300d8af4df488e60a2a9034817a
+t19,6,shell,/bin/bash -lc 'cargo fmt --all && cargo test -p coral-spec',21748d335ef113f90396c8982d8a0c639c7c625649424d77f3f69c72b9dbab48
+t19,7,shell,/bin/bash -lc 'git status --short && git diff --check && git diff -- crates/coral-spec/src/v4/surfaces/openapi/responses.rs crates/coral-spec/src/v4/openapi_tests.rs',43e155fbf389d8b44d0fca3e910cd8e3d6f428a743197c02bf5d467eb620ba75
+t19,8,shell,/bin/bash -lc 'make rust-checks',81fdebe9fcf9c8f52b1da3c7d6d2116fe1a42dff26268a9c31b2a69782df8c14
+t19,9,shell,/bin/bash -lc 'cargo test --workspace --all-targets --all-features --locked --no-fail-fast',4c2f0cad442b1026d0db2ec08ab56751d351981b1e5388d51062add459b5e5e9
+t19,10,shell,"/bin/bash -lc ""git diff --check; git status --short; nl -ba crates/coral-spec/src/v4/surfaces/openapi/responses.rs | sed -n '15,145p'; nl -ba crates/coral-spec/src/v4/openapi_tests.rs | sed -n '110,245p'""",8b9fac998a2c5ad74a72b88616b9284c78d6882b4c1a651ccdddb092f0a1b7c9
