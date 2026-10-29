@@ -36,7 +36,7 @@ The OS-tier count is the union of per-event and cross-event taxonomy labels. It 
 
 Equivalent JSON wrappers are normalized without changing labels or source boundaries. Invalid values, missing IDs, and inconsistent cross-axis applicability are rejected and retried, with earlier responses retained in the raw cache. `calibration_schema_errors.csv` records predictions rejected during schema validation. The reported agreement measures the accepted automated labeling pipeline rather than strict first-response JSON compliance.
 
-The initial full-axis calibration uses the legacy whole-batch retry policy (`--retry-policy batch`). During scaling, a small number of invalid values caused repeated requests for otherwise valid rows. The revised default retains valid rows and retries only invalid or missing IDs, while ambiguous IDs still reject the whole response. The focused prompt was recalibrated from cached initial requests under this exact revised policy before resuming scaling. `format_calibration_v1_summary.csv` preserves the earlier whole-batch check. The original failed axes remain withheld regardless of the revised check, and the codebook and thresholds are unchanged.
+The initial full-axis calibration uses the legacy whole-batch retry policy (`--retry-policy batch`). During scaling, a small number of invalid values caused repeated requests for otherwise valid rows. The revised default retains valid rows and retries only invalid or missing IDs, while ambiguous IDs still reject the whole response. The focused prompt was recalibrated from cached initial requests under this exact revised policy before resuming scaling. `format_calibration_v1_summary.csv` preserves the earlier whole-batch check. This initial retry/schema change did not rescue the failed axes, and its codebook and thresholds remained unchanged. The separate prospective codebook rescue below, when available, supplies explicitly versioned new evidence.
 
 The partial first-pass source labels and figures are preserved in branch history and the raw `retry-protocol-v1/` backup. They are superseded by the revised-policy run rather than mixed into its final accepted labels. `retry_protocol.csv` records the versions, and the interruption remains in the run audit.
 
@@ -78,7 +78,7 @@ Before inspecting the complete calibration, the scaling gate was fixed at final 
 
 The historical primary-source audit records 0 missing lines, 0 overlapping lines, and 0 text mismatches under the original validator’s whitespace normalization. 417 spans differ in exact formatting. Calibration uses the recorded annotated text unchanged. New extracted text is copied directly from its source spans and checked for exact fidelity.
 
-When some axes fail, a focused prompt containing only the requested coding-guide axes and examples is calibrated again before scaling. The exact focused prompt and reduced output schema are used for both this check and deployment. This avoids assuming that removing rejected axes leaves predictions unchanged. Definitions, examples, and agreement cutoffs are not tuned against individual errors.
+When some axes fail, a focused prompt containing only the requested coding-guide axes and examples is calibrated again before scaling. The exact focused prompt and reduced output schema are used for both this check and deployment. This avoids assuming that removing rejected axes leaves predictions unchanged. During that initial schema-only check, definitions, examples, and agreement cutoffs were not tuned against individual errors. The later rescue permits development-only codebook revisions under its separate frozen protocol.
 
 | Reduced-schema model | Dimension | Evaluated N | Cohen’s kappa |
 |---|---|---:|---:|
@@ -100,6 +100,25 @@ Agreement between the primary models on the analyzed new spans is reported separ
 | topic | 30846 | 9082 | 0.706 | 0.670 |
 | type | 30846 | 3149 | 0.898 | 0.795 |
 | any_scaled_axis | 30846 | 11126 | 0.639 | undefined |
+
+## Enforcement and context rescue
+
+The initial codebook was withheld because enforcement agreement fell below its gate and context agreement was poor. The recovered written guide explicitly treats a fully named project pattern as self-contained, whereas development annotations also mark named project assets/build commands as requiring project binding. The rescue tests explicit boundary rules against that reference convention. It does not assume that the prose and labels are mutually consistent.
+
+**Holdout limitation:** every original label had already participated in earlier calibration, and aggregate confusions were previously inspected. This repository split is held out from rescue codebook revision and selection only. It is not an untouched external test set. No test-driven revision is permitted.
+
+| Split | Repositories | Statements |
+|---|---:|---:|
+| dev | 21 | 505 |
+| test | 43 | 1611 |
+
+Few-shot examples and error inspection use development repositories only. The protocol and split were committed before development inference. Codebook selection stops at the prespecified dev criterion or revision cap, then the guide, examples, contextual inputs and inference configuration are frozen before a single test evaluation. Original type/topic labels remain fixed. See `rescue/PROTOCOL.md`, `rescue/repository_split.csv`, and the versioned codebooks/examples.
+
+Development inference is in progress. No rescue test scores are available.
+
+Source context is deterministic and unannotated: target statement, repository-relative path, section-heading chain and bounded enclosing paragraph when it adds information. All source/context hashes are in `rescue/context_audit.csv`. Context helps resolve referents without promoting neighboring requirements into the target. The original reference does not provide an independent reliability check for new families or noncoding domains.
+
+No paper source, model deployment, gateway configuration or PR is changed.
 
 ## Selection and measurement
 

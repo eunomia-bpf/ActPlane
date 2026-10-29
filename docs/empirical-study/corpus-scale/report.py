@@ -138,7 +138,7 @@ def main():
         '`compare_references.py` checks both supplied historical branches without checkout. Their annotation files are byte-identical, as recorded by the shared annotation hash in `historical_reference_comparison.csv`. The project-share discrepancy is therefore present in both supplied references.', '',
         '`taxonomy.txt` reconstructs the coding guide and examples in `origin/artifact-ready:docs/empirical.md` and the current motivation section. The exact historical invocation prompts and the human review sample were not located. This is a reconstructed prompt, not a claim of exact prompt replication. Reference labels for the statements being judged are never included in prediction or adjudication payloads.', '',
         'Equivalent JSON wrappers are normalized without changing labels or source boundaries. Invalid values, missing IDs, and inconsistent cross-axis applicability are rejected and retried, with earlier responses retained in the raw cache. `calibration_schema_errors.csv` records predictions rejected during schema validation. The reported agreement measures the accepted automated labeling pipeline rather than strict first-response JSON compliance.', '',
-        'The initial full-axis calibration uses the legacy whole-batch retry policy (`--retry-policy batch`). During scaling, a small number of invalid values caused repeated requests for otherwise valid rows. The revised default retains valid rows and retries only invalid or missing IDs, while ambiguous IDs still reject the whole response. The focused prompt was recalibrated from cached initial requests under this exact revised policy before resuming scaling. `format_calibration_v1_summary.csv` preserves the earlier whole-batch check. The original failed axes remain withheld regardless of the revised check, and the codebook and thresholds are unchanged.', '',
+        'The initial full-axis calibration uses the legacy whole-batch retry policy (`--retry-policy batch`). During scaling, a small number of invalid values caused repeated requests for otherwise valid rows. The revised default retains valid rows and retries only invalid or missing IDs, while ambiguous IDs still reject the whole response. The focused prompt was recalibrated from cached initial requests under this exact revised policy before resuming scaling. `format_calibration_v1_summary.csv` preserves the earlier whole-batch check. This initial retry/schema change did not rescue the failed axes, and its codebook and thresholds remained unchanged. The separate prospective codebook rescue below, when available, supplies explicitly versioned new evidence.', '',
         'The partial first-pass source labels and figures are preserved in branch history and the raw `retry-protocol-v1/` backup. They are superseded by the revised-policy run rather than mixed into its final accepted labels. `retry_protocol.csv` records the versions, and the interruption remains in the run audit.', '',
         f'A schema-invalid subset receives up to {cfg["max_schema_repairs_before_split"]} additional schema-repair requests that repeat the permitted values and unchanged coding guide before binary splitting. Persistently invalid singletons remain failures. The legacy full-axis calibration does not use this feedback.', '',
         'An observed all-blank-type subset made singleton-only repairs expensive during the scaled run. The current implementation applies the identical schema feedback to an unusable batch before splitting it. Accepted earlier annotations remain frozen. `retry_protocol` records the implementation on each accepted prediction, and `annotation_protocol_counts.csv` summarizes the mixture. The earlier singleton-repair reference outputs and scores are preserved in `calibration-v2/`, and `calibration_protocol_comparison.csv` reports every changed reference value after the batched-repair recheck. Both implementations use the same models, coding guide, and thresholds. Cached initial responses can be reused when rechecking a repair implementation.', '',
@@ -164,7 +164,7 @@ def main():
                   'Calibration uses the recorded annotated text unchanged. New extracted text is copied directly from its source spans and checked for exact fidelity.']
     format_path = HERE / 'format_calibration_summary.csv'
     if format_path.exists():
-        lines += ['', 'When some axes fail, a focused prompt containing only the requested coding-guide axes and examples is calibrated again before scaling. The exact focused prompt and reduced output schema are used for both this check and deployment. This avoids assuming that removing rejected axes leaves predictions unchanged. Definitions, examples, and agreement cutoffs are not tuned against individual errors.', '',
+        lines += ['', 'When some axes fail, a focused prompt containing only the requested coding-guide axes and examples is calibrated again before scaling. The exact focused prompt and reduced output schema are used for both this check and deployment. This avoids assuming that removing rejected axes leaves predictions unchanged. During that initial schema-only check, definitions, examples, and agreement cutoffs were not tuned against individual errors. The later rescue permits development-only codebook revisions under its separate frozen protocol.', '',
                   '| Reduced-schema model | Dimension | Evaluated N | Cohen’s kappa |', '|---|---|---:|---:|']
         for r in read_csv(format_path):
             if r['scope'] == 'applicable_gold':
@@ -302,10 +302,23 @@ def main():
         if 'context_required_fraction' in valid:
             paragraph += f'Among system-observable policies, {fmt(valid["context_required_fraction"])} require project or task context. '
         paragraph += 'We calibrated named Qwen and GLM annotators against the recovered paper labels and withheld dimensions that failed the prespecified agreement gate. The enlarged corpus broadens repository and file-family coverage, although query selection, automated segmentation, and correlated model judgments limit generalization.'
+        if (HERE / 'rescue/deployment_gates.csv').exists():
+            paragraph = f'We characterized {coverage["analyzed_repositories"]} repositories and {int(coverage["analyzed_statements"]):,} statements in {int(coverage["selected_source_files"]):,} files after byte deduplication within repositories, across {family_count} instruction-file families. '
+            paragraph += f'Named Qwen and GLM annotators label {fmt(valid["policy_fraction"])} of statements as policies (95% repository-bootstrap interval {fmt(valid["policy_fraction"], "ci_low")}–{fmt(valid["policy_fraction"], "ci_high")}). '
+            if 'system_state_fraction' in valid:
+                paragraph += f'Among policies, {fmt(valid["system_state_fraction"])} are system-observable, with {fmt(valid["os_enforceable_count"])} OS-tier candidates. Cross-event requirements appear in {fmt(valid["cross_event_project_share"])} of repositories. '
+            if 'context_required_fraction' in valid:
+                paragraph += f'Of system-observable policies, {fmt(valid["context_required_fraction"])} require project or task binding. '
+            paragraph += 'A repository split was held out from codebook revision, although the reference had earlier aggregate diagnostic exposure. Failed dimensions remain withheld. Scope includes exploratory noncoding instructions. Convenience sampling, automated segmentation, reference conventions, and correlated adjudication limit generalization.'
         assert len(paragraph.split()) <= 150
         lines.append(paragraph)
     else:
         lines.append('Pending complete-snapshot labeling. Interim descriptive estimates above are not paper-ready.')
+    if (HERE / 'rescue/protocol.csv').exists():
+        from rescue.report_rescue import render
+        rescue_lines = render()
+        at = lines.index('## Selection and measurement')
+        lines[at:at] = rescue_lines + ['']
     (HERE / 'README.md').write_text('\n'.join(lines) + '\n')
 
 
