@@ -17,6 +17,9 @@ for task in csv.DictReader((OUT/'tasks.csv').open()):
   rows=export()
   if any(r['task']==task['task'] and r['condition']==condition and r['selected_for_comparison']=='1' for r in rows):
    print('SELECTED',task['task'],condition,flush=True);continue
+  audits=list(csv.DictReader((OUT/'error-audit.csv').open())) if (OUT/'error-audit.csv').exists() else []
+  if any(r['task']==task['task'] and r['condition']==condition and r['retry_allowed']=='0' for r in audits):
+   print('AUDITED_NONRETRYABLE_AGENT_ERROR',task['task'],condition,flush=True);continue
   if any(r['task']==task['task'] and r['condition']==condition and r['comparison_cohort']=='native_denial_primary' and r['verifier_status']=='collection_error_requires_audit' for r in rows):
    print('NEEDS_COLLECTION_AUDIT',task['task'],condition,flush=True);continue
   prefix=f"{task['task']}-{condition}-"
