@@ -270,6 +270,12 @@ def paper_paragraph(rows, out):
     text = (f"Using GLM-5.3 and official Terminal-Bench 2.0 rewards, we planned {combined['a']['planned_sessions']} tasks. "
             f"The {status} matched snapshot covers {combined['a']['complete_triplet_tasks']} tasks, with successes of {scores(combined)} "
             f"without defense, with broad sources and with narrowed sources. Original-subset results remain {scores(original)}. ")
+    added = {r['condition']: r for r in rows if r['dataset'] == 'Terminal-Bench added cohort'}
+    if any(not r['intervention_adjudication_complete'] for r in added.values()):
+        text += 'Added-cohort intervention adjudication remains incomplete. '
+    elif any(r['intervention_events'] for r in added.values()):
+        text += (f"Added broad/narrowed false calls were {added['b']['confirmed_false_calls']}/{added['b']['calls']} "
+                 f"and {added['c']['confirmed_false_calls']}/{added['c']['calls']}. ")
     network = {r['condition']: r for r in rows if r['dataset'] == 'Terminal-Bench network stratum'}
     if network:
         text += (f"The separate network subset achieved {scores(network)}; broad/narrowed false calls were "
