@@ -4,7 +4,7 @@ from pathlib import Path
 from harbor.job import Job
 from harbor.models.job.config import JobConfig
 from benchmark.expanded.dependencies import verifier_env
-BASE=Path('/workspaces/exp/benign-utility/raw/benchmark');RAW=Path(os.environ.get('BU_EXPANDED_RAW',str(BASE/'expanded-vm')))
+BASE=Path('/workspaces/exp/benign-utility/raw/benchmark');RAW=Path(os.environ.get('BU_EXPANDED_RAW',str(BASE/'expanded-recovery')))
 ROOT=BASE.parent.parent/'benchmark/expanded'
 
 async def main():

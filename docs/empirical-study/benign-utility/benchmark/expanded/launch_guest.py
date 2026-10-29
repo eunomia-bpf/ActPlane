@@ -1,8 +1,8 @@
 """Launch the native guest matrix without exposing the existing model key."""
-import os,shlex,subprocess
+import os,shlex,subprocess,sys
 from pathlib import Path
 ROOT=Path('/workspaces/exp/benign-utility')
-RAW=ROOT/'raw/benchmark/expanded-vm';RAW.mkdir(parents=True,exist_ok=True)
+RAW=ROOT/'raw/benchmark/expanded-recovery';RAW.mkdir(parents=True,exist_ok=True)
 target=RAW/'model.env'
 fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
 with os.fdopen(fd,'w') as stream:
@@ -10,5 +10,6 @@ with os.fdopen(fd,'w') as stream:
         value=os.environ[name];assert value
         stream.write('export '+name+'='+shlex.quote(value)+'\n')
 os.chmod(target,0o600)
+if '--prepare-only' in sys.argv:raise SystemExit(0)
 command=['python3','-B','-m','benchmark.expanded.matrix']
 raise SystemExit(subprocess.run(command).returncode)

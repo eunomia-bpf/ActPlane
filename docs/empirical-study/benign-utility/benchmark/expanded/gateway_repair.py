@@ -1,7 +1,7 @@
 """Repair controller-only cluster DNS, retaining every failed native attempt."""
 import argparse,csv,ipaddress,json,os,shlex,signal,socket,subprocess,time,urllib.parse
 from pathlib import Path
-RAW=Path('/workspaces/exp/benign-utility/raw/benchmark/expanded-vm')
+RAW=Path('/workspaces/exp/benign-utility/raw/benchmark/expanded-recovery')
 ROOT=RAW.parents[2]/'benchmark/expanded'
 
 def identity(pid):
@@ -33,7 +33,7 @@ def main(action,pid):
     for i in range(1,4):
         port=2246+i
         ssh(port,shlex.join(['python3','-c',host_script,address,hostname]),check=True)
-        command='cd /workspaces/exp/benign-utility/src; source /workspaces/exp/benign-utility/raw/benchmark/expanded-vm/model.env; python3 -m benchmark.expanded.diagnose_gateway'
+        command='cd /workspaces/exp/benign-utility/src; source /workspaces/exp/benign-utility/raw/benchmark/expanded-recovery/model.env; python3 -m benchmark.expanded.diagnose_gateway'
         result=ssh(port,command,check=True,capture_output=True,text=True);data=json.loads(result.stdout);assert data.get('models_status')==200,data;diagnostics.append(dict(worker=f'worker{i}',**data))
     audits=[]
     for result in (RAW/'jobs').glob('*/*/result.json'):

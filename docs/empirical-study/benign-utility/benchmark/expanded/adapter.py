@@ -16,7 +16,7 @@ class ExpandedTerminus(InstrumentedTerminus):
  async def _setup_measured(self,environment):
   seal=json.loads((ROOT/'task-seals'/f'{self.bu_task}.json').read_text())
   frozen=json.loads((ROOT/'environment-freeze.json').read_text())
-  assert seal['environment_id']==frozen['environment_id']=='workspace_kvm_guest_20261029'
+  assert seal['environment_id']==frozen['environment_id']=='workspace_kvm_recovery_20261029T2005'
   worker=frozen['workers'][os.environ['BU_EXPANDED_WORKER']]
   assert seal['worker_id']==os.environ['BU_EXPANDED_WORKER']
   assert Path('/proc/sys/kernel/random/boot_id').read_text().strip()==worker['boot_id']

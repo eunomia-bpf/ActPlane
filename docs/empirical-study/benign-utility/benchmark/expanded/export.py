@@ -5,7 +5,7 @@ import json
 HERE=Path(__file__).resolve().parent
 abi_helpers=runpy.run_path(str(HERE.parent/'network/freeze.py'))
 canonical=abi_helpers['canonical'];abi_fields=abi_helpers['fields']
-os.environ.update(BU_ANALYSIS_RAW=os.environ.get('BU_EXPANDED_RAW','/workspaces/exp/benign-utility/raw/benchmark/expanded-vm'),BU_ANALYSIS_OUT=os.environ.get('BU_EXPANDED_OUT','/workspaces/exp/benign-utility/benchmark/expanded/results'),BU_ANALYSIS_COHORT='expanded_20261029')
+os.environ.update(BU_ANALYSIS_RAW=os.environ.get('BU_EXPANDED_RAW','/workspaces/exp/benign-utility/raw/benchmark/expanded-recovery'),BU_ANALYSIS_OUT=os.environ.get('BU_EXPANDED_OUT','/workspaces/exp/benign-utility/benchmark/expanded/results'),BU_ANALYSIS_COHORT='expanded_20261029')
 Path(os.environ['BU_ANALYSIS_RAW']).mkdir(parents=True,exist_ok=True)
 _guard=(Path(os.environ['BU_ANALYSIS_OUT'])/'.export.lock').open('a+')
 fcntl.flock(_guard,fcntl.LOCK_EX)
@@ -61,7 +61,7 @@ if policy_audit:write('executed-policy-equivalence.csv',policy_audit,list(policy
 selected=set()
 for trial in sorted(trials,key=lambda r:(r['trial_started_at'],r['trial_id'])):
  key=trial['task'],trial['condition'];trial['selected_for_comparison']='0'
- if key not in selected and trial['runtime_environment_id']=='workspace_kvm_guest_20261029' and trial['comparison_cohort']=='expanded_20261029' and trial['outcome_valid']=='1' and trial['instrumentation_coverage']=='complete' and trial['effective_run_status'] in ('complete','official_timeout','defense_forced_failure','agent_error') and trial['outcome_score']!='' and str(trial['policy_fields_verified']) in ('not_applicable','1'):
+ if key not in selected and trial['runtime_environment_id']=='workspace_kvm_recovery_20261029T2005' and trial['comparison_cohort']=='expanded_20261029' and trial['outcome_valid']=='1' and trial['instrumentation_coverage']=='complete' and trial['effective_run_status'] in ('complete','official_timeout','defense_forced_failure','agent_error') and trial['outcome_score']!='' and str(trial['policy_fields_verified']) in ('not_applicable','1'):
   trial['selected_for_comparison']='1';selected.add(key)
 selection={r['trial_id']:r['selected_for_comparison'] for r in trials}
 for call in calls:call['selected_for_comparison']=selection[call['trial_id']]

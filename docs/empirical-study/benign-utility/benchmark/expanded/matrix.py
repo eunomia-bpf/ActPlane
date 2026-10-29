@@ -3,15 +3,17 @@ import csv,fcntl,json,os,shlex,subprocess,sys,time,threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-BASE=Path('/workspaces/exp/benign-utility/raw/benchmark');RAW=BASE/'expanded-vm'
+BASE=Path('/workspaces/exp/benign-utility/raw/benchmark');RAW=BASE/'expanded-recovery'
 ROOT=BASE.parent.parent/'benchmark/expanded';OUT=ROOT/'results'
 RAW.mkdir(exist_ok=True)
 lock=(RAW/'matrix.lock').open('a+');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 lock.seek(0);lock.truncate();lock.write(str(os.getpid()));lock.flush()
 state=threading.RLock();deadline=datetime.fromisoformat('2026-10-30T06:00:00+00:00').timestamp()
 frozen=json.loads((ROOT/'environment-freeze.json').read_text())
-assert set(frozen['workers'])=={'worker1','worker2','worker3'}
+assert set(frozen['workers'])=={'worker1'}
 tasks=list(csv.DictReader((OUT/'tasks.csv').open()))
+execution=list(csv.DictReader((OUT/'worker-assignment.csv').open()))
+task_map={t['task']:t for t in tasks};tasks=[task_map[r['task']] for r in sorted(execution,key=lambda r:int(r['execution_rank']))]
 
 def export():
  with state:
@@ -24,7 +26,7 @@ def remote(worker,args,**kwargs):
  return subprocess.run(cmd,**kwargs)
 
 def run_worker(worker):
- assigned=[t for i,t in enumerate(tasks) if 'worker'+str(i%3+1)==worker]
+ assigned=tasks
  for task in assigned:
   name=task['task']
   try:
@@ -57,5 +59,5 @@ def run_worker(worker):
     with (RAW/'matrix-errors.jsonl').open('a') as f:f.write(json.dumps(dict(worker=worker,task=name,utc=time.strftime('%FT%TZ',time.gmtime()),error=repr(error)))+'\n')
   finally:
    remote(worker,['docker','image','rm',task['official_image']],check=False)
-with ThreadPoolExecutor(max_workers=3) as pool:list(pool.map(run_worker,sorted(frozen['workers'])))
+with ThreadPoolExecutor(max_workers=1) as pool:list(pool.map(run_worker,sorted(frozen['workers'])))
 rows=export();print('EXPANDED_MATRIX_STATUS',sum(r['selected_for_comparison']=='1' for r in rows),'of',54,flush=True)

@@ -4,7 +4,7 @@ from pathlib import Path
 BASE=Path('/workspaces/exp/benign-utility/raw/benchmark')
 ROOT=BASE.parent.parent/'benchmark/expanded'
 HERE=Path(__file__).parent
-ENVIRONMENT='workspace_kvm_guest_20261029'
+ENVIRONMENT='workspace_kvm_recovery_20261029T2005'
 def digest(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def read(p):return list(csv.DictReader(p.open())) if p.exists() else []
 def stage():
@@ -24,7 +24,7 @@ def stage():
     subprocess.run([sys.executable,'-B',str(HERE/'export.py')],env=env,check=True)
 def capture(worker,port):
     chain=Path('/sys/kernel/security/lsm').read_text().strip();assert 'bpf' in chain.split(',')
-    directory=ROOT/'worker-results'/worker;control=directory/'enforcement-block-control.csv'
+    directory=ROOT/'recovery-worker-results'/worker;control=directory/'enforcement-block-control.csv'
     controls=read(control);assert len(controls)==3 and all(r['passed']=='1' for r in controls)
     daemon=json.loads(subprocess.check_output(['docker','info','--format','{{json .}}'],text=True))
     environment=dict(environment_id=ENVIRONMENT,worker_id=worker,ssh_port=port,kernel_release=os.uname().release,boot_id=Path('/proc/sys/kernel/random/boot_id').read_text().strip(),lsm_chain=chain,docker_data_root=daemon['DockerRootDir'],docker_driver=daemon['Driver'],engine_sha256=digest(BASE/'engine/process'),harbor_version=importlib.metadata.version('harbor'),native_block_control_sha256=digest(control),frozen_before_models_utc=time.strftime('%FT%TZ',time.gmtime()))
@@ -32,16 +32,21 @@ def capture(worker,port):
     (directory/'environment.json').write_text(json.dumps(environment,indent=2)+'\n')
     print(json.dumps(environment,indent=2))
 def freeze():
-    workers={f'worker{i}':json.loads((ROOT/'worker-results'/f'worker{i}'/'environment.json').read_text()) for i in range(1,4)}
-    assert len({w['boot_id'] for w in workers.values()})==3
+    workers={'worker1':json.loads((ROOT/'recovery-worker-results/worker1/environment.json').read_text())}
+    assert len({w['boot_id'] for w in workers.values()})==1
     assert len({w['kernel_release'] for w in workers.values()})==1
     assert all(w['harbor_version']=='0.25.0' and 'bpf' in w['lsm_chain'].split(',') and w['engine_sha256']==digest(BASE/'engine/process') for w in workers.values())
-    environment=dict(environment_id=ENVIRONMENT,arrangement='three kernel-isolated identical workers; task rank modulo three; one native cell per worker',workers=workers,frozen_before_models_utc=time.strftime('%FT%TZ',time.gmtime()))
-    assignments=[dict(task=t['task'],selection_rank=i,worker_id='worker'+str(i%3+1),ssh_port=workers['worker'+str(i%3+1)]['ssh_port'],condition_order=t['condition_order']) for i,t in enumerate(read(ROOT/'results/tasks.csv'))]
+    environment=dict(environment_id=ENVIRONMENT,arrangement='one 8GiB/8vCPU guest; one native cell at a time; all tasks/all conditions share worker1',workers=workers,frozen_before_models_utc=time.strftime('%FT%TZ',time.gmtime()))
+    tasks=read(ROOT/'results/tasks.csv');ranks={t['task']:i for i,t in enumerate(tasks)}
+    ordered=sorted(tasks,key=lambda t:(float(t['agent_timeout_s']),ranks[t['task']]))
+    assignments=[dict(task=t['task'],selection_rank=ranks[t['task']],execution_rank=i,worker_id='worker1',ssh_port=workers['worker1']['ssh_port'],condition_order=t['condition_order'],agent_timeout_s=t['agent_timeout_s']) for i,t in enumerate(ordered)]
     with (ROOT/'results/worker-assignment.csv').open('w',newline='') as stream:
         writer=csv.DictWriter(stream,fieldnames=list(assignments[0]),lineterminator='\n');writer.writeheader();writer.writerows(assignments)
     assignment={a['task']:a['worker_id'] for a in assignments}
-    target=ROOT/'environment-freeze.json';target.write_text(json.dumps(environment,indent=2)+'\n')
+    target=ROOT/'environment-freeze.json'
+    history=ROOT/'environment-freeze-initial-3workers.json'
+    if not history.exists():history.write_bytes(target.read_bytes())
+    target.write_text(json.dumps(environment,indent=2)+'\n')
     for file in (ROOT/'task-seals').glob('*.json'):
         seal=json.loads((ROOT/'host-task-seals'/file.name).read_text())
         seal.update(environment_id=ENVIRONMENT,worker_id=assignment[file.stem],original_host_seal_sha256=digest(ROOT/'host-task-seals'/file.name),frozen_before_model_utc=time.strftime('%FT%TZ',time.gmtime()))

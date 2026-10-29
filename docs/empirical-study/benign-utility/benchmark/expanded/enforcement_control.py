@@ -1,7 +1,7 @@
 """Separate mechanism control, never included in official benchmark scores."""
 import argparse,csv,errno,hashlib,json,os,re,shutil,signal,socket,subprocess,sys,time,uuid
 from pathlib import Path
-BASE=Path('/workspaces/exp/benign-utility/raw/benchmark');RAW=Path(os.environ.get('BU_EXPANDED_RAW',str(BASE/'expanded-vm')));RAW.mkdir(parents=True,exist_ok=True)
+BASE=Path('/workspaces/exp/benign-utility/raw/benchmark');RAW=Path(os.environ.get('BU_EXPANDED_RAW',str(BASE/'expanded-recovery')));RAW.mkdir(parents=True,exist_ok=True)
 if len(sys.argv)>1 and sys.argv[1]=='--child':
  marker,root,effect=sys.argv[2:]
  Path('/proc/self/comm').write_text(marker)

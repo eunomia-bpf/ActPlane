@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd /workspaces/exp/benign-utility/src
-RAW=/workspaces/exp/benign-utility/raw/benchmark/expanded-vm
+RAW=/workspaces/exp/benign-utility/raw/benchmark/expanded-recovery
 mkdir -p "$RAW"
 export BU_EXPANDED_RAW="$RAW" BU_DOCKER_HOST=unix:///var/run/docker.sock DOCKER_HOST=unix:///var/run/docker.sock
 python3 -m benchmark.expanded.enforcement_control --effect block
