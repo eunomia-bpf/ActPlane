@@ -1,8 +1,10 @@
 """Identify the observed pre-test Debian package transport failure; no reward inference."""
-import csv,json
+import csv,fcntl,json
 from pathlib import Path
 RAW=Path('/workspaces/exp/benign-utility/raw/benchmark/expanded-recovery')
 OUT=RAW.parent.parent.parent/'benchmark/expanded/results'
+guard=(OUT/'.export.lock').open('a+')
+fcntl.flock(guard,fcntl.LOCK_EX)
 rows=[]
 for result in sorted((RAW/'jobs').glob('qemu-alpine-ssh-*/*/result.json')):
  verifier=result.parent/'verifier';stdout=verifier/'test-stdout.txt'
