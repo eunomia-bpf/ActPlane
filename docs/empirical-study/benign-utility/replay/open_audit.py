@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+from collections import defaultdict
 
 ROOT = Path(os.environ['WS_RAW']) / 'replay'
 OUT = ROOT.parent.parent / 'replay/results'
@@ -40,7 +41,7 @@ def host_path(run, plan, path):
 
 def main():
     plans = {r['dynamic_id']: r for r in csv.DictReader((OUT / 'cohort.csv').open())}
-    candidates, summaries = [], []
+    candidates, summaries, interventions = [], [], []
     for run in sorted(ROOT.glob('open-audit-*/dynamic/runs/t*')):
         trace = run / 'successful-opens.strace'
         if not trace.exists():
@@ -98,7 +99,10 @@ def main():
                     continue
                 path = raw.decode(errors='surrogateescape')
                 file = host_path(run, plan, resolved or path)
-                data = file.read_bytes() if file and file.is_file() else None
+                try:
+                    data = file.read_bytes() if file and file.is_file() else None
+                except OSError:
+                    data = None
                 selected.append(dict(audit_condition=run.parents[2].name, dynamic_id=run.name,
                     line=number, pid=pid, timestamp_epoch=timestamp, syscall=syscall, name_index=name_index,
                     raw_path=path, engine_path=engine_path.decode(errors='replace'),
@@ -111,6 +115,40 @@ def main():
                         and b'PRIVATE KEY-----' not in data)),
                     evidence_limit='Retained end-of-replay bytes; no automatic primary-event adjudication'))
         candidates.extend(selected)
+        owners = defaultdict(list)
+        prefix = 'apti6e' + run.name[1:]
+        if (run / 'sources.jsonl').exists():
+            for line in (run / 'sources.jsonl').read_text(errors='replace').splitlines():
+                try:
+                    message = json.loads(line).get('data', '')
+                    kind, timestamp, tag, pid, payload = message.strip().split('|', 4)
+                    if kind not in ('EXEC', 'FORK') or not tag.startswith(prefix):
+                        continue
+                    timestamp, pid, index = int(timestamp), int(pid), int(tag[len(prefix):])
+                except (ValueError, AttributeError, json.JSONDecodeError):
+                    continue
+                owners[pid].append((timestamp, index))
+                if kind == 'FORK':
+                    owners[int(payload)].append((timestamp, index))
+        if (run / 'engine.jsonl').exists():
+            for line in (run / 'engine.jsonl').read_text(errors='replace').splitlines():
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if event.get('event') != 'TAINT_VIOLATION':
+                    continue
+                timestamp = int(event['timestamp'])
+                lineage = [entry for pid in (int(event['pid']), int(event.get('ppid', 0)))
+                           for entry in owners[pid] if entry[0] <= timestamp]
+                index = max(lineage)[1] if lineage else ''
+                interventions.append(dict(audit_condition=run.parents[2].name, dynamic_id=run.name,
+                    call_index=index, timestamp_ns=timestamp, pid=event['pid'],
+                    blocked=int(bool(event.get('blocked'))), killed=int(bool(event.get('killed'))),
+                    intervened=int(bool(event.get('blocked') or event.get('killed'))),
+                    source_path=(event.get('provenance') or {}).get('target', ''),
+                    target=event.get('target', ''), adjudication='unknown',
+                    evidence='Separate forensic replay; source/configuration evidence requires individual review'))
         summaries.append(dict(audit_condition=run.parents[2].name, dynamic_id=run.name,
             terminal=int(bool(done)), recorded_calls=done.get('recorded_calls', ''),
             executed_calls=done.get('executed_calls', ''), fatal=done.get('fatal', ''),
@@ -127,6 +165,9 @@ def main():
         'audit_condition', 'dynamic_id', 'terminal', 'recorded_calls', 'executed_calls', 'fatal',
         'trace_bytes', 'trace_sha256', 'parsed_successful_file_calls', 'unparsed_file_records', 'failed_file_calls',
         'unfinished_file_records', 'candidate_file_names', 'candidate_paths', 'evidence_limit'])
+    write('open-audit-interventions.csv', interventions, list(interventions[0]) if interventions else [
+        'audit_condition', 'dynamic_id', 'call_index', 'timestamp_ns', 'pid', 'blocked', 'killed',
+        'intervened', 'source_path', 'target', 'adjudication', 'evidence'])
     print('Separate open audits:', len(summaries), 'candidate opens:', len(candidates))
 
 
