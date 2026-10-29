@@ -6001,6 +6001,7 @@ rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,atte
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.433235447853804,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,attempt-1,4,http_error,provider_capacity,60,1793181894.3561382,,,,0,429,11.381883171154186,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,attempt-1,5,ok,,0,1793241939.5064394,,zai/glm-4.7-flash,stop,1,,102.42402151715942,1,8953,5518,3,0,5466
+rq1,zai/glm-4.7-flash,heygen-com__hyperframes::5,heygen-com__hyperframes__5,attempt-2,1,ok,,0,1793242056.308244,,zai/glm-4.7-flash,stop,1,,116.78433174686506,1,9040,5831,3,0,5783
 rq1,zai/glm-4.7-flash,hugohe3__ppt-master::10,hugohe3__ppt-master__10,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,10.40243816608563,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,hugohe3__ppt-master::10,hugohe3__ppt-master__10,attempt-1,2,http_error,rate_limited,15,,,,,0,429,10.547535588033497,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,hugohe3__ppt-master::10,hugohe3__ppt-master__10,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.365624686004594,0,0,0,0,0,0
@@ -6078,11 +6079,13 @@ rq1,zai/glm-4.7-flash,langchain-ai__open-swe::32,langchain-ai__open-swe__32,atte
 rq1,zai/glm-4.7-flash,luongnv89__claude-howto::13,luongnv89__claude-howto__13,attempt-1,1,http_error,rate_limited,0,,,,,0,429,11.625704247970134,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,luongnv89__claude-howto::13,luongnv89__claude-howto__13,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.42028654483147,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,luongnv89__claude-howto::13,luongnv89__claude-howto__13,attempt-1,3,http_error,rate_limited,30,,,,,0,429,10.37302413303405,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,luongnv89__claude-howto::13,luongnv89__claude-howto__13,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,10.904890171950683,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,luongnv89__claude-howto::13,luongnv89__claude-howto__13,attempt-1,4,http_error,provider_capacity,60,1793181994.3975027,,,,0,429,10.904890171950683,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,luongnv89__claude-howto::13,luongnv89__claude-howto__13,attempt-1,5,ok,,0,1793242196.4159017,,zai/glm-4.7-flash,stop,1,,139.9960988080129,1,8090,7490,3,0,7203
 rq1,zai/glm-4.7-flash,luongnv89__claude-howto::17,luongnv89__claude-howto__17,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.000998941017315,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,luongnv89__claude-howto::17,luongnv89__claude-howto__17,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,11.16398030007258,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,luongnv89__claude-howto::17,luongnv89__claude-howto__17,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.002098164055496,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,luongnv89__claude-howto::17,luongnv89__claude-howto__17,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,10.584969226038083,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,luongnv89__claude-howto::17,luongnv89__claude-howto__17,attempt-1,4,http_error,provider_capacity,60,1793182001.588304,,,,0,429,10.584969226038083,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,luongnv89__claude-howto::17,luongnv89__claude-howto__17,attempt-1,5,ok,,0,1793242385.2062094,,zai/glm-4.7-flash,stop,1,,188.66728008794598,1,8101,6903,3,0,6849
 rq1,zai/glm-4.7-flash,luongnv89__claude-howto::19,luongnv89__claude-howto__19,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.217261190060526,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,luongnv89__claude-howto::19,luongnv89__claude-howto__19,attempt-1,2,http_error,rate_limited,15,,,,,0,429,11.543817360885441,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,luongnv89__claude-howto::19,luongnv89__claude-howto__19,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.249160701176152,0,0,0,0,0,0
