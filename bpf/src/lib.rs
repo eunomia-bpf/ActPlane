@@ -3871,7 +3871,20 @@ os.execv({hit:?}, [{hit:?}])
     #[ignore = "requires root/CAP_BPF and BPF-LSM and loads live eBPF programs"]
     fn protected_controller_children_remain_enforced_smoke() {
         let label = 1;
-        let policy = block_write_paths_and_prefix_config_blob(&[], "/", label);
+        // source ALLOWED = exec "__never__"
+        // block write file "/**" if not ALLOWED
+        let mut cfg: CConfig = unsafe { std::mem::zeroed() };
+        cfg.n_updates = 1;
+        cfg.updates[0].op = OP_EXEC;
+        cfg.updates[0].add = 2;
+        set_cstr(&mut cfg.updates[0].target, "__never__");
+        cfg.n_rules = 1;
+        cfg.rules[0].op = OP_WRITE;
+        cfg.rules[0].m = 1; // TAINT_MATCH_PREFIX
+        cfg.rules[0].effect = EFFECT_BLOCK;
+        cfg.rules[0].forbid = 2;
+        set_cstr(&mut cfg.rules[0].target, "/");
+        let policy = config_blob(&cfg);
         let pid = std::process::id() as i32;
         let tmp = std::env::temp_dir().join(format!("actplane-protected-fork-{pid}"));
         std::fs::create_dir_all(&tmp).expect("create temp dir");

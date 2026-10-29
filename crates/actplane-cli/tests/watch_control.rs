@@ -299,62 +299,6 @@ test "$rc" -ne 0
         .expect("tempdir remains writable by the test user");
 }
 
-#[test]
-#[ignore = "requires root/CAP_BPF or passwordless sudo and loads live eBPF programs"]
-fn root_write_block_does_not_lock_out_control_plane_privileged() {
-    reset_bpf_pin_root();
-    let tmp = tempfile::tempdir().expect("tempdir");
-    let mut agent = FakeAgent::start("actplane-lockout-agent");
-    let policy = tmp.path().join("actplane.yaml");
-    std::fs::write(
-        &policy,
-        r#"
-policy: |
-  source COMMAND = exec "**"
-  source ALLOWED = exec "__actplane_never__"
-  rule deny_writes:
-    block write file "/**" if not ALLOWED
-    because "agent writes must remain blocked while the controller stays operational"
-"#,
-    )
-    .expect("write policy");
-    let mut watch = WatchProcess::start_with_attach_pid(&policy, tmp.path(), agent.pid())
-        .expect("privileged test requires root or passwordless sudo");
-    let control_state = tmp.path().join(".actplane/control.json");
-    // Opening the cleanup append lock used to fail with EPERM before readiness.
-    wait_for_control_state(&mut watch, &control_state);
-
-    let denied = tmp.path().join("denied");
-    let script = format!(
-        "if (echo forbidden > {0}); then echo agent-escaped; else echo agent-denied; fi; \
-         /bin/sh -c 'if (echo forbidden > {0}); then echo descendant-escaped; else echo descendant-denied; fi'",
-        denied.display()
-    );
-    let child_id = test_child_id(10);
-    launch_child(&policy, tmp.path(), child_id, &script);
-    let logs = poll_child_logs(&policy, tmp.path(), child_id, "descendant-denied");
-    assert!(logs.contains("agent-denied"), "{logs}");
-    assert!(!logs.contains("escaped"), "{logs}");
-    assert!(
-        std::fs::read(&denied).unwrap_or_default().is_empty(),
-        "an agent wrote data despite the write denial"
-    );
-    let status = actplane_output(&policy, tmp.path(), &["control", "status"]);
-    assert!(status.contains("\"attached\": true"), "{status}");
-
-    watch.stop();
-    agent.stop();
-    assert!(
-        !control_state.exists(),
-        "controller could not clean up its files"
-    );
-    assert!(
-        !watch.stderr().contains("failed to clear"),
-        "{}",
-        watch.stderr()
-    );
-}
-
 fn wait_for_control_state(watch: &mut WatchProcess, path: &std::path::Path) {
     let deadline = Instant::now() + Duration::from_secs(12);
     loop {
