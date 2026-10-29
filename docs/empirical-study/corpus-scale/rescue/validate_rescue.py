@@ -22,6 +22,11 @@ def main(a):
  record('test_scored_only_selected_revision',set([f'test-{rev}-scores.csv']),{p.name for p in OUT.glob('test-r*-scores.csv')})
  lock=json.loads((OUT/'test_evaluation_lock.json').read_text())
  for name,h in lock['prediction_hashes'].items():record('frozen_test_prediction_'+name,h,digest((OUT/name).read_bytes()))
+ from freeze_retained_axes import fingerprint
+ for r in read_csv(OUT/'retained_axes.csv'):
+  source=read_csv(HERE/r['source_file'])
+  record('retained_axes_'+r['source_file'],r['type_topic_sha256'],fingerprint(source))
+  record('retained_rows_'+r['source_file'],int(r['rows']),len(source))
  inputs={'dev':read_csv(OUT/'dev_inputs.csv'),'test':read_csv(OUT/'test_inputs.csv'),'source':read_csv(source_path)}
  for stage,rs in inputs.items():
   record(stage+'_paragraph_character_bound',0,sum(len(r['paragraph'])>2000 for r in rs));record(stage+'_heading_character_bound',0,sum(len(r['heading'])>500 for r in rs))
