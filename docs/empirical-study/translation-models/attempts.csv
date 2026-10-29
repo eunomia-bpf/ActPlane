@@ -6311,7 +6311,8 @@ rq1,zai/glm-4.7-flash,multica-ai__multica::12,multica-ai__multica__12,attempt-1,
 rq1,zai/glm-4.7-flash,multica-ai__multica::6,multica-ai__multica__6,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.387136949924752,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,multica-ai__multica::6,multica-ai__multica__6,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.720787880010903,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,multica-ai__multica::6,multica-ai__multica__6,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.181057851063088,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,multica-ai__multica::6,multica-ai__multica__6,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,10.474799964111298,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,multica-ai__multica::6,multica-ai__multica__6,attempt-1,4,http_error,provider_capacity,60,1793182342.6630292,,,,0,429,10.474799964111298,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,multica-ai__multica::6,multica-ai__multica__6,attempt-1,5,ok,,0,1793243888.785043,,zai/glm-4.7-flash,stop,1,,125.58780205994844,1,14022,5605,3,0,5553
 rq1,zai/glm-4.7-flash,multica-ai__multica::7,multica-ai__multica__7,attempt-1,1,ok,,0,,,zai/glm-4.7-flash,stop,1,,92.24453902803361,1,14011,3053,3,0,3007
 rq1,zai/glm-4.7-flash,multica-ai__multica::7,multica-ai__multica__7,attempt-2,1,ok,,0,,,zai/glm-4.7-flash,length,1,,205.60565227014013,1,14090,8192,3,0,8192
 rq1,zai/glm-4.7-flash,multica-ai__multica::7,multica-ai__multica__7,attempt-3,1,ok,,0,,,zai/glm-4.7-flash,stop,1,,90.13651500106789,1,14128,2556,3,0,2520
@@ -6483,11 +6484,13 @@ rq1,zai/glm-4.7-flash,nearai__ironclaw::49,nearai__ironclaw__49,attempt-1,5,ok,,
 rq1,zai/glm-4.7-flash,openai__codex::15,openai__codex__15,attempt-1,1,http_error,rate_limited,0,,,,,0,429,9.912999366875738,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::15,openai__codex__15,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,11.180281520122662,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::15,openai__codex__15,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.284401088953018,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,openai__codex::15,openai__codex__15,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,11.563959766877815,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,openai__codex::15,openai__codex__15,attempt-1,4,http_error,provider_capacity,60,1793182442.119008,,,,0,429,11.563959766877815,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,openai__codex::15,openai__codex__15,attempt-1,5,ok,,0,1793244106.0999832,,zai/glm-4.7-flash,stop,1,,217.10580732906237,1,11489,2528,3,0,2475
 rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,10.899407924851403,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.22064410103485,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.018447937909514,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,10.905014837859198,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-1,4,http_error,provider_capacity,60,1793182447.3599792,,,,0,429,10.905014837859198,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,openai__codex::17,openai__codex__17,attempt-1,5,ok,,0,1793244364.2654562,,zai/glm-4.7-flash,stop,1,,258.042786330916,1,11479,5383,3,0,5313
 rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.015757529065013,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,9.978874859865755,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::20,openai__codex__20,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.874752931995317,0,0,0,0,0,0
