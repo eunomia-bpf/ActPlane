@@ -1,0 +1,4 @@
+{
+  "network": {"allowedDomains": [], "deniedDomains": []},
+  "filesystem": {"denyRead": [], "allowWrite": ["/tmp/repo"], "denyWrite": []}
+}
