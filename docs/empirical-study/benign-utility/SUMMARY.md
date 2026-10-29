@@ -1,6 +1,8 @@
 # Benign-utility results
 
-Official Terminal-Bench comparisons and all fixed public replays completed. Final adjudication retains unknown cases; task success and intervention verification are distinct endpoints. [README.md](README.md) gives methods, exclusions, the paper-ready paragraph and scope limits. [headline.csv](results/headline.csv) is produced by [report.py](report.py).
+**Benchmark expansion is in progress under the operator's follow-up authorization.** The completed original Terminal-Bench sub-cohort, natural-network supplement and fixed public replay below remain unchanged. Added tasks are selected by the [predeclared protocol](benchmark/expanded/PROTOCOL.md) before model execution. Added and combined cohorts will be marked partial until their frozen task matrix completes.
+
+Adjudication retains unknown cases; task success and intervention verification are distinct endpoints. [README.md](README.md) gives methods, exclusions, the paper-ready paragraph and scope limits. [headline.csv](results/headline.csv) is produced by [report.py](report.py).
 
 | Cohort | No defense | Broad sources | Narrowed sources |
 | --- | ---: | ---: | ---: |

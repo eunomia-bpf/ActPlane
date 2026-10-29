@@ -39,14 +39,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--benchmark', type=Path, required=True)
     parser.add_argument('--network', type=Path, required=True)
+    parser.add_argument('--expanded', type=Path, help='Additional task cohort; combined windows are the union of initial and added rows')
     parser.add_argument('--replay', type=Path, required=True)
     parser.add_argument('--raw-replay', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     datasets = []
-    for name, path, cohort in [('Terminal-Bench', args.benchmark, 'native_denial_primary'),
-                              ('Terminal-Bench network stratum', args.network, 'network_exposure_followup')]:
+    live_inputs = [('Terminal-Bench', args.benchmark, 'native_denial_primary'),
+                   ('Terminal-Bench network stratum', args.network, 'network_exposure_followup')]
+    if args.expanded:
+        live_inputs.append(('Terminal-Bench added cohort', args.expanded, 'expanded_20261029'))
+    for name, path, cohort in live_inputs:
         runs, calls, events, _ = benchmark_inputs(path, cohort)
         datasets.append((name, True, runs, calls, events))
     runs = [r for r in read(args.replay / 'runs.csv') if r['coverage'] == 'complete'

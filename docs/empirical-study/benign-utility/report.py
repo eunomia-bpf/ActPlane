@@ -41,6 +41,7 @@ def main():
     parser.add_argument('--benchmark', type=Path, default=Path('benchmark/results'))
     parser.add_argument('--replay', type=Path, default=Path('replay/results'))
     parser.add_argument('--network', type=Path, help='Separately frozen natural-network follow-up results')
+    parser.add_argument('--expanded', type=Path, help='Predeclared additional official tasks; also report their union with the original subset')
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -59,10 +60,26 @@ def main():
         ('Terminal-Bench', ['a', 'b', 'c'], trials, benchmark_calls, task_count),
         ('Public replay', ['none', 'broad', 'scoped'], replay_runs, replay_calls, cohort_count),
     ]
+    task_names = {'Terminal-Bench': {r['task'] for r in read(args.benchmark / 'tasks.csv')}}
     if args.network:
         network_runs, network_calls, network_events, network_count = benchmark_inputs(args.network, 'network_exposure_followup')
         datasets.insert(1, ('Terminal-Bench network stratum', ['a', 'b', 'c'], network_runs, network_calls, network_count))
         event_data['Terminal-Bench network stratum'] = network_events
+        task_names['Terminal-Bench network stratum'] = {r['task'] for r in read(args.network / 'tasks.csv')}
+    if args.expanded:
+        added_runs, added_calls, added_events, added_count = benchmark_inputs(args.expanded, 'expanded_20261029')
+        added_names = {r['task'] for r in read(args.expanded / 'tasks.csv')}
+        if added_names & task_names['Terminal-Bench']:
+            raise ValueError('The added cohort overlaps the frozen original subset')
+        datasets[1:1] = [
+            ('Terminal-Bench added cohort', ['a', 'b', 'c'], added_runs, added_calls, added_count),
+            ('Terminal-Bench combined', ['a', 'b', 'c'], trials + added_runs,
+             benchmark_calls + added_calls, task_count + added_count),
+        ]
+        event_data['Terminal-Bench added cohort'] = added_events
+        event_data['Terminal-Bench combined'] = benchmark_events + added_events
+        task_names['Terminal-Bench added cohort'] = added_names
+        task_names['Terminal-Bench combined'] = task_names['Terminal-Bench'] | added_names
     for dataset, conditions, runs, calls, planned in datasets:
         benchmark = dataset != 'Public replay'
         identity = 'task' if benchmark else 'dynamic_id'
@@ -84,6 +101,9 @@ def main():
                          and r.get('coverage') == 'complete']
         valid_calls = [r for r in covered_calls if not benchmark or r.get('action_kind') in ('command', 'interrupt')]
         baseline = {r[identity]: r for r in valid_runs if r['condition'] == conditions[0]}
+        complete_triplets = set.intersection(*[
+            {r[identity] for r in valid_runs if r['condition'] == condition}
+            for condition in conditions])
         for condition in conditions:
             selected = [r for r in valid_runs if r['condition'] == condition]
             selected_calls = [r for r in valid_calls if r['condition'] == condition]
@@ -102,6 +122,7 @@ def main():
             if attributed > len(selected_events):
                 raise ValueError(f'Call counts exceed actual intervention events: {dataset}/{condition}')
             scored = [r for r in selected if r.get('outcome_success', '') != ''] if benchmark else []
+            matched_scored = [r for r in scored if r[identity] in complete_triplets]
             timing = []
             total_timing = []
             timing_excluded_storage = 0
@@ -142,6 +163,12 @@ def main():
                 official_successes=sum(number(r, 'outcome_success') for r in scored) if benchmark else '',
                 official_mean_reward=sum(number(r, 'outcome_score') for r in scored) / len(scored) if scored else '',
                 official_success_pct=100 * sum(number(r, 'outcome_score') for r in scored) / len(scored) if scored else '',
+                completed_task_ids=';'.join(sorted(r[identity] for r in selected)) if benchmark else '',
+                pending_task_ids=';'.join(sorted(task_names[dataset] - {r[identity] for r in selected})) if benchmark else '',
+                complete_triplet_tasks=len(complete_triplets) if benchmark else '',
+                complete_triplet_task_ids=';'.join(sorted(complete_triplets)) if benchmark else '',
+                complete_triplet_successes=sum(number(r, 'outcome_success') for r in matched_scored) if benchmark else '',
+                complete_triplet_mean_reward=sum(number(r, 'outcome_score') for r in matched_scored) / len(matched_scored) if matched_scored else '',
                 paired_success_trials=len(success_differences) if benchmark else '',
                 success_drop_percentage_points=100 * sum(success_differences) / len(success_differences) if success_differences else '',
                 calls=len(selected_calls),
@@ -190,6 +217,9 @@ def render(rows, positions, out):
     plt.rcParams.update({'pdf.fonttype': 42, 'ps.fonttype': 42, 'font.size': 9})
     fig, axes = plt.subplots(1, 2, figsize=(8, 3.1))
     cohorts = [('Terminal-Bench', 'Initial subset')]
+    if any(r['dataset'] == 'Terminal-Bench combined' for r in rows):
+        planned = next(r['planned_sessions'] for r in rows if r['dataset'] == 'Terminal-Bench combined')
+        cohorts.append(('Terminal-Bench combined', f'Combined ({planned} planned)'))
     if any(r['dataset'] == 'Terminal-Bench network stratum' for r in rows):
         cohorts.append(('Terminal-Bench network stratum', 'Network stratum'))
     for i, (condition, color, name) in enumerate([('a', '#777777', 'No AgPlane'), ('b', '#ca6828', 'Broad'), ('c', '#2577a2', 'Scoped')]):
