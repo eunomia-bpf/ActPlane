@@ -38,5 +38,9 @@
     },
     "dirty-flag": false
   },
-  "checksum_url": "https://cloud.debian.org/images/cloud/trixie/latest/SHA512SUMS"
+  "checksum_url": "https://cloud.debian.org/images/cloud/trixie/latest/SHA512SUMS",
+  "immutable_equivalent_url": "https://cloud.debian.org/images/cloud/trixie/20261026-2643/debian-13-genericcloud-amd64-20261026-2643.qcow2",
+  "official_build_version": "20261026-2643",
+  "immutable_checksum_url": "https://cloud.debian.org/images/cloud/trixie/20261026-2643/SHA512SUMS",
+  "immutable_equivalence": "Archived provider SHA512 matches original downloaded image; original URL/hash facts retained"
 }

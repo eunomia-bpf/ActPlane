@@ -16,8 +16,9 @@ if pidfile.exists() and Path('/proc/' + pidfile.read_text().strip()).exists():
     raise RuntimeError('Existing guest process; do not modify an active VM seed or launch a competitor')
 if any(Path('/proc/' + file.read_text().strip()).exists() for file in RUNTIME.glob('worker*.pid')):
     raise RuntimeError('Existing benchmark workers; do not modify their runtime')
-BASE = 'https://cloud.debian.org/images/cloud/trixie/latest/'
-NAME = 'debian-13-genericcloud-amd64.qcow2'
+BASE = 'https://cloud.debian.org/images/cloud/trixie/20261026-2643/'
+NAME = 'debian-13-genericcloud-amd64-20261026-2643.qcow2'
+EXPECTED_SHA512 = '3ace18e33bdd036edb49d1f79342bd01d2ab980e35194edb0b410435cd543538d286a0bd13bbb0835f7862306e3d385ce2f6a70d8ecf0bd961111166adbc1b8e'
 
 
 def run(args, **kwargs):
@@ -36,6 +37,7 @@ checksum = RECEIPTS / 'SHA512SUMS'
 download(BASE + 'SHA512SUMS', checksum)
 match = next(line for line in checksum.read_text().splitlines() if line.split()[-1].lstrip('*') == NAME)
 expected = match.split()[0]
+assert expected == EXPECTED_SHA512, 'Pinned official cloud build changed'
 image = RUNTIME / NAME
 if not image.exists():
     print('Downloading official Debian cloud image', flush=True)
