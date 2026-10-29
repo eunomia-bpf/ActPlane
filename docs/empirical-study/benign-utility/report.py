@@ -30,7 +30,12 @@ def main():
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
-    trials = [r for r in read(args.benchmark / 'trials.csv') if r['main_matrix'] == '1']
+    all_trials = read(args.benchmark / 'trials.csv')
+    if all_trials and 'selected_for_comparison' not in all_trials[0]:
+        raise ValueError('Verifier availability audit is required before utility aggregation')
+    trials = [r for r in all_trials if r['main_matrix'] == '1' and r['selected_for_comparison'] == '1']
+    if any(r.get('verifier_valid') != '1' for r in trials):
+        raise ValueError('An unchecked verifier reward was selected for comparison')
     benchmark_calls = [r for r in read(args.benchmark / 'calls.csv') if r['main_matrix'] == '1']
     replay_runs = read(args.replay / 'runs.csv')
     replay_calls = read(args.replay / 'calls.csv')
@@ -49,12 +54,13 @@ def main():
     ]:
         benchmark = dataset == 'Terminal-Bench'
         identity = 'task' if benchmark else 'dynamic_id'
+        call_identity = 'trial_id' if benchmark else identity
         valid_runs = []
         for run in runs:
             if run.get('coverage') != 'complete':
                 continue
             if benchmark:
-                valid = run['run_status'] in ('complete', 'official_timeout')
+                valid = run.get('effective_run_status') in ('complete', 'official_timeout')
             else:
                 valid = not run.get('fatal') and number(run, 'executed_calls') == number(run, 'recorded_calls')
             if valid:
@@ -62,14 +68,14 @@ def main():
         keys = [(r[identity], r['condition']) for r in valid_runs]
         if len(keys) != len(set(keys)):
             raise ValueError(f'Duplicate valid main comparisons in {dataset}')
-        valid_keys = set(keys)
-        valid_calls = [r for r in calls if (r[identity], r['condition']) in valid_keys]
+        valid_keys = {(r[call_identity], r['condition']) for r in valid_runs}
+        valid_calls = [r for r in calls if (r[call_identity], r['condition']) in valid_keys]
         baseline = {r[identity]: r for r in valid_runs if r['condition'] == conditions[0]}
         for condition in conditions:
             selected = [r for r in valid_runs if r['condition'] == condition]
             selected_calls = [r for r in valid_calls if r['condition'] == condition]
             selected_events = [r for r in event_data[dataset]
-                if r['condition'] == condition and (r[identity], condition) in valid_keys
+                if r['condition'] == condition and (r[call_identity], condition) in valid_keys
                 and (any(str(r.get(k, '')).lower() in ('true', '1') for k in ('killed', 'blocked'))
                      if benchmark else number(r, 'intervened') > 0)]
             attributed = sum(number(r, 'intervention_events' if benchmark else 'intervention_count') for r in selected_calls)
@@ -78,8 +84,11 @@ def main():
             scored = [r for r in selected if r.get('official_success', '') != ''] if benchmark else []
             timing = []
             total_timing = []
+            success_differences = []
             for run in selected:
                 control = baseline.get(run[identity])
+                if benchmark and control and run.get('official_success', '') != '' and control.get('official_success', '') != '':
+                    success_differences.append(number(control, 'official_success') - number(run, 'official_success'))
                 execution_key = 'agent_execution_s' if benchmark else 'elapsed_s'
                 total_key = 'wall_s' if benchmark else 'elapsed_s'
                 if control and number(control, execution_key) > 0 and number(run, execution_key) > 0:
@@ -102,6 +111,8 @@ def main():
                 coverage_complete_sessions=len(selected), official_scored_trials=len(scored) if benchmark else '',
                 official_successes=sum(number(r, 'official_success') for r in scored) if benchmark else '',
                 official_success_pct=100 * sum(number(r, 'official_success') for r in scored) / len(scored) if scored else '',
+                paired_success_trials=len(success_differences) if benchmark else '',
+                success_drop_percentage_points=100 * sum(success_differences) / len(success_differences) if success_differences else '',
                 calls=len(selected_calls),
                 intervention_events=len(selected_events),
                 unattributed_intervention_events=len(selected_events) - int(attributed),
