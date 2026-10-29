@@ -77,7 +77,7 @@ def main(a):
  batches=[];batch=[];chars=0
  for r in todo:
   size=sum(len(r[k]) for k in ['text','heading','paragraph','file_path'])
-  if batch and (len(batch)>=a.batch_size or chars+size>30000):batches.append(batch);batch=[];chars=0
+  if batch and (len(batch)>=a.batch_size or chars+size>a.max_chars):batches.append(batch);batch=[];chars=0
   batch.append(r);chars+=size
  if batch:batches.append(batch)
  write_csv(a.output,sorted(done.values(),key=lambda r:r['statement_id']),FIELDS)
@@ -95,6 +95,6 @@ if __name__=='__main__':
  p.add_argument('--guide',type=Path,required=True);p.add_argument('--examples',type=Path,required=True)
  p.add_argument('--revision',required=True);p.add_argument('--stage',required=True)
  p.add_argument('--model',required=True);p.add_argument('--workers',type=int,default=4);p.add_argument('--batch-size',type=int,default=32)
- p.add_argument('--raw',type=Path,default=DEFAULT_RAW);p.add_argument('--retries',type=int,default=3);p.add_argument('--thinking',action='store_true')
+ p.add_argument('--max-chars',type=int,default=30000);p.add_argument('--raw',type=Path,default=DEFAULT_RAW);p.add_argument('--retries',type=int,default=3);p.add_argument('--thinking',action='store_true')
  p.add_argument('--primary',type=Path);p.add_argument('--other',type=Path)
  a=p.parse_args();assert 1<=a.workers<=8;main(a)
