@@ -1,9 +1,10 @@
 """Use shared, unchanged-default CSV logic with explicit separate cohort paths."""
 import csv,hashlib,os,runpy
 from pathlib import Path
-from benchmark.network.freeze import canonical,fields as abi_fields
 import json
 HERE=Path(__file__).resolve().parent
+abi_helpers=runpy.run_path(str(HERE/'freeze.py'))
+canonical=abi_helpers['canonical'];abi_fields=abi_helpers['fields']
 os.environ.update(BU_ANALYSIS_RAW='/workspaces/exp/benign-utility/raw/benchmark/network',BU_ANALYSIS_OUT='/workspaces/exp/benign-utility/benchmark/network/results',BU_ANALYSIS_COHORT='network_exposure_followup')
 for filename in ('analyze.py','scope_audit.py','analyze.py'):runpy.run_path(str(HERE.parent/filename),run_name='__main__')
 OUT=Path(os.environ['BU_ANALYSIS_OUT'])
