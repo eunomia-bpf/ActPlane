@@ -1,0 +1,30 @@
+{
+  "cohort": "network_exposure_followup",
+  "model": "zai/glm-5.3",
+  "agent": "Harbor0.25.0 Terminus2 official defaults",
+  "repetitions": 1,
+  "selection": "earliest infrastructure-valid outcome; genuine failures/timeouts never resampled; unknown failures require audit",
+  "files": {
+    "results/tasks.csv": "40fd5faee6452d3fde3493998250dfacd2289a2c24f5d32b4efd08cf0e9c2f9c",
+    "results/policies.csv": "e41f129a0ed0b03b4aae5f33a01747c828f03f4d7bc982cc61b0fd4394921ef8",
+    "results/compiled-sources.csv": "ab247ddaf208771704da9ddaad268adb15eb426de42e25d6998e4f31d99cb26a",
+    "results/image-inventory.csv": "762c9364a5ae3335049e66c4af561c84a7f94ea39c4e3137f938ddbfc2aac725",
+    "results/secret-inventory.csv": "1176d85c441051930ec532573fc0c41243bd7f2516ddf7e5b5c4e72e4e736067",
+    "results/external-repository-inventory.csv": "1004b4c25273f1afe05a381d97f7ab6e0086ca72fd896de343040d93fad4ed7f",
+    "results/source-alias-controls.csv": "d577fec9635288773d07bbd317c81bfc639816946743c2246fd1f1bfcc4ad03e",
+    "results/source-control-validation.csv": "9a46485251dbacc23d152119f33d18a5c0f50ba6317a33ad916cc7861632f94a",
+    "policies/git-multibranch/c.dsl": "5c9b5ecb1f58819c6263083cf03629909a6e9a845bb89cd2b21802dbe4d94c75",
+    "policies/git-multibranch/b.dsl": "7b1ee407761225515ee34935d206e14b522b6d3ad31733cde912176782a358df",
+    "policies/pypi-server/c.dsl": "ca59cc065eb7e10c00e1422d1a877c054c9e1d79e8a4ec3be1730242ae8e4fb5",
+    "policies/pypi-server/b.dsl": "d8abe36864526c91e5e014d80d486470eada3f68ade0b62d78f41efe4758c71a",
+    "policies/build-cython-ext/c.dsl": "ca59cc065eb7e10c00e1422d1a877c054c9e1d79e8a4ec3be1730242ae8e4fb5",
+    "policies/build-cython-ext/b.dsl": "d8abe36864526c91e5e014d80d486470eada3f68ade0b62d78f41efe4758c71a"
+  },
+  "runtime_code": {
+    "adapter.py": "5b17263abdf7feea554d631a3406c6ff50358b1b1bdb5c57fefbdd2c72e5ea28",
+    "network/adapter.py": "70eaca9de3179866b49d55984f7e6b4a749ad2b087f61aec4387f269c7b12249",
+    "network/run.py": "845baab55bce528f972ec8841a85350c8dcb4461ad08cc2f8c792be029c422e3"
+  },
+  "engine_sha256": "981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520",
+  "compiler_sha256": "564ce43b9caa85117e630b7c0931da112e25e43e89fff065540f5ddd1443de01"
+}
