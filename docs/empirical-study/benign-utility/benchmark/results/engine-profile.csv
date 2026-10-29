@@ -1,0 +1,4 @@
+variable,value,collection_stage
+ACTPLANE_HOOK_PROFILE,unset,current_export_not_historical_launch
+ACTPLANE_ENABLE_ADVANCED_HOOKS,unset,current_export_not_historical_launch
+ACTPLANE_ADVANCED_TRACEPOINTS,unset,current_export_not_historical_launch

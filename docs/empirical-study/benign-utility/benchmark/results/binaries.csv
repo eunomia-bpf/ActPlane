@@ -1,4 +1,4 @@
 component,path,sha256
 engine,/workspaces/exp/benign-utility/raw/benchmark/engine/process,981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520
 compiler,/workspaces/lanes/translation-models/target/release/actplane,564ce43b9caa85117e630b7c0931da112e25e43e89fff065540f5ddd1443de01
-observer,/workspaces/exp/benign-utility/src/replay/source_observer.bt,8dcf715419f30d9b1fde3a441db59f7e8b6ddc0425b592752b554e0727aa55c6
+observer,/workspaces/exp/benign-utility/src/replay/source_observer.bt,47fb02e1b4ce6d463d2d8268962c279887c0fb8c6c1414766a943b50b0643363

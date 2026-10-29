@@ -3,8 +3,9 @@ import csv,fcntl,os,shutil,subprocess,sys,time
 from pathlib import Path
 RAW=Path('/workspaces/exp/benign-utility/raw/benchmark')
 OUT=RAW.parent.parent/'benchmark/results'
-lock=(RAW/'matrix.lock').open('w')
+lock=(RAW/'matrix.lock').open('a+')
 fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+lock.seek(0);lock.truncate()
 lock.write(str(os.getpid()));lock.flush()
 
 def export():
@@ -16,6 +17,8 @@ for task in csv.DictReader((OUT/'tasks.csv').open()):
   rows=export()
   if any(r['task']==task['task'] and r['condition']==condition and r['selected_for_comparison']=='1' for r in rows):
    print('SELECTED',task['task'],condition,flush=True);continue
+  if any(r['task']==task['task'] and r['condition']==condition and r['comparison_cohort']=='corrected_uniform' and r['verifier_status']=='collection_error_requires_audit' for r in rows):
+   print('NEEDS_COLLECTION_AUDIT',task['task'],condition,flush=True);continue
   prefix=f"{task['task']}-{condition}-"
   if not (RAW/'jobs'/(prefix+'1')).exists():attempt='1'
   else:
