@@ -17,7 +17,7 @@ def run(args):
     return p.stdout.strip() or p.stderr.strip()
 def write(name, rows):
     with (OUT/name).open('w',newline='') as f:
-        w=csv.DictWriter(f,fieldnames=list(rows[0])); w.writeheader(); w.writerows(rows)
+        w=csv.DictWriter(f,fieldnames=list(rows[0]),lineterminator='\n'); w.writeheader(); w.writerows(rows)
 rows=[]
 for label, cmd in [('codex',[str(RAW/'codex-real'),'--version']),
                    ('srt',[str(RAW/'tools/node_modules/.bin/srt'),'--version']),

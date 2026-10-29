@@ -30,7 +30,7 @@ def main():
     for r in agplane:
         figuredata.append(dict(system=r['system'],metric='imported_detection',numerator=r['detected'],denominator=r['violations']))
     with (OUT/'figure-data.csv').open('w',newline='') as f:
-        w=csv.DictWriter(f,fieldnames=list(figuredata[0]));w.writeheader();w.writerows(figuredata)
+        w=csv.DictWriter(f,fieldnames=list(figuredata[0]),lineterminator='\n');w.writeheader();w.writerows(figuredata)
     fig,axs=plt.subplots(1,3,figsize=(11.6,3.15),gridspec_kw={'width_ratios':[1,1,0.8]},layout='constrained')
     for ax,metric,denom,title,color in [
         (axs[0],'prevented','eligible_effect_pairs','Persistent effect / invocation\nprevented','#2563a3'),

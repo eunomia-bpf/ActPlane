@@ -13,7 +13,7 @@ commands['sha256']=hashlib.sha256(pdf.read_bytes()).hexdigest()
 assert 'TrueType' in commands['fonts']
 assert 'Type 3' not in commands['fonts']
 with (out/'figure-settings.csv').open('w',newline='') as f:
- w=csv.DictWriter(f,fieldnames=['setting','value']);w.writeheader()
+ w=csv.DictWriter(f,fieldnames=['setting','value'],lineterminator='\n');w.writeheader()
  w.writerows([dict(setting='pdf.fonttype',value=42),dict(setting='embedded_truetype',value=1)])
 print(commands['pdfinfo'])
 print(commands['fonts'])
