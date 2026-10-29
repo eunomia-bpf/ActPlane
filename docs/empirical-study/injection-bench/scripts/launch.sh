@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Detached workers use an immutable copy, because ws.sh sync overwrites src.
 set -euo pipefail
-snapshot_id=$(sha256sum scripts/benchmark_runner.py scripts/model_backend.py scripts/actplane_adapter.py | sha256sum | cut -d' ' -f1)
+snapshot_id=$(sha256sum scripts/benchmark_runner.py scripts/model_backend.py scripts/actplane_adapter.py scripts/inference_transport.py | sha256sum | cut -d' ' -f1)
 snapshot="$WS_RAW/code/$snapshot_id"
 mkdir -p "$snapshot"
-for script in benchmark_runner.py model_backend.py actplane_adapter.py; do
+for script in benchmark_runner.py model_backend.py actplane_adapter.py inference_transport.py; do
   if [ ! -f "$snapshot/$script" ]; then
     cp "scripts/$script" "$snapshot/$script"
     chmod 444 "$snapshot/$script"

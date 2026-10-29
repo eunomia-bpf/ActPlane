@@ -1,0 +1,611 @@
+{
+  "kind": "inert mechanism preflight, not benchmark results",
+  "source_commit": "fe23a1e730f330768a7a884bd75850dc6852f299",
+  "guest": {
+    "kernel": "6.8.0-138-generic",
+    "pid": 1,
+    "lsm": "lockdown,capability,landlock,yama,apparmor,bpf"
+  },
+  "artifacts": {
+    "actplane-file-profile-bin": "199f5f5155d48bb8be93065cff69a18de2454ab96b554ffe37e9b6d220a6b1d6",
+    "actplane-file-profile.patch": "d9601b7cf21d509a40e17214b50315a5e0dba0fe422e850830e0ef53ac7f941d",
+    "actplane-file-profile/bpf/prebuilt/process.bpf.o": "62ea06517d140c1c8339d74fccf6444330322e682e47bcfca8b56333ac95ced5",
+    "actplane-file-profile/bpf/capability.bpf.h": "faa8f147de250e18c173d4d864bab6c7cf1af1c5417cdf5139667b5e0f0bd020",
+    "actplane-file-profile/bpf/process.bpf.c": "bac4261c7f55d31130034758818a84526c546388b8c8a2803409d74c0bee546b",
+    "actplane-file-profile/bpf/src/lib.rs": "e960a8e286b7fe752b1e0055dabbbc01aabc72389e92e804fb4c67718a1f2511"
+  },
+  "cases": {
+    "parent": {
+      "summary": {
+        "mode": "parent",
+        "guest_kernel": "6.8.0-138-generic",
+        "returncode": 0,
+        "allowed_read_write_succeeded": 1,
+        "protected_read_denied": 1,
+        "blocked_kernel_events": 1,
+        "uid": "65534",
+        "gid": "65534",
+        "cap_eff": "0000000000000000",
+        "cap_prm": "0000000000000000",
+        "cap_bnd": "0000000000000000",
+        "no_new_privs": "1",
+        "self_policy_attempts": 0,
+        "self_policy_accepted": 0,
+        "kernel_accept_before": 2,
+        "kernel_accept_after": 2,
+        "kernel_reject_before": 0,
+        "kernel_reject_after": 0,
+        "rules_before": 1,
+        "rules_after": 1,
+        "updates_before": 1,
+        "updates_after": 1,
+        "append_caller_uid": "not_applicable",
+        "append_stage": "parent_policy_installed_before_worker"
+      },
+      "execution": {
+        "mode": "parent",
+        "status": "completed",
+        "command": [
+          "/usr/bin/python3",
+          "-c",
+          "import pathlib,sys; p=pathlib.Path(sys.argv[1]); allowed=p.parent/\"allowed.txt\"; allowed.write_text(\"permitted\"); assert allowed.read_text()==\"permitted\"; print(\"legitimate read/write succeeded\");\ntry:\n print(p.read_text());sys.exit(3)\nexcept PermissionError:\n print(\"kernel denied inert read\");sys.exit(0)",
+          "/tmp/injection_kernel_preflight_chien9re/guarded.txt"
+        ],
+        "returncode": 0,
+        "child_domain_id": 10000001,
+        "parent_domain_id": 551923422,
+        "elapsed_seconds": 4.836510646000008
+      },
+      "privilege": {
+        "Uid": "65534\t65534\t65534\t65534",
+        "Gid": "65534\t65534\t65534\t65534",
+        "CapInh": "0000000000000000",
+        "CapPrm": "0000000000000000",
+        "CapEff": "0000000000000000",
+        "CapBnd": "0000000000000000",
+        "CapAmb": "0000000000000000",
+        "NoNewPrivs": "1"
+      },
+      "kernel_before": {
+        "cap_stats": [
+          2,
+          0,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "ts_counts": [
+          1,
+          1
+        ]
+      },
+      "kernel_after": {
+        "cap_stats": [
+          2,
+          0,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "ts_counts": [
+          1,
+          1
+        ]
+      },
+      "native_audit": [
+        {
+          "actor_identity": {
+            "comm": "sleep",
+            "exe": "/usr/bin/sleep",
+            "gid": 0,
+            "pid": 129,
+            "proc_start_time": 8204,
+            "stable_id": "pid:129:start:8204",
+            "uid": 0
+          },
+          "actor_pid": 129,
+          "audit_context_id": "pid-130",
+          "audit_writer_egid": 0,
+          "audit_writer_euid": 0,
+          "authority_mask": "0x10",
+          "child_domain_id": 10000001,
+          "engine_parent_domain_id": 551923422,
+          "engine_parent_identity": {
+            "comm": "sleep",
+            "exe": "/usr/bin/sleep",
+            "gid": 0,
+            "pid": 129,
+            "proc_start_time": 8204,
+            "stable_id": "pid:129:start:8204",
+            "uid": 0
+          },
+          "engine_parent_pid": 129,
+          "event": "bind_child_domain",
+          "label_mask": "0x0",
+          "parent_domain_id": 551923422,
+          "parent_pid": 129,
+          "pid": 139,
+          "schema": "actplane.audit.v1",
+          "scope_id": 0,
+          "status": "accepted",
+          "submitter_identity": {
+            "comm": "actplane-file-p",
+            "exe": "/workspaces/exp/injection-bench/raw/actplane-file-profile-bin",
+            "gid": 0,
+            "pid": 130,
+            "proc_start_time": 8204,
+            "stable_id": "pid:130:start:8204",
+            "uid": 0
+          },
+          "submitter_pid": 130,
+          "target_mask": "0x1",
+          "timestamp_unix_ns": "1793255384207550315"
+        },
+        {
+          "actor_identity": {
+            "comm": "sleep",
+            "exe": "/usr/bin/sleep",
+            "gid": 0,
+            "pid": 129,
+            "proc_start_time": 8204,
+            "stable_id": "pid:129:start:8204",
+            "uid": 0
+          },
+          "actor_pid": 129,
+          "audit_context_id": "pid-130",
+          "audit_writer_egid": 0,
+          "audit_writer_euid": 0,
+          "child_domain_id": 10000001,
+          "cmd": [
+            "/usr/bin/python3",
+            "/workspaces/exp/injection-bench/src/scripts/actplane_adapter.py",
+            "_worker",
+            "/workspaces/exp/injection-bench/raw/kernel-preflight/guest-depth2/parent/worker-config.json"
+          ],
+          "engine_parent_domain_id": 551923422,
+          "engine_parent_identity": {
+            "comm": "sleep",
+            "exe": "/usr/bin/sleep",
+            "gid": 0,
+            "pid": 129,
+            "proc_start_time": 8204,
+            "stable_id": "pid:129:start:8204",
+            "uid": 0
+          },
+          "engine_parent_pid": 129,
+          "event": "launch_child_domain",
+          "pid": 139,
+          "policy_attached": false,
+          "schema": "actplane.audit.v1",
+          "status": "accepted",
+          "submitter_identity": {
+            "comm": "actplane-file-p",
+            "exe": "/workspaces/exp/injection-bench/raw/actplane-file-profile-bin",
+            "gid": 0,
+            "pid": 130,
+            "proc_start_time": 8204,
+            "stable_id": "pid:130:start:8204",
+            "uid": 0
+          },
+          "submitter_pid": 130,
+          "timestamp_unix_ns": "1793255384241685558"
+        }
+      ],
+      "native_events": [
+        {
+          "action": "block",
+          "blocked": true,
+          "comm": "python3",
+          "domain_id": 551923422,
+          "effect": "block",
+          "event": "taint_violation",
+          "killed": false,
+          "matched_label": "0x0",
+          "matched_label_details": [],
+          "matched_label_name": "0x0",
+          "matched_label_names": [],
+          "matched_labels": "0x0",
+          "op": "read",
+          "op_code": 1,
+          "pid": 141,
+          "ppid": 139,
+          "provenance_model": {
+            "causal_chain_scope": "single_hop_origin",
+            "full_causal_chain": false,
+            "matched_labels_enumerated": true,
+            "reported_origin_available": false,
+            "reported_origin_scope": "first_available_matched_label"
+          },
+          "rule": {
+            "clause_end_line": 3,
+            "clause_hash": "fnv1a64:cde8bdd6ca17e59f",
+            "clause_op": "open",
+            "clause_source_index": 0,
+            "clause_start_line": 3,
+            "clause_text": "  block open file \"/tmp/injection_kernel_preflight_chien9re/guarded.txt\"",
+            "effect": "block",
+            "immutable": false,
+            "kernel_op": "read",
+            "name": "preflight",
+            "ops": [
+              "open"
+            ],
+            "reason": "inert preflight guard",
+            "source_end_line": 4,
+            "source_hash": "fnv1a64:587df085d8d3ecf2",
+            "source_ref": "rule:preflight",
+            "source_start_line": 2,
+            "target_arg": null,
+            "target_kind": "file",
+            "target_pattern": "/tmp/injection_kernel_preflight_chien9re/guarded.txt"
+          },
+          "rule_id": 0,
+          "schema": "actplane.violation.v1",
+          "session_root": 129,
+          "taint_label": "0x1",
+          "target": "/tmp/injection_kernel_preflight_chien9re/guarded.txt",
+          "timestamp_unix_ns": "1793255384577967262"
+        }
+      ],
+      "stdout": "legitimate read/write succeeded\nkernel denied inert read\n"
+    },
+    "child": {
+      "summary": {
+        "mode": "child",
+        "guest_kernel": "6.8.0-138-generic",
+        "returncode": 0,
+        "allowed_read_write_succeeded": 1,
+        "protected_read_denied": 1,
+        "blocked_kernel_events": 1,
+        "uid": "65534",
+        "gid": "65534",
+        "cap_eff": "0000000000000000",
+        "cap_prm": "0000000000000000",
+        "cap_bnd": "0000000000000000",
+        "no_new_privs": "1",
+        "self_policy_attempts": 1,
+        "self_policy_accepted": 1,
+        "kernel_accept_before": 3,
+        "kernel_accept_after": 4,
+        "kernel_reject_before": 0,
+        "kernel_reject_after": 0,
+        "rules_before": 0,
+        "rules_after": 1,
+        "updates_before": 1,
+        "updates_after": 1,
+        "append_caller_uid": 65534,
+        "append_stage": "kernel_count_confirmed"
+      },
+      "execution": {
+        "mode": "child",
+        "status": "completed",
+        "command": [
+          "/usr/bin/python3",
+          "-c",
+          "import pathlib,sys; p=pathlib.Path(sys.argv[1]); allowed=p.parent/\"allowed.txt\"; allowed.write_text(\"permitted\"); assert allowed.read_text()==\"permitted\"; print(\"legitimate read/write succeeded\");\ntry:\n print(p.read_text());sys.exit(3)\nexcept PermissionError:\n print(\"kernel denied inert read\");sys.exit(0)",
+          "/tmp/injection_kernel_preflight_c2on0b5x/guarded.txt"
+        ],
+        "returncode": 0,
+        "child_domain_id": 10000001,
+        "parent_domain_id": 1849590086,
+        "elapsed_seconds": 1.1161893559999925
+      },
+      "privilege": {
+        "Uid": "65534\t65534\t65534\t65534",
+        "Gid": "65534\t65534\t65534\t65534",
+        "CapInh": "0000000000000000",
+        "CapPrm": "0000000000000000",
+        "CapEff": "0000000000000000",
+        "CapBnd": "0000000000000000",
+        "CapAmb": "0000000000000000",
+        "NoNewPrivs": "1"
+      },
+      "kernel_before": {
+        "cap_stats": [
+          3,
+          0,
+          10,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "ts_counts": [
+          0,
+          1
+        ]
+      },
+      "kernel_after": {
+        "cap_stats": [
+          4,
+          0,
+          15,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "ts_counts": [
+          1,
+          1
+        ]
+      },
+      "native_audit": [
+        {
+          "actor_identity": {
+            "comm": "sleep",
+            "exe": "/usr/bin/sleep",
+            "gid": 0,
+            "pid": 142,
+            "proc_start_time": 8701,
+            "stable_id": "pid:142:start:8701",
+            "uid": 0
+          },
+          "actor_pid": 142,
+          "audit_context_id": "pid-143",
+          "audit_writer_egid": 0,
+          "audit_writer_euid": 0,
+          "authority_mask": "0x10",
+          "child_domain_id": 10000001,
+          "engine_parent_domain_id": 1849590086,
+          "engine_parent_identity": {
+            "comm": "sleep",
+            "exe": "/usr/bin/sleep",
+            "gid": 0,
+            "pid": 142,
+            "proc_start_time": 8701,
+            "stable_id": "pid:142:start:8701",
+            "uid": 0
+          },
+          "engine_parent_pid": 142,
+          "event": "bind_child_domain",
+          "label_mask": "0x0",
+          "parent_domain_id": 1849590086,
+          "parent_pid": 142,
+          "pid": 152,
+          "schema": "actplane.audit.v1",
+          "scope_id": 0,
+          "status": "accepted",
+          "submitter_identity": {
+            "comm": "actplane-file-p",
+            "exe": "/workspaces/exp/injection-bench/raw/actplane-file-profile-bin",
+            "gid": 0,
+            "pid": 143,
+            "proc_start_time": 8702,
+            "stable_id": "pid:143:start:8702",
+            "uid": 0
+          },
+          "submitter_pid": 143,
+          "target_mask": "0x1",
+          "timestamp_unix_ns": "1793255385452019836"
+        },
+        {
+          "actor_identity": {
+            "comm": "sleep",
+            "exe": "/usr/bin/sleep",
+            "gid": 0,
+            "pid": 142,
+            "proc_start_time": 8701,
+            "stable_id": "pid:142:start:8701",
+            "uid": 0
+          },
+          "actor_pid": 142,
+          "audit_context_id": "pid-143",
+          "audit_writer_egid": 0,
+          "audit_writer_euid": 0,
+          "child_domain_id": 10000001,
+          "cmd": [
+            "/usr/bin/python3",
+            "/workspaces/exp/injection-bench/src/scripts/actplane_adapter.py",
+            "_worker",
+            "/workspaces/exp/injection-bench/raw/kernel-preflight/guest-depth2/child/worker-config.json"
+          ],
+          "engine_parent_domain_id": 1849590086,
+          "engine_parent_identity": {
+            "comm": "sleep",
+            "exe": "/usr/bin/sleep",
+            "gid": 0,
+            "pid": 142,
+            "proc_start_time": 8701,
+            "stable_id": "pid:142:start:8701",
+            "uid": 0
+          },
+          "engine_parent_pid": 142,
+          "event": "launch_child_domain",
+          "pid": 152,
+          "policy_attached": false,
+          "schema": "actplane.audit.v1",
+          "status": "accepted",
+          "submitter_identity": {
+            "comm": "actplane-file-p",
+            "exe": "/workspaces/exp/injection-bench/raw/actplane-file-profile-bin",
+            "gid": 0,
+            "pid": 143,
+            "proc_start_time": 8702,
+            "stable_id": "pid:143:start:8702",
+            "uid": 0
+          },
+          "submitter_pid": 143,
+          "timestamp_unix_ns": "1793255385488158184"
+        },
+        {
+          "actor_identity": {
+            "comm": "sleep",
+            "exe": "/usr/bin/sleep",
+            "gid": 0,
+            "pid": 142,
+            "proc_start_time": 8701,
+            "stable_id": "pid:142:start:8701",
+            "uid": 0
+          },
+          "actor_pid": 142,
+          "approval_chain": {
+            "admission_model": "metadata_only",
+            "decision": "accepted",
+            "enforced": false,
+            "external_verified": false,
+            "generated_by": "executing-agent-after-context",
+            "required": false,
+            "signature": null,
+            "workflow": "declarative_metadata"
+          },
+          "audit_context_id": "pid-143",
+          "audit_writer_egid": 0,
+          "audit_writer_euid": 0,
+          "caller_identity": {
+            "comm": "python3",
+            "exe": "/usr/bin/python3.13",
+            "gid": 65534,
+            "pid": 152,
+            "proc_start_time": 8717,
+            "stable_id": "pid:152:start:8717",
+            "uid": 65534
+          },
+          "caller_pid": 152,
+          "engine_parent_domain_id": 1849590086,
+          "engine_parent_identity": {
+            "comm": "sleep",
+            "exe": "/usr/bin/sleep",
+            "gid": 0,
+            "pid": 142,
+            "proc_start_time": 8701,
+            "stable_id": "pid:142:start:8701",
+            "uid": 0
+          },
+          "engine_parent_pid": 142,
+          "event": "append_policy_delta",
+          "generated_by": "executing-agent-after-context",
+          "policy_hash": "fnv1a64:931e807ce57963f6",
+          "rule_count": 1,
+          "rule_id_base": 0,
+          "rule_provenance": [
+            {
+              "clause_end_line": 2,
+              "clause_hash": "fnv1a64:0bff0f67f4e6b369",
+              "clause_op": "open",
+              "clause_source_index": 0,
+              "clause_start_line": 2,
+              "clause_text": "  block open file \"/tmp/injection_kernel_preflight_c2on0b5x/guarded.txt\"",
+              "effect": "block",
+              "immutable": false,
+              "kernel_op": "read",
+              "name": "preflight",
+              "ops": [
+                "open"
+              ],
+              "reason": "inert preflight guard",
+              "rule_id": 0,
+              "source_end_line": 3,
+              "source_hash": "fnv1a64:baf4c42720e53538",
+              "source_ref": "rule:preflight",
+              "source_start_line": 1,
+              "source_text": "rule preflight:\n  block open file \"/tmp/injection_kernel_preflight_c2on0b5x/guarded.txt\"\n  because \"inert preflight guard\"",
+              "target_arg": null,
+              "target_kind": "file",
+              "target_pattern": "/tmp/injection_kernel_preflight_c2on0b5x/guarded.txt"
+            }
+          ],
+          "schema": "actplane.audit.v1",
+          "status": "accepted",
+          "submitter_identity": {
+            "comm": "actplane-file-p",
+            "exe": "/workspaces/exp/injection-bench/raw/actplane-file-profile-bin",
+            "gid": 0,
+            "pid": 143,
+            "proc_start_time": 8702,
+            "stable_id": "pid:143:start:8702",
+            "uid": 0
+          },
+          "submitter_pid": 143,
+          "target_id": 10000001,
+          "timestamp_unix_ns": "1793255385734322209"
+        }
+      ],
+      "native_events": [
+        {
+          "action": "block",
+          "blocked": true,
+          "comm": "python3",
+          "domain_id": 10000001,
+          "effect": "block",
+          "event": "taint_violation",
+          "killed": false,
+          "matched_label": "0x0",
+          "matched_label_details": [],
+          "matched_label_name": "0x0",
+          "matched_label_names": [],
+          "matched_labels": "0x0",
+          "op": "read",
+          "op_code": 1,
+          "pid": 155,
+          "ppid": 152,
+          "provenance_model": {
+            "causal_chain_scope": "single_hop_origin",
+            "full_causal_chain": false,
+            "matched_labels_enumerated": true,
+            "reported_origin_available": false,
+            "reported_origin_scope": "first_available_matched_label"
+          },
+          "rule": {
+            "clause_end_line": 2,
+            "clause_hash": "fnv1a64:0bff0f67f4e6b369",
+            "clause_op": "open",
+            "clause_source_index": 0,
+            "clause_start_line": 2,
+            "clause_text": "  block open file \"/tmp/injection_kernel_preflight_c2on0b5x/guarded.txt\"",
+            "effect": "block",
+            "immutable": false,
+            "kernel_op": "read",
+            "name": "preflight",
+            "ops": [
+              "open"
+            ],
+            "reason": "inert preflight guard",
+            "source_end_line": 3,
+            "source_hash": "fnv1a64:baf4c42720e53538",
+            "source_ref": "rule:preflight",
+            "source_start_line": 1,
+            "target_arg": null,
+            "target_kind": "file",
+            "target_pattern": "/tmp/injection_kernel_preflight_c2on0b5x/guarded.txt"
+          },
+          "rule_id": 0,
+          "schema": "actplane.violation.v1",
+          "session_root": 142,
+          "taint_label": "0x0",
+          "target": "/tmp/injection_kernel_preflight_c2on0b5x/guarded.txt",
+          "timestamp_unix_ns": "1793255385921112718"
+        }
+      ],
+      "stdout": "legitimate read/write succeeded\nkernel denied inert read\n"
+    }
+  }
+}

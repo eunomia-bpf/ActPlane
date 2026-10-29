@@ -1,0 +1,104 @@
+--- /workspaces/exp/injection-bench/raw/actplane-source-before.rs	2026-10-29 06:26:17.889332349 +0000
++++ /workspaces/exp/injection-bench/raw/actplane-file-profile/bpf/src/lib.rs	2026-10-29 06:26:17.911383680 +0000
+@@ -1178,7 +1178,7 @@
+ #[cfg(test)]
+ const ALL_POLICY_FEATURES: u32 =
+     FEAT_PATH_CONTAINS | FEAT_PATH_SUFFIX | FEAT_OPEN_RULES | FEAT_WRITE_RULES | ALL_HOOK_FEATURES;
+-const PINNED_POLICY_FEATURES: u32 = ALL_HOOK_FEATURES;
++const PINNED_POLICY_FEATURES: u32 = ALL_HOOK_FEATURES | FEAT_OPEN_RULES | FEAT_WRITE_RULES;
+ 
+ #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+ enum HookProfile {
+--- /workspaces/exp/injection-bench/raw/actplane-capability-before.h	2026-10-29 06:26:17.890786122 +0000
++++ /workspaces/exp/injection-bench/raw/actplane-file-profile/bpf/capability.bpf.h	2026-10-29 06:26:17.913327200 +0000
+@@ -30,7 +30,7 @@
+ #ifdef ACTPLANE_LEGACY_KERNEL
+ #define CAP_DOMAIN_DEPTH 1
+ #else
+-#define CAP_DOMAIN_DEPTH 8
++#define CAP_DOMAIN_DEPTH 2
+ #endif
+ 
+ #ifndef TE_POLICY_PATH_CONTAINS
+@@ -107,7 +107,7 @@
+ 
+ struct {
+ 	__uint(type, BPF_MAP_TYPE_ARRAY);
+-	__uint(max_entries, 4);
++	__uint(max_entries, 13);
+ 	__type(key, __u32);
+ 	__type(value, __u64);
+ } cap_stats SEC(".maps");
+@@ -180,19 +180,19 @@
+ 	struct cap_state *src = bpf_map_lookup_elem(&cap_state, caller);
+ 	struct cap_state *dst = bpf_map_lookup_elem(&cap_state, &target_id);
+ 	if (!src || !dst)
+-		return -1;
++		return -2;
+ 
+ 	__u64 target_mask = cap_target_mask(*caller, target_id, dst);
+ 	if (!(target_mask & src->target_mask))
+-		return -1;
++		return -3;
+ 	if (cap_required_mask_fields(required_mask, add_restrict_mask,
+ 				     add_label_mask, del_label_mask, add_gate_mask,
+ 				     new_scope_id) & ~src->authority_mask)
+-		return -1;
++		return -4;
+ 	if ((add_label_mask | del_label_mask) & ~src->label_mask)
+-		return -1;
++		return -5;
+ 	if (!cap_scope_subset(new_scope_id, dst->scope_id))
+-		return -1;
++		return -6;
+ 	return 0;
+ }
+ 
+@@ -369,9 +369,9 @@
+ cap_append_update_admit(const struct cap_append_update *r, pid_t current_pid)
+ {
+ 	if (!cap_can_submit_for(current_pid, r->caller_pid))
+-		return -1;
++		return -7;
+ 	if (!cap_update_supported(&r->entry))
+-		return -1;
++		return -8;
+ 
+ 	return cap_check_fields(r->caller_pid, r->target_id, r->new_scope_id,
+ 				r->required_mask, 0, r->entry.add, r->entry.del,
+@@ -382,9 +382,9 @@
+ cap_append_rule_admit(const struct cap_append_rule *r, pid_t current_pid)
+ {
+ 	if (!cap_can_submit_for(current_pid, r->caller_pid))
+-		return -1;
++		return -7;
+ 	if (!cap_rule_supported(&r->entry))
+-		return -1;
++		return -8;
+ 
+ 	return cap_check_fields(r->caller_pid, r->target_id, r->new_scope_id,
+ 				r->required_mask | AUTH_BIND_RULE,
+@@ -440,8 +440,9 @@
+ 		const struct cap_append_update *r =
+ 			bpf_dynptr_data(dynptr, 0, sizeof(*r));
+ 		struct cap_drain_ctx *ctx = data;
+-		if (!r || cap_append_update_admit(r, ctx->current_pid) != 0 ||
+-		    cap_append_update_entry(r) != 0) {
++		int admit_rc = r ? cap_append_update_admit(r, ctx->current_pid) : -9;
++		if (admit_rc != 0 || cap_append_update_entry(r) != 0) {
++			cap_count(admit_rc < 0 && admit_rc >= -8 ? 3 - admit_rc : 12);
+ 			cap_count(CAP_STAT_REJECT);
+ 			return 0;
+ 		}
+@@ -452,8 +453,9 @@
+ 		const struct cap_append_rule *r =
+ 			bpf_dynptr_data(dynptr, 0, sizeof(*r));
+ 		struct cap_drain_ctx *ctx = data;
+-		if (!r || cap_append_rule_admit(r, ctx->current_pid) != 0 ||
+-		    cap_append_rule_entry(r) != 0) {
++		int admit_rc = r ? cap_append_rule_admit(r, ctx->current_pid) : -9;
++		if (admit_rc != 0 || cap_append_rule_entry(r) != 0) {
++			cap_count(admit_rc < 0 && admit_rc >= -8 ? 3 - admit_rc : 12);
+ 			cap_count(CAP_STAT_REJECT);
+ 			return 0;
+ 		}

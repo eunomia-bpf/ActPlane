@@ -21,11 +21,13 @@ def cell_key(r):
 
 def main():
     p=argparse.ArgumentParser()
-    p.add_argument('--manifest',type=Path,required=True)
+    p.add_argument('--manifest',type=Path,nargs='+',required=True)
     p.add_argument('--runs',type=Path,nargs='+',required=True)
     p.add_argument('--out',type=Path,required=True)
     args=p.parse_args()
-    planned=list(csv.DictReader(args.manifest.open()))
+    planned=[r for path in args.manifest for r in csv.DictReader(path.open())]
+    if len({cell_key(r) for r in planned})!=len(planned):
+        raise ValueError('duplicate cell in combined manifests')
     records={}
     for run in args.runs:
         for path in sorted((run/'cases').glob('*/scored.json')):

@@ -1,0 +1,3 @@
+mode,guest_kernel,returncode,allowed_read_write_succeeded,protected_read_denied,blocked_kernel_events,uid,gid,cap_eff,cap_prm,cap_bnd,no_new_privs,self_policy_attempts,self_policy_accepted,kernel_accept_before,kernel_accept_after,kernel_reject_before,kernel_reject_after,rules_before,rules_after,updates_before,updates_after,append_caller_uid,append_stage
+parent,6.8.0-138-generic,0,1,1,1,65534,65534,0000000000000000,0000000000000000,0000000000000000,1,0,0,2,2,0,0,1,1,1,1,not_applicable,parent_policy_installed_before_worker
+child,6.8.0-138-generic,0,1,1,1,65534,65534,0000000000000000,0000000000000000,0000000000000000,1,1,1,3,4,0,0,0,1,1,1,65534,kernel_count_confirmed

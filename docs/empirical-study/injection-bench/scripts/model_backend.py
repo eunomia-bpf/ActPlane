@@ -18,11 +18,19 @@ from repoguard.agents.ollama_backend import GenResponse
 
 
 class ModelBackend:
-    def __init__(self, model: str, raw_dir: str | Path):
+    def __init__(self, model: str, raw_dir: str | Path, channel=None):
         self.model = model
         self.raw_dir = Path(raw_dir)
         self.raw_dir.mkdir(parents=True, exist_ok=True)
-        if model == "qwen3.8-27b-nvfp4":
+        self.channel=channel
+        self.cli_backend=None
+        if channel:
+            self.base,self.key=None,None
+        elif model.startswith('claude'):
+            from inference_transport import make_cli_backend
+            self.cli_backend=make_cli_backend(model,self.raw_dir)
+            self.base,self.key=None,None
+        elif model == "qwen3.8-27b-nvfp4":
             self.base = "http://qwen38-vllm.models.svc.cluster.local:8000/v1"
             self.key = None
         else:
@@ -55,23 +63,31 @@ class ModelBackend:
         headers = {"Content-Type": "application/json"}
         if self.key:
             headers["Authorization"] = "Bearer " + self.key
-        request = urllib.request.Request(self.base + "/chat/completions",
-                                         data=json.dumps(payload).encode(), headers=headers)
         start = time.monotonic()
         try:
-            # Match the pinned official OllamaBackend request deadline.
-            with urllib.request.urlopen(request, timeout=600) as response:
-                raw = response.read().decode()
-            stem.with_suffix(".response.json").write_text(raw)
-            obj = json.loads(raw)
-            content = obj["choices"][0]["message"].get("content") or ""
-            if isinstance(content, list):
-                content = "\n".join(p.get("text", "") for p in content)
-            usage = obj.get("usage") or {}
-            result = GenResponse(text=content,
-                                 prompt_tokens=int(usage.get("prompt_tokens") or 0),
-                                 completion_tokens=int(usage.get("completion_tokens") or 0),
-                                 duration_s=time.monotonic() - start, cached=False, raw=obj)
+            if self.channel:
+                from inference_transport import client_chat
+                result=client_chat(self.channel,messages,options=opts,stop=stop)
+                stem.with_suffix('.response.json').write_text(json.dumps(result.raw))
+            elif self.cli_backend:
+                result=self.cli_backend.chat(messages,options=opts,stop=stop)
+                stem.with_suffix('.response.json').write_text(json.dumps(result.raw))
+            else:
+                request = urllib.request.Request(self.base + "/chat/completions",
+                    data=json.dumps(payload).encode(), headers=headers)
+                # Match the pinned official OllamaBackend request deadline.
+                with urllib.request.urlopen(request, timeout=600) as response:
+                    raw = response.read().decode()
+                stem.with_suffix(".response.json").write_text(raw)
+                obj = json.loads(raw)
+                content = obj["choices"][0]["message"].get("content") or ""
+                if isinstance(content, list):
+                    content = "\n".join(p.get("text", "") for p in content)
+                usage = obj.get("usage") or {}
+                result = GenResponse(text=content,
+                    prompt_tokens=int(usage.get("prompt_tokens") or 0),
+                    completion_tokens=int(usage.get("completion_tokens") or 0),
+                    duration_s=time.monotonic() - start, cached=False, raw=obj)
             self.replies.append({"index": self.n, "text": result.text,
                                  "prompt_tokens": result.prompt_tokens,
                                  "completion_tokens": result.completion_tokens,

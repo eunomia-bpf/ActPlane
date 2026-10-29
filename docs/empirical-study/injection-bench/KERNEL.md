@@ -45,3 +45,53 @@ From PowerShell, run:
 ```
 
 The remote transcript is written to `/workspaces/exp/injection-bench/raw/kernel-inspection.txt`. All commands are read-only outside that lane-owned transcript.
+
+## Live mechanism preflight and artifact limitation
+
+After the README benchmark choice was committed, `scripts/kernel_preflight.sh` attempted an inert real file-read denial. This setup check is not part of the benchmark and contributes no ASR or utility observations.
+
+The supplied CLI rejected a parent `block open` rule before worker launch. `PINNED_POLICY_FEATURES` in `bpf/src/lib.rs` advertises only `ALL_HOOK_FEATURES` (`0x3f0`), excluding the open and write sink matcher bits. Its own error said `needed=0x104, supported=0x3f0, missing=0x4`. This rejection is userspace feature validation, not kernel attack prevention.
+
+The supervisor authorized a lane-owned artifact build. `scripts/build_file_profile.sh` copies the exact supplied source commit to remote `raw/actplane-file-profile`, changes only the advertised feature mask, builds there, and retains hashes and the exact patch. The original checkout and supplied binary remain untouched. The initial broad feature mask enabled open/write and contains/suffix classes. The actual kernel rejected `trace_openat_exit` with `BPF program is too large. Processed 1000001 insn`. A narrower mask enabling open/write with only the preexisting exact/prefix matchers also failed at that program and instruction limit. Its full raw output is under `raw/kernel-preflight/file-only/parent/engine.stderr`.
+
+The adapter uses its own pin root for the modified artifact, avoiding reuse of a singleton with incompatible loaded features. No successful constrained worker execution or kernel denial was established by those initial failed attempts. They cannot justify AgPlane benchmark results, and the kernel-audit denominator must not treat engine-load failure as a rejected malicious delta.
+
+`scripts/actplane_adapter.py` implements stopped child launch, a root-owned control plane, UID/GID 65534 workers, an empty supplementary group set, all capability bounding bits dropped, and `no_new_privs`. It retains `/proc/self/status` from the actual child. It captures real BPF `cap_stats` and `ts_counts` maps before and after each cell, plus the native runtime audit, rather than substituting replay results. The successful guest preflight below verifies these transitions.
+
+The supplied self-policy may be authored by the executing model after consuming its exact initial attacked conversation before the physical worker process starts. The constrained child bootstrap then installs it as the actual child caller. This preserves the logical model conversation and the kernel caller authority, but it is not evidence that inference itself occurred inside the confined child process. The runner must disclose this distinction.
+
+## Successful guest preflight and final artifact boundary
+
+The direct Workspace kernel path had another independent defect: user space supplied container PIDs, while `bpf_get_current_pid_tgid` reported host PIDs. Diagnostic counters showed a valid source delta rejected at submitter identity. A proposed protected-submitter drain gate did not resolve the mismatch and was reverted before the successful guest run. No PID-namespace adaptation or host-namespace entry is used in the final path.
+
+`scripts/vm_runner.sh` boots the existing Ubuntu guest kernel with KVM, enables the BPF LSM, and loads copied 9p modules. It exports the container root read-only, with writable shares only for this lane and benchmark temporary files. The root-owned guest queue server executes each cell serially in the guest's root PID namespace. Thus user-space and kernel PID identities agree. It consumes no downloaded disk image. The existing kernel/module tree is read-only and remains unchanged.
+
+The final modified artifact differs from supplied commit `fe23a1e730f330768a7a884bd75850dc6852f299` in the following necessary ways:
+
+- The userspace singleton profile advertises the implemented open/write sink classes, retaining exact/prefix matchers. Contains/suffix classes remain disabled.
+- `CAP_DOMAIN_DEPTH` is reduced to the tested parent-plus-child topology. Process descendants inherit the child's domain. Experiments using additional nested runtime domains are outside this artifact's coverage.
+- Kernel admission checks retain their original conditions, but expose distinct rejection codes and stage counters. The `cap_stats` map has additional diagnostic slots. No accepted caller, target, scope, authority, or label mask is broadened.
+
+This is a modified ActPlane artifact, not evidence that the supplied stock binary works unchanged. The exact patch, binary/header/source/object SHA-256 hashes, guest identity, native audits and native events are preserved in [results/kernel-preflight/evidence.json](results/kernel-preflight/evidence.json) and [results/kernel-preflight/artifact.patch](results/kernel-preflight/artifact.patch). The machine-readable setup observations are in [results/kernel-preflight/preflight.csv](results/kernel-preflight/preflight.csv), produced by committed `scripts/summarize_kernel_preflight.py`.
+
+Both parent-installed and self-installed inert policies passed the guest preflight. A legitimate file write/read succeeded, while a guarded read produced `PermissionError` and a native event with `blocked: true`. The worker's effective, permitted, inheritable, bounding and ambient capability masks were all zero, UID/GID were unprivileged, and `NoNewPrivs` was enabled. The self-policy append used the constrained child's real Unix peer identity, and both the kernel admission and rule-table counters increased. These setup observations establish a runnable enforcement path and are excluded from benchmark ASR/utility denominators.
+
+The diagnostic `cap_stats` slots are: accept, reject, drain, drop, missing caller domain, missing source/target state, target authority, operation authority, label authority, scope widening, submitter identity, unsupported feature, and malformed request/table insertion failure. Native runtime rejections still require stage classification because userspace validation can reject before submitting a request.
+
+Start the retained guest service through the authorized wrapper:
+
+```powershell
+& "C:\Program Files\Git\bin\bash.exe" C:/Users/10678/actplane-tools/ws.sh run injection-bench --bg -- bash scripts/vm_runner.sh
+```
+
+The queue readiness file is remote `raw/vm/queue/ready.json`, and guest boot evidence is `raw/vm/console.log`. Host `execute()` calls automatically submit to that service. Queue directories and request files are root-only. Only required inference environment variables are forwarded, and the guest replaces retained credential values with a marker after reading them. Neither credentials nor full environment dumps enter committed result artifacts. Inference transports can instead stay on the host and use a per-cell file channel shared with the unprivileged guest worker.
+
+## Parallel model instances and cleanup
+
+The live default guest remains unchanged. Additional `qwen` and `frontier` instances use separate `raw/vm-qwen` and `raw/vm-frontier` directories, queues, PID files and boot logs. Each guest has its own kernel and BPF maps. The adapter locks a private guest `/run` tmpfs, so independent guests can execute concurrently while each guest retains serial singleton use. The original retained default guest may still use its earlier `/tmp` lock, which has no contender among the additional guests.
+
+`vm_runner.sh qwen` and `vm_runner.sh frontier` start the extra instances through the same background wrapper command above. Each instance reserves the CPU and memory values specified in `vm_runner.sh`; there is no additional disk image. Both extra instances passed the same real parent/self read-denial and legitimate read/write preflight concurrently. Raw observations are in `raw/kernel-preflight/guest-qwen-parallel` and `raw/kernel-preflight/guest-frontier-parallel`.
+
+Set `ACTPLANE_VM_QUEUE` in each model's runner process, or pass it explicitly to `execute(env=...)`, to select the corresponding `raw/vm-INSTANCE/queue`. An explicit call environment takes precedence over the process environment. No routing selection mutates global process environment state. Immutable runner snapshots must include the updated adapter before using these queues.
+
+After the model matrix reaches terminal status, stop each retained instance with the wrapper's foreground `run` command and `bash scripts/vm_runner.sh stop INSTANCE`, using `default`, `qwen`, and `frontier` as applicable. The stop path verifies that the PID's command line names that exact lane-owned initrd before sending a signal. It removes readiness and releases the guest's CPU, RAM, kernel maps and mounts when QEMU exits. Results, logs, initrd inputs and artifact hashes remain available. Never stop an instance while its benchmark cells are running, and never stop another lane's QEMU process.
