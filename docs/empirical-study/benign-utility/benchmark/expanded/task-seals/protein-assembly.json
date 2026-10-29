@@ -7,15 +7,22 @@
     "policies/protein-assembly/b.dsl": "d8abe36864526c91e5e014d80d486470eada3f68ade0b62d78f41efe4758c71a",
     "policies/protein-assembly/c.dsl": "ca59cc065eb7e10c00e1422d1a877c054c9e1d79e8a4ec3be1730242ae8e4fb5",
     "results/tasks.csv": "f6249c0c50562815914f3b14cf4d31362f09a617342246e407d9b1539f605b9b",
-    "results/per-task/protein-assembly.json": "a3cdc59373f3310037bc68bd76bc7d2d1c0b0a2eb1d323d0d8d9cfd1a302535c"
+    "results/per-task/protein-assembly.json": "a3cdc59373f3310037bc68bd76bc7d2d1c0b0a2eb1d323d0d8d9cfd1a302535c",
+    "environment-freeze.json": "5f29a61f3b260c69ec0e3da55b7e42c5ff8ea59b1c0d24830600561549b8e3f4",
+    "results/worker-assignment.csv": "073fff452c483655ec8e4de5175597683e7b2f4bd55fc26a5168f2872e0ff8ce"
   },
   "runtime_code": {
     "adapter.py": "5b17263abdf7feea554d631a3406c6ff50358b1b1bdb5c57fefbdd2c72e5ea28",
-    "expanded/adapter.py": "cf55e443973014b81973bd33e0747238b9d5342cb729b03b12947df0db0e6df2",
-    "expanded/run.py": "525a7bcd61ef4b68833b64d0e5cfa399a76efd2867bda2769fe972cfb5bd9735",
-    "expanded/collect_public.py": "f8220a9eedf076cb8d707733b4be9dd23a78e5ffe64a6790fe27a03421c7128d"
+    "expanded/adapter.py": "3b2082b541637c3c76321342a023c99e78238055a5e388413a85cf97ca42e686",
+    "expanded/run.py": "b07d0342803a35d8fc47dd079d1c3dfe393f9f860a12bb436c9d3a02bf4532ef",
+    "expanded/collect_public.py": "170fb230fce785521a6c3eb90ddba2a5be142cc29171ca9884cbec43af4209e4",
+    "expanded/dependencies.py": "a306eaa4052c2d4f98a0d53e75539ac41449401892f26fcae4676a63b9ed7a42",
+    "dependencies.py": "28f369f704d6d988ebdcb3e9844e104eac129fa0d2cb66efedf735cba6a75c9e"
   },
   "engine_sha256": "981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520",
   "compiler_sha256": "564ce43b9caa85117e630b7c0931da112e25e43e89fff065540f5ddd1443de01",
-  "frozen_before_model_utc": "2026-10-29T18:39:01Z"
+  "frozen_before_model_utc": "2026-10-29T19:34:53Z",
+  "environment_id": "workspace_kvm_guest_20261029",
+  "worker_id": "worker1",
+  "original_host_seal_sha256": "f8e7ad3a72b524dcc4176b2cc9ba2c835a20397a5fe0b191496436f02be463bb"
 }

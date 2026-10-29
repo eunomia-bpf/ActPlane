@@ -1,0 +1,16 @@
+{
+  "image": {
+    "task": "dna-assembly",
+    "image": "alexgshaw/dna-assembly:20251031",
+    "image_id": "sha256:940e10327e89b8034aa335c48e8e643414809f5ee2ffd2d2854688b996c822ee",
+    "repo_digests": "alexgshaw/dna-assembly@sha256:d1adf6835f1dd91205ba70e452c699d0aea601010038e5617f370716efb50569",
+    "image_size_bytes": 78126962,
+    "architecture": "amd64",
+    "os": "linux",
+    "project_instruction_files": 0,
+    "inventory_interpreter": "read-only mounted official public CPython3.13.9; excluded from scanned image tree",
+    "utc": "2026-10-29T18:50:21Z"
+  },
+  "sources": [],
+  "known_private_sources": []
+}

@@ -1,0 +1,16 @@
+{
+  "image": {
+    "task": "adaptive-rejection-sampler",
+    "image": "alexgshaw/adaptive-rejection-sampler:20251031",
+    "image_id": "sha256:65b25be2c34967a7db2332794da5a1f6d8235e1792a1d747aff46b5bff77b9d7",
+    "repo_digests": "alexgshaw/adaptive-rejection-sampler@sha256:985bed39e8448bc95f138b5f766b59003a95c4be171c96af8e76448338f3dd8f",
+    "image_size_bytes": 78124802,
+    "architecture": "amd64",
+    "os": "linux",
+    "project_instruction_files": 0,
+    "inventory_interpreter": "read-only mounted official public CPython3.13.9; excluded from scanned image tree",
+    "utc": "2026-10-29T18:48:08Z"
+  },
+  "sources": [],
+  "known_private_sources": []
+}

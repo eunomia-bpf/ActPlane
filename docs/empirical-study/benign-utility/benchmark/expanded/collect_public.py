@@ -29,6 +29,12 @@ def collect(logs):
             for data in str(record.get('data','')).splitlines():
                 items=data.split('|',4)
                 if len(items)==5 and items[0]=='READ' and items[4].startswith('/'):paths.add(items[4])
+    if (logs/'engine.log').exists():
+        for line in (logs/'engine.log').open(errors='replace'):
+            try:record=json.loads(line)
+            except ValueError:continue
+            path=(record.get('provenance') or {}).get('file','')
+            if path.startswith('/'):paths.add(path)
     scope=json.loads(scope_path.read_text())
     result=subprocess.run(['docker','exec',scope['container_id'],'python3','-c',SCRIPT,json.dumps(sorted(paths))],capture_output=True,text=True,timeout=45)
     receipt=dict(purpose='post-agent evidence collection outside model-dispatched actions',started_monotonic=started,elapsed_s=time.monotonic()-started,returncode=result.returncode,observed_candidate_paths=len(paths),private_contents_or_hashes_retained=False)

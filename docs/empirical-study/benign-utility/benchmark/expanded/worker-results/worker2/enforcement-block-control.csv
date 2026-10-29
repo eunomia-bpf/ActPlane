@@ -1,0 +1,4 @@
+condition,effect,namespace_pid,kernel_root_pid,returncode,connect_errno,events,killed_events,blocked_events,expected_returncode,passed,failure,engine_sha256,policy_sha256
+a,none,969,969,0,111,0,0,0,0,1,,981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520,
+b,block,971,971,0,1,1,0,1,0,1,,981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520,1ab7d230b0479e164df900f7abd23298bb006de20e2c2949e4ad15c964fa2fa3
+c,block,984,984,0,1,1,0,1,0,1,,981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520,6498f871ff931eb7b42c8c0c0f4df837d49df141b995aebe7e75c6fdaf739f68

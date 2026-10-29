@@ -1,0 +1,14 @@
+{
+  "environment_id": "workspace_kvm_guest_20261029",
+  "worker_id": "worker1",
+  "ssh_port": 2247,
+  "kernel_release": "6.12.113+deb13-amd64",
+  "boot_id": "fcd9bcbf-7494-429a-9653-b997fc8638a3",
+  "lsm_chain": "lockdown,capability,landlock,yama,apparmor,bpf,ima,evm",
+  "docker_data_root": "/var/lib/benign-utility-expanded-docker",
+  "docker_driver": "overlay2",
+  "engine_sha256": "981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520",
+  "harbor_version": "0.25.0",
+  "native_block_control_sha256": "a67e3ac829a905f43a27f97f88095c8b0e75dd5e46fe31b3cac20970133c9c17",
+  "frozen_before_models_utc": "2026-10-29T19:31:51Z"
+}
