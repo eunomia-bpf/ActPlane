@@ -6533,10 +6533,13 @@ rq1,zai/glm-4.7-flash,openai__codex::47,openai__codex__47,attempt-3,1,transport_
 rq1,zai/glm-4.7-flash,openai__codex::47,openai__codex__47,attempt-3,2,http_error,provider_capacity,14.999637603759766,1793247257.1412787,,,,0,429,11.307566507952288,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::47,openai__codex__47,attempt-3,3,http_error,rate_limited,29.99967122077942,1793247298.787138,,,,0,429,11.645473242038861,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::47,openai__codex__47,attempt-3,4,http_error,provider_capacity,59.9995801448822,1793247369.3590646,,,,0,429,10.57124363607727,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,openai__codex::47,openai__codex__47,attempt-3,5,ok,,119.99966764450073,1793247776.6672947,,zai/glm-4.7-flash,stop,1,,287.3077750278171,1,11892,5788,11890,0,5687
 rq1,zai/glm-4.7-flash,openai__codex::48,openai__codex__48,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.649913081899285,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::48,openai__codex__48,attempt-1,2,http_error,rate_limited,15,,,,,0,429,10.47757708397694,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::48,openai__codex__48,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.814540913095698,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,openai__codex::48,openai__codex__48,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,11.716613187920302,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,openai__codex::48,openai__codex__48,attempt-1,4,http_error,provider_capacity,60,1793182790.4651382,,,,0,429,11.716613187920302,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,openai__codex::48,openai__codex__48,attempt-1,5,ok,,0,1793247902.4839938,,zai/glm-4.7-flash,stop,1,,125.7106920729857,1,11467,5585,3,0,5497
+rq1,zai/glm-4.7-flash,openai__codex::48,openai__codex__48,attempt-2,1,ok,,0,1793247962.1408858,,zai/glm-4.7-flash,stop,1,,59.63763463590294,1,11588,2424,11465,0,2355
 rq1,zai/glm-4.7-flash,openai__codex::64,openai__codex__64,attempt-1,1,ok,,0,,,zai/glm-4.7-flash,stop,1,,136.07480322103947,1,11475,3782,3,0,3728
 rq1,zai/glm-4.7-flash,openai__codex::71,openai__codex__71,attempt-1,1,http_error,rate_limited,0,,,,,0,429,11.203980730148032,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,openai__codex::71,openai__codex__71,attempt-1,2,http_error,rate_limited,15,,,,,0,429,9.832226109923795,0,0,0,0,0,0
