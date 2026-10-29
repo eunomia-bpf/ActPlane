@@ -179,9 +179,8 @@ rq1,zai/glm-4.7-flash,alibaba__OpenSandbox::9,compiler_failure,generation_output
 rq1,zai/glm-4.7-flash,anomalyco__opencode::1,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,anomalyco__opencode::28,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,anomalyco__opencode::4,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,browser-use__browser-harness::4,access_failure,ok
-rq1,zai/glm-4.7-flash,charmbracelet__crush::18,access_failure,provider_capacity
-rq1,zai/glm-4.7-flash,charmbracelet__crush::19,access_failure,provider_capacity
+rq1,zai/glm-4.7-flash,charmbracelet__crush::18,compiler_failure,syntax_or_lowering
+rq1,zai/glm-4.7-flash,charmbracelet__crush::19,access_failure,ok
 rq1,zai/glm-4.7-flash,charmbracelet__crush::20,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,charmbracelet__crush::22,access_failure,provider_capacity
 rq1,zai/glm-4.7-flash,charmbracelet__crush::23,access_failure,rate_limited
