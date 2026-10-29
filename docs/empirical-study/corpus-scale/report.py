@@ -152,7 +152,7 @@ def main():
     lines += ['', '`calibration_summary.csv` also reports end-to-end agreement including inapplicable labels. The applicable-gold evaluation counts a predicted inapplicable value as disagreement. `calibration_confusion.csv` retains every confusion cell and missing predictions are reported explicitly.', '',
         f'Before inspecting the complete calibration, the scaling gate was fixed at final kappa ≥{MIN_KAPPA:.2f}, each primary-model kappa ≥{MIN_PRIMARY_KAPPA:.2f}, and coverage ≥{100*MIN_COVERAGE:.0f}%. '
         'Type must pass for any dependent result. Enforcement must pass before context may scale. These are study decisions rather than universal reliability standards. The same historical set is used for calibration and evaluation, so agreement is not a held-out generalization estimate.', '',
-        '| Dimension | Scale? | Reason |', '|---|---|---|']
+        '| Initial full-guide dimension | Initial scale gate | Reason |', '|---|---|---|']
     lines.extend(f'| {r["dimension"]} | {r["passed"]} | {r["reason"]} |' for r in gates)
     fidelity_path = HERE / 'paper_fidelity_summary.csv'
     if fidelity_path.exists():
@@ -173,7 +173,7 @@ def main():
             and float(r.get('coverage', 0)) >= MIN_COVERAGE and float(r['kappa']) < MIN_PRIMARY_KAPPA]
     if poor:
         lines += ['', '**Poor agreement:** ' + '; '.join(f'{r["model"]} on {r["dimension"]} (κ={float(r["kappa"]):.3f})' for r in poor) +
-                  '. These results do not justify treating the historical reference convention as reliably reproduced. No claim is made that the model or the historical label is necessarily correct in every disagreement.']
+                  '. Under the initial codebook, these results did not justify scaling the reference convention. The prospective rescue below is reported separately. No claim is made that the model or the historical label is necessarily correct in every disagreement.']
     agreement_path = HERE / 'scaled_model_agreement.csv'
     if agreement_path.exists():
         agreement_rows = read_csv(agreement_path)
