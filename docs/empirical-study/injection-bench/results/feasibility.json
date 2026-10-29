@@ -1,0 +1,99 @@
+{
+  "disk": {
+    "total": 67049664512,
+    "used": 31329746944,
+    "free": 35703140352
+  },
+  "osworld_image": {
+    "status": 200,
+    "Content-Length": "12273896463",
+    "Content-Type": "application/zip",
+    "X-Linked-Size": null
+  },
+  "gateway_models": {
+    "status": 200,
+    "models": [
+      "local-large",
+      "local-small",
+      "zai/*",
+      "opencode-go/gpt-5.6-luna",
+      "opencode-go/grok-4.5",
+      "opencode-go/grok-4.6",
+      "opencode-go/*",
+      "zai/glm-5.2",
+      "zai/glm-5-code",
+      "zai/glm-4.6",
+      "zai/glm-5.3",
+      "zai/glm-4.7",
+      "zai/glm-4.5-flash",
+      "zai/glm-4.5",
+      "zai/glm-5",
+      "zai/glm-4.5-x",
+      "zai/glm-4.5-air",
+      "zai/glm-4.7-flash",
+      "zai/glm-5.1",
+      "zai/glm-4.5v",
+      "zai/glm-4.5-airx",
+      "zai/glm-5.3-flash",
+      "zai/glm-4-32b-0414-128k"
+    ]
+  },
+  "qwen_models": {
+    "status": 200,
+    "models": [
+      "qwen3.8-27b-nvfp4"
+    ]
+  },
+  "osharm_injection_tasks": [
+    {
+      "suite": "chrome",
+      "task_id": "2ad9387a-65d8-4e33-ad5b-7580065a27ca",
+      "cases": 7
+    },
+    {
+      "suite": "chrome",
+      "task_id": "2ae9ba84-3a0d-4d4c-8338-3a1478dc5fe3",
+      "cases": 4
+    },
+    {
+      "suite": "libreoffice_writer",
+      "task_id": "__align_text",
+      "cases": 7
+    },
+    {
+      "suite": "libreoffice_writer",
+      "task_id": "__add_page_numbers",
+      "cases": 4
+    },
+    {
+      "suite": "multi_apps",
+      "task_id": "98e8e339-5f91-4ed2-b2b2-12647cb134f4",
+      "cases": 4
+    },
+    {
+      "suite": "thunderbird",
+      "task_id": "__injected_draft",
+      "cases": 4
+    },
+    {
+      "suite": "thunderbird",
+      "task_id": "__injected_email",
+      "cases": 7
+    },
+    {
+      "suite": "vs_code",
+      "task_id": "0ed39f63-6049-43d4-ba4d-5fa2fe04a951",
+      "cases": 4
+    },
+    {
+      "suite": "vs_code",
+      "task_id": "7aeae0e2-70ee-4705-821d-1bba5d5b2ddd",
+      "cases": 4
+    },
+    {
+      "suite": "vs_code",
+      "task_id": "ec71221e-ac43-46f9-89b8-ee7d80f7e1c5",
+      "cases": 6
+    }
+  ]
+}

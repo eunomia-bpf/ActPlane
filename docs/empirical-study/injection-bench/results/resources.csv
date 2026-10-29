@@ -1,0 +1,10 @@
+measure,value,source
+filesystem_total_bytes,67049664512,feasibility.py:shutil.disk_usage
+filesystem_used_bytes,31329746944,feasibility.py:shutil.disk_usage
+filesystem_free_bytes,35703140352,feasibility.py:shutil.disk_usage
+utilization_ceiling_percent,85,user instruction
+osworld_archive_bytes,12273896463,image_inventory.py:HTTP Range ZIP directory
+osworld_extracted_image_bytes,24460197888,image_inventory.py:ZIP64 entry
+osworld_default_archive_plus_image_bytes,36734094351,derived sum
+osharm_base_tasks,10,official test_injection.json
+osharm_injection_cases,51,official injection vectors/goals
