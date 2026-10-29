@@ -49,7 +49,20 @@ def main():
             parser_failures=0 if r is None else r.get('parser_failures',0),
             wall_clock_s='' if r is None else r.get('wall_clock_s','')))
     write_csv(args.out/'cells.csv',cells,list(cells[0]) if cells else [])
-    write_csv(args.out/'planned.csv',planned,list(planned[0]) if planned else [])
+    write_csv(args.out/'combined-planned.csv',planned,list(planned[0]) if planned else [])
+    identities=defaultdict(int)
+    for run in args.runs:
+        for path in (run/'cases').glob('*/calls/*/*.response.json'):
+            try:
+                r=json.loads(path.read_text())
+                scored=path.parents[2]/'scored.json'
+                requested=json.loads(scored.read_text()).get('model') if scored.exists() else 'pending'
+                served=r.get('cli_model_identities') or ([r['model']] if r.get('model') else [])
+                for model in served:identities[(requested,model)]+=1
+            except (ValueError,OSError):continue
+    write_csv(args.out/'model-identities.csv',[
+        dict(requested_model=k[0],observed_model=k[1],response_count=v)
+        for k,v in sorted(identities.items())],['requested_model','observed_model','response_count'])
     grouped=defaultdict(list)
     for c in cells:grouped[(c['model'],c['system'])].append(c)
     summary=[]
