@@ -1,0 +1,101 @@
+statement_id,type,topic,enforceability,context_required,reason
+f4681c8012f584c8b523:7:9,directive,System Overview,semantic_only,,"The only directive is to consult a reference for corpus counts. This is an information-source preference, comparable to the methodology's 'read a file' semantic sub-constraint. It is not a per-event rule."
+0aac12ea6e09b1717132:170:172,directive,Implementation Details,content,project,"Matching a specific SSE wire format in code or mocks is an implementation convention, not agent reasoning or model interaction."
+dd2d5779276a2b100b28:161:162,directive,Implementation Details,per_event,none,
+d4a79b75283bee311f3b:83:86,directive,Configuration & Environment,content,none,
+b77274d2d7bc39fbcf6e:136:139,directive,Testing,cross_event,project,
+e95250f2f2d9ecfc378f:105:109,directive,Configuration & Environment,per_event,project,
+069352731b784762d31f:214:216,directive,Implementation Details,content,project,"The rule determines what text is written into translation entries, so compliance is a predicate over file content. The rule itself follows the statement and must be looked up."
+f60bf5601a42c81712b9:30:32,description,Build and Run,,,
+0099c0d9aa26a54c1437:31:32,directive,Architecture,content,project,
+a67a7a451a43d5ffcc54:106:107,directive,Development Process,per_event,none,
+750e020b03be5db731f7:15:16,directive,Development Process,per_event,task,
+947b91fdeee98c6c303e:23:29,directive,Security,cross_event,none,
+66377259fd477df4dcc9:44:49,directive,AI Integration,cross_event,project,
+ee409fb09d06f7afc42b:186:187,directive,Architecture,content,task,
+9201378b8d89728bef1e:97:99,description,Build and Run,,,
+ee409fb09d06f7afc42b:187:189,directive,Testing,cross_event,task,"In the add-a-tool workflow, adding unit tests is a change coupled to the new tool. That makes it cross_event rather than a predicate over a single file's content."
+29cc0c38f6cf6076bf25:6:10,description,Testing,,,
+cb78f2ea07e25900d5c4:26:28,directive,Maintenance,cross_event,project,"The text does not gate on approval or user intent. 'Existing runtime environment' and 'production dependencies' are repository concepts that need lookup, so the context is project."
+62722e502f1b7ebb073e:180:181,directive,Security,content,none,
+fa293ab07902aa85c3d7:359:366,directive,Maintenance,content,project,Applying the rule requires looking up 'the engine-hosted sources above' and which providers ship source functions. Not all needed information is explicit in the text.
+b9ac521336d45878606b:9:11,description,Security,,,
+19eca098c09946df201b:42:44,description,DevOps,,,
+091072f938e9fc902522:34:42,description,AI Integration,,,
+e95250f2f2d9ecfc378f:12:16,directive,System Overview,semantic_only,,
+a939b5152b5a2aa15655:67:69,directive,Documentation,semantic_only,,
+8069f1e774eda46d3afd:401:403,directive,DevOps,cross_event,project,
+5321c86d6b359d767a7e:10:15,directive,Architecture,content,project,"The statement chooses which example and package modules to build on. That concerns module relationships, not agent reasoning or tooling."
+420f4cfcd38d7d9e7b67:7:9,directive,Build and Run,cross_event,none,
+8101c6a9f382e4fc52a1:78:80,directive,DevOps,content,project,
+37e3926494d2d3e1561a:676:683,directive,Architecture,cross_event,project,
+4fb2168381e3214c7c5a:61:62,description,AI Integration,,,
+49f322a3595a57475deb:3:5,directive,Development Process,semantic_only,,
+966f2bbc5f86df1ab46e:218:221,description,Testing,,,
+9df1d162ae6d91c78aaa:83:84,directive,Documentation,semantic_only,,A bare link to a nested AGENTS.md is an external reference to another instruction file. The codebook treats such references as directives.
+a239fba93e7948a4bcb0:38:40,directive,DevOps,per_event,none,
+9cb55fc52b1c970c607f:140:142,description,Configuration & Environment,,,
+9799c47ec3c63f850dad:48:49,directive,AI Integration,per_event,project,
+c7da05265fff5d5e89bf:6:8,description,Documentation,,,"This header introduces path-scoped instruction files, which are documentation references rather than development process."
+7b713372a206d060d56d:15:18,directive,AI Integration,semantic_only,,"This is a role framing addressed to the agent ('you are a designer'), equivalent to 'act as a designer'. It governs the agent's stance and output standard, not project facts."
+f061064366095fc7233b:81:83,directive,Build and Run,per_event,project,"This is an instruction to run documentation commands, which is a command execution event. The commands are not in this statement's text, so they must be looked up."
+08bbec27e0aa5c65199b:119:123,directive,Security,semantic_only,,
+01a6016b4914decd65a1:159:160,description,Configuration & Environment,,,
+c57c3d02d190495f8314:10:12,directive,Configuration & Environment,semantic_only,,
+e51049106c3acecca79b:8:10,directive,Architecture,semantic_only,,
+89dfbc1d40628466698e:310:311,directive,Security,content,project,
+f01b658c08acb18c6743:17:18,directive,Maintenance,content,task,
+fb8380a70d6de1df31a9:36:37,directive,Build and Run,per_event,project,
+3f0b8d70b467447bea50:10:12,description,Maintenance,,,
+8015a21f447c11aaaa32:47:48,directive,Development Process,content,none,
+bc2fccdfc4f82d4b0dec:219:221,directive,Documentation,cross_event,project,
+2fbdb33c335e5588f61a:5:9,description,Security,,,
+1e8b3f6e2fdbd01b5e37:586:587,directive,Documentation,cross_event,task,"The statement requires reading components.md during detail adjustments, before editing components. That is an ordering of a doc read relative to writes, like 'call fetch-docs before writing', so it is cross_event."
+563ebaae2e01d6f8e7e6:305:307,directive,DevOps,content,none,
+08bbec27e0aa5c65199b:102:104,directive,Build and Run,content,project,
+1cf032e17cf29578a6b3:18:20,directive,Configuration & Environment,cross_event,task,
+c18037d52deb78d2a083:26:38,directive,DevOps,cross_event,project,
+0adc63054fb2e06dd347:195:197,directive,Build and Run,per_event,project,
+5b05540d1e15a0589002:74:76,directive,AI Integration,cross_event,none,
+51d1ced1307c955afbd8:295:297,directive,Development Process,semantic_only,,"This is a debugging strategy for analyzing test-run logs. The historical Debugging topic collapses to Development Process, not DevOps."
+241777e84b59cac767aa:145:147,description,Implementation Details,,,
+5367f38fe45f00816b5c:125:127,directive,Architecture,cross_event,project,
+e375d5bf024d215ceff5:49:52,directive,Configuration & Environment,cross_event,task,
+d9710ba1a3f45e1bdbe6:19:20,directive,Testing,per_event,task,
+e95250f2f2d9ecfc378f:380:381,directive,Configuration & Environment,content,project,
+1351a22004c73496b5a4:356:358,directive,DevOps,per_event,task,
+04ff6e471c44766464dc:542:543,directive,Architecture,per_event,project,"'Use the script' names no script, so it must be resolved from the repository. The context is therefore project, not none."
+af55d5ab4d2d2ecc9954:63:67,directive,Implementation Details,cross_event,none,
+1351a22004c73496b5a4:686:687,description,Implementation Details,,,
+8ee3df64da1f48f1a081:102:104,description,Maintenance,,,
+226356a147778d460792:517:518,directive,Documentation,content,none,
+097285601c9cf375fc2f:39:43,directive,Security,per_event,project,
+bc2fccdfc4f82d4b0dec:863:867,directive,Configuration & Environment,cross_event,none,"The binding constraint is that nothing under /.local/ is committed. That is a 'never commit <explicit path>' rule, which the codebook classes as cross_event."
+222871d83f94941da9e4:13:14,directive,Implementation Details,content,project,"'Hot paths', 'hooks' and 'tight loops' are unresolved code locations that must be identified in the repository."
+560ed21ee43c1175beba:218:220,directive,Implementation Details,content,none,
+4ec5a6456128c2de77e8:32:34,description,Development Process,,,"This header introduces a review workflow. Reviews fall under Development Process, not Documentation."
+b1b5a8ab3fd4aef4a0af:17:28,description,Architecture,,,
+b77274d2d7bc39fbcf6e:197:201,directive,Development Process,per_event,none,"The strongest subconstraint forbids posting the PR review. That is a code-review action, so the topic is Development Process rather than AI Integration."
+faa5924fde9518aab085:7:11,directive,System Overview,cross_event,project,
+e95250f2f2d9ecfc378f:379:380,directive,Build and Run,content,none,The path convex/_generated/ and the requirement that it contain types are explicit in the text. No lookup is needed.
+116d0ff1b7bff6cd7c9f:136:143,directive,Development Process,cross_event,task,
+d679e29223d88f6c55d4:822:823,directive,Testing,cross_event,project,
+631187e46986fca21ae7:586:588,description,Development Process,,,
+4cf4f2a9b95057469b78:73:74,directive,Development Process,cross_event,task,
+e51049106c3acecca79b:193:194,directive,Maintenance,semantic_only,,
+5fb9613e1672a6e3bdca:241:245,directive,Maintenance,per_event,task,
+5f41df97d7144e668ac0:24:26,directive,Testing,semantic_only,,
+1bfce5eff82d9588e881:74:76,directive,Build and Run,cross_event,project,
+9eb76bbd7ff76163919d:219:221,directive,Documentation,cross_event,none,
+7c0b87ece6a013e8d4b0:111:115,directive,AI Integration,semantic_only,,
+293bb071df73ac10251e:181:182,description,DevOps,,,
+226356a147778d460792:365:369,directive,Security,cross_event,project,
+266caf3239541db26f23:139:140,directive,Maintenance,cross_event,project,
+6a6902e9d22456d8d620:88:92,directive,Development Process,content,task,"Conventional Commits is an explicit format. However, the PR text must also describe the current change's behavior and validation scope, which depends on the task. When both project and task context apply, task wins."
+8069f1e774eda46d3afd:494:497,directive,Testing,content,project,
+8bf3533c0142db0454a3:6:10,description,System Overview,,,
+004d3b8582d343e9aafb:44:48,directive,Architecture,cross_event,project,"A new provider must touch six coordinated locations, which is a coupled cross-file change. Those locations are listed after this statement, so they need lookup."
+7e3dbe504dec692dbe24:16:24,directive,System Overview,cross_event,project,
+91bb6419ff72ff969116:135:156,description,Architecture,,,
+802eebb273280f6cca8b:64:66,directive,Implementation Details,cross_event,project,
+79fc10f35461d7719d81:93:94,directive,Documentation,content,none,

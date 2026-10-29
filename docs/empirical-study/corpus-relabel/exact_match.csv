@@ -1,0 +1,11 @@
+check,left,right,n,exact_match_rate
+pairwise_added,procedure1,procedure2,300,0.6733333333333333
+pairwise_added,procedure1,procedure3,300,0.7466666666666667
+pairwise_added,procedure2,procedure3,300,0.72
+pairwise_original,procedure1,procedure2,300,0.7633333333333333
+pairwise_original,procedure1,procedure3,300,0.76
+pairwise_original,procedure2,procedure3,300,0.7333333333333333
+original_reference,original,procedure1,300,0.5433333333333333
+original_reference,original,procedure2,300,0.5833333333333334
+original_reference,original,procedure3,300,0.5333333333333333
+claude_crosscheck,reviewed,claude,100,0.79

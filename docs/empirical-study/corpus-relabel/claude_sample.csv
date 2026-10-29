@@ -1,0 +1,386 @@
+statement_id,file_id,repo,commit,file_path,family,content_sha256,start_line,end_line,chunk_start,chunk_end,type,topic,enforceability,context_required,key,text
+f4681c8012f584c8b523:7:9,f4681c8012f584c8b523,muratcankoylan/Agent-Skills-for-Context-Engineering,9ff0c99108b36d3b886defd825d8ac1f47dba374,CLAUDE.md,CLAUDE.md,7fc3782c181265ad30b33bf4955dac8a6c4ea0ada72bc9456c00d23ea8f0528b,7,9,1,131,directive,System Overview,per_event,none,muratcankoylan/agent-skills-for-context-engineering,"Agent Skills for Context Engineering is an open collection of Agent Skills teaching context engineering and harness engineering principles for production AI agent systems. Skills are platform-agnostic (Claude Code, Cursor, Codex/OpenAI Agent Skills, GitHub Copilot, any Open Plugins-conformant tool). v2.6.0 adds the self-managed-context skill (model-controlled live context editing: context as an editable file, self-editing harness invariants, edit-position cache cost, budget nudges, and steering or training context-editing strategy) on top of the long-horizon-prompting skill (v2.5.0), the self-improvement-loops skill (v2.4.0), and the file-based researcher operating system with deterministic gates, cross-platform Agent Skills validation, and a continuous loop. Use the [generated live inventory](researcher/generated/corpus-summary.md) for current corpus counts.
+
+"
+0aac12ea6e09b1717132:170:172,0aac12ea6e09b1717132,lobehub/lobehub,9e167115e65dc70bd82b69167f37540a8d0f76a7,e2e/CLAUDE.md,CLAUDE.md,4ba26bb7e94a20fe3aa25997ffe7b66d47d5789dfadcf868b506047bcaa70cba,170,172,160,314,directive,AI Integration,content,project,lobehub/lobehub,"LobeHub 使用特定的 SSE 格式，必须严格匹配：
+
+"
+dd2d5779276a2b100b28:161:162,dd2d5779276a2b100b28,affaan-m/ECC,25278e7d7b6cf6e6a4e7a6c8e10f14ff22f0eb5b,skills/ck/SKILL.md,SKILL.md,af10359be29ca95b0d22502b0f8484b149fb272f1770791682c30f8d6ae2bbc0,161,162,160,166,directive,Implementation Details,per_event,none,affaan-m/ecc,"- Always expand `~` as `$HOME` in Bash calls.
+"
+d4a79b75283bee311f3b:83:86,d4a79b75283bee311f3b,shanraisshan/claude-code-best-practice,41aa28c6165a54308531bb446fa2ec3795150661,CLAUDE.md,CLAUDE.md,1744865585847186e6ee04ff4bfac5435da1dd3c97a823c9f55480d0d81e583f,83,86,1,127,directive,Configuration & Environment,content,none,shanraisshan/claude-code-best-practice,"### Disable Hooks
+Set `""disableAllHooks"": true` in `.claude/settings.local.json`, or disable individual hooks in `hooks-config.json`.
+
+"
+b77274d2d7bc39fbcf6e:136:139,b77274d2d7bc39fbcf6e,googleapis/mcp-toolbox,bfd4ffac74254df1235a312b4faf0ed01c9af1e8,skills/maintainer/review-prs/SKILL.md,SKILL.md,356b3ea8491f375609804f08cdbe055d7ed0abad2361a8034303ee04ca14f481,136,139,104,254,directive,Testing,cross_event,project,googleapis/mcp-toolbox,"  - *Coverage:* happy path, edge cases, and for a fix, a test that fails without it. A new
+    source/tool follows the unit + integration pattern and is wired into
+    `.ci/integration.cloudbuild.yaml`.
+"
+e95250f2f2d9ecfc378f:105:109,e95250f2f2d9ecfc378f,convex/convex-backend,dfed7320f1a199b6de3781027e0717c87fe625be,npm-packages/private-demos/waitlist/.agents/skills/convex-quickstart/SKILL.md,SKILL.md,8d41afc2cee05f14e781346b4175d79594fe64b35adc16081683c9bbbf0ad84c,105,109,1,160,directive,Configuration & Environment,per_event,project,convex/convex-backend,"**Exception - cloud or headless agents:** Environments that cannot open a
+browser for interactive login should use Agent Mode (see below) to run
+anonymously without user interaction.
+
+"
+069352731b784762d31f:214:216,069352731b784762d31f,rustdesk/rustdesk,350966b331bb873650668549b3fa4a42e81e6a81,AGENTS.md,AGENTS.md,6086c66ed1fcb663b5055eb5d605aa34536e566ddbab9ac7666f97fbb7db9c05,214,216,159,233,directive,Implementation Details,semantic_only,,rustdesk/rustdesk,"When filling an empty entry, determine the source English text with this rule:
+
+"
+f60bf5601a42c81712b9:30:32,f60bf5601a42c81712b9,github/awesome-copilot,98b45a78d3ed316e78f005b60594d5c4a50588e3,AGENTS.md,AGENTS.md,7ad698efbcdabcacfdaafb4d668d5b7b61687eadc0a49ecd85952057014a1653,30,32,1,161,description,Build and Run,,,github/awesome-copilot,"## Setup Commands
+
+"
+0099c0d9aa26a54c1437:31:32,0099c0d9aa26a54c1437,78/xiaozhi-esp32,c435f99a88066029ec2dbd2d758c8cc9d051565b,AGENTS.md,AGENTS.md,e4657b6bbf89b2790ac9ac72da52f3c80dcafe7af9d1e18019d999164c4248c4,31,32,1,94,directive,Architecture,content,project,78/xiaozhi-esp32,"- Treat camera, backlight, display, LED, battery, and similar capabilities as optional.
+"
+a67a7a451a43d5ffcc54:106:107,a67a7a451a43d5ffcc54,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,AGENTS.md,AGENTS.md,fdce1b544007d831b263f23561c2d3c772809796f2a367873367ecb558f60918,106,107,66,139,directive,Development Process,per_event,none,siyuan-note/siyuan,"6. **GitHub:** Prefer the GitHub CLI (`gh`) for all GitHub operations, including reading issues, comments, pull requests, commits, statuses, and metadata. If `gh` is unavailable or does not support the operation, fall back to the GitHub API or web interface
+"
+750e020b03be5db731f7:15:16,750e020b03be5db731f7,Twigpine/openclaude,ffa79d9cbb7f3ca9589601f1657803bae6847722,AGENTS.md,AGENTS.md,3009cadf24008f4675e774fb9f94ea62d8f3f5daaed0e2da8b072c9fa8429358,15,16,1,113,directive,Development Process,per_event,task,twigpine/openclaude,"- Avoid unrelated formatting, renames, dependency changes, or broad rewrites.
+"
+947b91fdeee98c6c303e:23:29,947b91fdeee98c6c303e,metabase/metabase,420052473c082c5dd8388f7966e453c5cc2cc216,.claude/skills/e2e-test/SKILL.md,SKILL.md,e89c0f9952e506d5ffe2a284b150575619ea42190ee0f99ca1744fd408edcb27,23,29,1,104,directive,Security,cross_event,none,metabase/metabase,"**NEVER echo, print, or log token values. Only check if they are set:**
+
+```bash
+echo ""ALL_FEATURES: ${CYPRESS_MB_ALL_FEATURES_TOKEN:+set}"" && echo ""PRO_SELF_HOSTED: ${CYPRESS_MB_PRO_SELF_HOSTED_TOKEN:+set}"" && echo ""STARTER: ${CYPRESS_MB_STARTER_CLOUD_TOKEN:+set}"" && echo ""PRO_CLOUD: ${CYPRESS_MB_PRO_CLOUD_TOKEN:+set}""
+```
+
+"
+66377259fd477df4dcc9:44:49,66377259fd477df4dcc9,agentscope-ai/QwenPaw,8d92e52e2a35eee8f70bedda9e5b21e7c7793447,src/qwenpaw/agents/md_files/en/AGENTS.md,AGENTS.md,0758f836d0dcd8e5cf28737f2177b8433343c9aabec54072a0f97dbfdd5a4e4f,44,49,1,83,directive,AI Integration,cross_event,project,agentscope-ai/qwenpaw,"## Tools
+
+Skills provide your tools. When you need one, check its `SKILL.md`. Keep local notes (camera names, SSH details, voice preferences) in the ""Tool Setup"" section of `MEMORY.md`. Identity and user profile go in `PROFILE.md`.
+
+
+"
+ee409fb09d06f7afc42b:186:187,ee409fb09d06f7afc42b,googleapis/mcp-toolbox,bfd4ffac74254df1235a312b4faf0ed01c9af1e8,GEMINI.md,GEMINI.md,18980c148318f1a8cde34f60f918b5e5d87ecd3f82c1cb2c03000532b31a9b3b,186,187,160,263,directive,Architecture,content,task,googleapis/mcp-toolbox,"6.  Implement `init()` to register the tool.
+"
+9201378b8d89728bef1e:97:99,9201378b8d89728bef1e,getpaseo/paseo,de45902652b7ceb7338f4ecab6542d33395c5809,CLAUDE.md,CLAUDE.md,9f951a31132deb8ad9a0c89874aabb9a4009c94be460b2df19c474f7f5926bfb,97,99,1,126,description,Build and Run,,,getpaseo/paseo,"## Quick start
+
+"
+ee409fb09d06f7afc42b:187:189,ee409fb09d06f7afc42b,googleapis/mcp-toolbox,bfd4ffac74254df1235a312b4faf0ed01c9af1e8,GEMINI.md,GEMINI.md,18980c148318f1a8cde34f60f918b5e5d87ecd3f82c1cb2c03000532b31a9b3b,187,189,160,263,directive,Testing,content,task,googleapis/mcp-toolbox,"7.  Add unit tests.
+
+"
+29cc0c38f6cf6076bf25:6:10,29cc0c38f6cf6076bf25,puppeteer/puppeteer,8df33eac9569e67aec6c8d8f119927260c95565a,.agents/skills/puppeteer-verification/SKILL.md,SKILL.md,c34143fdb317d1c0508f95f3b7ad96dc131ca4a3b3605d2386b8fb726fd35040,6,10,1,25,description,Testing,,,puppeteer/puppeteer,"# Instructions on how to verify your changes
+
+## Testing
+
+"
+cb78f2ea07e25900d5c4:26:28,cb78f2ea07e25900d5c4,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,.agents/skills/release-announcement/SKILL.md,SKILL.md,472d91d3a9dd89481623acd1afc5a4209ce67702526b82cd2aebfc7c5ce1de1b,26,28,1,29,directive,Maintenance,cross_event,task,nanmicoder/cc-haha,"`scan` 只用 Python 标准库；`render` 需要 Pillow 和可用的中文系统字体。缺依赖时先查看项目已有运行环境，不为一次制图修改生产依赖。GitHub 头像获取是公开只读请求；失败时给出具体账号和原因。
+
+"
+62722e502f1b7ebb073e:180:181,62722e502f1b7ebb073e,can1357/oh-my-pi,6f3fbc94c567c0ac619c013dd15d718356eecba1,AGENTS.md,AGENTS.md,16991750870b64929baaf239894e4dabd3fddf2b698cf9717993284dbe1725a9,180,181,147,291,directive,Security,content,none,can1357/oh-my-pi,"- **Password hashing**: `Bun.password.hash(pw, ""bcrypt"")` / `Bun.password.verify(pw, hash)`.
+"
+fa293ab07902aa85c3d7:359:366,fa293ab07902aa85c3d7,iii-hq/iii,8dd73dfcfd3520484863ee5588449f6a4db0aff4,skills/iii-observe/SKILL.md,SKILL.md,f82ac20b7cb65225f188960df7584342b1bbb296c5d89cbbdc381fdd04c99d37,359,366,316,396,directive,Maintenance,content,none,iii-hq/iii,"**The built-in providers have not migrated in 0.25.** The `http`, `cron`, `queue`
+(`durable:subscriber`), `state`, `stream`, `pubsub` (`subscribe`) and `database` workers still
+register trigger types and do not host source functions (`http::on-request`, `cron::on-tick`, ...)
+yet. Keep `registerTrigger` for them; the warning is informational. Use `observe` for regular
+functions, the engine-hosted sources above, and providers that ship source functions. A provider
+that migrates declares `legacy_trigger_type` so existing `registerTrigger` consumers keep working.
+
+"
+b9ac521336d45878606b:9:11,b9ac521336d45878606b,affaan-m/ECC,25278e7d7b6cf6e6a4e7a6c8e10f14ff22f0eb5b,CLAUDE.md,CLAUDE.md,f42ac835a5d5ffaa83bec96429310abcca548baf630c16304b7ea0060a50feda,9,11,1,89,description,Security,,,affaan-m/ecc,"## Prompt Defense Baseline
+
+"
+19eca098c09946df201b:42:44,19eca098c09946df201b,wshobson/agents,0874a27b17a22e2b7c2e2bcd725768e0803cad06,AGENTS.md,AGENTS.md,6244bdf41c860c51bf8c93d7ea5aeb00a9ece4584ef85fc689d4f96d38fd168d,42,44,1,85,description,DevOps,,,wshobson/agents,"CI (`.github/workflows/validate.yml`) runs all four on every PR plus installs OpenCode + Antigravity CLI + Pi for live verification.
+
+"
+091072f938e9fc902522:34:42,091072f938e9fc902522,ggml-org/llama.cpp,8ca4060b7e30e76baaa5670ee1ec1b760b7f8552,AGENTS.md,AGENTS.md,67d92a8d2f75a85b640afcfcfb8f8f8d92c0e719f9587d9584f936860bf59c38,34,42,1,157,description,AI Integration,,,ggml-org/llama.cpp,"Common examples, not an exhaustive list:
+
+- Learning, exploration, and understanding the codebase
+- Suggestions on human-written code
+- Mechanical tasks: formatting, repetitive patterns, completing code from established designs
+- Documentation drafts for components the contributor already understands
+- Writing code from a design the contributor owns
+
+"
+e95250f2f2d9ecfc378f:12:16,e95250f2f2d9ecfc378f,convex/convex-backend,dfed7320f1a199b6de3781027e0717c87fe625be,npm-packages/private-demos/waitlist/.agents/skills/convex-quickstart/SKILL.md,SKILL.md,8d41afc2cee05f14e781346b4175d79594fe64b35adc16081683c9bbbf0ad84c,12,16,1,160,directive,System Overview,semantic_only,,convex/convex-backend,"# Convex Quickstart
+
+Set up a working Convex project as fast as possible.
+
+"
+a939b5152b5a2aa15655:67:69,a939b5152b5a2aa15655,cockroachdb/cockroach,d30c905fff79ef825adc96bcc647f1872a90f2ff,CLAUDE.md,CLAUDE.md,d12154d9b2d78afbf7c779a202567439741a7d464fdccd28edbc8ec6d5f0ad22,67,69,1,149,directive,Documentation,semantic_only,,cockroachdb/cockroach,"See `./dev generate --help`.
+
+"
+8069f1e774eda46d3afd:401:403,8069f1e774eda46d3afd,floci-io/floci,74a313a587b6bd73e2a59ea1b5c0b90620b6f455,AGENTS.md,AGENTS.md,7e48ce0da93b4810b2f202a2a5fd3f52b902dbc5913b6ad1c162d17466eaaa98,401,403,300,458,directive,DevOps,cross_event,project,floci-io/floci,"- The sidecar releases before the Floci PR that needs it, as a final or an `X.Y.Z-rc.N` tag; the
+  Floci PR pins that tag. A PR that needs an unreleased sidecar cannot pass CI.
+"
+5321c86d6b359d767a7e:10:15,5321c86d6b359d767a7e,CopilotKit/CopilotKit,4693af4d398c63da6f185ed7024ca5b196c20958,.cursor/rules/quick-reference.mdc,.cursor/rules/*,190384316f5bf927c1579064423588e283766bb9ab550b1d80e347b07a9a86e1,10,15,1,76,directive,AI Integration,content,project,copilotkit/copilotkit,"### Build a Simple Copilot
+- Start with [chat-with-your-data/](mdc:examples/v1/chat-with-your-data)
+- Use [react-core/](mdc:packages/react-core) for basic integration
+- Add [react-ui/](mdc:packages/react-ui) for pre-built components
+
+"
+420f4cfcd38d7d9e7b67:7:9,420f4cfcd38d7d9e7b67,lightpanda-io/browser,79b02c27a7bd966449f49f0ef4beb161485cd7f0,AGENTS.md,AGENTS.md,af45d9dc9022e49b1709aec4f2c6d812c9b11bf4d304f78beae621ee8d5e62b2,7,9,1,39,directive,Build and Run,cross_event,none,lightpanda-io/browser,"Run `make download-v8` once first: it fetches the prebuilt V8 archive into `.lp-cache/`, which `build.zig` picks up automatically. Without it every build compiles V8 from source (10+ minutes).
+
+"
+8101c6a9f382e4fc52a1:78:80,8101c6a9f382e4fc52a1,phuryn/pm-skills,07b34f64ee828df08953f505b7f747aef85ae7c6,CLAUDE.md,CLAUDE.md,9e1fff4c61fcb0972182ba909a0b66b46d9aad5529a64965b734bf91d11238a6,78,80,1,118,directive,DevOps,content,project,phuryn/pm-skills,"- Semver: breaking = major; new skills/commands or changed behavior = minor; fixes/docs = patch.
+
+"
+37e3926494d2d3e1561a:676:683,37e3926494d2d3e1561a,topoteretes/cognee,37f788bd287750e10d7610173e5332b3843f6ebd,CLAUDE.md,CLAUDE.md,a7f1d031343e0ac432e3fa174cacb7eba49a978991531e882f2bdf34b7ad431d,676,683,568,723,directive,Architecture,cross_event,project,topoteretes/cognee,"1. **New Task Type**: Create task function in `cognee/tasks/`, return Task object, register in pipeline
+2. **New Database Backend**: Implement `GraphDBInterface` or `VectorDBInterface` in `cognee/infrastructure/databases/`
+3. **New LLM Provider**: Add configuration in LLM config (uses litellm)
+4. **New Document Processor**: Implement `LoaderInterface` in `cognee/infrastructure/loaders/` and register it in `supported_loaders.py` there
+5. **New Search Type**: Add to `SearchType` enum and implement retriever in `cognee/modules/retrieval/`
+6. **Custom Graph Models**: Define Pydantic models extending `DataPoint` in your code
+
+"
+4fb2168381e3214c7c5a:61:62,4fb2168381e3214c7c5a,virattt/dexter,534f6be455523c5926eba72bdaf4f914555be5c9,AGENTS.md,AGENTS.md,34190d5d57969e4d0e1ce14394867f8f346f642cf91cd467127a6944c054c465,61,62,1,106,description,AI Integration,,,virattt/dexter,"- `skill`: invokes SKILL.md-defined workflows (e.g. DCF valuation). Each skill runs at most once per query.
+"
+49f322a3595a57475deb:3:5,49f322a3595a57475deb,greensock/gsap-skills,aed9cfd3277740755f6bfc1155c7aa645403b760,AGENTS.md,AGENTS.md,1900bd27da156a2048919a652980b2c47a44b6f1e8b85f1b32cc5b31e26a6e0e,3,5,1,28,directive,Development Process,semantic_only,,greensock/gsap-skills,"This repository contains **GSAP (GreenSock Animation Platform) skills** for AI coding agents. When editing or adding skills, follow these rules.
+
+"
+966f2bbc5f86df1ab46e:218:221,966f2bbc5f86df1ab46e,ParadevAI/Paradev,84f9a9046891bd738c2627e116c5d0ebb5c4b4d4,AGENTS.md,AGENTS.md,4093e3a1ed258914ac4105eb591dfa87ab14b5d5db3c179f9d2a950a7b3ff736,218,221,154,276,description,Testing,,,paradevai/paradev,"- **Node-only suites** (real PTYs, `node:test`) are `*.node-test.ts` files run by a turbo task, so
+  they run beside the bun suites and not after them.
+
+"
+9df1d162ae6d91c78aaa:83:84,9df1d162ae6d91c78aaa,StarRocks/starrocks,d6efc17ef818adbd0406cc68699209ecc7d11a4a,AGENTS.md,AGENTS.md,08e3dc15cfc3f7e2a632b0acbcd696dff7aa025aef45cd408a1de63772c39922,83,84,1,88,description,Documentation,,,starrocks/starrocks,"- [`fe/AGENTS.md`](./fe/AGENTS.md)
+"
+a239fba93e7948a4bcb0:38:40,a239fba93e7948a4bcb0,prisma/orm,fad17c1d036babfe4f87e2aeca35ec1f71da6182,skills/prisma-8/SKILL.md,SKILL.md,058257f2063f51147ae637e6e1eacf1414077c48b609fa230d99f88ddeb50daf,38,40,1,101,directive,DevOps,per_event,none,prisma/orm,"## Never reset or drop a database
+
+"
+9cb55fc52b1c970c607f:140:142,9cb55fc52b1c970c607f,Significant-Gravitas/AutoGPT,e2316d032883070a2e9aded36d2eb38b8e3a03df,.github/copilot-instructions.md,copilot-instructions.md,cda87ed321c293b511ffe04cf5145bc5b4fc10b8b6ced038f030622e227e28c9,140,142,1,161,description,Configuration & Environment,,,significant-gravitas/autogpt,"- `tailwind.config.ts` - Styling configuration
+
+"
+9799c47ec3c63f850dad:48:49,9799c47ec3c63f850dad,rocketride-org/rocketride-server,76c8cf2c0f3703cec1f064031d8986a6f7b5a760,docs/agents/skills/rocketride-running-pipelines/SKILL.md,SKILL.md,81f11c366835f6e782981b385d06e1aa5bbc06e1f2fc450b7382755d388862c6,48,49,1,102,directive,AI Integration,per_event,project,rocketride-org/rocketride-server,"   - `chat` source → **no MCP chat tool exists**; use the SDK fallback below.
+"
+c7da05265fff5d5e89bf:6:8,c7da05265fff5d5e89bf,microsoft/onnxruntime,7201c96570759372e18b122ffe6d4a24367d542a,AGENTS.md,AGENTS.md,f6eb29149d96d16f804daa10eb0d4d6c5778f5c916aa9d2d90730df7413f7646,6,8,1,152,description,Development Process,,,microsoft/onnxruntime,"## Path-Scoped Instructions
+
+"
+7b713372a206d060d56d:15:18,7b713372a206d060d56d,alchaincyf/huashu-design,4fc7bfdbd5ec3fa2d43ce7a6433de60976a5e4b1,SKILL.md,SKILL.md,63cbc2ffcfd99f7b8acb6ff92adbbbba4bfaeec84373703d81df6a6fc6055a23,15,18,1,151,description,System Overview,,,alchaincyf/huashu-design,"**你是设计师，不是写HTML的程序员。** HTML只是你的媒介，就像别人用Figma、
+用AE、用InDesign——工具不定义你，交付标准才定义你。
+
+"
+f061064366095fc7233b:81:83,f061064366095fc7233b,microsoft/ML-For-Beginners,de2d4e12236445198213a0711855e348e7253cd4,AGENTS.md,AGENTS.md,d6d1389388616bba1688342868eb2899a272c9fdfc573df21468409cae782b96,81,83,1,160,directive,Build and Run,semantic_only,,microsoft/ml-for-beginners,"To run the documentation locally:
+
+"
+08bbec27e0aa5c65199b:119:123,08bbec27e0aa5c65199b,apache/airflow,ee62251fc26aebc83df51c2e0ba9943cae57973f,AGENTS.md,AGENTS.md,b59aa74425ebc07079c002158ac1c84b7691dcf97f16c55cc00932d8803e6e45,119,123,1,160,directive,Security,semantic_only,,apache/airflow,"2. **Known limitations** — documented gaps where the current implementation doesn't provide full
+   isolation (e.g., DFP/Triggerer database access, shared Execution API resources, multi-team
+   not enforcing task-level isolation). These are tracked for improvement in future versions and
+   should not be reported as new findings.
+"
+01a6016b4914decd65a1:159:160,01a6016b4914decd65a1,microsoft/PowerToys,8056ba09721708bceee6176291b24af7ebabb0b3,.github/skills/winmd-api-search/SKILL.md,SKILL.md,d777e47317ae46772d5fadb37ebc322bd2a3610c315d9b782748e2fb205b93f3,159,160,159,193,description,Configuration & Environment,,,microsoft/powertoys,"> If only one project is cached, `-Project` is auto-selected.
+"
+c57c3d02d190495f8314:10:12,c57c3d02d190495f8314,arc53/DocsGPT,4ef2c0d0b3c861298ed2fa45ab210bc24adeaa87,AGENTS.md,AGENTS.md,3e072282aad84ef5a8e065addfcc5236ef3ab8c772e85603662a1553ed21329d,10,12,1,159,directive,Configuration & Environment,semantic_only,,arc53/docsgpt,"For feature work, do **not** assume the environment needs to be recreated.
+
+"
+e51049106c3acecca79b:8:10,e51049106c3acecca79b,microsoft/vscode,ea8056df9f08fb7c452589213ec77fabbd3481b9,.github/skills/otel/SKILL.md,SKILL.md,6acc79f3864fedf00f3c842859ba8a22485949540a11175a8561c519416b4dbc,8,10,1,155,directive,Architecture,semantic_only,,microsoft/vscode,"Start by identifying the execution surface. VS Code has separate OTel pipelines with different owners and configuration:
+
+"
+89dfbc1d40628466698e:310:311,89dfbc1d40628466698e,thedaviddias/Front-End-Checklist,e8d14d049010e2ce25afcd5e8609dfcbbe63e47e,AGENTS.md,AGENTS.md,c4bbbac4c20a7082434f5a507fbc07d5c0fdcae486638eaa769dba9d6a60ceec,310,311,308,331,directive,Security,content,project,thedaviddias/front-end-checklist,"- Do not apply client-side bot protection (e.g. Vercel BotID) to programmatic API endpoints like MCP; use it only for browser-originated form and mutation endpoints.
+"
+f01b658c08acb18c6743:17:18,f01b658c08acb18c6743,VictoriaMetrics/VictoriaMetrics,61916650cafcb6037b5f6947774302ece0fb32e2,vendor/go.opentelemetry.io/otel/AGENTS.md,AGENTS.md,10f57052605ac4e805a15043bb3c480fee44ed6fb04ba4f3b6dad8e71848167b,17,18,1,113,directive,Maintenance,content,task,victoriametrics/victoriametrics,"- Keep dependencies minimal and justified.
+"
+fb8380a70d6de1df31a9:36:37,fb8380a70d6de1df31a9,dagger/dagger,8afd98b4c36190972cb6d267e0126b783f4e28cf,engine/ebpf/AGENTS.md,AGENTS.md,3ddcf80a0939f05bc831c21d9c77f046e73a23f7391eb17e0bb3ffa9ba1fffa8,36,37,1,125,directive,Build and Run,per_event,project,dagger/dagger,"4. **Generate bindings**: run `go generate` in the package (or at repo root). This creates `*_bpfel.go` and `.o` files.
+"
+3f0b8d70b467447bea50:10:12,3f0b8d70b467447bea50,AgriciDaniel/claude-seo,6be93f45064ffbadced572b5d5c95f55fd263af0,AGENTS.md,AGENTS.md,7f5d4b9ad77a1f2848a26dfb2a52c6e7829b1781a09ffe655797e0533ef4d25a,10,12,1,141,description,Maintenance,,,agricidaniel/claude-seo,"## Cross-platform portability (v2.0.0)
+
+"
+8015a21f447c11aaaa32:47:48,8015a21f447c11aaaa32,photoprism/photoprism,7a347f125bb93a44cfeff7cfd29dbad5337ea665,AGENTS.md,AGENTS.md,006a9f6bb92ea1771376be67b7eac2b5485711f2122955d3024ec4f74b050fd0,47,48,1,143,directive,Development Process,content,none,photoprism/photoprism,"- Use concise imperative subjects with a one-word prefix, for example `Config: Add tests for ""darktable-cli"" path detection`.
+"
+bc2fccdfc4f82d4b0dec:219:221,bc2fccdfc4f82d4b0dec,netdata/netdata,992510668cd9dd05486f71a20e6876a638ea1a3b,AGENTS.md,AGENTS.md,ece56ace94561342331c33c2ae46887f9a52cbec8b8a0f09c27a050038daf794,219,221,159,281,directive,Documentation,cross_event,project,netdata/netdata,"- Durable knowledge needed for the approved deliverable belongs in project skills, docs, code, and tests (and specs
+  once re-introduced), not solely in the SOW body. Other discoveries follow Knowledge Capture.
+"
+2fbdb33c335e5588f61a:5:9,2fbdb33c335e5588f61a,langchain-ai/langgraph,eb8ec111b3e9d3108af5d7bdcac51e3e913637a0,AGENTS.md,AGENTS.md,56db7b3d0384e39770a853f343d1e30f5b08aab5305f65ec0a5d60bb0170e0ca,5,9,1,99,description,Security,,,langchain-ai/langgraph,"<corridor>
+
+## Corridor security analysis
+
+"
+1e8b3f6e2fdbd01b5e37:586:587,1e8b3f6e2fdbd01b5e37,op7418/guizang-ppt-skill,c91369c449d34755d320a8b81d0734000d99d1ab,SKILL.md,SKILL.md,57f046e2c8600bb9d5de9dafc6ff1860d13e28eb0d94c6790c58e8ca8ca5e839,586,587,473,633,directive,Documentation,per_event,task,op7418/guizang-ppt-skill,"7. 细节调整时读 `components.md` 查组件(含 Motion 动效系统章节,主要服务风格 A;风格 B 的组件细节在 `layouts-swiss.md` 附录)
+"
+563ebaae2e01d6f8e7e6:305:307,563ebaae2e01d6f8e7e6,langchain-ai/langchain,facf2788ae1f60c62f2397d15698237c405a5f05,AGENTS.md,AGENTS.md,2d6d7ad9785af3e817ef80babe50a77d3b440c869644ebadebbbddc9589c694c,305,307,154,313,directive,DevOps,content,none,langchain-ai/langchain,"   Title follows Conventional Commits: `release(<partner>): <version>` (e.g. `release(openrouter): 0.2.6`). Use the branch name `release/<partner>-<version>`.
+
+"
+08bbec27e0aa5c65199b:102:104,08bbec27e0aa5c65199b,apache/airflow,ee62251fc26aebc83df51c2e0ba9943cae57973f,AGENTS.md,AGENTS.md,b59aa74425ebc07079c002158ac1c84b7691dcf97f16c55cc00932d8803e6e45,102,104,1,160,directive,Build and Run,content,project,apache/airflow,"9. Each of the distributions should declare other needed distributions: `uv --project <FOLDER> sync` command acts on the selected project in the monorepo with only dependencies that it has
+
+"
+1cf032e17cf29578a6b3:18:20,1cf032e17cf29578a6b3,AstrBotDevs/AstrBot,dad255c60f7983fd63c7c0282ded1dde859fbc9a,astrbot/builtin_stars/astrbot/skills/pdf/SKILL.md,SKILL.md,8670517935b6281a59bf174b2a86bba18177a4df388daca0e2c32d01f21493ef,18,20,1,128,directive,Configuration & Environment,cross_event,task,astrbotdevs/astrbot,"Work in the current workspace unless the user provides another writable location. Keep intermediate files separate from final outputs and remove them when they are no longer needed.
+
+"
+c18037d52deb78d2a083:26:38,c18037d52deb78d2a083,google-gemini/gemini-cli,b8fa817155731c783d47dc6eaeee63163c0ec723,.gemini/skills/ci/SKILL.md,SKILL.md,2f6c8c68cc4e7d7de2b13c99dd51bc511d353c26587dc74a60232c9d2f4bf800,26,38,1,67,directive,DevOps,cross_event,project,google-gemini/gemini-cli,"### 1. CI Replicate (`replicate`) - DEFAULT
+Use this as the primary path to monitor CI and **automatically** replicate 
+failures locally for immediate triage and fixing.
+- **Behavior**: When this workflow is triggered, the agent will monitor the CI
+  and **immediately and automatically execute** all suggested test or lint
+  commands (marked with 🚀) as soon as a failure is detected. 
+- **Tool**: `node .gemini/skills/ci/scripts/ci.mjs [branch]`
+- **Discovery**: The script **automatically** finds the latest active or recent
+  run for the branch. Do NOT manually search for run IDs.
+- **Goal**: Reproduce the failure locally without manual intervention, then
+  proceed to analyze and fix the code.
+
+"
+0adc63054fb2e06dd347:195:197,0adc63054fb2e06dd347,shadcn-ui/ui,96da9cc7f1aa10580a3741664e2a77c721206c00,skills/shadcn/SKILL.md,SKILL.md,93951e5e83f616a3e046491c00d770bd54c0a64164706cd1191822a233d27592,195,197,154,297,directive,Build and Run,per_event,project,shadcn-ui/ui,"   - **Important**: Always run preset commands inside the user's project directory. `apply` only works in an existing project with a `components.json` file. The CLI automatically preserves the current base (`base` vs `radix`) from `components.json`. If you must use a scratch/temp directory (e.g. for `--dry-run` comparisons), pass `--base <current-base>` explicitly — preset codes do not encode the base.
+
+"
+5b05540d1e15a0589002:74:76,5b05540d1e15a0589002,googleworkspace/cli,a3768d0e82ad83cca2da97724e46bea4ff0e6dbd,skills/gws-chat/SKILL.md,SKILL.md,66338cc7104df3b9192f92fea75084b764b3b0e03b65e4f66094eead92baf83e,74,76,1,76,directive,AI Integration,cross_event,none,googleworkspace/cli,"Use `gws schema` output to build your `--params` and `--json` flags.
+
+"
+51d1ced1307c955afbd8:295:297,51d1ced1307c955afbd8,cockroachdb/cockroach,d30c905fff79ef825adc96bcc647f1872a90f2ff,.claude/skills/drt-analyze/SKILL.md,SKILL.md,1068b10f578ce6772970c3909271f31bed33cfc1d8c5c4d99af0c41f3cd512d1,295,297,283,442,directive,DevOps,semantic_only,,cockroachdb/cockroach,"Discover what's actually in the logs before looking for specific errors.
+
+"
+241777e84b59cac767aa:145:147,241777e84b59cac767aa,alibaba/page-agent,9eb6b6646500264d9034dd466a4270cb9fc1ef1e,AGENTS.md,AGENTS.md,dfe206c5c353cc81be848d8a206538d7964050fbd91a5e6afa21d6fb69d997eb,145,147,1,153,description,Implementation Details,,,alibaba/page-agent,"## Code Standards
+
+"
+5367f38fe45f00816b5c:125:127,5367f38fe45f00816b5c,OrchestratorInc/agent-orchestrator,70e92a80c67a16e0dcfac6716177b362d718152f,AGENTS.md,AGENTS.md,98a7a5361abe790d1e93d6c679ac2f9807943b71f4e874e3094ff6a82eafbeca,125,127,1,159,directive,Architecture,cross_event,project,orchestratorinc/agent-orchestrator,"The daemon API is code-first. The OpenAPI spec and frontend TypeScript types are generated artifacts. Edit the source, then regenerate.
+
+"
+e375d5bf024d215ceff5:49:52,e375d5bf024d215ceff5,Skyvern-AI/skyvern,98b94e421a50a031399520d30ad280152aa27f16,skills/skyvern/SKILL.md,SKILL.md,b671f3eb46586f62f82022d0fdac42d8f2e9c16d1e6860f5d1bd58373b9beeb9,49,52,1,160,directive,Configuration & Environment,cross_event,task,skyvern-ai/skyvern,"Session state persists between commands. After `session create`, subsequent commands auto-attach.
+Override with `--session pbs_...`. Close when done: `skyvern browser session close`.
+
+"
+d9710ba1a3f45e1bdbe6:19:20,d9710ba1a3f45e1bdbe6,pingcap/tidb,bb23c552354319b1f303630f0f9e97a3029665b8,.agents/skills/tidb-verify-profile/SKILL.md,SKILL.md,169d883d894532ce48b5b229dc2884ff18f8e6ffd1ad207f7add6304fa8587ef,19,20,1,40,directive,Testing,per_event,task,pingcap/tidb,"- Run only the smallest scoped checks that validate the changed behavior.
+"
+e95250f2f2d9ecfc378f:380:381,e95250f2f2d9ecfc378f,convex/convex-backend,dfed7320f1a199b6de3781027e0717c87fe625be,npm-packages/private-demos/waitlist/.agents/skills/convex-quickstart/SKILL.md,SKILL.md,8d41afc2cee05f14e781346b4175d79594fe64b35adc16081683c9bbbf0ad84c,380,381,306,382,directive,Configuration & Environment,content,project,convex/convex-backend,"- [ ] `.env.local` has the deployment URL
+"
+1351a22004c73496b5a4:356:358,1351a22004c73496b5a4,career-ops-hq/career-ops,ecca12b7bb78b74e87caae412a690bac8608a0e2,AGENTS.md,AGENTS.md,01fb889bf5e2d7dc31d9d8279f1a65f168ae4c6e980e160383dad72243f45ea9,356,358,345,502,directive,DevOps,per_event,task,career-ops-hq/career-ops,"If the user accepts, use the `/loop` or `/schedule` skill (if available) to set up a recurring scan entrypoint for their CLI (`/career-ops scan`, `/skill:career-ops scan` on Pi, or the equivalent Codex prompt). If those aren't available, point them to [docs/AUTOMATION.md](docs/AUTOMATION.md) for copy-paste cron / launchd / Windows Task Scheduler recipes plus a zero-token triage-to-shortlist prompt, or remind them to run the scan mode periodically.
+
+"
+04ff6e471c44766464dc:542:543,04ff6e471c44766464dc,Leonxlnx/taste-skill,12af471f627f866411b4bd785b19646d3672784c,skills/taste-skill/SKILL.md,SKILL.md,3435ed963b15a1b6447746ec8844ab2cd38d8d2e8ead3451937f42df01e408c4,542,543,478,543,directive,Architecture,per_event,none,leonxlnx/taste-skill,"| `library/` | The data the draw reads: directions, heroes, sections, type systems, palettes, photographs, studied sites, motions, scroll scenes (`scenes.json`), and the app styles, shells and screen patterns (`app.json`). Do not read it whole; use the script. |
+"
+af55d5ab4d2d2ecc9954:63:67,af55d5ab4d2d2ecc9954,iOfficeAI/OfficeCLI,585c0dc283311a47c37578d1189fb96133e437f5,SKILL.md,SKILL.md,c950d285ce60021712b4753fb2d9f592308d5622bab776229061dfecb1ce55d4,63,67,1,160,directive,Implementation Details,cross_event,none,iofficeai/officecli,"**Flush only at the non-officecli boundary.** officecli's own reads (`get`/`query`/`view`/`dump`) always see your latest edits, so you never need to save mid-workflow. Run `save` (keeps the resident) or `close` (flush + release) only **before a non-officecli program reads the file** — python-docx/openpyxl, Word, a renderer, delivery/upload. (Idle sessions auto-flush within seconds; `OFFICECLI_RESIDENT_FLUSH=each` makes every mutation flush before returning.)
+
+---
+
+"
+1351a22004c73496b5a4:686:687,1351a22004c73496b5a4,career-ops-hq/career-ops,ecca12b7bb78b74e87caae412a690bac8608a0e2,AGENTS.md,AGENTS.md,01fb889bf5e2d7dc31d9d8279f1a65f168ae4c6e980e160383dad72243f45ea9,686,687,637,690,description,Implementation Details,,,career-ops-hq/career-ops,"**RULES:**
+"
+8ee3df64da1f48f1a081:102:104,8ee3df64da1f48f1a081,openinterpreter/openinterpreter,ac1fcc8fe57aba51fcc3c79afd57a0883237fe87,AGENTS.md,AGENTS.md,b3dc6716209116a311dce67ddd490d7d0b998031734720524ad407fe67c7cf48,102,104,1,160,description,Maintenance,,,openinterpreter/openinterpreter,"### Breaking changes
+
+"
+226356a147778d460792:517:518,226356a147778d460792,vercel/next.js,7356b0bcb5f22371c15dcb413afe5fb28412f52d,AGENTS.md,AGENTS.md,03d6611995387eab863920cf7a4f83d7c28ee92848ae7371736c1f441df36a9d,517,518,465,539,directive,Documentation,content,none,vercel/next.js,"- When adding `highlight={...}` attributes to code blocks, carefully count the actual line numbers within the code block
+"
+097285601c9cf375fc2f:39:43,097285601c9cf375fc2f,trycua/cua,fe9238b8a0cb2d65f53ada864c8e690184ae84cb,AGENTS.md,AGENTS.md,0792c243f821fb86e85b72be712e6121bfcb2dec42d1dffcc37030ff6b1815ca,39,43,1,158,directive,Security,per_event,project,trycua/cua,"- route suspected vulnerabilities through the private process in
+  [`SECURITY.md`](.github/SECURITY.md), never a public issue, RFC, pull request, log, or
+  screenshot.
+
+"
+bc2fccdfc4f82d4b0dec:863:867,bc2fccdfc4f82d4b0dec,netdata/netdata,992510668cd9dd05486f71a20e6876a638ea1a3b,AGENTS.md,AGENTS.md,ece56ace94561342331c33c2ae46887f9a52cbec8b8a0f09c27a050038daf794,863,867,730,889,directive,Configuration & Environment,per_event,none,netdata/netdata,"`/.local/` at the repo root is gitignored and reserved for per-user runtime artifacts: audit reports, fetched API
+data, scratch notes, queue files, intermediate triage decisions. Nothing under it is committed; treat it as
+ephemeral between users and machines, not a shared source of truth.
+
+"
+222871d83f94941da9e4:13:14,222871d83f94941da9e4,microsoft/PowerToys,8056ba09721708bceee6176291b24af7ebabb0b3,.github/copilot-instructions.md,copilot-instructions.md,0b6b64c7314fdeb849c94f75da0697fce736b462d43ab296795c92444fc3efde,13,14,1,44,directive,Implementation Details,content,none,microsoft/powertoys,"- Keep hot paths quiet (no logging in hooks/tight loops)
+"
+560ed21ee43c1175beba:218:220,560ed21ee43c1175beba,Automattic/harper,2920066028f3db71876e9b3648bb7023a3eb202a,AGENTS.md,AGENTS.md,fe68f28ca998b170849f3ff794fb1fb6777b9fc714e6f098019cf1d5415d12d1,218,220,160,268,directive,Implementation Details,content,none,automattic/harper,"- macOS text range lookup may be wrong after emoji or other non-BMP characters. Harper spans are char-based, while macOS accessibility ranges are NSString/UTF-16 based. Convert spans before calling `AXBoundsForRangeParameterizedAttribute`.
+
+"
+4ec5a6456128c2de77e8:32:34,4ec5a6456128c2de77e8,NVIDIA/SkillSpector,e7172462caf367736645f66c1aa154ca5f9c64dc,skills/skill-inspector/SKILL.md,SKILL.md,1acc220016936ba68f7b9083c19575a8866c9cf74c251d689285a0d9fbe2a067,32,34,1,161,description,Documentation,,,nvidia/skillspector,"## Review Workflow
+
+"
+b1b5a8ab3fd4aef4a0af:17:28,b1b5a8ab3fd4aef4a0af,NanmiCoder/cc-haha,2f5acc1b8f2ca12b9f7e4aa1da121dbdf7eb9061,AGENTS.md,AGENTS.md,e0923c55cff92753d6695d5a296488a0b611d3063c565bcbaf469bf7628742a9,17,28,1,57,description,Architecture,,,nanmicoder/cc-haha,"| Surface | Entry point |
+| --- | --- |
+| CLI, tools, runtime, local API/WebSocket server | [src/AGENTS.md](src/AGENTS.md) |
+| React desktop UI, Electron host, native/sidecars | [desktop/AGENTS.md](desktop/AGENTS.md) |
+| IM platforms and shared chat runtime | [adapters/AGENTS.md](adapters/AGENTS.md) |
+| Chinese and English product/source documentation | [docs/AGENTS.md](docs/AGENTS.md) |
+| React documentation site and build tooling | [site/AGENTS.md](site/AGENTS.md) |
+| CI and quality policy | [.github/AGENTS.md](.github/AGENTS.md), `scripts/pr/`, `scripts/quality-gate/` |
+| GitHub issue routing and shared local task state | [.agents/workflows/issue-router.md](.agents/workflows/issue-router.md) |
+| Desktop releases and auto-update | `release-notes/`, `scripts/release.ts`, [release guide](docs/internals/contributing.md#发版与自动更新) |
+
+"
+b77274d2d7bc39fbcf6e:197:201,b77274d2d7bc39fbcf6e,googleapis/mcp-toolbox,bfd4ffac74254df1235a312b4faf0ed01c9af1e8,skills/maintainer/review-prs/SKILL.md,SKILL.md,356b3ea8491f375609804f08cdbe055d7ed0abad2361a8034303ee04ca14f481,197,201,104,254,directive,AI Integration,per_event,none,googleapis/mcp-toolbox,"Use the output format below. Never post it yourself.
+
+## Rules
+
+"
+faa5924fde9518aab085:7:11,faa5924fde9518aab085,alirezarezvani/claude-skills,5434623a788ec3105d238328cfe554e1e2242ff7,CLAUDE.md,CLAUDE.md,e44bb3d0becb23988d1cf1871e53b7b4ff5cbcae5e26496784d64fb67ea2bbb4,7,11,1,157,directive,System Overview,cross_event,project,alirezarezvani/claude-skills,"This is a **comprehensive skills library** for Claude AI and Claude Code - reusable, production-ready skill packages that bundle domain expertise, best practices, analysis tools, and strategic frameworks. The repository provides modular skills that teams can download and use directly in their workflows.
+
+**Current Scope:** 398 production-ready skills across 20 domains with 766 Python automation tools, 877 reference guides, 123 agents (cs-* + 7 personas), and 157 slash commands, distributed as 104 marketplace plugins. Headline counters are derived from the tree by `scripts/derive_counters.py` (run with `--check` to verify the docs still match). **v2.11.2 (current)** vendors **engineering/skillopt-sleep/** — started as a verbatim, byte-for-byte copy of `microsoft/SkillOpt`'s `skillopt_sleep` engine (stdlib-only, zero third-party deps) and its Claude Code plugin surface (`skills/`, `hooks/`, `commands/`, `scripts/`), then received 23 targeted patches after ten rounds of adversarial review (see `engineering/skillopt-sleep/README.md`'s numbered ""Deviations from upstream"" list, the authoritative source — re-apply all 23 on re-vendor). Gives a local agent a nightly ""sleep cycle"": read-only harvest of past Claude Code session transcripts → mine recurring tasks → replay offline on the user's own API budget → consolidate into `CLAUDE.md`/`SKILL.md` edits behind a held-out validation gate → stage for review; nothing live changes until an explicit `/skillopt-sleep adopt` (which backs up first). Default `mock` backend spends no API budget. The heavier `skillopt` *training* package (benchmark-driven, needs `numpy`/`openai`/`azure-*` + hand-labeled train/val/test data per task) was deliberately **not** vendored — it optimizes one narrow, scoreable task at a time, which doesn't fit this repo's broad domain-expertise skills or its no-ML-in-scripts/no-test-framework conventions; `skillopt_sleep` mines its ""benchmark"" from real usage instead, which does fit. Attribution preserved in `.claude-plugin/authoring-notes.json` + `LICENSE` + `README.md` (MIT, © Microsoft Corporation / Yifan Yang), following the same verbatim-vendor pattern as `loop-library/`. **Unreleased (post-v2.11.2, PR #961 merged)** adds the **agent-launcher/** top-level domain — a plugin re-implementation of Anthropic's `launch-your-agent` reference skill (Apache-2.0; independent, not a fork) for building **Claude Managed Agents (CMA)** in the user's own account. Every session starts with a goal (`./my-agent/goal.json`, surfaced by an opt-in `AGENT_LAUNCHER_SESSION=1` SessionStart hook + `/cs-goal`); `loop_compiler.py` compiles that goal into a **bounded grade→iterate loop** (CMA `user.define_outcome` self-grading, `max_iterations` 1..20), a **recurring POSIX-cron scheduled-deployment loop**, or a **single-pass interview→stage→launch workflow**. 6 skills (orchestrator `context: fork` + interview + stage-launch + grade-iterate + run-without-you + wrap-up), 18 stdlib-only deterministic scaffolder tools (NO network/API calls — live launches emitted as BYOK curl that never prints the key), 4 agents, 8 `/cs-*` commands, opt-in hooks, 5 shared references, 4 assets; validators enforce CMA limits (≤20 skills/session, ≤8 memory stores, depth-1 multiagent, `max_iterations` ≤20, ≤1000 deployments/org). Distinct from `engineering/agent-harness` (generic bounded loop over any domain) and `engineering/write-a-skill` (authors Claude Code skills, not CMAs). **Unreleased (post-v2.11.2)** ships the **productivity coverage expansion** — public audit record `audit/productivity-2026-07/` (all 7 legacy skills scored, 24/24 scripts smoke-tested, coverage map vs the personal-productivity canon) + 3 gap-filling plugins, each with a cs-* agent, /cs-* commands, 3 stdlib scripts and 3 cited references: **weekly-review** (GTD loop; review-gate refuses COMPLETE while a mandatory GET CURRENT step is missing), **deep-work** (time-block planner refusing >4h deep demand, shallow-work budget auditor, focus-session logger), **meetings** (MEET/ASYNC/NOT-READY cost gate, outcome-required agenda builder, action-item extractor with ORPHAN/NO-DUE flags). **Unreleased (post-v2.11.1)** added **productivity/fable-goal** — converts a rambling description of a desired outcome into one polished, copy-paste `/goal` prompt for a fresh autonomous session (ported from `duncan-buildroom/freeskills`). **v2.11.1 (complete)** upgrades **product-team/** and **project-management/** into agent-harness domains: both prose routers rebuilt as `context: fork` orchestrators with deterministic goal routers (exit-code route/ask/refuse), a Jira MCP snapshot bridge (Kanban-Guide-2025 flow metrics + seeded Monte Carlo forecasts, verified end-to-end into velocity_analyzer), a delegation-governance loop gate (human owner / reviewer / machine-checkable acceptance / close refusal), a Torres continuous-discovery cadence tracker + Opportunity Solution Tree linter, cs-pm-orchestrator + cs-product-orchestrator agents, and /cs-pm|grill-pm|pm-loop + /cs-product|grill-product|product-loop commands — plus the public audit record `audit/pm-product-agentic-2026-07/` (AR-rubric scores for all 26 skills, research-backed improvement fields, executable verification criteria). **v2.9.0 (complete)** added the **research-ops/** top-level domain — enterprise Research Operations (orchestrator + clinical-research + research-finance + market-research + product-research), the managed counterpart to the academic research/ domain, with `context: fork` orchestration and a Matt Pocock ""Forcing-question library"" in every SKILL.md plus `/cs-grill-research-ops`. **v2.8.0 (complete)** added 2 new top-level domains — **business-operations/** (7 internal-ops skills: orchestrator + process-mapper + vendor-management + capacity-planner + internal-comms + knowledge-ops + procurement-optimizer) and **commercial/** (8 per-deal-economics skills: orchestrator + pricing-strategist + deal-desk + partnerships-architect + channel-economics + commercial-policy + rfp-responder + commercial-forecaster) — with orchestrator skills using `context: fork` for chaining, Matt Pocock docs-anchored ""Forcing-question library"" in every SKILL.md, plus `/cs-grill-bizops` and `/cs-grill-commercial`. **v2.8.2** adds a productivity-shaped `handoff` skill (sibling to engineering/handoff) inspired by Matt Pocock — first-run setup with configurable save location, redaction linter, SessionStart + SessionEnd hooks, fidelity self-check, `--refresh` flag. **v2.8.1** upgraded the engineering role-skills (senior-fullstack / senior-frontend / senior-backend) with karpathy-coder + Matt Pocock decision engines + per-role forcing questions. v2.7.3 ports `alirezarezvani/aeo-box` — AEO (Answer Engine Optimization) skill into marketing-skill/ + security-guidance PreToolUse hook into engineering/. v2.7.0 added 13 Path-B skills across 3 top-level domains (productivity, marketing, research). v2.6.0 added 4 Matt Pocock-derived productivity skills.
+
+"
+e95250f2f2d9ecfc378f:379:380,e95250f2f2d9ecfc378f,convex/convex-backend,dfed7320f1a199b6de3781027e0717c87fe625be,npm-packages/private-demos/waitlist/.agents/skills/convex-quickstart/SKILL.md,SKILL.md,8d41afc2cee05f14e781346b4175d79594fe64b35adc16081683c9bbbf0ad84c,379,380,306,382,directive,Build and Run,content,project,convex/convex-backend,"- [ ] `convex/_generated/` directory exists with types
+"
+116d0ff1b7bff6cd7c9f:136:143,116d0ff1b7bff6cd7c9f,OrchestratorInc/agent-orchestrator,70e92a80c67a16e0dcfac6716177b362d718152f,.agents/skills/bug-triage/SKILL.md,SKILL.md,e40950e80f530214b6d98894070a624506acc07f46b53d3e7b122e54a0135a30,136,143,1,158,directive,Development Process,cross_event,task,orchestratorinc/agent-orchestrator,"Read likely matches before calling a report a duplicate. If one matches, give the
+reporter its link and draft only their new observation for a comment, with evidence
+attached separately. If a closed issue appears to have regressed, explain that to the
+reporter rather than silently treating it as resolved. If repository lookup or either
+search fails or is unavailable, say which part could not be checked. Empty, truncated,
+or failed searches do not prove there is no duplicate; continue preparing the report.
+
+"
+d679e29223d88f6c55d4:822:823,d679e29223d88f6c55d4,asgeirtj/system_prompts_leaks,1b6f936124b4eceb6e697a69da07519bea67feab,GLM/skills/pdf/SKILL.md,SKILL.md,e4bb7f6ab1403d552f6747a1142a2f9a53e3b7e1aae42fa6b04445094f06979d,822,823,760,974,directive,Testing,cross_event,project,asgeirtj/system_prompts_leaks,"- Result PASS → deliver directly
+"
+631187e46986fca21ae7:586:588,631187e46986fca21ae7,questdb/questdb,d411adea25d6a7500cadb5c73c2146c2b68882a1,.pi/skills/fix-pr/SKILL.md,SKILL.md,3ba62189985d1ca4b7b5b082baed227b1c1a69da4e5e7dd87b1ccd59589b6fb3,586,588,474,608,description,Development Process,,,questdb/questdb,"## Final report
+
+"
+4cf4f2a9b95057469b78:73:74,4cf4f2a9b95057469b78,apache/shardingsphere,704a2ff6d250e0131984dfbe049ad77795fd55ac,AGENTS.md,AGENTS.md,2d8f483f8563a8f88dacce930ad1cd886700ad17d0751850d6efbade8c07d11c,73,74,1,132,directive,Development Process,cross_event,task,apache/shardingsphere,"5. Inspect every path and hunk after each coherent edit batch. Inspect immediately after a formatter, generator, bulk replacement, or any action whose write set is not exact. Before an outside-boundary edit, report its evidence, minimum scope, affected contracts, and consequence of declining it.
+"
+e51049106c3acecca79b:193:194,e51049106c3acecca79b,microsoft/vscode,ea8056df9f08fb7c452589213ec77fabbd3481b9,.github/skills/otel/SKILL.md,SKILL.md,6acc79f3864fedf00f3c842859ba8a22485949540a11175a8561c519416b4dbc,193,194,155,200,directive,Maintenance,semantic_only,,microsoft/vscode,"- Assuming runtime `main` matches the package bundled by VS Code.
+"
+5fb9613e1672a6e3bdca:241:245,5fb9613e1672a6e3bdca,coreyhaines31/marketingskills,0cd9b3a0ef4c411a1d690419ce843f2a1da32cce,AGENTS.md,AGENTS.md,ae56c8055445e50365ebfd6a135471106cd16f362135ed19d60031b0d9100404,241,245,159,281,directive,Maintenance,per_event,task,coreyhaines31/marketingskills,"4. **If user says ""update skills""**:
+   - Run `git pull` in the marketingskills directory
+   - Confirm what was updated
+
+"
+5f41df97d7144e668ac0:24:26,5f41df97d7144e668ac0,MODSetter/SurfSense,31fce38e2f7c97adc1c908388fbe56603e9e9ddf,.agents/skills/tdd/SKILL.md,SKILL.md,cb01f66bebfaa25fa1f88e6b7e769cd9fd9f35b1120b8563749820738814c927,24,26,1,39,directive,Testing,semantic_only,,modsetter/surfsense,"Ask: ""What's the public interface, and which seams should we test?""
+
+"
+1bfce5eff82d9588e881:74:76,1bfce5eff82d9588e881,kubesphere/kubesphere,04a29b5c601470fa6bc2f2e92358dcb802a0d414,skills/vector/SKILL.md,SKILL.md,3f53c5f710046fbf21c3037467213199c089629ee663b50f699ca4befe226f2c,74,76,1,147,directive,Build and Run,cross_event,project,kubesphere/kubesphere,"**⚠️ IMPORTANT: Complete prerequisite steps (1-3) BEFORE this step.**
+
+"
+9eb76bbd7ff76163919d:219:221,9eb76bbd7ff76163919d,github/github-mcp-server,f38526264abb14961b32cea386e38ec6d3cf674f,.github/copilot-instructions.md,copilot-instructions.md,1ddcb0ed5bb450f5d2117bb15311c7c9e3b7b6b35159aa9e63c937ccc58515a3,219,221,160,292,directive,Documentation,cross_event,none,github/github-mcp-server,"**Fix:** Run `script/generate-docs` and commit README.md changes
+
+"
+7c0b87ece6a013e8d4b0:111:115,7c0b87ece6a013e8d4b0,alirezarezvani/claude-skills,5434623a788ec3105d238328cfe554e1e2242ff7,loop-library/SKILL.md,SKILL.md,0a976cfc29e86c7eaa56e761d9e68bc55284b50fce05b4bdddaf78e2bde38425,111,115,1,142,directive,AI Integration,semantic_only,,alirezarezvani/claude-skills,"Start with:
+
+1. ""What would you like the agent to get done?""
+
+"
+293bb071df73ac10251e:181:182,293bb071df73ac10251e,agno-agi/agno,d9ab0a758286142e7d998ef313ee7504d7fd9453,.cursorrules,.cursorrules,d400f5971f06e862493f22fe3f71f9fbb8fc4eb2cffc4d5003ba336d8cc27b25,181,182,161,187,description,DevOps,,,agno-agi/agno,"Production
+"
+226356a147778d460792:365:369,226356a147778d460792,vercel/next.js,7356b0bcb5f22371c15dcb413afe5fb28412f52d,AGENTS.md,AGENTS.md,03d6611995387eab863920cf7a4f83d7c28ee92848ae7371736c1f441df36a9d,365,369,308,465,directive,Security,cross_event,project,vercel/next.js,"## Secrets and Env Safety
+
+Always treat environment variable values as sensitive unless they are known test-mode flags.
+
+"
+266caf3239541db26f23:139:140,266caf3239541db26f23,tursodatabase/turso,c2a90cc3fcf728cb4550c1c19c25ad453d59e88d,AGENTS.md,AGENTS.md,18ca1669c23710213c78e994e0f943a67a5f15d63f0c31c4b70b89eec1e82717,139,140,1,158,directive,Maintenance,cross_event,project,tursodatabase/turso,"9. **Backward compatibility** Users' existing databases and sidecar files created by earlier Turso versions need to keep working with new versions. If a change can't preserve that, raise it before going further.
+"
+6a6902e9d22456d8d620:88:92,6a6902e9d22456d8d620,morluto/rea,fbb0e79354d8cc138026d01de393652913f821bf,AGENTS.md,AGENTS.md,fd67a060e2686e17ca4c3e8f4c32626fc86a6350b412205972739c49a1c0a41a,88,92,1,132,directive,Development Process,content,project,morluto/rea,"Use Conventional Commit subjects and PR titles. Mark breaking changes with `!` or a `BREAKING CHANGE:` footer. Describe behavior changes, relevant validation, and real-provider verification scope.
+
+## Issue Reports
+
+"
+8069f1e774eda46d3afd:494:497,8069f1e774eda46d3afd,floci-io/floci,74a313a587b6bd73e2a59ea1b5c0b90620b6f455,AGENTS.md,AGENTS.md,7e48ce0da93b4810b2f202a2a5fd3f52b902dbc5913b6ad1c162d17466eaaa98,494,497,458,596,directive,Testing,content,project,floci-io/floci,"- JUnit 5 assertions with Hamcrest and RestAssured matchers. AssertJ is a declared test
+  dependency, used by the Lambda launcher tests; prefer the established matchers
+  everywhere else.
+"
+8bf3533c0142db0454a3:6:10,8bf3533c0142db0454a3,siyuan-note/siyuan,bfe36100477b7bbd66db1a8b8cff5547b2ccdb59,kernel/util/builtin_skills/siyuan-plugin-development/SKILL.md,SKILL.md,405de51ab802b0d92fd0432fe14775d0eaade90ae572b3918add00da8af14b7e,6,10,1,53,description,System Overview,,,siyuan-note/siyuan,"# SiYuan Frontend Plugin Development
+
+This is a read-only official skill shipped with SiYuan. Its current scope is creating and modifying frontend plugins, using CommonJS JavaScript without third-party runtime dependencies by default. Full development, verification, and recovery of kernel.js are outside this workflow's scope.
+
+"
+004d3b8582d343e9aafb:44:48,004d3b8582d343e9aafb,TwiN/gatus,fae6edef2f288c47c294fbe55453b92390551869,AGENTS.md,AGENTS.md,ee815986308bd00be978f367d9d975e90be1873c6af17b8fad0b55fba930158f,44,48,1,85,directive,Architecture,per_event,none,twin/gatus,"### Adding an Alerting Provider
+
+Use `alerting/provider/slack/` as the reference implementation. Every new provider touches **6 locations**:
+
+"
+7e3dbe504dec692dbe24:16:24,7e3dbe504dec692dbe24,dragonflydb/dragonfly,f7fe6c4a8275ac675821e769489a2831ffbdcd91,.claude/skills/benchmark/SKILL.md,SKILL.md,5404c7e7f2a5e024e1fac4d7ff77e54d667cb0964c170a99fa70dc431489c112,16,24,1,159,directive,System Overview,cross_event,project,dragonflydb/dragonfly,"# Benchmark Dragonfly
+
+Drive a benchmark of Dragonfly (optionally side-by-side with Valkey or Redis) on
+local or remote instances, collect throughput / latency / memory numbers, and
+assemble a report that mirrors the team's published format: a narrative TLDR,
+per-instance metric tables, charts, and an appendix with the exact commands and
+raw output so anyone can reproduce it.
+
+"
+91bb6419ff72ff969116:135:156,91bb6419ff72ff969116,microsoft/AI-For-Beginners,392d0df1b2647cbee104942390551f1ed9e072c8,AGENTS.md,AGENTS.md,65bb019d2d574313cb27761114e795cca624a0eec4923f845a45fbe558d8985d,135,156,1,160,description,Architecture,,,microsoft/ai-for-beginners,"### File Organization
+
+```
+lessons/
+  ├── 0-course-setup/          # Setup instructions
+  ├── 1-Intro/                 # Introduction to AI
+  ├── 2-Symbolic/              # Symbolic AI
+  ├── 3-NeuralNetworks/        # Neural Networks basics
+  ├── 4-ComputerVision/        # Computer Vision
+  ├── 5-NLP/                   # Natural Language Processing
+  ├── 6-Other/                 # Other AI techniques
+  ├── 7-Ethics/                # AI Ethics
+  └── X-Extras/                # Additional content
+
+etc/
+  ├── quiz-app/                # Vue.js quiz application
+  └── quiz-src/                # Quiz source files
+
+translations/                  # Multi-language translations
+```
+
+"
+802eebb273280f6cca8b:64:66,802eebb273280f6cca8b,ComposioHQ/composio,df8a7817bbf5ba1244155fb9ea3ae5a835a65a28,skills/composio/SKILL.md,SKILL.md,1d9e3e51867fe1a346392631dc3f5139f32317642b9468d49e4b8714df818bdf,64,66,1,87,directive,Implementation Details,cross_event,project,composiohq/composio,"11. In SDK or API examples, use exact identifiers and call shapes from a current public page or schema. Copy the documented shape for the requested language instead of translating names between TypeScript and Python; if a required detail is not documented, explain the behavior without inventing code.
+
+"
+79fc10f35461d7719d81:93:94,79fc10f35461d7719d81,twbs/bootstrap,05331e182f29d02a684516bd804b80a53f9fdfc3,AGENTS.md,AGENTS.md,aee25be7cdcd7c3960d78253b0639c4d608b369d637f475a2a8a40a14c8eb476,93,94,1,112,directive,Documentation,content,none,twbs/bootstrap,"- Preserve smart punctuation (curly apostrophes U+2019, curly quotes) — never replace with ASCII equivalents
+"

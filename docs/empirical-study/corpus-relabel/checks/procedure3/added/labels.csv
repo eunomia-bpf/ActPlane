@@ -1,0 +1,301 @@
+statement_id,type,topic,enforceability,context_required,reason
+bff4dd73ffde295d813e:30:46,description,Implementation Details,,,
+2d28fbaff91104ed2d8a:164:168,directive,Maintenance,content,project,
+52b58db01ad41d63ba34:266:273,directive,Implementation Details,cross_event,project,"Option implementation, documentation, and tests form a coupled workflow."
+4885d9ebebe8ec2ebefd:15:17,description,Documentation,,,boundary: isolated heading should accompany the following statement.
+1b603b673e033f662a93:402:404,directive,Configuration & Environment,cross_event,task,The project-local root condition depends on the user's current selection.
+595b7474d9d90ba93abe:170:172,directive,Security,cross_event,project,
+8aac002657b20b3de55f:119:121,description,Maintenance,,,boundary: isolated heading should accompany the following statement.
+134c70031c3d5099815f:13:26,directive,AI Integration,semantic_only,,The prohibition governs review comments and communication.
+74ec0c86902e49f40545:92:120,directive,AI Integration,content,none,The complete output template is explicit in the statement.
+481d8619fd5c999ab11c:152:154,description,Development Process,,,boundary: isolated heading should accompany the following statement.
+e95250f2f2d9ecfc378f:42:54,directive,Build and Run,semantic_only,,The heading directs template selection; the table lists available choices.
+b1b5a8ab3fd4aef4a0af:35:37,directive,Development Process,per_event,task,Branch creation is an observable event gated by an explicit user request.
+a5e53a8661f8edb443b2:170:172,directive,Implementation Details,cross_event,task,The workflow includes ordering constraints and depends on whether the user chose an option.
+56ddbf5f7e30a0c67848:185:187,description,Maintenance,,,boundary: isolated heading should accompany the following statement.
+39b05d9d1ae66381add5:55:59,directive,Architecture,semantic_only,,
+5b5b8cbf9e1a771e8a17:89:101,description,AI Integration,,,
+c6cc13f501a2fe9d50e9:20:21,directive,AI Integration,cross_event,none,Start here imposes ordering before later CLI operations; the command is explicit.
+82fa98f7d394b3817405:90:93,directive,Testing,cross_event,project,
+178d1a0406e780419053:191:193,directive,Documentation,content,project,"The directive specifies generated brief artifacts, with entries resolved from the manifest."
+5b5b8cbf9e1a771e8a17:201:206,directive,Security,per_event,task,boundary: the denylist commands are omitted from this lead-in statement.
+dd2d5779276a2b100b28:151:155,directive,Configuration & Environment,content,project,Choosing the absolute hook path requires locating the actual ck installation.
+0ca91de827da5bc20645:127:135,directive,DevOps,cross_event,project,
+e7b5d9dc86c6e5ff7682:31:32,description,Architecture,,,
+27b33db27181827a0993:71:73,directive,Build and Run,per_event,project,Reading the README and using its unresolved npm commands are observable operations.
+563ebaae2e01d6f8e7e6:370:374,directive,DevOps,cross_event,project,Querying and dereferencing a tag before pinning requires state across operations.
+8f4d1e56743786286803:117:119,description,Development Process,,,boundary: isolated heading should accompany the following statement.
+f4681c8012f584c8b523:41:45,directive,Testing,per_event,project,
+1351a22004c73496b5a4:662:663,directive,Development Process,cross_event,project,New entries must flow through the TSV and merge tool rather than direct editing.
+40ef264bd53cba8bad27:80:88,directive,AI Integration,cross_event,project,"Receipt inspection, read-back after writes, and prerequisite references require a multi-operation workflow."
+097285601c9cf375fc2f:158:163,directive,DevOps,cross_event,project,The release audit requires several repository and release-state checks.
+1e8b3f6e2fdbd01b5e37:54:59,directive,Maintenance,per_event,project,
+5618bc808959644ef9c6:17:19,description,Security,,,boundary: isolated heading should accompany the following statement.
+075baed0feb64d931f3c:19:26,directive,DevOps,cross_event,project,Following the release file and its post-publish checks is a multi-step workflow.
+df3de81daec42cb2702f:63:65,directive,Build and Run,cross_event,task,Which validation is warranted depends on the current change.
+470555d991d302774982:108:124,directive,Build and Run,content,none,The package file and exact script contents are fully explicit.
+07ec807c5f9e26dd0fad:6:10,description,Testing,,,
+89664bb6469731447f55:202:204,directive,Security,cross_event,project,"Commit constraints require history-aware checking, and secrets and large binaries are unresolved concepts."
+a744d670a22d2438c0f7:85:112,description,Build and Run,,,
+b8d66e572c5a88f73687:6:10,description,System Overview,,,
+a5bd70b31f582a5039a7:21:23,directive,Development Process,cross_event,project,
+29cadf63b03aa2a07d00:9:13,directive,Configuration & Environment,per_event,project,
+3430d8a022b49e28c4bc:79:87,directive,Configuration & Environment,content,task,The directive modifies dev.env with branch values selected for the current work.
+78e7331f30cf80dafa70:192:201,description,Documentation,,,
+8256e2cd373574e9158a:26:28,directive,Security,cross_event,project,
+95fd00fa2440f722b4b7:80:86,directive,Architecture,cross_event,project,
+d9d2a5592bf823229ee2:5:6,directive,Development Process,cross_event,none,Committing the explicit .claude path requires relating file contents to a commit.
+dba9593cd17043ff1adb:1:2,directive,Documentation,per_event,none,The explicit filename is an external file reference.
+1bfce5eff82d9588e881:37:38,directive,AI Integration,per_event,task,
+1e7f3129a00cb43e9c00:1:2,directive,Documentation,per_event,none,The explicit filename is an external file reference.
+8ee3df64da1f48f1a081:312:315,directive,Maintenance,per_event,project,The directive requires reading the closest project-specific pyproject.toml.
+cfa91fcddd828960775c:85:89,directive,Implementation Details,cross_event,project,
+9eb76bbd7ff76163919d:235:236,description,Testing,,,boundary: isolated lead-in should accompany its cause list.
+a65c5b51358b5d324d3c:64:65,directive,Architecture,cross_event,project,
+fb36138bd11c9d8ec214:199:200,directive,Maintenance,content,project,
+e5a6689d66340e7a6bce:6:13,directive,System Overview,per_event,none,"Selecting Obscura is observable tool routing, and the tool is named explicitly."
+7b713372a206d060d56d:204:206,description,Maintenance,,,boundary: isolated heading should accompany the following statement.
+ea003a6e184ccd09069b:36:37,directive,Implementation Details,cross_event,none,Generated-skill writes must be routed through the explicitly named writer tool.
+9e89d83c637ef47fba44:16:18,directive,Documentation,cross_event,project,
+595b7474d9d90ba93abe:21:23,description,AI Integration,,,
+62722e502f1b7ebb073e:344:346,directive,DevOps,per_event,none,The command is given literally.
+d4f0ca4b05510f028f06:35:37,description,Maintenance,,,boundary: isolated heading should accompany the following statement.
+481d8619fd5c999ab11c:27:29,directive,Configuration & Environment,per_event,task,"Installation is an observable operation, and the defaults are gated by the user's request."
+dee1783843962befba2f:7:9,directive,Development Process,semantic_only,,
+56ddbf5f7e30a0c67848:187:188,directive,Maintenance,cross_event,project,
+111e6a72af3293d88940:49:52,directive,DevOps,per_event,task,The explicit paths are gated by whether this is an external contribution.
+fb9f71873fb7b4b1145f:163:169,directive,Architecture,per_event,none,The prohibited documentation location is explicitly named.
+1971f3c7b959af871a79:12:16,directive,Security,per_event,project,Applying the referenced trust rules requires accessing unresolved repository guidance.
+ace128c9b9d41f8b75f6:14:15,directive,Development Process,cross_event,none,The rule constrains how changes are grouped across commits and diffs.
+66377259fd477df4dcc9:7:9,description,Security,,,boundary: isolated heading should accompany the following statement.
+e95250f2f2d9ecfc378f:37:42,directive,Build and Run,per_event,project,Using the unresolved official scaffolding tool is an observable tool operation.
+fbfc736f4102a9ff19d0:6:9,directive,Documentation,cross_event,project,The project learnings must be read before subsequent work.
+805d5d9caf9fb3952efb:1:3,description,System Overview,,,boundary: isolated title should accompany the following statement.
+c7b24c257288995c7147:115:120,directive,Maintenance,cross_event,project,
+ff308010238b8dfd45e2:40:42,directive,Configuration & Environment,per_event,none,Installing the explicitly named editor extension is an observable operation.
+48e06622270e5d37fcaf:32:34,directive,Configuration & Environment,cross_event,none,The explicit README must be read before other work when the directory exists.
+48d75a4df1db9e25542e:9:10,directive,Configuration & Environment,content,project,
+e7b5d9dc86c6e5ff7682:21:27,directive,Testing,per_event,none,All three commands are given literally.
+43c6200f6482c2024938:160:161,directive,Build and Run,per_event,project,Selecting a supported runtime version is system-level and requires resolving project support.
+48a81bf6fa0b9058d942:134:141,directive,Testing,per_event,none,The preferred recipes and alternative command classes are explicit.
+bf4295029404437bc484:84:86,directive,Documentation,content,none,
+78e7331f30cf80dafa70:90:91,directive,Maintenance,cross_event,project,
+3e5b3416bcac894b8bd3:3:5,directive,Implementation Details,per_event,task,
+a5e53a8661f8edb443b2:16:17,description,Implementation Details,,,
+70ee343b039ac300da81:12:13,description,Architecture,,,
+a7cc4990b03e9c6ee284:119:124,directive,Documentation,per_event,project,
+47e2e8006bba125bae7f:38:39,directive,AI Integration,cross_event,project,
+2fbdb33c335e5588f61a:43:48,directive,Architecture,content,project,
+61d65edb7c92c63aeaaf:88:94,directive,Testing,cross_event,task,"The rerun follows a fix, and the affected spec and project depend on the current task."
+56844081c554978375dd:40:42,directive,Development Process,cross_event,task,
+a94c410c8c167dfd4323:13:14,directive,Architecture,content,none,The rule constrains source imports and names all relevant paths explicitly.
+4d334980986afaa7bcbb:8:14,directive,Development Process,cross_event,task,"The referenced guidance must be followed before PR work, with applicability determined by the current change."
+af55d5ab4d2d2ecc9954:63:67,directive,Implementation Details,cross_event,none,The save or close operation must precede an explicitly described external read.
+0ab50dbaaea428403ff7:7:10,directive,Architecture,cross_event,project,Adding a service couples registration with verification of a repository-defined URL pattern.
+7c86e0c41c5f75f40c1d:428:430,directive,Architecture,content,none,The vendored dependency path and prohibition on a second path are explicit.
+b49b0b7d141d9ddfea72:42:44,directive,AI Integration,per_event,project,The statement routes unsupported operations to the workspace or configured MCP tools.
+52b58db01ad41d63ba34:92:96,description,DevOps,,,
+96d4546f8371d514b628:143:144,directive,Security,per_event,task,Checking permissions in the current target app is an observable task-dependent operation.
+dfd861a055a4877fe5c6:160:166,directive,Build and Run,per_event,project,
+04ff6e471c44766464dc:375:380,directive,AI Integration,semantic_only,,The directive specifies what to communicate to the user.
+b0be28368269a80cd484:49:50,directive,DevOps,cross_event,project,
+7de2483a73dfc962a3f6:28:35,directive,AI Integration,cross_event,project,
+a825fa1a37505dc57fd0:36:39,directive,Build and Run,content,none,The required example flags are explicit.
+1e8b3f6e2fdbd01b5e37:8:10,directive,System Overview,content,none,The directive forbids including explicitly identified provenance text in generated artifacts.
+004d3b8582d343e9aafb:44:48,directive,Architecture,cross_event,project,boundary: the lead-in says six locations are required but omits the location list.
+eb1dd0e7c68ac8907738:81:83,directive,Implementation Details,content,none,
+0adc63054fb2e06dd347:170:176,directive,Documentation,cross_event,task,The command output supplies URLs that must then be fetched for the currently requested component.
+08bbec27e0aa5c65199b:84:85,description,Architecture,,,
+51d1ced1307c955afbd8:271:275,directive,DevOps,content,none,All severity thresholds and durations are explicit.
+26d3c8e70489bb900f62:28:31,directive,Security,content,none,
+2510506bb5e8b68d2ad6:67:73,directive,Build and Run,per_event,none,The sync command is given literally.
+3aa1e8fbd4aac1ef9c42:45:47,description,Implementation Details,,,boundary: isolated heading should accompany the following statement.
+e34b9af56877b39755ae:367:375,directive,Development Process,cross_event,project,
+a87c5b5fa654cb9fe190:67:68,directive,Maintenance,per_event,project,
+563ebaae2e01d6f8e7e6:388:391,directive,Documentation,per_event,task,The exception depends on an explicit request in the current session.
+6136085f50ea06883dad:105:110,directive,Implementation Details,content,none,The statement imposes concrete API-call and argument requirements.
+4c93b2d71a1899c08549:80:84,description,DevOps,,,
+8015a21f447c11aaaa32:19:20,directive,Maintenance,cross_event,project,
+c57c3d02d190495f8314:285:287,description,Development Process,,,boundary: isolated heading should accompany the following statement.
+e1c75b6e509738963131:49:53,directive,Development Process,semantic_only,,The prohibition governs what the agent reports during PR review.
+29643c3d20670b2e7265:154:158,directive,Testing,content,none,
+b030411b45865a88c4a0:109:111,directive,Architecture,per_event,none,The referenced file and validation command are both explicit.
+0f6ac7de53e5f0f77c8a:66:68,directive,Implementation Details,cross_event,project,
+b030411b45865a88c4a0:48:49,directive,Testing,per_event,none,The required local commands and prohibited alternatives are explicit.
+9cb55fc52b1c970c607f:175:183,directive,AI Integration,cross_event,project,"A block implementation must remain coupled with schemas, error handling, and tests."
+2e88d8889b27d70c2c90:38:40,description,Maintenance,,,boundary: isolated heading should accompany the following statement.
+98333b897a016c135d95:1:3,description,System Overview,,,
+3430d8a022b49e28c4bc:150:152,directive,Build and Run,per_event,none,The restart command is given literally.
+069352731b784762d31f:78:79,directive,Build and Run,per_event,none,The prohibited command is given literally.
+4b6c6fa3dab408117dcb:39:46,directive,Build and Run,cross_event,none,The required lint commands and commit ordering are explicit.
+8aac002657b20b3de55f:67:68,directive,AI Integration,content,none,
+e95250f2f2d9ecfc378f:117:119,description,Build and Run,,,
+ecbab5e198b5e409f28a:37:39,directive,Testing,cross_event,project,
+55ac68627054637388ad:5:7,description,AI Integration,,,boundary: isolated required-section heading should accompany its directive.
+a10d1a2c12cc2b2ecf8c:87:91,directive,AI Integration,per_event,task,This is task-dependent routing between two named tool commands.
+8f4d1e56743786286803:16:17,directive,System Overview,per_event,task,
+eff3382f42fdadf67b63:61:67,directive,Configuration & Environment,per_event,project,
+28d6e0b656a23dec0d36:89:90,directive,Implementation Details,content,none,
+b2b31ca0f921ccdc1728:108:109,directive,AI Integration,semantic_only,,Sharing the URL is user-facing communication.
+6acb730eedd45a09311f:78:90,description,DevOps,,,The standalone code block is a command reference rather than an instruction to run every command.
+b030411b45865a88c4a0:95:96,directive,Architecture,content,project,
+16aa2658cbab986650dc:43:45,directive,Documentation,cross_event,project,
+56ddbf5f7e30a0c67848:139:140,directive,Architecture,cross_event,project,
+8b0bbcc26ab460383061:241:249,directive,DevOps,cross_event,none,"The paths, equality constraints, scripts, and verification commands are explicit."
+fa9c86cefe3f440623d3:81:88,directive,Security,cross_event,project,The compound includes history-aware secret-commit prevention with unresolved secret patterns.
+4c2ca3acb2f583de2787:123:126,directive,Documentation,per_event,task,"Reading the file is observable, and the condition depends on the current page-handling task."
+063b16ab93e9cc689c0a:168:169,description,Testing,,,
+e3d420356ccd1896ec5a:9:14,directive,Architecture,content,none,The allowed locations for each change category are explicitly listed.
+8101c6a9f382e4fc52a1:57:58,directive,Implementation Details,content,none,The required equality between the skill name and directory name is self-contained.
+8f4d1e56743786286803:25:26,directive,Architecture,content,none,The prohibited external entry points and permitted architecture are explicit.
+805d5d9caf9fb3952efb:69:70,directive,Testing,cross_event,none,Seeding must occur before the later call.
+82fa98f7d394b3817405:189:192,directive,Development Process,cross_event,project,
+772bf8fae57074e3ba3e:24:26,directive,Maintenance,per_event,task,Maintainer approval is a task-specific permission gate.
+10f2d9ecd3283cfc88fa:12:13,directive,Implementation Details,semantic_only,,
+4b96b2fd9b16c75eaab6:38:39,directive,Maintenance,content,task,
+362f1140098d9dfa0080:166:167,directive,Architecture,semantic_only,,
+9e89d83c637ef47fba44:110:117,directive,DevOps,cross_event,none,Budget increases must be limited and separated by an explicit waiting period.
+5618bc808959644ef9c6:19:25,directive,Security,content,project,The checklist requires inspecting code for project-specific security properties.
+caeac72c73e5810922a5:47:49,description,Testing,,,
+4519c4ade894dfcf20b2:5:10,directive,Documentation,cross_event,none,The referenced path and read-before-work ordering are explicit.
+92a49b0e65c0513d7b05:76:77,directive,Security,semantic_only,,
+eff3382f42fdadf67b63:30:32,directive,AI Integration,semantic_only,,Planning and confirmation before changes is a conversational requirement.
+9201378b8d89728bef1e:130:136,directive,Testing,cross_event,task,
+08c095a9aa3ef1a40903:154:156,directive,AI Integration,content,task,The visual artifact must contain only material needed for the current question.
+1018e243bb1b3daa6e63:247:249,description,Security,,,
+a239fba93e7948a4bcb0:38:40,directive,Development Process,per_event,none,Resetting or dropping a database is a destructive development operation.
+8ee3df64da1f48f1a081:297:299,description,Development Process,,,
+311bf3166d9259f55057:102:103,directive,Development Process,content,none,"This specifies commit-message content, not CI operation."
+d5da329e987073c0ecc4:62:63,directive,Testing,cross_event,project,Thorough testing and regression assurance require project tests across changes.
+a67a7a451a43d5ffcc54:286:287,directive,Build and Run,cross_event,project,
+56ddbf5f7e30a0c67848:3:5,directive,Documentation,cross_event,none,boundary: A project description is merged with explicit read-before-change documentation directives.
+4b5f0852f199f4f87844:20:25,directive,Implementation Details,cross_event,none,Formatting must occur after Java edits and be followed by verification.
+f56e858af832dbc62820:37:42,directive,Security,semantic_only,,boundary: Factual command behavior is merged with the directive to script it carefully.
+9e89d83c637ef47fba44:328:330,description,Testing,,,
+f7a23090e2f918f7ab1c:240:247,directive,Testing,content,project,
+1bfce5eff82d9588e881:76:78,directive,Configuration & Environment,content,none,The required metadata name is an explicit literal.
+d0f1e1e163ae370d57f5:80:82,directive,Testing,per_event,none,The test command and argument pattern are explicit.
+9e9f029130aefbfffe80:141:144,directive,DevOps,content,none,Past tense is a self-contained artifact-content rule.
+6e813d52d6ec9553ac40:46:48,description,Maintenance,,,
+2d149cdb04b07171894a:335:337,directive,Development Process,cross_event,task,Focused review depends on the current change while the checks form a workflow.
+c1c03d624852772cf87f:95:97,directive,Security,content,none,
+bebfbbfe607008541681:3:4,directive,Documentation,cross_event,none,All guide paths and the read-before-work ordering are explicit.
+d08755fb1c9d79cd212b:11:13,directive,AI Integration,per_event,task,Using the skill is an observable tool-routing action conditioned on the user's request.
+28d6e0b656a23dec0d36:200:204,description,Build and Run,,,
+caeac72c73e5810922a5:1:3,description,AI Integration,,,
+c712e4dcb3db04ae9a29:367:369,description,DevOps,,,
+004d3b8582d343e9aafb:21:23,directive,Configuration & Environment,content,project,New startup code must preserve the project-specific hot-reload lifecycle.
+62722e502f1b7ebb073e:198:199,directive,Implementation Details,content,project,
+48807bb47b9affb1cefd:81:83,directive,Documentation,per_event,none,The generated path is explicit and the rule forbids editing it.
+7b713372a206d060d56d:170:174,directive,AI Integration,cross_event,task,"Logging, notifying, and honoring later user refusal or preference conflicts require conversational state."
+54296fbcddfd0098675b:154:159,directive,Security,cross_event,project,
+9cb55fc52b1c970c607f:295:305,directive,DevOps,cross_event,project,boundary: A factual CI inventory is merged with an instruction to align local development with it.
+ea003a6e184ccd09069b:22:24,directive,AI Integration,cross_event,task,"The request selects a flow file, which must be read before its instructions are followed."
+a231da5a9d05207ca70c:12:13,directive,Architecture,content,none,The codebase must contain no LLM or chat calls.
+f978c3a6b932d930de53:23:28,directive,Configuration & Environment,cross_event,none,Identity-source precedence and the prohibition on combining sources require cross-operation state.
+178d1a0406e780419053:137:139,description,Configuration & Environment,,,boundary: The fragment states a default and ends with an incomplete lead-in to omitted expansion instructions.
+9201378b8d89728bef1e:136:137,directive,Testing,content,project,
+c6cc13f501a2fe9d50e9:22:23,directive,AI Integration,cross_event,none,The explicit command must be retried with wider words when its result is insufficient.
+f866715349d992f3769a:25:27,directive,Implementation Details,content,none,The prohibited character and covered prose locations are explicit.
+9e89d83c637ef47fba44:153:155,directive,Testing,per_event,none,boundary: A factual qualification is merged with the direct instruction to test in the actual account.
+56584d23f93d83b969cd:48:52,directive,Security,content,project,Identifying and redacting project-specific PII requires project context.
+59e373e4a2d558c54676:1:2,directive,Documentation,per_event,none,A bare reference to another instruction file is an external-reference directive.
+48a81bf6fa0b9058d942:303:305,directive,DevOps,cross_event,project,boundary: Workflow descriptions are merged with branch-cleanup and conflict-resolution directives.
+72fc103b50d2366983da:27:29,directive,Testing,cross_event,none,"The page must be inspected, scrolled, and then exercised through an ordered interaction workflow."
+48d67686d4f65c48f8ec:19:21,directive,Maintenance,content,none,
+c5fd771f8f812063e707:61:64,description,Configuration & Environment,,,
+78e7331f30cf80dafa70:313:315,directive,Configuration & Environment,cross_event,project,
+091072f938e9fc902522:9:14,directive,System Overview,semantic_only,,
+4c0203637fc524587d3d:26:28,directive,DevOps,cross_event,task,
+fb8380a70d6de1df31a9:33:34,directive,Architecture,content,none,The required package paths and file names are explicit artifact-content constraints.
+ee409fb09d06f7afc42b:161:162,directive,Security,content,project,
+2fbdb33c335e5588f61a:71:72,description,Architecture,,,
+514e09a12b80a0791d98:42:43,directive,Maintenance,per_event,none,The prohibited directory is an explicit literal path.
+c712e4dcb3db04ae9a29:188:189,directive,Architecture,cross_event,project,
+3c1454dc63c4af920bc9:11:15,directive,Documentation,cross_event,none,boundary: Repository metadata is merged with an explicit requirement to read LICENSE before commercial reuse.
+d4f0ca4b05510f028f06:30:32,description,Configuration & Environment,,,
+5367f38fe45f00816b5c:116:117,directive,Build and Run,cross_event,project,
+9a9829ed34daa4537df1:15:17,directive,Development Process,content,project,
+8d57d20e5c074c6f5b2d:92:96,directive,AI Integration,cross_event,task,The rule depends on the user's site choice and prior query history within the same question.
+111e6a72af3293d88940:12:14,description,Configuration & Environment,,,
+0a1c5901aefa3d910e13:8:24,directive,Build and Run,cross_event,none,Configure-once state makes the explicit command reference cross-event.
+71779e4c268671772683:129:131,directive,AI Integration,semantic_only,,This governs how completion and links are presented in the response.
+72fc103b50d2366983da:6:10,directive,Implementation Details,content,task,The implementation artifact must match the supplied pages and exclude reference-only substitutes.
+9eb76bbd7ff76163919d:194:195,directive,Documentation,per_event,none,The documentation-generation command is explicit.
+eb1dd0e7c68ac8907738:87:89,description,Implementation Details,,,
+f2c43b4d3ddf75608b2e:14:15,directive,Documentation,per_event,none,The line points to a specific style guide to consult.
+89a20811080d71c52a31:224:231,directive,Security,content,project,
+2d149cdb04b07171894a:169:172,directive,Security,per_event,task,
+d6e9ebf1b8a4b59d1064:113:121,directive,Build and Run,cross_event,none,Notebook cells must be executed sequentially.
+f01b658c08acb18c6743:39:40,directive,Build and Run,cross_event,none,The explicit command is required as the final verification step.
+0adc63054fb2e06dd347:1:8,description,AI Integration,,,
+d679e29223d88f6c55d4:770:772,directive,Configuration & Environment,cross_event,project,
+b7fd6e195e8fa5e1c849:7:11,description,System Overview,,,
+4b96b2fd9b16c75eaab6:36:37,directive,Maintenance,content,project,Dependency placement and justification are artifact-content requirements using project runtime boundaries.
+56ddbf5f7e30a0c67848:111:113,directive,Development Process,cross_event,project,A qualifying failure must be evidenced before an unchanged escalated retry.
+93d0f4b20e2a75950555:1:7,description,Configuration & Environment,,,
+5acd24f9d03a7d8f4cae:6:9,directive,AI Integration,content,none,boundary: A factual loading statement is merged with file-length and pointer-content directives.
+505e7e3c01c8acf049bd:107:112,directive,DevOps,per_event,none,The check command is explicit.
+af55d5ab4d2d2ecc9954:417:418,directive,Documentation,per_event,none,Running the explicit help-command pattern is an observable command action.
+f9acb887fc0843edabd3:55:64,description,Architecture,,,
+1351a22004c73496b5a4:87:91,directive,Maintenance,semantic_only,,
+a7cc4990b03e9c6ee284:79:81,directive,Security,cross_event,project,
+ff073a0b1596390ce38b:106:107,directive,Maintenance,per_event,project,Checking unresolved upstream documentation is a file or network access operation.
+2e88d8889b27d70c2c90:120:121,directive,Testing,cross_event,project,
+469dc13ff999882477ec:59:60,directive,Documentation,content,none,
+c57c3d02d190495f8314:249:250,directive,Configuration & Environment,cross_event,project,
+fd46c3b005018bf3c685:407:413,directive,Implementation Details,per_event,task,Avoiding code beyond the current requirement is a task-relative write-scope constraint.
+6ea362b88fce4deaf9f5:52:53,directive,Implementation Details,content,none,The allowed and forbidden import sources are explicit code-content rules.
+f01b658c08acb18c6743:5:8,directive,Documentation,cross_event,none,The three explicit files must be read before starting any task.
+faa5924fde9518aab085:107:114,directive,Development Process,per_event,none,The target branch and PR base are explicit literals.
+afe7844fc0c52deda259:68:70,description,Configuration & Environment,,,
+1da070e4105bda2a4334:252:258,directive,Configuration & Environment,cross_event,none,The explicit environment file must be copied before its key is edited.
+802eebb273280f6cca8b:12:14,directive,Architecture,content,project,Keeping two products separate is a code/configuration organization constraint requiring project identity.
+f3b2ec50d0678f41f702:34:37,directive,Development Process,content,project,
+0ca91de827da5bc20645:145:150,directive,Documentation,content,project,
+772bf8fae57074e3ba3e:18:19,directive,Maintenance,semantic_only,,boundary: A factual ecosystem-impact claim is merged with subjective guidance to be conservative and deliberate.
+d242c9937cc8d964d377:5:9,directive,AI Integration,per_event,task,
+5c0a644bc99ccc4abb6f:302:309,directive,AI Integration,per_event,project,The instruction explicitly requires consulting the unresolved Lemon source instead of guessing.
+a10d1a2c12cc2b2ecf8c:197:199,directive,AI Integration,semantic_only,,
+069352731b784762d31f:187:188,directive,Testing,content,task,Test size and selection are artifact-content constraints relative to the current fix and reported behavior.
+2fbdb33c335e5588f61a:36:39,directive,Implementation Details,semantic_only,,
+e95250f2f2d9ecfc378f:379:380,directive,Build and Run,content,project,
+ee94d14b04405fff0a36:6:8,description,AI Integration,,,
+311bf3166d9259f55057:11:13,description,Build and Run,,,
+74ec0c86902e49f40545:128:130,description,Documentation,,,
+5c0a644bc99ccc4abb6f:11:21,directive,Maintenance,cross_event,project,Exact behavioral and semantic equivalence requires comparing the old and migrated implementations.
+241777e84b59cac767aa:136:137,directive,Testing,content,project,
+3ca21f0222180df58b4d:36:38,directive,Documentation,content,none,
+075baed0feb64d931f3c:68:73,directive,DevOps,content,none,Both version-file paths and target fields are explicit.
+8256e2cd373574e9158a:7:9,directive,Security,semantic_only,,"This is a subjective design principle prescribing a safe, simple default path."
+db825a2bf33db0bdcc99:7:29,directive,Development Process,cross_event,project,"The code block specifies a multi-step branch, commit, push, and PR workflow."
+5e4934ff23123ff41afa:55:60,directive,Testing,cross_event,project,The examples require tests before and after implementation or refactoring.
+6136085f50ea06883dad:313:316,directive,Maintenance,cross_event,none,Deprecation requires an explicit warning interval and migration documentation before breakage.
+eff3382f42fdadf67b63:241:243,description,Security,,,
+f9acb887fc0843edabd3:64:68,directive,Testing,per_event,project,boundary: A factual timeout statement is merged with a directive to consult unresolved project guides.
+faa5924fde9518aab085:820:822,directive,Configuration & Environment,content,none,The forbidden legacy manifest literal is explicit.
+f061064366095fc7233b:206:207,directive,Documentation,per_event,project,
+3aa1e8fbd4aac1ef9c42:196:197,directive,Build and Run,content,project,
+ccfb87f4540ec77f1dda:32:48,directive,AI Integration,cross_event,task,Tracking starts only after per-session user opt-in and must preserve subsequent contribution history.
+9a2e77298202d63ac7c0:142:144,directive,AI Integration,cross_event,project,
+ef90a8051e621d5d2f8a:43:45,description,DevOps,,,
+3430d8a022b49e28c4bc:70:74,description,Development Process,,,
+da85174df5d7a65bd9bf:90:91,description,Implementation Details,,,
+92576ab3e8ee955961a4:15:17,description,System Overview,,,
+9dbd90f02830f9a40ffd:56:60,directive,DevOps,cross_event,none,"All edited path, command, generated lock path, and direct-edit prohibition are explicit."
+9df1d162ae6d91c78aaa:43:45,directive,Documentation,cross_event,none,Both the docs path condition and required read-before-edit file are explicit.
+7c0b87ece6a013e8d4b0:57:60,directive,AI Integration,per_event,project,
+e913e7509c1cffed466d:56:57,description,Development Process,,,
+1e8b3f6e2fdbd01b5e37:52:54,directive,Maintenance,cross_event,task,
+3a6b18a64facb39d53ea:59:61,description,Build and Run,,,
+a43d8e13a16c2f6ce619:13:15,directive,Security,per_event,none,The required header and prohibited authentication form are explicit.
+c18037d52deb78d2a083:52:54,description,DevOps,,,
+a10d1a2c12cc2b2ecf8c:171:191,description,Build and Run,,,
+0099c0d9aa26a54c1437:36:37,directive,Security,cross_event,project,
+37e3926494d2d3e1561a:544:548,directive,Configuration & Environment,cross_event,project,The effects of unresolved flags must be checked before changing them.
+8b0bbcc26ab460383061:98:104,directive,Architecture,cross_event,project,Uncertain writes must be reconciled based on prior provider-stage state and never blindly retried.
+a925e158bef26e3fad3f:33:38,directive,Development Process,content,project,
+caeac72c73e5810922a5:92:94,directive,Development Process,cross_event,none,Compliance review requires consulting the explicit standards URL and comparing the PR against it.
+f3b2ec50d0678f41f702:50:53,directive,AI Integration,per_event,none,This routes calculation work through an explicit tool command.
+1351a22004c73496b5a4:550:551,directive,Development Process,cross_event,project,"The statement defines a stateful scanning, recording, and tracker-update workflow."
+f7ae33ad1ae18d0c6daa:160:173,directive,Security,semantic_only,,

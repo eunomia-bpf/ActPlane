@@ -1,0 +1,1 @@
+["C:/Users/10678/.local/bin/claude.exe", "-p", "--permission-mode", "plan", "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--output-format", "json"]

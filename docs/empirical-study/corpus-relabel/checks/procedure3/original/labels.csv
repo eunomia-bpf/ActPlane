@@ -1,0 +1,301 @@
+statement_id,type,topic,enforceability,context_required,reason
+paper:openclaw/openclaw:114,directive,Documentation,content,none,The changelog headings and single-line format are explicit.
+paper:earendil-works/pi:53,directive,DevOps,cross_event,project,Lockstep release updates and version rules constrain release actions.
+paper:charmbracelet/crush:33,directive,Testing,content,none,The required test APIs and temporary-directory pattern are explicit.
+paper:earendil-works/pi:18,directive,Build and Run,cross_event,none,The command and required pre-commit ordering are explicit.
+paper:ruvnet/ruflo:44,description,Architecture,,,
+paper:ruvnet/ruflo:15,description,AI Integration,,,The table describes agent roles and their purposes.
+paper:NousResearch/hermes-agent:40,directive,Implementation Details,cross_event,project,Lock acquisition and release plus coordinated profile-safe changes require cross-operation state.
+paper:manaflow-ai/cmux:60,directive,Testing,cross_event,task,It requires reproducing on the reporter's environment before rejecting a report.
+paper:superset-sh/superset:24,directive,Security,per_event,task,
+paper:google/adk-python:6,directive,AI Integration,cross_event,task,
+paper:czlonkowski/n8n-mcp:32,directive,Testing,cross_event,project,Workflow validation must precede deployment.
+paper:OpenPipe/ART:5,directive,Documentation,cross_event,project,PNG conversion must precede repository inclusion and documentation use.
+paper:earendil-works/pi:5,directive,AI Integration,cross_event,task,The user's question must be answered before later edits or commands.
+paper:QwenLM/qwen-code:22,directive,AI Integration,per_event,none,This routes feature work through an explicitly named skill.
+paper:hugohe3/ppt-master:13,directive,Documentation,per_event,none,An explicit external-file reference directs the agent to that file.
+paper:Panniantong/Agent-Reach:16,directive,Security,per_event,none,The authentication method and prohibited QR method are explicit.
+paper:NousResearch/hermes-agent:45,directive,Implementation Details,content,project,
+paper:langchain-ai/open-swe:32,directive,Architecture,content,none,It requires a specific entry in an explicitly named configuration file.
+paper:openclaw/openclaw:111,directive,Documentation,cross_event,project,It couples behavior or API changes with documentation updates.
+paper:nearai/ironclaw:28,directive,Security,content,project,Compliance requires inspecting whether security behavior or guarantees were weakened.
+paper:Alishahryar1/free-claude-code:19,directive,Architecture,content,project,
+paper:NVIDIA/NemoClaw:16,directive,Documentation,content,none,The allowed and prohibited link classes constrain documentation content.
+paper:openai/openai-agents-python:11,directive,Architecture,cross_event,project,
+paper:AlexsJones/llmfit:24,directive,Implementation Details,content,project,
+paper:yusufkaraaslan/Skill_Seekers:64,description,DevOps,,,
+paper:openai/codex:57,description,Testing,,,
+paper:ruvnet/ruflo:65,description,System Overview,,,
+paper:nearai/ironclaw:42,directive,Development Process,per_event,task,Change scope is relative to the current task.
+paper:chenhg5/cc-connect:10,directive,Implementation Details,content,none,The required Go type and factory scope are explicit coding conventions.
+paper:tirth8205/code-review-graph:2,description,Development Process,,,This is a command-reference block rather than an instruction to execute it.
+paper:manaflow-ai/cmux:10,directive,Build and Run,per_event,none,The release build command is explicit.
+paper:manaflow-ai/cmux:46,description,Development Process,,,
+paper:hugohe3/ppt-master:2,directive,Development Process,cross_event,task,Reading the file must precede work whose applicability depends on the current task.
+paper:openai/openai-agents-python:15,directive,Security,content,project,
+paper:NVIDIA/NemoClaw:2,directive,AI Integration,per_event,none,The final sentence explicitly directs loading a named skill.
+paper:chenhg5/cc-connect:33,directive,Testing,content,project,
+paper:openclaw/openclaw:37,directive,Architecture,cross_event,project,
+paper:openai/codex:12,directive,Documentation,content,none,
+paper:czlonkowski/n8n-mcp:2,directive,Security,content,project,It constrains file content and includes unresolved secret and credential categories.
+paper:garrytan/gbrain:6,description,Development Process,,,
+paper:manaflow-ai/cmux:56,directive,Implementation Details,content,project,
+paper:Panniantong/Agent-Reach:15,directive,Testing,cross_event,none,The exact test command and before-commit requirement are explicit.
+paper:manaflow-ai/cmux:67,directive,Testing,cross_event,project,A runtime seam must be added before testing through it.
+paper:earendil-works/pi:40,directive,Development Process,per_event,none,The explicit reference directs the agent to CONTRIBUTING.md.
+paper:colbymchenry/codegraph:6,description,Configuration & Environment,,,
+paper:code-yeongyu/oh-my-openagent:42,description,Configuration & Environment,,,It factually states the configuration format and validation conventions.
+paper:ryoppippi/ccusage:7,directive,Build and Run,per_event,task,Whether a missing tool is useful for repeated current work depends on the task.
+paper:Kilo-Org/kilocode:51,directive,Development Process,cross_event,project,
+paper:nearai/ironclaw:22,directive,Configuration & Environment,cross_event,project,
+paper:nearai/ironclaw:48,directive,Testing,per_event,project,
+paper:openclaw/openclaw:33,directive,Implementation Details,content,project,
+paper:Donchitos/Claude-Code-Game-Studios:5,directive,Implementation Details,per_event,none,The explicit file reference directs access to the technical preferences.
+paper:thedotmack/claude-mem:14,description,Documentation,,,
+paper:openai/codex:70,directive,Architecture,content,project,
+paper:anomalyco/opencode:5,directive,AI Integration,semantic_only,,
+paper:earendil-works/pi:51,directive,Documentation,content,none,The attribution format is explicitly supplied.
+paper:colbymchenry/codegraph:32,directive,Documentation,cross_event,none,It requires consistency across three explicitly named files.
+paper:manaflow-ai/cmux:66,directive,Testing,cross_event,project,It requires building or running behavior and verifying the resulting metadata effect.
+paper:luongnv89/claude-howto:5,directive,Development Process,per_event,task,
+paper:nanocoai/nanoclaw:14,directive,Security,cross_event,task,boundary: explanatory background is combined with an ordered live recovery procedure.
+paper:ryoppippi/ccusage:12,directive,Testing,cross_event,none,All post-change commands are explicitly named.
+paper:czlonkowski/n8n-mcp:33,directive,Implementation Details,content,none,It requires use of one explicitly named API instead of another.
+paper:openclaw/openclaw:128,directive,Security,content,project,
+paper:openclaw/openclaw:24,directive,Architecture,cross_event,project,
+paper:gastownhall/beads:19,directive,Testing,per_event,none,The preferred test commands and invocation patterns are explicit.
+paper:xpzouying/xiaohongshu-mcp:3,directive,Implementation Details,cross_event,project,Go formatting must occur after each modification.
+paper:superset-sh/superset:11,directive,Configuration & Environment,cross_event,task,"It couples shared definitions, symlinks, and task-matched skill reading."
+paper:openai/codex:21,directive,Build and Run,cross_event,none,The exact command and dependency-change ordering are explicit.
+paper:Hmbown/DeepSeek-TUI:14,description,Configuration & Environment,,,
+paper:code-yeongyu/oh-my-openagent:12,description,AI Integration,,,
+paper:mksglu/context-mode:14,directive,AI Integration,cross_event,none,The exact search calls must occur before asking the user.
+paper:zeroclaw-labs/zeroclaw:11,directive,Maintenance,per_event,task,boundary: the descriptive tier table is combined with a no-demotion and team-decision rule.
+paper:colbymchenry/codegraph:53,directive,Maintenance,cross_event,none,All three coupled update targets are explicitly named.
+paper:nanocoai/nanoclaw:27,description,Documentation,,,
+paper:gastownhall/beads:38,directive,AI Integration,cross_event,project,
+paper:nearai/ironclaw:34,directive,Architecture,content,project,It constrains the implementation architecture chosen for extensions and integrations.
+paper:code-yeongyu/oh-my-openagent:1,directive,Development Process,cross_event,none,The roadmap read must occur before any repository modification.
+paper:code-yeongyu/oh-my-openagent:71,description,Configuration & Environment,,,
+paper:earendil-works/pi:10,directive,Implementation Details,cross_event,task,The relevant dependency types must be read before using or describing them.
+paper:manaflow-ai/cmux:54,directive,Architecture,content,project,
+paper:multica-ai/multica:7,directive,Architecture,content,project,It constrains event-handling code to invalidation rather than direct store writes.
+paper:iOfficeAI/AionUi:24,directive,Testing,cross_event,none,"The test command, pre-commit ordering, and coverage threshold are explicit."
+paper:openai/openai-agents-python:17,directive,Security,content,project,
+paper:RightNow-AI/openfang:14,directive,Architecture,content,project,
+paper:Donchitos/Claude-Code-Game-Studios:4,directive,Documentation,per_event,none,The explicit file reference directs access to the version document.
+paper:manaflow-ai/cmux:1,directive,Configuration & Environment,per_event,none,The setup command is explicit.
+paper:mcp-use/mcp-use:7,directive,Development Process,cross_event,task,It requires analysis and user choice before implementing API changes.
+paper:Kilo-Org/kilocode:27,directive,AI Integration,cross_event,task,
+paper:manaflow-ai/cmux:17,directive,Security,per_event,none,boundary: secret-location description is combined with an explicit command to load them.
+paper:zeroclaw-labs/zeroclaw:2,directive,Architecture,cross_event,project,Detecting duplicate state requires locating the existing canonical fact in the repository.
+paper:superset-sh/superset:26,directive,Development Process,cross_event,project,
+paper:luongnv89/claude-howto:7,directive,Build and Run,cross_event,project,
+paper:NVIDIA/NemoClaw:20,directive,Development Process,cross_event,none,"The source path, test placement, and build command are explicit."
+paper:yusufkaraaslan/Skill_Seekers:57,directive,Development Process,cross_event,none,The complete pre-commit command sequence is explicit.
+paper:openai/openai-agents-python:4,directive,AI Integration,per_event,none,The skill and documentation tool route are explicitly named.
+paper:openai/codex:22,directive,Build and Run,cross_event,project,Adding compile-time reads requires a coupled BUILD.bazel update.
+paper:manaflow-ai/cmux:3,description,Build and Run,,,
+paper:colbymchenry/codegraph:52,directive,Maintenance,cross_event,project,
+paper:manaflow-ai/cmux:82,directive,DevOps,per_event,none,The directive routes release preparation through the explicit /release command.
+paper:hugohe3/ppt-master:10,directive,Development Process,per_event,task,
+paper:charmbracelet/crush:42,directive,Development Process,content,none,
+paper:openclaw/openclaw:29,directive,Architecture,cross_event,project,
+paper:ryoppippi/ccusage:14,directive,AI Integration,content,none,
+paper:mcp-use/mcp-use:6,directive,AI Integration,cross_event,task,Targeted searches must precede broader task-relative file reading.
+paper:ryoppippi/ccusage:8,directive,Architecture,content,task,Runtime-code placement has exceptions determined by the current work.
+paper:cocoindex-io/cocoindex:4,description,Implementation Details,,,
+paper:ruvnet/ruflo:30,directive,Security,cross_event,project,Committing unresolved secrets requires history and project-specific secret identification.
+paper:google/adk-python:9,directive,AI Integration,per_event,none,The explicit skill reference directs access to that skill.
+paper:zeroclaw-labs/zeroclaw:35,directive,Documentation,per_event,none,The linked file references direct the agent to explicit paths.
+paper:openai/openai-agents-python:26,directive,Architecture,cross_event,none,Every coordinated update target is explicitly listed.
+paper:Kilo-Org/kilocode:63,description,Maintenance,,,
+paper:NVIDIA/NemoClaw:6,description,Testing,,,
+paper:abhigyanpatwari/GitNexus:2,directive,Development Process,cross_event,task,"It includes task-relative write scope, dependency-coupled lockfile updates, and confirmation gates."
+paper:rowboatlabs/rowboat:19,directive,Development Process,cross_event,project,The development server must be restarted after editing the main process.
+paper:Kilo-Org/kilocode:16,directive,Build and Run,cross_event,project,
+paper:garrytan/gbrain:7,description,Maintenance,,,
+paper:openclaw/openclaw:54,directive,Testing,cross_event,task,A Crabbox request requires a multi-step real user-path proof.
+paper:heygen-com/hyperframes:5,directive,Testing,cross_event,none,The exact validation commands and required ordering are explicit.
+paper:openai/codex:50,directive,Testing,content,none,
+paper:cocoindex-io/cocoindex:34,directive,Documentation,content,project,
+paper:rtk-ai/rtk:2,description,System Overview,,,
+paper:openai/openai-agents-python:13,directive,Documentation,cross_event,project,
+paper:ruvnet/ruflo:23,description,Development Process,,,
+paper:code-yeongyu/oh-my-openagent:33,directive,Build and Run,per_event,none,
+paper:openai/openai-agents-python:43,directive,Documentation,per_event,none,The imperative directs reading two explicit documentation paths.
+paper:NousResearch/hermes-agent:42,directive,Maintenance,content,project,It constrains new menu implementation content to a repository-specific UI pattern.
+paper:zeroclaw-labs/zeroclaw:34,directive,Maintenance,cross_event,project,Moving or deleting protected files requires coordinated consumer updates.
+paper:Hmbown/DeepSeek-TUI:9,directive,Build and Run,cross_event,none,"The explicit installs must follow TUI changes, with an explicit diagnostic command."
+paper:superset-sh/superset:6,directive,Architecture,per_event,none,The prohibited and required filenames are explicit.
+paper:iOfficeAI/AionUi:37,description,DevOps,,,
+paper:Kilo-Org/kilocode:20,directive,Testing,cross_event,project,
+paper:Kilo-Org/kilocode:56,directive,Maintenance,per_event,project,
+paper:colbymchenry/codegraph:30,directive,Testing,cross_event,project,
+paper:jarrodwatts/claude-hud:1,description,System Overview,,,
+paper:openai/openai-agents-python:18,directive,Documentation,cross_event,project,Authoritative tool lookup and local code inspection must precede documentation claims.
+paper:nanocoai/nanoclaw:33,directive,Testing,content,none,The path and required and prohibited test imports are explicit.
+paper:NousResearch/hermes-agent:17,directive,Maintenance,cross_event,none,Dependency additions require explicit bounds and a subsequent explicit lock regeneration command.
+paper:zeroclaw-labs/zeroclaw:32,directive,Implementation Details,content,none,The untranslated source constructs are explicitly identified.
+paper:jarrodwatts/claude-hud:6,description,Architecture,,,
+paper:earendil-works/pi:12,directive,Maintenance,cross_event,project,It couples diagnosing outdated dependencies with upgrading them instead of changing code.
+paper:chenhg5/cc-connect:30,description,Testing,,,
+paper:openai/codex:64,directive,Architecture,per_event,project,
+paper:jarrodwatts/claude-hud:14,directive,Configuration & Environment,per_event,none,The settings path and required setup command are explicit.
+paper:cocoindex-io/cocoindex:21,directive,Architecture,content,task,The allowed API surface depends on the concrete current need or real use case.
+paper:openai/openai-agents-python:14,directive,Documentation,cross_event,project,The implementation must be inspected before adding runnable documentation examples.
+paper:abhigyanpatwari/GitNexus:28,description,Testing,,,
+paper:openai/codex:15,directive,Documentation,per_event,project,
+paper:langchain-ai/open-swe:22,description,Configuration & Environment,,,
+paper:openai/codex:30,directive,Architecture,semantic_only,,
+paper:abhigyanpatwari/GitNexus:18,directive,AI Integration,per_event,none,The tool route and its symbol-name parameter pattern are explicit.
+paper:iOfficeAI/AionUi:33,directive,Development Process,per_event,none,External skill-file reference requires a file access.
+paper:vxcontrol/pentagi:12,description,Security,,,
+paper:Yeachan-Heo/oh-my-claudecode:17,directive,Development Process,content,none,
+paper:Hmbown/DeepSeek-TUI:33,directive,AI Integration,per_event,none,boundary: factual mode descriptions and the directive to see docs/MODES.md should be separate.
+paper:openai/codex:82,directive,Documentation,cross_event,project,
+paper:czlonkowski/n8n-mcp:41,directive,Maintenance,per_event,none,
+paper:Hmbown/DeepSeek-TUI:12,directive,Documentation,per_event,none,Explicit references direct the agent to read named files.
+paper:openclaw/openclaw:12,directive,Documentation,per_event,none,The explicit sibling-file operations need no repository lookup.
+paper:Yeachan-Heo/oh-my-claudecode:9,description,AI Integration,,,
+paper:openclaw/openclaw:25,directive,Architecture,content,project,The rule constrains where repair and migration logic is implemented.
+paper:NousResearch/hermes-agent:29,directive,Architecture,content,none,The statement defines explicit directory and SKILL.md content organization.
+paper:czlonkowski/n8n-mcp:18,description,Architecture,,,
+paper:NousResearch/hermes-agent:52,description,Testing,,,
+paper:openai/openai-agents-python:23,directive,Implementation Details,cross_event,project,
+paper:openai/openai-agents-python:20,description,Architecture,,,boundary: the file-tree descriptions and the prohibition on editing generated translations should be separate.
+paper:iOfficeAI/AionUi:25,directive,Testing,per_event,none,The explicit skill-file reference requires a file access.
+paper:Panniantong/Agent-Reach:9,directive,Development Process,content,none,
+paper:openai/openai-agents-python:28,directive,Implementation Details,cross_event,none,All coupled names and the target path are explicit.
+paper:rtk-ai/rtk:23,directive,Implementation Details,content,none,
+paper:nanocoai/nanoclaw:16,description,AI Integration,,,
+paper:manaflow-ai/cmux:89,description,DevOps,,,
+paper:AlexsJones/llmfit:35,directive,Maintenance,per_event,none,boundary: the stdlib description and dependency prohibition should be separate; pip dependencies are explicit.
+paper:cocoindex-io/cocoindex:32,directive,Architecture,content,none,boundary: the existing async architecture description and the implementation directives should be separate.
+paper:nearai/ironclaw:37,directive,Documentation,cross_event,project,
+paper:code-yeongyu/oh-my-openagent:37,description,Testing,,,
+paper:alibaba/OpenSandbox:21,directive,Maintenance,content,project,Backward compatibility is an artifact property of the project's public interfaces.
+paper:NousResearch/hermes-agent:19,directive,Configuration & Environment,content,project,boundary: configuration descriptions and directives governing secret and non-secret settings should be separate.
+paper:openclaw/openclaw:141,directive,DevOps,per_event,project,
+paper:InsForge/InsForge:17,directive,Maintenance,content,none,The required dependency version and package.json lock are explicit artifact content.
+paper:NousResearch/hermes-agent:34,description,Maintenance,,,
+paper:openclaw/openclaw:106,directive,Testing,per_event,task,
+paper:openclaw/openclaw:115,directive,Documentation,per_event,task,Whether the editor is a contributor author or landing maintainer depends on the current PR context.
+paper:CoplayDev/unity-mcp:6,description,Architecture,,,The text factually describes the mirrored architecture without an imperative.
+paper:mcp-use/mcp-use:10,directive,Testing,cross_event,project,Requiring genuine tests for work couples implementation changes with test artifacts.
+paper:anomalyco/opencode:3,description,Development Process,,,
+paper:alibaba/OpenSandbox:11,directive,AI Integration,per_event,project,Selecting the nearest repository documents requires project lookup and file access.
+paper:chenhg5/cc-connect:7,directive,Implementation Details,content,project,
+paper:mcp-use/mcp-use:2,description,System Overview,,,
+paper:heygen-com/hyperframes:14,description,Architecture,,,
+paper:nanocoai/nanoclaw:22,directive,Development Process,cross_event,task,boundary: the ordered troubleshooting checks and the factual note about ephemeral container logs should be separate.
+paper:tirth8205/code-review-graph:18,directive,Development Process,cross_event,none,Compliance requires observing a failed push and subsequent retries until success.
+paper:superset-sh/superset:7,description,Build and Run,,,
+paper:ruvnet/ruflo:6,description,AI Integration,,,
+paper:ryoppippi/ccusage:15,directive,AI Integration,per_event,task,
+paper:nearai/ironclaw:26,directive,Configuration & Environment,content,project,
+paper:openclaw/openclaw:138,description,DevOps,,,
+paper:RightNow-AI/openfang:8,description,Architecture,,,
+paper:rowboatlabs/rowboat:15,description,Configuration & Environment,,,
+paper:openclaw/openclaw:39,directive,AI Integration,content,project,
+paper:vxcontrol/pentagi:14,directive,Architecture,cross_event,project,The workflow coordinates one provider across multiple architectural components.
+paper:Alishahryar1/free-claude-code:33,directive,Documentation,semantic_only,,
+paper:tirth8205/code-review-graph:19,directive,AI Integration,cross_event,project,
+paper:zeroclaw-labs/zeroclaw:4,directive,Development Process,cross_event,project,Determining the canonical source of truth requires repository context before an edit.
+paper:iOfficeAI/AionUi:39,description,Documentation,,,
+paper:openai/codex:31,directive,Implementation Details,per_event,none,The statement directs reading an explicitly named style file.
+paper:superset-sh/superset:2,directive,AI Integration,per_event,none,The ask_user tool and prohibited plain-text action are explicit.
+paper:earendil-works/pi:3,directive,AI Integration,semantic_only,,This governs conversational tone and filler.
+paper:thedotmack/claude-mem:12,description,Implementation Details,,,
+paper:vxcontrol/pentagi:16,description,Architecture,,,
+paper:ChromeDevTools/chrome-devtools-mcp:2,directive,Build and Run,per_event,project,
+paper:RightNow-AI/openfang:6,directive,Development Process,per_event,task,
+paper:CoplayDev/unity-mcp:18,directive,Implementation Details,content,none,Use of the named API is a source-code implementation constraint.
+paper:anomalyco/opencode:27,directive,Testing,content,none,
+paper:nearai/ironclaw:2,directive,Documentation,cross_event,task,
+paper:NVIDIA/NemoClaw:25,directive,Documentation,cross_event,task,Release-prep instructions impose an ordered multi-artifact workflow whose applicability depends on the current task.
+paper:QwenLM/qwen-code:20,description,Configuration & Environment,,,
+paper:code-yeongyu/oh-my-openagent:68,description,Implementation Details,,,
+paper:superset-sh/superset:12,directive,Configuration & Environment,cross_event,none,Keeping several explicit configuration files synchronized requires cross-file state.
+paper:gastownhall/beads:5,description,Implementation Details,,,This is a descriptive index entry naming the visual design system.
+paper:manaflow-ai/cmux:68,directive,Testing,content,task,"The rule constrains test artifacts, while practicality depends on the current change."
+paper:garrytan/gbrain:3,directive,Documentation,cross_event,none,The explicit documents must be read in the specified order before later work.
+paper:nearai/ironclaw:31,directive,Security,content,project,boundary: the deterministic-selection description and chat-history directive should be separate.
+paper:langchain-ai/open-swe:33,directive,Implementation Details,content,none,The directive governs source-code comments rather than development workflow.
+paper:nearai/ironclaw:24,directive,Configuration & Environment,content,project,
+paper:rowboatlabs/rowboat:14,directive,Documentation,cross_event,task,
+paper:earendil-works/pi:7,directive,Implementation Details,cross_event,task,
+paper:colbymchenry/codegraph:46,description,DevOps,,,
+paper:tirth8205/code-review-graph:1,directive,Development Process,per_event,none,boundary: the issue-tracker description and explicit bd prime command should be separate.
+paper:HKUDS/nanobot:2,description,System Overview,,,
+paper:rtk-ai/rtk:3,directive,Configuration & Environment,per_event,none,boundary: project-identification facts and the explicit installation-verification commands should be separate.
+paper:openai/openai-agents-python:16,directive,Security,cross_event,project,Claims must be checked against implementation paths before being documented.
+paper:Hmbown/DeepSeek-TUI:31,directive,Security,per_event,task,Whether the current contribution is malicious or in bad faith is invocation-specific.
+paper:chenhg5/cc-connect:27,directive,Testing,cross_event,project,
+paper:Kilo-Org/kilocode:22,directive,Testing,per_event,project,
+paper:thedotmack/claude-mem:3,description,Security,,,
+paper:superset-sh/superset:15,directive,Development Process,cross_event,none,The explicit lint commands must succeed before the later push event.
+paper:openclaw/openclaw:112,directive,Documentation,cross_event,project,
+paper:ryoppippi/ccusage:2,directive,AI Integration,cross_event,project,
+paper:openai/codex:5,directive,Security,content,project,
+paper:superset-sh/superset:27,directive,Development Process,per_event,project,The rule routes database migration work through a project-specific tool and forbids running migrations.
+paper:chenhg5/cc-connect:36,description,Build and Run,,,
+paper:openclaw/openclaw:43,directive,Build and Run,per_event,none,The remediation command is explicit.
+paper:iOfficeAI/AionUi:32,directive,Development Process,content,none,
+paper:nearai/ironclaw:27,directive,Security,semantic_only,,Reviewing with a security mindset is a subjective reasoning instruction.
+paper:iOfficeAI/AionUi:27,directive,Build and Run,cross_event,project,
+paper:manaflow-ai/cmux:84,directive,DevOps,cross_event,none,The script paths and required failure-recovery sequence are explicit.
+paper:thedotmack/claude-mem:17,directive,Maintenance,cross_event,project,
+paper:iOfficeAI/AionUi:23,directive,Architecture,cross_event,project,Routing all cross-process communication through the bridge requires control-flow consistency.
+paper:rowboatlabs/rowboat:10,description,Build and Run,,,
+paper:Kilo-Org/kilocode:62,directive,Maintenance,cross_event,project,
+paper:langchain-ai/open-swe:27,description,Testing,,,
+paper:mcp-use/mcp-use:23,directive,Testing,content,none,
+paper:Kilo-Org/kilocode:59,directive,Maintenance,per_event,task,How small and isolated a necessary upstream-file change can be depends on the current task.
+paper:InsForge/InsForge:10,directive,AI Integration,per_event,none,The statement routes named infrastructure operations through explicit MCP tools.
+paper:earendil-works/pi:54,directive,DevOps,cross_event,task,
+paper:manaflow-ai/cmux:40,directive,Implementation Details,cross_event,project,
+paper:openclaw/openclaw:130,directive,DevOps,per_event,task,
+paper:openai/openai-agents-python:35,directive,Implementation Details,per_event,none,The text directly instructs running two explicit formatting and lint commands.
+paper:openclaw/openclaw:58,directive,Testing,cross_event,project,"The rule requires detecting local fan-out, stopping, and moving subsequent proof to named environments."
+paper:charmbracelet/crush:43,directive,AI Integration,cross_event,task,
+paper:manaflow-ai/cmux:21,directive,Architecture,content,project,The statement constrains where backend logic lives and which protocols may appear in code.
+paper:earendil-works/pi:27,directive,Security,per_event,task,
+paper:openclaw/openclaw:126,description,Security,,,
+paper:rtk-ai/rtk:11,directive,Documentation,per_event,none,The statement directs the agent to explicitly named architecture documents.
+paper:openai/openai-agents-python:40,directive,Build and Run,per_event,none,"boundary: independent command directives for dependencies, tests, documentation, and snapshots should be separate."
+paper:manaflow-ai/cmux:49,directive,Implementation Details,content,project,The prohibition constrains implementation content and renderer integration.
+paper:nearai/ironclaw:25,directive,Documentation,cross_event,project,The required README update is a documentation synchronization rule.
+paper:nanocoai/nanoclaw:30,directive,Build and Run,cross_event,project,
+paper:Alishahryar1/free-claude-code:27,directive,Development Process,semantic_only,,
+paper:superset-sh/superset:14,directive,Documentation,per_event,project,
+paper:thedotmack/claude-mem:13,description,Build and Run,,,
+paper:zeroclaw-labs/zeroclaw:18,directive,Security,cross_event,project,Prohibiting commits of unresolved secret and identity classes requires commit lineage and project context.
+paper:NVIDIA/NemoClaw:17,description,DevOps,,,
+paper:luongnv89/claude-howto:13,directive,Architecture,per_event,project,
+paper:manaflow-ai/cmux:57,directive,Implementation Details,cross_event,project,
+paper:garrytan/gbrain:9,description,Maintenance,,,
+paper:earendil-works/pi:41,directive,Development Process,content,task,Which package labels apply depends on the current issue's affected scope.
+paper:nearai/ironclaw:38,directive,Documentation,cross_event,project,
+paper:openai/openai-agents-python:27,directive,Implementation Details,cross_event,project,
+paper:abhigyanpatwari/GitNexus:6,directive,AI Integration,per_event,task,boundary: factual reference locations and independent file-access and rule-organization directives should be separate.
+paper:NousResearch/hermes-agent:50,directive,Testing,per_event,none,The required wrapper and forbidden pytest command are explicit.
+paper:nanocoai/nanoclaw:37,directive,Build and Run,semantic_only,,
+paper:ruvnet/ruflo:54,directive,AI Integration,cross_event,task,The table requires tool calls before tasks and after successful completion.
+paper:langchain-ai/open-swe:20,directive,Implementation Details,content,project,The rule prohibits duplicating project-provided tool registrations in implementation.
+paper:earendil-works/pi:43,directive,AI Integration,content,task,Matching the user's tone requires current conversational context.
+paper:InsForge/InsForge:12,description,Implementation Details,,,
+paper:tirth8205/code-review-graph:26,description,AI Integration,,,
+paper:rtk-ai/rtk:35,directive,Development Process,semantic_only,,
+paper:langchain-ai/open-swe:25,description,Security,,,
+paper:luongnv89/claude-howto:18,directive,Implementation Details,semantic_only,,
+paper:czlonkowski/n8n-mcp:26,directive,Build and Run,cross_event,none,The explicit rebuild command must follow a package-update event.
+paper:thedotmack/claude-mem:18,directive,Maintenance,per_event,project,
+paper:chenhg5/cc-connect:11,directive,Configuration & Environment,content,project,
+paper:openai/codex:71,directive,Architecture,cross_event,project,
+paper:cocoindex-io/cocoindex:28,directive,Testing,content,none,
+paper:abhigyanpatwari/GitNexus:12,description,Maintenance,,,
+paper:openai/codex:29,directive,Architecture,semantic_only,,
+paper:OthmanAdi/planning-with-files:1,description,System Overview,,,
+paper:Panniantong/Agent-Reach:17,directive,Configuration & Environment,per_event,none,The allowed Cookie-Editor method and prohibited QR method are explicit.
+paper:garrytan/gbrain:4,description,Security,,,boundary: the trust-boundary description and directive to consult operations.ts should be separate.

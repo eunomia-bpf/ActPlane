@@ -1,0 +1,33 @@
+{
+  "original_reference": "63db86945c9b8618a46aa68c8de214bc4b8343d9",
+  "codex_model": "gpt-5.6-sol",
+  "claude_model_usage": {
+    "claude-opus-5-5": {
+      "inputTokens": 2,
+      "outputTokens": 16479,
+      "cacheReadInputTokens": 535,
+      "cacheCreationInputTokens": 55708,
+      "webSearchRequests": 0,
+      "costUSD": 0.775359,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 9162,
+      "canonicalModel": "claude-opus-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "claude_stop_reason": "end_turn",
+  "claude_cli_duration_ms": 154052,
+  "hashes": {
+    "common_added_300.csv": "e2d8bba87c7d842c2a08df69232f22c681a869427a24e001a79301c33365a752",
+    "common_original_300.csv": "9e8874bfe07b0a1970ce4b746510e9b2f45b27b08069723ea384bd6832b10f0b",
+    "claude_sample.csv": "43824c8e1939b9c96e8a93a062060885b03803f30264291a048f05d790bda5c7",
+    "shard1/run_review.py": "06f2f4552286b9d2170e577a3c923e3c6058c057896184e8b0d1da723b80800f",
+    "shard1/shared_codebook.txt": "152e38af8a1e8f52996307a39f78deaa715857fa8f086ccb729e873b39f4f5ad",
+    "shard2/run_review.py": "f0204300c30c1babb8ec294fc6192b80cd7130b1d27b41307a3dc5aec2af4cca",
+    "shard2/shared_codebook.txt": "6e0c379882305517fa104fa62fd80a64aa30161a94108911b8e895457d5c00b7",
+    "shard3/run_review.py": "499008403983d24ae7c587805d3beb4484a10b44553722097e66b1dff84cfa3f",
+    "shard3/common-instructions.txt": "61f62d9de45f13affe9a2ac9a9330edb33f8867ca4294da9f59e69782ce216f7"
+  }
+}
