@@ -1,15 +1,19 @@
 """Freeze the purposive Terminal-Bench subset before model outcomes."""
-import csv,hashlib,json,tomllib,importlib.metadata
+import csv,hashlib,json,subprocess,tomllib,importlib.metadata
 from pathlib import Path
 RAW=Path('/workspaces/exp/benign-utility/raw/benchmark')
 OUT=RAW.parent.parent/'benchmark/results'
 TASKS=['cancel-async-tasks','git-leak-recovery','log-summary-date-ranges','openssl-selfsigned-cert','sanitize-git-repo','vulnerable-secret']
+head=subprocess.check_output(['git','-C',str(RAW/'terminal-bench-2'),'rev-parse','HEAD'],text=True).strip()
+assert head=='69671fbaac6d67a7ef0dfec016cc38a64ef7a77c',head
+status=subprocess.check_output(['git','-C',str(RAW/'terminal-bench-2'),'status','--porcelain','--untracked-files=all','--',*TASKS],text=True)
+assert not status,status
 OUT.mkdir(exist_ok=True)
 rows=[]
 for index,name in enumerate(TASKS):
  p=RAW/'terminal-bench-2'/name
  t=tomllib.loads((p/'task.toml').read_text())
- rows.append(dict(task=name,dataset='terminal-bench@2.0',dataset_commit='69671fbaac6d67a7ef0dfec016cc38a64ef7a77c',condition_order=','.join(('a','b','c')[index%3:]+('a','b','c')[:index%3]),agent_timeout_sec=t['agent']['timeout_sec'],verifier_timeout_sec=t['verifier']['timeout_sec'],instruction_sha256=hashlib.sha256((p/'instruction.md').read_bytes()).hexdigest(),docker_image=t['environment']['docker_image']))
+ rows.append(dict(task=name,dataset='terminal-bench@2.0',dataset_commit=head,dataset_task_tree_clean=1,condition_order=','.join(('a','b','c')[index%3:]+('a','b','c')[:index%3]),agent_timeout_sec=t['agent']['timeout_sec'],verifier_timeout_sec=t['verifier']['timeout_sec'],instruction_sha256=hashlib.sha256((p/'instruction.md').read_bytes()).hexdigest(),test_script_sha256=hashlib.sha256((p/'tests/test.sh').read_bytes()).hexdigest(),task_config_sha256=hashlib.sha256((p/'task.toml').read_bytes()).hexdigest(),docker_image=t['environment']['docker_image']))
  print('Frozen',name)
 with (OUT/'tasks.csv').open('w',newline='') as f:
  w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)

@@ -8,7 +8,7 @@ OBSERVER_STRING_BYTES=1024
 HOOK_ENV_NAMES=('ACTPLANE_HOOK_PROFILE','ACTPLANE_ENABLE_ADVANCED_HOOKS','ACTPLANE_ADVANCED_TRACEPOINTS')
 class InstrumentedTerminus(Terminus2):
  def __init__(self,logs_dir,*args,**kwargs):
-  self.bu_logs=Path(logs_dir);self.bu_condition=os.environ['BU_CONDITION'];self.bu_task=os.environ['BU_TASK'];self.bu_index=0;self.bu_loader=None;self.bu_observer=None
+  self.bu_logs=Path(logs_dir);self.bu_condition=os.environ['BU_CONDITION'];self.bu_task=os.environ['BU_TASK'];self.bu_effect=os.environ.get('BU_NETWORK_EFFECT','kill');self.bu_index=0;self.bu_loader=None;self.bu_observer=None
   super().__init__(logs_dir,*args,**kwargs)
  async def setup(self,environment):
   try:await self._setup_measured(environment)
@@ -58,7 +58,7 @@ class InstrumentedTerminus(Terminus2):
    finally:
     if mapper.poll() is None:mapper.send_signal(signal.SIGINT)
     mapper.wait(timeout=10)
-  meta=dict(condition=self.bu_condition,task=self.bu_task,root_host_pid=root,root_workspace_pid=workspace_pid,root_namespace_pid=nspid,container_id=cid,root_pid_namespace=ns,attached_monotonic=time.monotonic(),scope='tmux pane shell and descendants; controller/model API outside scope',observer_string_bytes=OBSERVER_STRING_BYTES,engine_hook_environment={name:os.environ.get(name,'unset') for name in HOOK_ENV_NAMES})
+  meta=dict(condition=self.bu_condition,task=self.bu_task,root_host_pid=root,root_workspace_pid=workspace_pid,root_namespace_pid=nspid,container_id=cid,root_pid_namespace=ns,attached_monotonic=time.monotonic(),scope='tmux pane shell and descendants; controller/model API outside scope',observer_string_bytes=OBSERVER_STRING_BYTES,requested_network_effect=self.bu_effect if self.bu_condition!='a' else 'none',engine_hook_environment={name:os.environ.get(name,'unset') for name in HOOK_ENV_NAMES})
   (self.bu_logs/'scope.json').write_text(json.dumps(meta,indent=2))
   self.bu_observer_log=(self.bu_logs/'observer.jsonl').open('w')
   observer=self.bu_logs/'observer.bt';shutil.copyfile(Path(__file__).parents[1]/'replay/source_observer.bt',observer)
@@ -70,6 +70,9 @@ class InstrumentedTerminus(Terminus2):
   else:raise RuntimeError('Observer never became ready')
   if self.bu_condition!='a':
    policy=(Path(__file__).parent/'policies'/f'{self.bu_condition}.dsl').read_text()
+   if self.bu_effect=='block':
+    assert policy.count('  kill connect')==1
+    policy=policy.replace('  kill connect','  block connect')
    (self.bu_logs/'policy.dsl').write_text(policy)
    subprocess.run(['/workspaces/lanes/translation-models/target/release/actplane','--rule',policy,'compile','--out',str(self.bu_logs/'policy.bin'),'--force'],check=True,capture_output=True)
    self.bu_loader_log=(self.bu_logs/'engine.log').open('w')

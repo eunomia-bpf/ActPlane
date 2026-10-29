@@ -1,13 +1,18 @@
-import json,subprocess,shutil,time
+import csv,json,subprocess,shutil,time
 from pathlib import Path
 raw=Path('/workspaces/exp/benign-utility/raw/benchmark')
 print('TIME',time.strftime('%FT%TZ',time.gmtime()),'DISK',shutil.disk_usage('/workspaces'))
+table=raw.parent.parent/'benchmark/results/trials.csv'
+if table.exists():
+ rows=list(csv.DictReader(table.open()))
+ print('CORRECTED_SELECTED',[(r.get('task'),r.get('condition'),r.get('official_reward')) for r in rows if r.get('selected_for_comparison')=='1'])
 for p in sorted((raw/'jobs').glob('*')):
- if not p.name.endswith('-1'):continue
+ if '-preflight' in p.name:continue
  results=list(p.glob('*/result.json'))
  print('JOB',p.name)
  for r in results:
   d=json.loads(r.read_text());print('RESULT',d.get('verifier_result'),(d.get('exception_info') or {}).get('exception_type',''))
+ if results:continue
  for log in p.glob('*/agent/calls.jsonl'):
   print('CALL_RECORDS',len(log.read_text().splitlines()))
  for log in p.glob('*/agent/scope.json'):

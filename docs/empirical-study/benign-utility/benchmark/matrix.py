@@ -17,10 +17,13 @@ for task in csv.DictReader((OUT/'tasks.csv').open()):
   rows=export()
   if any(r['task']==task['task'] and r['condition']==condition and r['selected_for_comparison']=='1' for r in rows):
    print('SELECTED',task['task'],condition,flush=True);continue
-  if any(r['task']==task['task'] and r['condition']==condition and r['comparison_cohort']=='corrected_uniform' and r['verifier_status']=='collection_error_requires_audit' for r in rows):
+  if any(r['task']==task['task'] and r['condition']==condition and r['comparison_cohort']=='native_denial_primary' and r['verifier_status']=='collection_error_requires_audit' for r in rows):
    print('NEEDS_COLLECTION_AUDIT',task['task'],condition,flush=True);continue
   prefix=f"{task['task']}-{condition}-"
-  if not (RAW/'jobs'/(prefix+'1')).exists():attempt='1'
+  if condition!='a':
+   previous=[int(p.name.split('-block-')[-1]) for p in (RAW/'jobs').glob(prefix+'block-*') if p.name.split('-block-')[-1].isdigit()]
+   attempt='block-'+str(max(previous,default=0)+1)
+  elif not (RAW/'jobs'/(prefix+'1')).exists():attempt='1'
   else:
    previous=[int(p.name.split('-repair-')[-1]) for p in (RAW/'jobs').glob(prefix+'repair-*') if p.name.split('-repair-')[-1].isdigit()]
    attempt='repair-'+str(max(previous,default=0)+1)
@@ -28,7 +31,7 @@ for task in csv.DictReader((OUT/'tasks.csv').open()):
   disk=shutil.disk_usage('/workspaces')
   if disk.used/disk.total>=.85:raise RuntimeError('Workspace disk at >=85%; inspect shared usage before continuing')
   print('START',name,time.strftime('%FT%TZ',time.gmtime()),flush=True)
-  subprocess.run([sys.executable,'-B','-m','benchmark.run',task['task'],condition,'--model','glm','--attempt',attempt],env=env,check=True)
+  subprocess.run([sys.executable,'-B','-m','benchmark.run',task['task'],condition,'--model','glm','--attempt',attempt,'--effect','block'],env=env,check=True)
   rows=export()
   for row in rows:
    if row['task']==task['task'] and row['condition']==condition and row['attempt']==attempt:

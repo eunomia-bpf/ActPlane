@@ -32,6 +32,10 @@ print('Audited',len(rows),'sources')
 with (OUT/'engine-profile.csv').open('w',newline='') as f:
  w=csv.DictWriter(f,fieldnames=['variable','value','collection_stage']);w.writeheader()
  w.writerows(dict(variable=name,value=os.environ.get(name,'unset'),collection_stage='current_export_not_historical_launch') for name in ('ACTPLANE_HOOK_PROFILE','ACTPLANE_ENABLE_ADVANCED_HOOKS','ACTPLANE_ADVANCED_TRACEPOINTS'))
+ w.writerow(dict(variable='kernel_release',value=os.uname().release,collection_stage='current_export_not_historical_launch'))
+ try:lsm=Path('/sys/kernel/security/lsm').read_text().strip()
+ except OSError:lsm='inaccessible'
+ w.writerow(dict(variable='kernel_securityfs_lsm',value=lsm,collection_stage='current_export_not_historical_launch'))
 
 # repr(C) padding bytes can differ between compilations. Compare every active
 # ABI field as well as retaining hashes, rather than treating padding as policy.
@@ -41,15 +45,21 @@ def fields(data):
  return ([struct.unpack_from('<BB64s24s6xQQQQIIiI',data,8+i*144) for i in range(updates)],
          [struct.unpack_from('<6B64s24s64s2xQQQ7I4xQ',data,46088+i*224) for i in range(rules)])
 equivalence=[]
-for job in sorted((RAW/'jobs').glob('*-1')):
- condition=job.name.rsplit('-',2)[1]
- if condition not in ('b','c'):continue
- retained=RAW/'enforcement-control'/f'{condition}.bin'
- control=(retained if retained.exists() else RAW/f'policy-{condition}.bin').read_bytes()
- text=(HERE/'policies'/f'{condition}.dsl').read_text()
+for job in sorted((RAW/'jobs').glob('*')):
+ candidate=re.search(r'-(b|c)-(?:1|(?:repair|block)-\d+)$',job.name)
+ if not candidate:continue
+ condition=candidate[1]
  for policy in job.glob('*/agent/policy.bin'):
   data=policy.read_bytes()
+  effects={r[5] for r in fields(data)[1] if r[0]==3}
+  assert len(effects)==1
+  effect={1:'block',2:'kill'}[next(iter(effects))]
+  retained=RAW/('enforcement-block-control' if effect=='block' else 'enforcement-control')/f'{condition}.bin'
+  control=retained.read_bytes()
+  text=(HERE/'policies'/f'{condition}.dsl').read_text()
+  if effect=='block':text=text.replace('  kill connect','  block connect')
   row=dict(job=job.name,trial_id=policy.parent.parent.name,condition=condition,
+           network_effect=effect,
            trial_binary_sha256=hashlib.sha256(data).hexdigest(),
            control_binary_sha256=hashlib.sha256(control).hexdigest(),
            dsl_text_matches_current=int((policy.parent/'policy.dsl').read_text()==text),
