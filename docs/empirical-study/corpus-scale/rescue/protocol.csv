@@ -1,0 +1,11 @@
+parameter,value
+seed,20261029
+dev_repositories,21
+test_repositories,43
+maximum_codebook_revisions,3
+test_kappa_gate,0.6
+minimum_test_coverage,0.98
+dev_early_stop_kappa,0.65
+bootstrap_replicates,2000
+bootstrap_seed,20261030
+prior_test_exposure,all_original_rows_previously_evaluated; aggregate_diagnostics_previously_inspected; prospective_holdout_only
