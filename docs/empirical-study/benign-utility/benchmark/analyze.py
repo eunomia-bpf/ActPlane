@@ -40,11 +40,11 @@ for job in sorted((RAW/'jobs').glob('*')):
     parts=line.split('|',4)
     if len(parts)!=5 or parts[2]!='benchmark':continue
     kind,ts,owner,pid,value=parts
-    if kind=='READ':reads.append(dict(timestamp_ns=int(ts),pid=int(pid),path=value,call_index=index(ts)))
+    if kind=='READ':reads.append(dict(timestamp_ns=int(ts),pid=int(pid),path=value,path_truncated=int(len(value.encode())>=127),call_index=index(ts)))
     if kind=='CONNECT':connects.append(dict(timestamp_ns=int(ts),pid=int(pid),family=value,call_index=index(ts)))
   status=json.loads((agent/'observer-status.json').read_text()) if (agent/'observer-status.json').exists() else {}
   raw_observer=(agent/'observer.jsonl').read_text(errors='replace') if (agent/'observer.jsonl').exists() else ''
-  coverage='complete' if status and not any(x.get('unexpected_exit') for x in status.values()) and not re.search(r'"type"\s*:\s*"(lost_events|error)"|lost \d+ events|ERROR:',raw_observer,re.I) else 'incomplete'
+  coverage='complete' if status and not any(x.get('unexpected_exit') for x in status.values()) and not re.search(r'"type"\s*:\s*"(lost_events|error|helper_error)"|lost \d+ events|ERROR:',raw_observer,re.I) else 'incomplete'
   scope=json.loads((agent/'scope.json').read_text()) if (agent/'scope.json').exists() else {}
   if not scope.get('kernel_root_verified'):coverage='incomplete'
   if condition!='a' and 'engine' not in status:coverage='incomplete'
@@ -66,6 +66,6 @@ for job in sorted((RAW/'jobs').glob('*')):
 write('trials.csv',trials,['task','condition','attempt','trial_id','main_matrix','model','run_status','official_reward','official_success','exception_type','exception_message','wall_s','environment_setup_s','agent_setup_s','agent_execution_s','verifier_s','tool_calls','call_unit','intervention_events','killed_events','intervened_calls','confirmed_false_events','confirmed_true_events','unknown_events','source_read_accesses','source_read_processes','source_paths','connect_attempts','coverage','raw_result'])
 write('calls.csv',calls_out,['task','condition','attempt','trial_id','main_matrix','call_index','bin_start','bin_end','start_ns','end_ns','intervention_events','intervened','confirmed_false','unknown','source_read_accesses','connect_attempts','coverage'])
 write('interventions.csv',events_out,['task','condition','attempt','trial_id','main_matrix','event_id','call_index','timestamp_ns','pid','session_root','effect','killed','blocked','target','provenance','adjudication','evidence'])
-write('source-read-accesses.csv',reads_out,['task','condition','attempt','trial_id','main_matrix','timestamp_ns','pid','path','call_index'])
+write('source-read-accesses.csv',reads_out,['task','condition','attempt','trial_id','main_matrix','timestamp_ns','pid','path','path_truncated','call_index'])
 print('Trials',len(trials),'official outcomes',sum(r['official_reward']!='' for r in trials),'events',len(events_out))
 shutil.copytree(OUT,RAW.parent.parent/'benchmark/results',dirs_exist_ok=True)

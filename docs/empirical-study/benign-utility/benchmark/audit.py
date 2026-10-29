@@ -13,7 +13,7 @@ for condition in ['b','c']:
  for i,(label,kind,pattern) in enumerate(source_patterns):
   op,mode,literal,arg,add,delete,gates,invals,ip,mask,exit_code,domain=struct.unpack_from('<BB64s24s6xQQQQIIiI',data,8+i*144)
   literal=literal.split(b'\0')[0].decode()
-  if pattern.startswith('**/*.'):assert mode==2 and literal==pattern[4:]
+  if pattern.startswith('**/*'):assert mode==2 and literal==pattern[4:]
   if kind=='file' and pattern.startswith('/') and '*' not in pattern:assert mode==0 and literal==pattern
   rows.append(dict(condition=condition,label=label,source_kind=kind,pattern=pattern,compiled_op=op,compiled_match_mode=mode,compiled_literal=literal,add_mask=add))
 with (OUT/'compiled-sources.csv').open('w',newline='') as f:

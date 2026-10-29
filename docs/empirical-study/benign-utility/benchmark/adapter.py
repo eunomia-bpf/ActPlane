@@ -60,7 +60,7 @@ class InstrumentedTerminus(Terminus2):
   (self.bu_logs/'scope.json').write_text(json.dumps(meta,indent=2))
   self.bu_observer_log=(self.bu_logs/'observer.jsonl').open('w')
   observer=self.bu_logs/'observer.bt';shutil.copyfile(Path(__file__).parents[1]/'replay/source_observer.bt',observer)
-  self.bu_observer=subprocess.Popen(['bpftrace','-f','json',str(observer),str(root)],env={**os.environ,'BPFTRACE_MAX_STRLEN':'256','BPFTRACE_MAX_MAP_KEYS':'262144'},stdout=self.bu_observer_log,stderr=subprocess.STDOUT)
+  self.bu_observer=subprocess.Popen(['bpftrace','-f','json',str(observer),str(root)],env={**os.environ,'BPFTRACE_MAX_STRLEN':'128','BPFTRACE_MAX_MAP_KEYS':'262144'},stdout=self.bu_observer_log,stderr=subprocess.STDOUT)
   for _ in range(600):
    if 'SOURCE_OBSERVER_READY' in (self.bu_logs/'observer.jsonl').read_text():break
    if self.bu_observer.poll() is not None:raise RuntimeError('Observer failed: '+(self.bu_logs/'observer.jsonl').read_text()[-1000:])

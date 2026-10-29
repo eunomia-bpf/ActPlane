@@ -13,5 +13,8 @@ for p in sorted((raw/'jobs').glob('*')):
   d=json.loads(log.read_text());print('SCOPE',d.get('root_host_pid'),d.get('root_workspace_pid'),d.get('kernel_root_verified',False))
  for log in p.glob('*/agent/trajectory.json'):
   d=json.loads(log.read_text());print('METRICS',d.get('final_metrics'));print('ATIF_TOOL_CALLS',sum(len(s.get('tool_calls') or []) for s in d.get('steps',[])))
+  for step in d.get('steps',[]):
+   if step.get('tool_calls'):
+    first=step['tool_calls'][0];print('ATIF_FORMAT',list(first),list((first.get('arguments') or {}).keys()));break
 for line in subprocess.check_output(['ps','-eo','pid,args'],text=True).splitlines():
  if any(x in line for x in ['benchmark.run','bpftrace','/engine/process','/bounded-loader/process']):print('PROC',line[:350])
