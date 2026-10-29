@@ -10,7 +10,6 @@ format_calibration_adjudicated.csv,invalid_batch_feedback,ok,576
 labels_qwen.csv,invalid_batch_feedback,ok,12516
 labels_qwen.csv,invalid_singleton_feedback,ok,18330
 labels_glm.csv,invalid_singleton_feedback,ok,30846
-labels.csv,agreement,ok,16659
-labels.csv,invalid_batch_feedback,ok,3476
+labels.csv,agreement,ok,19720
+labels.csv,invalid_batch_feedback,ok,5450
 labels.csv,invalid_singleton_feedback,ok,5676
-labels.csv,not_yet_tagged,failed,5035

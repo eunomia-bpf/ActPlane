@@ -1,4 +1,4 @@
 metric,paper_claim,recovered,new_snapshot,new_analyzed
-repositories,64,64,325,211
-instruction_files,84,84,761,438
-statements,2116,2116,30846,18031
+repositories,64,64,325,325
+instruction_files,84,84,761,761
+statements,2116,2116,30846,30846
