@@ -37,7 +37,7 @@ for trial in trials:
   trial['required_verifier_reports']=json.dumps(reports,sort_keys=True)
   if all(r['tests'] for r in reports):
    trial.update(verifier_valid='1',verifier_status='official_dual_ctrf_tests',verifier_observed_tests=sum(r['tests'] for r in reports),verifier_evidence=json.dumps(reports,sort_keys=True))
-  elif trial['outcome_source']!='official_default_mean_agent_error':
+  elif trial['outcome_source'] not in ('official_default_mean_agent_error','confirmed_infrastructure_exclusion'):
    trial.update(selected_for_comparison='0',outcome_valid='unknown',outcome_score='',outcome_success='',verifier_valid='unknown',verifier_status='dual_report_execution_requires_audit',comparison_exclusion_reason=trial['comparison_exclusion_reason']+';required_native_dual_report_unestablished')
 expected_policies={(r['task'],r['condition']):r for r in read('policies.csv')}
 policy_audit=[]

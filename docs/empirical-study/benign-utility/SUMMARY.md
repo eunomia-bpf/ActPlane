@@ -2,7 +2,7 @@
 
 **Benchmark expansion is in progress under the operator's follow-up authorization.** The completed original Terminal-Bench sub-cohort, natural-network supplement and fixed public replay below remain unchanged. Added tasks are selected by the [predeclared protocol](benchmark/expanded/PROTOCOL.md) before model execution. Added and combined cohorts will be marked partial until their frozen task matrix completes.
 
-The [runtime amendment](benchmark/expanded/AMENDMENT.md) retains unsupported host attempts separately and restores native denial inside a KVM guest. Initial guest model requests failed DNS before tools/verifiers, so they are excluded from utility. A memory-group OOM then restarted the Workspace: the earlier allocation failed to account for the lower live shared limit. Recovery uses one bounded guest with preserved incident evidence and a durable rebuild template. These are infrastructure attempts, not failed benchmark scores; primary added outcomes are still pending in this snapshot.
+The [runtime amendment](benchmark/expanded/AMENDMENT.md) retains unsupported host attempts separately and restores native denial inside a KVM guest. Initial guest model requests failed DNS before tools/verifiers, so they are excluded from utility. A memory-group OOM then restarted the Workspace: the earlier allocation failed to account for the lower live shared limit. Recovery uses one bounded guest with preserved incident evidence and a durable rebuild template. These are infrastructure attempts, not failed benchmark scores; the snapshot below now contains valid added outcomes.
 
 Adjudication retains unknown cases; task success and intervention verification are distinct endpoints. [README.md](README.md) gives methods, exclusions, the paper-ready paragraph and scope limits. [headline.csv](results/headline.csv) is produced by [report.py](report.py).
 
@@ -11,12 +11,13 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 
 | Cohort | Condition | Completed / planned | Official successes / completed | Matched successes / common tasks |
 | --- | --- | ---: | ---: | ---: |
-| Added | No AgPlane | 0/18 | pending | pending |
-| Added | Broad sources | 0/18 | pending | pending |
-| Added | Narrowed sources | 0/18 | pending | pending |
-| Combined | No AgPlane | 6/24 | 4/6 | 4/6 |
-| Combined | Broad sources | 6/24 | 6/6 | 6/6 |
-| Combined | Narrowed sources | 6/24 | 4/6 | 4/6 |
+| Added | No AgPlane | 2/18 | 1/2 | 1/1 |
+| Added | Broad sources | 2/18 | 1/2 | 1/1 |
+| Added | Narrowed sources | 1/18 | 1/1 | 1/1 |
+| Combined | No AgPlane | 8/24 | 5/8 | 5/7 |
+| Combined | Broad sources | 8/24 | 7/8 | 7/7 |
+| Combined | Narrowed sources | 7/24 | 5/7 | 5/7 |
+
 
 <!-- expansion-status:end -->
 
@@ -41,6 +42,6 @@ Key files:
 - [Position rates](results/position.csv), [chronological event bins](results/chronological-bins.csv), and [PDF figure](results/benign-utility.pdf).
 - [Dependency cleanup](results/runtime-cleanup.csv), [replay archive cleanup](results/replay-runtime-cleanup.csv), [retained source paths](replay/results/retained-audit-sources.csv), [annotation method](annotation.md), [review record](plan-review.md), and [remaining gaps](BLOCKED.md).
 
-The full requested trusted-declassification condition remains incomplete: these official workloads provide no established trusted gate. Condition (c) measures source narrowing only. The task-shell boundary excludes the Terminus controller/model context and can end before outer-shell recovery. New AF_INET connect denial excludes existing socket writes, accepted responses, IPv6 and unconnected UDP sends. Compiled substring overmatching, renamed aliases and a positively observed new private key outside narrowed sources prevent security-equivalence claims. These results do not resolve session-wide retained-secret propagation. No paper source was changed; raw evidence remains remote. Only this lane is committed, with no push or PR.
+The full requested trusted-declassification condition remains incomplete: these official workloads provide no established trusted gate. Condition (c) measures source narrowing only. The task-shell boundary excludes the Terminus controller/model context and can end before outer-shell recovery. New AF_INET connect denial excludes existing socket writes, accepted responses, IPv6 and unconnected UDP sends. Compiled substring overmatching, renamed aliases and a positively observed new private key outside narrowed sources prevent security-equivalence claims. These results do not resolve session-wide retained-secret propagation. No paper source was changed; raw evidence remains remote. Only this lane is committed. The supervisor authorized pushing experiments/mlsys27 after recovery; no PR is opened.
 
 Fresh independent result review passed for the completed original cohorts. It checked classifications, official scoring, covered-call denominators, chronological reconciliation, metadata retention and timing strata. Their PDF rendering and embedded TrueType fonts passed. Recreated runtime archives were removed only after cited source-byte preservation; the forensic candidate CSV remained byte-identical after removal. The expansion has a separate ongoing execution/result review and active recovery work; it is not covered by that earlier final verdict.
