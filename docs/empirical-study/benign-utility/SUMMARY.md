@@ -13,14 +13,16 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 
 | Cohort | Condition | Completed / planned | Official successes / completed | Matched successes / common tasks |
 | --- | --- | ---: | ---: | ---: |
-| Added | No AgPlane | 4/18 | 3/4 | 3/4 |
+| Added | No AgPlane | 5/18 | 4/5 | 3/4 |
 | Added | Broad sources | 4/18 | 2/4 | 2/4 |
 | Added | Narrowed sources | 4/18 | 3/4 | 3/4 |
-| Combined | No AgPlane | 10/24 | 7/10 | 7/10 |
+| Combined | No AgPlane | 11/24 | 8/11 | 7/10 |
 | Combined | Broad sources | 10/24 | 8/10 | 8/10 |
 | Combined | Narrowed sources | 10/24 | 7/10 | 7/10 |
 
 Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `fix-code-vulnerability`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `openssl-selfsigned-cert`, `sanitize-git-repo`, `vulnerable-secret`.
+
+Additional completed cells outside that matched set: No AgPlane: `nginx-request-logging`.
 
 
 <!-- expansion-status:end -->
