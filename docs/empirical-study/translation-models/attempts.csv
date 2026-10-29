@@ -6124,6 +6124,7 @@ rq1,zai/glm-4.7-flash,iOfficeAI__AionUi::28,iOfficeAI__AionUi__28,attempt-1,2,ht
 rq1,zai/glm-4.7-flash,iOfficeAI__AionUi::28,iOfficeAI__AionUi__28,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,11.51510934298858,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,iOfficeAI__AionUi::28,iOfficeAI__AionUi__28,attempt-1,4,http_error,rate_limited,60,1793184722.3080769,,,,0,429,10.341102994047105,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,iOfficeAI__AionUi::28,iOfficeAI__AionUi__28,attempt-1,5,ok,,0,1793258192.2122152,,zai/glm-4.7-flash,stop,1,,179.23921803594567,1,9136,6574,3,0,6406
+rq1,zai/glm-4.7-flash,iOfficeAI__AionUi::28,iOfficeAI__AionUi__28,attempt-2,1,ok,,0,1793258317.6063807,,zai/glm-4.7-flash,stop,1,,125.38751971093006,1,9339,3378,3,0,3290
 rq1,zai/glm-4.7-flash,jarrodwatts__claude-hud::14,jarrodwatts__claude-hud__14,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.009186018025503,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,jarrodwatts__claude-hud::14,jarrodwatts__claude-hud__14,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.62167622987181,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,jarrodwatts__claude-hud::14,jarrodwatts__claude-hud__14,attempt-1,3,http_error,rate_limited,30,,,,,0,429,10.73099878593348,0,0,0,0,0,0
@@ -6184,11 +6185,14 @@ rq1,zai/glm-4.7-flash,luongnv89__claude-howto::7,luongnv89__claude-howto__7,atte
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::1,manaflow-ai__cmux__1,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.05702927405946,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::1,manaflow-ai__cmux__1,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,11.65109817078337,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::1,manaflow-ai__cmux__1,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.866691107163206,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,manaflow-ai__cmux::1,manaflow-ai__cmux__1,attempt-1,4,http_error,provider_capacity,60,,,,,0,429,10.811736919917166,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,manaflow-ai__cmux::1,manaflow-ai__cmux__1,attempt-1,4,http_error,provider_capacity,60,1793184742.211097,,,,0,429,10.811736919917166,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,manaflow-ai__cmux::1,manaflow-ai__cmux__1,attempt-1,5,ok,,0,1793258566.0467856,,zai/glm-4.7-flash,length,1,,248.29799563996494,1,17742,8192,3,0,8192
+rq1,zai/glm-4.7-flash,manaflow-ai__cmux::1,manaflow-ai__cmux__1,attempt-2,1,ok,,0,1793258677.9046564,,zai/glm-4.7-flash,stop,1,,111.84996091015637,1,17780,5442,3,0,5395
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::10,manaflow-ai__cmux__10,attempt-1,1,http_error,rate_limited,0,,,,,0,429,11.380848906002939,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::10,manaflow-ai__cmux__10,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.626336146844551,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::10,manaflow-ai__cmux__10,attempt-1,3,http_error,provider_capacity,30,,,,,0,429,10.83122505294159,0,0,0,0,0,0
-rq1,zai/glm-4.7-flash,manaflow-ai__cmux::10,manaflow-ai__cmux__10,attempt-1,4,http_error,rate_limited,60,,,,,0,429,11.144644336076453,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,manaflow-ai__cmux::10,manaflow-ai__cmux__10,attempt-1,4,http_error,rate_limited,60,1793184826.588556,,,,0,429,11.144644336076453,0,0,0,0,0,0
+rq1,zai/glm-4.7-flash,manaflow-ai__cmux::10,manaflow-ai__cmux__10,attempt-1,5,ok,,0,1793258807.4488468,,zai/glm-4.7-flash,stop,1,,129.41354688210413,1,17743,3712,3,0,3657
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::16,manaflow-ai__cmux__16,attempt-1,1,ok,,0,,,zai/glm-4.7-flash,stop,1,,136.68314788513817,1,17739,5202,3,0,5128
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::2,manaflow-ai__cmux__2,attempt-1,1,http_error,provider_capacity,0,,,,,0,429,11.07869561901316,0,0,0,0,0,0
 rq1,zai/glm-4.7-flash,manaflow-ai__cmux::2,manaflow-ai__cmux__2,attempt-1,2,http_error,provider_capacity,15,,,,,0,429,10.858034860808402,0,0,0,0,0,0
