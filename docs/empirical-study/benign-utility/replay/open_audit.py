@@ -56,6 +56,7 @@ def main():
         pending, parsed, unparsed, failed = {}, 0, 0, 0
         selected = []
         archive = None
+        retained_data = {}
         for number, line in enumerate(trace.read_text(errors='replace').splitlines(), 1):
             header = re.match(r'^(\d+)\s+(\d+\.\d+)\s+(.*)$', line)
             if not header:
@@ -113,16 +114,20 @@ def main():
                     continue
                 path = raw.decode(errors='surrogateescape')
                 file = host_path(run, plan, resolved or path)
-                try:
-                    data = file.read_bytes() if file and file.is_file() else None
-                except OSError:
-                    data = None
-                if data is None and file and file.is_relative_to(run) and (run/'runtime.tar.gz').exists():
-                    if archive is None:archive=tarfile.open(run/'runtime.tar.gz','r:gz')
+                if file in retained_data:
+                    data=retained_data[file]
+                else:
                     try:
-                        member=archive.extractfile(file.relative_to(run).as_posix())
-                        data=member.read() if member else None
-                    except (KeyError,OSError):pass
+                        data = file.read_bytes() if file and file.is_file() else None
+                    except OSError:
+                        data = None
+                    if data is None and file and file.is_relative_to(run) and (run/'runtime.tar.gz').exists():
+                        if archive is None:archive=tarfile.open(run/'runtime.tar.gz','r:gz')
+                        try:
+                            member=archive.extractfile(file.relative_to(run).as_posix())
+                            data=member.read() if member else None
+                        except (KeyError,OSError):pass
+                    retained_data[file]=data
                 selected.append(dict(audit_condition=run.parents[2].name, dynamic_id=run.name,
                     line=number, pid=pid, timestamp_epoch=timestamp, syscall=syscall, name_index=name_index,
                     raw_path=path, engine_path=engine_path.decode(errors='replace'),

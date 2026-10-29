@@ -1927,7 +1927,7 @@ broad,t19,native:codex__run-0__withcoral__coral-1143,block,native:codex__run-0__
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:2.0,0,1,bash,1,0,0,0.0053,2,0,0,0,0,0,0,complete
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:4.0,1,2,bash,1,0,0,1.2677,2,0,0,0,0,0,0,complete
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:6.0,2,3,bash,1,0,0,6.6318,27,12,69,0,0,0,0,complete
-broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:8.0,3,4,bash,1,0,0,8.2318,16,12,0,12,0,0,12,complete
+broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:8.0,3,4,bash,1,0,0,8.2318,16,12,0,12,12,0,0,complete
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:10.0,4,5,bash,1,0,0,0.8666,2,0,0,0,0,0,0,complete
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:12.0,5,6,bash,1,0,0,0.8196,2,0,0,0,0,0,0,complete
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:14.0,6,7,bash,1,0,0,81.1988,2,0,0,0,0,0,0,complete
@@ -1935,7 +1935,7 @@ broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:18.0,8,9,bash,1,0,0,0.7158,2,0,0,0,0,0,0,complete
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:20.0,9,10,bash,1,0,0,81.5103,2,0,0,0,0,0,0,complete
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:22.0,10,11,bash,1,0,0,0.3652,2,0,0,0,0,0,0,complete
-broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:24.0,11,12,bash,1,0,0,8.2394,16,12,0,12,0,0,12,complete
+broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:24.0,11,12,bash,1,0,0,8.2394,16,12,0,12,12,0,0,complete
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:26.0,12,13,bash,1,0,0,0.6675,2,0,0,0,0,0,0,complete
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:28.0,13,14,bash,1,0,0,0.008,2,0,0,0,0,0,0,complete
 broad,t20,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907,block,mini:20260217_mini-v2.0.0_claude-4-6-opus:astropy__astropy-12907:30.0,14,15,bash,1,0,0,0.516,2,0,0,0,0,0,0,complete

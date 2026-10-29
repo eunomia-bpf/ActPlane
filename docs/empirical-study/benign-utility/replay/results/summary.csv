@@ -1,4 +1,4 @@
 condition,enforcement_effect,planned_trajectories,complete_trajectories,recorded_calls,executed_calls,valid_covered_calls,exit_zero_calls,intervened_calls,intervention_events,fp_events,true_events,unknown_intervention_events,unattributed_intervention_events,source_read_accesses,ipv4_connect_attempts,call_elapsed_s
 none,none,40,39,1335,1334,1314,1164,0,0,0,0,0,0,3628,5020,2258.3782
-broad,block,40,39,1335,1334,1314,1134,39,612,0,0,612,0,1820,3910,3705.5919
+broad,block,40,39,1335,1334,1314,1134,39,612,24,0,588,0,1820,3910,3705.5919
 scoped,block,40,39,1335,1334,1314,1172,0,0,0,0,0,0,3547,5414,2376.9891
