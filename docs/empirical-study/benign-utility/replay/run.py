@@ -138,6 +138,7 @@ def main():
                 argv=['strace','-f','-qq','-ttt','-z','-yy','-s','4096','-e',
                     'trace=open,openat,openat2,creat,truncate,rename,renameat,renameat2',
                     '-o',str(values[2]/'successful-opens.strace')]+argv
+                worker_state['open_audit_argv']=argv[:argv.index('bwrap')]
             return old_popen(argv,*positional,**named)
         try:
             if args.open_audit:subprocess.Popen=traced_popen
@@ -212,6 +213,9 @@ def main():
                 'ACTPLANE_HOOK_PROFILE','ACTPLANE_ENABLE_ADVANCED_HOOKS','ACTPLANE_ADVANCED_TRACEPOINTS','ACTPLANE_RESERVE_FILE_FLOW')}
             metadata['enforcement_effect']='none' if args.condition=='none' else args.effect
             metadata.update(open_audit=args.open_audit,clock_epoch_ns=time.time_ns(),clock_monotonic_ns=time.monotonic_ns())
+            if args.open_audit:
+                metadata.update(open_audit_argv=worker_state['open_audit_argv'],
+                    strace_version=subprocess.check_output(['strace','--version'],text=True).splitlines()[0])
             (run/'utility-metadata.json').write_text(json.dumps(metadata,indent=2))
             worker_state['instruments'] = instruments
             # The copied runner owns these extra file handles and closes them.

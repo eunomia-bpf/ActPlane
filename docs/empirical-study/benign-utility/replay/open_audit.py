@@ -25,7 +25,8 @@ def match(path, rule):
     pattern = rule['compiled_literal'].encode()
     mode = rule['compiled_match_mode']
     return (path == pattern if mode == 0 else path.startswith(pattern) if mode == 1
-            else path.endswith(pattern) if mode == 2 else mode == 3)
+            else path.endswith(pattern) if mode == 2 else True if mode == 3
+            else pattern in path if mode == 4 else False)
 
 
 def host_path(run, plan, path):
@@ -48,7 +49,7 @@ def main():
         done = json.loads((run / 'done.json').read_text()) if (run / 'done.json').exists() else {}
         rules = [r for r in json.loads((run / 'compiled-sources.json').read_text())
                  if r['label'] == 'SECRET'] if (run / 'compiled-sources.json').exists() else []
-        pending, parsed, unparsed = {}, 0, 0
+        pending, parsed, unparsed, failed = {}, 0, 0, 0
         selected = []
         for number, line in enumerate(trace.read_text(errors='replace').splitlines(), 1):
             header = re.match(r'^(\d+)\s+(\d+\.\d+)\s+(.*)$', line)
@@ -68,6 +69,9 @@ def main():
                     continue
                 number, timestamp, start = previous
                 body = start + resumed.group(1)
+            if re.match(r'^(' + '|'.join(SYSCALLS) + r')\(.*\)\s+=\s+-\d+', body):
+                failed += 1
+                continue
             call = re.match(r'^(' + '|'.join(SYSCALLS) + r')\((.*)\)\s+=\s+(\d+)(?:<(.*)>)?$', body)
             if not call:
                 if any(word + '(' in body for word in SYSCALLS):
@@ -112,7 +116,7 @@ def main():
             executed_calls=done.get('executed_calls', ''), fatal=done.get('fatal', ''),
             trace_bytes=trace.stat().st_size, trace_sha256=hashlib.sha256(trace.read_bytes()).hexdigest(),
             parsed_successful_file_calls=parsed, unparsed_file_records=unparsed,
-            unfinished_file_records=len(pending), candidate_file_names=len(selected),
+            failed_file_calls=failed, unfinished_file_records=len(pending), candidate_file_names=len(selected),
             candidate_paths=len({r['raw_path'] for r in selected}),
             evidence_limit='Separate verification replay; its timings and events excluded from primary cohort'))
     write('open-audit-candidates.csv', candidates, list(candidates[0]) if candidates else [
@@ -121,7 +125,7 @@ def main():
         'result', 'retained_sha256', 'retained_bytes', 'retained_public_certificates', 'evidence_limit'])
     write('open-audit-summary.csv', summaries, list(summaries[0]) if summaries else [
         'audit_condition', 'dynamic_id', 'terminal', 'recorded_calls', 'executed_calls', 'fatal',
-        'trace_bytes', 'trace_sha256', 'parsed_successful_file_calls', 'unparsed_file_records',
+        'trace_bytes', 'trace_sha256', 'parsed_successful_file_calls', 'unparsed_file_records', 'failed_file_calls',
         'unfinished_file_records', 'candidate_file_names', 'candidate_paths', 'evidence_limit'])
     print('Separate open audits:', len(summaries), 'candidate opens:', len(candidates))
 
