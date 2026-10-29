@@ -1,0 +1,5 @@
+task,path,realpath,classification,narrow_patterns,broad_and_scoped_known_source
+git-multibranch,/etc/ssl/private/nginx-selfsigned.key,/etc/ssl/private/nginx-selfsigned.key,private_key_header,"[""/etc/ssl/private/nginx-selfsigned.key"", ""nginx-selfsigned.key"", ""./nginx-selfsigned.key""]",1
+git-multibranch,/etc/ssh/ssh_host_rsa_key,/etc/ssh/ssh_host_rsa_key,private_key_header,"[""/etc/ssh/ssh_host_rsa_key"", ""ssh_host_rsa_key"", ""./ssh_host_rsa_key""]",1
+git-multibranch,/etc/ssh/ssh_host_ecdsa_key,/etc/ssh/ssh_host_ecdsa_key,private_key_header,"[""/etc/ssh/ssh_host_ecdsa_key"", ""ssh_host_ecdsa_key"", ""./ssh_host_ecdsa_key""]",1
+git-multibranch,/etc/ssh/ssh_host_ed25519_key,/etc/ssh/ssh_host_ed25519_key,private_key_header,"[""/etc/ssh/ssh_host_ed25519_key"", ""ssh_host_ed25519_key"", ""./ssh_host_ed25519_key""]",1

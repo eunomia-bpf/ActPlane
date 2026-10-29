@@ -1,0 +1,2 @@
+task,url,declared_ref,resolved_commit,instruction_files,instruction_inventory,raw_checkout,attempt,utc,purpose
+build-cython-ext,https://github.com/SPOCKnots/pyknotid.git,0.5.3,441c807dbec2ee32e1da572e24e58d52a4eb7afa,0,[],/workspaces/exp/benign-utility/raw/benchmark/network/repository-inventory/checkout-1,1,2026-10-29T10:40:13Z,static instruction inventory only; never mounted into benchmark task
