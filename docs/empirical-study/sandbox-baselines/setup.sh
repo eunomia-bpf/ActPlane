@@ -4,7 +4,7 @@ R=/workspaces/exp/sandbox-baselines
 mkdir -p "$WS_RAW/docker" "$WS_RAW/home" "$R/results" "$R/vendor"
 ln -sfn "$(readlink -f "$HOME/.local/bin/codex")" "$WS_RAW/codex-real"
 apt-get update > "$WS_RAW/apt.log" 2>&1
-apt-get install -y ripgrep >> "$WS_RAW/apt.log" 2>&1
+apt-get install -y ripgrep python3-pytest python3-matplotlib poppler-utils >> "$WS_RAW/apt.log" 2>&1
 T=/workspaces/lanes/translation-models/docs/empirical-study/translation-models
 cp "$T/replay.py" "$T/prepare.py" "$T/pack_fixtures.py" "$R/vendor/"
 cp "$T"/replay-*.csv "$T/summary.csv" "$R/results/"
