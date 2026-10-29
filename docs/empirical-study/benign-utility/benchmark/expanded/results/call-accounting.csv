@@ -20,3 +20,4 @@ pytorch-model-cli,c,block-1,pytorch-model-cli__awVAHvX,36,36,0,0
 qemu-alpine-ssh,a,1,qemu-alpine-ssh__sDcYMH6,29,29,0,0
 qemu-alpine-ssh,b,block-1,qemu-alpine-ssh__mSmv6Dn,33,33,0,0
 qemu-alpine-ssh,c,block-1,qemu-alpine-ssh__koaPaTj,30,30,0,0
+write-compressor,a,1,write-compressor__5fqzs8g,14,14,0,0

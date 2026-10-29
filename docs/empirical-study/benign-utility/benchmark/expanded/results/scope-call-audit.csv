@@ -276,3 +276,17 @@ pytorch-model-cli__awVAHvX,pytorch-model-cli,c,33,1,1,1,0,recorded_asciicast_inp
 pytorch-model-cli__awVAHvX,pytorch-model-cli,c,34,4,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
 pytorch-model-cli__awVAHvX,pytorch-model-cli,c,35,6,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
 pytorch-model-cli__awVAHvX,pytorch-model-cli,c,36,4,0,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,1,0,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,2,0,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,3,0,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,4,0,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,5,1,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,6,2,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,7,0,1,1,0,recorded_asciicast_input,interrupt,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,8,1,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,9,6,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,10,5,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,11,6,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,12,35,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,13,6,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+write-compressor__5fqzs8g,write-compressor,a,14,8,0,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
