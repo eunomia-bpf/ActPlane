@@ -1,0 +1,14 @@
+# Installed CLI preflight
+
+This supporting preflight follows the reviewed parent plan and addresses its missing controller/API scope. It does not add trials to the retained Terminus matrix or establish a benchmark success rate.
+
+Use the frozen official Terminal-Bench 2.0 task `cancel-async-tasks`, Harbor 0.25.0 built-in `codex`, and `openai/gpt-6-astra`. Keep the official task, verifier, timeouts, prompt, and CLI reasoning defaults. Omit version to retain Harbor latest installation behavior, recording the actual installed version. One no-defense trial establishes the real official path before any defended trial. No custom task, source file, or declassification gate is inserted.
+
+Harbor's installed primary source `harbor/agents/installed/codex.py` supports `CODEX_FORCE_AUTH_JSON=1` and `CODEX_AUTH_JSON_PATH`. It uploads the existing project Workspace auth file to `/tmp/codex-secrets/auth.json`, mode 0600, and symlinks `/installed-agent/codex-home/auth.json`. It clears API-key overrides and removes these directories after execution. Reuse that native mechanism without logging credential contents or copying them into evidence. Workspace `codex login status` reports ChatGPT login. Host config is not copied, because Harbor defaults are the declared configuration.
+
+A prospective scoped control will attach to the actual CLI controller shell and descendants, using the independently calibrated kernel PID mapper. The CLI OAuth file paths require an explicit policy amendment before that control, since existing task-shell sources omit them. Such a control tests strict credential-open-to-network utility costs, including authentication bootstrap. It cannot prove tool-output labels return from child processes into model context. Trusted declassification remains unavailable. Tracepoint kill means forced failure, not pre-operation denial.
+
+Primary endpoint: the unchanged official binary verifier reward, with native trajectory and result artifacts retained under `/workspaces/exp/benign-utility/raw/benchmark-cli/jobs`. A successful baseline admits only execution feasibility. A failed authentication or installation leaves the official route blocked, not an agent task failure. No further matrix is admitted here. All execution uses actplane-dev and the existing lane Docker daemon, after checking shared disk below 85%.
+
+Command: `raw/benchmark/venv/bin/python -B -m benchmark.cli.run cancel-async-tasks a --attempt preflight-1` from the synced lane source. Small durable evidence goes to `/workspaces/exp/benign-utility/benchmark/cli/results/`.
+The Workspace uses CODEX_HOME=/workspaces/.agent-state/codex, whose auth.json is a symlink to the managed credential mount. Harbor force-auth defaults to ~/.codex/auth.json and does not consult CODEX_HOME for this path, so the runner explicitly supplies CODEX_AUTH_JSON_PATH from the existing CODEX_HOME. Only its path enters the process environment.
