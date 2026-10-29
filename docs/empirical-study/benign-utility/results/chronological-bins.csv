@@ -1,7 +1,7 @@
 dataset,condition,bin_start,bin_end,window_kind,intervention_events,confirmed_false_events,confirmed_true_events,unknown_events,definition
 Public replay,broad,1,10,observed_execution_interval_including_idle,126,126,0,0,chronological event counts; not causal action counts or rates
 Public replay,broad,11,20,observed_execution_interval_including_idle,126,114,12,0,chronological event counts; not causal action counts or rates
-Public replay,broad,21,30,observed_execution_interval_including_idle,304,302,0,2,chronological event counts; not causal action counts or rates
+Public replay,broad,21,30,observed_execution_interval_including_idle,304,304,0,0,chronological event counts; not causal action counts or rates
 Public replay,broad,41,50,observed_execution_interval_including_idle,34,18,0,16,chronological event counts; not causal action counts or rates
 Public replay,broad,61,70,observed_execution_interval_including_idle,24,24,0,0,chronological event counts; not causal action counts or rates
 Terminal-Bench network stratum,b,1,10,command,9,6,3,0,chronological event counts; not causal action counts or rates

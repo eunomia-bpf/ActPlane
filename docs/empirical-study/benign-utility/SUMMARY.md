@@ -7,10 +7,10 @@ Official Terminal-Bench comparisons and all fixed public replays completed. Fina
 | Initial official task success | 4/6 | 6/6 | 4/6 |
 | Natural-network official task success | 2/3 | 2/3 | 2/3 |
 | Network false calls / covered calls | 0/80 | 12/51 | 1/67 |
-| Replay false-call bounds | 0% | 2.77–2.92% | 0% |
+| Replay false-call bounds | 0% | 2.85–2.92% | 0% |
 | Replay covered calls | 1,335 | 1,335 | 1,335 |
 
-The initial cohort had no tracked IPv4 connects, so its score differences cannot establish an enforcement benefit. The network cohort produced 44 broad and 5 narrowed actual denials: 41/1 false events and 3/4 true events. Fixed replay completed 40 trajectories per condition, with 614 broad events: 584 false, 12 true repository-runtime violations, and 18 unknown. False-call bounds include unresolved calls in the upper bound. These figures come from the headline CSV; replay has no official task-success score.
+The initial cohort had no tracked IPv4 connects, so its score differences cannot establish an enforcement benefit. The network cohort produced 44 broad and 5 narrowed actual denials: 41/1 false events and 3/4 true events. Fixed replay completed 40 trajectories per condition, with 614 broad events: 586 false, 12 true repository-runtime violations, and 16 unknown. The unknowns concern project-rule applicability to an external temporary oracle. False-call bounds include unresolved calls in the upper bound. These figures come from the headline CSV; replay has no official task-success score.
 
 Paired total-time changes were −15.7%/−8.0% for initial broad/narrowed, +16.7%/−5.6% for network tasks, and +18.8%/+13.8% for disk-backed replay. Timing is descriptive, affected by tracing, model/order/cache variability, contention and timeout censoring. The replay timing medians use 39 disk-backed pairs and exclude the trajectory using bounded private cache tmpfs; that trajectory remains in intervention results.
 

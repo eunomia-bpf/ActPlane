@@ -1,4 +1,4 @@
-"""Remove only the completed benchmark's reinstallable Python environment."""
+"""Reclaim closed dependency payloads while preserving cited evidence bytes."""
 import csv
 import argparse
 from datetime import datetime, timezone
