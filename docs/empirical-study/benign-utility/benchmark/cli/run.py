@@ -20,7 +20,7 @@ RAW = BASE.parent / 'benchmark-cli'
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('task')
-    parser.add_argument('condition', choices=['a', 'c'])
+    parser.add_argument('condition', choices=['a', 'c', 'c-block'])
     parser.add_argument('--attempt', default='preflight-1')
     args = parser.parse_args()
     stat = os.statvfs('/workspaces')
@@ -41,7 +41,8 @@ async def main():
     if args.condition == 'a':
         agent['name'] = 'codex'
     else:
-        agent['import_path'] = 'benchmark.cli.adapter:ControllerCodex'
+        agent['import_path'] = ('benchmark.cli.adapter:ControllerBlockCodex'
+            if args.condition == 'c-block' else 'benchmark.cli.adapter:ControllerCodex')
     config = JobConfig.model_validate(dict(
         job_name=f'{args.task}-{args.condition}-{args.attempt}',
         jobs_dir=str(RAW / 'jobs'), n_concurrent_trials=1, n_attempts=1,

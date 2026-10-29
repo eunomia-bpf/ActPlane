@@ -18,6 +18,9 @@ AUTH_PATHS = ('/installed-agent/codex-home/auth.json', '/tmp/codex-secrets/auth.
 
 
 class ControllerCodex(Codex):
+    CONNECT_EFFECT = 'kill'
+    CONTROL_CONDITION = 'c-cli'
+
     async def exec_as_agent(self, environment, command, **kwargs):
         if 'codex exec ' not in command:
             return await super().exec_as_agent(environment, command, **kwargs)
@@ -34,7 +37,8 @@ class ControllerCodex(Codex):
         native = None
         scope = dict(scope='native codex controller shell, API client and descendants',
             hook_environment={key: os.environ.get(key, 'unset') for key in HOOKS},
-            observer_string_bytes=1024, call_index=0, condition='c-cli',
+            observer_string_bytes=1024, call_index=0, condition=self.CONTROL_CONDITION,
+            network_effect=self.CONNECT_EFFECT,
             engine_sha256=hashlib.sha256((BASE / 'engine/process').read_bytes()).hexdigest(),
             command_sha256=hashlib.sha256(command.encode()).hexdigest(),
             added_auth_source_paths=AUTH_PATHS)
@@ -83,6 +87,7 @@ class ControllerCodex(Codex):
             policy = (Path(__file__).parents[1] / 'policies/c.dsl').read_text()
             policy = policy.replace('rule secret-no-network:', ''.join(
                 f'source SECRET = file "{path}"\n' for path in AUTH_PATHS) + 'rule secret-no-network:')
+            policy = policy.replace('kill connect endpoint', self.CONNECT_EFFECT + ' connect endpoint')
             (folder / 'policy.dsl').write_text(policy)
             subprocess.run(['/workspaces/lanes/translation-models/target/release/actplane',
                 '--rule', policy, 'compile', '--out', str(folder / 'policy.bin'), '--force'],
@@ -91,6 +96,9 @@ class ControllerCodex(Codex):
             engine = spawn([str(BASE / 'engine/process'), '--config', str(folder / 'policy.bin'),
                             '--seed-pid', str(root)], engine_log)
             await ready(engine, engine_log, 'ActPlane: ready')
+            scope['native_enforce_mode'] = 'enforce mode' in engine_log.read_text()
+            if self.CONNECT_EFFECT == 'block' and not scope['native_enforce_mode']:
+                raise RuntimeError('Native block requires the retained engine enforce-mode receipt')
             scope['continued_monotonic_ns'] = time.monotonic_ns()
             (folder / 'scope.json').write_text(json.dumps(scope, indent=2))
             await environment.exec(command=f'kill -CONT {namespace_root}')
@@ -119,3 +127,7 @@ class ControllerCodex(Codex):
             for stream in streams:
                 stream.close()
             (folder / 'observer-status.json').write_text(json.dumps(statuses, indent=2))
+
+class ControllerBlockCodex(ControllerCodex):
+    CONNECT_EFFECT = 'block'
+    CONTROL_CONDITION = 'c-cli-native-block'
