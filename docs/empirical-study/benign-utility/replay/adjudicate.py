@@ -61,12 +61,12 @@ def review(events, sources):
                 and event['source_sha256'] in bundles
                 and all(r['classification'] == 'public_certificate' and r['sha256'] in bundles
                         and int(r['path_maybe_truncated']) == 0 for r in prior)):
-            row.update(adjudication='false_intervention', evidence=(
+            row.update(adjudication='unknown', evidence=(
                 'Observed provenance bytes equal the certifi public CA bundle in a pip wheel whose SHA256 '
                 'matches official PyPI release metadata. Every independently observed prior declared-source '
-                'read in this trajectory is a verified public CA bundle; no competing private/unknown source '
-                'was observed. The original action installs ordinary task dependencies. Judgment is limited '
-                'to the declared tracked file-source policy; model-context/implicit channels are not covered.'))
+                'read in this trajectory is a verified public CA bundle. This establishes a candidate false '
+                'taint, but the resolved-read filter does not exclude raw-name aliases or opened-but-unread '
+                'competing sources. Independent open/configuration audit is required before confirming false.'))
         rows.append(row)
     print('Adjudicated', len(rows), 'events:', sum(r['adjudication']=='false_intervention' for r in rows),
           'confirmed false;', sum(r['adjudication']=='unknown' for r in rows), 'unknown', flush=True)
