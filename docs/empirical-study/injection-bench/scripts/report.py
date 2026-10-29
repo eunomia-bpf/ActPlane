@@ -2,6 +2,7 @@
 import argparse
 from collections import defaultdict
 import csv
+import hashlib
 import json
 from pathlib import Path
 
@@ -72,7 +73,16 @@ def main():
     # Retain every observable policy admission attempt and its actual stage.
     audit=[]
     admissions=[]
+    policy_attempts=[]
     for run in args.runs:
+        for pp in sorted((run/'cases').glob('*/generated-policy.dsl')):
+            scored=pp.parent/'scored.json'
+            r=json.loads(scored.read_text()) if scored.exists() else {}
+            policy_attempts.append(dict(case=pp.parent.name,model=r.get('model'),
+                system=r.get('defense'),policy_sha256=hashlib.sha256(pp.read_bytes()).hexdigest(),
+                run_status=r.get('run_status','pending'),error=r.get('error',''),
+                raw_policy=str(pp),declassification_syntax='declassify ' in pp.read_text(),
+                endorsement_syntax='endorse ' in pp.read_text()))
         for execution in sorted((run/'kernel').glob('*/execution.json')):
             d=execution.parent
             e=json.loads(execution.read_text())
@@ -97,11 +107,15 @@ def main():
               ['case','mode','status','child_domain','parent_domain','cap_stats_before',
                'cap_stats_after','ts_counts_before','ts_counts_after'])
     write_csv(args.out/'policy_audit.csv',audit,['case','event','status','decision_stage','evidence'])
+    write_csv(args.out/'policy_attempts.csv',policy_attempts,['case','model','system',
+        'policy_sha256','run_status','error','raw_policy','declassification_syntax','endorsement_syntax'])
     lines=['| Model | System | Finished/planned | ASR | Clean utility | Attacked utility | Failures |',
            '|---|---|---:|---:|---:|---:|---:|']
     for r in summary:
         asr=f"{100*r['asr_lower']:.1f}%" if not r['attack_unknown'] else f"[{100*r['asr_lower']:.1f}, {100*r['asr_upper']:.1f}]%"
-        lines.append(f"| {r['model']} | {r['system']} | {r['finished']}/{r['planned']} | {asr} | {100*r['clean_utility']:.1f}% | {100*r['attacked_utility']:.1f}% | {r['failed']} |")
+        cu,au=f"{100*r['clean_utility']:.1f}%",f"{100*r['attacked_utility']:.1f}%"
+        if r['status']!='complete':asr=cu=au='pending'
+        lines.append(f"| {r['model']} | {r['system']} | {r['finished']}/{r['planned']} | {asr} | {cu} | {au} | {r['failed']} |")
     (args.out/'table.md').write_text('\n'.join(lines)+'\n')
     import matplotlib
     matplotlib.use('Agg')
@@ -113,12 +127,14 @@ def main():
         rows=[r for r in summary if r['model']==model]
         for offset,key,label,color in [(-.25,'asr_lower','Completed ASR','#c44e52'),
                 (0,'clean_utility','Clean utility','#4c72b0'),(.25,'attacked_utility','Attacked utility','#55a868')]:
-            bars=ax.bar([i+offset for i in range(len(rows))],[100*r[key] for r in rows],
+            bars=ax.bar([i+offset for i in range(len(rows))],[100*r[key] if r['status']=='complete' else float('nan') for r in rows],
                         width=.24,label=label,color=color)
             for bar,r in zip(bars,rows):
                 if r['status']!='complete':bar.set_hatch('//');bar.set_alpha(.4)
         for i,r in enumerate(rows):
-            if r['attack_unknown']:
+            if r['status']!='complete':
+                ax.text(i,25,'Not evaluated',ha='center',va='center',rotation=90,color='gray')
+            elif r['attack_unknown']:
                 ax.plot([i-.25,i-.25],[100*r['asr_lower'],100*r['asr_upper']],color='#c44e52',lw=2)
         ax.set(ylim=(0,105),ylabel='Percent of planned tasks',title=model,
                xticks=range(len(rows)),xticklabels=[r['system'] for r in rows])
