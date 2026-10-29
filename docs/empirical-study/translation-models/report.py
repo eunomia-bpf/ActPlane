@@ -254,7 +254,9 @@ is checkpointed before retrying. Within the scored protocol, a returned model
 answer is cached and never resampled within the same compiler attempt.
 The overloaded free endpoint receives a serial access-recovery pass after its
 original corpus queue finishes. Its larger transport budget and cutoff for new
-policy starts are recorded in `recovery-protocol.csv`. Already elapsed backoff
+policy starts are recorded in `recovery-protocol.csv`. Policies not started before
+this cutoff retain their existing access-failure records. The transport budget
+is an upper bound. Already elapsed backoff
 intervals are credited on resume. Only previously unavailable sample outcomes are
 replayed after recovery, using the same archived fixtures and kernel build.
 Local corpus access failures receive a separate recovery queue with reduced

@@ -22,7 +22,7 @@ held-out sets, and no semantic deduplication is claimed.
 | qwen3.8-27b-nvfp4 | 15 / 26 of 38 | 301 / 544 of 607 | 40.4% | 10.5% | 0.548 | 0 / 0 | n/a |
 | zai/glm-5.3 | 34 / 38 of 38 | 469 / 605 of 607 | 43.0% | 13.2% | 0.566 | 0 / 0 | $0.0327 |
 | zai/glm-5.3-flash | 33 / 38 of 38 | 411 / 606 of 607 | 48.2% | 15.8% | 0.608 | 0 / 0 | $0.0040 |
-| zai/glm-4.7-flash | 27 / 37 of 38 | 119 / 210 of 607 | 56.1% | 30.3% | 0.637 | 0 / 357 | $0.0000 |
+| zai/glm-4.7-flash | 27 / 37 of 38 | 119 / 212 of 607 | 56.1% | 30.3% | 0.637 | 0 / 355 | $0.0000 |
 | zai/glm-4.5-air | 33 / 38 of 38 | 403 / 604 of 607 | 50.9% | 13.2% | 0.637 | 0 / 0 | $0.0066 |
 | gpt-6-astra | 27 / 38 of 38 | 273 / 572 of 607 | 43.0% | 18.4% | 0.554 | 0 / 0 | $0.3112 |
 | claude-opus-4-6 | 30 / 38 of 38 | 400 / 607 of 607 | 47.4% | 11.8% | 0.610 | 0 / 0 | $0.1384 |
@@ -36,7 +36,7 @@ trajectories. Individual transport records are in `attempts.csv`.
 
 | Model with access failures | Sample completed trajectories | Sample conditional compile@1 / @3 | Corpus completed trajectories | Corpus conditional compile@1 / @3 |
 | --- | --- | --- | --- | --- |
-| zai/glm-4.7-flash | 38 / 38 | 71.1% / 97.4% | 250 / 607 | 47.6% / 84.0% |
+| zai/glm-4.7-flash | 38 / 38 | 71.1% / 97.4% | 252 / 607 | 47.2% / 84.1% |
 
 Corpus accounting means include completed trials and known transport usage.
 Active wall time includes provider waits and compiler revisions. It excludes
@@ -48,7 +48,7 @@ tokens, and time are retained for both corpora in the translation CSVs.
 | qwen3.8-27b-nvfp4 | 607 | 21868.5 | 10289.0 | 824.8 | unmeasured | 446 |
 | zai/glm-5.3 | 607 | 15399.9 | 3766.4 | 71.6 | $0.0381 | 0 |
 | zai/glm-5.3-flash | 607 | 16836.1 | 4264.9 | 121.3 | $0.0047 | 5 |
-| zai/glm-4.7-flash | 607 | 10440.5 | 3792.6 | 250.0 | $0.0000 | 2188 |
+| zai/glm-4.7-flash | 607 | 10516.7 | 3829.0 | 250.9 | $0.0000 | 2188 |
 | zai/glm-4.5-air | 607 | 17378.9 | 4406.3 | 120.3 | $0.0083 | 3 |
 | gpt-6-astra | 607 | 38384.5 | 223.7 | 41.8 | $0.3950 | 20 |
 | claude-opus-4-6 | 607 | 19990.9 | 1704.5 | 207.7 | $0.1426 | 0 |
@@ -178,7 +178,9 @@ is checkpointed before retrying. Within the scored protocol, a returned model
 answer is cached and never resampled within the same compiler attempt.
 The overloaded free endpoint receives a serial access-recovery pass after its
 original corpus queue finishes. Its larger transport budget and cutoff for new
-policy starts are recorded in `recovery-protocol.csv`. Already elapsed backoff
+policy starts are recorded in `recovery-protocol.csv`. Policies not started before
+this cutoff retain their existing access-failure records. The transport budget
+is an upper bound. Already elapsed backoff
 intervals are credited on resume. Only previously unavailable sample outcomes are
 replayed after recovery, using the same archived fixtures and kernel build.
 Local corpus access failures receive a separate recovery queue with reduced
