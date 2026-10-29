@@ -21,6 +21,23 @@ def project_reviews():
     path=Path(__file__).with_name('project_action_review.csv')
     return {r['dynamic_id']:r for r in csv.DictReader(path.open())} if path.exists() else {}
 
+def reviewed_cases():
+    """Human case judgments apply only to explicitly frozen logs and calls."""
+    path=Path(__file__).with_name('reviewed_cases.csv')
+    cases={}
+    if not path.exists():return cases
+    for row in csv.DictReader(path.open()):
+        log=ROOT/row['raw_condition']/'dynamic/runs'/row['dynamic_id']/'engine.jsonl'
+        if hashlib.sha256(log.read_bytes()).hexdigest()!=row['engine_sha256']:
+            raise RuntimeError('Reviewed case engine log changed: '+str(log))
+        if row['adjudication'] not in ('false_intervention','true_violation','unknown'):
+            raise ValueError('Unsupported reviewed case verdict')
+        for index in row['call_indices'].split(';'):
+            key=(row['raw_condition'],row['dynamic_id'],index)
+            if key in cases:raise ValueError('Overlapping reviewed case calls')
+            cases[key]=row
+    return cases
+
 def readonly_system_origin(raw_path, started_utc, published):
     """Resolve only unchanged readonly OS sources, preserving raw engine spelling."""
     if not started_utc:return {}
@@ -112,6 +129,7 @@ def review(events, sources):
                         wheel_sha256=wheel_digest, **proof))
     rows = []
     reviewed=reviewed_annotations()
+    cases=reviewed_cases()
     projects=project_reviews()
     published={r['member_sha256']:r for r in csv.DictReader((OUT/'public-artifacts.csv').open())} if (OUT/'public-artifacts.csv').exists() else {}
     system_cache={}
@@ -153,6 +171,8 @@ def review(events, sources):
                 'taint, but the resolved-read filter does not exclude raw-name aliases or opened-but-unread '
                 'competing sources. Independent open/configuration audit is required before confirming false.'))
         annotation=reviewed.get((event.get('raw_condition',condition),dynamic_id,str(event['timestamp_ns'])))
+        if not annotation:
+            annotation=cases.get((event.get('raw_condition',condition),dynamic_id,str(event['call_index'])))
         if annotation:row.update(adjudication=annotation['adjudication'],evidence=annotation['evidence'])
         rows.append(row)
     print('Adjudicated', len(rows), 'events:', sum(r['adjudication']=='false_intervention' for r in rows),
