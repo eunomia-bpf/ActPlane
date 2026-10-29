@@ -13,3 +13,11 @@ Required implementation checks:
 - Select tasks before outcomes and preserve exclusions/failures. Pair time comparisons by task and separate execution from image download/build and infrastructure failure. Single repetitions yield descriptive comparisons with sampling uncertainty.
 
 No conceptual blocker remains. Executability and any trusted-declassification claim remain contingent on these checks. Parent accepted the review and relayed all implementation checks to both workers. The plan now explicitly records the controller/model-context and enforcement boundaries. Gate execution will not be claimed without trust evidence.
+
+## Targeted implementation review before full trials
+
+The same reviewer inspected the evolving benchmark adapter and replay integration. Concrete checks found and relayed before model outcomes: malformed `**.pem`/`**.key` source patterns, an explicit initial label that could pre-taint the root, wall-clock versus kernel-monotonic timestamps, incomplete detection of mid-run instrumentation death, and different source families between benchmark and replay. The owners corrected the match patterns to supported suffix forms, confirmed zero initial labels, recorded monotonic call boundaries, added liveness receipts, and coordinated the source family. Final evidence review must verify these changes on the actual executed files.
+
+Instruction inventories alone are not policy enforcement. Applicable enforceable directives must be applied; semantic requirements that the DSL cannot express need individual exclusions. Scoped sources must be justified by task instructions or an independent pretrial inventory. The fixed official OpenSSL task explicitly combines its private key and certificate in `server.pem`, so that file is sensitive in this task. A generic assumption that every PEM is public or private would be incorrect.
+
+The reviewer independently inspected the fixed benchmark instructions and noted that Git-history secrets and executable flags may fall outside filename-based sources. Their absence from source events cannot be described as absence of semantic secret handling. The implementation review requested no broad product changes or additional test scaffolding.
