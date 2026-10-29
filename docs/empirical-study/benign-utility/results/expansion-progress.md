@@ -18,10 +18,10 @@ Available-condition scores can have different task mixes. The matched column use
 | Cohort | Condition | Covered calls | False calls | Unknown calls | Unassigned events | False-call bounds |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | Added | No AgPlane | 58 | 0 | 0 | 0 | 0.00–0.00% |
-| Added | Broad sources | 71 | 0 | 0 | 108 | 0.00% lower; upper unavailable |
+| Added | Broad sources | 71 | 14 | 0 | 0 | 19.72–19.72% |
 | Added | Narrowed sources | 95 | 0 | 0 | 0 | 0.00–0.00% |
 | Combined | No AgPlane | 126 | 0 | 0 | 0 | 0.00–0.00% |
-| Combined | Broad sources | 131 | 0 | 0 | 108 | 0.00% lower; upper unavailable |
+| Combined | Broad sources | 131 | 14 | 0 | 0 | 10.69–10.69% |
 | Combined | Narrowed sources | 148 | 0 | 0 | 0 | 0.00–0.00% |
 
 The added/combined matrices are complete only when every frozen task has valid outcomes in every condition. Security coverage and adjudication completeness remain separate fields.
