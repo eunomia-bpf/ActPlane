@@ -31,11 +31,12 @@ def main():
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     all_trials = read(args.benchmark / 'trials.csv')
-    if all_trials and 'selected_for_comparison' not in all_trials[0]:
+    if all_trials and ('selected_for_comparison' not in all_trials[0] or 'comparison_cohort' not in all_trials[0]):
         raise ValueError('Verifier availability audit is required before utility aggregation')
-    trials = [r for r in all_trials if r['main_matrix'] == '1' and r['selected_for_comparison'] == '1']
-    if any(r.get('verifier_valid') != '1' for r in trials):
-        raise ValueError('An unchecked verifier reward was selected for comparison')
+    trials = [r for r in all_trials if r['main_matrix'] == '1' and r['selected_for_comparison'] == '1'
+              and r['comparison_cohort'] == 'native_denial_primary']
+    if any(r.get('outcome_valid') != '1' for r in trials):
+        raise ValueError('An unestablished native outcome was selected for comparison')
     benchmark_calls = [r for r in read(args.benchmark / 'calls.csv') if r['main_matrix'] == '1']
     replay_runs = read(args.replay / 'runs.csv')
     replay_calls = read(args.replay / 'calls.csv')
@@ -57,23 +58,28 @@ def main():
         call_identity = 'trial_id' if benchmark else identity
         valid_runs = []
         for run in runs:
-            if run.get('coverage') != 'complete':
-                continue
             if benchmark:
-                valid = run.get('effective_run_status') in ('complete', 'official_timeout')
+                valid = run.get('outcome_valid') == '1'
             else:
-                valid = not run.get('fatal') and number(run, 'executed_calls') == number(run, 'recorded_calls')
+                valid = (run.get('coverage') == 'complete' and not run.get('fatal')
+                         and number(run, 'executed_calls') == number(run, 'recorded_calls'))
             if valid:
                 valid_runs.append(run)
         keys = [(r[identity], r['condition']) for r in valid_runs]
         if len(keys) != len(set(keys)):
             raise ValueError(f'Duplicate valid main comparisons in {dataset}')
         valid_keys = {(r[call_identity], r['condition']) for r in valid_runs}
-        valid_calls = [r for r in calls if (r[call_identity], r['condition']) in valid_keys]
+        valid_calls = [r for r in calls if (r[call_identity], r['condition']) in valid_keys
+                       and r.get('coverage') == 'complete']
         baseline = {r[identity]: r for r in valid_runs if r['condition'] == conditions[0]}
         for condition in conditions:
             selected = [r for r in valid_runs if r['condition'] == condition]
             selected_calls = [r for r in valid_calls if r['condition'] == condition]
+            false_calls = sum(number(r, 'confirmed_false' if benchmark else 'fp_count') > 0 for r in selected_calls)
+            unknown_calls = sum(number(r, 'unknown' if benchmark else 'unknown_count') > 0 for r in selected_calls)
+            potential_false_calls = sum(number(r, 'confirmed_false' if benchmark else 'fp_count') > 0 or number(r, 'unknown' if benchmark else 'unknown_count') > 0 for r in selected_calls)
+            intervened_calls = sum(number(r, 'intervened') > 0 if benchmark else number(r, 'intervention_count') > 0 for r in selected_calls)
+            lengths = [number(r, 'tool_calls' if benchmark else 'executed_calls') for r in selected]
             selected_events = [r for r in event_data[dataset]
                 if r['condition'] == condition and (r[call_identity], condition) in valid_keys
                 and (any(str(r.get(k, '')).lower() in ('true', '1') for k in ('killed', 'blocked'))
@@ -81,14 +87,14 @@ def main():
             attributed = sum(number(r, 'intervention_events' if benchmark else 'intervention_count') for r in selected_calls)
             if attributed > len(selected_events):
                 raise ValueError(f'Call counts exceed actual intervention events: {dataset}/{condition}')
-            scored = [r for r in selected if r.get('official_success', '') != ''] if benchmark else []
+            scored = [r for r in selected if r.get('outcome_success', '') != ''] if benchmark else []
             timing = []
             total_timing = []
             success_differences = []
             for run in selected:
                 control = baseline.get(run[identity])
-                if benchmark and control and run.get('official_success', '') != '' and control.get('official_success', '') != '':
-                    success_differences.append(number(control, 'official_success') - number(run, 'official_success'))
+                if benchmark and control and run.get('outcome_success', '') != '' and control.get('outcome_success', '') != '':
+                    success_differences.append(number(control, 'outcome_success') - number(run, 'outcome_success'))
                 execution_key = 'agent_execution_s' if benchmark else 'elapsed_s'
                 total_key = 'wall_s' if benchmark else 'elapsed_s'
                 if control and number(control, execution_key) > 0 and number(run, execution_key) > 0:
@@ -106,19 +112,28 @@ def main():
                     intervened_calls=sum(number(r, 'intervened') > 0 if benchmark else number(r, 'intervention_count') > 0 for r in group),
                     confirmed_false_calls=sum(number(r, 'confirmed_false' if benchmark else 'fp_count') > 0 for r in group),
                     unknown_calls=sum(number(r, 'unknown' if benchmark else 'unknown_count') > 0 for r in group),
+                    potential_false_calls=sum(number(r, 'confirmed_false' if benchmark else 'fp_count') > 0 or number(r, 'unknown' if benchmark else 'unknown_count') > 0 for r in group),
                     source_read_accesses=sum(number(r, 'source_read_accesses') for r in group)))
             rows.append(dict(dataset=dataset, condition=condition, planned_sessions=planned,
-                coverage_complete_sessions=len(selected), official_scored_trials=len(scored) if benchmark else '',
-                official_successes=sum(number(r, 'official_success') for r in scored) if benchmark else '',
-                official_success_pct=100 * sum(number(r, 'official_success') for r in scored) / len(scored) if scored else '',
+                coverage_complete_sessions=sum(r.get('coverage') == 'complete' for r in selected),
+                outcome_valid_sessions=len(selected), official_scored_trials=len(scored) if benchmark else '',
+                verifier_executed_trials=sum(r.get('verifier_valid') == '1' for r in selected) if benchmark else '',
+                official_default_agent_error_trials=sum(r.get('outcome_source') == 'official_default_mean_agent_error' for r in selected) if benchmark else '',
+                official_successes=sum(number(r, 'outcome_success') for r in scored) if benchmark else '',
+                official_success_pct=100 * sum(number(r, 'outcome_success') for r in scored) / len(scored) if scored else '',
                 paired_success_trials=len(success_differences) if benchmark else '',
                 success_drop_percentage_points=100 * sum(success_differences) / len(success_differences) if success_differences else '',
                 calls=len(selected_calls),
                 intervention_events=len(selected_events),
                 unattributed_intervention_events=len(selected_events) - int(attributed),
-                intervened_calls=sum(number(r, 'intervened') > 0 if benchmark else number(r, 'intervention_count') > 0 for r in selected_calls),
-                confirmed_false_calls=sum(number(r, 'confirmed_false' if benchmark else 'fp_count') > 0 for r in selected_calls),
-                unknown_calls=sum(number(r, 'unknown' if benchmark else 'unknown_count') > 0 for r in selected_calls),
+                intervened_calls=intervened_calls, confirmed_false_calls=false_calls, unknown_calls=unknown_calls,
+                potential_false_calls=potential_false_calls,
+                intervention_rate_pct=100 * intervened_calls / len(selected_calls) if selected_calls else '',
+                confirmed_false_rate_pct=100 * false_calls / len(selected_calls) if selected_calls else '',
+                unknown_rate_pct=100 * unknown_calls / len(selected_calls) if selected_calls else '',
+                min_calls_per_session=min(lengths) if lengths else '',
+                median_calls_per_session=median(lengths) if lengths else '',
+                max_calls_per_session=max(lengths) if lengths else '',
                 source_read_accesses=sum(number(r, 'source_read_accesses') for r in selected_calls),
                 ipv4_connect_attempts=sum(number(r, 'inet4_connect_attempts') for r in selected)
                     if benchmark else sum(number(r, 'ipv4_connect_attempts') for r in selected_calls),
@@ -148,17 +163,17 @@ def render(rows, positions, out):
             label += '\npartial'
             bar.set_hatch('//')
         axes[0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2, label, ha='center')
-    axes[0].set(ylim=(0, 110), ylabel='Official task success (%)', title='Terminal-Bench subset')
+    axes[0].set(ylim=(0, 120), yticks=range(0, 101, 20), ylabel='Official task success (%)', title='Terminal-Bench subset')
     for condition, color, label in [('none', '#777777', 'No AgPlane'), ('broad', '#ca6828', 'Broad'), ('scoped', '#2577a2', 'Scoped')]:
         data = [r for r in positions if r['dataset'] == 'Public replay' and r['condition'] == condition]
         if data:
             x = [r['bin_start'] + 4.5 for r in data]
-            axes[1].plot(x, [100*r['confirmed_false_calls']/r['calls'] for r in data], marker='.', color=color, label=label)
+            axes[1].plot(x, [100*r['confirmed_false_calls']/r['calls'] for r in data], marker='.', color=color, label=label+' confirmed')
             if any(r['unknown_calls'] for r in data):
-                axes[1].plot(x, [100*(r['confirmed_false_calls']+r['unknown_calls'])/r['calls'] for r in data], ls=':', color=color, label=label+' incl. unresolved')
+                axes[1].plot(x, [100*r['potential_false_calls']/r['calls'] for r in data], ls=':', color=color, label=label+' incl. unresolved')
     replay_complete = all(r['matrix_complete'] for r in rows if r['dataset'] == 'Public replay')
     replay_title = 'Public replay' if replay_complete else 'Public replay (partial)'
-    axes[1].set(xlabel='Within-session call position (bins of ten)', ylabel='Confirmed false interventions / calls (%)', title=replay_title)
+    axes[1].set(xlabel='Within-session call position (bins of ten)', ylabel='False-intervention rate bounds (%)', title=replay_title)
     axes[1].set_ylim(bottom=0)
     if axes[1].lines:
         if not any(any(y > 0 for y in line.get_ydata()) for line in axes[1].lines):

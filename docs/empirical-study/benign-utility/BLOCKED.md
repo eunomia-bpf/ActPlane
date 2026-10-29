@@ -8,9 +8,9 @@ The selected official tasks and public trajectories have no established trusted 
 
 The official Terminus controller/model API runs outside the protected task shell subtree. Public replay similarly forks commands from a retained worker and does not replay model-context information flow. A child process opening a source does not automatically label the controlling parent. Utility numbers for this deployment cannot settle the reviewer example in which secret contents persist in the model's session context.
 
-## Host pre-operation blocking is unavailable
+## Native denial capability is verified
 
-The running Workspace kernel does not provide the required BPF-LSM enforcement mode. A retained calibrated tracepoint loader can load and supports `kill` forced failure. These trials will explicitly identify that mode; they cannot establish pre-operation network denial. No shared kernel reboot or deployment change is authorized or attempted.
+The initial claim that host BPF-LSM was unavailable is withdrawn. Actual kernel inspection lists BPF in the active LSM chain, and the retained loader reports enforce mode. A separate same-engine native-block control now records EPERM and successful denial while the process survives. Native IPv4 connection denial will therefore be the requested primary comparison. Existing `kill`-only trials establish forced failure with `blocked=false` and remain supporting observations; their utility cannot be substituted for block or mixed into its rows. No shared kernel reboot or deployment change was made. This capability is no longer an execution blocker.
 
 Other runnable benchmark, policy-scoping and replay work continues. Setup/preflight failures and unsupported repository directives are retained in their respective machine-readable result files rather than silently removed.
 
