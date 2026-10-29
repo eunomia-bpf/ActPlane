@@ -94,7 +94,7 @@ def main():
             for run in selected:
                 control = baseline.get(run[identity])
                 if benchmark and control and run.get('outcome_success', '') != '' and control.get('outcome_success', '') != '':
-                    success_differences.append(number(control, 'outcome_success') - number(run, 'outcome_success'))
+                    success_differences.append(number(control, 'outcome_score') - number(run, 'outcome_score'))
                 execution_key = 'agent_execution_s' if benchmark else 'elapsed_s'
                 total_key = 'wall_s' if benchmark else 'elapsed_s'
                 if control and number(control, execution_key) > 0 and number(run, execution_key) > 0:
@@ -120,7 +120,8 @@ def main():
                 verifier_executed_trials=sum(r.get('verifier_valid') == '1' for r in selected) if benchmark else '',
                 official_default_agent_error_trials=sum(r.get('outcome_source') == 'official_default_mean_agent_error' for r in selected) if benchmark else '',
                 official_successes=sum(number(r, 'outcome_success') for r in scored) if benchmark else '',
-                official_success_pct=100 * sum(number(r, 'outcome_success') for r in scored) / len(scored) if scored else '',
+                official_mean_reward=sum(number(r, 'outcome_score') for r in scored) / len(scored) if scored else '',
+                official_success_pct=100 * sum(number(r, 'outcome_score') for r in scored) / len(scored) if scored else '',
                 paired_success_trials=len(success_differences) if benchmark else '',
                 success_drop_percentage_points=100 * sum(success_differences) / len(success_differences) if success_differences else '',
                 calls=len(selected_calls),
@@ -145,6 +146,7 @@ def main():
                 paired_sessions=len(timing),
                 median_paired_execution_difference_pct=100 * (median(timing) - 1) if timing else '',
                 median_paired_total_difference_pct=100 * (median(total_timing) - 1) if total_timing else '',
+                security_matrix_complete=int(sum(r.get('coverage') == 'complete' for r in selected) == planned),
                 matrix_complete=int(len(selected) == planned and (not benchmark or len(scored) == planned))))
     write(args.out / 'headline.csv', rows)
     if positions:
