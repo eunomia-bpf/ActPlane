@@ -3,7 +3,6 @@ import csv,fcntl,json,os,subprocess,sys,time,threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from benchmark.expanded.preflight import BASE,RAW,OUT,docker,receipt
-from benchmark.expanded.prepare import prepare
 RAW.mkdir(exist_ok=True)
 lock=(RAW/'matrix.lock').open('a+');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 lock.seek(0);lock.truncate();lock.write(str(os.getpid()));lock.flush()
@@ -23,7 +22,7 @@ def group(task):
   pending=[c for c in task['condition_order'].split(',') if not any(r['task']==name and r['condition']==c and r['selected_for_comparison']=='1' for r in rows)]
   if not pending or time.time()>=deadline:return
   with state:
-   prepare(name)
+   subprocess.run([sys.executable,'-B','-m','benchmark.expanded.prepare',name],check=True)
    preflight=RAW/'instrumentation-preflights'
    if not list(preflight.glob('*/*/agent/instrumentation-preflight.json')):
     subprocess.run([sys.executable,'-B','-m','benchmark.expanded.run',name,'a','--attempt','setup-'+time.strftime('%Y%m%dT%H%M%SZ',time.gmtime()),'--preflight-only'],check=True)

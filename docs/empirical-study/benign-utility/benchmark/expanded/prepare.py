@@ -1,5 +1,5 @@
 """Inventory and freeze one selected official image before its first model call."""
-import argparse,base64,csv,hashlib,json,struct,subprocess,time
+import argparse,base64,csv,hashlib,json,struct,subprocess,tarfile,time
 from pathlib import Path
 from benchmark.expanded.preflight import BASE,RAW,OUT,docker,pull,receipt
 from benchmark.network.freeze import fields,canonical
@@ -29,7 +29,14 @@ def prepare(task):
     directory=RAW/'inventory'/task;directory.mkdir(parents=True,exist_ok=True)
     script=Path(__file__).with_name('inventory_image.py').resolve()
     assert script.is_file()
-    try:result=docker(['run','--rm','--read-only','--network','none','--entrypoint','python3','--volume',str(script)+':/inventory/inventory_image.py:ro',chosen['official_image'],'-B','/inventory/inventory_image.py'],capture_output=True,text=True)
+    interpreter=RAW/'inventory-python/python/bin/python3.13'
+    if not interpreter.exists():
+        archive=BASE/'dependencies/public/python/20251014/cpython-3.13.9+20251014-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz'
+        provenance=json.loads((BASE/'dependencies/python-provenance.json').read_text())
+        assert digest(archive)==provenance['sha256']
+        destination=RAW/'inventory-python';destination.mkdir(exist_ok=True)
+        with tarfile.open(archive) as stream:stream.extractall(destination,filter='data')
+    try:result=docker(['run','--rm','--read-only','--network','none','--entrypoint','/inventory/runtime/python/bin/python3.13','--volume',str(interpreter.parents[2])+':/inventory/runtime:ro','--volume',str(script)+':/inventory/inventory_image.py:ro',chosen['official_image'],'-B','/inventory/inventory_image.py'],capture_output=True,text=True)
     except subprocess.CalledProcessError as error:
         (directory/'inventory-error.stdout').write_text(error.stdout or '')
         (directory/'inventory-error.stderr').write_text(error.stderr or '')
@@ -45,7 +52,7 @@ def prepare(task):
     app_instructions=[r for r in files if r['classification']=='project_instruction' and r['path'].startswith('/app/')]
     append('instruction-inventory.csv',[dict(task=task,**r,disposition='requires_project_rule_review' if r in app_instructions else 'outside_task_workspace') for r in files if r['classification']=='project_instruction'])
     if app_instructions:raise RuntimeError('Applicable image instruction files require rule review before any outcome: '+str(app_instructions))
-    image=dict(task=task,image=chosen['official_image'],image_id=info['Id'],repo_digests=';'.join(info.get('RepoDigests',[])),image_size_bytes=info['Size'],architecture=info['Architecture'],os=info['Os'],project_instruction_files=len(app_instructions),utc=time.strftime('%FT%TZ',time.gmtime()))
+    image=dict(task=task,image=chosen['official_image'],image_id=info['Id'],repo_digests=';'.join(info.get('RepoDigests',[])),image_size_bytes=info['Size'],architecture=info['Architecture'],os=info['Os'],project_instruction_files=len(app_instructions),inventory_interpreter='read-only mounted official public CPython3.13.9; excluded from scanned image tree',utc=time.strftime('%FT%TZ',time.gmtime()))
     append('image-inventory.csv',[image]);append('secret-inventory.csv',[dict(task=task,**r) for r in files])
     shared=['**/*.env','**/*.env.local','**/*.env.production','**/*id_rsa','**/*id_ed25519','**/*credentials.json','/root/.aws/credentials','/root/.gemini/oauth_creds.json','/etc/secrets/**','/etc/ssl/private/**']
     private=[r for r in files if r['classification'] in ('private_key_header','credential_path_candidate','unclassified_key_candidate','public_header_content_scan_truncated','inaccessible')]
