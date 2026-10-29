@@ -5,11 +5,40 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import urllib.request
 import zipfile
 
 ROOT = Path(os.environ['WS_RAW']) / 'replay'
 OUT = ROOT.parent.parent / 'replay/results'
+
+def sealed_inputs(event, original, calls, plan):
+    run=ROOT/event.get('raw_condition',event['condition'])/'dynamic/runs'/event['dynamic_id']
+    environment=json.loads((run/'environment.json').read_text()).get('variables',{})
+    options=('PIP_CLIENT_CERT','PIP_CERT','PIP_CONFIG_FILE','SSL_CERT_FILE','REQUESTS_CA_BUNDLE','CURL_CA_BUNDLE','PYTHONPATH')
+    configs=[]
+    for path in ('/etc/pip.conf','/etc/xdg/pip/pip.conf'):
+        file=Path(path);content=file.read_bytes() if file.is_file() else None
+        configs.append(dict(path=path,present=content is not None,sha256=hashlib.sha256(content).hexdigest() if content else '',
+            client_certificate_option=bool(content and b'client-cert' in content.lower())))
+    base=['git','--git-dir',str(ROOT/'input/dynamic/git-cache'/plan['repository'].replace('/','__'))]
+    listing=subprocess.check_output(base+['ls-tree','-rz',plan['base_commit']])
+    aliases=[]
+    for item in listing.split(b'\0'):
+        if not item.startswith(b'120000 '):continue
+        name=item.split(b'\t',1)[1].decode(errors='replace')
+        if name.endswith(('.env','.env.local','.env.production','.pem','.key','id_rsa','id_ed25519','credentials.json')):
+            aliases.append(name)
+    suspicious=[]
+    for (trajectory,index),call in calls.items():
+        if trajectory!=event['trajectory_id'] or index>int(event['call_index']):continue
+        text=json.dumps(call['args']).lower()
+        if any(word in text for word in ('client-cert','pip.conf','pip_cert','pip_config','ssl_cert','sitecustomize','usercustomize','symlink','ln -s')):
+            suspicious.append(index)
+    return dict(harness_clearenv=True,configured_home=environment.get('HOME'),present_tls_python_options=[key for key in options if key in environment],
+        readonly_global_configs_at_audit=configs,pinned_repository_candidate_symlinks=aliases,
+        prior_configuration_or_alias_call_indices=suspicious,
+        caveat='Root/home/venv runtime snapshots are removed by the copied harness; these facts alone do not prove absence of every competing open.')
 
 
 def review(events, sources):
@@ -17,6 +46,7 @@ def review(events, sources):
         return []
     by_trajectory = {}
     wanted = {r['trajectory_id'] for r in events}
+    plans={r['dynamic_id']:r for r in csv.DictReader((OUT/'cohort.csv').open())}
     with gzip.open(ROOT / 'input/classified_calls.jsonl.gz', 'rt') as stream:
         for line in stream:
             row = json.loads(line)
@@ -56,6 +86,7 @@ def review(events, sources):
             call_index=event['call_index'], pid=event['pid'], source_path=event['source_path'],
             source_sha256=event['source_sha256'], matching_bundled_wheel=json.dumps(bundles.get(event['source_sha256'], []), sort_keys=True),
             prior_source_paths=json.dumps(paths), original_args=json.dumps(original.get('args', {}), sort_keys=True),
+            sealed_input_evidence=json.dumps(sealed_inputs(event,original,by_trajectory,plans[dynamic_id]),sort_keys=True) if event['call_index'] else '',
             adjudication='unknown', evidence='Independent provenance/context review pending')
         if (event['coverage'] == 'complete' and int(event['intervened']) == 1 and prior
                 and event['source_sha256'] in bundles
@@ -73,10 +104,10 @@ def review(events, sources):
     return rows
 
 
-def save(rows):
+def save(rows,output=OUT):
     fields = list(rows[0]) if rows else ['condition', 'dynamic_id', 'timestamp_ns', 'call_index', 'pid', 'source_path',
-        'source_sha256', 'matching_bundled_wheel', 'prior_source_paths', 'original_args', 'adjudication', 'evidence']
-    with (OUT / 'adjudication_evidence.csv').open('w', newline='') as stream:
+        'source_sha256', 'matching_bundled_wheel', 'prior_source_paths', 'original_args', 'sealed_input_evidence', 'adjudication', 'evidence']
+    with (output / 'adjudication_evidence.csv').open('w', newline='') as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
         writer.writeheader()
         writer.writerows(rows)

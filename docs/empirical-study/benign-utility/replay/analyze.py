@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Reconcile replay calls, instrumentation coverage, and independently known sources."""
 import csv
+import argparse
 import gzip
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 from collections import defaultdict
 import adjudicate
 
@@ -26,7 +28,15 @@ def write(name,rows,fields=None):
         writer=csv.DictWriter(f,fieldnames=fields or list(rows[0]));writer.writeheader();writer.writerows(rows)
 
 def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--effect',choices=['kill','block'],default='block')
+    args=parser.parse_args()
+    global OUTPUT
+    if args.effect=='kill':OUTPUT=OUTPUT.parent/'kill-results'
     OUTPUT.mkdir(parents=True,exist_ok=True)
+    if args.effect=='kill':
+        for name in ('cohort.csv','provenance.csv'):
+            shutil.copy2(OUTPUT.parent/'results'/name,OUTPUT/name)
     plans=list(csv.DictReader((ROOT/'harness/dynamic_plan.csv').open()))
     wanted={p['trajectory_id'] for p in plans};original=defaultdict(list)
     with gzip.open(ROOT/'input/classified_calls.jsonl.gz','rt') as f:
@@ -36,7 +46,8 @@ def main():
     runs=[];calls=[];interventions=[];sources=[];compiled=[]
     for condition in ('none','broad','scoped'):
         for plan in plans:
-            run=ROOT/condition/'dynamic/runs'/plan['dynamic_id']
+            raw_condition=('block-'+condition) if args.effect=='block' and condition!='none' else condition
+            run=ROOT/raw_condition/'dynamic/runs'/plan['dynamic_id']
             done=load(run/'done.json',{})
             metadata=load(run/'utility-metadata.json',{})
             exits=load(run/'instrument-exits.json',[])
@@ -59,6 +70,11 @@ def main():
                 if kind=='READ':source_events.append((timestamp,pid,index,payload))
                 if kind=='CONNECT':connections.append((timestamp,pid,index,int(payload)))
             errors=[]
+            engine_stderr=(run/'engine.stderr').read_text(errors='replace') if (run/'engine.stderr').exists() else ''
+            policy_text=(run/'policy.dsl').read_text() if (run/'policy.dsl').exists() else ''
+            effect_match=re.search(r'^\s*(kill|block|notify) connect',policy_text,re.M)
+            actual_effect='none' if condition=='none' else effect_match.group(1) if effect_match else 'unknown'
+            engine_mode='disabled' if condition=='none' else 'enforce' if 'ActPlane: enforce mode' in engine_stderr else 'tracepoint' if 'ActPlane: tracepoint mode' in engine_stderr else 'unknown'
             if any(re.search(r'(?i)error|lost|drop|overflow', str(r.get('type',''))) for r in observer_rows):
                 errors.append('observer reported event loss/helper failure')
             stderr=(run/'sources.stderr').read_text(errors='replace') if (run/'sources.stderr').exists() else ''
@@ -75,11 +91,13 @@ def main():
             observed_indices={index for _,kind,_,index,_ in events if kind=='EXEC'}
             if done and any(index not in observed_indices for index in receipts):errors.append('executed call lacks independent tagged exec receipt')
             if condition!='none' and done:
-                engine_stderr=(run/'engine.stderr').read_text(errors='replace') if (run/'engine.stderr').exists() else ''
                 if 'ActPlane: ready' not in engine_stderr or f"seeded pid {metadata.get('root_pid')} label 0x0" not in engine_stderr:
                     errors.append('clean mapped engine readiness not established')
+                if actual_effect!=args.effect:errors.append('actual policy effect differs from selected result cohort')
+                if args.effect=='block' and engine_mode!='enforce':errors.append('native denial unavailable in this run')
             coverage='complete' if done and not errors else ('partial' if done else 'pending')
             runrow=dict(condition=condition,dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],framework=plan['framework'],model=plan['model'],
+                enforcement_effect=actual_effect,engine_mode=engine_mode,raw_condition=raw_condition,
                 recorded_calls=len(recorded),executed_calls=len(receipts),fatal=done.get('fatal',''),coverage=coverage,
                 coverage_detail='; '.join(errors),setup_failed_steps=done.get('setup_failed_steps',''),elapsed_s=done.get('elapsed_s',''),
                 root_pid=metadata.get('root_pid',''),root_pid_namespace=metadata.get('root_pid_namespace',''),source_observer_sha256=metadata.get('source_observer_sha256',''),
@@ -102,7 +120,7 @@ def main():
                 if source.get('classification') in ('public_certificate','public_repository_object'):
                     reason='public provenance source independently established; competing flows not exhaustively adjudicated'
                 intervened=int(bool(event.get('killed') or event.get('blocked')))
-                row=dict(condition=condition,dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],call_index=index,
+                row=dict(condition=condition,dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],enforcement_effect=actual_effect,raw_condition=raw_condition,call_index=index,
                     timestamp_ns=timestamp,pid=pid,rule_id=event.get('rule_id',''),effect=event.get('effect',''),intervened=intervened,
                     target=event.get('target',''),source_path=path,source_classification=source.get('classification','unknown'),
                     compiled_rule_match=1,adjudication=adjudication,adjudication_reason=reason,source_sha256=source.get('sha256',''),coverage=coverage)
@@ -112,7 +130,7 @@ def main():
             for timestamp,pid,index,path in source_events:
                 sourcecounts[index]+=1
                 source=evidence.get(path,{})
-                sources.append(dict(condition=condition,dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],call_index=index,timestamp_ns=timestamp,pid=pid,
+                sources.append(dict(condition=condition,dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],enforcement_effect=actual_effect,call_index=index,timestamp_ns=timestamp,pid=pid,
                     path=path,path_maybe_truncated=int(len(path)>=1023),classification=source.get('classification','unknown'),sha256=source.get('sha256',''),
                     evidence_reason=source.get('reason','no post-command content receipt'),coverage=coverage))
             for _,_,index,family in connections:
@@ -121,13 +139,13 @@ def main():
             for position,call in enumerate(recorded,1):
                 index=call['call_index'];receipt=receipts.get(index,{})
                 matched=percall[index]
-                calls.append(dict(condition=condition,dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],call_id=call['call_id'],call_index=index,position=position,
+                calls.append(dict(condition=condition,dynamic_id=plan['dynamic_id'],trajectory_id=plan['trajectory_id'],enforcement_effect=actual_effect,call_id=call['call_id'],call_index=index,position=position,
                     tool=call['tool'],executed=int(bool(receipt)),exit_code=receipt.get('exit_code',''),timed_out=receipt.get('timed_out',''),elapsed_s=receipt.get('elapsed_s',''),
                     network_calls=networkcounts[index],ipv4_connect_attempts=ipv4counts[index],source_read_accesses=sourcecounts[index],
                     intervention_count=sum(r['intervened'] for r in matched),fp_count=0,true_count=0,unknown_count=sum(r['intervened'] for r in matched),coverage=coverage))
             for row in load(run/'compiled-sources.json',[]):compiled.append(dict(condition=condition,dynamic_id=plan['dynamic_id'],**row))
     annotations=adjudicate.review(interventions,sources)
-    adjudicate.save(annotations)
+    adjudicate.save(annotations,OUTPUT)
     reviewed={(r['condition'],r['dynamic_id'],str(r['timestamp_ns'])):r for r in annotations}
     percall=defaultdict(list)
     perrun=defaultdict(list)
@@ -149,8 +167,8 @@ def main():
             confirmed_true_events=sum(e['intervened'] and e['adjudication']=='true_violation' for e in matched),
             unknown_intervention_events=sum(e['intervened'] and e['adjudication']=='unknown' for e in matched))
     write('runs.csv',runs);write('calls.csv',calls)
-    write('interventions.csv',interventions,['condition','dynamic_id','trajectory_id','call_index','timestamp_ns','pid','rule_id','effect','intervened','target','source_path','source_classification','compiled_rule_match','adjudication','adjudication_reason','source_sha256','coverage'])
-    write('source_read_accesses.csv',sources,['condition','dynamic_id','trajectory_id','call_index','timestamp_ns','pid','path','path_maybe_truncated','classification','sha256','evidence_reason','coverage'])
+    write('interventions.csv',interventions,['condition','dynamic_id','trajectory_id','enforcement_effect','raw_condition','call_index','timestamp_ns','pid','rule_id','effect','intervened','target','source_path','source_classification','compiled_rule_match','adjudication','adjudication_reason','source_sha256','coverage'])
+    write('source_read_accesses.csv',sources,['condition','dynamic_id','trajectory_id','enforcement_effect','call_index','timestamp_ns','pid','path','path_maybe_truncated','classification','sha256','evidence_reason','coverage'])
     write('compiled_sources.csv',compiled,['condition','dynamic_id','label','source_kind','pattern','compiled_op','compiled_match_mode','compiled_literal','add_mask'])
     bins=[];summary=[]
     for condition in ('none','broad','scoped'):
@@ -160,11 +178,11 @@ def main():
             batch=[r for r in selected if lower<=r['position']<lower+10]
             usable=[r for r in batch if r['coverage']=='complete' and r['executed']]
             affected=sum(r['intervention_count']>0 for r in usable)
-            bins.append(dict(condition=condition,position_start=lower,position_end=lower+9,recorded_calls=len(batch),executed_calls=sum(r['executed'] for r in batch),
+            bins.append(dict(condition=condition,enforcement_effect='none' if condition=='none' else args.effect,position_start=lower,position_end=lower+9,recorded_calls=len(batch),executed_calls=sum(r['executed'] for r in batch),
                 valid_covered_calls=len(usable),intervened_calls=affected,intervention_events=sum(r['intervention_count'] for r in usable),fp_events=sum(r['fp_count'] for r in usable),
                 unknown_intervention_events=sum(r['unknown_count'] for r in usable),intervention_rate=affected/len(usable) if usable else ''))
         relevant_runs=[r for r in runs if r['condition']==condition]
-        summary.append(dict(condition=condition,planned_trajectories=len(relevant_runs),complete_trajectories=sum(r['coverage']=='complete' for r in relevant_runs),
+        summary.append(dict(condition=condition,enforcement_effect='none' if condition=='none' else args.effect,planned_trajectories=len(relevant_runs),complete_trajectories=sum(r['coverage']=='complete' for r in relevant_runs),
             recorded_calls=len(selected),executed_calls=sum(r['executed'] for r in selected),valid_covered_calls=len(valid),
             exit_zero_calls=sum(r['exit_code']==0 for r in valid),intervened_calls=sum(r['intervention_count']>0 for r in valid),
             intervention_events=sum(r['intervention_events'] for r in relevant_runs if r['coverage']=='complete'),fp_events=sum(r['fp_count'] for r in valid),true_events=sum(r['true_count'] for r in valid),unknown_intervention_events=sum(r['unknown_intervention_events'] for r in relevant_runs if r['coverage']=='complete'),

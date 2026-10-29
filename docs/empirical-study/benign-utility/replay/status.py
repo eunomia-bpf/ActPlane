@@ -3,7 +3,7 @@ import json,os,subprocess
 from collections import Counter
 from pathlib import Path
 root=Path(os.environ['WS_RAW'])/'replay'
-for condition in ('none','broad','scoped'):
+for condition in ('none','broad','scoped','block-broad','block-scoped'):
     directory=root/condition/'dynamic/runs'
     runs=[]
     for run in sorted(directory.glob('t*')):

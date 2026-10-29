@@ -28,14 +28,14 @@ BROAD = ['**/*.env', '**/*.env.local', '**/*.env.production', '**/*.pem', '**/*.
          '/root/.aws/credentials', '/root/.gemini/oauth_creds.json', '/etc/secrets/**']
 
 
-def policy(plan, condition):
+def policy(plan, condition, effect='kill'):
     sources = BROAD if condition == 'broad' else [
         plan['sandbox_workdir'] + '/.env', plan['sandbox_workdir'] + '/.env.local',
         plan['sandbox_workdir'] + '/.env.production', '/root/.ssh/id_rsa',
         '/root/.ssh/id_ed25519',
         '/root/.aws/credentials', '/root/.gemini/oauth_creds.json', '/etc/secrets/**']
     text = 'source COMMAND = exec "**"\n' + '\n'.join('source SECRET = file ' + json.dumps(p) for p in sources)
-    return text + '\nrule no-secret-network:\n  kill connect endpoint "*" if SECRET\n  because "secret material requires trusted redaction before network access"\n'
+    return text + '\nrule no-secret-network:\n  '+effect+' connect endpoint "*" if SECRET\n  because "secret material requires trusted redaction before network access"\n'
 
 
 def process_ready(argv, out, err, marker, env=None):
@@ -109,9 +109,13 @@ class Instruments:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--condition', choices=['none', 'broad', 'scoped'], required=True)
+    parser.add_argument('--effect', choices=['kill','block'], default='kill')
+    parser.add_argument('--open-audit',action='store_true',help='Separate untimed verification replay with standard successful-open tracing')
     parser.add_argument('--ids', default='')
     args = parser.parse_args()
-    raw = ROOT / args.condition
+    raw_name=('block-'+args.condition) if args.effect=='block' and args.condition!='none' else args.condition
+    if args.open_audit:raw_name='open-audit-'+raw_name
+    raw = ROOT / raw_name
     (raw / 'dynamic').mkdir(parents=True, exist_ok=True)
     for name in ('toolchains', 'git-cache'):
         target = raw / 'dynamic' / name
@@ -128,7 +132,16 @@ def main():
     original_sandbox = runner.sandbox
     worker_state = {}
     def sandbox(*values):
-        output = original_sandbox(*values)
+        old_popen=subprocess.Popen
+        def traced_popen(argv,*positional,**named):
+            if argv[0]=='bwrap':
+                argv=['strace','-f','-qq','-ttt','-z','-yy','-s','4096','-e','trace=open,openat,openat2',
+                    '-o',str(values[2]/'successful-opens.strace')]+argv
+            return old_popen(argv,*positional,**named)
+        try:
+            if args.open_audit:subprocess.Popen=traced_popen
+            output = original_sandbox(*values)
+        finally:subprocess.Popen=old_popen
         worker_state['pid'] = output[0].pid
         worker_state['worker'] = output[0]
         return output
@@ -172,7 +185,7 @@ def main():
             if not host_root or mapping.get('exit_code')!=0:raise RuntimeError('initial-namespace worker-root mapping failed')
             (run/'root-mapping.json').write_text(json.dumps(dict(marker=marker,workspace_popen_pid=worker_state['pid'],initial_namespace_worker_pid=host_root,mapper_result=mapping),indent=2))
             if args.condition != 'none':
-                text=policy(plan,args.condition)
+                text=policy(plan,args.condition,args.effect)
                 (run/'policy.dsl').write_text(text)
                 result=subprocess.run([str(CLI),'--rule',text,'compile','--out',str(run/'policy.bin')],capture_output=True,text=True)
                 (run/'policy-compile.log').write_text(result.stdout+result.stderr)
@@ -190,10 +203,14 @@ def main():
                 (run/'compiled-sources.json').write_text(json.dumps(compiled,indent=2))
                 instruments.append(process_ready([str(LOADER),'--config',str(run/'policy.bin'),'--seed-pid',str(host_root),'--seed-label','0'],
                     run/'engine.jsonl',run/'engine.stderr','ActPlane: ready'))
+                if args.effect=='block' and 'ActPlane: enforce mode' not in (run/'engine.stderr').read_text():
+                    raise RuntimeError('native block enforcement not active; no defended calls admitted')
             metadata=dict(condition=args.condition,root_pid=host_root,root_pid_namespace='initial-kernel-worker',workspace_popen_pid=worker_state['pid'],source_observer_string_bytes=1024,loader_sha256=hashlib.sha256(LOADER.read_bytes()).hexdigest(),
                 source_observer_sha256=hashlib.sha256((run/'source-observer.bt').read_bytes()).hexdigest(),kernel=os.uname().release)
             metadata['engine_environment']={name:os.environ.get(name) for name in (
                 'ACTPLANE_HOOK_PROFILE','ACTPLANE_ENABLE_ADVANCED_HOOKS','ACTPLANE_ADVANCED_TRACEPOINTS','ACTPLANE_RESERVE_FILE_FLOW')}
+            metadata['enforcement_effect']='none' if args.condition=='none' else args.effect
+            metadata.update(open_audit=args.open_audit,clock_epoch_ns=time.time_ns(),clock_monotonic_ns=time.monotonic_ns())
             (run/'utility-metadata.json').write_text(json.dumps(metadata,indent=2))
             worker_state['instruments'] = instruments
             # The copied runner owns these extra file handles and closes them.
@@ -212,7 +229,7 @@ def main():
             raise RuntimeError('instrumentation exited unexpectedly during call')
         return result
     runner.request=request
-    runner.CFG['run_phase']='benign-utility-v1-'+args.condition
+    runner.CFG['run_phase']='benign-utility-'+('open-audit-' if args.open_audit else '')+args.effect+'-'+args.condition
     plans=list(csv.DictReader((HARNESS/'dynamic_plan.csv').open()))
     if args.ids: plans=[p for p in plans if p['dynamic_id'] in args.ids.split(',')]
     calls={p['trajectory_id']:[] for p in plans}
@@ -234,6 +251,8 @@ def main():
             if metadata.get('source_observer_sha256')!=hashlib.sha256(expected.encode()).hexdigest():reasons.append('observer protocol changed before fixed full matrix')
             if metadata.get('source_observer_string_bytes')!=1024:reasons.append('observer buffer differs from final validated protocol')
             if args.condition!='none' and metadata.get('root_pid_namespace')!='initial-kernel-worker':reasons.append('unvalidated namespace root')
+            if args.condition!='none' and metadata.get('enforcement_effect', 'kill')!=args.effect:reasons.append('enforcement effect differs from selected cohort')
+            if bool(metadata.get('open_audit'))!=args.open_audit:reasons.append('independent audit status differs from selected cohort')
             source_log=(run/'sources.jsonl').read_text(errors='replace') if (run/'sources.jsonl').exists() else ''
             if re.search(r'(?i)"type"\s*:\s*"[^"\n]*(?:error|lost|drop|overflow)[^"\n]*"',source_log):reasons.append('observer helper failure/event loss')
             exits=json.loads((run/'instrument-exits.json').read_text()) if (run/'instrument-exits.json').exists() else []
@@ -243,7 +262,7 @@ def main():
                 target=attempts/(args.condition+'-'+plan['dynamic_id']+'-'+str(time.time_ns()))
                 shutil.move(str(run),target)
                 (target/'exclusion-reason.json').write_text(json.dumps(dict(reasons=reasons),indent=2))
-        runner.replay(raw,plan,sorted(calls[plan['trajectory_id']],key=lambda c:c['call_index']))
+        runner.replay(raw,plan,sorted(calls[plan['trajectory_id']],key=lambda c:c['call_index']),cleanup=not args.open_audit)
         compact_closed_tool(run)
 
 

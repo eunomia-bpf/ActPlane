@@ -58,7 +58,7 @@ def main():
     for source,target in [(PREVIOUS/'classified_calls.jsonl.gz',ROOT/'input/classified_calls.jsonl.gz'),
         (PREVIOUS/'dynamic/launch',ROOT/'input/dynamic/launch')]:
         if not target.exists():shutil.copy2(source,target)
-    for condition in ('none','broad','scoped'):
+    for condition in ('none','broad','scoped','block-broad','block-scoped'):
         dynamic=ROOT/condition/'dynamic';dynamic.mkdir(parents=True,exist_ok=True)
         for name in ('toolchains','git-cache'):
             target=dynamic/name
