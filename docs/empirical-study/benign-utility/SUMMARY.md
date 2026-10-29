@@ -6,7 +6,7 @@ The [runtime amendment](benchmark/expanded/AMENDMENT.md) retains unsupported hos
 
 The revised supervisor cutoff stops new cells at 2026-10-30 14:00 UTC. Completed-cell snapshots are committed and pushed to experiments/mlsys27; unfinished cells remain partial. Adjudication retains unknown cases; task success and intervention verification are distinct endpoints. [README.md](README.md) gives methods, exclusions, the paper-ready paragraph and scope limits. [headline.csv](results/headline.csv) is produced by [report.py](report.py).
 
-The added QEMU task reached genuine agent timeouts and logged native reward zero, but its official verifier stopped at obsolete dependency HTTP 404s before tests. Verified utility remains unavailable. The fixed no-resampling rule prohibits another agent attempt; only verification of the original post-agent state could recover an outcome. [Independent review](plan-review.md) distinguishes this case from the original audited agent-error default-Mean failure.
+For the added QEMU task, the baseline agent completed and the two defended agents timed out; every native verifier logged reward zero after obsolete dependency HTTP 404s prevented tests. Verified utility remains unavailable. The original containers are confirmed absent. The fixed no-resampling rule prohibits new defended agent attempts; a repaired baseline retry remains eligible after other frozen first attempts. [Independent review](plan-review.md) distinguishes this case from the original audited agent-error default-Mean failure.
 
 <!-- expansion-status:start -->
 Expansion snapshot from `results/headline.csv`; pending cells are not failures.

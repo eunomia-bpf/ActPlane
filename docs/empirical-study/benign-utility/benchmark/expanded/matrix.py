@@ -60,6 +60,11 @@ def run_worker(worker):
     # native agent timeout. Keep the existing trajectory for outcome audit.
     timed_out=[r for r in rows if r['task']==name and r['condition']==condition and r['exception_type']=='AgentTimeoutError']
     if timed_out:print('GENUINE_TIMEOUT_NO_RESAMPLE_REQUIRES_OUTCOME_AUDIT',name,condition,flush=True);continue
+    # QEMU's completed baseline encountered an obsolete apt artifact only during
+    # verification. Defer its eligible infrastructure repair until all frozen
+    # first attempts finish and the verifier transport has actually been fixed.
+    if name=='qemu-alpine-ssh' and any(r['task']==name and r['condition']==condition for r in rows):
+     print('QEMU_INFRA_RETRY_DEFERRED_UNTIL_REMAINING_FIRST_ATTEMPTS_AND_TRANSPORT_REPAIR',name,condition,flush=True);continue
     unresolved=[r for r in rows if r['task']==name and r['condition']==condition and r['outcome_valid']!='1' and r['verifier_valid']!='0']
     if unresolved:print('NEEDS_OUTCOME_AUDIT',name,condition,flush=True);continue
     if time.time()>=deadline:print('REPORTING_CUTOFF_PARTIAL',name,condition,flush=True);break

@@ -6,7 +6,7 @@ The current host lacks active BPF LSM, so its attempted defended cells cannot en
 
 The supervisor extended the launch cutoff to **2026-10-30 14:00 UTC**; already-started cells retain their official timeouts. [checkpoint.sh](checkpoint.sh) recomputes analysis and copies a coherent small-file snapshot under the exporter lock. [checkpoint.ps1](checkpoint.ps1) publishes those files and the generated tables, then commits and pushes only `experiments/mlsys27`. Windows performs file publication and Git; all experimental analysis remains in the Workspace.
 
-The added QEMU task reached genuine agent timeouts and logged native reward zero, but its official verifier stopped at obsolete dependency HTTP 404s before tests. Verified utility remains unavailable. The fixed no-resampling rule prohibits another agent attempt; only verification of the original post-agent state could recover an outcome. [Independent review](plan-review.md) distinguishes this case from the original audited agent-error default-Mean failure.
+For the added QEMU task, the baseline agent completed and the two defended agents timed out; every native verifier logged reward zero after obsolete dependency HTTP 404s prevented tests. Verified utility remains unavailable. The original containers are confirmed absent. The fixed no-resampling rule prohibits new defended agent attempts; a repaired baseline retry remains eligible after other frozen first attempts. [Independent review](plan-review.md) distinguishes this case from the original audited agent-error default-Mean failure.
 
 <!-- expansion-status:start -->
 Expansion snapshot from `results/headline.csv`; pending cells are not failures.
