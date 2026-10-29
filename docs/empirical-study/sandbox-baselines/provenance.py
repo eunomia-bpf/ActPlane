@@ -9,6 +9,7 @@ import time
 import shutil
 
 from study import HERE, LANE, RAW, VENDOR
+from study import SOURCE_RAW
 OUT = LANE/'results'
 OUT.mkdir(exist_ok=True)
 def run(args):
@@ -38,6 +39,13 @@ for p in sorted(VENDOR.glob('*.py')):
     h=lambda f:hashlib.sha256(f.read_bytes()).hexdigest()
     files.append(dict(file=p.name,sha256=h(p),upstream_sha256=h(upstream),identical=int(p.read_bytes()==upstream.read_bytes())))
 write('replayer-hashes.csv',files)
+traces=[]
+for s in sorted((SOURCE_RAW/'artifact/docs/corpus-test').glob('*/*/statement.json')):
+    for n in json.loads(s.read_text())['trace_files']:
+        p=s.parent/n
+        traces.append(dict(repo=s.parent.parent.name,statement_id=s.parent.name,trace=n,
+                           sha256=hashlib.sha256(p.read_bytes()).hexdigest(),bytes=p.stat().st_size))
+write('trace-hashes.csv',traces)
 package=RAW/'tools/node_modules/@anthropic-ai/sandbox-runtime'
 (OUT/'srt-cli-default-source.txt').write_text('\n'.join(
     x for x in (package/'dist/cli.js').read_text().splitlines()
@@ -47,9 +55,17 @@ package=RAW/'tools/node_modules/@anthropic-ai/sandbox-runtime'
 (OUT/'docker-image.json').write_text(run(['docker','image','inspect','actplane-sandbox-baselines:trixie'])+'\n')
 (OUT/'docker-package-versions.txt').write_text(run(['docker','run','--rm','actplane-sandbox-baselines:trixie','dpkg-query','-W'])+'\n')
 (OUT/'docker-security-status.txt').write_text(run(['docker','run','--rm','actplane-sandbox-baselines:trixie','cat','/proc/self/status'])+'\n')
+provenance={name:(OUT/name).read_text() for name in
+    ('srt-cli-default-source.txt','codex-sandbox-help.txt','docker-info.txt',
+     'docker-package-versions.txt','docker-security-status.txt')}
+provenance['configuration_files']={str(p):p.read_text() if p.exists() else None for p in
+    (RAW/'codex-home/config.toml',Path('/etc/docker/daemon.json'))}
+provenance['srt_settings']='absent in each fresh /tmp/repo/.eval-home'
+provenance['daemon_arguments']=['dockerd','--data-root',str(RAW/'docker'),'--pidfile',str(RAW/'dockerd.pid')]
+(OUT/'runtime-provenance.json').write_text(json.dumps(provenance,indent=2)+'\n')
 shutil.copy(RAW/'tools/package-lock.json',OUT/'srt-package-lock.json')
 write('optional-lanes.csv',[dict(item='gVisor',available=int(bool(run(['sh','-c','command -v runsc']))),reason='not installed; optional installation omitted'),
-    dict(item='injection-bench',available=int(Path('/workspaces/exp/injection-bench').exists()),reason='inspect folder only; never block')])
+    dict(item='injection-bench',available=int(Path('/workspaces/exp/injection-bench').exists()),reason='folder read; benchmark execution and task selection not yet finalized; optional extension not run')])
 write('configurations.csv',[
  dict(system='control',config='no sandbox',network='Workspace network',scope='matched replay control'),
  dict(system='codex',config='empty CODEX_HOME; sandbox_mode=workspace-write; default network off',network='default denied',scope='official requested preset'),

@@ -1,0 +1,15 @@
+component,version,utc
+codex,codex-cli 0.162.1,2026-10-29T06:25:26Z
+srt,0.0.81,2026-10-29T06:25:26Z
+docker,"Docker version 26.1.5+dfsg1, build a72d7cd",2026-10-29T06:25:26Z
+kernel,7.3.0-070300rc3-generic,2026-10-29T06:25:26Z
+bubblewrap,bubblewrap 0.12.0,2026-10-29T06:25:26Z
+strace,strace -- version 6.13,2026-10-29T06:25:26Z
+python,Python 3.13.5,2026-10-29T06:25:26Z
+node,v20.19.2,2026-10-29T06:25:26Z
+pytest,pytest 8.3.5,2026-10-29T06:25:26Z
+pytest-module,pytest 8.3.5,2026-10-29T06:25:26Z
+docker-pytest,pytest 8.3.5,2026-10-29T06:25:28Z
+docker-pytest-module,pytest 8.3.5,2026-10-29T06:25:28Z
+docker-image,sha256:54d31b5f38c7a745194890f4607de77318c4f9edf0bb10399d7efd3c125a5576,2026-10-29T06:25:28Z
+disk,Filesystem                                              Size  Used Avail Use% Mounted on,2026-10-29T06:25:28Z

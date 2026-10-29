@@ -1,0 +1,3 @@
+stage,status,reason,raw_path
+initial Docker image build,failed,nested default bridge DNS; build-only host networking used on retry,/workspaces/exp/sandbox-baselines/raw/docker-build.log
+optional original-worker syscall observation,error,RuntimeError: worker_not_stopped: ,/workspaces/exp/sandbox-baselines/raw/fidelity-effects/Alishahryar1__free-claude-code/6/trace_allowed_effect_compliant/result.json

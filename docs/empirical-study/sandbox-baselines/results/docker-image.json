@@ -1,0 +1,59 @@
+[
+    {
+        "Id": "sha256:54d31b5f38c7a745194890f4607de77318c4f9edf0bb10399d7efd3c125a5576",
+        "RepoTags": [
+            "actplane-sandbox-baselines:trixie"
+        ],
+        "RepoDigests": [],
+        "Parent": "sha256:394ffa2d2ac8f5c9f45148f22bad3587429bceb19c93b88e8595f1e3f7892853",
+        "Comment": "",
+        "Created": "2026-10-29T06:09:05.885984471Z",
+        "DockerVersion": "26.1.5+dfsg1",
+        "Author": "",
+        "Config": {
+            "Hostname": "",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "bash"
+            ],
+            "Image": "sha256:394ffa2d2ac8f5c9f45148f22bad3587429bceb19c93b88e8595f1e3f7892853",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": [],
+            "OnBuild": null,
+            "Labels": null
+        },
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 328779611,
+        "GraphDriver": {
+            "Data": {
+                "LowerDir": "/workspaces/exp/sandbox-baselines/raw/docker/overlay2/903fe5210182d8e68341433cdaa846a973b6c1fe833eb0ed344e2b29efd6b18a/diff",
+                "MergedDir": "/workspaces/exp/sandbox-baselines/raw/docker/overlay2/82b9e68a895e18f3c9c69f5a193fb5554bb2c4aa3b36e522f7ff3c056aebd540/merged",
+                "UpperDir": "/workspaces/exp/sandbox-baselines/raw/docker/overlay2/82b9e68a895e18f3c9c69f5a193fb5554bb2c4aa3b36e522f7ff3c056aebd540/diff",
+                "WorkDir": "/workspaces/exp/sandbox-baselines/raw/docker/overlay2/82b9e68a895e18f3c9c69f5a193fb5554bb2c4aa3b36e522f7ff3c056aebd540/work"
+            },
+            "Name": "overlay2"
+        },
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:a5d6d345f6afa08d7c31272055746d60a838b290bfcc82c0a23e8e984d61a933",
+                "sha256:c924868edae51d15d217d611186b8b57ace75a80622f21682b08a749c7c21d36"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-10-29T06:09:06.431581806Z"
+        }
+    }
+]

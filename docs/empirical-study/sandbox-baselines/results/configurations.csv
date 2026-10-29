@@ -1,0 +1,9 @@
+system,config,network,scope
+control,no sandbox,Workspace network,matched replay control
+codex,empty CODEX_HOME; sandbox_mode=workspace-write; default network off,default denied,official requested preset
+srt,no ~/.srt-settings.json; built-in default,empty allowlist,standalone SRT defaults
+srt-cwd,"{
+  ""network"": {""allowedDomains"": [], ""deniedDomains"": []},
+  ""filesystem"": {""denyRead"": [], ""allowWrite"": [""/tmp/repo""], ""denyWrite"": []}
+}",empty allowlist,documented enabled-harness cwd-write analogue; not standalone default
+docker,default runtime security; workload/input/output bind mounts only,default bridge; nested DNS failure recorded,default Docker security boundary

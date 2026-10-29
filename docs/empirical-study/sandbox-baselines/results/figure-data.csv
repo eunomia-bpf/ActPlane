@@ -1,0 +1,11 @@
+system,metric,numerator,denominator
+codex,prevented,15,111
+codex,new_compliant_denial,6,76
+srt,prevented,93,111
+srt,new_compliant_denial,72,76
+srt-cwd,prevented,33,111
+srt-cwd,new_compliant_denial,1,76
+docker,prevented,0,111
+docker,new_compliant_denial,0,76
+AgPlane reference,imported_detection,80,114
+AgPlane zai/glm-4.5-air,imported_detection,58,114

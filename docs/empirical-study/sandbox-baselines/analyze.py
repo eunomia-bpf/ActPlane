@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import yaml
 
 from study import HERE, LANE, RAW, SOURCE_RAW
 from effect_oracle import evaluate
@@ -41,7 +42,7 @@ def family(n):
 def key(r):return (r['repo'],str(r['statement_id']),r['trace'])
 def main():
     OUT.mkdir(exist_ok=True)
-    rows=[];errors=[];fidelity=[]
+    rows=[];errors=[];fidelity=[];environment=[]
     inputs=[]
     for s in sorted((SOURCE_RAW/'artifact/docs/corpus-test').glob('*/*/statement.json')):
         for n in json.loads(s.read_text())['trace_files']:
@@ -74,6 +75,10 @@ def main():
             else:
                 r['effect_evidence']='; '.join((out/f).read_text()[-3000:] for f in ('stderr.txt','setup.stderr') if (out/f).exists())
             for t in ts:
+                signal=re.search(r'[^\n]*(?:command not found|No module named|make: not found)[^\n]*',visible(t))
+                if signal:
+                    environment.append({k:r[k] for k in ('system','repo','statement_id','trace','family','violation')}|
+                        dict(step=t['step'],signal=signal.group(0),raw_dir=str(out)))
                 if t['step'] in new_denied:
                     errors.append({k:r[k] for k in ('system','repo','statement_id','trace','family','violation')}|
                         dict(step=t['step'],tool=t['tool'],returncode=t['returncode'],stdout=t.get('stdout',''),stderr=t.get('stderr',''),error=t.get('error','')))
@@ -96,6 +101,15 @@ def main():
         r['effect_pair_eligible']=int(eligible and r['status']=='complete' and r['effect_observed']!='')
         r['prevented']=int(r['effect_observed']==0) if r['effect_pair_eligible'] else ''
     writecsv('per-trace.csv',rows);writecsv('errors.csv',errors);writecsv('fidelity.csv',fidelity)
+    writecsv('environment-signals.csv',environment)
+    types=[]
+    for system in SYSTEMS[1:]:
+        se=[e for e in errors if e['system']==system]
+        for label,pattern in [('read_only_filesystem','read-only file system'),('permission_denied','permission denied'),('operation_not_permitted','operation not permitted')]:
+            selected=[e for e in se if pattern in '\n'.join(str(e.get(k,'')) for k in ('stdout','stderr','error')).lower()]
+            types.append(dict(system=system,error_type=label,tool_steps=len(selected),
+                traces=len({(e['repo'],e['statement_id'],e['trace']) for e in selected})))
+    writecsv('error-types.csv',types)
     summary=[]
     for system in SYSTEMS:
         group=[r for r in rows if r['system']==system]
@@ -137,6 +151,15 @@ def main():
             d[fam+'_n']=len(g);d[fam+'_detected']=sum(int(r.get('fired') or 0) for r in g)
         summary.append(d)
     writecsv('agplane-import.csv',imports)
+    policies=[]
+    for sd,_,_ in inputs[::5]:
+        reference=yaml.safe_load((sd/'rule.yaml').read_text())['policy']
+        policies.append(dict(system='reference',repo=sd.parent.name,statement_id=sd.name,policy=reference,status='reference'))
+        p=SOURCE_RAW/'translations/rq2'/best['model'].replace('/','__')/(sd.parent.name+'__'+sd.name)/'result.json'
+        result=load(p,{})
+        policies.append(dict(system=best['model'],repo=sd.parent.name,statement_id=sd.name,
+                             policy=result.get('policy',''),status=result.get('status','unknown')))
+    writecsv('agplane-policies.csv',policies)
     writecsv('comparison.csv',summary)
     exclusions=[r for r in rows if r['violation'] and not r['effect_pair_eligible']]
     writecsv('exclusions.csv',exclusions)
@@ -151,6 +174,16 @@ def main():
             attempts.append(dict(tag=tag,system=f.parents[3].name,repo=f.parents[2].name,
                 statement_id=f.parents[1].name,trace=f.parent.name,returncode=data.get('returncode',''),raw_dir=str(f.parent),error=data.get('error','')))
     writecsv('attempts.csv',attempts)
+    infra=[]
+    build=RAW/'docker-build.log'
+    if build.exists():
+        infra.append(dict(stage='initial Docker image build',status='failed' if 'Temporary failure resolving' in build.read_text() else 'see log',
+                          reason='nested default bridge DNS; build-only host networking used on retry',raw_path=str(build)))
+    for p in sorted((RAW/'fidelity-effects').glob('*/*/*/result.json')):
+        r=load(p,{})
+        infra.append(dict(stage='optional original-worker syscall observation',status=r.get('status','unknown'),
+                          reason=r.get('error',''),raw_path=str(p)))
+    writecsv('infrastructure-attempts.csv',infra)
     print(json.dumps(summary,indent=2))
 
 if __name__=='__main__':main()

@@ -1,0 +1,8 @@
+system,metric,planned,completed,failures,violations,eligible_effect_pairs,prevented,prevented_rate,compliant,false_trigger,false_trigger_rate,unknown_effects,control_effect_absent,control_effect_unknown,direct_n,direct_prevented,script_n,script_prevented,hidden_n,hidden_prevented,detected,detection_rate,direct_detected,script_detected,hidden_detected
+control,effect prevention / new tool-visible access denial,190,190,0,114,111,0,0.0,76,0,0.0,3,0,3,37,0,37,0,37,0,,,,,
+codex,effect prevention / new tool-visible access denial,190,190,0,114,111,15,0.13513513513513514,76,6,0.07894736842105263,3,0,3,37,5,37,5,37,5,,,,,
+srt,effect prevention / new tool-visible access denial,190,190,0,114,111,93,0.8378378378378378,76,72,0.9473684210526315,3,0,3,37,28,37,37,37,28,,,,,
+srt-cwd,effect prevention / new tool-visible access denial,190,190,0,114,111,33,0.2972972972972973,76,1,0.013157894736842105,3,0,3,37,0,37,33,37,0,,,,,
+docker,effect prevention / new tool-visible access denial,190,190,0,114,111,0,0.0,76,0,0.0,3,0,3,37,0,37,0,37,0,,,,,
+AgPlane reference,imported notify-mode detection; NOT prevention,190,190,0,114,,,,76,13,0.17105263157894737,not measured,,,38,,38,,38,,80,0.7017543859649122,27,27,26
+AgPlane zai/glm-4.5-air,imported notify-mode detection; NOT prevention,190,190,0,114,,,,76,10,0.13157894736842105,not measured,,,38,,38,,38,,58,0.5087719298245614,19,20,19

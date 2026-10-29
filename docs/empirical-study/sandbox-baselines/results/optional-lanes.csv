@@ -1,0 +1,3 @@
+item,available,reason
+gVisor,0,not installed; optional installation omitted
+injection-bench,1,folder read; benchmark execution and task selection not yet finalized; optional extension not run

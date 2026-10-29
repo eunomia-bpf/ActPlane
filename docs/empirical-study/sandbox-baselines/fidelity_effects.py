@@ -10,7 +10,6 @@ import sys
 
 from study import RAW, SOURCE_RAW, HERE, dump, manifest, replay
 from analyze import load, logtext, tools, writecsv
-from effect_oracle import evaluate
 
 def observe(payload):
     out=Path(payload['out']); sd=Path(payload['statement'])
@@ -39,25 +38,38 @@ def main():
     for s in sorted((SOURCE_RAW/'artifact/docs/corpus-test').glob('*/*/statement.json')):
         sd=s.parent
         for name in json.loads(s.read_text())['trace_files']:
-            out=RAW/'fidelity-effects'/sd.parent.name/sd.name/Path(name).stem
+            out=RAW/'fidelity-files'/sd.parent.name/sd.name/Path(name).stem
             out.mkdir(parents=True,exist_ok=True)
             if not (out/'result.json').exists():
                 payload=dict(statement=str(sd),trace=str(sd/name),out=str(out))
                 dump(out/'payload.json',payload)
-                p=subprocess.run(['strace','-f','-qq','-s','2000','-e','trace=%file,%process',
-                    '-o',str(out/'syscalls.log'),'python3',str(HERE/'fidelity_effects.py'),str(out/'payload.json')],
+                p=subprocess.run(['python3',str(HERE/'fidelity_effects.py'),str(out/'payload.json')],
                     text=True,capture_output=True,timeout=300,
                     env=dict(PATH='/usr/local/bin:/usr/bin:/bin',HOME='/root',LANG='C.UTF-8'))
                 (out/'stderr.txt').write_text(p.stderr)
                 if p.returncode:raise RuntimeError(p.stderr)
             records=[json.loads(x) for x in (sd/name).read_text().splitlines()]
-            original=evaluate(sd.parent.name,sd.name,records,load(out/'before.json'),load(out/'after.json'),logtext(out/'syscalls.log'),tools(out/'tools.jsonl'))
             control=RAW/'final/control'/sd.parent.name/sd.name/Path(name).stem
-            adapted=evaluate(sd.parent.name,sd.name,records,load(control/'before.json'),load(control/'after.json'),logtext(control/'syscalls.log'),tools(control/'tools.jsonl'))
+            def changed_paths(directory):
+                before,after=load(directory/'before.json'),load(directory/'after.json')
+                if before is None or after is None:raise RuntimeError('missing fidelity filesystem observation')
+                ignored=('.eval-safe-bin/','.eval-fixtures/','.eval-home/')
+                def content(r):return (r or {}).get('sha256',(r or {}).get('link'))
+                return sorted(p for p in before.keys()|after.keys() if not p.startswith(ignored)
+                    and (content(before.get(p))!=content(after.get(p)) or ((p in before)!=(p in after))))
+            original,adapted=changed_paths(out),changed_paths(control)
+            differences=set(original)^set(adapted)
+            git_only=bool(differences) and all(p.startswith('.git/objects/') for p in differences)
+            if any(not p.startswith('.git/objects/') for p in differences):
+                print('non-object path difference',sd.parent.name,sd.name,name,sorted(differences),flush=True)
+                for location in (out,control):
+                    print(location,[(t.get('stdout','')[-1500:],t.get('stderr','')[-1500:])
+                          for t in tools(location/'tools.jsonl') if t['tool']=='Bash'],flush=True)
             results.append(dict(repo=sd.parent.name,statement_id=sd.name,trace=name,
-                violation=int(records[0]['violation']),original_effect=original['effect_observed'],
-                adapter_effect=adapted['effect_observed'],effect_equal=int(original['effect_observed']==adapted['effect_observed']),
-                original_evidence=original['evidence'],adapter_evidence=adapted['evidence']))
+                violation=int(records[0]['violation']),changed_paths_equal=int(original==adapted),
+                changed_paths_equal_without_git_objects=int({p for p in original if not p.startswith('.git/objects/')}=={p for p in adapted if not p.startswith('.git/objects/')}),
+                difference_reason='git object names only' if git_only else 'none' if not differences else 'other changed paths',
+                original_changed=json.dumps(original),adapter_changed=json.dumps(adapted)))
             for file in ('before.json','after.json','syscalls.log'):
                 p=out/file
                 if p.exists():
@@ -65,7 +77,8 @@ def main():
                         import shutil
                         shutil.copyfileobj(src,dst)
                     p.unlink()
-    writecsv('fidelity-effects.csv',results)
-    print('original/adapted effects equal',sum(r['effect_equal'] for r in results),'/',len(results),flush=True)
+    writecsv('fidelity-files.csv',results)
+    print('original/adapted persistent changed paths equal',sum(r['changed_paths_equal'] for r in results),'/',len(results),flush=True)
+    print('equal excluding git object names',sum(r['changed_paths_equal_without_git_objects'] for r in results),'/',len(results),flush=True)
 
 if __name__=='__main__':main()

@@ -1,0 +1,13 @@
+system,error_type,tool_steps,traces
+codex,read_only_filesystem,25,24
+codex,permission_denied,0,0
+codex,operation_not_permitted,1,1
+srt,read_only_filesystem,217,168
+srt,permission_denied,0,0
+srt,operation_not_permitted,0,0
+srt-cwd,read_only_filesystem,34,34
+srt-cwd,permission_denied,0,0
+srt-cwd,operation_not_permitted,0,0
+docker,read_only_filesystem,0,0
+docker,permission_denied,0,0
+docker,operation_not_permitted,0,0

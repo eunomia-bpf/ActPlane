@@ -168,6 +168,9 @@ def main():
             out = RAW / args.tag / system / sd.parent.name / sd.name / trace.stem
             if (out / 'execution.json').exists():
                 continue
+            while shutil.disk_usage('/workspaces').used / shutil.disk_usage('/workspaces').total >= .85:
+                print('waiting for shared disk below user ceiling', system, trace, flush=True)
+                time.sleep(5)
             out.mkdir(parents=True, exist_ok=True)
             payload = dict(statement=str(sd), trace=str(trace), out=str(out), system=system)
             dump(out / 'payload.json', payload)

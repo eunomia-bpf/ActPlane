@@ -12,4 +12,7 @@ failed=0
 for pid in "${pids[@]}"; do wait "$pid" || failed=1; done
 echo "all workers terminal; failed=$failed"
 python3 analyze.py
+python3 fidelity_effects.py
 python3 report.py
+python3 verify_artifacts.py
+python3 compress.py "$tag"

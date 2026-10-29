@@ -13,3 +13,4 @@ for s in ('control','codex','srt','srt-cwd','docker','original'):
     log=root/f'{tag}-{s}.log'
     if log.exists(): print('\n'.join(log.read_text().splitlines()[-2:]))
 print(subprocess.check_output(['df','-h','/workspaces'],text=True))
+print('filesystem fidelity receipts',len(list((root/'fidelity-files').glob('*/*/*/result.json'))))
