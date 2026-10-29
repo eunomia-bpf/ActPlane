@@ -7,10 +7,12 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import time
 import urllib.request
+from urllib.parse import quote
 
 BASE = Path('/workspaces/exp/benign-utility/raw/benchmark')
 ROOT = BASE / 'dependencies'
@@ -18,6 +20,9 @@ PUBLIC = ROOT / 'public'
 VERSION = '0.9.5'
 ARCHIVE = 'uv-x86_64-unknown-linux-gnu.tar.gz'
 RELEASE = f'https://github.com/astral-sh/uv/releases/download/{VERSION}'
+PYTHON_BUILD = '20251014'
+PYTHON_ARCHIVE = 'cpython-3.13.9+20251014-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz'
+PYTHON_RELEASE = f'https://github.com/astral-sh/python-build-standalone/releases/download/{PYTHON_BUILD}'
 HOST = '172.29.77.1'  # Existing lane Docker bridge gateway, no daemon changes.
 PORT = 38765
 URL = f'http://{HOST}:{PORT}'
@@ -31,6 +36,25 @@ def download(url, target):
     temporary = target.with_suffix(target.suffix + '.partial')
     subprocess.run(['curl', '-fLsS', '--retry', '2', '-o', str(temporary), url], check=True)
     temporary.replace(target)
+
+
+def prepare_python():
+    folder = PUBLIC / 'python' / PYTHON_BUILD
+    folder.mkdir(parents=True, exist_ok=True)
+    download(f'{PYTHON_RELEASE}/SHA256SUMS', folder / 'SHA256SUMS')
+    expected = next(line.split()[0] for line in (folder / 'SHA256SUMS').read_text().splitlines()
+                    if line.split()[-1].lstrip('*') == PYTHON_ARCHIVE)
+    artifact_url = f'{PYTHON_RELEASE}/{quote(PYTHON_ARCHIVE)}'
+    download(artifact_url, folder / PYTHON_ARCHIVE)
+    actual = hashlib.sha256((folder / PYTHON_ARCHIVE).read_bytes()).hexdigest()
+    if actual != expected:
+        raise RuntimeError('Official default Python runtime checksum mismatch')
+    (ROOT / 'python-provenance.json').write_text(json.dumps(dict(
+        version='3.13.9', build=PYTHON_BUILD, archive=PYTHON_ARCHIVE, sha256=actual,
+        official_artifact_url=artifact_url, checksum_url=f'{PYTHON_RELEASE}/SHA256SUMS',
+        env='UV_PYTHON_INSTALL_MIRROR',
+        supported_by='https://github.com/astral-sh/uv/blob/0.9.5/crates/uv-static/src/env_vars.rs#L398-L403',
+    ), indent=2))
 
 
 def prepare():
@@ -50,6 +74,7 @@ def prepare():
         installer_url=f'https://astral.sh/uv/{VERSION}/install.sh',
         installer_sha256=hashlib.sha256((PUBLIC / 'install.sh').read_bytes()).hexdigest())
     (ROOT / 'provenance.json').write_text(json.dumps(provenance, indent=2))
+    prepare_python()
     try:
         with urllib.request.urlopen(f'{URL}/{ARCHIVE}.sha256', timeout=3) as response:
             if response.read().decode().split()[0] != expected:
@@ -74,7 +99,7 @@ def prepare():
 def verifier_env():
     """Native JobConfig verifier.env override for uv installer public transport."""
     prepare()
-    return {'UV_DOWNLOAD_URL': URL}
+    return {'UV_DOWNLOAD_URL': URL, 'UV_PYTHON_INSTALL_MIRROR': URL + '/python'}
 
 
 def control(image):
@@ -82,14 +107,17 @@ def control(image):
     folder = ROOT / ('control-' + time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()))
     folder.mkdir(exist_ok=True)
     (folder / 'test_dependencies.py').write_text(
-        'import importlib.metadata\n'
+        'import importlib.metadata, json, platform, sys\n'
+        'from pathlib import Path\n'
         'def test_exact_packages():\n'
+        '    assert sys.version_info[:2] == (3, 13)\n'
+        '    Path("/control/runtime.json").write_text(json.dumps(dict(version=platform.python_version(), executable=sys.executable)))\n'
         '    for name, version in (("pytest", "8.4.1"), ("pytest-json-ctrf", "0.3.5"), ("gitpython", "3.1.44")):\n'
         '        assert importlib.metadata.version(name) == version\n')
     command = (
         'set -e; apt-get update; apt-get install -y curl; '
         'curl -LsSf https://astral.sh/uv/0.9.5/install.sh | sh; '
-        'source $HOME/.local/bin/env; uv --version; '
+        'source $HOME/.local/bin/env; uv --version; uv python list --only-installed; '
         'uvx -p 3.13 -w pytest==8.4.1 -w gitpython==3.1.44 '
         '-w pytest-json-ctrf==0.3.5 pytest --ctrf /control/ctrf.json '
         '/control/test_dependencies.py -rA'
@@ -98,6 +126,7 @@ def control(image):
                   'DOCKER_CONFIG': str(BASE / 'docker-config')}
     args = ['docker', 'run', '--rm', '--name', 'bu-verifier-dependency-control',
             '--env', 'UV_DOWNLOAD_URL=' + env['UV_DOWNLOAD_URL'],
+            '--env', 'UV_PYTHON_INSTALL_MIRROR=' + env['UV_PYTHON_INSTALL_MIRROR'],
             '--volume', str(folder) + ':/control', '--workdir', '/app', image, 'bash', '-lc', command]
     with (folder / 'stdout.txt').open('w') as stream:
         result = subprocess.run(args, env=docker_env, stdout=stream, stderr=subprocess.STDOUT)
@@ -108,11 +137,19 @@ def control(image):
         gitpython_version='3.1.44', returncode=result.returncode,
         tests=summary.get('tests', 0), passed=summary.get('passed', 0),
         uv_sha256=json.loads((ROOT / 'provenance.json').read_text())['sha256'])
+    runtime_path = folder / 'runtime.json'
+    runtime = json.loads(runtime_path.read_text()) if runtime_path.exists() else {}
+    row.update(python_runtime=runtime.get('version', ''), python_executable=runtime.get('executable', ''),
+        python_mirror=env['UV_PYTHON_INSTALL_MIRROR'],
+        python_archive_sha256=json.loads((ROOT / 'python-provenance.json').read_text())['sha256'])
     evidence = BASE.parent.parent / 'benchmark/cli/results'
     evidence.mkdir(parents=True, exist_ok=True)
-    with (evidence / 'dependency-control.csv').open('w', newline='') as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(row))
-        writer.writeheader(); writer.writerow(row)
+    proof = evidence / 'dependency-control.csv'
+    previous = list(csv.DictReader(proof.open())) if proof.exists() else []
+    with proof.open('w', newline='') as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(row), lineterminator='\n')
+        writer.writeheader(); writer.writerows(previous + [row])
+    shutil.copyfile(ROOT / 'python-provenance.json', evidence / 'dependency-python-provenance.json')
     inventory = []
     for task in TASKS:
         text = (BASE / 'terminal-bench-2' / task / 'tests/test.sh').read_text()

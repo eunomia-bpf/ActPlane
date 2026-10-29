@@ -1,0 +1,10 @@
+{
+  "version": "3.13.9",
+  "build": "20251014",
+  "archive": "cpython-3.13.9+20251014-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+  "sha256": "c0ccda275948c79996e46993c2c5476ff5cca606dee530f1dea712179131b348",
+  "official_artifact_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20251014/cpython-3.13.9%2B20251014-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+  "checksum_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20251014/SHA256SUMS",
+  "env": "UV_PYTHON_INSTALL_MIRROR",
+  "supported_by": "https://github.com/astral-sh/uv/blob/0.9.5/crates/uv-static/src/env_vars.rs#L398-L403"
+}
