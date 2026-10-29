@@ -7,6 +7,26 @@ from pathlib import Path
 import urllib.request
 
 raw=Path(os.environ['WS_RAW'])
+for directory in sorted(raw.glob('vm*')):
+    pidfile=directory/'qemu.pid'
+    if not pidfile.exists():continue
+    try:
+        pid=int(pidfile.read_text().strip());os.kill(pid,0);alive=True
+    except (OSError,ValueError):alive=False
+    queue=directory/'queue'
+    print(json.dumps({'guest':directory.name,'alive':alive,
+        'ready':(queue/'ready.json').exists(),
+        'queued':sum(not p.with_name(p.name.replace('.request.json','.result.json')).exists()
+                     for p in queue.glob('*.request.json'))}))
+if '--processes' in sys.argv:
+    for proc in Path('/proc').glob('[0-9]*'):
+        try:
+            argv=proc.joinpath('cmdline').read_bytes().decode().split('\0')
+            if not any(a.endswith('/benchmark_runner.py') or a=='scripts/benchmark_runner.py' for a in argv):continue
+            run=argv[argv.index('--run-dir')+1] if '--run-dir' in argv else None
+            if run:print(json.dumps({'runner_pid':int(proc.name),'run':run,
+                'systems':argv[argv.index('--systems')+1:argv.index('--systems')+3] if '--systems' in argv else 'all'}))
+        except (OSError,ValueError):pass
 for run in sorted((raw/'runs').glob('*')):
     if not run.is_dir():continue
     results=[json.loads(p.read_text()) for p in (run/'cases').glob('*/scored.json')]

@@ -8,7 +8,7 @@ Resolution: a supervisor-provided OS-Harm VM with sufficient storage, plus a ver
 
 ## Per-attempt kernel rejection attribution
 
-Current ActPlane runtime may reject invalid policy submissions in a userspace authority precheck before a kernel request is made. Existing JSONL audit records alone cannot attribute such rejections to the kernel. The adapter will retain actual caller PID, target, policy text, audit record and kernel admission counters, label the decision stage, and report missing attribution. No kernel source modifications are made in this lane. A lack of natural weakening attempts in the official attacks will be reported as uncovered, not converted into synthetic attack successes or fabricated rejection evidence.
+Current ActPlane runtime may reject invalid policy submissions in a userspace authority precheck before a kernel request is made. Existing JSONL audit records alone cannot attribute such rejections to the kernel. The adapter retains actual caller PID, target, policy text, audit record and kernel admission counters, labels the decision stage, and reports missing attribution. Original kernel checkouts remain unchanged; the lane-owned copied build is described below. A lack of natural weakening attempts in the official attacks will be reported as uncovered, not converted into synthetic attack successes or fabricated rejection evidence.
 
 ## Kernel execution setup resolved
 
