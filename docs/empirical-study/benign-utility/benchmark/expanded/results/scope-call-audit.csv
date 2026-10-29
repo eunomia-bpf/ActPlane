@@ -179,3 +179,4 @@ modernize-scientific-stack__S3s84NZ,modernize-scientific-stack,c,8,0,1,1,0,recor
 nginx-request-logging__djUXvNr,nginx-request-logging,a,1,2,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
 nginx-request-logging__djUXvNr,nginx-request-logging,a,2,0,1,1,0,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
 nginx-request-logging__djUXvNr,nginx-request-logging,a,3,12,0,1,1,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
+nginx-request-logging__BqNztAZ,nginx-request-logging,b,1,1,0,1,1,recorded_asciicast_input,command,complete,,Independent EXEC/FORK exact seeded-kernel-PID events; no EXIT output hook existed
