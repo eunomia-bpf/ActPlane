@@ -11,7 +11,12 @@ The initial codebook was withheld because enforcement agreement fell below its g
 
 Few-shot examples and error inspection use development repositories only. The protocol and split were committed before development inference. Codebook selection stops at the prespecified dev criterion or revision cap, then the guide, examples, contextual inputs and inference configuration are frozen before a single test evaluation. Original type/topic labels remain fixed. See `rescue/PROTOCOL.md`, `rescue/repository_split.csv`, and the versioned codebooks/examples.
 
-Development inference is in progress. No rescue test scores are available.
+| Revision | Dimension | Dev kappa | Test kappa | Test status |
+|---|---|---:|---:|---|
+| r1 | enforceability | 0.772 | not evaluated | not_evaluated |
+| r1 | context_required | 0.654 | not evaluated | not_evaluated |
+
+Selected revision: `r1`. Frozen artifacts and hashes are recorded in `rescue/frozen_selection.json`.
 
 Source context is deterministic and unannotated: target statement, repository-relative path, section-heading chain and bounded enclosing paragraph when it adds information. All source/context hashes are in `rescue/context_audit.csv`. Context helps resolve referents without promoting neighboring requirements into the target. The original reference does not provide an independent reliability check for new families or noncoding domains.
 

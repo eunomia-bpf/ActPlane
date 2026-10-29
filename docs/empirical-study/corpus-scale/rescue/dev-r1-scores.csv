@@ -1,0 +1,10 @@
+stage,revision,model,dimension,scope,expected,successful,missing,coverage,agreement,kappa,test_status
+dev,r1,qwen,enforceability,applicable_gold,344,344,0,1.0,0.8197674418604651,0.755092667018809,not_evaluated
+dev,r1,qwen,context_required,applicable_gold,262,262,0,1.0,0.816793893129771,0.6108670090970976,not_evaluated
+dev,r1,qwen,context_required,all_directives_including_na,344,344,0,1.0,0.7877906976744186,0.6571366156030692,not_evaluated
+dev,r1,glm,enforceability,applicable_gold,344,344,0,1.0,0.8284883720930233,0.7679343227606394,not_evaluated
+dev,r1,glm,context_required,applicable_gold,262,262,0,1.0,0.8473282442748091,0.6805949224345493,not_evaluated
+dev,r1,glm,context_required,all_directives_including_na,344,344,0,1.0,0.8052325581395349,0.689931657966959,not_evaluated
+dev,r1,adjudicated,enforceability,applicable_gold,344,344,0,1.0,0.8313953488372093,0.7716561566544973,not_evaluated
+dev,r1,adjudicated,context_required,applicable_gold,262,262,0,1.0,0.8320610687022901,0.6539177424196938,not_evaluated
+dev,r1,adjudicated,context_required,all_directives_including_na,344,344,0,1.0,0.8052325581395349,0.6897145934302639,not_evaluated

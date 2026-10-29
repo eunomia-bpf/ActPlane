@@ -21,8 +21,9 @@ def evaluate(stage,revision):
   lock=OUT/'test_evaluation_lock.json'
   if lock.exists():
    assert json.loads(lock.read_text())['prediction_hashes']==signatures,'Test predictions changed after evaluation'
-   print('Frozen test evaluation already exists; unchanged cached metrics reused.');return
-  lock.write_text(json.dumps(dict(at=now(),revision=revision,prediction_hashes=signatures),indent=2)+'\n')
+   if (OUT/f'test-{revision}-scores.csv').exists() and (OUT/'test_gates.csv').exists():
+    print('Frozen test evaluation already exists; unchanged cached metrics reused.');return
+  else:lock.write_text(json.dumps(dict(at=now(),revision=revision,prediction_hashes=signatures),indent=2)+'\n')
  results=[];confusion=[];errors=[]
  for name,path in zip(['qwen','glm','adjudicated'],paths):
   pred={r['statement_id']:r for r in read_csv(path)}

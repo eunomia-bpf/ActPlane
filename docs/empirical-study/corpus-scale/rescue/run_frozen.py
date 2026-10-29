@@ -11,6 +11,7 @@ def main():
  assert digest((OUT/'label_rescue.py').read_bytes())==selection['engine_sha256']
  assert digest((OUT/'build_inputs.py').read_bytes())==selection['context_builder_sha256']
  assert digest((OUT/'test_inputs.csv').read_bytes())==selection['test_inputs_sha256']
+ assert digest((DEFAULT_RAW/'rescue-source-inputs.csv').read_bytes())==selection['source_inputs_sha256']
  shared=[sys.executable,str(OUT/'label_rescue.py'),'--guide',str(OUT/f'codebook-{rev}.txt'),'--examples',str(OUT/f'examples-{rev}.csv'),'--revision',rev,'--batch-size','48','--max-chars','60000','--remote-tokens','20000','--remote-timeout','600']
  def command(stage,name,workers,adj=False):
   source=DEFAULT_RAW/'rescue-source-inputs.csv' if stage=='source' else OUT/'test_inputs.csv'
@@ -28,6 +29,10 @@ def main():
    testa=subprocess.Popen(command('test','adjudicated',3 if sourceq.poll() is None else 6,True))
   if testa is not None and testa.poll() is not None and not test_done:
    assert testa.returncode==0
+   expected_test=len(read_csv(OUT/'test_inputs.csv'))
+   for name in ['qwen','glm','adjudicated']:
+    test_rows=read_csv(OUT/f'test-{rev}-{name}.csv')
+    assert len(test_rows)==expected_test and all(r['status']=='ok' for r in test_rows), 'Test inference incomplete; resume transport/schema failures before evaluation'
    subprocess.run([sys.executable,str(OUT/'evaluate.py'),'--stage','test','--revision',rev],check=True)
    test_done=True
    from complete import checkpoint

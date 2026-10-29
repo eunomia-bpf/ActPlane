@@ -1,0 +1,22 @@
+{
+  "revision": "r1",
+  "selected_at": "2026-10-29T06:00:11+00:00",
+  "min_dev_kappa": 0.6539177424196938,
+  "mean_dev_kappa": 0.7127869495370955,
+  "codebook_sha256": "10c0d821b8e2f96b3b44b5736af4fa2f5239e949e50e9653f1d6ca78ed5c9b44",
+  "examples_sha256": "cabbd762090c2ce31aaec616ee42d9ebd3ff5cf8df194d2a2108f37c7e120db2",
+  "engine_sha256": "53c170fb2d4c34948f56f62f301a1543088aaaee4cf9652d9335ace7ba71c883",
+  "context_builder_sha256": "1d3f056152d78f748c421d09f84ab053d255022ee8bfb8eb9a41fedb854d6827",
+  "test_inputs_sha256": "d61ef05afe2b1f978a6a8bc36a0970cd25d32fce4729277f8ab102744582f7d7",
+  "repository_split_sha256": "af748f7e1fa51d1bd2073b86c6bae6cc70b68af43802125df1f0900727567248",
+  "source_inputs_sha256": "5e12d30062f6ec7bd52bf412ec8edea5d690528e2303975b0fd4908262ba92c7",
+  "dev_scores_sha256": "986b5fa65abf302845a41c7fa0264693f74ca7589151276304c0fcea740213eb",
+  "test_and_source_batch_size": 48,
+  "test_and_source_max_chars": 60000,
+  "remote_completion_token_ceiling": 20000,
+  "remote_timeout_seconds": 600,
+  "model_qwen": "qwen3.8-27b-nvfp4",
+  "model_glm": "zai/glm-5.3",
+  "selection_rule": "first_min_dev_kappa_at_least_065_else_best_min_at_cap",
+  "holdout_caveat": "prospective_only_prior_full_reference_evaluated"
+}
