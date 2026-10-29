@@ -1,0 +1,4 @@
+component,path,sha256
+engine,/workspaces/exp/benign-utility/raw/benchmark/engine/process,981ae81f4d4a091176bb8d0679e5516edd59667b4f1c93379d5454db0e6fa520
+compiler,/workspaces/lanes/translation-models/target/release/actplane,564ce43b9caa85117e630b7c0931da112e25e43e89fff065540f5ddd1443de01
+observer,/workspaces/exp/benign-utility/src/replay/source_observer.bt,5c457fffdb3b1764599125039b8a8a246ca346937df2d5c6c11a7ca801fb1473

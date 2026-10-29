@@ -13,4 +13,4 @@ for index,name in enumerate(TASKS):
  print('\nTASK',name,'\n'+(p/'instruction.md').read_text())
 with (OUT/'tasks.csv').open('w',newline='') as f:
  w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
-(OUT/'versions.json').write_text(json.dumps({'harbor':importlib.metadata.version('harbor'),'terminus_2':'2.0.0','dataset':'terminal-bench@2.0','commit':rows[0]['dataset_commit'],'model':'qwen3.8-27b-nvfp4','model_url':'http://qwen38-vllm.models.svc.cluster.local:8000/v1','seed':'unset official default','repetitions':1,'selection':'purposive software/data and secret-handling tasks, not a representative estimate of full benchmark'},indent=2)+'\n')
+(OUT/'versions.json').write_text(json.dumps({'harbor':importlib.metadata.version('harbor'),'terminus_2':'2.0.0','dataset':'terminal-bench@2.0','commit':rows[0]['dataset_commit'],'model':'zai/glm-5.3','model_url':'Workspace LITELLM_BASE_URL','candidate_preflight_model':'qwen3.8-27b-nvfp4','seed':'unset official default','repetitions':1,'selection':'purposive software/data and secret-handling tasks, not a representative estimate of full benchmark'},indent=2)+'\n')

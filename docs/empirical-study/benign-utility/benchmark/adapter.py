@@ -1,5 +1,5 @@
 """Thin measurement/defense adapter over Harbor's unmodified Terminus 2."""
-import asyncio,json,os,signal,subprocess,time
+import asyncio,json,os,signal,subprocess,time,shutil,uuid
 from pathlib import Path
 from harbor.agents.terminus_2.terminus_2 import Terminus2
 
@@ -32,10 +32,35 @@ class InstrumentedTerminus(Terminus2):
      if int(match.split()[-1])==nspid:root=int(path.name);break
    except (OSError,StopIteration):pass
   if root is None:raise RuntimeError('Could not map tmux pane shell to host PID')
-  meta=dict(condition=self.bu_condition,task=self.bu_task,root_host_pid=root,root_namespace_pid=nspid,container_id=cid,root_pid_namespace=ns,attached_monotonic=time.monotonic(),scope='tmux pane shell and descendants; controller/model API outside scope')
+  # /proc is mounted in the Workspace PID namespace, whereas BPF uses initial
+  # kernel PIDs. Obtain an independent receipt from the actual persistent shell.
+  workspace_pid=root;marker='bu'+uuid.uuid4().hex[:10]
+  mapping=self.bu_logs/'pid-mapping.bt';mapping_log=self.bu_logs/'pid-mapping.jsonl'
+  mapping.write_text('BEGIN { printf("PID_MAPPER_READY\\n"); }\ntracepoint:syscalls:sys_enter_openat /comm == "'+marker+'"/ { printf("HOST_PID|%d\\n", curtask->tgid); exit(); }\n')
+  with mapping_log.open('w') as stream:
+   mapper=subprocess.Popen(['bpftrace','-f','json',str(mapping)],stdout=stream,stderr=subprocess.STDOUT)
+   try:
+    for _ in range(600):
+     if 'PID_MAPPER_READY' in mapping_log.read_text():break
+     if mapper.poll() is not None:raise RuntimeError('PID mapper failed')
+     await asyncio.sleep(.1)
+    else:raise RuntimeError('PID mapper startup timed out')
+    await self._session.send_keys(f"printf '%s' {marker} >/proc/self/comm; : >/dev/null; printf '%s' bash >/proc/self/comm\n",block=False,min_timeout_sec=.2)
+    for _ in range(100):
+     if 'HOST_PID|' in mapping_log.read_text():break
+     await asyncio.sleep(.1)
+    else:raise RuntimeError('Persistent shell did not produce initial-PID receipt')
+    import re
+    root=int(re.search(r'HOST_PID\|(\d+)',mapping_log.read_text())[1])
+    if root<=0 or 'helper_error' in mapping_log.read_text():raise RuntimeError('Invalid kernel PID receipt')
+   finally:
+    if mapper.poll() is None:mapper.send_signal(signal.SIGINT)
+    mapper.wait(timeout=10)
+  meta=dict(condition=self.bu_condition,task=self.bu_task,root_host_pid=root,root_workspace_pid=workspace_pid,root_namespace_pid=nspid,container_id=cid,root_pid_namespace=ns,attached_monotonic=time.monotonic(),scope='tmux pane shell and descendants; controller/model API outside scope')
   (self.bu_logs/'scope.json').write_text(json.dumps(meta,indent=2))
   self.bu_observer_log=(self.bu_logs/'observer.jsonl').open('w')
-  self.bu_observer=subprocess.Popen(['bpftrace','-f','json',str(Path(__file__).parents[1]/'replay/source_observer.bt'),str(root)],env={**os.environ,'BPFTRACE_MAX_STRLEN':'256','BPFTRACE_MAX_MAP_KEYS':'262144'},stdout=self.bu_observer_log,stderr=subprocess.STDOUT)
+  observer=self.bu_logs/'observer.bt';shutil.copyfile(Path(__file__).parents[1]/'replay/source_observer.bt',observer)
+  self.bu_observer=subprocess.Popen(['bpftrace','-f','json',str(observer),str(root)],env={**os.environ,'BPFTRACE_MAX_STRLEN':'256','BPFTRACE_MAX_MAP_KEYS':'262144'},stdout=self.bu_observer_log,stderr=subprocess.STDOUT)
   for _ in range(600):
    if 'SOURCE_OBSERVER_READY' in (self.bu_logs/'observer.jsonl').read_text():break
    if self.bu_observer.poll() is not None:raise RuntimeError('Observer failed: '+(self.bu_logs/'observer.jsonl').read_text()[-1000:])
@@ -52,16 +77,29 @@ class InstrumentedTerminus(Terminus2):
     if self.bu_loader.poll() is not None:raise RuntimeError('Engine failed: '+(self.bu_logs/'engine.log').read_text()[-500:])
     await asyncio.sleep(.1)
    else:raise RuntimeError('Engine never became ready')
+  await self._session.send_keys('/bin/true\n',block=False,min_timeout_sec=.2)
+  for _ in range(100):
+   if f'|benchmark|{root}|' in (self.bu_logs/'observer.jsonl').read_text():break
+   await asyncio.sleep(.1)
+  else:raise RuntimeError('Independent observer did not confirm seeded shell effects')
+  meta['kernel_root_verified']=True;meta['calibration_finished_ns']=time.monotonic_ns()
+  (self.bu_logs/'scope.json').write_text(json.dumps(meta,indent=2))
  async def _execute_commands(self,commands,session):
   self._check_observers()
-  start=time.monotonic_ns();self.bu_index+=1
-  with (self.bu_logs/'calls.jsonl').open('a') as f:f.write(json.dumps(dict(index=self.bu_index,start_ns=start,commands=[dict(keystrokes=c.keystrokes,duration_sec=c.duration_sec) for c in commands]))+'\n')
+  original=session.send_keys
+  async def measured(keystrokes,*args,**kwargs):
+   self.bu_index+=1;index=self.bu_index
+   with (self.bu_logs/'calls.jsonl').open('a') as f:f.write(json.dumps(dict(index=index,unit='tool_call',start_ns=time.monotonic_ns(),keystrokes=keystrokes,duration_sec=kwargs.get('min_timeout_sec'))) +'\n')
+   try:return await original(keystrokes,*args,**kwargs)
+   finally:
+    with (self.bu_logs/'calls.jsonl').open('a') as f:f.write(json.dumps(dict(index=index,end_ns=time.monotonic_ns()))+'\n')
+  session.send_keys=measured
   try:
    result=await super()._execute_commands(commands,session)
    self._check_observers()
    return result
   finally:
-   with (self.bu_logs/'calls.jsonl').open('a') as f:f.write(json.dumps(dict(index=self.bu_index,end_ns=time.monotonic_ns()))+'\n')
+   session.send_keys=original
  async def run(self,*args,**kwargs):
   try:
    self._check_observers()

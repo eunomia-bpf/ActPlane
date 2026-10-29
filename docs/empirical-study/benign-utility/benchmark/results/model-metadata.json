@@ -1,0 +1,14 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "qwen3.8-27b-nvfp4",
+      "object": "model",
+      "created": 1793254792,
+      "owned_by": "sglang",
+      "root": "qwen3.8-27b-nvfp4",
+      "parent": null,
+      "max_model_len": 200000
+    }
+  ]
+}

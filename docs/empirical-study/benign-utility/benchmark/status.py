@@ -6,14 +6,12 @@ for p in sorted((raw/'jobs').glob('*')):
  results=list(p.glob('*/result.json'))
  print('JOB',p.name)
  for r in results:
-  d=json.loads(r.read_text());print('RESULT',d.get('verifier_result'),(d.get('exception_info') or {}).get('exception_message','')[:300])
- for log in p.glob('*/trial.log'):
-  print('LOG',log.read_text()[-800:])
- for log in p.glob('*/agent/observer.jsonl'):
-  print('OBSERVER',log.read_text()[-800:])
+  d=json.loads(r.read_text());print('RESULT',d.get('verifier_result'),(d.get('exception_info') or {}).get('exception_type',''))
  for log in p.glob('*/agent/calls.jsonl'):
-  print('CALLS',len(log.read_text().splitlines()),log.read_text()[-300:])
- for log in p.glob('*/agent/*'):
-  if log.is_file():print('ARTIFACT',log.name,log.stat().st_size)
+  print('CALL_RECORDS',len(log.read_text().splitlines()))
+ for log in p.glob('*/agent/scope.json'):
+  d=json.loads(log.read_text());print('SCOPE',d.get('root_host_pid'),d.get('root_workspace_pid'),d.get('kernel_root_verified',False))
+ for log in p.glob('*/agent/trajectory.json'):
+  d=json.loads(log.read_text());print('METRICS',d.get('final_metrics'));print('ATIF_TOOL_CALLS',sum(len(s.get('tool_calls') or []) for s in d.get('steps',[])))
 for line in subprocess.check_output(['ps','-eo','pid,args'],text=True).splitlines():
  if any(x in line for x in ['benchmark.run','bpftrace','/engine/process','/bounded-loader/process']):print('PROC',line[:350])
