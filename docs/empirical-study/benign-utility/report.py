@@ -69,8 +69,9 @@ def main():
         if len(keys) != len(set(keys)):
             raise ValueError(f'Duplicate valid main comparisons in {dataset}')
         valid_keys = {(r[call_identity], r['condition']) for r in valid_runs}
-        valid_calls = [r for r in calls if (r[call_identity], r['condition']) in valid_keys
-                       and r.get('coverage') == 'complete']
+        covered_calls = [r for r in calls if (r[call_identity], r['condition']) in valid_keys
+                         and r.get('coverage') == 'complete']
+        valid_calls = [r for r in covered_calls if not benchmark or r.get('action_kind') in ('command', 'interrupt')]
         baseline = {r[identity]: r for r in valid_runs if r['condition'] == conditions[0]}
         for condition in conditions:
             selected = [r for r in valid_runs if r['condition'] == condition]
@@ -125,6 +126,8 @@ def main():
                 paired_success_trials=len(success_differences) if benchmark else '',
                 success_drop_percentage_points=100 * sum(success_differences) / len(success_differences) if success_differences else '',
                 calls=len(selected_calls),
+                covered_terminal_submissions=sum(r['condition'] == condition for r in covered_calls) if benchmark else '',
+                covered_empty_wait_submissions=sum(r['condition'] == condition and r.get('action_kind') == 'wait' for r in covered_calls) if benchmark else '',
                 intervention_events=len(selected_events),
                 unattributed_intervention_events=len(selected_events) - int(attributed),
                 intervened_calls=intervened_calls, confirmed_false_calls=false_calls, unknown_calls=unknown_calls,
@@ -171,13 +174,13 @@ def render(rows, positions, out):
             bar.set_hatch('//')
         axes[0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2, label, ha='center')
     axes[0].set(ylim=(0, 120), yticks=range(0, 101, 20), ylabel='Official task success (%)', title='Terminal-Bench subset')
-    for condition, color, label in [('none', '#777777', 'No AgPlane'), ('broad', '#ca6828', 'Broad'), ('scoped', '#2577a2', 'Scoped')]:
+    for condition, color, label in [('none', '#777777', 'None'), ('broad', '#ca6828', 'Broad'), ('scoped', '#2577a2', 'Scoped')]:
         data = [r for r in positions if r['dataset'] == 'Public replay' and r['condition'] == condition]
         if data:
             x = [r['bin_start'] + 4.5 for r in data]
-            axes[1].plot(x, [100*r['confirmed_false_calls']/r['calls'] for r in data], marker='.', color=color, label=label+' confirmed')
+            axes[1].plot(x, [100*r['confirmed_false_calls']/r['calls'] for r in data], marker='.', color=color, label=label+' lower')
             if any(r['unknown_calls'] for r in data):
-                axes[1].plot(x, [100*r['potential_false_calls']/r['calls'] for r in data], ls=':', color=color, label=label+' incl. unresolved')
+                axes[1].plot(x, [100*r['potential_false_calls']/r['calls'] for r in data], ls=':', color=color, label=label+' upper')
     replay_complete = all(r['matrix_complete'] for r in rows if r['dataset'] == 'Public replay')
     replay_title = 'Public replay' if replay_complete else 'Public replay (partial)'
     axes[1].set(xlabel='Within-session call position (bins of ten)', ylabel='False-intervention rate bounds (%)', title=replay_title)

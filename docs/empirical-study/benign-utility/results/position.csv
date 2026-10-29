@@ -1,0 +1,36 @@
+dataset,condition,bin_start,bin_end,calls,intervened_calls,confirmed_false_calls,unknown_calls,potential_false_calls,source_read_accesses
+Terminal-Bench,a,1,10,50,0,0,0,0,20.0
+Terminal-Bench,a,11,20,10,0,0,0,0,0.0
+Terminal-Bench,a,21,30,8,0,0,0,0,0.0
+Terminal-Bench,b,1,10,42,0,0,0,0,15.0
+Terminal-Bench,b,11,20,11,0,0,0,0,0.0
+Terminal-Bench,b,21,30,7,0,0,0,0,0.0
+Terminal-Bench,c,1,10,34,0,0,0,0,17.0
+Terminal-Bench,c,11,20,10,0,0,0,0,0.0
+Terminal-Bench,c,21,30,9,0,0,0,0,0.0
+Public replay,none,1,10,386,0,0,0,0,1715.0
+Public replay,none,11,20,327,0,0,0,0,882.0
+Public replay,none,21,30,237,0,0,0,0,454.0
+Public replay,none,31,40,140,0,0,0,0,105.0
+Public replay,none,41,50,87,0,0,0,0,152.0
+Public replay,none,51,60,68,0,0,0,0,40.0
+Public replay,none,61,70,46,0,0,0,0,280.0
+Public replay,none,71,80,13,0,0,0,0,0.0
+Public replay,none,81,90,10,0,0,0,0,0.0
+Public replay,broad,1,10,157,3,0,3,3,20.0
+Public replay,broad,11,20,127,4,0,4,4,42.0
+Public replay,broad,21,30,87,2,0,2,2,30.0
+Public replay,broad,31,40,53,0,0,0,0,36.0
+Public replay,broad,41,50,33,2,0,2,2,14.0
+Public replay,broad,51,60,25,0,0,0,0,44.0
+Public replay,broad,61,70,12,0,0,0,0,4.0
+Public replay,broad,71,80,10,0,0,0,0,0.0
+Public replay,broad,81,90,10,0,0,0,0,0.0
+Public replay,scoped,1,10,229,0,0,0,0,1630.0
+Public replay,scoped,11,20,201,0,0,0,0,828.0
+Public replay,scoped,21,30,144,0,0,0,0,414.0
+Public replay,scoped,31,40,87,0,0,0,0,69.0
+Public replay,scoped,41,50,54,0,0,0,0,138.0
+Public replay,scoped,51,60,43,0,0,0,0,0.0
+Public replay,scoped,61,70,34,0,0,0,0,276.0
+Public replay,scoped,71,80,3,0,0,0,0,0.0
