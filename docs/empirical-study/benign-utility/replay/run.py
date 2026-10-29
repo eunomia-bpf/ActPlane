@@ -135,7 +135,8 @@ def main():
         old_popen=subprocess.Popen
         def traced_popen(argv,*positional,**named):
             if argv[0]=='bwrap':
-                argv=['strace','-f','-qq','-ttt','-z','-yy','-s','4096','-e','trace=open,openat,openat2',
+                argv=['strace','-f','-qq','-ttt','-z','-yy','-s','4096','-e',
+                    'trace=open,openat,openat2,creat,truncate,rename,renameat,renameat2',
                     '-o',str(values[2]/'successful-opens.strace')]+argv
             return old_popen(argv,*positional,**named)
         try:
