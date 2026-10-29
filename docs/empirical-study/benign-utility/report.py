@@ -96,6 +96,8 @@ def main():
                 if r['condition'] == condition and (r[call_identity], condition) in valid_keys
                 and (any(str(r.get(k, '')).lower() in ('true', '1') for k in ('killed', 'blocked'))
                      if benchmark else number(r, 'intervened') > 0)]
+            if any(r.get('adjudication') not in ('false_intervention', 'true_violation', 'unknown') for r in selected_events):
+                raise ValueError(f'Unrecognized intervention adjudication: {dataset}/{condition}')
             attributed = sum(number(r, 'intervention_events' if benchmark else 'intervention_count') for r in selected_calls)
             if attributed > len(selected_events):
                 raise ValueError(f'Call counts exceed actual intervention events: {dataset}/{condition}')
@@ -142,6 +144,7 @@ def main():
                 intervention_events=len(selected_events),
                 confirmed_false_events=sum(r.get('adjudication') == 'false_intervention' for r in selected_events),
                 confirmed_true_events=sum(r.get('adjudication') == 'true_violation' for r in selected_events),
+                runtime_rule_violation_events=sum(r.get('project_verdict') == 'runtime_version_noncompliance' for r in selected_events),
                 unknown_events=sum(r.get('adjudication') == 'unknown' for r in selected_events),
                 unattributed_intervention_events=len(selected_events) - int(attributed),
                 intervened_calls=intervened_calls, confirmed_false_calls=false_calls, unknown_calls=unknown_calls,
