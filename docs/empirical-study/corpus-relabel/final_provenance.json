@@ -1,0 +1,28 @@
+{
+  "bootstrap_seed": 20261029,
+  "bootstrap_replicates": 10000,
+  "bootstrap_unit": "whole repositories uniformly with replacement; percentile 95% CI",
+  "python": "3.12.10",
+  "numpy": "2.5.3",
+  "matplotlib": "3.11.2",
+  "pyyaml": "6.0.3",
+  "sample_seed": 20261033,
+  "sample_design": "equal populated type/tier/topic strata; round-robin repositories within strata; without replacement",
+  "sample_repositories": 88,
+  "sample_cohorts": {
+    "original64": 11,
+    "added298": 89
+  },
+  "validation": "all 29,717 exact IDs, source text/spans/first labels, label applicability, correction reasons, baseline metrics, plot-loaded counts and PDF fonts passed",
+  "sha256": {
+    "corpus-relabel\\shards\\original64.csv": "0b5bcb314c11f5bed3ea4766f8874cd35d3cc92606ccb0206e5ef6190c22d03c",
+    "corpus-relabel\\original64\\reviewed.csv": "5a9198f984438a61907cef1f5dd7240932319238bad2a92d20e5d4da49dfbbc2",
+    "corpus-relabel\\reviewed_all.csv": "6b9ddfdcbc7cdb430cacd5da830ae5d0d89549f2863447ca058cda6683b23b10",
+    "corpus-relabel\\final_labels.csv": "e536bf4800507d7c6f173a7d74a1e30a6f608c881680f07f40657623cf3c0a6d",
+    "corpus-merge\\analyze_merge.py": "0654e024f63b3ad160390c34f09c349813328882de3b24a40776ca0d47f95419",
+    "corpus-merge\\plot_empirical.py": "68532b2884475cf21ce181afb817a71816d6f3cf8a0b74d6b177b32d7a4b8d41",
+    "corpus-relabel\\shard2\\run_review.py": "f0204300c30c1babb8ec294fc6192b80cd7130b1d27b41307a3dc5aec2af4cca",
+    "corpus-relabel\\shard2\\shared_codebook.txt": "6e0c379882305517fa104fa62fd80a64aa30161a94108911b8e895457d5c00b7",
+    "corpus-relabel\\shard2\\response_schema.json": "ce22856c4e4860eae5895b3d1b0fd5cfdfb237709c146725eadd1c3e689e2dd6"
+  }
+}

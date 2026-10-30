@@ -1,0 +1,406 @@
+statement_id,repo,file_path,start_line,end_line,text,type,topic,enforceability,context_required,type_first,topic_first,enforceability_first,context_required_first,changed,reason,review_cohort,verdict
+paper:yusufkaraaslan/Skill_Seekers:28,yusufkaraaslan/Skill_Seekers,yusufkaraaslan/Skill_Seekers/AGENTS.md,119,120,"- Use modern syntax: `str | None` not `Optional[str]`, `list[str]` not `List[str]`
+",directive,Implementation Details,content,none,directive,Implementation Details,content,none,false,,original64,
+560ed21ee43c1175beba:195:196,Automattic/harper,AGENTS.md,195,196,"- The same merged dictionary source must be used for both `Document::new_markdown_default(text, &dictionary)` and `LintGroup::new_curated(dictionary, dialect)`.
+",directive,Implementation Details,cross_event,none,directive,Implementation Details,content,project,true,Requires shared data lineage across two explicit construction operations.,added298,
+eff3382f42fdadf67b63:227:228,corsairdev/corsair,skills/corsair/SKILL.md,227,228,"1. Set `CORSAIR_PROD_API_KEY` (`ck_prod_`) and `CORSAIR_PROD_SIGNING_SECRET` in the deploy environment. The `corsair.ts` above prefers them when present, and the `ck_prod_` prefix flips the SDK to production.
+",directive,DevOps,content,project,directive,DevOps,per_event,project,true,Compliance depends on the configured environment-variable names and values.,added298,
+e5a6689d66340e7a6bce:6:13,h4ckf0r0day/obscura,skills/obscura/SKILL.md,6,13,"# Obscura
+
+Use Obscura as a lightweight, stealth-capable Rust headless browser for
+automation. It embeds V8, owns the DOM and rendering pipeline, and exposes
+Chrome DevTools Protocol workflows without launching Chromium. Treat rendering
+and stealth as first-class, complementary capabilities.
+
+",directive,System Overview,per_event,none,directive,System Overview,semantic_only,,true,Choosing Obscura for browser automation is observable tool routing.,added298,
+b77274d2d7bc39fbcf6e:128:132,googleapis/mcp-toolbox,skills/maintainer/review-prs/SKILL.md,128,132,"- **Tool and parameter descriptions.** Each `description:` is an LLM prompt, not developer
+  documentation: could an agent pick this tool and fill its parameters from that text alone, at a
+  token cost worth paying? Flag ones that restate the field name, omit units/format/allowed
+  values, or run long without adding information.
+",directive,AI Integration,content,project,directive,AI Integration,content,project,false,,added298,
+ca4ace8733fc73aba3c0:54:56,chroma-core/chroma,CLAUDE.md,54,56,"Do not interpret early connection failures from these tests as product bugs
+until the Tilt dependency has been checked.
+",directive,Testing,semantic_only,,directive,Testing,semantic_only,,false,,added298,
+a65c5b51358b5d324d3c:63:64,photoprism/photoprism,.github/copilot-instructions.md,63,64,"- Data safety: never run or recommend destructive CLI operations in examples without explicit backups and `--yes`. Avoid `photoprism reset`, `photoprism users reset`, `photoprism auth reset`, or `photoprism audit reset` in PR comments unless the change is specifically about those commands; if unavoidable, add bold warnings and backup steps.
+",directive,Security,cross_event,task,directive,Security,per_event,project,true,"Backup requirements couple destructive operations with prior safeguards, and the exception depends on the current change.",added298,
+f7ae33ad1ae18d0c6daa:247:251,xerj-org/xerj,tools/xerj-code/SKILL.md,247,251,"## When this is worth it
+
+Use it when the task touches code someone else has already written correctly:
+
+",directive,AI Integration,per_event,task,description,System Overview,,,true,It explicitly directs skill use based on the current task.,added298,
+a7cc4990b03e9c6ee284:33:46,dailydotdev/daily,skills/daily.dev/SKILL.md,33,46,"#### macOS - Keychain
+
+```bash
+# Store token
+security add-generic-password -a ""$USER"" -s ""daily-dev-api"" -w ""dda_your_token""
+
+# Retrieve token
+security find-generic-password -a ""$USER"" -s ""daily-dev-api"" -w
+
+# Auto-load in ~/.zshrc or ~/.bashrc
+export DAILY_DEV_TOKEN=$(security find-generic-password -a ""$USER"" -s ""daily-dev-api"" -w 2>/dev/null)
+```
+
+",directive,Security,per_event,none,directive,Security,per_event,none,false,,added298,
+241777e84b59cac767aa:149:150,alibaba/page-agent,AGENTS.md,149,150,"- Every change you make should not only implement the desired functionality but also improve the quality of the codebase
+",directive,Implementation Details,semantic_only,,directive,Implementation Details,semantic_only,,false,,added298,
+8d57d20e5c074c6f5b2d:22:24,jackwener/OpenCLI,skills/smart-search/SKILL.md,22,24,"不要在 skill 文档里硬编码参数或假设命令签名；以 `opencli ... -h` 的实时输出为准。
+
+",directive,Documentation,cross_event,task,directive,Documentation,content,project,true,Combines a documentation-content prohibition with reliance on live help for the current command.,added298,
+8069f1e774eda46d3afd:302:303,floci-io/floci,AGENTS.md,302,303,"2. Add a `<Svc>ServiceConfig` interface and its accessor on `ServicesConfig` in `EmulatorConfig`
+",directive,Implementation Details,content,project,directive,Implementation Details,content,project,false,,added298,
+56ddbf5f7e30a0c67848:109:111,deepseek-ai/deepseek-harness,AGENTS.md,109,111,"### Host sandbox failures
+
+",description,Development Process,,,description,Development Process,,,false,,added298,
+ff073a0b1596390ce38b:21:23,K-Dense-AI/scientific-agent-skills,AGENTS.md,21,23,"- A second provider for a service an existing skill already reaches.
+
+",description,Development Process,,,description,Development Process,,,false,,added298,
+f866715349d992f3769a:11:13,mattpocock/skills,CLAUDE.md,11,13,"Install commands are copied verbatim from [.agents/install-block.md](./.agents/install-block.md). `.claude-plugin/marketplace.json` is the repo's own marketplace. Every agent except Claude Code installs from it to get automatic updates, and Claude Code uses `claude-plugins-official`. Run `claude plugin validate . --strict` after touching either manifest. [ADR 0002](./.agents/adr/0002-ship-as-a-claude-code-plugin.md) records why.
+
+",directive,DevOps,cross_event,project,directive,DevOps,cross_event,project,false,,added298,
+f85ee9291e852df8d693:32:34,KKKKhazix/khazix-skills,aihot/SKILL.md,32,34,"   本 Skill 目录里有 `.aihot-actor-id`（一个随机 UUID）时，把 ` aihot-actor/<它的内容>` 接在 User-Agent 末尾；文件不存在、读不到或不是 UUID 就不加，照常查询。它只用于匿名去重统计，不是账号或密钥，不要展示给用户。
+
+",directive,Security,cross_event,none,directive,AI Integration,per_event,project,true,The rule links reading and validating an explicit identifier file to a later request and forbids exposing its content,added298,
+29cc0c38f6cf6076bf25:6:10,puppeteer/puppeteer,.agents/skills/puppeteer-verification/SKILL.md,6,10,"# Instructions on how to verify your changes
+
+## Testing
+
+",description,Testing,,,description,Testing,,,false,boundary: headings should be absorbed into the following testing directive.,added298,
+4cf4f2a9b95057469b78:55:57,apache/shardingsphere,AGENTS.md,55,57,"For Docker cleanup, distinguish reproducible images from containers, volumes, and data. An in-scope image proven unused and reproducible needs no further confirmation; the other categories remain unauthorized unless named.
+
+",directive,DevOps,per_event,task,directive,DevOps,per_event,task,false,,added298,
+e95250f2f2d9ecfc378f:364:366,convex/convex-backend,npm-packages/private-demos/waitlist/.agents/skills/convex-quickstart/SKILL.md,364,366,"- Design your schema: see
+  [Schema docs](https://docs.convex.dev/database/schemas)
+",directive,Documentation,per_event,none,directive,Documentation,semantic_only,,true,Consulting the explicitly linked documentation is an observable access.,added298,
+25def2ab9d215610dae7:478:480,kestra-io/kestra,AGENTS.md,478,480,"- Leave triage labels such as `kind/cooldown` to `kestrabot`; it applies them automatically on new issues.
+
+",directive,Development Process,per_event,project,directive,Development Process,per_event,project,false,,added298,
+f3b2ec50d0678f41f702:44:48,xbtlin/ai-berkshire,AGENTS.md,44,48,"- Before starting any research, run the `date` command to confirm today's
+  date. Treat that date as the baseline for ""latest"" data (prices, market cap,
+  most recent filings), and state the data cutoff date in the report header.
+  Never assume the current date from training data.
+",directive,AI Integration,cross_event,project,directive,AI Integration,cross_event,project,false,,added298,
+a67a7a451a43d5ffcc54:285:286,siyuan-note/siyuan,AGENTS.md,285,286,"- **Editing Go dependencies:** To test a local change, add a temporary `replace` in `kernel/go.mod` pointing at your local checkout; **never commit that temporary `replace`**.
+",directive,Maintenance,cross_event,project,directive,Maintenance,per_event,project,true,A temporary replacement must be tracked across testing and the later commit boundary.,added298,
+980ba55986b4e2549f36:69:70,ggml-org/llama.cpp,skills/code-review/SKILL.md,69,70,"- **Reuse over reinvention:** grep for an existing helper, library, object, or mechanism before adding a new one. Reimplementing what the codebase already has reintroduces solved bugs and adds maintenance surface.
+",directive,Architecture,cross_event,project,directive,Architecture,semantic_only,,true,It requires searching project code before adding a new implementation.,added298,
+c712e4dcb3db04ae9a29:400:406,cheaper-inference/OmniRoute,AGENTS.md,400,406,"22. **Cross-session safety — this repo is worked by MANY parallel sessions/agents at once; never step on another's in-flight work.** Two absolute bans (both recurring incidents):
+    - **(a) Never `git stash` / `git stash pop` — ANYWHERE in this repo, including inside an isolated worktree, and including inside any subagent you dispatch.** `git stash` operates on the **shared repository object store**, not the per-worktree working tree — a stash in one session can silently clobber or resurrect another parallel session's uncommitted changes. Compare against a base ref with `git show <ref>:<path>` or `git diff <ref> -- <path>` instead — never stash your tree away to ""get it clean"". **Put this ban verbatim in the prompt of every subagent that touches git.**
+    - **(b) Never merge, push, rebase, or force-push a PR / branch / worktree that another session is actively working** — including a PR whose head is a live fix worktree in `.claude/worktrees/` you did **not** create, even when it shares your `diegosouzapw` identity: **HOLD, let the owning session merge it.** **Before** merging or pushing to any PR you did not create _this_ session, run `git worktree list` and re-check `gh pr view <N> --json state,headRefOid`. (Reinforces Rule #19.)
+
+    Full text + incidents: `docs/ops/HARD_RULES_DETAIL.md` → Rule 22.
+
+",directive,Development Process,cross_event,task,directive,Development Process,cross_event,project,true,Ownership and creation in the current session are invocation-specific.,added298,
+509c18a33a9eed453dac:75:80,StarRocks/starrocks,.claude/skills/release-notes/SKILL.md,75,80,"### 4. Write the section
+Insert the new `## X.Y.Z` section into `file` per `references/format.md`: directly below
+the closing `:::` of the `:::warning` block and above the current newest patch section.
+Omit empty subsections. English file only.
+
+",directive,Documentation,content,project,directive,Documentation,content,project,false,,added298,
+f511bffe69c1abe92f21:23:24,infiniflow/ragflow,AGENTS.md,23,24,"- Update Docker's default entrypoint, dependency image, and CI workflows when removing their remaining Python paths. Keep the frontend development proxy routes aligned with the Go API and Admin ports in `web/vite.config.ts`.
+",directive,DevOps,cross_event,project,directive,DevOps,cross_event,project,false,,added298,
+e35d149e3ded3a647f2d:23:27,thedaviddias/Front-End-Checklist,skills/h1/SKILL.md,23,27,"## Check
+
+Parse the rendered DOM of each page. Count all `<h1>` elements. Flag: (1) Pages with zero `<h1>` tags. (2) Pages with more than one `<h1>` tag. (3) `<h1>` elements whose text content is empty or contains only whitespace. (4) `<h1>` elements that contain only the brand name with no page-specific topic. (5) `<h1>` text that does not reflect the page's primary content topic.
+
+",directive,Testing,content,project,directive,Testing,content,none,true,Determining brand-only and primary-topic failures requires page-specific project context.,added298,
+c6cc13f501a2fe9d50e9:16:18,langgenius/dify,skills/difyctl/SKILL.md,16,18,"An operation id is dotted, `run.console_app.chat`, and is typed as words: `difyctl run console_app chat`. Ids come from the server and can change, so look them up instead of assuming them.
+
+",directive,AI Integration,semantic_only,,description,Architecture,,,true,The final clause instructs the agent to look up IDs rather than assume them; boundary: factual context and directive are combined.,added298,
+927cbe3c41024f327f44:59:62,ClickHouse/ClickHouse,ci/CLAUDE.md,59,62,"A job that writes its own `ci/tmp/result_<normalized_job_name>.json` must get
+three things right, and praktika is silent about all three:
+
+",directive,DevOps,semantic_only,,directive,DevOps,semantic_only,,false,boundary: introductory directive is incomplete without the numbered constraints that follow.,added298,
+6136085f50ea06883dad:100:105,streamlit/streamlit,.cursor/rules/specs.mdc,100,105,"# Principles of Streamlit API Design
+
+These principles guide the design of Streamlit's public API. Follow them when proposing
+new features or modifying existing commands.
+
+",directive,Architecture,semantic_only,,directive,Architecture,semantic_only,,false,,added298,
+92576ab3e8ee955961a4:116:120,MODSetter/SurfSense,AGENTS.md,116,120,"Bundle a skill only if it is static markdown that overlaps the others. Anything
+with frontmatter that does work — `allowed-tools`, `` !`command` `` substitution —
+must stay top-level, because that frontmatter is inert in a bundled file.
+
+",directive,AI Integration,content,project,directive,AI Integration,per_event,project,true,Bundling depends on inspecting frontmatter and file content.,added298,
+750e020b03be5db731f7:99:101,Twigpine/openclaude,AGENTS.md,99,101,"5. Avoid breaking third-party providers while fixing first-party behavior.
+
+",directive,Maintenance,cross_event,project,directive,Maintenance,semantic_only,,true,Compatibility must be preserved across first- and third-party provider changes.,added298,
+a744d670a22d2438c0f7:3:5,semaphoreui/semaphore,.github/copilot-instructions.md,3,5,"**Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
+
+",directive,AI Integration,cross_event,project,directive,AI Integration,semantic_only,,true,The rule orders consulting these instructions before later search or shell operations.,added298,
+d6e9ebf1b8a4b59d1064:236:245,microsoft/ai-agents-for-beginners,AGENTS.md,236,245,"### Learning Path
+
+Recommended progression through lessons:
+1. **00-course-setup** - Start here for environment setup
+2. **01-intro-to-ai-agents** - Understand AI agent fundamentals
+3. **02-explore-agentic-frameworks** - Learn about different frameworks
+4. **03-agentic-design-patterns** - Core design patterns
+5. Continue through numbered lessons sequentially
+
+",directive,System Overview,cross_event,none,description,System Overview,,,true,The recommended lesson progression directs an explicit ordered sequence.,added298,
+522996b682f19df99756:79:81,getsentry/sentry,AGENTS.md,79,81,"Run `pnpm run typecheck` to run the typescript type checker. It does not accept file paths. DO NOT use `tsc` directly.
+
+",directive,Implementation Details,per_event,none,directive,Implementation Details,per_event,project,true,Both the required command and forbidden tsc command are explicit.,added298,
+c42d69905929b66ff98b:5:13,ollama/ollama,AGENTS.md,5,13,"For a full build from the repository root:
+
+```sh
+cmake -B build .
+cmake --build build --parallel 8
+./ollama serve
+```
+
+",directive,Build and Run,per_event,none,directive,Build and Run,per_event,project,true,Commands are explicit.,added298,
+4273b21912b6b85c9c2c:3:5,tt-a1i/archify,AGENTS.md,3,5,"Follow [CONTRIBUTING.md](CONTRIBUTING.md) for repository changes and [REVIEWING.md](REVIEWING.md) for reviews.
+
+",directive,Development Process,semantic_only,,directive,Development Process,semantic_only,,false,,added298,
+dd3a076ea72e9e21b888:170:179,browserbase/stagehand,packages/cli/skills/browse/SKILL.md,170,179,"```bash
+browse mouse click 240 320
+browse mouse hover 240 320
+browse mouse drag 80 80 310 100
+browse mouse scroll 500 300 0 600
+browse viewport 1280 720
+browse cursor                             # show a visible cursor overlay
+```
+
+",description,AI Integration,,,description,AI Integration,,,false,,added298,
+92576ab3e8ee955961a4:137:138,MODSetter/SurfSense,AGENTS.md,137,138,"- Do not put credentials in diffs, logs, or sample payloads.
+",directive,Security,content,project,directive,Security,per_event,none,true,The rule constrains artifact content and credentials is unresolved.,added298,
+567a1bee72102b215035:74:75,mukul975/Anthropic-Cybersecurity-Skills,skills/operating-havoc-c2/SKILL.md,74,75,"- Generate an evasive Demon agent (EXE / shellcode) with sleep obfuscation
+",directive,Build and Run,content,project,directive,Build and Run,semantic_only,,true,The directive requires a generated artifact with specified properties.,added298,
+bb1e9d4c1afa48846f98:18:20,CopilotKit/CopilotKit,skills/copilotkit/SKILL.md,18,20,"There are two ways to read the current docs. Check which one this session has.
+
+",directive,Documentation,semantic_only,,directive,Documentation,semantic_only,,false,,added298,
+3bd8ac70599a89df34b8:5:7,herdrdev/herdr,vendor/libghostty-vt/CLAUDE.md,5,7,"## Commands
+
+",description,Build and Run,,,description,Build and Run,,,false,,added298,
+d4a79b75283bee311f3b:83:86,shanraisshan/claude-code-best-practice,CLAUDE.md,83,86,"### Disable Hooks
+Set `""disableAllHooks"": true` in `.claude/settings.local.json`, or disable individual hooks in `hooks-config.json`.
+
+",directive,Configuration & Environment,content,none,directive,Configuration & Environment,per_event,project,true,Compliance depends on explicit configuration-file content.,added298,
+faa5924fde9518aab085:824:825,alirezarezvani/claude-skills,CLAUDE.md,824,825,"   **Enforcement:** `scripts/check_plugin_json.py --all` runs in `ci-quality-gate.yml` on every PR. It hard-fails on any non-`./`-prefixed string that isn't the legacy `""skills""` literal, on empty strings/arrays, and on non-string array entries. When CC tightens its path validator again in the future, update both the validator (`_check_skills_string` / `_check_skills_array`) and this section together — they must move in lockstep.
+",directive,Configuration & Environment,cross_event,project,directive,DevOps,cross_event,project,true,The strongest rule couples future validator changes with matching documentation changes.,added298,
+a94c410c8c167dfd4323:18:19,kubernetes/kubernetes,AGENTS.md,18,19,"- Keep changes focused and reviewable
+",directive,Development Process,per_event,task,directive,Development Process,semantic_only,,true,What is focused and reviewable depends on the current task.,added298,
+226356a147778d460792:302:304,vercel/next.js,AGENTS.md,302,304,"Adoption is pinned to the head SHA shown at review time. If the contributor pushes between the review and the fetch, the SHAs disagree and the run aborts without pushing, so the code that reaches CI is always the code that was vouched for.
+
+",description,Security,,,description,Security,,,false,,added298,
+11952764c7b0f9cffb1f:98:99,qdrant/qdrant,lib/edge/tools/shard_query/SKILL.md,98,99,"- `--field <FIELD>`: **required**. Payload field to score. Its text index must have `scoring` set (`edge-tool create --payload-index body:bm25` builds one, `edge-tool load-beir` fills it with a BEIR corpus).
+",description,Configuration & Environment,,,description,Configuration & Environment,,,false,,added298,
+paper:RightNow-AI/openfang:14,RightNow-AI/openfang,RightNow-AI/openfang/CLAUDE.md,120,121,"- Config fields added to `KernelConfig` struct MUST also be added to the `Default` impl or build fails
+",directive,Architecture,content,project,directive,Architecture,content,project,false,,original64,
+paper:thedotmack/claude-mem:14,thedotmack/claude-mem,thedotmack/claude-mem/CLAUDE.md,83,89,"
+## Documentation
+
+**Public Docs**: https://docs.claude-mem.ai (Mintlify)
+**Source**: `docs/public/` - MDX files, edit `docs.json` for navigation
+**Deploy**: Auto-deploys from GitHub on push to main
+",description,Documentation,,,description,Documentation,,,false,,original64,
+4519c4ade894dfcf20b2:5:10,convex/convex-backend,npm-packages/private-demos/waitlist/CLAUDE.md,5,10,"When working on Convex code, **always read `convex/_generated/ai/guidelines.md`
+first** for important guidelines on how to correctly use Convex APIs and
+patterns. The file contains rules that override what you may have learned about
+Convex from training data.
+
+",directive,Documentation,cross_event,project,directive,Documentation,cross_event,project,false,,added298,
+c6fad18e4d95ded10b42:28:37,zauberzeug/nicegui,.claude/skills/advisory-text/SKILL.md,28,37,"4. **Description** in four sections, prose only - no code dumps, no proof-of-concept steps, no internal class or function names:
+
+   - `### Summary` - what NiceGUI does, what was missing, what a client could do.
+   - `### Impact` - which applications are affected, who can exploit it (a logged-in user? anyone on the network?), what the damage depends on, and which applications are not affected.
+   - `### Patches` - ""Fixed in NiceGUI **x.y.z**"", one sentence on what the fix does and its limits (link follow-up issues), ""Upgrade to x.y.z or later.""
+   - `### Workarounds` - what to do without upgrading; often the recommended pattern anyway.
+
+   The reporter is credited via the credits field, not in the text.
+
+",directive,Security,content,project,directive,Security,content,project,false,,added298,
+a65c5b51358b5d324d3c:13:14,photoprism/photoprism,.github/copilot-instructions.md,13,14,"- Makefile targets (always prefer existing targets): https://github.com/photoprism/photoprism/blob/develop/Makefile
+",directive,Build and Run,per_event,project,directive,Build and Run,semantic_only,,true,Choosing an existing Makefile target is an observable command-routing preference requiring repository lookup.,added298,
+db825a2bf33db0bdcc99:7:29,microsoft/playwright-mcp,CLAUDE.md,7,29,"```bash
+git checkout -b fix-39562
+# ... make changes ...
+git add <changed-files>
+git commit -m ""$(cat <<'EOF'
+fix(proxy): handle SOCKS proxy authentication
+
+Fixes: https://github.com/microsoft/playwright/issues/39562
+EOF
+)""
+git push origin fix-39562
+gh pr create --repo microsoft/playwright --head username:fix-39562 \
+  --title ""fix(proxy): handle SOCKS proxy authentication"" \
+  --body ""$(cat <<'EOF'
+## Summary
+- <describe the change very! briefly>
+
+Fixes https://github.com/microsoft/playwright/issues/39562
+EOF
+)""
+```
+
+",directive,Development Process,cross_event,project,directive,Development Process,per_event,project,true,"The example prescribes an ordered branch, commit, push, and PR workflow.",added298,
+paper:NVIDIA/NemoClaw:7,NVIDIA/NemoClaw,NVIDIA/NemoClaw/CLAUDE.md,68,73,"
+When writing tests:
+
+- Root-level tests (`test/`) use ESM imports
+- Plugin tests use TypeScript and are co-located with their source files
+",directive,Testing,content,project,directive,Testing,content,project,false,,original64,
+178d1a0406e780419053:99:100,vercel-labs/agent-skills,skills/vercel-optimize/SKILL.md,99,100,"- `frameworkSupportBlocker === ""unsupported_framework""`: use the unsupported-framework prompt above.
+",directive,Configuration & Environment,cross_event,project,directive,Configuration & Environment,cross_event,project,false,,added298,
+paper:code-yeongyu/oh-my-openagent:42,code-yeongyu/oh-my-openagent,code-yeongyu/oh-my-openagent/AGENTS.md,210,211,"- **Config format:** JSONC with comments + trailing commas, Zod v4 validation, snake_case keys.
+",directive,Configuration & Environment,content,none,directive,Configuration & Environment,content,project,true,All required configuration syntax and naming constraints are explicit.,original64,
+a87c5b5fa654cb9fe190:58:60,yangshun/tech-interview-handbook,AGENTS.md,58,60,"- upgrade - Update `vp` itself to the latest version
+
+",description,Maintenance,,,description,Maintenance,,,false,,added298,
+71779e4c268671772683:51:53,tt-a1i/archify,archify/SKILL.md,51,53,"## Update awareness
+
+",description,Maintenance,,,description,Maintenance,,,false,boundary: heading should be absorbed into the following update rule,added298,
+faa5924fde9518aab085:805:806,alirezarezvani/claude-skills,CLAUDE.md,805,806,"1. **cs- prefix for slug conflicts only.** When a skill slug is already taken on ClawHub by another publisher, publish with the `cs-` prefix (e.g., `cs-copywriting`, `cs-seo-audit`). The `cs-` prefix applies **only on the ClawHub registry** — repo folder names, local skill names, and all other tools (Claude Code, Codex, Gemini CLI) remain unchanged.
+",directive,DevOps,content,project,directive,DevOps,content,project,false,,added298,
+78e7331f30cf80dafa70:256:258,apache/doris,.claude/skills/code-review/SKILL.md,256,258,"### 4.2 BE Unit Tests
+
+",description,Testing,,,description,Testing,,,false,boundary: heading should be absorbed into the following statement.,added298,
+d1a442e41d64f3fbe43c:34:35,sxyazi/yazi,AGENTS.md,34,35,"- Initialize crates explicitly from the application entrypoint in dependency order; a module must not initialize another module as a side effect.
+",directive,Architecture,content,project,directive,Architecture,content,project,false,,added298,
+a5e53a8661f8edb443b2:68:69,wheresryan22/anatomy,SKILL.md,68,69,"7. **Paint back to front, bottom to top.** Sort repeated parts with `depthOf`. Split anything that wraps another part into a back half and a front half: the springs around a rod, the bars of a frame around a carriage. A moving part is drawn in the slot where it physically sits. See ""Painter's order"" in `references/craft.md`. Once a figure has pipes, cables and round parts, stop tuning keys by eye: record each item's shape as you put it into `A.recorder(P, { order, spring })`, let `A.settle(R, P)` measure true depth wherever two items overlap and set the keys, and end the build with `A.auditOrExit(R, P)`. Route pipes before you draw them: real ports at both ends, legs along the structure, crossings on straights, collars gapping the pipe (`references/craft.md`, section 8). Record the true shape of what you draw: a stand-in shape that silences the audit is a bug, and the audit fails one. A rod that slides out of a gland is one rod from `G.rodOut`, recorded with `A.slide`.
+",directive,Implementation Details,cross_event,project,directive,Implementation Details,content,project,true,"Recording, settling, auditing, and routing-before-drawing require ordered operations.",added298,
+384a22a203a3d1a2dee5:22:23,roboflow/supervision,.github/skills/code-review/SKILL.md,22,23,"- **Security and data:** When relevant, check input validation, unsafe execution or deserialization, secrets and sensitive-data exposure, and data or tensor shape/type assumptions.
+",directive,Security,semantic_only,,directive,Security,semantic_only,,false,,added298,
+e51049106c3acecca79b:193:194,microsoft/vscode,.github/skills/otel/SKILL.md,193,194,"- Assuming runtime `main` matches the package bundled by VS Code.
+",directive,Maintenance,semantic_only,,directive,Maintenance,content,project,true,The statement forbids an unsupported assumption rather than imposing a file-content predicate.,added298,
+1bfce5eff82d9588e881:128:130,kubesphere/kubesphere,skills/vector/SKILL.md,128,130,"### Wait for Deployment
+
+",description,DevOps,,,description,DevOps,,,false,boundary: isolated heading should accompany the following deployment directive.,added298,
+paper:cocoindex-io/cocoindex:27,cocoindex-io/cocoindex,cocoindex-io/cocoindex/CLAUDE.md,220,221,"- **Single source of truth, delete dead code, honest names.** When the same value/logic appears in multiple places, consolidate. When changes make code unreachable, delete it (and its tests, and any dead config knobs). Function and field names should describe what the implementation does today.
+",directive,Maintenance,content,project,directive,Implementation Details,content,none,true,"This governs deduplication, dead-code removal, and refactoring; identifying related dead artifacts needs project context.",original64,
+a8207873b3fdf4ff5e09:15:16,calesthio/OpenMontage,.cursor/rules/openmontage.mdc,15,16,"There are no instructions in this file. All instructions are in AGENT_GUIDE.md.
+",description,Documentation,,,description,Documentation,,,false,,added298,
+b06d1f15826cf77bb2bf:91:93,trycua/cua,skills/jev-use/SKILL.md,91,93,"## Credentials and proof
+
+",description,Security,,,description,Security,,,false,boundary: a section heading should be absorbed into the following statement.,added298,
+43c6200f6482c2024938:407:409,opendatalab/MinerU,skills/mineru/SKILL.md,407,409,"Please refer to the following rules to select a suitable extra and tier.
+
+",directive,Configuration & Environment,semantic_only,,directive,Configuration & Environment,semantic_only,,false,,added298,
+paper:Usagi-org/ai-goofish-monitor:5,Usagi-org/ai-goofish-monitor,Usagi-org/ai-goofish-monitor/AGENTS.md,25,31,"
+## 测试指南
+- 测试框架：`pytest`（默认同步测试，无需 `pytest-asyncio`）。
+- 运行全部测试：`pytest`；覆盖率：`pytest --cov=src` 或 `coverage run -m pytest`；定向测试：`pytest tests/test_utils.py::test_safe_get`。
+- 优先覆盖核心服务、爬虫管道的异常分支与重试逻辑，避免回归。
+- PR 前请运行相关测试，新增逻辑补充针对性用例。
+",directive,Testing,cross_event,project,directive,Testing,per_event,project,true,boundary: descriptive test references and independent testing directives were merged; pre-PR testing and adding cases require cross-operation checks.,original64,
+4c0203637fc524587d3d:20:21,koala73/worldmonitor,AGENTS.md,20,21,"2. Use Node.js 24 from `.nvmrc`. Run `npm run --silent agent:preflight -- --mode review` for source inspection, `--mode tests` before tests, or `--mode repair` before implementation. Add `--pr <number>` or `--issue <number>` when applicable.
+",directive,Build and Run,cross_event,task,directive,Build and Run,per_event,project,true,"The preflight command must precede later activity, and mode or PR selection depends on the task.",added298,
+9eb76bbd7ff76163919d:279:280,github/github-mcp-server,.github/copilot-instructions.md,279,280,"1. **PRIMARY FOCUS:** The local stdio MCP server (github-mcp-server) - this is what you should work on and test with
+",directive,System Overview,semantic_only,,directive,System Overview,semantic_only,,false,,added298,
+3aa1e8fbd4aac1ef9c42:45:47,directus/directus,.github/copilot-instructions.md,45,47,"## Code Quality Standards
+
+",description,Implementation Details,,,description,Implementation Details,,,false,,added298,
+e90b0682145d7563cc22:22:29,valkey-io/valkey,AGENTS.md,22,29,"## Unit tests
+- Unit tests live under `src/unit/` and use GoogleTest (gtest/gmock).
+- Build and run all unit tests: `make -C src test-unit`
+- Unit tests cover data-structure and low-level logic changes.
+- A single test filter can be run with: `make -C src test-unit && ./src/unit/valkey-unit-gtests --gtest_filter='<TestSuite>.<TestName>'`
+- **Write tests in minimal C++.** GTest provides the test runner, but test code should look like C. No STL containers (`std::vector`, `std::string`, `std::set`), no STL algorithms, no `auto`, no lambdas, no templates, no RAII. Use fixed-size C arrays, `sds`, `qsort`, and explicit types. See `src/unit/README.md` for full guidelines and examples.
+
+",directive,Testing,per_event,project,directive,Testing,cross_event,project,true,The strongest observable requirements are individual test commands; the style constraint is content-level. boundary: descriptive facts and independent directives were merged.,added298,
+9cb55fc52b1c970c607f:106:107,Significant-Gravitas/AutoGPT,.github/copilot-instructions.md,106,107,"3. Verify Docker services are still running
+",directive,DevOps,per_event,project,directive,DevOps,per_event,project,false,,added298,
+f978c3a6b932d930de53:57:59,The-Vibe-Company/quivr,.agents/skills/tdd/SKILL.md,57,59,"A **module** hides implementation behind an **interface**: everything callers must know, including inputs, outcomes, invariants, ordering and errors. A **seam** is where that interface can be exercised or its behavior varied. Prefer existing public boundaries and small interfaces that expose useful behavior while keeping complexity local. Introduce an adapter only for a concrete variation the task needs.
+
+",directive,Architecture,per_event,task,description,Architecture,,,true,"It directs boundary and adapter choices, including a task-relative restriction on introducing adapters.",added298,
+72fc103b50d2366983da:6:10,JCodesMore/ai-website-cloner-template,.agents/skills/clone-website/SKILL.md,6,10,"# Clone a website
+
+Recreate the supplied pages in the current app. Match the source before adding a new design direction. Deliver working, editable code: screenshots, iframes, and downloaded production bundles are references, not the implementation.
+
+",directive,System Overview,cross_event,task,directive,System Overview,semantic_only,,true,Matching supplied pages before a new design direction and delivering a real implementation require task-specific artifact comparison and ordering.,added298,
+e95250f2f2d9ecfc378f:379:380,convex/convex-backend,npm-packages/private-demos/waitlist/.agents/skills/convex-quickstart/SKILL.md,379,380,"- [ ] `convex/_generated/` directory exists with types
+",directive,Build and Run,content,project,directive,Build and Run,content,project,false,,added298,
+f7a23090e2f918f7ab1c:16:17,f/prompts.chat,AGENTS.md,16,17,"- **UI Components:** shadcn/ui pattern (components in `src/components/ui/`)
+",description,Architecture,,,description,Architecture,,,false,,added298,
+de6ee08b0dc31b3f2d22:13:14,Dokploy/dokploy,.claude/skills/fix-issue/SKILL.md,13,14,"1. Check `apps/dokploy/.env` for `PORT` (assigned per-worktree already).
+",directive,Configuration & Environment,per_event,none,directive,Configuration & Environment,per_event,project,true,The file path and variable name are explicit.,added298,
+paper:code-yeongyu/oh-my-openagent:25,code-yeongyu/oh-my-openagent,code-yeongyu/oh-my-openagent/AGENTS.md,184,187,"
+## ARCHITECTURE INVARIANTS
+
+- **Canonical agent order:** Sisyphus → Hephaestus → Prometheus → Atlas. Enforced by `installAgentSortShim()` (patches `Array.prototype.toSorted`/`.sort` narrowly when the array contains ≥2 canonical core agents). See [`src/plugin-handlers/AGENTS.md`](file:///Users/yeongyu/local-workspaces/omo/src/plugin-handlers/AGENTS.md) for the full history of why this exists.
+",directive,Architecture,per_event,none,description,Architecture,,,true,It directly instructs the reader to consult a named file.,original64,
+7d9090d7a6940909ea29:13:15,ayghri/i-have-adhd,skills/i-have-adhd/SKILL.md,13,15,"The reader has ADHD. Output is not just brief. It is shaped so an ADHD brain can act on it.
+
+",description,AI Integration,,,description,AI Integration,,,false,,added298,
+52b58db01ad41d63ba34:21:23,debezium/debezium,AGENTS.md,21,23,"For every analysis file, you **MUST ALWAYS** include the entirety of the <guidelines> section in the analysis file. The header must appear before any instructions for tools or contributors. Do NOT bury the guidelines after long intros or tables of contents.
+
+",directive,Documentation,content,project,directive,Documentation,content,project,false,,added298,
+3cf23a2e059e6c67ced3:217:219,mlflow/mlflow,CLAUDE.md,217,219,"## Pre-commit Hooks
+
+",description,DevOps,,,description,DevOps,,,false,boundary: heading should be absorbed into the following statement,added298,
+d0f1e1e163ae370d57f5:82:84,continuedev/continue,extensions/cli/AGENTS.md,82,84,"### Build System
+
+",description,Build and Run,,,description,Build and Run,,,false,boundary: the Build System heading should accompany the following item,added298,
+72fc103b50d2366983da:61:62,JCodesMore/ai-website-cloner-template,.agents/skills/clone-website/SKILL.md,61,62,"Return preview/run instructions, the source-to-local route map, representative desktop/mobile comparisons, checks actually run, and remaining visual/functional gaps. Keep reference clones in separate apps when maintaining the reusable template.
+",directive,Development Process,content,project,directive,Development Process,content,project,false,,added298,
+ffde9086319e4a7f9a2f:124:125,jeecgboot/JeecgBoot,jeecgboot-vue3/AGENTS.md,124,125,"- `.env.development` contains dev proxy, mock toggle, and backend URL.
+",description,Configuration & Environment,,,description,Configuration & Environment,,,false,,added298,
+dc66d376b6ec2df5051d:9:11,appsmithorg/appsmith,app/server/AGENTS.md,9,11,"## Stack
+
+",description,Architecture,,,description,Architecture,,,false,,added298,
+0099c0d9aa26a54c1437:7:9,78/xiaozhi-esp32,AGENTS.md,7,9,"Use the ESP-IDF `release/v6.1` branch when possible. The minimum supported SDK is ESP-IDF v6.0.1. IDF 5.x is not supported.
+
+",directive,Maintenance,per_event,none,directive,Maintenance,per_event,project,true,The preferred branch and supported SDK versions are explicit literals.,added298,
+f56e858af832dbc62820:80:84,topoteretes/cognee,.agents/skills/cognee-cli/SKILL.md,80,84,"`add`, `cognify`, `search`, and `delete` still ship and are what the
+memory commands call underneath. Use them only to drive a single stage in
+isolation; prefer `remember`/`recall`/`forget`/`improve` otherwise.
+
+",directive,AI Integration,per_event,task,directive,AI Integration,semantic_only,,true,Choosing the lower-level commands is tool routing conditioned on the current purpose.,added298,
+1351a22004c73496b5a4:343:345,career-ops-hq/career-ops,AGENTS.md,343,345,"Then run `node doctor.mjs` once before you confirm. Mention a setup command only for a check that fails. For example, say `npx playwright install chromium` only when the ""Playwright chromium"" check fails, and never just because the README lists it.
+
+",directive,Build and Run,cross_event,none,directive,Build and Run,per_event,project,true,"The doctor command must run before confirmation, and its result governs later advice.",added298,
+7c86e0c41c5f75f40c1d:285:289,tinyhumansai/openhuman,AGENTS.md,285,289,"A quoted heredoc body (`<< 'EOF' … EOF`) is **data**, not shell:
+`strip_quoted_heredoc_bodies` blanks it before any structural scan. An unquoted
+delimiter (`<< EOF`) is still expanded and still scanned.
+
+",description,Implementation Details,,,description,Implementation Details,,,false,,added298,
+e95250f2f2d9ecfc378f:153:160,convex/convex-backend,npm-packages/private-demos/waitlist/.agents/skills/convex-quickstart/SKILL.md,153,160,"### Initialize and start dev loop
+
+Ask the user to run `npx convex dev` in their terminal. This handles login,
+creates the `convex/` directory, writes the deployment URL to `.env.local`, and
+starts the file watcher. See the notes in Path 1 about why the agent should not
+run this directly.
+
+",directive,Build and Run,semantic_only,,directive,Build and Run,per_event,project,true,"The agent is instructed to ask the user to run the command, which is a communication action rather than the agent's command execution.",added298,
+paper:mcp-use/mcp-use:22,mcp-use/mcp-use,mcp-use/mcp-use/CLAUDE.md,140,141,"- Don't add backward compatibility code without asking first
+",directive,Maintenance,content,task,directive,Development Process,semantic_only,,true,The prohibition concerns compatibility code content and is gated on live user permission.,original64,
+354f853c04ae4dd08571:335:346,HKUDS/Vibe-Trading,agent/SKILL.md,335,346,"Live-runner model spending is independent of mandate trade limits. Operators
+configure it through Runtime / the chat runner panel, or
+`vibe-trading connector runner-settings --profile robinhood-live-mcp`
+(`--file settings.json` saves settings while stopped). Defaults are one model
+decision every 15 minutes, 26 decisions and 1,000,000 reported tokens per UTC day,
+with fresh conversation context per decision. A once-daily time and IANA timezone
+are optional. Dollar limits require operator-supplied input/output prices and are
+estimates, not provider billing guarantees. Usage is checked after each response;
+budget exhaustion or missing usage activates the existing kill switch. The agent
+must not edit this operator state or raise its own spending limits.
+
+",directive,Configuration & Environment,per_event,project,directive,Configuration & Environment,per_event,project,false,boundary: operational descriptions are combined with the final prohibition on editing operator state or raising limits.,added298,
+paper:aden-hive/hive:1,aden-hive/hive,aden-hive/hive/CLAUDE.md,1,7,"# Repository Guidelines
+
+Shared agent instructions for this workspace.
+
+## Coding Agent Notes
+",description,System Overview,,,description,System Overview,,,false,,original64,
+89dfbc1d40628466698e:295:296,thedaviddias/Front-End-Checklist,AGENTS.md,295,296,"- Reuse existing components instead of creating page-specific variants (e.g. shared `FAQAccordion` for any FAQ section, `.code-block`/`.code-inline` for all code display, ChecklistActionBar instead of new progress bars). When adding a feature to one page type, add it to all relevant page types (e.g. ShareButton on category, rule detail, and all-rules pages).
+",directive,Architecture,cross_event,project,directive,Implementation Details,content,project,true,Requires reuse and coordinated feature coverage across relevant page types.,added298,
+paper:NVIDIA/NemoClaw:1,NVIDIA/NemoClaw,NVIDIA/NemoClaw/CLAUDE.md,1,11,"<!-- SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
+# Agent Instructions
+
+## Project Overview
+
+NVIDIA NemoClaw is an open-source reference stack for running [OpenClaw](https://openclaw.ai) always-on assistants inside [NVIDIA OpenShell](https://github.com/NVIDIA/OpenShell) sandboxes more safely. It provides CLI tooling, a blueprint for sandbox orchestration, and security hardening.
+
+**Status:** Alpha (March 2026+). Interfaces may change without notice.
+",description,System Overview,,,description,System Overview,,,false,,original64,
+8069f1e774eda46d3afd:326:330,floci-io/floci,AGENTS.md,326,330,"13. Add a `TestFixtures` client factory and a `<Svc>Test` in `compatibility-tests/sdk-test-java`
+
+---
+
+",directive,Testing,cross_event,project,directive,Testing,cross_event,project,false,,added298,
+2e88d8889b27d70c2c90:119:120,obra/superpowers,AGENTS.md,119,120,"- One problem per PR
+",directive,Development Process,content,task,directive,Development Process,content,none,true,Whether a PR contains one problem depends on the current contribution's task scope.,added298,
