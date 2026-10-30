@@ -1,5 +1,7 @@
 # Benign-utility results
 
+**Stopped by the operator at 2026-10-30 05:47 UTC.** The expansion will not continue. The tables below are final: 17/24 tasks completed without AgPlane and with broad sources, 16/24 with narrowed sources. Statements below about work in progress or the 14:00 UTC cutoff describe the state before the stop.
+
 <!-- control-outage:start -->
 **Control access is restored after an external node outage.** The operator confirmed that the Workspace pod was recreated at 2026-10-30 03:18 UTC, ending its detached jobs. Completed native results are being reconciled; only the interrupted cell will be retried. Native-runtime restoration and reporting deployment are in progress. The tables remain the latest copied snapshot until that reconciliation is published.
 <!-- control-outage:end -->
