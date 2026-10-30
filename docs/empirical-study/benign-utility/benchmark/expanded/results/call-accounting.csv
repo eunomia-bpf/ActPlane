@@ -2,6 +2,7 @@ task,condition,attempt,trial_id,terminal_submission_attempts,atif_logged_command
 adaptive-rejection-sampler,a,1,adaptive-rejection-sampler__qM4Z2oR,8,8,0,0
 adaptive-rejection-sampler,b,block-1,adaptive-rejection-sampler__BKXhgFF,13,13,0,0
 adaptive-rejection-sampler,c,block-1,adaptive-rejection-sampler__zzx6EMb,31,30,0,1
+caffe-cifar-10,a,1,caffe-cifar-10__hqiEeES,40,39,0,1
 extract-elf,a,1,extract-elf__G4ghFCc,44,44,0,0
 extract-elf,b,block-1,extract-elf__Zx8JAfU,12,12,0,0
 extract-elf,c,block-1,extract-elf__fqMn24v,53,53,0,0
