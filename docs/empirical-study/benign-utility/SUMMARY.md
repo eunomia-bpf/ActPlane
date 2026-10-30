@@ -14,15 +14,15 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 | Cohort | Condition | Completed / planned | Official successes / completed | Matched successes / common tasks |
 | --- | --- | ---: | ---: | ---: |
 | Added | No AgPlane | 10/18 | 8/10 | 8/9 |
-| Added | Broad sources | 9/18 | 7/9 | 7/9 |
+| Added | Broad sources | 10/18 | 7/10 | 7/9 |
 | Added | Narrowed sources | 9/18 | 5/9 | 5/9 |
 | Combined | No AgPlane | 16/24 | 12/16 | 12/15 |
-| Combined | Broad sources | 15/24 | 13/15 | 13/15 |
+| Combined | Broad sources | 16/24 | 13/16 | 13/15 |
 | Combined | Narrowed sources | 15/24 | 9/15 | 9/15 |
 
 Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `extract-elf`, `fix-code-vulnerability`, `fix-git`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `nginx-request-logging`, `openssl-selfsigned-cert`, `pytorch-model-cli`, `sanitize-git-repo`, `vulnerable-secret`, `write-compressor`.
 
-Additional completed cells outside that matched set: No AgPlane: `caffe-cifar-10`.
+Additional completed cells outside that matched set: No AgPlane: `caffe-cifar-10`; Broad sources: `caffe-cifar-10`.
 
 
 <!-- expansion-status:end -->

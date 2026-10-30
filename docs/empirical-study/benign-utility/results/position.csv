@@ -13,11 +13,13 @@ Terminal-Bench added cohort,a,11,20,40,1,0,0,0,0,0,0.0
 Terminal-Bench added cohort,a,21,30,20,1,0,0,0,0,0,0.0
 Terminal-Bench added cohort,a,31,40,17,1,0,0,0,0,0,0.0
 Terminal-Bench added cohort,a,41,50,4,1,0,0,0,0,0,0.0
-Terminal-Bench added cohort,b,1,10,68,1,0,1,1,0,1,0.0
-Terminal-Bench added cohort,b,11,20,45,1,0,3,3,0,3,288.0
-Terminal-Bench added cohort,b,21,30,25,1,0,6,6,0,6,576.0
-Terminal-Bench added cohort,b,31,40,11,1,0,3,3,0,3,1152.0
-Terminal-Bench added cohort,b,41,50,5,1,0,1,1,0,1,576.0
+Terminal-Bench added cohort,b,1,10,76,1,0,1,1,0,1,0.0
+Terminal-Bench added cohort,b,11,20,49,1,0,3,3,0,3,288.0
+Terminal-Bench added cohort,b,21,30,35,1,0,6,6,0,6,576.0
+Terminal-Bench added cohort,b,31,40,14,1,0,3,3,0,3,1152.0
+Terminal-Bench added cohort,b,41,50,11,1,0,1,1,0,1,576.0
+Terminal-Bench added cohort,b,51,60,7,1,0,0,0,0,0,0.0
+Terminal-Bench added cohort,b,61,70,2,1,0,0,0,0,0,0.0
 Terminal-Bench added cohort,c,1,10,76,1,0,0,0,0,0,288.0
 Terminal-Bench added cohort,c,11,20,46,1,0,0,0,0,0,0.0
 Terminal-Bench added cohort,c,21,30,29,1,0,0,0,0,0,0.0
@@ -29,11 +31,13 @@ Terminal-Bench combined,a,11,20,50,1,0,0,0,0,0,0.0
 Terminal-Bench combined,a,21,30,28,1,0,0,0,0,0,0.0
 Terminal-Bench combined,a,31,40,17,1,0,0,0,0,0,0.0
 Terminal-Bench combined,a,41,50,4,1,0,0,0,0,0,0.0
-Terminal-Bench combined,b,1,10,110,1,0,1,1,0,1,15.0
-Terminal-Bench combined,b,11,20,56,1,0,3,3,0,3,288.0
-Terminal-Bench combined,b,21,30,32,1,0,6,6,0,6,576.0
-Terminal-Bench combined,b,31,40,11,1,0,3,3,0,3,1152.0
-Terminal-Bench combined,b,41,50,5,1,0,1,1,0,1,576.0
+Terminal-Bench combined,b,1,10,118,1,0,1,1,0,1,15.0
+Terminal-Bench combined,b,11,20,60,1,0,3,3,0,3,288.0
+Terminal-Bench combined,b,21,30,42,1,0,6,6,0,6,576.0
+Terminal-Bench combined,b,31,40,14,1,0,3,3,0,3,1152.0
+Terminal-Bench combined,b,41,50,11,1,0,1,1,0,1,576.0
+Terminal-Bench combined,b,51,60,7,1,0,0,0,0,0,0.0
+Terminal-Bench combined,b,61,70,2,1,0,0,0,0,0,0.0
 Terminal-Bench combined,c,1,10,110,1,0,0,0,0,0,305.0
 Terminal-Bench combined,c,11,20,56,1,0,0,0,0,0,0.0
 Terminal-Bench combined,c,21,30,38,1,0,0,0,0,0,0.0
