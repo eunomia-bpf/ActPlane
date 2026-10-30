@@ -1,5 +1,9 @@
 # Benign-utility results
 
+<!-- control-outage:start -->
+**Reporting control is temporarily unavailable.** The tables reflect the last successfully copied snapshot; current detached-job status remains unverified. Later finished trials require reconciliation after wrapper access returns. Native cells have not been restarted on connection errors. The new resident reporting helper is committed but its deployment/runtime validation is pending; see [BLOCKED.md](BLOCKED.md).
+<!-- control-outage:end -->
+
 **Benchmark expansion is in progress under the operator's follow-up authorization.** The completed original Terminal-Bench sub-cohort, natural-network supplement and fixed public replay below remain unchanged. Added tasks are selected by the [predeclared protocol](benchmark/expanded/PROTOCOL.md) before model execution. Added and combined cohorts will be marked partial until their frozen task matrix completes.
 
 The [runtime amendment](benchmark/expanded/AMENDMENT.md) retains unsupported host attempts separately and restores native denial inside a KVM guest. Initial guest model requests failed DNS before tools/verifiers, so they are excluded from utility. A memory-group OOM then restarted the Workspace: the earlier allocation failed to account for the lower live shared limit. Recovery uses one bounded guest with preserved incident evidence and a durable rebuild template. These are infrastructure attempts, not failed benchmark scores; the snapshot below now contains valid added outcomes.
