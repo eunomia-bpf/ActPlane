@@ -1,0 +1,19 @@
+{
+  "purpose": "dependency-only transport control; no benchmark model, task action or oracle",
+  "started_at": "2026-10-30T01:16:00Z",
+  "elapsed_s": 5.844407558441162,
+  "returncode": 0,
+  "timed_out": false,
+  "guest_available_memory_before_bytes": 7507226624,
+  "official_image": "alexgshaw/qemu-alpine-ssh:20251031",
+  "official_image_digest": "alexgshaw/qemu-alpine-ssh@sha256:541e8214a8c4faa7b556531b899d45da21048fa2ca6dd328d8cb6c4cffa8e964",
+  "actual_image_id": "sha256:e868510787ba024e1fced364e94b5ae42c9b3076fa2345498edb833752188f93",
+  "native_cell_lock_held": true,
+  "dependency_env": {
+    "UV_DOWNLOAD_URL": "http://172.29.77.1:38765",
+    "UV_PYTHON_INSTALL_MIRROR": "http://172.29.77.1:38765/python",
+    "http_proxy": "http://172.29.77.1:38766"
+  },
+  "stdout": "/workspaces/exp/benign-utility/raw/benchmark/expanded-recovery/apt-transport/control/stdout.txt",
+  "dpkg_versions": "curl 7.74.0-1.3+deb11u16\nlibcurl4 7.74.0-1.3+deb11u16\nlibnghttp2-14 1.43.0-1+deb11u3\nsshpass 1.09-1+b1\n"
+}
