@@ -4,13 +4,17 @@ Public replay,broad,11,20,observed_execution_interval_including_idle,126,114,12,
 Public replay,broad,21,30,observed_execution_interval_including_idle,304,304,0,0,chronological event counts; not causal action counts or rates
 Public replay,broad,41,50,observed_execution_interval_including_idle,34,18,0,16,chronological event counts; not causal action counts or rates
 Public replay,broad,61,70,observed_execution_interval_including_idle,24,24,0,0,chronological event counts; not causal action counts or rates
-Terminal-Bench added cohort,b,1,10,idle_after_submission,4,4,0,0,chronological event counts; not causal action counts or rates
-Terminal-Bench added cohort,b,1,10,wait,16,16,0,0,chronological event counts; not causal action counts or rates
-Terminal-Bench added cohort,b,11,20,command,20,20,0,0,chronological event counts; not causal action counts or rates
-Terminal-Bench added cohort,b,11,20,idle_after_submission,4,4,0,0,chronological event counts; not causal action counts or rates
-Terminal-Bench added cohort,b,11,20,wait,4,4,0,0,chronological event counts; not causal action counts or rates
-Terminal-Bench added cohort,b,21,30,command,27,27,0,0,chronological event counts; not causal action counts or rates
-Terminal-Bench added cohort,b,31,40,command,29,29,0,0,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,1,10,command,176,0,0,176,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,1,10,idle_after_submission,40,4,0,36,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,1,10,wait,60,16,0,44,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,11,20,command,37,20,0,17,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,11,20,idle_after_submission,84,4,0,80,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,11,20,wait,88,4,0,84,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,21,30,command,917,27,0,890,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,31,40,command,148,29,0,119,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,31,40,idle_after_submission,2,0,0,2,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,41,50,command,109,0,0,109,chronological event counts; not causal action counts or rates
+Terminal-Bench added cohort,b,41,50,idle_after_submission,1,0,0,1,chronological event counts; not causal action counts or rates
 Terminal-Bench added cohort,b,41,50,wait,4,4,0,0,chronological event counts; not causal action counts or rates
 Terminal-Bench network stratum,b,1,10,command,9,6,3,0,chronological event counts; not causal action counts or rates
 Terminal-Bench network stratum,b,11,20,command,6,6,0,0,chronological event counts; not causal action counts or rates

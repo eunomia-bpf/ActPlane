@@ -1,7 +1,7 @@
 # Benign-utility results
 
 <!-- control-outage:start -->
-**Reporting control is temporarily unavailable.** The tables reflect the last successfully copied snapshot; current detached-job status remains unverified. Later finished trials require reconciliation after wrapper access returns. Native cells have not been restarted on connection errors. The new resident reporting helper is committed but its deployment/runtime validation is pending; see [BLOCKED.md](BLOCKED.md).
+**Control access is restored after an external node outage.** The operator confirmed that the Workspace pod was recreated at 2026-10-30 03:18 UTC, ending its detached jobs. Completed native results are being reconciled; only the interrupted cell will be retried. Native-runtime restoration and reporting deployment are in progress. The tables remain the latest copied snapshot until that reconciliation is published.
 <!-- control-outage:end -->
 
 **Benchmark expansion is in progress under the operator's follow-up authorization.** The completed original Terminal-Bench sub-cohort, natural-network supplement and fixed public replay below remain unchanged. Added tasks are selected by the [predeclared protocol](benchmark/expanded/PROTOCOL.md) before model execution. Added and combined cohorts will be marked partial until their frozen task matrix completes.
@@ -17,16 +17,16 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 
 | Cohort | Condition | Completed / planned | Official successes / completed | Matched successes / common tasks |
 | --- | --- | ---: | ---: | ---: |
-| Added | No AgPlane | 10/18 | 8/10 | 8/9 |
-| Added | Broad sources | 10/18 | 7/10 | 7/9 |
-| Added | Narrowed sources | 9/18 | 5/9 | 5/9 |
-| Combined | No AgPlane | 16/24 | 12/16 | 12/15 |
-| Combined | Broad sources | 16/24 | 13/16 | 13/15 |
-| Combined | Narrowed sources | 15/24 | 9/15 | 9/15 |
+| Added | No AgPlane | 11/18 | 9/11 | 8/10 |
+| Added | Broad sources | 11/18 | 7/11 | 7/10 |
+| Added | Narrowed sources | 10/18 | 5/10 | 5/10 |
+| Combined | No AgPlane | 17/24 | 13/17 | 12/16 |
+| Combined | Broad sources | 17/24 | 13/17 | 13/16 |
+| Combined | Narrowed sources | 16/24 | 9/16 | 9/16 |
 
-Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `extract-elf`, `fix-code-vulnerability`, `fix-git`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `nginx-request-logging`, `openssl-selfsigned-cert`, `pytorch-model-cli`, `sanitize-git-repo`, `vulnerable-secret`, `write-compressor`.
+Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `caffe-cifar-10`, `cancel-async-tasks`, `extract-elf`, `fix-code-vulnerability`, `fix-git`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `nginx-request-logging`, `openssl-selfsigned-cert`, `pytorch-model-cli`, `sanitize-git-repo`, `vulnerable-secret`, `write-compressor`.
 
-Additional completed cells outside that matched set: No AgPlane: `caffe-cifar-10`; Broad sources: `caffe-cifar-10`.
+Additional completed cells outside that matched set: No AgPlane: `protein-assembly`; Broad sources: `protein-assembly`.
 
 
 <!-- expansion-status:end -->
