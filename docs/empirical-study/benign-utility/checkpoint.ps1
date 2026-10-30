@@ -8,15 +8,19 @@ $wrapper='C:/Users/10678/actplane-tools/ws.sh'
 $publish=@('docs/empirical-study/benign-utility/README.md','docs/empirical-study/benign-utility/SUMMARY.md','docs/empirical-study/benign-utility/results','docs/empirical-study/benign-utility/benchmark/expanded/results')
 Set-Location $repo
 if((& git branch --show-current) -ne 'experiments/mlsys27'){throw 'Unexpected publication branch'}
+$publishedFingerprint=''
 do {
   try {
     $command=if($Force){'exec bash checkpoint.sh --force #'}else{'exec bash checkpoint.sh #'}
     $output=$command | & $gitbash $wrapper sh benign-utility
     if($LASTEXITCODE -ne 0){throw ($output -join "`n")}
-    if(($output -join "`n") -match 'CHECKPOINT_UPDATED') {
-      & $gitbash $wrapper pull benign-utility checkpoint/results checkpoint/benchmark/expanded/results
+    $match=[regex]::Match(($output -join "`n"),'CHECKPOINT_FINGERPRINT ([a-f0-9]{64})')
+    if(-not $match.Success){throw 'Remote checkpoint did not identify a complete snapshot'}
+    $fingerprint=$match.Groups[1].Value
+    if($fingerprint -ne $publishedFingerprint) {
+      & $gitbash $wrapper pull benign-utility "checkpoint/$fingerprint/results" "checkpoint/$fingerprint/benchmark/expanded/results"
       if($LASTEXITCODE -ne 0){throw 'Result pull failed'}
-      $source=Join-Path $lane 'checkpoint'
+      $source=Join-Path (Join-Path $lane 'checkpoint') $fingerprint
       foreach($file in Get-ChildItem -LiteralPath $source -Recurse -File) {
         $relative=$file.FullName.Substring($source.Length+1)
         $target=Join-Path $lane $relative
@@ -37,7 +41,7 @@ do {
       }
       # The only recursively removed tree is this lane's just-pulled publication copy.
       $resolved=(Resolve-Path -LiteralPath $source).Path
-      if($resolved -ne (Join-Path $lane 'checkpoint')){throw 'Unexpected checkpoint path'}
+      if($resolved -ne $source){throw 'Unexpected checkpoint path'}
       Remove-Item -LiteralPath $resolved -Recurse -Force
       & git add -- $publish
       if($LASTEXITCODE -ne 0){Start-Sleep -Seconds 3; & git add -- $publish}
@@ -46,6 +50,7 @@ do {
         & git commit -m 'Checkpoint official expansion outcomes and honest partial report' -- $publish
         if($LASTEXITCODE -ne 0){throw 'Checkpoint commit failed'}
       }
+      $publishedFingerprint=$fingerprint
       Write-Output ('Published snapshot '+[DateTime]::UtcNow.ToString('o'))
     }
     & git push origin HEAD:refs/heads/experiments/mlsys27
