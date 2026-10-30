@@ -343,7 +343,7 @@ def render(rows, positions, out):
         footer = 'Hatching marks partial matrices; bars use tasks completed in all conditions.\n' + footer
     fig.text(.5, .01, footer, ha='center', fontsize=7)
     fig.tight_layout(rect=(0, .1 if partial else .05, 1, 1))
-    fig.savefig(out / 'benign-utility.pdf')
+    fig.savefig(out / 'benign-utility.pdf', metadata={'CreationDate': None, 'ModDate': None})
     fig.savefig(out / 'benign-utility.png', dpi=180)
     plt.close(fig)
 
