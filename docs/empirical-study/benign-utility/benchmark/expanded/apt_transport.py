@@ -1,5 +1,5 @@
 """Verifier-only transport for three obsolete, exact official Debian artifacts."""
-import argparse,csv,fcntl,hashlib,json,subprocess,sys,time,urllib.error,urllib.request
+import argparse,csv,fcntl,hashlib,json,shutil,subprocess,sys,time,urllib.error,urllib.request
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote,unquote,urlparse
@@ -25,10 +25,15 @@ def prepare():
    with opener.open(url,timeout=60) as response:file.write_bytes(response.read())
   assert hashlib.sha1(file.read_bytes()).hexdigest()==artifact,'Official snapshot content address mismatch'
   rows.append(dict(package=name,version=version,architecture='amd64',snapshot_api=api,artifact_url=url,snapshot_sha1=artifact,sha256=hashlib.sha256(file.read_bytes()).hexdigest(),bytes=file.stat().st_size,retained_path=str(file),original_path=f'/debian-security/pool/updates/main/{source[0]}/{source}/{file.name}'))
+ control=RAW/'control/receipt.json'
+ if control.exists():
+  receipt=json.loads(control.read_text());stdout=Path(receipt['stdout']).read_text(errors='replace')
+  for row in rows:row.update(dependency_control_returncode=receipt['returncode'],dependency_control_elapsed_s=receipt['elapsed_s'],dependency_control_receipt=str(control),native_dpkg_version_verified=int(row['package']+' '+row['version']+'\n' in receipt['dpkg_versions']),native_uv_pytest_verified=int('uv 0.9.5' in stdout and 'pytest 8.4.1' in stdout),native_ctrf_plugin_verified=int('--ctrf' in (RAW/'control/pytest-help.txt').read_text(errors='replace')))
  with (OUT/'.export.lock').open('a+') as guard:
   fcntl.flock(guard,fcntl.LOCK_EX)
   with (OUT/'verifier-apt-artifacts.csv').open('w',newline='') as stream:
    writer=csv.DictWriter(stream,fieldnames=list(rows[0]),lineterminator='\n');writer.writeheader();writer.writerows(rows)
+  if control.exists():shutil.copyfile(control,OUT/'verifier-apt-control.json')
  return rows
 
 class Proxy(BaseHTTPRequestHandler):
