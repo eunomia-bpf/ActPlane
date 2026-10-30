@@ -13,27 +13,25 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 
 | Cohort | Condition | Completed / planned | Official successes / completed | Matched successes / common tasks |
 | --- | --- | ---: | ---: | ---: |
-| Added | No AgPlane | 7/18 | 6/7 | 5/6 |
-| Added | Broad sources | 6/18 | 4/6 | 4/6 |
-| Added | Narrowed sources | 6/18 | 4/6 | 4/6 |
-| Combined | No AgPlane | 13/24 | 10/13 | 9/12 |
-| Combined | Broad sources | 12/24 | 10/12 | 10/12 |
-| Combined | Narrowed sources | 12/24 | 8/12 | 8/12 |
+| Added | No AgPlane | 8/18 | 7/8 | 7/8 |
+| Added | Broad sources | 8/18 | 6/8 | 6/8 |
+| Added | Narrowed sources | 8/18 | 5/8 | 5/8 |
+| Combined | No AgPlane | 14/24 | 11/14 | 11/14 |
+| Combined | Broad sources | 14/24 | 12/14 | 12/14 |
+| Combined | Narrowed sources | 14/24 | 9/14 | 9/14 |
 
-Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `fix-code-vulnerability`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `nginx-request-logging`, `openssl-selfsigned-cert`, `pytorch-model-cli`, `sanitize-git-repo`, `vulnerable-secret`.
-
-Additional completed cells outside that matched set: No AgPlane: `write-compressor`.
+Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `fix-code-vulnerability`, `fix-git`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `nginx-request-logging`, `openssl-selfsigned-cert`, `pytorch-model-cli`, `sanitize-git-repo`, `vulnerable-secret`, `write-compressor`.
 
 Available-condition scores can have different task mixes. The matched column uses the same tasks completed in every condition.
 
 | Cohort | Condition | Covered calls | False calls | Unknown calls | Unassigned events | False-call bounds |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| Added | No AgPlane | 72 | 0 | 0 | 0 | 0.00–0.00% |
-| Added | Broad sources | 100 | 14 | 0 | 0 | 14.00–14.00% |
-| Added | Narrowed sources | 95 | 0 | 0 | 0 | 0.00–0.00% |
-| Combined | No AgPlane | 140 | 0 | 0 | 0 | 0.00–0.00% |
-| Combined | Broad sources | 160 | 14 | 0 | 0 | 8.75–8.75% |
-| Combined | Narrowed sources | 148 | 0 | 0 | 0 | 0.00–0.00% |
+| Added | No AgPlane | 91 | 0 | 0 | 0 | 0.00–0.00% |
+| Added | Broad sources | 143 | 14 | 0 | 0 | 9.79–9.79% |
+| Added | Narrowed sources | 129 | 0 | 0 | 0 | 0.00–0.00% |
+| Combined | No AgPlane | 159 | 0 | 0 | 0 | 0.00–0.00% |
+| Combined | Broad sources | 203 | 14 | 0 | 0 | 6.90–6.90% |
+| Combined | Narrowed sources | 182 | 0 | 0 | 0 | 0.00–0.00% |
 
 The added/combined matrices are complete only when every frozen task has valid outcomes in every condition. Security coverage and adjudication completeness remain separate fields.
 
@@ -97,6 +95,6 @@ Expansion rebootstrap reused an old setup helper that overwrote the original unc
 Paper-ready paragraph:
 
 <!-- paper-paragraph:start -->
-Using GLM-5.3 and official Terminal-Bench 2.0 rewards, we planned 24 tasks. The partial matched snapshot covers 12 tasks, with successes of 9/12, 10/12, 8/12 without defense, with broad sources and with narrowed sources. Original-subset results remain 4/6, 6/6, 4/6. Added broad/narrowed false calls were 14/100 and 0/95. The separate network subset achieved 2/3, 2/3, 2/3; broad/narrowed false calls were 12/51 and 1/67. Across 40 public replay trajectories, broad false-call bounds were 2.85-2.92%, versus 0.00% with narrowed sources. Single-attempt success differences and timings are descriptive. Process-subtree coverage and source/socket gaps limit protection; trusted declassification and retained model-context recovery remain unmeasured.
+Using GLM-5.3 and official Terminal-Bench 2.0 rewards, we planned 24 tasks. The partial matched snapshot covers 14 tasks, with successes of 11/14, 12/14, 9/14 without defense, with broad sources and with narrowed sources. Original-subset results remain 4/6, 6/6, 4/6. Added broad/narrowed false calls were 14/143 and 0/129. The separate network subset achieved 2/3, 2/3, 2/3; broad/narrowed false calls were 12/51 and 1/67. Across 40 public replay trajectories, broad false-call bounds were 2.85-2.92%, versus 0.00% with narrowed sources. Single-attempt success differences and timings are descriptive. Process-subtree coverage and source/socket gaps limit protection; trusted declassification and retained model-context recovery remain unmeasured.
 
 <!-- paper-paragraph:end -->

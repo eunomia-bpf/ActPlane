@@ -5,6 +5,9 @@ adaptive-rejection-sampler,c,block-1,adaptive-rejection-sampler__zzx6EMb,31,30,0
 fix-code-vulnerability,a,1,fix-code-vulnerability__KS96ZfW,9,9,0,0
 fix-code-vulnerability,b,block-1,fix-code-vulnerability__gjNh7FY,15,15,0,0
 fix-code-vulnerability,c,block-1,fix-code-vulnerability__oEborA8,11,11,0,0
+fix-git,a,1,fix-git__eFgdjRR,19,19,0,0
+fix-git,b,block-1,fix-git__srDH8RK,22,22,0,0
+fix-git,c,block-1,fix-git__bT4XN2M,14,14,0,0
 hf-model-inference,a,1,hf-model-inference__77GbCAh,11,11,0,0
 hf-model-inference,b,block-1,hf-model-inference__ZvMjJut,46,46,0,0
 hf-model-inference,c,block-1,hf-model-inference__neJtzdk,12,12,0,0
@@ -21,3 +24,5 @@ qemu-alpine-ssh,a,1,qemu-alpine-ssh__sDcYMH6,29,29,0,0
 qemu-alpine-ssh,b,block-1,qemu-alpine-ssh__mSmv6Dn,33,33,0,0
 qemu-alpine-ssh,c,block-1,qemu-alpine-ssh__koaPaTj,30,30,0,0
 write-compressor,a,1,write-compressor__5fqzs8g,14,14,0,0
+write-compressor,b,block-1,write-compressor__PgW9upC,24,24,0,0
+write-compressor,c,block-1,write-compressor__oTZpvGB,22,22,0,0
