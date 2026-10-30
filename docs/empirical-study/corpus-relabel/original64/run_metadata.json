@@ -1,0 +1,19 @@
+{
+  "started_epoch": 1793319744.7791584,
+  "parallel": 24,
+  "batches": 15,
+  "rows": 2116,
+  "model": "gpt-5.6-sol",
+  "batch_size": 150,
+  "procedure": "unchanged imported shard2.review_one, validate and write_final",
+  "source_sha256": "0b5bcb314c11f5bed3ea4766f8874cd35d3cc92606ccb0206e5ef6190c22d03c",
+  "reference_sha256": {
+    "run_review.py": "f0204300c30c1babb8ec294fc6192b80cd7130b1d27b41307a3dc5aec2af4cca",
+    "shared_codebook.txt": "6e0c379882305517fa104fa62fd80a64aa30161a94108911b8e895457d5c00b7",
+    "response_schema.json": "ce22856c4e4860eae5895b3d1b0fd5cfdfb237709c146725eadd1c3e689e2dd6",
+    "original_examples.json": "cc956a6869d1410ebe6f0f50e09ecb34967edcdb152236fcfa2988d43e087993"
+  },
+  "finished_epoch": 1793320004.9436088,
+  "elapsed_seconds": 260.1644504070282,
+  "complete": true
+}

@@ -6,3 +6,6 @@ src/
 *.log.unsupported-model
 shard1/batches/*.log
 checks/**/original-examples/
+original64/batch_*.input.json
+original64/batch_*.attempt*.json
+original64/reviewed.partial.csv
