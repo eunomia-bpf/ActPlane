@@ -1,4 +1,4 @@
-"""Read-only grouped intervention evidence for case-specific human review."""
+"""Read-only grouped intervention evidence for case-specific review."""
 import collections,csv,fcntl,hashlib,json,re
 from pathlib import Path
 ROOT=Path('/workspaces/exp/benign-utility')
