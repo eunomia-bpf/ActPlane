@@ -45,8 +45,11 @@ do {
       Remove-Item -LiteralPath $resolved -Recurse -Force
       & git add -- $publish
       if($LASTEXITCODE -ne 0){Start-Sleep -Seconds 3; & git add -- $publish}
+      if($LASTEXITCODE -ne 0){throw 'Checkpoint staging failed; publication remains pending'}
       & git diff --cached --quiet -- $publish
-      if($LASTEXITCODE -eq 1) {
+      $diffExit=$LASTEXITCODE
+      if($diffExit -notin @(0,1)){throw 'Checkpoint staged-diff check failed'}
+      if($diffExit -eq 1) {
         & git commit -m 'Checkpoint official expansion outcomes and honest partial report' -- $publish
         if($LASTEXITCODE -ne 0){throw 'Checkpoint commit failed'}
       }
