@@ -10,6 +10,10 @@ printf '%s\n' "$$" > "$RAW/checkpoint-loop.pid"
 trap 'rm -f -- "$RAW/checkpoint-loop.pid"' EXIT
 deadline=$(date -u -d '2026-10-30 20:00:00 UTC' +%s)
 while [[ $(date -u +%s) -lt "$deadline" ]]; do
-  bash checkpoint.sh || printf 'CHECKPOINT_RETRY %s\n' "$(date -u +%FT%TZ)"
+  if bash checkpoint.sh; then
+    head -n 11 "$ROOT/results/expansion-progress.md"
+  else
+    printf 'CHECKPOINT_RETRY %s\n' "$(date -u +%FT%TZ)"
+  fi
   sleep 60
 done
