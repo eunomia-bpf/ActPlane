@@ -13,26 +13,24 @@ Expansion snapshot from `results/headline.csv`; pending cells are not failures.
 
 | Cohort | Condition | Completed / planned | Official successes / completed | Matched successes / common tasks |
 | --- | --- | ---: | ---: | ---: |
-| Added | No AgPlane | 9/18 | 8/9 | 7/8 |
-| Added | Broad sources | 8/18 | 6/8 | 6/8 |
-| Added | Narrowed sources | 9/18 | 5/9 | 5/8 |
-| Combined | No AgPlane | 15/24 | 12/15 | 11/14 |
-| Combined | Broad sources | 14/24 | 12/14 | 12/14 |
-| Combined | Narrowed sources | 15/24 | 9/15 | 9/14 |
+| Added | No AgPlane | 9/18 | 8/9 | 8/9 |
+| Added | Broad sources | 9/18 | 7/9 | 7/9 |
+| Added | Narrowed sources | 9/18 | 5/9 | 5/9 |
+| Combined | No AgPlane | 15/24 | 12/15 | 12/15 |
+| Combined | Broad sources | 15/24 | 13/15 | 13/15 |
+| Combined | Narrowed sources | 15/24 | 9/15 | 9/15 |
 
-Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `fix-code-vulnerability`, `fix-git`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `nginx-request-logging`, `openssl-selfsigned-cert`, `pytorch-model-cli`, `sanitize-git-repo`, `vulnerable-secret`, `write-compressor`.
-
-Additional completed cells outside that matched set: No AgPlane: `extract-elf`; Narrowed sources: `extract-elf`.
+Combined tasks with valid outcomes in all three conditions: `adaptive-rejection-sampler`, `cancel-async-tasks`, `extract-elf`, `fix-code-vulnerability`, `fix-git`, `git-leak-recovery`, `hf-model-inference`, `log-summary-date-ranges`, `modernize-scientific-stack`, `nginx-request-logging`, `openssl-selfsigned-cert`, `pytorch-model-cli`, `sanitize-git-repo`, `vulnerable-secret`, `write-compressor`.
 
 Available-condition scores can have different task mixes. The matched column uses the same tasks completed in every condition.
 
 | Cohort | Condition | Covered calls | False calls | Unknown calls | Unassigned events | False-call bounds |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | Added | No AgPlane | 135 | 0 | 0 | 0 | 0.00–0.00% |
-| Added | Broad sources | 143 | 14 | 0 | 0 | 9.79–9.79% |
+| Added | Broad sources | 154 | 14 | 0 | 0 | 9.09–9.09% |
 | Added | Narrowed sources | 180 | 0 | 0 | 0 | 0.00–0.00% |
 | Combined | No AgPlane | 203 | 0 | 0 | 0 | 0.00–0.00% |
-| Combined | Broad sources | 203 | 14 | 0 | 0 | 6.90–6.90% |
+| Combined | Broad sources | 214 | 14 | 0 | 0 | 6.54–6.54% |
 | Combined | Narrowed sources | 233 | 0 | 0 | 0 | 0.00–0.00% |
 
 The added/combined matrices are complete only when every frozen task has valid outcomes in every condition. Security coverage and adjudication completeness remain separate fields.
@@ -97,6 +95,6 @@ Expansion rebootstrap reused an old setup helper that overwrote the original unc
 Paper-ready paragraph:
 
 <!-- paper-paragraph:start -->
-Using GLM-5.3 and official Terminal-Bench 2.0 rewards, we planned 24 tasks. The partial matched snapshot covers 14 tasks, with successes of 11/14, 12/14, 9/14 without defense, with broad sources and with narrowed sources. Original-subset results remain 4/6, 6/6, 4/6. Added broad/narrowed false calls were 14/143 and 0/180. The separate network subset achieved 2/3, 2/3, 2/3; broad/narrowed false calls were 12/51 and 1/67. Across 40 public replay trajectories, broad false-call bounds were 2.85-2.92%, versus 0.00% with narrowed sources. Single-attempt success differences and timings are descriptive. Process-subtree coverage and source/socket gaps limit protection; trusted declassification and retained model-context recovery remain unmeasured.
+Using GLM-5.3 and official Terminal-Bench 2.0 rewards, we planned 24 tasks. The partial matched snapshot covers 15 tasks, with successes of 12/15, 13/15, 9/15 without defense, with broad sources and with narrowed sources. Original-subset results remain 4/6, 6/6, 4/6. Added broad/narrowed false calls were 14/154 and 0/180. The separate network subset achieved 2/3, 2/3, 2/3; broad/narrowed false calls were 12/51 and 1/67. Across 40 public replay trajectories, broad false-call bounds were 2.85-2.92%, versus 0.00% with narrowed sources. Single-attempt success differences and timings are descriptive. Process-subtree coverage and source/socket gaps limit protection; trusted declassification and retained model-context recovery remain unmeasured.
 
 <!-- paper-paragraph:end -->

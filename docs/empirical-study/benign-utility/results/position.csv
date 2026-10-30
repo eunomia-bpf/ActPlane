@@ -13,8 +13,8 @@ Terminal-Bench added cohort,a,11,20,33,1,0,0,0,0,0,0.0
 Terminal-Bench added cohort,a,21,30,16,1,0,0,0,0,0,0.0
 Terminal-Bench added cohort,a,31,40,10,1,0,0,0,0,0,0.0
 Terminal-Bench added cohort,a,41,50,4,1,0,0,0,0,0,0.0
-Terminal-Bench added cohort,b,1,10,58,1,0,1,1,0,1,0.0
-Terminal-Bench added cohort,b,11,20,44,1,0,3,3,0,3,288.0
+Terminal-Bench added cohort,b,1,10,68,1,0,1,1,0,1,0.0
+Terminal-Bench added cohort,b,11,20,45,1,0,3,3,0,3,288.0
 Terminal-Bench added cohort,b,21,30,25,1,0,6,6,0,6,576.0
 Terminal-Bench added cohort,b,31,40,11,1,0,3,3,0,3,1152.0
 Terminal-Bench added cohort,b,41,50,5,1,0,1,1,0,1,576.0
@@ -29,8 +29,8 @@ Terminal-Bench combined,a,11,20,43,1,0,0,0,0,0,0.0
 Terminal-Bench combined,a,21,30,24,1,0,0,0,0,0,0.0
 Terminal-Bench combined,a,31,40,10,1,0,0,0,0,0,0.0
 Terminal-Bench combined,a,41,50,4,1,0,0,0,0,0,0.0
-Terminal-Bench combined,b,1,10,100,1,0,1,1,0,1,15.0
-Terminal-Bench combined,b,11,20,55,1,0,3,3,0,3,288.0
+Terminal-Bench combined,b,1,10,110,1,0,1,1,0,1,15.0
+Terminal-Bench combined,b,11,20,56,1,0,3,3,0,3,288.0
 Terminal-Bench combined,b,21,30,32,1,0,6,6,0,6,576.0
 Terminal-Bench combined,b,31,40,11,1,0,3,3,0,3,1152.0
 Terminal-Bench combined,b,41,50,5,1,0,1,1,0,1,576.0
