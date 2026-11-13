@@ -6,10 +6,12 @@
 pub mod ast;
 pub mod lower;
 pub mod parse;
+pub mod sim;
 
 use std::collections::HashMap;
 
 pub use lower::{Compiled, RuleMeta, RuleSourceMeta, compile};
+pub use sim::{SimEvent, SimHit, policy_features, simulate};
 
 /// Parse + compile DSL source text to a kernel config blob + reason table.
 pub fn compile_str(src: &str) -> Result<Compiled, String> {
