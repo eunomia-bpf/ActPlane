@@ -1367,54 +1367,70 @@ static __always_inline void exec_pipe_collect_updates(__u32 prefix)
 	}
 }
 
-static __always_inline void exec_pipe_apply_updates(void)
+/* Per-domain body of the exec update application. This runs as a bpf_loop
+ * callback so the verifier checks one copy of the body instead of simulating
+ * CAP_DOMAIN_DEPTH iterations whose branches all read map values it cannot
+ * resolve (s->add[i], s->gates[i], ...) and each of which nests an
+ * unknown-count provenance loop. That simulation is what drove
+ * exec_tp_update_prefix past BPF_COMPLEXITY_LIMIT_INSNS. */
+static int exec_pipe_apply_domain_cb(__u32 i, void *vc)
 {
 	struct exec_pipe_state *s = exec_pipe_buf();
 	struct exec_scratch *scratch = exec_scratch_buf();
+	__u32 domain_id;
+	struct proc_state *p;
+	struct proc_state ns = {};
+	struct pid_domain_id key = {};
 
+	(void)vc;
 	if (!s || !scratch)
-		return;
-	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
-		if (i >= s->n_domains)
-			break;
-		__u32 domain_id = s->domain_ids[i];
-		if (!te_pid_active(s->pid) || !cap_domain_matches_pid(s->pid, domain_id))
-			continue;
+		return 1;
+	if (i >= CAP_DOMAIN_DEPTH || i >= s->n_domains)
+		return 1;
+	domain_id = s->domain_ids[i];
+	if (!te_pid_active(s->pid) || !cap_domain_matches_pid(s->pid, domain_id))
+		return 0;
 
-		struct proc_state *p = te_get_domain(s->pid, domain_id);
-		struct proc_state ns = {};
-		if (p)
-			ns = *p;
-		ns.labels = (ns.labels | s->add[i]) & ~s->del[i];
-		ns.lin_gates |= s->gates[i];
-		te_store_proc_domain(s->pid, domain_id, &ns);
+	p = te_get_domain(s->pid, domain_id);
+	if (p)
+		ns = *p;
+	ns.labels = (ns.labels | s->add[i]) & ~s->del[i];
+	ns.lin_gates |= s->gates[i];
+	te_store_proc_domain(s->pid, domain_id, &ns);
 #ifndef ACTPLANE_LEGACY_KERNEL
-		if (s->add[i])
-			te_record_proc_prov_mask(s->pid, domain_id, s->add[i],
-						 TOP_EXEC, scratch->match, 0);
+	if (s->add[i])
+		te_record_proc_prov_mask(s->pid, domain_id, s->add[i],
+					 TOP_EXEC, scratch->match, 0);
 #endif
-		if (s->gates[i] || s->exit_gates[i] || s->invals[i]) {
-			pid_t r = te_root(s->pid);
-			__u32 ep = te_tick(r, domain_id);
-			if (s->gates[i] || s->invals[i])
-				te_stamp(r, domain_id, ep, s->gates[i], s->invals[i]);
-			struct pid_domain_id key = {};
-			te_pid_domain_key(s->pid, domain_id, &key);
-			if (s->exit_gates[i]) {
-				struct te_exit_gate_pending pending = {
-					.gates = s->exit_gates[i],
-					.epoch = ep,
-				};
-				bpf_map_update_elem(&ts_exit_gates, &key, &pending, BPF_ANY);
-			} else {
-				bpf_map_delete_elem(&ts_exit_gates, &key);
-			}
+	if (s->gates[i] || s->exit_gates[i] || s->invals[i]) {
+		pid_t r = te_root(s->pid);
+		__u32 ep = te_tick(r, domain_id);
+		if (s->gates[i] || s->invals[i])
+			te_stamp(r, domain_id, ep, s->gates[i], s->invals[i]);
+		te_pid_domain_key(s->pid, domain_id, &key);
+		if (s->exit_gates[i]) {
+			struct te_exit_gate_pending pending = {
+				.gates = s->exit_gates[i],
+				.epoch = ep,
+			};
+			bpf_map_update_elem(&ts_exit_gates, &key, &pending, BPF_ANY);
 		} else {
-			struct pid_domain_id key = {};
-			te_pid_domain_key(s->pid, domain_id, &key);
 			bpf_map_delete_elem(&ts_exit_gates, &key);
 		}
+	} else {
+		te_pid_domain_key(s->pid, domain_id, &key);
+		bpf_map_delete_elem(&ts_exit_gates, &key);
 	}
+	return 0;
+}
+
+static __always_inline void exec_pipe_apply_updates(void)
+{
+	struct exec_pipe_state *s = exec_pipe_buf();
+
+	if (!s)
+		return;
+	bpf_loop(CAP_DOMAIN_DEPTH, exec_pipe_apply_domain_cb, 0, 0);
 }
 
 static __always_inline void exec_pipe_merge_rule(struct exec_pipe_state *s,
