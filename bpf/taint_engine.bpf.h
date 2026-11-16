@@ -734,8 +734,11 @@ static __always_inline void te_copy_target(char *dst, const char *src)
 		dst[0] = '\0';
 		return;
 	}
-	for (int i = 0; i < MAX_FILENAME_LEN; i++)
-		dst[i] = src[i];
+	/* One bounded helper call instead of a 127-iteration byte loop: the
+	 * verifier walks every iteration of that loop as its own state, and this
+	 * body sits inside the syscall programs that already exhaust the
+	 * instruction budget. */
+	bpf_probe_read_kernel(dst, MAX_FILENAME_LEN, src);
 	dst[MAX_FILENAME_LEN - 1] = '\0';
 }
 
