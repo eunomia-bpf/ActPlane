@@ -1385,7 +1385,12 @@ static int exec_pipe_apply_domain_cb(__u32 i, void *vc)
 	(void)vc;
 	if (!s || !scratch)
 		return 1;
-	if (i >= CAP_DOMAIN_DEPTH || i >= s->n_domains)
+	/* Compare against the variable bound first and the constant one last:
+	 * the verifier keeps the tighter range from the last branch it walks,
+	 * and the s->n_domains compare re-derives the index as a fresh
+	 * [0, 0xfffffffe] scalar on fall-through, which loses the <= 7 bound
+	 * that s->domain_ids[i] and s->add[i] need below. */
+	if (i >= s->n_domains || i >= CAP_DOMAIN_DEPTH)
 		return 1;
 	domain_id = s->domain_ids[i];
 	if (!te_pid_active(s->pid) || !cap_domain_matches_pid(s->pid, domain_id))
