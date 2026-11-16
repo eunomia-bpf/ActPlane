@@ -145,18 +145,38 @@ static long __taint_contains_cb(__u32 idx, void *_ctx)
 	return 0;
 }
 
+struct __taint_scan_ctx {
+	const char *text;
+	const char *pat;
+	int tn;
+	int pn;
+	long tlive;
+	long plive;
+};
+
+/* Measure both string lengths one byte at a time through bpf_loop so the scan
+ * costs a single verified state instead of TAINT_PAT_LEN of them. */
+static long __taint_scan_cb(__u32 idx, void *_ctx)
+{
+	struct __taint_scan_ctx *c = _ctx;
+
+	c->tlive &= te_nzmask((unsigned char)c->text[idx]) & 1;
+	c->tn += (int)c->tlive;
+	c->plive &= te_nzmask((unsigned char)c->pat[idx]) & 1;
+	c->pn += (int)c->plive;
+	return 0;
+}
+
 static __noinline int taint_contains(const char *text, const char *pat)
 {
 	int tn = 0, pn = 0;
 	long tlive = 1, plive = 1;
 
-	TAINT_UNROLL
-	for (int i = 0; i < TAINT_PAT_LEN; i++) {
-		tlive &= te_nzmask((unsigned char)text[i]) & 1;
-		tn += (int)tlive;
-		plive &= te_nzmask((unsigned char)pat[i]) & 1;
-		pn += (int)plive;
-	}
+	struct __taint_scan_ctx sc = { .text = text, .pat = pat, .tn = 0, .pn = 0,
+				       .tlive = 1, .plive = 1 };
+	bpf_loop(TAINT_PAT_LEN, __taint_scan_cb, &sc, 0);
+	tn = sc.tn;
+	pn = sc.pn;
 	if (pn == 0 || pn > tn || pn > TAINT_SUF_MAX)
 		return 0;
 
