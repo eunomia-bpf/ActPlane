@@ -602,8 +602,7 @@ static __noinline void te_store_fd(pid_t pid, int fd, const char *path,
 	__builtin_memset(scratch, 0, sizeof(*scratch));
 	te_fd_key(pid, fd, &scratch->key);
 	scratch->ref.fid = *fid;
-	for (int i = 0; i < MAX_FILENAME_LEN; i++)
-		scratch->ref.path[i] = path[i];
+	__builtin_memcpy(scratch->ref.path, path, MAX_FILENAME_LEN);
 	scratch->ref.path[MAX_FILENAME_LEN - 1] = '\0';
 	bpf_map_delete_elem(&ts_sockfd, &scratch->key);
 	bpf_map_update_elem(&ts_fd, &scratch->key, &scratch->ref, BPF_ANY);
@@ -997,8 +996,7 @@ static __always_inline void copy_violation_provenance(struct event *v,
 	v->prov_pid = p->pid;
 	v->prov_op = p->op;
 	v->prov_ip = p->ip;
-	for (int j = 0; j < MAX_FILENAME_LEN; j++)
-		v->prov_target[j] = p->target[j];
+	__builtin_memcpy(v->prov_target, p->target, MAX_FILENAME_LEN);
 	v->prov_target[MAX_FILENAME_LEN - 1] = '\0';
 }
 
