@@ -1382,40 +1382,44 @@ static int exec_pipe_apply_domain_cb(__u32 i, void *vc)
 	struct proc_state ns = {};
 	struct pid_domain_id key = {};
 
+	__u32 idx = i & (CAP_DOMAIN_DEPTH - 1);
+
 	(void)vc;
 	if (!s || !scratch)
 		return 1;
-	/* Compare against the variable bound first and the constant one last:
-	 * the verifier keeps the tighter range from the last branch it walks,
-	 * and the s->n_domains compare re-derives the index as a fresh
-	 * [0, 0xfffffffe] scalar on fall-through, which loses the <= 7 bound
-	 * that s->domain_ids[i] and s->add[i] need below. */
-	if (i >= s->n_domains || i >= CAP_DOMAIN_DEPTH)
+	/* Index through a masked copy of the callback counter: bpf_loop hands the
+	 * body an unbounded scalar, and comparing the raw argument against the
+	 * constant bound does not survive, because clang re-derives the index
+	 * from the original argument for the address arithmetic and the verifier
+	 * then sees a full [0, 0xffffffff] scalar at the load. The mask bounds
+	 * the value the verifier tracks, so s->domain_ids[idx] and the parallel
+	 * arrays below stay inside the map even if the compiler rematerialises. */
+	if (idx >= s->n_domains)
 		return 1;
-	domain_id = s->domain_ids[i];
+	domain_id = s->domain_ids[idx];
 	if (!te_pid_active(s->pid) || !cap_domain_matches_pid(s->pid, domain_id))
 		return 0;
 
 	p = te_get_domain(s->pid, domain_id);
 	if (p)
 		ns = *p;
-	ns.labels = (ns.labels | s->add[i]) & ~s->del[i];
-	ns.lin_gates |= s->gates[i];
+	ns.labels = (ns.labels | s->add[idx]) & ~s->del[idx];
+	ns.lin_gates |= s->gates[idx];
 	te_store_proc_domain(s->pid, domain_id, &ns);
 #ifndef ACTPLANE_LEGACY_KERNEL
-	if (s->add[i])
-		te_record_proc_prov_mask(s->pid, domain_id, s->add[i],
+	if (s->add[idx])
+		te_record_proc_prov_mask(s->pid, domain_id, s->add[idx],
 					 TOP_EXEC, scratch->match, 0);
 #endif
-	if (s->gates[i] || s->exit_gates[i] || s->invals[i]) {
+	if (s->gates[idx] || s->exit_gates[idx] || s->invals[idx]) {
 		pid_t r = te_root(s->pid);
 		__u32 ep = te_tick(r, domain_id);
-		if (s->gates[i] || s->invals[i])
-			te_stamp(r, domain_id, ep, s->gates[i], s->invals[i]);
+		if (s->gates[idx] || s->invals[idx])
+			te_stamp(r, domain_id, ep, s->gates[idx], s->invals[idx]);
 		te_pid_domain_key(s->pid, domain_id, &key);
-		if (s->exit_gates[i]) {
+		if (s->exit_gates[idx]) {
 			struct te_exit_gate_pending pending = {
-				.gates = s->exit_gates[i],
+				.gates = s->exit_gates[idx],
 				.epoch = ep,
 			};
 			bpf_map_update_elem(&ts_exit_gates, &key, &pending, BPF_ANY);
