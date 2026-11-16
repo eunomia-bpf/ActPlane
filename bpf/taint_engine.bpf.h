@@ -655,16 +655,32 @@ static __noinline int taint_arg_match(const char *slots, const char *tok)
 }
 #endif /* __BPF__ */
 
-static __always_inline __u64 te_fnv1a(const char *s)
+/* FNV-1a over a fixed-length key. The byte scan runs through bpf_loop so the
+ * verifier walks the body once instead of once per byte: the syscall
+ * tracepoint programs hash a path right after the taint engine, and a plain
+ * unrolled scan there exhausts the instruction budget. */
+struct __te_fnv_ctx {
+	const char *s;
+	__u64 h;
+};
+
+static long __te_fnv_cb(__u32 idx, void *_ctx)
 {
-	__u64 h = 0xcbf29ce484222325ULL;
-	TAINT_UNROLL
-	for (int i = 0; i < TAINT_PAT_LEN; i++) {
-		unsigned char c = (unsigned char)s[i];
-		h ^= c;
-		h *= 0x100000001b3ULL;
-	}
-	return h;
+	struct __te_fnv_ctx *c = _ctx;
+	unsigned char byte = 0;
+
+	TE_COPY(&byte, 1, c->s + idx);
+	c->h ^= byte;
+	c->h *= 0x100000001b3ULL;
+	return 0;
+}
+
+static __noinline __u64 te_fnv1a(const char *s)
+{
+	struct __te_fnv_ctx c = { .s = s, .h = 0xcbf29ce484222325ULL };
+
+	bpf_loop(TAINT_PAT_LEN, __te_fnv_cb, &c, 0);
+	return c.h;
 }
 
 static __always_inline struct proc_state *te_get(pid_t pid)
