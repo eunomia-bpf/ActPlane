@@ -3890,7 +3890,12 @@ os.execv({hit:?}, [{hit:?}])
         let lock = LIVE_BPF_TEST_LOCK
             .get_or_init(|| std::sync::Mutex::new(()))
             .lock()
-            .expect("live BPF test lock");
+            // A test that panics while holding the lock poisons it for the
+            // whole process. The lock only serialises these tests, so recover
+            // the guard and let the next test run: without this one failure
+            // reports as one failure plus a `PoisonError` for every test that
+            // has not started yet.
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let old_hook_profile = std::env::var_os("ACTPLANE_HOOK_PROFILE");
         std::env::set_var("ACTPLANE_HOOK_PROFILE", "full");
         LiveBpfTestGuard {
@@ -3902,6 +3907,7 @@ os.execv({hit:?}, [{hit:?}])
     #[test]
     #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
     fn unseeded_processes_do_not_match_global_policy() {
+        let _guard = live_bpf_test_guard();
         let policy = notify_exec_config_blob("apoutside");
         let loader = Loader::load(&policy).expect("load eBPF engine");
 
@@ -3932,6 +3938,7 @@ os.execv({hit:?}, [{hit:?}])
     #[test]
     #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
     fn exec_argv_notify_matches_token_smoke() {
+        let _guard = live_bpf_test_guard();
         let policy = exec_arg_rule_config_blob("apargnotify", "needle", EFFECT_NOTIFY);
         let mut loader = Loader::load(&policy).expect("load eBPF engine");
         loader
@@ -3978,6 +3985,7 @@ os.execv({hit:?}, [{hit:?}])
     #[test]
     #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
     fn exec_argv_kill_terminates_post_exec_smoke() {
+        let _guard = live_bpf_test_guard();
         let policy = exec_arg_rule_config_blob("apargkill", "needle", EFFECT_KILL);
         let mut loader = Loader::load(&policy).expect("load eBPF engine");
         loader
@@ -4027,6 +4035,7 @@ os.execv({hit:?}, [{hit:?}])
     #[test]
     #[ignore = "requires root/CAP_BPF, active BPF LSM, and loads live eBPF programs"]
     fn lsm_path_write_hooks_block_unlink_rename_and_truncate_smoke() {
+        let _guard = live_bpf_test_guard();
         if !bpf_lsm_active() {
             eprintln!("skipping LSM path write hook smoke: bpf LSM is not active");
             return;
@@ -6640,6 +6649,7 @@ finally:
     #[test]
     #[ignore = "requires root/CAP_BPF, active BPF LSM, and loads live eBPF programs"]
     fn lsm_recv_endpoint_source_taints_reader_smoke() {
+        let _guard = live_bpf_test_guard();
         if !bpf_lsm_active() {
             eprintln!("skipping LSM recv flow smoke: bpf LSM is not active");
             return;
@@ -6714,6 +6724,7 @@ finally:
     #[test]
     #[ignore = "requires root/CAP_BPF, active BPF LSM, and loads live eBPF programs"]
     fn lsm_recv_endpoint_block_smoke() {
+        let _guard = live_bpf_test_guard();
         if !bpf_lsm_active() {
             eprintln!("skipping LSM recv block smoke: bpf LSM is not active");
             return;
@@ -6873,6 +6884,7 @@ finally:
     #[test]
     #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
     fn binding_domain_resets_inherited_process_labels_smoke() {
+        let _guard = live_bpf_test_guard();
         let empty = empty_config_blob();
         let label = 1;
         let caller_pid = std::process::id() as i32;
@@ -6972,6 +6984,7 @@ finally:
     #[test]
     #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
     fn local_domain_process_labels_do_not_satisfy_global_rules_smoke() {
+        let _guard = live_bpf_test_guard();
         let label = 1;
         let caller_pid = std::process::id() as i32;
         let local_domain = 600;
@@ -7066,6 +7079,7 @@ finally:
     #[test]
     #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
     fn append_policy_delta_scopes_to_target_domain_and_descendants_smoke() {
+        let _guard = live_bpf_test_guard();
         let empty = empty_config_blob();
         let policy = notify_exec_config_blob("apdomain");
         let caller_pid = std::process::id() as i32;
@@ -7222,6 +7236,7 @@ finally:
     #[test]
     #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
     fn domain_handle_binds_subagent_child_domain_smoke() {
+        let _guard = live_bpf_test_guard();
         let empty = empty_config_blob();
         let policy = notify_exec_config_blob("apchilddom");
         let caller_pid = std::process::id() as i32;
@@ -7301,6 +7316,7 @@ finally:
     #[test]
     #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
     fn seeded_parent_can_append_child_source_policy_smoke() {
+        let _guard = live_bpf_test_guard();
         let empty = empty_config_blob();
         let label = 1;
         let caller_pid = std::process::id() as i32;
@@ -7363,6 +7379,7 @@ finally:
     #[test]
     #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
     fn append_policy_delta_admits_self_rule_smoke() {
+        let _guard = live_bpf_test_guard();
         let empty = empty_config_blob();
         let policy = notify_exec_config_blob("aprladd");
         let caller_pid = std::process::id() as i32;
@@ -7414,6 +7431,7 @@ finally:
     #[test]
     #[ignore = "requires root/CAP_BPF and loads live eBPF programs"]
     fn append_policy_delta_admits_domain_local_declassify_smoke() {
+        let _guard = live_bpf_test_guard();
         let empty = empty_config_blob();
         let label = 1u64;
         let caller_pid = std::process::id() as i32;
