@@ -1869,72 +1869,44 @@ static __always_inline void te_read_domain(pid_t pid, struct file_id *fid,
 	}
 }
 
+#ifdef ACTPLANE_LEGACY_KERNEL
+/* The legacy build pins CAP_DOMAIN_DEPTH to 1, so these loops have a single
+ * iteration and nothing to collapse; they also cannot afford the ctx below,
+ * which would be inlined into every call site and blow the 512-byte stack. */
+static __always_inline void te_read(pid_t pid, struct file_id *fid, const char *path)
+{
+	te_read_domain(pid, fid, path, te_domain_for_depth(pid, 0));
+}
+#else
 /* The per-domain loops below are what put trace_write and trace_openat_exit
  * past BPF_COMPLEXITY_LIMIT_INSNS: each of them inlines the parent-chain walk
  * plus a body whose branches read map values the verifier cannot resolve, and
  * the simulation is charged CAP_DOMAIN_DEPTH times per call site. Running the
  * body as a bpf_loop callback verifies it once, which is the same treatment
- * exec_pipe_apply_updates and the table scans in this file already had. */
-/* The callback re-derives fid and path from per-CPU scratch rather than
- * carrying the caller's pointers: a pointer passed through the bpf_loop ctx
- * reaches the callback without its map_value bound, which is why the tokenizer
- * above re-looks-up its buffer too. Copying also normalises callers that hand
- * in a stack fid and callers that hand in a map-value fid. */
+ * exec_pipe_apply_updates and the table scans in this file already had.
+ *
+ * The callback reads fid and path from the ctx the caller builds, not from the
+ * caller's own storage: a pointer handed through the bpf_loop ctx reaches the
+ * callback without its map_value bound (the argv tokenizer above re-looks-up
+ * its buffer for the same reason). Copying also normalises the two caller
+ * shapes — a stack fid and a map-value fid. */
 struct te_domain_walk_ctx {
 	pid_t pid;
-};
-
-struct te_domain_walk_scratch {
 	struct file_id fid;
-	struct file_id to_fid;
 	char path[MAX_FILENAME_LEN];
 };
-
-struct {
-	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-	__uint(max_entries, 1);
-	__type(key, __u32);
-	__type(value, struct te_domain_walk_scratch);
-} ts_domain_walk_scratch SEC(".maps");
-
-static __always_inline struct te_domain_walk_scratch *te_domain_walk_buf(void)
-{
-	__u32 k = 0;
-
-	return bpf_map_lookup_elem(&ts_domain_walk_scratch, &k);
-}
-
-static __noinline void te_domain_walk_stage(struct file_id *fid,
-					    const char *path)
-{
-	struct te_domain_walk_scratch *s = te_domain_walk_buf();
-
-	if (!s)
-		return;
-	if (fid)
-		s->fid = *fid;
-	else
-		__builtin_memset(&s->fid, 0, sizeof(s->fid));
-	if (path)
-		te_copy_target(s->path, path);
-	else
-		s->path[0] = '\0';
-}
 
 static long te_read_domains_cb(__u32 i, void *_ctx)
 {
 	struct te_domain_walk_ctx *c = _ctx;
-	struct te_domain_walk_scratch *s = te_domain_walk_buf();
 	__u32 domain_id;
 
-	if (!s)
-		return 1;
 	if (i >= CAP_DOMAIN_DEPTH)
 		return 1;
 	domain_id = te_domain_for_depth(c->pid, (int)i);
 	if (i > 0 && !domain_id)
 		return 1;
-	te_read_domain(c->pid, &s->fid, s->path, domain_id);
+	te_read_domain(c->pid, &c->fid, c->path, domain_id);
 	return 0;
 }
 
@@ -1942,9 +1914,13 @@ static __always_inline void te_read(pid_t pid, struct file_id *fid, const char *
 {
 	struct te_domain_walk_ctx c = { .pid = pid };
 
-	te_domain_walk_stage(fid, path);
+	if (fid)
+		c.fid = *fid;
+	if (path)
+		te_copy_target(c.path, path);
 	bpf_loop(CAP_DOMAIN_DEPTH, te_read_domains_cb, &c, 0);
 }
+#endif
 /* write: file absorbs proc labels; stamp `since write` invalidators (this is
  * what makes a gate go stale when the agent edits an input again). The label
  * flow is gated on pl != 0, but invalidator stamping is not — editing an
@@ -1986,21 +1962,25 @@ static __always_inline void te_write_flow_domain(pid_t pid, struct file_id *fid,
 		te_copy_proc_prov_to_file(pid, fdom, pl);
 	}
 }
+#ifdef ACTPLANE_LEGACY_KERNEL
+static __always_inline void te_write_flow(pid_t pid, struct file_id *fid,
+					  const char *path)
+{
+	te_write_flow_domain(pid, fid, path, te_domain_for_depth(pid, 0));
+}
+#else
 
 static long te_write_flow_domains_cb(__u32 i, void *_ctx)
 {
 	struct te_domain_walk_ctx *c = _ctx;
-	struct te_domain_walk_scratch *s = te_domain_walk_buf();
 	__u32 domain_id;
 
-	if (!s)
-		return 1;
 	if (i >= CAP_DOMAIN_DEPTH)
 		return 1;
 	domain_id = te_domain_for_depth(c->pid, (int)i);
 	if (i > 0 && !domain_id)
 		return 1;
-	te_write_flow_domain(c->pid, &s->fid, s->path, domain_id);
+	te_write_flow_domain(c->pid, &c->fid, c->path, domain_id);
 	return 0;
 }
 
@@ -2009,9 +1989,13 @@ static __always_inline void te_write_flow(pid_t pid, struct file_id *fid,
 {
 	struct te_domain_walk_ctx c = { .pid = pid };
 
-	te_domain_walk_stage(fid, path);
+	if (fid)
+		c.fid = *fid;
+	if (path)
+		te_copy_target(c.path, path);
 	bpf_loop(CAP_DOMAIN_DEPTH, te_write_flow_domains_cb, &c, 0);
 }
+#endif
 
 /* File sources are intrinsic object labels. Materialize a matching source path
  * into the file-object state so later reads through a renamed path inherit the
