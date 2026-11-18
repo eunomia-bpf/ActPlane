@@ -45,12 +45,12 @@ jobs:
 
   privileged-ebpf:
     name: Privileged eBPF Tests
-    # clang-21 on ubuntu-26.04 compiles process.bpf.c into a program the
-    # verifier gives up on: 'BPF program is too large. Processed 1000001 insn'
-    # for exec_tp_update_prefix, whose BPF_PROG_LOAD then fails with E2BIG.
-    # The same source verifies and passes all 42 privileged tests with
-    # clang-18 on ubuntu-24.04, so pin the image the engine is known to run on
-    # until the program size is reduced.
+    # The 24.04 image is a stopgap, not the fix: it now ships kernel
+    # 7.0.0-1017, whose verifier also rejects the unrolled programs with
+    # 'BPF program is too large. Processed 1000001 insn' (the branch's own run
+    # 43721991072 reports 7 passed; 35 failed). The fix for that is #624, which
+    # moves the per-domain walks in te_read/te_write_flow to bpf_loop.
+    # Pinning keeps the job from moving between kernels while that lands.
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     concurrency:
