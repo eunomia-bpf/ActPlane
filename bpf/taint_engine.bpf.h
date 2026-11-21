@@ -145,18 +145,38 @@ static long __taint_contains_cb(__u32 idx, void *_ctx)
 	return 0;
 }
 
+struct __taint_scan_ctx {
+	const char *text;
+	const char *pat;
+	int tn;
+	int pn;
+	long tlive;
+	long plive;
+};
+
+/* Measure both string lengths one byte at a time through bpf_loop so the scan
+ * costs a single verified state instead of TAINT_PAT_LEN of them. */
+static long __taint_scan_cb(__u32 idx, void *_ctx)
+{
+	struct __taint_scan_ctx *c = _ctx;
+
+	c->tlive &= te_nzmask((unsigned char)c->text[idx]) & 1;
+	c->tn += (int)c->tlive;
+	c->plive &= te_nzmask((unsigned char)c->pat[idx]) & 1;
+	c->pn += (int)c->plive;
+	return 0;
+}
+
 static __noinline int taint_contains(const char *text, const char *pat)
 {
 	int tn = 0, pn = 0;
 	long tlive = 1, plive = 1;
 
-	TAINT_UNROLL
-	for (int i = 0; i < TAINT_PAT_LEN; i++) {
-		tlive &= te_nzmask((unsigned char)text[i]) & 1;
-		tn += (int)tlive;
-		plive &= te_nzmask((unsigned char)pat[i]) & 1;
-		pn += (int)plive;
-	}
+	struct __taint_scan_ctx sc = { .text = text, .pat = pat, .tn = 0, .pn = 0,
+				       .tlive = 1, .plive = 1 };
+	bpf_loop(TAINT_PAT_LEN, __taint_scan_cb, &sc, 0);
+	tn = sc.tn;
+	pn = sc.pn;
 	if (pn == 0 || pn > tn || pn > TAINT_SUF_MAX)
 		return 0;
 
@@ -655,16 +675,32 @@ static __noinline int taint_arg_match(const char *slots, const char *tok)
 }
 #endif /* __BPF__ */
 
-static __always_inline __u64 te_fnv1a(const char *s)
+/* FNV-1a over a fixed-length key. The byte scan runs through bpf_loop so the
+ * verifier walks the body once instead of once per byte: the syscall
+ * tracepoint programs hash a path right after the taint engine, and a plain
+ * unrolled scan there exhausts the instruction budget. */
+struct __te_fnv_ctx {
+	const char *s;
+	__u64 h;
+};
+
+static long __te_fnv_cb(__u32 idx, void *_ctx)
 {
-	__u64 h = 0xcbf29ce484222325ULL;
-	TAINT_UNROLL
-	for (int i = 0; i < TAINT_PAT_LEN; i++) {
-		unsigned char c = (unsigned char)s[i];
-		h ^= c;
-		h *= 0x100000001b3ULL;
-	}
-	return h;
+	struct __te_fnv_ctx *c = _ctx;
+	unsigned char byte = 0;
+
+	TE_COPY(&byte, 1, c->s + idx);
+	c->h ^= byte;
+	c->h *= 0x100000001b3ULL;
+	return 0;
+}
+
+static __noinline __u64 te_fnv1a(const char *s)
+{
+	struct __te_fnv_ctx c = { .s = s, .h = 0xcbf29ce484222325ULL };
+
+	bpf_loop(TAINT_PAT_LEN, __te_fnv_cb, &c, 0);
+	return c.h;
 }
 
 static __always_inline struct proc_state *te_get(pid_t pid)
@@ -734,8 +770,11 @@ static __always_inline void te_copy_target(char *dst, const char *src)
 		dst[0] = '\0';
 		return;
 	}
-	for (int i = 0; i < MAX_FILENAME_LEN; i++)
-		dst[i] = src[i];
+	/* One bounded helper call instead of a 127-iteration byte loop: the
+	 * verifier walks every iteration of that loop as its own state, and this
+	 * body sits inside the syscall programs that already exhaust the
+	 * instruction budget. */
+	bpf_probe_read_kernel(dst, MAX_FILENAME_LEN, src);
 	dst[MAX_FILENAME_LEN - 1] = '\0';
 }
 
@@ -1830,15 +1869,58 @@ static __always_inline void te_read_domain(pid_t pid, struct file_id *fid,
 	}
 }
 
+#ifdef ACTPLANE_LEGACY_KERNEL
+/* The legacy build pins CAP_DOMAIN_DEPTH to 1, so these loops have a single
+ * iteration and nothing to collapse; they also cannot afford the ctx below,
+ * which would be inlined into every call site and blow the 512-byte stack. */
 static __always_inline void te_read(pid_t pid, struct file_id *fid, const char *path)
 {
-	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
-		__u32 domain_id = te_domain_for_depth(pid, i);
-		if (i > 0 && !domain_id)
-			break;
-		te_read_domain(pid, fid, path, domain_id);
-	}
+	te_read_domain(pid, fid, path, te_domain_for_depth(pid, 0));
 }
+#else
+/* The per-domain loops below are what put trace_write and trace_openat_exit
+ * past BPF_COMPLEXITY_LIMIT_INSNS: each of them inlines the parent-chain walk
+ * plus a body whose branches read map values the verifier cannot resolve, and
+ * the simulation is charged CAP_DOMAIN_DEPTH times per call site. Running the
+ * body as a bpf_loop callback verifies it once, which is the same treatment
+ * exec_pipe_apply_updates and the table scans in this file already had.
+ *
+ * The callback reads fid and path from the ctx the caller builds, not from the
+ * caller's own storage: a pointer handed through the bpf_loop ctx reaches the
+ * callback without its map_value bound (the argv tokenizer above re-looks-up
+ * its buffer for the same reason). Copying also normalises the two caller
+ * shapes — a stack fid and a map-value fid. */
+struct te_domain_walk_ctx {
+	pid_t pid;
+	struct file_id fid;
+	char path[MAX_FILENAME_LEN];
+};
+
+static long te_read_domains_cb(__u32 i, void *_ctx)
+{
+	struct te_domain_walk_ctx *c = _ctx;
+	__u32 domain_id;
+
+	if (i >= CAP_DOMAIN_DEPTH)
+		return 1;
+	domain_id = te_domain_for_depth(c->pid, (int)i);
+	if (i > 0 && !domain_id)
+		return 1;
+	te_read_domain(c->pid, &c->fid, c->path, domain_id);
+	return 0;
+}
+
+static __always_inline void te_read(pid_t pid, struct file_id *fid, const char *path)
+{
+	struct te_domain_walk_ctx c = { .pid = pid };
+
+	if (fid)
+		c.fid = *fid;
+	if (path)
+		te_copy_target(c.path, path);
+	bpf_loop(CAP_DOMAIN_DEPTH, te_read_domains_cb, &c, 0);
+}
+#endif
 /* write: file absorbs proc labels; stamp `since write` invalidators (this is
  * what makes a gate go stale when the agent edits an input again). The label
  * flow is gated on pl != 0, but invalidator stamping is not — editing an
@@ -1880,17 +1962,40 @@ static __always_inline void te_write_flow_domain(pid_t pid, struct file_id *fid,
 		te_copy_proc_prov_to_file(pid, fdom, pl);
 	}
 }
+#ifdef ACTPLANE_LEGACY_KERNEL
+static __always_inline void te_write_flow(pid_t pid, struct file_id *fid,
+					  const char *path)
+{
+	te_write_flow_domain(pid, fid, path, te_domain_for_depth(pid, 0));
+}
+#else
+
+static long te_write_flow_domains_cb(__u32 i, void *_ctx)
+{
+	struct te_domain_walk_ctx *c = _ctx;
+	__u32 domain_id;
+
+	if (i >= CAP_DOMAIN_DEPTH)
+		return 1;
+	domain_id = te_domain_for_depth(c->pid, (int)i);
+	if (i > 0 && !domain_id)
+		return 1;
+	te_write_flow_domain(c->pid, &c->fid, c->path, domain_id);
+	return 0;
+}
 
 static __always_inline void te_write_flow(pid_t pid, struct file_id *fid,
 					  const char *path)
 {
-	for (int i = 0; i < CAP_DOMAIN_DEPTH; i++) {
-		__u32 domain_id = te_domain_for_depth(pid, i);
-		if (i > 0 && !domain_id)
-			break;
-		te_write_flow_domain(pid, fid, path, domain_id);
-	}
+	struct te_domain_walk_ctx c = { .pid = pid };
+
+	if (fid)
+		c.fid = *fid;
+	if (path)
+		te_copy_target(c.path, path);
+	bpf_loop(CAP_DOMAIN_DEPTH, te_write_flow_domains_cb, &c, 0);
 }
+#endif
 
 /* File sources are intrinsic object labels. Materialize a matching source path
  * into the file-object state so later reads through a renamed path inherit the
