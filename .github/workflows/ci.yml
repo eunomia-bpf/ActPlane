@@ -45,7 +45,13 @@ jobs:
 
   privileged-ebpf:
     name: Privileged eBPF Tests
-    runs-on: ubuntu-latest
+    # The 24.04 image is a stopgap, not the fix: it now ships kernel
+    # 7.0.0-1017, whose verifier also rejects the unrolled programs with
+    # 'BPF program is too large. Processed 1000001 insn' (the branch's own run
+    # 43721991072 reports 7 passed; 35 failed). The fix for that is #624, which
+    # moves the per-domain walks in te_read/te_write_flow to bpf_loop.
+    # Pinning keeps the job from moving between kernels while that lands.
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     concurrency:
       group: privileged-ebpf-${{ github.head_ref || github.ref_name }}
