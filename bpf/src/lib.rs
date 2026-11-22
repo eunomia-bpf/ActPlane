@@ -3850,8 +3850,7 @@ os.execv({hit:?}, [{hit:?}])
 
         /// Stop the reader and return what `run` reported.
         fn stop(&mut self) -> std::io::Result<()> {
-            self.stop
-                .store(true, std::sync::atomic::Ordering::Relaxed);
+            self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
             match self.thread.take() {
                 Some(thread) => thread
                     .join()
@@ -3864,8 +3863,7 @@ os.execv({hit:?}, [{hit:?}])
     impl Drop for TestEngineRun {
         fn drop(&mut self) {
             if let Some(thread) = self.thread.take() {
-                self.stop
-                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
                 let _ = thread.join();
             }
         }
