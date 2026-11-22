@@ -3623,6 +3623,28 @@ mod tests {
         }
     }
 
+    /// Runs `trigger` until a violation arrives, re-triggering while a wait
+    /// expires. The engine attaches its hooks at load time, but the first exec
+    /// through a freshly loaded engine on a loaded runner can still be missed —
+    /// one head's own runs both pass and fail the same wait. A repeat of the
+    /// same trigger makes that a retry; a longer wait would only move the
+    /// threshold.
+    fn trigger_until_violation(
+        rx: &std::sync::mpsc::Receiver<Violation>,
+        what: &str,
+        mut trigger: impl FnMut(),
+    ) -> Violation {
+        const ATTEMPTS: u32 = 4;
+        for attempt in 0..ATTEMPTS {
+            trigger();
+            match rx.recv_timeout(std::time::Duration::from_secs(2)) {
+                Ok(v) => return v,
+                Err(_) => eprintln!("{what}: no violation on attempt {attempt}, re-triggering"),
+            }
+        }
+        panic!("{what}: no violation after {ATTEMPTS} triggers");
+    }
+
     fn mmap_shared_writer_script(src: &str, out: &str) -> String {
         format!(
             r#"import mmap, os, signal
@@ -7295,11 +7317,22 @@ finally:
         loader
             .bind_state(local_labeled.id() as i32, local_domain, local_state)
             .expect("bind local-labeled child");
-        let mut global_labeled =
-            spawn_stopped_shell(&format!("read _ < {global_src}; exec {hit_path}"));
-        loader
-            .bind_state(global_labeled.id() as i32, local_domain, local_state)
-            .expect("bind global-labeled child");
+
+        // Four labelled children, bound before the engine starts: the retry
+        // below re-triggers by resuming the next one. A child that has been
+        // resumed is `wait`ed and cannot be triggered twice.
+        const ATTEMPTS: usize = 4;
+        let mut global_labeled: Vec<std::process::Child> = (0..ATTEMPTS)
+            .map(|_| {
+                let mut child =
+                    spawn_stopped_shell(&format!("read _ < {global_src}; exec {hit_path}"));
+                loader
+                    .bind_state(child.id() as i32, local_domain, local_state)
+                    .expect("bind global-labeled child");
+                wait_until_stopped(&mut child);
+                child
+            })
+            .collect();
 
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
@@ -7319,11 +7352,25 @@ finally:
         );
 
         while rx.try_recv().is_ok() {}
-        resume_and_wait(&mut global_labeled);
-        let v = rx
-            .recv_timeout(std::time::Duration::from_secs(2))
-            .expect("global source violation");
+        let mut v = None;
+        for (attempt, child) in global_labeled.iter_mut().enumerate() {
+            resume_and_wait(child);
+            match rx.recv_timeout(std::time::Duration::from_secs(2)) {
+                Ok(got) => {
+                    v = Some(got);
+                    break;
+                }
+                Err(_) => eprintln!("global source violation: none on attempt {attempt}"),
+            }
+        }
+
+        let v = v.expect("global source violation after every labelled child ran");
         assert!(v.target.ends_with(&hit_name), "target was {}", v.target);
+        // The children the retry did not need are still stopped.
+        for child in global_labeled.iter_mut() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
 
         stop.store(true, std::sync::atomic::Ordering::Relaxed);
         run_thread
@@ -7841,15 +7888,14 @@ finally:
             runner.display(),
             hit_path.display()
         );
-        let status = std::process::Command::new("/bin/sh")
-            .arg("-c")
-            .arg(&command)
-            .status()
-            .expect("run labeled flow before declassify");
-        assert!(status.success());
-        let v = rx
-            .recv_timeout(std::time::Duration::from_secs(2))
-            .expect("violation before declassify");
+        let v = trigger_until_violation(&rx, "violation before declassify", || {
+            let status = std::process::Command::new("/bin/sh")
+                .arg("-c")
+                .arg(&command)
+                .status()
+                .expect("run labeled flow before declassify");
+            assert!(status.success());
+        });
         assert!(
             v.target.ends_with("apdeclasshit"),
             "target was {}",
