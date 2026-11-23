@@ -1889,24 +1889,64 @@ static __always_inline void te_read(pid_t pid, struct file_id *fid, const char *
  * caller's own storage: a pointer handed through the bpf_loop ctx reaches the
  * callback without its map_value bound (the argv tokenizer above re-looks-up
  * its buffer for the same reason). Copying also normalises the two caller
- * shapes — a stack fid and a map-value fid. */
+ * shapes — a stack fid and a map-value fid.
+ *
+ * The path is what makes the ctx too big for the caller's stack: 128 bytes is
+ * a quarter of the 512-byte budget, and trace_read spends 248 bytes of its own
+ * before the walk, so a stack ctx pushed it over the limit on 6.8 kernels.
+ * bpf_loop takes its ctx as ARG_PTR_TO_STACK_OR_NULL, so the ctx itself must
+ * stay on the stack; the path lives in a per-CPU array and the callback
+ * re-looks it up, which is what te_argslots and ts_update_scratch already do.
+ *
+ * te_domain_walk_buf returns NULL when the per-CPU slot is unavailable;
+ * callers then skip the walk, as the legacy path skips a dead domain. */
 struct te_domain_walk_ctx {
 	pid_t pid;
 	struct file_id fid;
+};
+struct te_domain_walk_path {
 	char path[MAX_FILENAME_LEN];
 };
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct te_domain_walk_path);
+} ts_domain_walk SEC(".maps");
+
+static __always_inline struct te_domain_walk_path *te_domain_walk_path_slot(void)
+{
+	__u32 k = 0;
+
+	return bpf_map_lookup_elem(&ts_domain_walk, &k);
+}
+
+/* Fill the per-CPU slot before the walk; the callbacks only look it up. */
+static __always_inline int te_domain_walk_path_fill(const char *path)
+{
+	struct te_domain_walk_path *p = te_domain_walk_path_slot();
+
+	if (!p)
+		return 0;
+	if (path)
+		te_copy_target(p->path, path);
+	else
+		p->path[0] = '\0';
+	return 1;
+}
 
 static long te_read_domains_cb(__u32 i, void *_ctx)
 {
 	struct te_domain_walk_ctx *c = _ctx;
+	struct te_domain_walk_path *p = te_domain_walk_path_slot();
 	__u32 domain_id;
 
-	if (i >= CAP_DOMAIN_DEPTH)
+	if (!p || i >= CAP_DOMAIN_DEPTH)
 		return 1;
 	domain_id = te_domain_for_depth(c->pid, (int)i);
 	if (i > 0 && !domain_id)
 		return 1;
-	te_read_domain(c->pid, &c->fid, c->path, domain_id);
+	te_read_domain(c->pid, &c->fid, p->path, domain_id);
 	return 0;
 }
 
@@ -1914,10 +1954,13 @@ static __always_inline void te_read(pid_t pid, struct file_id *fid, const char *
 {
 	struct te_domain_walk_ctx c = { .pid = pid };
 
+	if (!te_domain_walk_path_fill(path))
+		return;
+	c.fid.ino = 0;
+	c.fid.dev = 0;
+	c.fid._pad = 0;
 	if (fid)
 		c.fid = *fid;
-	if (path)
-		te_copy_target(c.path, path);
 	bpf_loop(CAP_DOMAIN_DEPTH, te_read_domains_cb, &c, 0);
 }
 #endif
@@ -1973,14 +2016,15 @@ static __always_inline void te_write_flow(pid_t pid, struct file_id *fid,
 static long te_write_flow_domains_cb(__u32 i, void *_ctx)
 {
 	struct te_domain_walk_ctx *c = _ctx;
+	struct te_domain_walk_path *p = te_domain_walk_path_slot();
 	__u32 domain_id;
 
-	if (i >= CAP_DOMAIN_DEPTH)
+	if (!p || i >= CAP_DOMAIN_DEPTH)
 		return 1;
 	domain_id = te_domain_for_depth(c->pid, (int)i);
 	if (i > 0 && !domain_id)
 		return 1;
-	te_write_flow_domain(c->pid, &c->fid, c->path, domain_id);
+	te_write_flow_domain(c->pid, &c->fid, p->path, domain_id);
 	return 0;
 }
 
@@ -1989,10 +2033,13 @@ static __always_inline void te_write_flow(pid_t pid, struct file_id *fid,
 {
 	struct te_domain_walk_ctx c = { .pid = pid };
 
+	if (!te_domain_walk_path_fill(path))
+		return;
+	c.fid.ino = 0;
+	c.fid.dev = 0;
+	c.fid._pad = 0;
 	if (fid)
 		c.fid = *fid;
-	if (path)
-		te_copy_target(c.path, path);
 	bpf_loop(CAP_DOMAIN_DEPTH, te_write_flow_domains_cb, &c, 0);
 }
 #endif
