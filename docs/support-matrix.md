@@ -16,13 +16,30 @@ Use `--json` for CI:
 actplane compile --json > actplane-compile-report.json
 ```
 
+## Backends
+
+| Backend | Selected with | Privileges | What it enforces |
+| --- | --- | --- | --- |
+| `bpf-lsm` (default) | `--backend bpf-lsm` or nothing | root or `CAP_BPF` + `CAP_PERFMON` + `CAP_SYS_ADMIN`; pre-op `block` needs `lsm=bpf` | the whole language: labels, propagation, gates, argv, all effects |
+| `unprivileged` (step 1, static tier) | `--backend unprivileged` on `run` and `compile` | none | `block` clauses that map exactly onto Landlock allow-lists and seccomp filters; any other clause makes the policy fail closed |
+
+Review a policy for the unprivileged backend with:
+
+```bash
+actplane compile --backend unprivileged --explain
+actplane run --backend unprivileged -- <cmd>
+```
+
+See [`design/unprivileged-backend.md`](design/unprivileged-backend.md) for
+the mapping, kernel requirements, and limits.
+
 ## Effects
 
-| Effect | What it means | Requires BPF-LSM | Use when |
-| --- | --- | ---: | --- |
-| `notify` | Record feedback; operation proceeds | No | Observe-first rollout, reminders, non-fatal workflow guidance |
-| `block` | Pre-operation denial in a BPF-LSM hook | Yes | Security-sensitive file/network/process policy that must not commit |
-| `kill` | Terminate the matching task and emit feedback | No for tracepoint-backed operations | Argv-sensitive exec rules such as `git push`, `git commit`, `git branch` |
+| Effect | What it means | Requires BPF-LSM | Unprivileged backend (step 1) | Use when |
+| --- | --- | ---: | --- | --- |
+| `notify` | Record feedback; operation proceeds | No | Unsupported (needs the step 2 supervisor) | Observe-first rollout, reminders, non-fatal workflow guidance |
+| `block` | Pre-operation denial in a BPF-LSM hook | Yes | Yes for static clauses: Landlock (`EACCES`) or seccomp (`EPERM`) | Security-sensitive file/network/process policy that must not commit |
+| `kill` | Terminate the matching task and emit feedback | No for tracepoint-backed operations | Unsupported (needs the step 2 supervisor) | Argv-sensitive exec rules such as `git push`, `git commit`, `git branch` |
 
 If several clauses match one event, ActPlane chooses the strongest effect:
 
@@ -32,16 +49,20 @@ kill > block > notify
 
 ## Operation Coverage
 
-| Operation pattern | Pre-op `block` | `kill` / `notify` | Notes |
-| --- | --- | --- | --- |
-| `exec "git"` | Yes, with BPF-LSM | Yes | Executable identity can be denied pre-op. |
-| `exec "git" "push"` | Not pre-op today | Yes | Argv-token predicates are observed after exec; use `kill`. |
-| `open file PAT` | Yes, with BPF-LSM | Yes | Use for mandatory mediation and protected files. |
-| `read file PAT` | Yes, with BPF-LSM | Yes | Also introduces source labels from file sources. |
-| `write file PAT` | Yes, with BPF-LSM | Yes | Covers writes, creates, truncates when hooks are active. |
-| `unlink file PAT` | Yes, with BPF-LSM | Yes | Use for destructive-operation policy. |
-| `connect endpoint PAT` | Yes for supported endpoint forms, with BPF-LSM | Yes | Numeric IPv4 support is strongest today. |
-| `recv endpoint PAT` | Yes for connected IPv4 recv, with BPF-LSM | Yes | Endpoint-source ingress support depends on hook profile. |
+| Operation pattern | Pre-op `block` | `kill` / `notify` | Unprivileged backend (step 1) | Notes |
+| --- | --- | --- | --- | --- |
+| `exec "git"` | Yes, with BPF-LSM | Yes | Unsupported: refusing one program is not an allow-list; `block exec "*"` with optional `unless target "/dir/**"` is exact | Executable identity can be denied pre-op. |
+| `exec "git" "push"` | Not pre-op today | Yes | Unsupported (argv needs the step 2 supervisor) | Argv-token predicates are observed after exec; use `kill`. |
+| `open file PAT` | Yes, with BPF-LSM | Yes | Exact for `"/**"` targets with optional `unless target "/dir/**"` or an exact path | Use for mandatory mediation and protected files. |
+| `read file PAT` | Yes, with BPF-LSM | Yes | Same as `open` | Also introduces source labels from file sources. |
+| `write file PAT` | Yes, with BPF-LSM | Yes | Exact for `"/**"` targets with optional `unless target "/dir/**"` or an exact path (Landlock ABI 3) | Covers writes, creates, truncates when hooks are active. |
+| `unlink file PAT` | Yes, with BPF-LSM | Yes | Same as `write` (both lower to the kernel write op) | Use for destructive-operation policy. |
+| `connect endpoint PAT` | Yes for supported endpoint forms, with BPF-LSM | Yes | Exact for `"*"` (also refuses IPv6, UDP, and other non-TCP sockets); allow-lists unsupported | Numeric IPv4 support is strongest today. |
+| `recv endpoint PAT` | Yes for connected IPv4 recv, with BPF-LSM | Yes | Unsupported | Endpoint-source ingress support depends on hook profile. |
+
+Label predicates (`if L`), `unless after`, and `unless lineage-includes` are
+unsupported by the unprivileged backend in step 1, except `if COMMAND` (or
+`if AGENT`), the runner label that `run` seeds on the whole launched tree.
 
 ## Pattern Support
 

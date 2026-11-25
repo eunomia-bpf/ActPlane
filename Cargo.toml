@@ -3,6 +3,7 @@ members = [
     "bpf",
     "crates/actplane-ifc-compiler",
     "crates/actplane-runtime",
+    "crates/actplane-sandbox",
     "crates/actplane-cli",
 ]
 resolver = "2"

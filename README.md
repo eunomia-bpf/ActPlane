@@ -55,6 +55,15 @@ limit is finite. ActPlane drops the target command back to your user. In the
 supported operations, BPF-LSM lets rules `block` before they commit; otherwise
 they `notify` (report) or `kill`.
 
+**No root or no `lsm=bpf`?** `actplane run --backend unprivileged -- <cmd>`
+enforces, without privileges, the `block` clauses that map exactly onto
+Landlock and seccomp (write and read confinement, read-only domains, exec
+allow-lists, deny-all network) and refuses any policy with a clause it cannot
+enforce exactly. `actplane compile --backend unprivileged --explain` shows the
+per-clause verdict, and `actplane doctor` shows the host's Landlock ABI. Write
+confinement needs Linux 6.2+; see
+[docs/design/unprivileged-backend.md](docs/design/unprivileged-backend.md).
+
 ## Why an OS-level harness?
 
 Agent constraints today come in three forms. Each solves a real problem but
@@ -251,6 +260,8 @@ actplane.yaml ─▶ policy compiler ─▶ runtime/control ─▶ eBPF kernel e
   process lineage, and reports rule matches with policy reasons.
 - **CLI frontend** (`crates/actplane-cli/`): provides the `actplane` command,
   project setup, policy review, MCP, and command dispatch.
+- **Unprivileged backend** (`crates/actplane-sandbox/`): maps the static clauses
+  of the same policy onto Landlock and seccomp for `--backend unprivileged`.
 
 ## Build from source
 

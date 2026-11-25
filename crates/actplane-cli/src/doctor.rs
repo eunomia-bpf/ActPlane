@@ -1243,7 +1243,12 @@ fn policy_ref_for_cli(cli: &PolicyInput) -> String {
         })
 }
 
-fn emit_check_report(contents: &str, out: Option<&Path>, force: bool, label: &str) -> Result<()> {
+pub(crate) fn emit_check_report(
+    contents: &str,
+    out: Option<&Path>,
+    force: bool,
+    label: &str,
+) -> Result<()> {
     if let Some(path) = out {
         if path.exists() && !force {
             return Err(format!(
@@ -1553,7 +1558,7 @@ fn render_check_explain(
     out
 }
 
-fn domain_json(resolved: &ResolvedPolicy) -> Value {
+pub(crate) fn domain_json(resolved: &ResolvedPolicy) -> Value {
     match &resolved.domain {
         Some(domain) => json!({
             "name": domain.name,
@@ -2368,10 +2373,16 @@ pub(crate) fn doctor(cli: &PolicyInput) -> Result<i32> {
         );
     }
 
+    println!("\nunprivileged backend (`--backend unprivileged`, static clauses only):");
+    for line in crate::unprivileged::doctor_lines() {
+        println!("{line}");
+    }
+
     println!("\nNext commands:");
     println!("  actplane compile");
     println!("  codex");
     println!("  sudo -E actplane run -- <agent-or-command>");
+    println!("  actplane run --backend unprivileged -- <agent-or-command>   # no sudo");
 
     if problems == 0 {
         println!("\n✓ setup looks usable.");
