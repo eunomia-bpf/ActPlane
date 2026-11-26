@@ -3623,6 +3623,28 @@ mod tests {
         }
     }
 
+    /// Runs `trigger` until a violation arrives, re-triggering while a wait
+    /// expires. The engine attaches its hooks at load time, but the first exec
+    /// through a freshly loaded engine on a loaded runner can still be missed —
+    /// one head's own runs both pass and fail the same wait. A repeat of the
+    /// same trigger makes that a retry; a longer wait would only move the
+    /// threshold.
+    fn trigger_until_violation(
+        rx: &std::sync::mpsc::Receiver<Violation>,
+        what: &str,
+        mut trigger: impl FnMut(),
+    ) -> Violation {
+        const ATTEMPTS: u32 = 4;
+        for attempt in 0..ATTEMPTS {
+            trigger();
+            match rx.recv_timeout(std::time::Duration::from_secs(2)) {
+                Ok(v) => return v,
+                Err(_) => eprintln!("{what}: no violation on attempt {attempt}, re-triggering"),
+            }
+        }
+        panic!("{what}: no violation after {ATTEMPTS} triggers");
+    }
+
     fn mmap_shared_writer_script(src: &str, out: &str) -> String {
         format!(
             r#"import mmap, os, signal
@@ -3796,6 +3818,57 @@ os.execv({hit:?}, [{hit:?}])
         )
     }
 
+    /// Owns a running engine's stop flag and its ring-reader thread.
+    ///
+    /// A live test that panicked after `Loader::load` used to leave its reader
+    /// thread running with the engine's tracepoint and LSM links attached. The
+    /// leaked `lsm/bpf` hook then denied `BPF_BTF_LOAD` for every test that
+    /// started later in the same process — the failures after the first one
+    /// read `... EPERM` and then `live BPF test lock: PoisonError`. Dropping
+    /// this guard stops the reader and joins it, so one panic unwinds to one
+    /// failure and the next test loads its own engine.
+    struct TestEngineRun {
+        stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        thread: Option<std::thread::JoinHandle<std::io::Result<()>>>,
+    }
+
+    impl TestEngineRun {
+        fn start(loader: Loader, tx: std::sync::mpsc::Sender<Violation>) -> Self {
+            let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let run_stop = std::sync::Arc::clone(&stop);
+            let thread = std::thread::spawn(move || {
+                let mut loader = loader;
+                loader.run(&run_stop, |v| {
+                    let _ = tx.send(v);
+                })
+            });
+            Self {
+                stop,
+                thread: Some(thread),
+            }
+        }
+
+        /// Stop the reader and return what `run` reported.
+        fn stop(&mut self) -> std::io::Result<()> {
+            self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+            match self.thread.take() {
+                Some(thread) => thread
+                    .join()
+                    .unwrap_or_else(|_| Err(std::io::Error::other("ring reader thread panicked"))),
+                None => Ok(()),
+            }
+        }
+    }
+
+    impl Drop for TestEngineRun {
+        fn drop(&mut self) {
+            if let Some(thread) = self.thread.take() {
+                self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
+                let _ = thread.join();
+            }
+        }
+    }
+
     struct LiveBpfTestGuard {
         _lock: std::sync::MutexGuard<'static, ()>,
         old_hook_profile: Option<std::ffi::OsString>,
@@ -3836,16 +3909,10 @@ os.execv({hit:?}, [{hit:?}])
     fn unseeded_processes_do_not_match_global_policy() {
         let _guard = live_bpf_test_guard();
         let policy = notify_exec_config_blob("apoutside");
-        let mut loader = Loader::load(&policy).expect("load eBPF engine");
+        let loader = Loader::load(&policy).expect("load eBPF engine");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         let tmp =
@@ -3864,11 +3931,7 @@ os.execv({hit:?}, [{hit:?}])
             "unseeded process matched a global rule"
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -3882,14 +3945,8 @@ os.execv({hit:?}, [{hit:?}])
             .seed_label(std::process::id() as i32, 1)
             .expect("seed current test domain");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         let tmp = std::env::temp_dir().join(format!("actplane-argv-notify-{}", std::process::id()));
@@ -3921,11 +3978,7 @@ os.execv({hit:?}, [{hit:?}])
         assert!(!v.killed, "notify should not kill: {v:?}");
         assert!(v.target.ends_with("apargnotify"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -3939,14 +3992,8 @@ os.execv({hit:?}, [{hit:?}])
             .seed_label(std::process::id() as i32, 1)
             .expect("seed current test domain");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         let tmp = std::env::temp_dir().join(format!("actplane-argv-kill-{}", std::process::id()));
@@ -3981,11 +4028,7 @@ os.execv({hit:?}, [{hit:?}])
         );
         assert!(v.target.ends_with("apargkill"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4037,14 +4080,8 @@ os.execv({hit:?}, [{hit:?}])
             .seed_label(caller_pid, label)
             .expect("seed current test domain");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         let unlink_err = std::fs::remove_file(&unlink_path).expect_err("unlink should be blocked");
@@ -4092,11 +4129,7 @@ os.execv({hit:?}, [{hit:?}])
             );
         }
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4143,14 +4176,8 @@ os.execv({hit:?}, [{hit:?}])
             spawn_stopped_shell(&format!("exec 3> {out}; read _ < {src}; echo copied >&3"));
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -4166,11 +4193,7 @@ os.execv({hit:?}, [{hit:?}])
             .expect("reader should inherit label written through an already-open fd");
         assert!(v.target.ends_with("apfdhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4207,14 +4230,8 @@ os.execv({hit:?}, [{hit:?}])
             spawn_stopped_shell(&format!("read _ < {src}; printf 'copied\\n' > {shared}"));
         let mut reader = spawn_stopped_shell(&format!("read _ < {shared}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -4245,11 +4262,7 @@ os.execv({hit:?}, [{hit:?}])
             provenance.target
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4311,14 +4324,8 @@ os.execv({hit:?}, [{hit:?}])
             .expect("spawn stopped mmap writer");
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -4334,11 +4341,7 @@ os.execv({hit:?}, [{hit:?}])
             .expect("LSM reader should inherit label written through shared mmap");
         assert!(v.target.ends_with("apmaphit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4401,14 +4404,8 @@ os.execv({hit:?}, [{hit:?}])
             .expect("spawn stopped mprotect writer");
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -4424,11 +4421,7 @@ os.execv({hit:?}, [{hit:?}])
             .expect("LSM reader should inherit label written after mprotect");
         assert!(v.target.ends_with("apmprothit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4489,14 +4482,8 @@ os.execv({hit:?}, [{hit:?}])
             )
             .expect("bind stopped subject domain");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut subject);
@@ -4505,11 +4492,7 @@ os.execv({hit:?}, [{hit:?}])
             .expect("LSM subject should inherit source label on mprotect read upgrade");
         assert!(v.target.ends_with("apmprdhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4560,14 +4543,8 @@ os.execv({hit:?}, [{hit:?}])
             spawn_stopped_shell(&format!("exec 3> {out}; read _ < {src}; echo copied >&3"));
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -4583,11 +4560,7 @@ os.execv({hit:?}, [{hit:?}])
             .expect("tracepoint reader should inherit label written through an already-open fd");
         assert!(v.target.ends_with("aptpfdhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4653,14 +4626,8 @@ os.execv({hit:?}, [{hit:?}])
             .expect("spawn stopped mmap writer");
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -4676,11 +4643,7 @@ os.execv({hit:?}, [{hit:?}])
             .expect("tracepoint reader should inherit label written through shared mmap");
         assert!(v.target.ends_with("aptpmaphit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4748,14 +4711,8 @@ os.execv({hit:?}, [{hit:?}])
             .expect("spawn stopped mprotect writer");
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -4775,11 +4732,7 @@ os.execv({hit:?}, [{hit:?}])
             v.target
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4846,14 +4799,8 @@ os.execv({hit:?}, [{hit:?}])
             )
             .expect("bind stopped subject domain");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut subject);
@@ -4862,11 +4809,7 @@ os.execv({hit:?}, [{hit:?}])
             .expect("tracepoint subject should inherit source label on mprotect read upgrade");
         assert!(v.target.ends_with("aptpmprdhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -4938,14 +4881,8 @@ os.execv({hit:?}, [{hit:?}])
             )
             .expect("bind stopped subject domain");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut subject);
@@ -4958,11 +4895,7 @@ os.execv({hit:?}, [{hit:?}])
             v.target
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -5030,14 +4963,8 @@ os.execv({hit:?}, [{hit:?}])
             .expect("spawn stopped mremap writer");
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -5057,11 +4984,7 @@ os.execv({hit:?}, [{hit:?}])
             v.target
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -5138,14 +5061,8 @@ os.close(out_fd)
             .expect("spawn stopped fcntl writer");
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -5165,11 +5082,7 @@ os.close(out_fd)
             v.target
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -5248,14 +5161,8 @@ finally:
             .expect("spawn stopped sendfile writer");
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -5275,11 +5182,7 @@ finally:
             v.target
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -5363,14 +5266,8 @@ finally:
             .expect("spawn stopped copy_file_range writer");
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -5386,11 +5283,7 @@ finally:
             .expect("tracepoint reader should inherit label written through copy_file_range");
         assert!(v.target.ends_with("aptpcfrhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -5471,14 +5364,8 @@ raise SystemExit(0 if status == 0 else 1)
             .spawn()
             .expect("spawn stopped pipe actor");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -5488,11 +5375,7 @@ raise SystemExit(0 if status == 0 else 1)
             .expect("forked child should inherit label read through pipe");
         assert!(v.target.ends_with("aptppipehit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -5574,14 +5457,8 @@ raise SystemExit(0 if status == 0 else 1)
             .spawn()
             .expect("spawn stopped socketpair actor");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -5591,11 +5468,7 @@ raise SystemExit(0 if status == 0 else 1)
             .expect("forked child should inherit label received through socketpair");
         assert!(v.target.ends_with("aptpsockhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -5694,14 +5567,8 @@ raise SystemExit(0 if status == 0 else 1)
             .spawn()
             .expect("spawn stopped pathname unix socket actor");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -5711,11 +5578,7 @@ raise SystemExit(0 if status == 0 else 1)
             .expect("forked child should inherit label received through pathname unix socket");
         assert!(v.target.ends_with("aptpunixhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -5810,14 +5673,8 @@ raise SystemExit(0 if status == 0 else 1)
             .spawn()
             .expect("spawn stopped abstract unix socket actor");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -5827,11 +5684,7 @@ raise SystemExit(0 if status == 0 else 1)
             .expect("forked child should inherit label received through abstract unix socket");
         assert!(v.target.ends_with("aptpabshit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -5920,14 +5773,8 @@ raise SystemExit(0 if status == 0 else 1)
             .spawn()
             .expect("spawn stopped pathname unix datagram actor");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -5937,11 +5784,7 @@ raise SystemExit(0 if status == 0 else 1)
             .expect("forked child should inherit label received through unix datagram sendto");
         assert!(v.target.ends_with("aptpdgrhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -6027,14 +5870,8 @@ raise SystemExit(0 if status == 0 else 1)
             .spawn()
             .expect("spawn stopped abstract unix datagram actor");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -6044,11 +5881,7 @@ raise SystemExit(0 if status == 0 else 1)
             .expect("forked child should inherit label received through unix datagram sendmsg");
         assert!(v.target.ends_with("aptpmsgdhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -6145,14 +5978,8 @@ raise SystemExit(0 if status == 0 else 1)
             .spawn()
             .expect("spawn stopped SCM_RIGHTS actor");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -6170,11 +5997,7 @@ raise SystemExit(0 if status == 0 else 1)
             .expect("reader should inherit label written through SCM_RIGHTS fd");
         assert!(v.target.ends_with("aptpscmhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -6275,14 +6098,8 @@ raise SystemExit(0 if status == 0 else 1)
             .spawn()
             .expect("spawn stopped SCM_RIGHTS fifth-fd actor");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -6300,11 +6117,7 @@ raise SystemExit(0 if status == 0 else 1)
             .expect("reader should inherit label written through fifth SCM_RIGHTS fd");
         assert!(v.target.ends_with("aptpscm5hit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -6401,14 +6214,8 @@ raise SystemExit(0 if os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0 else 
             .spawn()
             .expect("spawn stopped SCM_RIGHTS socketpair actor");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -6422,11 +6229,7 @@ raise SystemExit(0 if os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0 else 
             v.target
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -6496,14 +6299,8 @@ os.execv({hit:?}, [{hit:?}])
             .spawn()
             .expect("spawn stopped tracepoint TCP reader");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         wait_until_stopped(&reader);
@@ -6523,11 +6320,7 @@ os.execv({hit:?}, [{hit:?}])
             .expect("tracepoint recv source should taint reader before exec");
         assert!(v.target.ends_with("aptprecvhit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -6616,14 +6409,8 @@ os.execv({hit:?}, [{hit:?}])
         }
         let port = port.expect("UDP reader should publish bound port");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -6638,11 +6425,7 @@ os.execv({hit:?}, [{hit:?}])
             .expect("tracepoint UDP recvfrom source should taint reader before exec");
         assert!(v.target.ends_with("aptpudphit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -6735,14 +6518,8 @@ os.execv({hit:?}, [{hit:?}])
         }
         let port = port.expect("UDP recvmsg reader should publish bound port");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
         while rx.try_recv().is_ok() {}
 
@@ -6757,11 +6534,7 @@ os.execv({hit:?}, [{hit:?}])
             .expect("tracepoint UDP recvmsg source should taint reader before exec");
         assert!(v.target.ends_with("aptpmsghit"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -6848,14 +6621,8 @@ finally:
             .expect("spawn stopped splice writer");
         let mut reader = spawn_stopped_shell(&format!("read _ < {out}; exec {hit}"));
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -6875,11 +6642,7 @@ finally:
             v.target
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -6932,14 +6695,8 @@ finally:
             .spawn()
             .expect("spawn stopped TCP reader");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         wait_until_stopped(&reader);
@@ -6960,11 +6717,7 @@ finally:
         assert!(v.target.ends_with("aprecvhit"), "target was {}", v.target);
         assert_eq!(v.rule_id, 0);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -7004,14 +6757,8 @@ finally:
             .spawn()
             .expect("spawn stopped TCP reader");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         wait_until_stopped(&reader);
@@ -7030,11 +6777,7 @@ finally:
         assert!(v.blocked, "recv violation was not blocked: {v:?}");
         assert_eq!(v.rule_id, 0);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
     }
 
     #[test]
@@ -7112,14 +6855,8 @@ finally:
             .bind_state(local_reader.id() as i32, domain_b, domain_b_state)
             .expect("bind local reader to domain B");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut writer);
@@ -7140,11 +6877,7 @@ finally:
             .expect("domain B local source violation");
         assert!(v.target.ends_with("aplabel"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -7191,14 +6924,8 @@ finally:
             .bind_state(reset_child.id() as i32, child_domain, CapState::default())
             .expect("bind child with clean process labels");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut reset_child);
@@ -7208,11 +6935,7 @@ finally:
             "new domain saw process label inherited from old domain"
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
 
         let mut loader = Loader::load(&empty).expect("load eBPF engine");
         loader
@@ -7244,14 +6967,8 @@ finally:
             )
             .expect("bind child with explicit initial label");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut labeled_child);
@@ -7260,11 +6977,7 @@ finally:
             .expect("explicit initial label violation");
         assert!(v.target.ends_with("apbindlabel"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -7308,20 +7021,25 @@ finally:
         loader
             .bind_state(local_labeled.id() as i32, local_domain, local_state)
             .expect("bind local-labeled child");
-        let mut global_labeled =
-            spawn_stopped_shell(&format!("read _ < {global_src}; exec {hit_path}"));
-        loader
-            .bind_state(global_labeled.id() as i32, local_domain, local_state)
-            .expect("bind global-labeled child");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
+        // Four labelled children, bound before the engine starts: the retry
+        // below re-triggers by resuming the next one. A child that has been
+        // resumed is `wait`ed and cannot be triggered twice.
+        const ATTEMPTS: usize = 4;
+        let mut global_labeled: Vec<std::process::Child> = (0..ATTEMPTS)
+            .map(|_| {
+                let mut child =
+                    spawn_stopped_shell(&format!("read _ < {global_src}; exec {hit_path}"));
+                loader
+                    .bind_state(child.id() as i32, local_domain, local_state)
+                    .expect("bind global-labeled child");
+                wait_until_stopped(&mut child);
+                child
             })
-        });
+            .collect();
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut local_labeled);
@@ -7332,17 +7050,27 @@ finally:
         );
 
         while rx.try_recv().is_ok() {}
-        resume_and_wait(&mut global_labeled);
-        let v = rx
-            .recv_timeout(std::time::Duration::from_secs(2))
-            .expect("global source violation");
-        assert!(v.target.ends_with(&hit_name), "target was {}", v.target);
+        let mut v = None;
+        for (attempt, child) in global_labeled.iter_mut().enumerate() {
+            resume_and_wait(child);
+            match rx.recv_timeout(std::time::Duration::from_secs(2)) {
+                Ok(got) => {
+                    v = Some(got);
+                    break;
+                }
+                Err(_) => eprintln!("global source violation: none on attempt {attempt}"),
+            }
+        }
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        let v = v.expect("global source violation after every labelled child ran");
+        assert!(v.target.ends_with(&hit_name), "target was {}", v.target);
+        // The children the retry did not need are still stopped.
+        for child in global_labeled.iter_mut() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+
+        run.stop().expect("run loop");
         let _ = std::fs::remove_file(&global_src);
         let _ = std::fs::remove_file(&local_src);
         let _ = std::fs::remove_file(&hit_path);
@@ -7407,14 +7135,8 @@ finally:
             .expect("bind sibling domain child");
 
         let handle = loader.reload_handle().expect("policy delta handle");
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         handle
@@ -7441,11 +7163,7 @@ finally:
             "sibling domain matched a target-local rule"
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -7501,14 +7219,8 @@ finally:
             )
             .expect("bind child domain below parent");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         resume_and_wait(&mut child);
@@ -7517,11 +7229,7 @@ finally:
             .expect("parent-domain rule matched descendant dynamic label");
         assert!(v.target.ends_with("apancestor"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -7579,14 +7287,8 @@ finally:
             })
             .expect("bind sibling domain through handle");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         handle
@@ -7607,11 +7309,7 @@ finally:
             "sibling child domain matched a rule appended to another child domain"
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -7660,14 +7358,8 @@ finally:
             })
             .expect("bind child domain through handle");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         handle
@@ -7680,11 +7372,7 @@ finally:
             .expect("child source policy violation");
         assert!(v.target.ends_with("apseedchild"), "target was {}", v.target);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -7712,14 +7400,8 @@ finally:
             .expect("bind caller domain");
         let handle = loader.reload_handle().expect("policy delta handle");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         handle
@@ -7742,11 +7424,7 @@ finally:
         assert!(v.target.ends_with("aprladd"), "target was {}", v.target);
         assert_eq!(v.rule_id, 0);
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
@@ -7839,14 +7517,8 @@ finally:
             )
             .expect("bind caller domain");
 
-        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (tx, rx) = std::sync::mpsc::channel();
-        let run_stop = std::sync::Arc::clone(&stop);
-        let run_thread = std::thread::spawn(move || {
-            loader.run(&run_stop, |v| {
-                let _ = tx.send(v);
-            })
-        });
+        let mut run = TestEngineRun::start(loader, tx);
         std::thread::sleep(std::time::Duration::from_millis(50));
 
         handle
@@ -7859,15 +7531,14 @@ finally:
             runner.display(),
             hit_path.display()
         );
-        let status = std::process::Command::new("/bin/sh")
-            .arg("-c")
-            .arg(&command)
-            .status()
-            .expect("run labeled flow before declassify");
-        assert!(status.success());
-        let v = rx
-            .recv_timeout(std::time::Duration::from_secs(2))
-            .expect("violation before declassify");
+        let v = trigger_until_violation(&rx, "violation before declassify", || {
+            let status = std::process::Command::new("/bin/sh")
+                .arg("-c")
+                .arg(&command)
+                .status()
+                .expect("run labeled flow before declassify");
+            assert!(status.success());
+        });
         assert!(
             v.target.ends_with("apdeclasshit"),
             "target was {}",
@@ -7895,11 +7566,7 @@ finally:
             "declassified flow still matched local rule"
         );
 
-        stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        run_thread
-            .join()
-            .expect("join ring thread")
-            .expect("run loop");
+        run.stop().expect("run loop");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }
