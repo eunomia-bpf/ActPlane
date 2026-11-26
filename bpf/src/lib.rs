@@ -401,12 +401,12 @@ where
             let merged = merge_cap_state(existing, state);
             if merged != existing {
                 states
-                    .insert(target_id, merged, BPF_ANY)
+                    .insert(&target_id, &merged, BPF_ANY)
                     .map_err(|e| err(format!("merge cap_state: {e}")))?;
             }
         }
         Err(MapError::KeyNotFound) => states
-            .insert(target_id, state, BPF_NOEXIST)
+            .insert(&target_id, &state, BPF_NOEXIST)
             .map_err(|e| err(format!("seed cap_state: {e}")))?,
         Err(e) => return Err(err(format!("lookup cap_state: {e}"))),
     }
@@ -640,14 +640,14 @@ impl DomainHandle {
         let root = map_get_optional(&roots, &spec.parent_pid, "lookup parent root")?
             .unwrap_or(spec.parent_pid);
         states
-            .insert(spec.child_id, child, BPF_NOEXIST)
+            .insert(&spec.child_id, &child, BPF_NOEXIST)
             .map_err(|e| err(format!("seed child cap_state: {e}")))?;
         proc.insert(
-            PidDomainKey {
+            &PidDomainKey {
                 pid: spec.pid,
                 domain_id: spec.child_id,
             },
-            ProcState {
+            &ProcState {
                 labels: 0,
                 lin_gates: 0,
             },
@@ -655,10 +655,10 @@ impl DomainHandle {
         )
         .map_err(|e| err(format!("seed child ts_proc_domains: {e}")))?;
         roots
-            .insert(spec.pid, root, BPF_ANY)
+            .insert(&spec.pid, &root, BPF_ANY)
             .map_err(|e| err(format!("seed child ts_root: {e}")))?;
         tasks
-            .insert(spec.pid, spec.child_id, BPF_ANY)
+            .insert(&spec.pid, &spec.child_id, BPF_ANY)
             .map_err(|e| err(format!("bind child cap_task: {e}")))?;
         Ok(())
     }
@@ -1732,7 +1732,7 @@ impl PinnedEngine {
         let mut protected: HashMap<_, i32, u32> =
             pinned_hash_map(&self.paths, "te_protected_pids")?;
         protected
-            .insert(pid, 1, 0)
+            .insert(&pid, &1, 0)
             .map_err(|e| err(format!("protect pid {pid}: {e}")))?;
         Ok(())
     }
@@ -1765,8 +1765,8 @@ impl PinnedEngine {
         }
         let mut proc: HashMap<_, i32, ProcState> = pinned_hash_map(&self.paths, "ts_proc")?;
         proc.insert(
-            pid,
-            ProcState {
+            &pid,
+            &ProcState {
                 labels: label,
                 lin_gates: 0,
             },
@@ -1775,7 +1775,7 @@ impl PinnedEngine {
         .map_err(|e| err(format!("seed ts_proc: {e}")))?;
 
         let mut root: HashMap<_, i32, i32> = pinned_hash_map(&self.paths, "ts_root")?;
-        root.insert(pid, pid, 0)
+        root.insert(&pid, &pid, 0)
             .map_err(|e| err(format!("seed ts_root: {e}")))?;
         Ok(())
     }
@@ -1815,11 +1815,11 @@ impl PinnedEngine {
             let mut proc: HashMap<_, PidDomainKey, ProcState> =
                 pinned_hash_map(&self.paths, "ts_proc_domains")?;
             proc.insert(
-                PidDomainKey {
+                &PidDomainKey {
                     pid,
                     domain_id: target_id,
                 },
-                ProcState {
+                &ProcState {
                     labels: 0,
                     lin_gates: 0,
                 },
@@ -1830,7 +1830,7 @@ impl PinnedEngine {
         {
             let mut pid_map: HashMap<_, i32, u32> = pinned_hash_map(&self.paths, "cap_task")?;
             pid_map
-                .insert(pid, target_id, 0)
+                .insert(&pid, &target_id, 0)
                 .map_err(|e| err(format!("seed cap_task: {e}")))?;
         }
         Ok(())
@@ -1991,7 +1991,7 @@ impl Loader {
             let vals = [cfg.n_rules, cfg.n_updates, 0, 0, 0, MAX_TAINT_LABELS as u32];
             for (i, v) in vals.iter().enumerate() {
                 counts
-                    .set(i as u32, *v, 0)
+                    .set(i as u32, v, 0)
                     .map_err(|e| err(format!("ts_counts[{i}]: {e}")))?;
             }
         }
@@ -2106,7 +2106,7 @@ impl Loader {
         )
         .map_err(|e| err(format!("te_protected_pids: {e}")))?;
         protected
-            .insert(pid, 1, 0)
+            .insert(&pid, &1, 0)
             .map_err(|e| err(format!("protect pid {pid}: {e}")))?;
         Ok(())
     }
@@ -2166,8 +2166,8 @@ impl Loader {
         )
         .map_err(|e| err(format!("ts_proc: {e}")))?;
         proc.insert(
-            pid,
-            ProcState {
+            &pid,
+            &ProcState {
                 labels: label,
                 lin_gates: 0,
             },
@@ -2181,7 +2181,7 @@ impl Loader {
                 .ok_or_else(|| err("ts_root missing"))?,
         )
         .map_err(|e| err(format!("ts_root: {e}")))?;
-        root.insert(pid, pid, 0)
+        root.insert(&pid, &pid, 0)
             .map_err(|e| err(format!("seed ts_root: {e}")))?;
         Ok(())
     }
@@ -2197,7 +2197,7 @@ impl Loader {
         )
         .map_err(|e| err(format!("cap_task: {e}")))?;
         pid_map
-            .insert(pid, GLOBAL_ACTIVE_DOMAIN_ID, 0)
+            .insert(&pid, &GLOBAL_ACTIVE_DOMAIN_ID, 0)
             .map_err(|e| err(format!("seed cap_task: {e}")))?;
         Ok(())
     }
@@ -2253,11 +2253,11 @@ impl Loader {
             )
             .map_err(|e| err(format!("ts_proc_domains: {e}")))?;
             proc.insert(
-                PidDomainKey {
+                &PidDomainKey {
                     pid,
                     domain_id: target_id,
                 },
-                ProcState {
+                &ProcState {
                     labels: 0,
                     lin_gates: 0,
                 },
@@ -2273,7 +2273,7 @@ impl Loader {
             )
             .map_err(|e| err(format!("cap_task: {e}")))?;
             pid_map
-                .insert(pid, target_id, 0)
+                .insert(&pid, &target_id, 0)
                 .map_err(|e| err(format!("seed cap_task: {e}")))?;
         }
         Ok(())
@@ -2384,7 +2384,7 @@ fn populate_update_map(bpf: &mut Ebpf, cfg: &CConfig) -> io::Result<()> {
     .map_err(|e| err(format!("ts_updates: {e}")))?;
     for i in 0..cfg.n_updates as usize {
         updates_map
-            .set(i as u32, cfg.updates[i], 0)
+            .set(i as u32, &cfg.updates[i], 0)
             .map_err(|e| err(format!("ts_updates[{i}]: {e}")))?;
     }
     Ok(())
@@ -2398,7 +2398,7 @@ fn populate_rule_map(bpf: &mut Ebpf, cfg: &CConfig) -> io::Result<()> {
     .map_err(|e| err(format!("ts_rules: {e}")))?;
     for i in 0..cfg.n_rules as usize {
         rules_map
-            .set(i as u32, cfg.rules[i], 0)
+            .set(i as u32, &cfg.rules[i], 0)
             .map_err(|e| err(format!("ts_rules[{i}]: {e}")))?;
     }
     Ok(())
@@ -2432,7 +2432,7 @@ fn populate_policy_mask_map(bpf: &mut Ebpf, cfg: &CConfig) -> io::Result<()> {
     .map_err(|e| err(format!("cap_policy: {e}")))?;
     for (domain_id, mask) in masks {
         policy_map
-            .insert(domain_id, mask, 0)
+            .insert(&domain_id, &mask, 0)
             .map_err(|e| err(format!("cap_policy[{domain_id}]: {e}")))?;
     }
     Ok(())
