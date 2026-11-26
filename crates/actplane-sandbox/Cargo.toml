@@ -1,0 +1,22 @@
+[package]
+name = "actplane-sandbox"
+version = "0.1.8"
+edition = "2024"
+description = "Unprivileged ActPlane enforcement backend: maps static policy clauses to Landlock and seccomp filters applied by the launcher."
+license = "MIT"
+repository = "https://github.com/eunomia-bpf/ActPlane"
+readme = "../../README.md"
+keywords = ["landlock", "seccomp", "sandbox", "policy-engine", "actplane"]
+categories = ["os::linux-apis"]
+
+[lib]
+name = "actplane_sandbox"
+path = "src/lib.rs"
+
+[dependencies]
+actplane-ifc-compiler = { version = "0.1.8", path = "../actplane-ifc-compiler" }
+serde_json = "1.0.140"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+landlock = "0.4.8"
+libc = "0.2"

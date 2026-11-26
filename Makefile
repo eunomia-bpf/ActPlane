@@ -12,6 +12,7 @@ clean:
 	make -C bpf clean
 	cargo clean -p actplane-ifc-compiler
 	cargo clean -p actplane-runtime
+	cargo clean -p actplane-sandbox
 	cargo clean -p actplane
 
 install:

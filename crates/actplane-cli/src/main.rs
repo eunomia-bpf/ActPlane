@@ -16,6 +16,9 @@ mod doctor;
 mod setup;
 mod template_generate;
 mod templates;
+mod unprivileged;
+
+use unprivileged::Backend;
 
 pub use actplane_ifc_compiler as dsl;
 pub use actplane_runtime::{audit, config, control, hook, mcp, runtime};
@@ -38,6 +41,8 @@ type Result<T> = std::result::Result<T, AnyError>;
       sudo -E actplane --rule 'source COMMAND = exec \"**\"\n                       rule no-git-branch:\n                         kill exec \"git\" \"branch\" if COMMAND\n                         because \"create a branch via the host, not the agent\"' run claude -p '...'\n\n  \
       # use a project policy file (auto-discovered as ./actplane.yaml upward)\n  \
       sudo -E actplane run <your agent command>\n\n  \
+      # enforce the static clauses of a policy with Landlock + seccomp, without sudo\n  \
+      actplane run --backend unprivileged -- <your agent command>\n\n  \
       # serve MCP resources and auto-attach to the parent agent when Codex starts it\n  \
       actplane mcp --auto-attach-parent\n\n  \
       # compile a policy blob for the low-level loader\n  \
@@ -104,6 +109,10 @@ enum Commands {
 
 #[derive(Args)]
 struct RunArgs {
+    /// Enforcement backend. `unprivileged` applies Landlock + seccomp without
+    /// privileges and refuses policies with clauses it cannot enforce exactly.
+    #[arg(long, value_enum, default_value_t = Backend::BpfLsm)]
+    backend: Backend,
     /// Run directly in the selected parent/global policy domain.
     #[arg(long)]
     parent_domain: bool,
@@ -135,6 +144,10 @@ struct RunArgs {
 
 #[derive(Args)]
 struct CompileArgs {
+    /// Backend whose support to report. `unprivileged` reports, per clause,
+    /// whether Landlock + seccomp enforce it exactly, and exits 1 otherwise.
+    #[arg(long, value_enum, default_value_t = Backend::BpfLsm)]
+    backend: Backend,
     /// Write the kernel config blob to a file.
     #[arg(short, long, value_name = "FILE", conflicts_with_all = ["json", "explain", "domains"])]
     out: Option<PathBuf>,
@@ -434,6 +447,17 @@ async fn run_command(cli: &Cli, args: &RunArgs) -> Result<i32> {
         || args.approved_by.is_some()
         || args.approval_ref.is_some()
         || args.generated_by.is_some();
+    if args.backend == Backend::Unprivileged {
+        if args.parent_domain || child_mode {
+            return Err(
+                "--backend unprivileged has no runtime domains: --parent-domain, \
+                        --child-id, --scope-id, --delta, --delta-text and approval metadata \
+                        need the bpf-lsm backend; put the clauses in the policy instead"
+                    .into(),
+            );
+        }
+        return unprivileged::run(&policy, &args.cmd);
+    }
     if args.parent_domain && child_mode {
         return Err("--parent-domain cannot be combined with child runtime delta options".into());
     }
@@ -1026,6 +1050,16 @@ async fn compile_policy(cli: &Cli, args: &CompileArgs) -> Result<i32> {
     }
     if args.domains {
         return doctor::list_domains(&policy_input(cli));
+    }
+    if args.backend == Backend::Unprivileged {
+        return unprivileged::compile(
+            &policy_input(cli),
+            args.json,
+            args.explain,
+            args.out.as_deref(),
+            args.report_out.as_deref(),
+            args.force,
+        );
     }
     if args.json || args.explain {
         return doctor::check_policy(

@@ -41,7 +41,25 @@ jobs:
         run: cargo check --workspace --locked
 
       - name: Run tests
+        env:
+          ACTPLANE_REQUIRE_LANDLOCK: "1"
         run: make test
+
+      - name: Show unprivileged backend environment
+        run: |
+          uname -a
+          id
+          cat /sys/kernel/security/lsm || true
+          grep -E '^(Seccomp|NoNewPrivs)' /proc/self/status || true
+          cat /proc/sys/kernel/seccomp/actions_avail || true
+
+      - name: Run unprivileged Landlock/seccomp backend tests (no sudo)
+        env:
+          ACTPLANE_REQUIRE_LANDLOCK: "1"
+        run: |
+          cargo test --locked -p actplane-sandbox -- --nocapture --test-threads=1
+          cargo test --locked -p actplane --test unprivileged_backend -- --nocapture --test-threads=1
+          cargo run --locked -q -p actplane -- doctor || true
 
   privileged-ebpf:
     name: Privileged eBPF Tests
@@ -185,7 +203,8 @@ jobs:
               ("ebpf-ifc-engine", "BPF", Path("bpf/Cargo.toml"), []),
               ("actplane-ifc-compiler", "IFC_COMPILER", Path("crates/actplane-ifc-compiler/Cargo.toml"), []),
               ("actplane-runtime", "RUNTIME", Path("crates/actplane-runtime/Cargo.toml"), ["actplane-ifc-compiler", "ebpf-ifc-engine"]),
-              ("actplane", "ACTPLANE", Path("crates/actplane-cli/Cargo.toml"), ["actplane-ifc-compiler", "actplane-runtime", "ebpf-ifc-engine"]),
+              ("actplane-sandbox", "SANDBOX", Path("crates/actplane-sandbox/Cargo.toml"), ["actplane-ifc-compiler"]),
+              ("actplane", "ACTPLANE", Path("crates/actplane-cli/Cargo.toml"), ["actplane-ifc-compiler", "actplane-runtime", "actplane-sandbox", "ebpf-ifc-engine"]),
           ]
 
           def manifest_text(path: Path) -> str:
@@ -278,6 +297,19 @@ jobs:
         env:
           CRATE_NAME: actplane-runtime
           CRATE_VERSION: ${{ env.RUNTIME_VERSION }}
+        run: .github/workflows/wait-for-crate.sh
+
+      - name: Publish actplane-sandbox
+        if: env.PUBLISH_SANDBOX == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --allow-dirty --manifest-path crates/actplane-sandbox/Cargo.toml
+
+      - name: Wait for actplane-sandbox index
+        if: env.PUBLISH_SANDBOX == 'true'
+        env:
+          CRATE_NAME: actplane-sandbox
+          CRATE_VERSION: ${{ env.SANDBOX_VERSION }}
         run: .github/workflows/wait-for-crate.sh
 
       - name: Publish actplane

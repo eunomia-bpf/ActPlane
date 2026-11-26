@@ -16,6 +16,7 @@ path = "src/main.rs"
 [dependencies]
 actplane-ifc-compiler = { version = "0.1.8", path = "../actplane-ifc-compiler" }
 actplane-runtime = { version = "0.1.8", path = "../actplane-runtime" }
+actplane-sandbox = { version = "0.1.8", path = "../actplane-sandbox" }
 ebpf-ifc-engine = { version = "0.1.8", path = "../../bpf" }
 clap = { version = "4.5.41", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
