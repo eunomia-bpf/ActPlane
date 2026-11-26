@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use ActPlane in your research, please cite the arXiv preprint."
 title: "ActPlane"
 type: software
-version: "0.1.8"
+version: "0.1.9"
 license: MIT
 repository-code: "https://github.com/eunomia-bpf/ActPlane"
 url: "https://github.com/eunomia-bpf/ActPlane"
